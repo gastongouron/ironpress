@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
 [![docs.rs](https://docs.rs/ironpress/badge.svg)](https://docs.rs/ironpress)
 [![CI](https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg)](https://github.com/gastongouron/ironpress/actions)
-[![codecov](https://codecov.io/gh/gastongouron/ironpress/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
+[![codecov](https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
