@@ -38,19 +38,18 @@ ironpress::convert_file("input.html", "output.pdf").unwrap();
 
 ## Supported HTML Elements
 
-| Element | Rendering |
-|---------|-----------|
-| `<h1>` - `<h6>` | Headings with default sizes and bold |
-| `<p>`, `<div>` | Block containers |
-| `<strong>`, `<b>` | Bold text |
-| `<em>`, `<i>` | Italic text |
-| `<u>` | Underlined text |
-| `<a>` | Colored underlined text |
-| `<br>` | Line break |
-| `<hr>` | Horizontal rule |
-| `<ul>`, `<ol>`, `<li>` | Lists |
-| `<table>`, `<tr>`, `<td>`, `<th>` | Tables |
-| `<span>` | Inline container |
+| Category | Elements |
+|----------|----------|
+| Headings | `<h1>` - `<h6>` with default sizes and bold |
+| Block containers | `<p>`, `<div>`, `<blockquote>`, `<pre>`, `<figure>`, `<figcaption>`, `<address>` |
+| Semantic sections | `<section>`, `<article>`, `<nav>`, `<header>`, `<footer>`, `<main>`, `<aside>`, `<details>`, `<summary>` |
+| Inline formatting | `<strong>`, `<b>`, `<em>`, `<i>`, `<u>`, `<small>`, `<sub>`, `<sup>`, `<code>`, `<abbr>`, `<span>` |
+| Text decoration | `<del>`, `<s>` (strikethrough), `<ins>` (underline), `<mark>` (highlight) |
+| Links | `<a>` with colored underlined text |
+| Line breaks | `<br>`, `<hr>` |
+| Lists | `<ul>`, `<ol>`, `<li>`, `<dl>`, `<dt>`, `<dd>` |
+| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` |
+| Media | `<img>` (placeholder) |
 
 ## Supported CSS Properties (inline `style="..."`)
 
