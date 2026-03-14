@@ -222,6 +222,81 @@ impl ElementNode {
     pub fn style_attr(&self) -> Option<&str> {
         self.attributes.get("style").map(|s| s.as_str())
     }
+
+    pub fn class_list(&self) -> Vec<&str> {
+        self.attributes
+            .get("class")
+            .map(|s| s.split_whitespace().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn id(&self) -> Option<&str> {
+        self.attributes.get("id").map(|s| s.as_str())
+    }
+
+    pub fn tag_name(&self) -> &'static str {
+        match self.tag {
+            HtmlTag::Html => "html",
+            HtmlTag::Head => "head",
+            HtmlTag::Body => "body",
+            HtmlTag::H1 => "h1",
+            HtmlTag::H2 => "h2",
+            HtmlTag::H3 => "h3",
+            HtmlTag::H4 => "h4",
+            HtmlTag::H5 => "h5",
+            HtmlTag::H6 => "h6",
+            HtmlTag::P => "p",
+            HtmlTag::Div => "div",
+            HtmlTag::Span => "span",
+            HtmlTag::Strong => "strong",
+            HtmlTag::B => "b",
+            HtmlTag::Em => "em",
+            HtmlTag::I => "i",
+            HtmlTag::U => "u",
+            HtmlTag::A => "a",
+            HtmlTag::Br => "br",
+            HtmlTag::Hr => "hr",
+            HtmlTag::Table => "table",
+            HtmlTag::Thead => "thead",
+            HtmlTag::Tbody => "tbody",
+            HtmlTag::Tfoot => "tfoot",
+            HtmlTag::Tr => "tr",
+            HtmlTag::Td => "td",
+            HtmlTag::Th => "th",
+            HtmlTag::Caption => "caption",
+            HtmlTag::Ul => "ul",
+            HtmlTag::Ol => "ol",
+            HtmlTag::Li => "li",
+            HtmlTag::Dl => "dl",
+            HtmlTag::Dt => "dt",
+            HtmlTag::Dd => "dd",
+            HtmlTag::Img => "img",
+            HtmlTag::Blockquote => "blockquote",
+            HtmlTag::Pre => "pre",
+            HtmlTag::Code => "code",
+            HtmlTag::Small => "small",
+            HtmlTag::Sub => "sub",
+            HtmlTag::Sup => "sup",
+            HtmlTag::Del => "del",
+            HtmlTag::S => "s",
+            HtmlTag::Ins => "ins",
+            HtmlTag::Mark => "mark",
+            HtmlTag::Abbr => "abbr",
+            HtmlTag::Section => "section",
+            HtmlTag::Article => "article",
+            HtmlTag::Nav => "nav",
+            HtmlTag::Header => "header",
+            HtmlTag::Footer => "footer",
+            HtmlTag::Main => "main",
+            HtmlTag::Aside => "aside",
+            HtmlTag::Figure => "figure",
+            HtmlTag::Figcaption => "figcaption",
+            HtmlTag::Address => "address",
+            HtmlTag::Details => "details",
+            HtmlTag::Summary => "summary",
+            HtmlTag::Unknown => "unknown",
+        }
+    }
 }
 
 #[cfg(test)]

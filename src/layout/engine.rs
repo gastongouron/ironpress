@@ -1,6 +1,28 @@
+use crate::parser::css::CssRule;
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
-use crate::style::computed::{compute_style, ComputedStyle, FontStyle, FontWeight, TextAlign};
+use crate::style::computed::{
+    compute_style, compute_style_with_rules, ComputedStyle, FontStyle, FontWeight, TextAlign,
+};
 use crate::types::{Margin, PageSize};
+
+/// Context for rendering list items.
+#[derive(Debug, Clone)]
+enum ListContext {
+    Unordered,
+    Ordered(usize),
+}
+
+/// A table cell ready for rendering.
+#[derive(Debug)]
+pub struct TableCell {
+    pub lines: Vec<TextLine>,
+    pub bold: bool,
+    pub background_color: Option<(f32, f32, f32)>,
+    pub padding_top: f32,
+    pub padding_right: f32,
+    pub padding_bottom: f32,
+    pub padding_left: f32,
+}
 
 /// A styled text run (a piece of text with uniform style).
 #[derive(Debug, Clone)]
@@ -35,6 +57,13 @@ pub enum LayoutElement {
         padding_left: f32,
         padding_right: f32,
     },
+    /// A table row with cells.
+    TableRow {
+        cells: Vec<TableCell>,
+        col_width: f32,
+        margin_top: f32,
+        margin_bottom: f32,
+    },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },
     /// A page break.
@@ -48,13 +77,30 @@ pub struct Page {
 
 /// Lay out the DOM nodes into pages.
 pub fn layout(nodes: &[DomNode], page_size: PageSize, margin: Margin) -> Vec<Page> {
+    layout_with_rules(nodes, page_size, margin, &[])
+}
+
+/// Lay out the DOM nodes into pages with stylesheet rules.
+pub fn layout_with_rules(
+    nodes: &[DomNode],
+    page_size: PageSize,
+    margin: Margin,
+    rules: &[CssRule],
+) -> Vec<Page> {
     let parent_style = ComputedStyle::default();
     let available_width = page_size.width - margin.left - margin.right;
     let content_height = page_size.height - margin.top - margin.bottom;
 
     // First, flatten DOM into layout elements
     let mut elements = Vec::new();
-    flatten_nodes(nodes, &parent_style, available_width, &mut elements);
+    flatten_nodes(
+        nodes,
+        &parent_style,
+        available_width,
+        &mut elements,
+        None,
+        rules,
+    );
 
     // Then paginate
     paginate(elements, content_height)
@@ -65,6 +111,8 @@ fn flatten_nodes(
     parent_style: &ComputedStyle,
     available_width: f32,
     output: &mut Vec<LayoutElement>,
+    list_ctx: Option<&ListContext>,
+    rules: &[CssRule],
 ) {
     for node in nodes {
         match node {
@@ -79,7 +127,6 @@ fn flatten_nodes(
                         underline: parent_style.text_decoration_underline,
                         color: parent_style.color.to_f32_rgb(),
                     };
-                    let _line_height = parent_style.font_size * parent_style.line_height;
                     let lines = wrap_text_runs(vec![run], available_width, parent_style.font_size);
                     if !lines.is_empty() {
                         output.push(LayoutElement::TextBlock {
@@ -97,7 +144,7 @@ fn flatten_nodes(
                 }
             }
             DomNode::Element(el) => {
-                flatten_element(el, parent_style, available_width, output);
+                flatten_element(el, parent_style, available_width, output, list_ctx, rules);
             }
         }
     }
@@ -108,8 +155,19 @@ fn flatten_element(
     parent_style: &ComputedStyle,
     available_width: f32,
     output: &mut Vec<LayoutElement>,
+    list_ctx: Option<&ListContext>,
+    rules: &[CssRule],
 ) {
-    let style = compute_style(el.tag, el.style_attr(), parent_style);
+    let classes = el.class_list();
+    let style = compute_style_with_rules(
+        el.tag,
+        el.style_attr(),
+        parent_style,
+        rules,
+        el.tag_name(),
+        &classes,
+        el.id(),
+    );
 
     if el.tag == HtmlTag::Br {
         let line = TextLine {
@@ -149,6 +207,83 @@ fn flatten_element(
         output.push(LayoutElement::PageBreak);
     }
 
+    // Table handling
+    if el.tag == HtmlTag::Table {
+        flatten_table(el, &style, available_width, output, rules);
+        return;
+    }
+
+    // List handling — Ul/Ol pass context to Li children
+    if el.tag == HtmlTag::Ul || el.tag == HtmlTag::Ol {
+        let inner_width = available_width - style.margin.left;
+        let mut ctx = if el.tag == HtmlTag::Ol {
+            ListContext::Ordered(1)
+        } else {
+            ListContext::Unordered
+        };
+        for child in &el.children {
+            if let DomNode::Element(child_el) = child {
+                if child_el.tag == HtmlTag::Li {
+                    flatten_element(child_el, &style, inner_width, output, Some(&ctx), rules);
+                    if let ListContext::Ordered(n) = &mut ctx {
+                        *n += 1;
+                    }
+                } else {
+                    flatten_element(child_el, &style, inner_width, output, None, rules);
+                }
+            }
+        }
+        return;
+    }
+
+    // Li handling — prepend bullet/number marker
+    if el.tag == HtmlTag::Li {
+        let inner_width = available_width - style.padding.left - style.padding.right;
+        let mut runs = Vec::new();
+
+        // Add list marker
+        let marker = match list_ctx {
+            Some(ListContext::Unordered) => "- ".to_string(),
+            Some(ListContext::Ordered(n)) => format!("{n}. "),
+            None => "- ".to_string(),
+        };
+        runs.push(TextRun {
+            text: marker,
+            font_size: style.font_size,
+            bold: style.font_weight == FontWeight::Bold,
+            italic: style.font_style == FontStyle::Italic,
+            underline: false,
+            color: style.color.to_f32_rgb(),
+        });
+
+        collect_text_runs(&el.children, &style, &mut runs);
+
+        if !runs.is_empty() {
+            let lines = wrap_text_runs(runs, inner_width, style.font_size);
+            output.push(LayoutElement::TextBlock {
+                lines,
+                margin_top: style.margin.top,
+                margin_bottom: style.margin.bottom,
+                text_align: style.text_align,
+                background_color: None,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: style.margin.left,
+                padding_right: 0.0,
+            });
+        }
+
+        // Process block children inside li
+        for child in &el.children {
+            if let DomNode::Element(child_el) = child {
+                if child_el.tag.is_block() {
+                    flatten_element(child_el, &style, available_width, output, None, rules);
+                }
+            }
+        }
+        return;
+    }
+
     if el.tag.is_block() {
         // Collect all inline content as text runs
         let inner_width = available_width - style.padding.left - style.padding.right;
@@ -178,17 +313,116 @@ fn flatten_element(
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
                 if child_el.tag.is_block() {
-                    flatten_element(child_el, &style, available_width, output);
+                    flatten_element(child_el, &style, available_width, output, None, rules);
                 }
             }
         }
     } else {
         // Inline element — process children with this style context
-        flatten_nodes(&el.children, &style, available_width, output);
+        flatten_nodes(&el.children, &style, available_width, output, None, rules);
     }
 
     if style.page_break_after {
         output.push(LayoutElement::PageBreak);
+    }
+}
+
+fn flatten_table(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    available_width: f32,
+    output: &mut Vec<LayoutElement>,
+    _rules: &[CssRule],
+) {
+    let inner_width = available_width - style.margin.left - style.margin.right;
+
+    // Collect all <tr> elements (from direct children, thead, tbody, tfoot)
+    let mut rows: Vec<&ElementNode> = Vec::new();
+    for child in &el.children {
+        if let DomNode::Element(child_el) = child {
+            match child_el.tag {
+                HtmlTag::Tr => rows.push(child_el),
+                HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
+                    for grandchild in &child_el.children {
+                        if let DomNode::Element(gc) = grandchild {
+                            if gc.tag == HtmlTag::Tr {
+                                rows.push(gc);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if rows.is_empty() {
+        return;
+    }
+
+    // Determine column count from the widest row
+    let num_cols = rows
+        .iter()
+        .map(|row| {
+            row.children
+                .iter()
+                .filter(|c| {
+                    matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th)
+                })
+                .count()
+        })
+        .max()
+        .unwrap_or(1);
+
+    let col_width = inner_width / num_cols as f32;
+
+    // Build layout rows
+    let mut is_first = true;
+    for row in &rows {
+        let row_style = compute_style(row.tag, row.style_attr(), style);
+        let mut cells = Vec::new();
+
+        for child in &row.children {
+            if let DomNode::Element(cell_el) = child {
+                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
+                    let cell_style = compute_style(cell_el.tag, cell_el.style_attr(), &row_style);
+                    let cell_inner = col_width - cell_style.padding.left - cell_style.padding.right;
+
+                    let mut runs = Vec::new();
+                    collect_text_runs(&cell_el.children, &cell_style, &mut runs);
+                    let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size);
+
+                    let bg = cell_style
+                        .background_color
+                        .map(|c: crate::types::Color| c.to_f32_rgb());
+
+                    cells.push(TableCell {
+                        lines,
+                        bold: cell_style.font_weight == FontWeight::Bold,
+                        background_color: bg,
+                        padding_top: cell_style.padding.top,
+                        padding_right: cell_style.padding.right,
+                        padding_bottom: cell_style.padding.bottom,
+                        padding_left: cell_style.padding.left,
+                    });
+                }
+            }
+        }
+
+        if !cells.is_empty() {
+            output.push(LayoutElement::TableRow {
+                cells,
+                col_width,
+                margin_top: if is_first { style.margin.top } else { 0.0 },
+                margin_bottom: 0.0,
+            });
+            is_first = false;
+        }
+    }
+
+    // Add bottom margin after the last row
+    if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
+        *margin_bottom = style.margin.bottom;
     }
 }
 
@@ -322,6 +556,21 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 margin_top,
                 margin_bottom,
             } => (*margin_top + 1.0 + *margin_bottom, *margin_top),
+            LayoutElement::TableRow {
+                cells,
+                margin_top,
+                margin_bottom,
+                ..
+            } => {
+                let row_height = cells
+                    .iter()
+                    .map(|cell| {
+                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+                        cell.padding_top + text_h + cell.padding_bottom
+                    })
+                    .fold(0.0f32, f32::max);
+                (margin_top + row_height + margin_bottom, *margin_top)
+            }
             LayoutElement::TextBlock {
                 lines,
                 margin_top,

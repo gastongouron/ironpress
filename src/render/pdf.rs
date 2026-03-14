@@ -1,5 +1,5 @@
 use crate::error::IronpressError;
-use crate::layout::engine::{LayoutElement, Page, TextLine, TextRun};
+use crate::layout::engine::{LayoutElement, Page, TableCell, TextLine, TextRun};
 use crate::style::computed::TextAlign;
 use crate::types::{Margin, PageSize};
 
@@ -104,6 +104,47 @@ pub fn render_pdf(
                         }
                     }
                 }
+                LayoutElement::TableRow {
+                    cells, col_width, ..
+                } => {
+                    let row_y = page_size.height - margin.top - y_pos;
+
+                    // Compute row height (max cell height)
+                    let row_height = cells
+                        .iter()
+                        .map(|cell| {
+                            let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+                            cell.padding_top + text_h + cell.padding_bottom
+                        })
+                        .fold(0.0f32, f32::max);
+
+                    for (col_idx, cell) in cells.iter().enumerate() {
+                        let cell_x = margin.left + col_idx as f32 * col_width;
+
+                        // Draw cell background
+                        if let Some((r, g, b)) = cell.background_color {
+                            content.push_str(&format!(
+                                "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                                x = cell_x,
+                                y = row_y - row_height,
+                                w = col_width,
+                                h = row_height,
+                            ));
+                        }
+
+                        // Draw cell border
+                        content.push_str(&format!(
+                            "0.8 0.8 0.8 RG\n0.5 w\n{x} {y} {w} {h} re\nS\n",
+                            x = cell_x,
+                            y = row_y - row_height,
+                            w = col_width,
+                            h = row_height,
+                        ));
+
+                        // Render cell text
+                        render_cell_text(&mut content, cell, cell_x, row_y, *col_width);
+                    }
+                }
                 LayoutElement::HorizontalRule { .. } => {
                     let rule_y = page_size.height - margin.top - y_pos;
                     content.push_str(&format!(
@@ -121,6 +162,42 @@ pub fn render_pdf(
     }
 
     Ok(writer.finish())
+}
+
+fn render_cell_text(
+    content: &mut String,
+    cell: &TableCell,
+    cell_x: f32,
+    row_y: f32,
+    _col_width: f32,
+) {
+    let mut text_y = row_y - cell.padding_top;
+    for line in &cell.lines {
+        text_y -= line.height;
+        let text_content: String = line.runs.iter().map(|r| r.text.as_str()).collect();
+        if text_content.is_empty() {
+            continue;
+        }
+        let text_x = cell_x + cell.padding_left;
+        let mut x = text_x;
+        for run in &line.runs {
+            if run.text.is_empty() {
+                continue;
+            }
+            let font_name = font_name_for_run(run);
+            let (r, g, b) = run.color;
+            content.push_str(&format!("{r} {g} {b} rg\n"));
+            content.push_str("BT\n");
+            content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
+            content.push_str(&format!("{x} {y} Td\n", y = text_y));
+            content.push_str(&format!(
+                "({escaped}) Tj\n",
+                escaped = escape_pdf_string(&run.text),
+            ));
+            content.push_str("ET\n");
+            x += estimate_run_width(run);
+        }
+    }
 }
 
 fn font_name_for_run(run: &TextRun) -> &'static str {
