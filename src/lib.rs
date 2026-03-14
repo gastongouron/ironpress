@@ -1,6 +1,6 @@
 //! # ironpress
 //!
-//! Pure Rust HTML/CSS-to-PDF converter — no browser, no external dependencies.
+//! Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 //!
 //! Converts HTML with inline CSS styles into PDF documents using a built-in
 //! layout engine. Supports headings, paragraphs, bold/italic text, colors,
@@ -53,6 +53,33 @@ pub fn html_to_pdf(html: &str) -> Result<Vec<u8>, IronpressError> {
     HtmlConverter::new().convert(html)
 }
 
+/// Convert a Markdown string to PDF bytes using default settings (A4, 1-inch margins).
+///
+/// # Example
+///
+/// ```
+/// let pdf = ironpress::markdown_to_pdf("# Hello\n\nWorld").unwrap();
+/// assert!(pdf.starts_with(b"%PDF"));
+/// ```
+pub fn markdown_to_pdf(md: &str) -> Result<Vec<u8>, IronpressError> {
+    let html = parser::markdown::markdown_to_html(md);
+    HtmlConverter::new().sanitize(false).convert(&html)
+}
+
+/// Convert a Markdown file to a PDF file using default settings.
+///
+/// # Example
+///
+/// ```no_run
+/// ironpress::convert_markdown_file("input.md", "output.pdf").unwrap();
+/// ```
+pub fn convert_markdown_file(input: &str, output: &str) -> Result<(), IronpressError> {
+    let md = std::fs::read_to_string(input)?;
+    let pdf = markdown_to_pdf(&md)?;
+    std::fs::write(output, pdf)?;
+    Ok(())
+}
+
 /// Convert an HTML file to a PDF file using default settings.
 ///
 /// # Example
@@ -100,6 +127,12 @@ impl HtmlConverter {
     pub fn sanitize(mut self, enabled: bool) -> Self {
         self.sanitize = enabled;
         self
+    }
+
+    /// Convert a Markdown string to PDF bytes.
+    pub fn convert_markdown(&self, md: &str) -> Result<Vec<u8>, IronpressError> {
+        let html = parser::markdown::markdown_to_html(md);
+        self.convert(&html)
     }
 
     /// Convert an HTML string to PDF bytes.
@@ -325,6 +358,81 @@ mod tests {
         let content = String::from_utf8_lossy(&pdf);
         assert!(content.contains("Term"));
         assert!(content.contains("Definition"));
+    }
+
+    #[test]
+    fn markdown_to_pdf_basic() {
+        let pdf = markdown_to_pdf("# Hello\n\nWorld").unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Hello"));
+        assert!(content.contains("World"));
+    }
+
+    #[test]
+    fn markdown_to_pdf_formatting() {
+        let pdf = markdown_to_pdf("**bold** and *italic*").unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Helvetica-Bold"));
+        assert!(content.contains("Helvetica-Oblique"));
+    }
+
+    #[test]
+    fn markdown_to_pdf_list() {
+        let pdf = markdown_to_pdf("- one\n- two\n- three").unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("one"));
+        assert!(content.contains("two"));
+    }
+
+    #[test]
+    fn markdown_to_pdf_code_block() {
+        let md = "# Code\n\n```\nfn main() {}\n```";
+        let pdf = markdown_to_pdf(md).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn markdown_to_pdf_full() {
+        let md = r#"# Project Title
+
+Some **bold** and *italic* text with `inline code`.
+
+## Features
+
+- Item one
+- Item two
+- Item three
+
+1. First
+2. Second
+
+> A wise quote
+
+---
+
+```
+fn main() {
+    println!("hello");
+}
+```
+
+[Link](https://example.com)
+"#;
+        let pdf = markdown_to_pdf(md).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Project"));
+        assert!(content.contains("Title"));
+    }
+
+    #[test]
+    fn converter_markdown() {
+        let pdf = HtmlConverter::new()
+            .page_size(PageSize::LETTER)
+            .convert_markdown("# Hello")
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
     }
 
     #[test]

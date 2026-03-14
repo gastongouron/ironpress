@@ -199,9 +199,11 @@ mod tests {
         assert!(default_style(HtmlTag::Del).get("text-decoration").is_some());
         assert!(default_style(HtmlTag::S).get("text-decoration").is_some());
         assert!(default_style(HtmlTag::Ins).get("text-decoration").is_some());
-        assert!(default_style(HtmlTag::Mark)
-            .get("background-color")
-            .is_some());
+        assert!(
+            default_style(HtmlTag::Mark)
+                .get("background-color")
+                .is_some()
+        );
         assert!(default_style(HtmlTag::Small).get("font-size").is_some());
         assert!(default_style(HtmlTag::Code).get("font-size").is_some());
     }
@@ -225,17 +227,23 @@ mod tests {
 
     #[test]
     fn block_element_defaults() {
-        assert!(default_style(HtmlTag::Blockquote)
-            .get("margin-left")
-            .is_some());
-        assert!(default_style(HtmlTag::Pre)
-            .get("background-color")
-            .is_some());
+        assert!(
+            default_style(HtmlTag::Blockquote)
+                .get("margin-left")
+                .is_some()
+        );
+        assert!(
+            default_style(HtmlTag::Pre)
+                .get("background-color")
+                .is_some()
+        );
         assert!(default_style(HtmlTag::Address).get("font-style").is_some());
         assert!(default_style(HtmlTag::Figure).get("margin-left").is_some());
-        assert!(default_style(HtmlTag::Figcaption)
-            .get("font-style")
-            .is_some());
+        assert!(
+            default_style(HtmlTag::Figcaption)
+                .get("font-style")
+                .is_some()
+        );
         assert!(default_style(HtmlTag::Summary).get("font-weight").is_some());
     }
 
