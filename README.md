@@ -7,7 +7,7 @@
 
 Pure Rust HTML/CSS-to-PDF converter — no browser, no external dependencies.
 
-Every existing Rust crate that converts HTML to PDF shells out to headless Chrome or wkhtmltopdf. **ironpress** does it natively with a built-in layout engine, producing valid PDFs from HTML with inline CSS.
+Every existing Rust crate that converts HTML to PDF shells out to headless Chrome or wkhtmltopdf. **ironpress** does it natively with a built-in layout engine, producing valid PDFs from HTML + CSS.
 
 ## Quick Start
 
@@ -47,21 +47,36 @@ ironpress::convert_file("input.html", "output.pdf").unwrap();
 | Text decoration | `<del>`, `<s>` (strikethrough), `<ins>` (underline), `<mark>` (highlight) |
 | Links | `<a>` with colored underlined text |
 | Line breaks | `<br>`, `<hr>` |
-| Lists | `<ul>`, `<ol>`, `<li>`, `<dl>`, `<dt>`, `<dd>` |
-| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` |
-| Media | `<img>` (placeholder) |
+| Lists | `<ul>`, `<ol>` with bullets/numbers, `<li>`, `<dl>`, `<dt>`, `<dd>` |
+| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` — multi-column layout with cell borders |
 
-## Supported CSS Properties (inline `style="..."`)
+## CSS Support
+
+### Inline styles (`style="..."`)
 
 `font-size`, `font-weight`, `font-style`, `color`, `background-color`, `margin`, `padding`, `text-align`, `text-decoration`, `line-height`, `page-break-before`, `page-break-after`
 
-Colors: named colors, `#hex`, `rgb()`.
+### `<style>` blocks
+
+```html
+<style>
+  p { color: navy; font-size: 14pt }
+  .highlight { background-color: yellow }
+  #title { font-size: 24pt }
+  h1, h2 { color: darkblue }
+</style>
+```
+
+Supported selectors: tag names (`p`, `h1`), classes (`.foo`), IDs (`#bar`), combined (`p.foo`), comma-separated (`h1, h2`).
+
+Colors: named colors, `#hex`, `rgb()`. Units: `px`, `pt`, `em`.
 
 ## Security
 
 HTML is sanitized by default before conversion:
 
 - `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>` tags are stripped
+- `<style>` tags are preserved but dangerous CSS (`@import`, external `url()`, `expression()`) is removed
 - Event handlers (`onclick`, `onload`, etc.) are removed
 - `javascript:` URLs are neutralized
 - Input size and nesting depth are limited
@@ -71,13 +86,14 @@ Sanitization can be disabled with `.sanitize(false)` if you trust the input.
 ## How It Works
 
 ```
-HTML string → Parse (html5ever) → Style resolution → Layout engine → PDF generation
+HTML string → Sanitize → Parse (html5ever) → Extract <style> → Style resolution → Layout engine → PDF
 ```
 
-1. **Parse** HTML into a DOM tree using html5ever
-2. **Resolve styles** by merging default tag styles with inline CSS
-3. **Layout** elements with text wrapping, page breaks, and box model
-4. **Render** to PDF using built-in Helvetica fonts (no font embedding needed)
+1. **Sanitize** input HTML to remove dangerous elements
+2. **Parse** HTML into a DOM tree using html5ever, extracting `<style>` blocks
+3. **Resolve styles** by cascading: tag defaults → stylesheet rules → inline CSS
+4. **Layout** elements with text wrapping, page breaks, tables, lists, and box model
+5. **Render** to PDF using built-in Helvetica fonts (no font embedding needed)
 
 ## License
 

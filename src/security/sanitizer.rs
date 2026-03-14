@@ -27,7 +27,8 @@ pub fn sanitize_html(html: &str) -> Result<String, IronpressError> {
 
     // Remove script tags and content
     result = remove_tag_with_content(&result, "script");
-    result = remove_tag_with_content(&result, "style");
+    // Note: <style> tags are preserved for CSS support, but sanitized
+    result = sanitize_style_tags(&result);
     result = remove_tag_with_content(&result, "iframe");
     result = remove_tag_with_content(&result, "object");
     result = remove_tag_with_content(&result, "embed");
@@ -69,6 +70,73 @@ fn remove_tag_with_content(html: &str, tag: &str) -> String {
         }
     }
 
+    result
+}
+
+fn sanitize_style_tags(html: &str) -> String {
+    let mut result = String::new();
+    let mut remaining = html;
+
+    loop {
+        let lower = remaining.to_ascii_lowercase();
+        let start = lower.find("<style");
+        let end = lower.find("</style>");
+
+        match (start, end) {
+            (Some(s), Some(e)) => {
+                // Add everything before the <style> tag
+                result.push_str(&remaining[..s]);
+
+                // Find end of opening tag
+                if let Some(gt) = remaining[s..].find('>') {
+                    let css_start = s + gt + 1;
+                    let css = &remaining[css_start..e];
+                    // Remove dangerous CSS: @import, url(), expression()
+                    let safe_css = css
+                        .replace("@import", "")
+                        .replace("expression(", "")
+                        .replace("expression (", "");
+                    let safe_css = remove_dangerous_urls(&safe_css);
+                    result.push_str("<style>");
+                    result.push_str(&safe_css);
+                    result.push_str("</style>");
+                    remaining = &remaining[e + 8..];
+                } else {
+                    result.push_str(remaining);
+                    break;
+                }
+            }
+            _ => {
+                result.push_str(remaining);
+                break;
+            }
+        }
+    }
+
+    result
+}
+
+fn remove_dangerous_urls(css: &str) -> String {
+    let mut result = String::with_capacity(css.len());
+    let mut remaining = css;
+    while let Some(pos) = remaining.to_ascii_lowercase().find("url(") {
+        result.push_str(&remaining[..pos]);
+        let after = &remaining[pos + 4..];
+        // Check if it's a data: URI (safe) or external (remove)
+        let trimmed = after.trim_start().trim_start_matches(['\'', '"']);
+        if trimmed.starts_with("data:") {
+            result.push_str("url(");
+            remaining = after;
+        } else {
+            // Skip to closing paren
+            if let Some(close) = after.find(')') {
+                remaining = &after[close + 1..];
+            } else {
+                remaining = "";
+            }
+        }
+    }
+    result.push_str(remaining);
     result
 }
 
@@ -268,10 +336,22 @@ mod tests {
     }
 
     #[test]
-    fn removes_style_tag() {
+    fn sanitizes_style_tag() {
         let result = sanitize_html(r#"<style>body { color: red }</style><p>Hi</p>"#).unwrap();
-        assert!(!result.contains("style"));
+        // Style tags are preserved but sanitized
+        assert!(result.contains("<style>"));
+        assert!(result.contains("color: red"));
         assert!(result.contains("Hi"));
+    }
+
+    #[test]
+    fn sanitizes_dangerous_css() {
+        let result = sanitize_html(
+            r#"<style>body { background: url(http://evil.com/track.png); } @import "evil.css";</style>"#,
+        )
+        .unwrap();
+        assert!(!result.contains("@import"));
+        assert!(!result.contains("url(http"));
     }
 
     #[test]

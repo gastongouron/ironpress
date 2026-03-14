@@ -111,13 +111,20 @@ impl HtmlConverter {
             html.to_string()
         };
 
-        // Step 2: Parse HTML
-        let nodes = parser::html::parse_html(&html)?;
+        // Step 2: Parse HTML and extract stylesheets
+        let result = parser::html::parse_html_with_styles(&html)?;
 
-        // Step 3: Layout
-        let pages = layout::engine::layout(&nodes, self.page_size, self.margin);
+        // Step 3: Parse stylesheets
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parser::css::parse_stylesheet(css));
+        }
 
-        // Step 4: Render PDF
+        // Step 4: Layout
+        let pages =
+            layout::engine::layout_with_rules(&result.nodes, self.page_size, self.margin, &rules);
+
+        // Step 5: Render PDF
         render::pdf::render_pdf(&pages, self.page_size, self.margin)
     }
 }
@@ -228,6 +235,96 @@ mod tests {
         let converter = HtmlConverter::default();
         let pdf = converter.convert("<p>Default</p>").unwrap();
         assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_unordered_list() {
+        let html = "<ul><li>Item one</li><li>Item two</li><li>Item three</li></ul>";
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("-"));
+        assert!(content.contains("Item"));
+    }
+
+    #[test]
+    fn html_to_pdf_ordered_list() {
+        let html = "<ol><li>First</li><li>Second</li><li>Third</li></ol>";
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("1."));
+        assert!(content.contains("2."));
+        assert!(content.contains("3."));
+    }
+
+    #[test]
+    fn html_to_pdf_table() {
+        let html = r#"
+            <table>
+                <tr><th>Name</th><th>Age</th></tr>
+                <tr><td>Alice</td><td>30</td></tr>
+                <tr><td>Bob</td><td>25</td></tr>
+            </table>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Name"));
+        assert!(content.contains("Alice"));
+        assert!(content.contains("Bob"));
+        // Should have cell borders (rectangle stroke)
+        assert!(content.contains("re\nS\n"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_with_sections() {
+        let html = r#"
+            <table>
+                <thead><tr><th>Header</th></tr></thead>
+                <tbody><tr><td>Body</td></tr></tbody>
+                <tfoot><tr><td>Footer</td></tr></tfoot>
+            </table>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Header"));
+        assert!(content.contains("Body"));
+        assert!(content.contains("Footer"));
+    }
+
+    #[test]
+    fn html_to_pdf_with_style_block() {
+        let html = r#"
+            <html>
+            <head><style>p { color: red } .highlight { font-weight: bold }</style></head>
+            <body>
+                <p>Red text</p>
+                <p class="highlight">Bold red text</p>
+            </body>
+            </html>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("1 0 0 rg")); // red color
+        assert!(content.contains("Helvetica-Bold")); // bold from .highlight
+    }
+
+    #[test]
+    fn html_to_pdf_style_block_in_body() {
+        let html = r#"
+            <style>h1 { color: blue }</style>
+            <h1>Blue Title</h1>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("0 0 1 rg")); // blue color
+    }
+
+    #[test]
+    fn html_to_pdf_definition_list() {
+        let html = "<dl><dt>Term</dt><dd>Definition here</dd></dl>";
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Term"));
+        assert!(content.contains("Definition"));
     }
 
     #[test]

@@ -191,6 +191,91 @@ fn parse_rgb_function(inner: &str) -> Option<CssValue> {
     Some(CssValue::Color(Color::rgb(r, g, b)))
 }
 
+/// A CSS rule: a selector and its declarations.
+#[derive(Debug, Clone)]
+pub struct CssRule {
+    pub selector: String,
+    pub declarations: StyleMap,
+}
+
+/// Parse a CSS stylesheet string into a list of rules.
+pub fn parse_stylesheet(css: &str) -> Vec<CssRule> {
+    let mut rules = Vec::new();
+
+    for block in css.split('}') {
+        let block = block.trim();
+        if block.is_empty() {
+            continue;
+        }
+        if let Some((selector, declarations)) = block.split_once('{') {
+            let selector = selector.trim().to_string();
+            if selector.is_empty() {
+                continue;
+            }
+            let declarations = parse_inline_style(declarations.trim());
+            if !declarations.properties.is_empty() {
+                rules.push(CssRule {
+                    selector,
+                    declarations,
+                });
+            }
+        }
+    }
+
+    rules
+}
+
+/// Check if a CSS selector matches a given element.
+pub fn selector_matches(
+    selector: &str,
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+) -> bool {
+    // Support comma-separated selectors: "h1, h2, h3"
+    for part in selector.split(',') {
+        let part = part.trim();
+        if single_selector_matches(part, tag_name, classes, id) {
+            return true;
+        }
+    }
+    false
+}
+
+fn single_selector_matches(
+    selector: &str,
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+) -> bool {
+    if selector.is_empty() {
+        return false;
+    }
+
+    // ID selector: #foo or tag#foo
+    if let Some(pos) = selector.find('#') {
+        let tag_part = &selector[..pos];
+        let id_part = &selector[pos + 1..];
+        if !tag_part.is_empty() && tag_part != tag_name {
+            return false;
+        }
+        return id == Some(id_part);
+    }
+
+    // Class selector: .foo or tag.foo
+    if let Some(pos) = selector.find('.') {
+        let tag_part = &selector[..pos];
+        let class_part = &selector[pos + 1..];
+        if !tag_part.is_empty() && tag_part != tag_name {
+            return false;
+        }
+        return classes.contains(&class_part);
+    }
+
+    // Tag selector
+    selector == tag_name
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -371,6 +456,56 @@ mod tests {
     fn parse_rgb_invalid_parts() {
         let style = parse_inline_style("color: rgb(1,2)");
         assert!(style.get("color").is_none());
+    }
+
+    #[test]
+    fn parse_stylesheet_basic() {
+        let rules = parse_stylesheet("p { color: red; font-size: 14pt } h1 { font-weight: bold }");
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].selector, "p");
+        assert!(rules[0].declarations.get("color").is_some());
+        assert_eq!(rules[1].selector, "h1");
+    }
+
+    #[test]
+    fn parse_stylesheet_class_and_id() {
+        let rules = parse_stylesheet(".highlight { font-weight: bold } #main { color: blue }");
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].selector, ".highlight");
+        assert_eq!(rules[1].selector, "#main");
+    }
+
+    #[test]
+    fn selector_matches_tag() {
+        assert!(selector_matches("p", "p", &[], None));
+        assert!(!selector_matches("p", "h1", &[], None));
+    }
+
+    #[test]
+    fn selector_matches_class() {
+        assert!(selector_matches(".foo", "p", &["foo", "bar"], None));
+        assert!(!selector_matches(".baz", "p", &["foo"], None));
+        assert!(selector_matches("p.foo", "p", &["foo"], None));
+        assert!(!selector_matches("h1.foo", "p", &["foo"], None));
+    }
+
+    #[test]
+    fn selector_matches_id() {
+        assert!(selector_matches("#main", "div", &[], Some("main")));
+        assert!(!selector_matches("#main", "div", &[], Some("other")));
+        assert!(selector_matches("div#main", "div", &[], Some("main")));
+        assert!(!selector_matches("p#main", "div", &[], Some("main")));
+    }
+
+    #[test]
+    fn selector_matches_comma_separated() {
+        assert!(selector_matches("h1, h2, h3", "h2", &[], None));
+        assert!(!selector_matches("h1, h2, h3", "p", &[], None));
+    }
+
+    #[test]
+    fn selector_empty_no_match() {
+        assert!(!selector_matches("", "p", &[], None));
     }
 
     #[test]

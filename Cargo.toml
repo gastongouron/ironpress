@@ -1,6 +1,6 @@
 [package]
 name = "ironpress"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.70"
 description = "Pure Rust HTML/CSS-to-PDF converter — no browser, no external dependencies"

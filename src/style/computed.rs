@@ -1,4 +1,4 @@
-use crate::parser::css::{CssValue, StyleMap};
+use crate::parser::css::{selector_matches, CssRule, CssValue, StyleMap};
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
 use crate::types::{Color, EdgeSizes};
@@ -70,6 +70,19 @@ pub fn compute_style(
     inline_style: Option<&str>,
     parent: &ComputedStyle,
 ) -> ComputedStyle {
+    compute_style_with_rules(tag, inline_style, parent, &[], "", &[], None)
+}
+
+/// Compute style with stylesheet rules, class list, and id.
+pub fn compute_style_with_rules(
+    tag: HtmlTag,
+    inline_style: Option<&str>,
+    parent: &ComputedStyle,
+    rules: &[CssRule],
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+) -> ComputedStyle {
     let mut style = parent.clone();
 
     // Reset block-level properties that don't inherit
@@ -83,7 +96,14 @@ pub fn compute_style(
     let defaults = default_style(tag);
     apply_style_map(&mut style, &defaults);
 
-    // Apply inline styles (override defaults)
+    // Apply stylesheet rules (between defaults and inline)
+    for rule in rules {
+        if selector_matches(&rule.selector, tag_name, classes, id) {
+            apply_style_map(&mut style, &rule.declarations);
+        }
+    }
+
+    // Apply inline styles (override everything)
     if let Some(css_str) = inline_style {
         let inline = crate::parser::css::parse_inline_style(css_str);
         apply_style_map(&mut style, &inline);
