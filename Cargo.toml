@@ -1,17 +1,23 @@
 [package]
 name = "ironpress"
-version = "0.4.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Pure Rust HTML/CSS/Markdown to PDF converter with tables, images, fonts, and CSS support. No browser, no system dependencies."
+description = "Pure Rust HTML/CSS/Markdown to PDF converter with layout engine, tables, images, custom fonts, and streaming output. No browser, no system dependencies."
 license = "MIT"
 repository = "https://github.com/gastongouron/ironpress"
 keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding", "template-engine"]
 
+[features]
+default = []
+async = ["tokio"]
+
 [dependencies]
 html5ever = "0.27"
 markup5ever_rcdom = "0.3"
 thiserror = "2"
+tokio = { version = "1", features = ["fs", "rt"], optional = true }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
