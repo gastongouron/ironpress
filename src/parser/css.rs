@@ -88,6 +88,12 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Font-family — store the first font name (before any comma fallback list)
+    if property == "font-family" {
+        let first = val.split(',').next().unwrap_or(val).trim();
+        return Some(CssValue::Keyword(first.to_string()));
+    }
+
     // Text-align, text-decoration, display
     if property == "text-align" || property == "text-decoration" || property == "display" {
         return Some(CssValue::Keyword(val.to_string()));
@@ -98,8 +104,94 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Border shorthand and individual border properties
+    if property == "border" || property == "border-style" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+    if property == "border-width" {
+        return parse_length(val);
+    }
+    if property == "border-color" {
+        return parse_color(val);
+    }
+
     // Length values (font-size, margin, padding, width, height, etc.)
     parse_length(val)
+}
+
+/// Preprocess CSS to handle @media queries.
+/// - `@media print { ... }` => extract inner rules (we are a print renderer)
+/// - `@media screen { ... }` => skip entirely
+/// - Other @media blocks => skip
+fn preprocess_media_queries(css: &str) -> String {
+    let mut result = String::new();
+    let mut chars = css.chars().peekable();
+
+    while let Some(&ch) = chars.peek() {
+        if ch == '@' {
+            // Collect the @-rule up to '{'
+            let mut at_rule = String::new();
+            while let Some(&c) = chars.peek() {
+                if c == '{' {
+                    break;
+                }
+                at_rule.push(c);
+                chars.next();
+            }
+
+            let at_rule_lower = at_rule.trim().to_ascii_lowercase();
+
+            if at_rule_lower.starts_with("@media") {
+                // Consume the opening '{'
+                if chars.peek() == Some(&'{') {
+                    chars.next();
+                }
+
+                // Extract the content inside the @media block, handling nested braces
+                let inner = extract_braced_content(&mut chars);
+
+                let media_type = at_rule_lower.trim_start_matches("@media").trim();
+                if media_type == "print" {
+                    // Include inner rules for print media
+                    result.push_str(&inner);
+                    result.push(' ');
+                }
+                // For "screen" and any other media type, skip the inner rules
+            } else {
+                // Non-media @-rules: pass through as-is
+                result.push_str(&at_rule);
+            }
+        } else {
+            result.push(ch);
+            chars.next();
+        }
+    }
+
+    result
+}
+
+/// Extract content inside braces, handling nested brace pairs.
+/// Assumes the opening '{' has already been consumed.
+fn extract_braced_content(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
+    let mut content = String::new();
+    let mut depth = 1;
+
+    for c in chars.by_ref() {
+        if c == '{' {
+            depth += 1;
+            content.push(c);
+        } else if c == '}' {
+            depth -= 1;
+            if depth == 0 {
+                break;
+            }
+            content.push(c);
+        } else {
+            content.push(c);
+        }
+    }
+
+    content
 }
 
 fn parse_length(val: &str) -> Option<CssValue> {
@@ -199,9 +291,17 @@ pub struct CssRule {
 }
 
 /// Parse a CSS stylesheet string into a list of rules.
+///
+/// Handles `@media print { ... }` (rules are applied since we generate PDFs)
+/// and `@media screen { ... }` (rules are ignored).
 pub fn parse_stylesheet(css: &str) -> Vec<CssRule> {
     let mut rules = Vec::new();
+    let preprocessed = preprocess_media_queries(css);
+    parse_rules_from(&preprocessed, &mut rules);
+    rules
+}
 
+fn parse_rules_from(css: &str, rules: &mut Vec<CssRule>) {
     for block in css.split('}') {
         let block = block.trim();
         if block.is_empty() {
@@ -221,8 +321,6 @@ pub fn parse_stylesheet(css: &str) -> Vec<CssRule> {
             }
         }
     }
-
-    rules
 }
 
 /// Check if a CSS selector matches a given element.
@@ -515,5 +613,171 @@ mod tests {
         assert!(style.get("padding-right").is_some());
         assert!(style.get("padding-bottom").is_some());
         assert!(style.get("padding-left").is_some());
+    }
+
+    #[test]
+    fn parse_color_unknown_returns_none() {
+        // Line 156: unknown color name with no hex/rgb prefix returns None
+        let style = parse_inline_style("color: nonexistentcolor");
+        assert!(style.get("color").is_none());
+    }
+
+    #[test]
+    fn parse_stylesheet_empty_selector_skipped() {
+        // Line 213: empty selector after split is skipped
+        let rules = parse_stylesheet("{ color: red }");
+        assert_eq!(rules.len(), 0);
+    }
+
+    #[test]
+    fn parse_stylesheet_empty_declarations_skipped() {
+        // A rule with an empty declarations block is skipped
+        let rules = parse_stylesheet("p { }");
+        assert_eq!(rules.len(), 0);
+    }
+
+    #[test]
+    fn parse_display_property() {
+        let style = parse_inline_style("display: none");
+        match style.get("display") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "none"),
+            other => panic!("Expected Keyword, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_color_rgb_function() {
+        // Exercises the rgb() branch in parse_color (line 153-154)
+        let style = parse_inline_style("color: rgb(10, 20, 30)");
+        match style.get("color") {
+            Some(CssValue::Color(c)) => {
+                assert_eq!(c.r, 10);
+                assert_eq!(c.g, 20);
+                assert_eq!(c.b, 30);
+            }
+            other => panic!("Expected Color, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_border_shorthand() {
+        let style = parse_inline_style("border: 1px solid black");
+        match style.get("border") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "1px solid black"),
+            other => panic!("Expected Keyword for border, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_border_width_property() {
+        let style = parse_inline_style("border-width: 2pt");
+        match style.get("border-width") {
+            Some(CssValue::Length(v)) => assert!((v - 2.0).abs() < 0.1),
+            other => panic!("Expected Length for border-width, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_border_color_property() {
+        let style = parse_inline_style("border-color: red");
+        match style.get("border-color") {
+            Some(CssValue::Color(c)) => {
+                assert_eq!(c.r, 255);
+                assert_eq!(c.g, 0);
+                assert_eq!(c.b, 0);
+            }
+            other => panic!("Expected Color for border-color, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_border_style_property() {
+        let style = parse_inline_style("border-style: dashed");
+        match style.get("border-style") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "dashed"),
+            other => panic!("Expected Keyword for border-style, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_font_family_serif() {
+        let style = parse_inline_style("font-family: serif");
+        match style.get("font-family") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "serif"),
+            other => panic!("Expected Keyword, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_font_family_monospace() {
+        let style = parse_inline_style("font-family: monospace");
+        match style.get("font-family") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "monospace"),
+            other => panic!("Expected Keyword, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_font_family_with_fallback() {
+        let style = parse_inline_style("font-family: 'Times New Roman', serif");
+        match style.get("font-family") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "'Times New Roman'"),
+            other => panic!("Expected Keyword with first font name, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_font_family_courier_new() {
+        let style = parse_inline_style("font-family: 'Courier New'");
+        match style.get("font-family") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "'Courier New'"),
+            other => panic!("Expected Keyword, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_stylesheet_media_print_applied() {
+        let css = "@media print { p { color: red } }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].selector, "p");
+        assert!(rules[0].declarations.get("color").is_some());
+    }
+
+    #[test]
+    fn parse_stylesheet_media_screen_ignored() {
+        let css = "@media screen { p { color: red } }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 0);
+    }
+
+    #[test]
+    fn parse_stylesheet_media_print_with_regular_rules() {
+        let css =
+            "h1 { font-size: 24pt } @media print { p { color: blue } } h2 { font-size: 18pt }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 3);
+        assert_eq!(rules[0].selector, "h1");
+        assert_eq!(rules[1].selector, "p");
+        assert_eq!(rules[2].selector, "h2");
+    }
+
+    #[test]
+    fn parse_stylesheet_media_screen_with_regular_rules() {
+        let css =
+            "h1 { font-size: 24pt } @media screen { p { color: blue } } h2 { font-size: 18pt }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].selector, "h1");
+        assert_eq!(rules[1].selector, "h2");
+    }
+
+    #[test]
+    fn parse_stylesheet_media_print_multiple_rules() {
+        let css = "@media print { h1 { font-size: 20pt } p { color: black } }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].selector, "h1");
+        assert_eq!(rules[1].selector, "p");
     }
 }

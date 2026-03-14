@@ -540,4 +540,125 @@ mod tests {
         );
         assert_eq!(markdown_to_html("_italic_"), "<p><em>italic</em></p>\n");
     }
+
+    #[test]
+    fn blockquote_empty_continuation() {
+        // Lines 89-91: blockquote continuation with bare ">"
+        let md = "> line one\n>\n> line two";
+        let html = markdown_to_html(md);
+        assert!(html.contains("<blockquote>"));
+        assert!(html.contains("line one"));
+        assert!(html.contains("line two"));
+    }
+
+    #[test]
+    fn ol_closes_ul_when_switching() {
+        // Lines 108-109: switching from ul to ol closes the ul
+        let md = "- bullet\n\n1. numbered";
+        let html = markdown_to_html(md);
+        assert!(html.contains("</ul>"));
+        assert!(html.contains("<ol>"));
+        assert!(html.contains("<li>bullet</li>"));
+        assert!(html.contains("<li>numbered</li>"));
+    }
+
+    #[test]
+    fn ul_closes_ol_when_switching() {
+        // Lines 124-125: switching from ol to ul closes the ol
+        let md = "1. numbered\n\n- bullet";
+        let html = markdown_to_html(md);
+        assert!(html.contains("</ol>"));
+        assert!(html.contains("<ul>"));
+        assert!(html.contains("<li>numbered</li>"));
+        assert!(html.contains("<li>bullet</li>"));
+    }
+
+    #[test]
+    fn parse_ordered_item_no_match() {
+        // Line 196: non-digit prefix returns None
+        assert!(parse_ordered_item("abc. text").is_none());
+        assert!(parse_ordered_item("no dot here").is_none());
+    }
+
+    #[test]
+    fn horizontal_rule_too_short() {
+        // Lines 202-203: less than 3 chars returns false
+        assert!(!is_horizontal_rule("--"));
+        assert!(!is_horizontal_rule("*"));
+        assert!(!is_horizontal_rule(""));
+    }
+
+    #[test]
+    fn horizontal_rule_mixed_chars() {
+        // Line 206: mixed chars do not form a rule
+        assert!(!is_horizontal_rule("-*-"));
+        assert!(!is_horizontal_rule("--*"));
+    }
+
+    #[test]
+    fn unclosed_backtick_inline() {
+        // Lines 230-231: unclosed backtick in inline code
+        let html = markdown_to_html("Use `foo here");
+        assert!(html.contains("`foo"));
+    }
+
+    #[test]
+    fn broken_image_syntax() {
+        // Lines 259-260: malformed image syntax falls through
+        let html = markdown_to_html("![alt](");
+        assert!(html.contains("!["));
+    }
+
+    #[test]
+    fn broken_link_syntax() {
+        // Lines 287-288: malformed link syntax falls through
+        let html = markdown_to_html("[label](");
+        assert!(html.contains("["));
+    }
+
+    #[test]
+    fn unmatched_markers_output_literally() {
+        // Lines 334-337: no closing marker, markers are output literally
+        let html = markdown_to_html("trailing ***");
+        assert!(html.contains("<p>"));
+        assert!(html.contains("trailing"));
+        // The *** at end has no closing match, output literally
+        let html2 = markdown_to_html("end *");
+        assert!(html2.contains("*"));
+    }
+
+    #[test]
+    fn find_closing_marker_skip_short_run() {
+        // Lines 358, 363: closing marker finder skips runs shorter than needed
+        // Triple marker needs 3 closing stars; a single star mid-text is skipped
+        let html = markdown_to_html("***bold*italic***");
+        // Should still produce some output
+        assert!(html.contains("<p>"));
+    }
+
+    #[test]
+    fn underscore_bold_italic_combined() {
+        // Exercises ___triple___ underscores
+        assert_eq!(
+            markdown_to_html("___both___"),
+            "<p><strong><em>both</em></strong></p>\n"
+        );
+    }
+
+    #[test]
+    fn ol_then_ul_direct_switch() {
+        // Lines 108-109, 124-125: direct switch without blank line between lists
+        let md = "1. first\n- bullet";
+        let html = markdown_to_html(md);
+        assert!(html.contains("<li>first</li>"));
+        assert!(html.contains("<li>bullet</li>"));
+    }
+
+    #[test]
+    fn ul_then_ol_direct_switch() {
+        let md = "- bullet\n1. first";
+        let html = markdown_to_html(md);
+        assert!(html.contains("<li>bullet</li>"));
+        assert!(html.contains("<li>first</li>"));
+    }
 }

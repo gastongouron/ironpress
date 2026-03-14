@@ -368,4 +368,73 @@ mod tests {
         assert!(!result.contains("onmouseover"));
         assert!(result.contains("Hi"));
     }
+
+    #[test]
+    fn style_tag_unclosed_opening() {
+        // Lines 105-106: style tag with no closing '>'
+        let result = sanitize_html("<style body { color: red ").unwrap();
+        // Should handle gracefully without panicking
+        assert!(result.contains("style"));
+    }
+
+    #[test]
+    fn dangerous_url_without_close_paren() {
+        // Lines 128-129, 135: url() without closing paren
+        let result =
+            sanitize_html(r#"<style>body { background: url(http://evil.com }</style>"#).unwrap();
+        assert!(!result.contains("url(http"));
+    }
+
+    #[test]
+    fn data_uri_preserved() {
+        // Line 128-129: data: URIs are safe and preserved
+        let css = r#"<style>body { background: url(data:image/png;base64,abc) }</style>"#;
+        let result = sanitize_html(css).unwrap();
+        assert!(result.contains("url(data:"));
+    }
+
+    #[test]
+    fn event_handler_single_quoted_value() {
+        // Lines 189, 191-196: event handler with single-quoted value
+        let result = sanitize_html(r#"<p onclick='alert(1)'>Hello</p>"#).unwrap();
+        assert!(!result.contains("onclick"));
+        assert!(result.contains("Hello"));
+    }
+
+    #[test]
+    fn expression_css_removed() {
+        // Sanitizer removes expression() in CSS
+        let result =
+            sanitize_html(r#"<style>body { width: expression(alert(1)) }</style>"#).unwrap();
+        assert!(!result.contains("expression("));
+    }
+
+    #[test]
+    fn expression_with_space_removed() {
+        let result =
+            sanitize_html(r#"<style>body { width: expression (alert(1)) }</style>"#).unwrap();
+        assert!(!result.contains("expression ("));
+    }
+
+    #[test]
+    fn url_with_quoted_external_removed() {
+        // Exercises remove_dangerous_urls with quoted external URL
+        let result =
+            sanitize_html(r#"<style>body { background: url("http://evil.com/img.png") }</style>"#)
+                .unwrap();
+        assert!(!result.contains("evil.com"));
+    }
+
+    #[test]
+    fn event_handler_at_start_of_tag() {
+        // The prev-char check: 'o' at position after '<' or space
+        let result = sanitize_html(r#"<div onclick="bad()">Hi</div>"#).unwrap();
+        assert!(!result.contains("onclick"));
+    }
+
+    #[test]
+    fn event_handler_with_spaces_around_equals() {
+        let result = sanitize_html(r#"<p onload = "bad()">Safe</p>"#).unwrap();
+        assert!(!result.contains("onload"));
+    }
 }
