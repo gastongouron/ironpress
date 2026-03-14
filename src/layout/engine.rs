@@ -1,7 +1,8 @@
 use crate::parser::css::CssRule;
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
+use crate::parser::png;
 use crate::style::computed::{
-    ComputedStyle, FontFamily, FontStyle, FontWeight, TextAlign, compute_style,
+    ComputedStyle, Display, FontFamily, FontStyle, FontWeight, TextAlign, compute_style,
     compute_style_with_rules,
 };
 use crate::types::{Margin, PageSize};
@@ -50,6 +51,20 @@ pub struct TextLine {
     pub height: f32,
 }
 
+/// The format of an embedded image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFormat {
+    Jpeg,
+    Png,
+}
+
+/// Parsed PNG metadata needed for PDF FlateDecode parameters.
+#[derive(Debug, Clone)]
+pub struct PngMetadata {
+    pub channels: u8,
+    pub bit_depth: u8,
+}
+
 /// A layout element ready for rendering.
 #[derive(Debug)]
 pub enum LayoutElement {
@@ -74,11 +89,14 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
     },
-    /// An embedded image (JPEG).
+    /// An embedded image.
     Image {
         data: Vec<u8>,
         width: f32,
         height: f32,
+        format: ImageFormat,
+        /// PNG-specific metadata for FlateDecode parameters. None for JPEG.
+        png_metadata: Option<PngMetadata>,
         margin_top: f32,
         margin_bottom: f32,
     },
@@ -192,6 +210,11 @@ fn flatten_element(
         el.id(),
     );
 
+    // display: none — skip this element entirely
+    if style.display == Display::None {
+        return;
+    }
+
     if el.tag == HtmlTag::Br {
         let line = TextLine {
             runs: vec![TextRun {
@@ -232,21 +255,8 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Img {
-        if let Some(image_data) = load_image_data(el) {
-            let (mut w, mut h) = parse_image_dimensions(el);
-            // Scale to fit within available width
-            if w > available_width {
-                let scale = available_width / w;
-                w = available_width;
-                h *= scale;
-            }
-            output.push(LayoutElement::Image {
-                data: image_data,
-                width: w,
-                height: h,
-                margin_top: style.margin.top,
-                margin_bottom: style.margin.bottom,
-            });
+        if let Some(img_element) = load_image_from_element(el, available_width, &style) {
+            output.push(img_element);
         }
         return;
     }
@@ -356,7 +366,7 @@ fn flatten_element(
         return;
     }
 
-    if el.tag.is_block() {
+    if style.display == Display::Block {
         // Collect all inline content as text runs
         let inner_width = available_width - style.padding.left - style.padding.right;
         let mut runs = Vec::new();
@@ -462,54 +472,109 @@ fn flatten_table(
 
     let col_width = inner_width / num_cols as f32;
 
-    // Build layout rows
+    // Build layout rows, tracking cells occupied by rowspan from previous rows.
+    // Each entry in `occupied` tracks the remaining rowspan count for that column.
+    let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
     for row in &rows {
         let row_style = compute_style(row.tag, row.style_attr(), style);
         let mut cells = Vec::new();
 
-        for child in &row.children {
+        // Current logical column position in the grid
+        let mut col_pos: usize = 0;
+        let mut child_iter = row.children.iter().filter_map(|child| {
             if let DomNode::Element(cell_el) = child {
                 if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    let colspan = cell_el
-                        .attributes
-                        .get("colspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
-                    let rowspan = cell_el
-                        .attributes
-                        .get("rowspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
-
-                    let cell_style = compute_style(cell_el.tag, cell_el.style_attr(), &row_style);
-                    let effective_width = col_width * colspan as f32;
-                    let cell_inner =
-                        effective_width - cell_style.padding.left - cell_style.padding.right;
-
-                    let mut runs = Vec::new();
-                    collect_text_runs(&cell_el.children, &cell_style, &mut runs, None);
-                    let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size);
-
-                    let bg = cell_style
-                        .background_color
-                        .map(|c: crate::types::Color| c.to_f32_rgb());
-
-                    cells.push(TableCell {
-                        lines,
-                        bold: cell_style.font_weight == FontWeight::Bold,
-                        background_color: bg,
-                        padding_top: cell_style.padding.top,
-                        padding_right: cell_style.padding.right,
-                        padding_bottom: cell_style.padding.bottom,
-                        padding_left: cell_style.padding.left,
-                        colspan,
-                        rowspan,
-                    });
+                    return Some(cell_el);
                 }
             }
+            None
+        });
+
+        // Process cells, skipping occupied positions and inserting phantom cells
+        let mut next_cell = child_iter.next();
+        while col_pos < num_cols {
+            if occupied[col_pos] > 0 {
+                // This position is occupied by a rowspan from a previous row.
+                // Insert a phantom cell (rowspan = 0) as a placeholder.
+                let span_cols = {
+                    // Count how many consecutive occupied columns share this rowspan
+                    let remaining = occupied[col_pos];
+                    let mut count = 1;
+                    while col_pos + count < num_cols && occupied[col_pos + count] == remaining {
+                        count += 1;
+                    }
+                    count
+                };
+                cells.push(TableCell {
+                    lines: Vec::new(),
+                    bold: false,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_right: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    colspan: span_cols,
+                    rowspan: 0, // phantom cell marker
+                });
+                for i in 0..span_cols {
+                    occupied[col_pos + i] -= 1;
+                }
+                col_pos += span_cols;
+                continue;
+            }
+
+            // Place the next real cell at this position
+            let Some(cell_el) = next_cell else { break };
+            next_cell = child_iter.next();
+
+            let colspan = cell_el
+                .attributes
+                .get("colspan")
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(1)
+                .max(1);
+            let rowspan = cell_el
+                .attributes
+                .get("rowspan")
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(1)
+                .max(1);
+
+            let cell_style = compute_style(cell_el.tag, cell_el.style_attr(), &row_style);
+            let effective_width = col_width * colspan as f32;
+            let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
+
+            let mut runs = Vec::new();
+            collect_text_runs(&cell_el.children, &cell_style, &mut runs, None);
+            let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size);
+
+            let bg = cell_style
+                .background_color
+                .map(|c: crate::types::Color| c.to_f32_rgb());
+
+            cells.push(TableCell {
+                lines,
+                bold: cell_style.font_weight == FontWeight::Bold,
+                background_color: bg,
+                padding_top: cell_style.padding.top,
+                padding_right: cell_style.padding.right,
+                padding_bottom: cell_style.padding.bottom,
+                padding_left: cell_style.padding.left,
+                colspan,
+                rowspan,
+            });
+
+            // Mark subsequent rows as occupied if rowspan > 1
+            if rowspan > 1 {
+                for i in 0..colspan {
+                    if col_pos + i < num_cols {
+                        occupied[col_pos + i] = rowspan - 1;
+                    }
+                }
+            }
+
+            col_pos += colspan;
         }
 
         if !cells.is_empty() {
@@ -745,62 +810,124 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     pages
 }
 
-/// Decode a base64 string into bytes. Ignores whitespace. Returns None on invalid input.
-fn base64_decode(input: &str) -> Option<Vec<u8>> {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut buf = Vec::new();
-    let mut accum: u32 = 0;
-    let mut bits: u32 = 0;
-    for &b in input.as_bytes() {
-        if b == b'=' || b.is_ascii_whitespace() {
-            continue;
-        }
-        let val = TABLE.iter().position(|&c| c == b)? as u32;
-        accum = (accum << 6) | val;
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            buf.push((accum >> bits) as u8);
-            accum &= (1 << bits) - 1;
-        }
-    }
-    Some(buf)
-}
-
-/// Load image data from an `<img>` element's `src` attribute.
-/// Supports `data:image/jpeg;base64,...` URIs and local file paths.
-fn load_image_data(el: &ElementNode) -> Option<Vec<u8>> {
+/// Load image data from an <img> element and return a LayoutElement::Image.
+fn load_image_from_element(
+    el: &ElementNode,
+    available_width: f32,
+    style: &ComputedStyle,
+) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
-    if src.starts_with("data:") {
-        // data URI: data:image/jpeg;base64,<data>
-        let comma_pos = src.find(',')?;
-        let encoded = &src[comma_pos + 1..];
-        base64_decode(encoded)
-    } else {
-        // Treat as local file path
-        std::fs::read(src).ok()
-    }
-}
+    let (data, format, png_meta) = load_image_data(src)?;
 
-/// Parse width/height attributes from an `<img>` element.
-/// Converts px values to pt (*0.75). Defaults to 200x150 pt.
-fn parse_image_dimensions(el: &ElementNode) -> (f32, f32) {
-    let default_w = 200.0_f32;
-    let default_h = 150.0_f32;
-
-    let w = el
+    // Determine dimensions from attributes
+    let attr_width = el
         .attributes
         .get("width")
-        .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
-        .map(|px| px * 0.75)
-        .unwrap_or(default_w);
-    let h = el
+        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+        .map(|px| px * 0.75);
+    let attr_height = el
         .attributes
         .get("height")
-        .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
-        .map(|px| px * 0.75)
-        .unwrap_or(default_h);
-    (w, h)
+        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+        .map(|px| px * 0.75);
+
+    let (mut width, mut height) = match (attr_width, attr_height) {
+        (Some(w), Some(h)) => (w, h),
+        (Some(w), None) => (w, w), // fallback: square
+        (None, Some(h)) => (h, h),
+        (None, None) => (available_width.min(200.0), 150.0),
+    };
+
+    // Scale to fit within available width
+    if width > available_width {
+        let scale = available_width / width;
+        width = available_width;
+        height *= scale;
+    }
+
+    Some(LayoutElement::Image {
+        data,
+        width,
+        height,
+        format,
+        png_metadata: png_meta,
+        margin_top: style.margin.top,
+        margin_bottom: style.margin.bottom,
+    })
+}
+
+/// Load image data from a src attribute (supports data: URIs and local file paths).
+/// Returns (raw_bytes, format, optional_png_metadata).
+fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
+    let raw = if let Some(rest) = src.strip_prefix("data:") {
+        // Parse data URI: data:[<mediatype>][;base64],<data>
+        let (_header, encoded) = rest.split_once(',')?;
+        // Only support base64 for now
+        base64_decode(encoded)?
+    } else {
+        // Treat as local file path
+        std::fs::read(src).ok()?
+    };
+
+    // Detect format from content
+    if png::is_png(&raw) {
+        let png_info = png::parse_png(&raw)?;
+        let metadata = PngMetadata {
+            channels: png_info.channels,
+            bit_depth: png_info.bit_depth,
+        };
+        // For PNG, we pass the IDAT data (already zlib-compressed) to PDF
+        Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
+    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
+        // JPEG: pass entire file as-is
+        Some((raw, ImageFormat::Jpeg, None))
+    } else {
+        None
+    }
+}
+
+/// Simple base64 decoder (no external dependencies).
+fn base64_decode(input: &str) -> Option<Vec<u8>> {
+    let table = |c: u8| -> Option<u8> {
+        match c {
+            b'A'..=b'Z' => Some(c - b'A'),
+            b'a'..=b'z' => Some(c - b'a' + 26),
+            b'0'..=b'9' => Some(c - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    };
+
+    // Strip whitespace
+    let bytes: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let mut result = Vec::with_capacity(bytes.len() * 3 / 4);
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let remaining = bytes.len() - i;
+        if remaining < 2 {
+            break;
+        }
+
+        let a = table(bytes[i])?;
+        let b = table(bytes[i + 1])?;
+        result.push((a << 2) | (b >> 4));
+
+        if i + 2 < bytes.len() && bytes[i + 2] != b'=' {
+            let c = table(bytes[i + 2])?;
+            result.push((b << 4) | (c >> 2));
+
+            if i + 3 < bytes.len() && bytes[i + 3] != b'=' {
+                let d = table(bytes[i + 3])?;
+                result.push((c << 6) | d);
+            }
+        }
+
+        i += 4;
+    }
+
+    Some(result)
 }
 
 fn collapse_whitespace(text: &str) -> String {
@@ -1227,33 +1354,91 @@ mod tests {
     }
 
     #[test]
-    fn img_data_uri_creates_image_element() {
-        // Minimal valid JPEG: SOI (FF D8) + APP0 marker + EOI (FF D9)
-        // We encode a tiny JPEG-like byte sequence in base64
-        // FF D8 FF E0 00 02 FF D9 => /9j/4AAC/9k=
+    fn layout_jpeg_image_from_data_uri() {
+        // Minimal JPEG-like data URI
         let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="100" height="80">"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
-        let has_image = pages[0]
-            .elements
-            .iter()
-            .any(|(_, el)| matches!(el, LayoutElement::Image { .. }));
-        assert!(has_image, "Should contain an Image layout element");
+        assert!(!pages[0].elements.is_empty());
+        match &pages[0].elements[0].1 {
+            LayoutElement::Image {
+                format,
+                width,
+                height,
+                png_metadata,
+                ..
+            } => {
+                assert_eq!(*format, ImageFormat::Jpeg);
+                assert!((width - 75.0).abs() < 0.1); // 100px * 0.75
+                assert!((height - 60.0).abs() < 0.1); // 80px * 0.75
+                assert!(png_metadata.is_none());
+            }
+            _ => panic!("Expected Image layout element"),
+        }
     }
 
     #[test]
-    fn img_dimensions_converted_to_pt() {
-        let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="400" height="300">"#;
+    fn layout_png_image_from_data_uri() {
+        // Build a minimal valid PNG and encode as base64
+        let png_bytes = build_test_png_bytes();
+        let b64 = simple_base64_encode(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}" width="120" height="90">"#,);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+        match &pages[0].elements[0].1 {
+            LayoutElement::Image {
+                format,
+                png_metadata,
+                ..
+            } => {
+                assert_eq!(*format, ImageFormat::Png);
+                let meta = png_metadata.as_ref().unwrap();
+                assert_eq!(meta.channels, 3); // RGB
+                assert_eq!(meta.bit_depth, 8);
+            }
+            _ => panic!("Expected Image layout element"),
+        }
+    }
+
+    #[test]
+    fn layout_image_without_dimensions_gets_defaults() {
+        let png_bytes = build_test_png_bytes();
+        let b64 = simple_base64_encode(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}">"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+        match &pages[0].elements[0].1 {
+            LayoutElement::Image { width, height, .. } => {
+                assert!(*width > 0.0);
+                assert!(*height > 0.0);
+            }
+            _ => panic!("Expected Image layout element"),
+        }
+    }
+
+    #[test]
+    fn layout_image_unsupported_src_ignored() {
+        // HTTP src is not supported, should be silently ignored
+        let html = r#"<img src="http://example.com/image.png" width="100" height="100">"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
-        if let (_, LayoutElement::Image { width, height, .. }) = &pages[0].elements[0] {
-            // 400px * 0.75 = 300pt, 300px * 0.75 = 225pt
-            assert!((*width - 300.0).abs() < 0.01);
-            assert!((*height - 225.0).abs() < 0.01);
-        } else {
-            panic!("Expected Image element");
-        }
+        // No image element should be produced
+        assert!(
+            pages[0].elements.is_empty()
+                || !matches!(&pages[0].elements[0].1, LayoutElement::Image { .. })
+        );
+    }
+
+    #[test]
+    fn base64_decode_roundtrip() {
+        let data = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
+        let encoded = simple_base64_encode(data);
+        let decoded = base64_decode(&encoded).unwrap();
+        assert_eq!(decoded, data);
     }
 
     #[test]
@@ -1288,6 +1473,68 @@ mod tests {
             !has_image,
             "img without src should not produce Image element"
         );
+    }
+
+    fn build_test_png_bytes() -> Vec<u8> {
+        let mut png_data = Vec::new();
+        png_data.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+        // IHDR
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&1u32.to_be_bytes());
+        ihdr.extend_from_slice(&1u32.to_be_bytes());
+        ihdr.push(8); // bit depth
+        ihdr.push(2); // color type RGB
+        ihdr.push(0);
+        ihdr.push(0);
+        ihdr.push(0);
+        append_test_chunk(&mut png_data, b"IHDR", &ihdr);
+        let idat = [
+            0x78, 0x01, 0x62, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01,
+        ];
+        append_test_chunk(&mut png_data, b"IDAT", &idat);
+        append_test_chunk(&mut png_data, b"IEND", &[]);
+        png_data
+    }
+
+    fn append_test_chunk(buf: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
+        buf.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        buf.extend_from_slice(chunk_type);
+        buf.extend_from_slice(data);
+        buf.extend_from_slice(&[0, 0, 0, 0]);
+    }
+
+    fn simple_base64_encode(data: &[u8]) -> String {
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut result = String::new();
+        let mut i = 0;
+        while i < data.len() {
+            let b0 = data[i] as u32;
+            let b1 = if i + 1 < data.len() {
+                data[i + 1] as u32
+            } else {
+                0
+            };
+            let b2 = if i + 2 < data.len() {
+                data[i + 2] as u32
+            } else {
+                0
+            };
+            let triple = (b0 << 16) | (b1 << 8) | b2;
+            result.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
+            result.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
+            if i + 1 < data.len() {
+                result.push(CHARS[((triple >> 6) & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+            if i + 2 < data.len() {
+                result.push(CHARS[(triple & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+            i += 3;
+        }
+        result
     }
 
     #[test]
@@ -1422,5 +1669,107 @@ mod tests {
         for cell in table_rows[2] {
             assert_eq!(cell.colspan, 1);
         }
+    }
+
+    #[test]
+    fn table_rowspan_basic() {
+        // Cell A spans two rows; row 1 should have a phantom cell in column 0.
+        let html = r#"<table>
+            <tr><td rowspan="2">A</td><td>B</td></tr>
+            <tr><td>C</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(table_rows.len(), 2, "Should have 2 rows");
+        // Row 0: cell A (rowspan=2) and cell B
+        assert_eq!(table_rows[0].len(), 2);
+        assert_eq!(table_rows[0][0].rowspan, 2);
+        assert_eq!(table_rows[0][1].rowspan, 1);
+        // Row 1: phantom cell (rowspan=0) and cell C
+        assert_eq!(table_rows[1].len(), 2);
+        assert_eq!(
+            table_rows[1][0].rowspan, 0,
+            "Phantom cell should have rowspan=0"
+        );
+        assert_eq!(table_rows[1][1].rowspan, 1);
+    }
+
+    #[test]
+    fn table_rowspan_and_colspan_combined() {
+        // Cell A spans 2 rows and 2 columns in a 3-column table.
+        let html = r#"<table>
+            <tr><td rowspan="2" colspan="2">A</td><td>B</td></tr>
+            <tr><td>C</td></tr>
+            <tr><td>D</td><td>E</td><td>F</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(table_rows.len(), 3, "Should have 3 rows");
+        // Row 0: cell A (rowspan=2, colspan=2) and cell B
+        assert_eq!(table_rows[0].len(), 2);
+        assert_eq!(table_rows[0][0].rowspan, 2);
+        assert_eq!(table_rows[0][0].colspan, 2);
+        assert_eq!(table_rows[0][1].rowspan, 1);
+        // Row 1: phantom cell spanning 2 cols and cell C
+        assert_eq!(table_rows[1].len(), 2);
+        assert_eq!(table_rows[1][0].rowspan, 0);
+        assert_eq!(table_rows[1][0].colspan, 2, "Phantom should span 2 cols");
+        assert_eq!(table_rows[1][1].rowspan, 1);
+        // Row 2: three normal cells
+        assert_eq!(table_rows[2].len(), 3);
+        for cell in table_rows[2] {
+            assert_eq!(cell.rowspan, 1);
+            assert_eq!(cell.colspan, 1);
+        }
+    }
+
+    #[test]
+    fn table_rowspan_renders_to_pdf() {
+        // Verify that a table with rowspan produces valid PDF output.
+        let html = r#"<table>
+            <tr><td rowspan="2">Spans two rows</td><td>Top right</td></tr>
+            <tr><td>Bottom right</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = crate::render::pdf::render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("Spans"),
+            "Cell text 'Spans' should be in PDF"
+        );
+        assert!(
+            content.contains("rows"),
+            "Cell text 'rows' should be in PDF"
+        );
+        assert!(content.contains("Top"), "Cell text 'Top' should be in PDF");
+        assert!(
+            content.contains("Bottom"),
+            "Cell text 'Bottom' should be in PDF"
+        );
+        // Should have cell borders
+        assert!(content.contains("re\nS\n"));
     }
 }

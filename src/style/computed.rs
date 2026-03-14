@@ -3,6 +3,14 @@ use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
 use crate::types::{Color, EdgeSizes};
 
+/// CSS display property.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Display {
+    Block,
+    Inline,
+    None,
+}
+
 /// Text alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum TextAlign {
@@ -59,6 +67,7 @@ pub struct ComputedStyle {
     pub page_break_after: bool,
     pub border_width: f32,
     pub border_color: Option<Color>,
+    pub display: Display,
 }
 
 impl Default for ComputedStyle {
@@ -80,6 +89,7 @@ impl Default for ComputedStyle {
             page_break_after: false,
             border_width: 0.0,
             border_color: None,
+            display: Display::Block,
         }
     }
 }
@@ -104,6 +114,13 @@ pub fn compute_style_with_rules(
     id: Option<&str>,
 ) -> ComputedStyle {
     let mut style = parent.clone();
+
+    // Set default display based on tag
+    style.display = if tag.is_inline() {
+        Display::Inline
+    } else {
+        Display::Block
+    };
 
     // Reset block-level properties that don't inherit
     if tag.is_block() {
@@ -162,8 +179,40 @@ fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap) {
         // Strip quotes from font names like "'Times New Roman'" or "\"Courier New\""
         let cleaned = lower.trim_matches(|c| c == '\'' || c == '"');
         style.font_family = match cleaned {
-            "serif" | "times" | "times new roman" | "times-roman" => FontFamily::TimesRoman,
-            "monospace" | "courier" | "courier new" => FontFamily::Courier,
+            // Serif → TimesRoman
+            "serif" | "times" | "times new roman" | "times-roman" | "georgia" | "garamond"
+            | "book antiqua" | "palatino" | "palatino linotype" | "baskerville"
+            | "hoefler text" | "cambria" | "droid serif" | "noto serif" | "libre baskerville"
+            | "merriweather" | "playfair display" | "lora" => FontFamily::TimesRoman,
+
+            // Monospace → Courier
+            "monospace"
+            | "courier"
+            | "courier new"
+            | "lucida console"
+            | "lucida sans typewriter"
+            | "monaco"
+            | "andale mono"
+            | "consolas"
+            | "source code pro"
+            | "fira code"
+            | "fira mono"
+            | "jetbrains mono"
+            | "ibm plex mono"
+            | "roboto mono"
+            | "ubuntu mono"
+            | "droid sans mono"
+            | "menlo"
+            | "sf mono"
+            | "cascadia code"
+            | "cascadia mono" => FontFamily::Courier,
+
+            // Sans-serif and everything else → Helvetica
+            // Explicit sans-serif mappings: arial, helvetica, sans-serif,
+            // helvetica neue, arial black, verdana, tahoma, trebuchet ms,
+            // gill sans, lucida sans, lucida grande, system-ui,
+            // -apple-system, segoe ui, roboto, open sans, lato, inter,
+            // nunito, poppins, montserrat, raleway, ubuntu
             _ => FontFamily::Helvetica,
         };
     }
@@ -220,6 +269,15 @@ fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap) {
     }
     if let Some(CssValue::Length(v)) = map.get("line-height") {
         style.line_height = *v / style.font_size;
+    }
+
+    if let Some(CssValue::Keyword(k)) = map.get("display") {
+        style.display = match k.as_str() {
+            "none" => Display::None,
+            "inline" => Display::Inline,
+            "block" => Display::Block,
+            _ => style.display,
+        };
     }
 
     if let Some(CssValue::Keyword(k)) = map.get("page-break-before") {
@@ -613,5 +671,174 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("border: 1px solid foobar"), &parent);
         assert!(style.border_color.is_none());
+    }
+
+    // --- Extended font-family mapping tests ---
+
+    #[test]
+    fn font_family_arial_maps_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Arial"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_roboto_maps_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Roboto"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_verdana_maps_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Verdana"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_open_sans_maps_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: 'Open Sans'"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_system_ui_maps_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: system-ui"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_georgia_maps_to_times_roman() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Georgia"), &parent);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn font_family_garamond_maps_to_times_roman() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Garamond"), &parent);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn font_family_merriweather_maps_to_times_roman() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Merriweather"), &parent);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn font_family_palatino_maps_to_times_roman() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Palatino"), &parent);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn font_family_consolas_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Consolas"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_fira_code_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: 'Fira Code'"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_jetbrains_mono_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Span,
+            Some("font-family: 'JetBrains Mono'"),
+            &parent,
+        );
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_menlo_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Menlo"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_sf_mono_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: 'SF Mono'"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_monaco_maps_to_courier() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: Monaco"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_unknown_falls_back_to_helvetica() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: 'Comic Sans MS'"), &parent);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn font_family_case_insensitive() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: GEORGIA"), &parent);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
+        let style = compute_style(HtmlTag::Span, Some("font-family: CONSOLAS"), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn font_family_double_quoted() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: \"Courier New\""), &parent);
+        assert_eq!(style.font_family, FontFamily::Courier);
+    }
+
+    #[test]
+    fn display_none_from_inline_style() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("display: none"), &parent);
+        assert_eq!(style.display, Display::None);
+    }
+
+    #[test]
+    fn display_block_on_inline_element() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("display: block"), &parent);
+        assert_eq!(style.display, Display::Block);
+    }
+
+    #[test]
+    fn display_inline_on_block_element() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("display: inline"), &parent);
+        assert_eq!(style.display, Display::Inline);
+    }
+
+    #[test]
+    fn display_default_for_block_tag() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, None, &parent);
+        assert_eq!(style.display, Display::Block);
+    }
+
+    #[test]
+    fn display_default_for_inline_tag() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, None, &parent);
+        assert_eq!(style.display, Display::Inline);
     }
 }

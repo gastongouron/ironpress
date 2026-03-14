@@ -1,5 +1,7 @@
 use crate::error::IronpressError;
-use crate::layout::engine::{LayoutElement, Page, TableCell, TextLine, TextRun};
+use crate::layout::engine::{
+    ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
+};
 use crate::style::computed::{FontFamily, TextAlign};
 use crate::types::{Margin, PageSize};
 
@@ -29,7 +31,7 @@ pub fn render_pdf(
         let mut annotations: Vec<LinkAnnotation> = Vec::new();
         let mut page_images: Vec<ImageRef> = Vec::new();
 
-        for (y_pos, element) in &page.elements {
+        for (elem_idx, (y_pos, element)) in page.elements.iter().enumerate() {
             match element {
                 LayoutElement::TextBlock {
                     lines,
@@ -159,30 +161,51 @@ pub fn render_pdf(
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
 
-                    // Compute row height (max cell height)
-                    let row_height = cells
-                        .iter()
-                        .map(|cell| {
-                            let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-                            cell.padding_top + text_h + cell.padding_bottom
-                        })
-                        .fold(0.0f32, f32::max);
+                    // Compute row height (max cell height, excluding rowspan > 1 cells)
+                    let row_height = compute_row_height(cells);
 
                     // Track column position accounting for colspan
-                    // TODO: handle rowspan (cells spanning multiple rows)
                     let mut col_pos: usize = 0;
                     for cell in cells.iter() {
+                        // Skip phantom cells (rowspan = 0); they are placeholders
+                        // for cells spanning from previous rows.
+                        if cell.rowspan == 0 {
+                            col_pos += cell.colspan;
+                            continue;
+                        }
+
                         let cell_x = margin.left + col_pos as f32 * col_width;
                         let cell_w = col_width * cell.colspan as f32;
+
+                        // For cells with rowspan > 1, compute the total height
+                        // spanning multiple rows.
+                        let cell_height = if cell.rowspan > 1 {
+                            let mut total_h = row_height;
+                            for offset in 1..cell.rowspan {
+                                let future_idx = elem_idx + offset;
+                                if future_idx < page.elements.len() {
+                                    if let LayoutElement::TableRow {
+                                        cells: future_cells,
+                                        ..
+                                    } = &page.elements[future_idx].1
+                                    {
+                                        total_h += compute_row_height(future_cells);
+                                    }
+                                }
+                            }
+                            total_h
+                        } else {
+                            row_height
+                        };
 
                         // Draw cell background
                         if let Some((r, g, b)) = cell.background_color {
                             content.push_str(&format!(
                                 "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
                                 x = cell_x,
-                                y = row_y - row_height,
+                                y = row_y - cell_height,
                                 w = cell_w,
-                                h = row_height,
+                                h = cell_height,
                             ));
                         }
 
@@ -190,12 +213,12 @@ pub fn render_pdf(
                         content.push_str(&format!(
                             "0.8 0.8 0.8 RG\n0.5 w\n{x} {y} {w} {h} re\nS\n",
                             x = cell_x,
-                            y = row_y - row_height,
+                            y = row_y - cell_height,
                             w = cell_w,
-                            h = row_height,
+                            h = cell_height,
                         ));
 
-                        // Render cell text
+                        // Render cell text at the first row's y position
                         render_cell_text(&mut content, cell, cell_x, row_y, cell_w);
 
                         col_pos += cell.colspan;
@@ -205,12 +228,20 @@ pub fn render_pdf(
                     data,
                     width,
                     height,
+                    format,
+                    png_metadata,
                     ..
                 } => {
                     let img_x = margin.left;
                     // PDF y-axis is bottom-up; y_pos is top of margin, image draws from bottom-left
                     let img_y = page_size.height - margin.top - y_pos - height;
-                    let img_obj_id = writer.add_image_object(data, *width as u32, *height as u32);
+                    let img_obj_id = writer.add_image_object(
+                        data,
+                        *width as u32,
+                        *height as u32,
+                        *format,
+                        png_metadata.as_ref(),
+                    );
                     let img_name = format!("Im{img_obj_id}");
                     content.push_str(&format!(
                         "q\n{w} 0 0 {h} {x} {y} cm\n/{name} Do\nQ\n",
@@ -248,6 +279,17 @@ pub fn render_pdf(
     }
 
     Ok(writer.finish())
+}
+
+/// Compute the height of a table row from its cells.
+fn compute_row_height(cells: &[TableCell]) -> f32 {
+    cells
+        .iter()
+        .map(|cell| {
+            let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+            cell.padding_top + text_h + cell.padding_bottom
+        })
+        .fold(0.0f32, f32::max)
 }
 
 fn render_cell_text(
@@ -365,14 +407,37 @@ impl PdfWriter {
         self.objects.len() + 1
     }
 
-    /// Add a JPEG image as a PDF XObject and return its object ID.
-    fn add_image_object(&mut self, data: &[u8], width: u32, height: u32) -> usize {
+    /// Add an image as a PDF XObject and return its object ID.
+    fn add_image_object(
+        &mut self,
+        data: &[u8],
+        width: u32,
+        height: u32,
+        format: ImageFormat,
+        png_metadata: Option<&PngMetadata>,
+    ) -> usize {
         let id = self.next_id();
-        let header = format!(
-            "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len} >>\nstream\n",
-            len = data.len(),
-        );
-        // We store the header as placeholder text; binary data is stored separately.
+        let header = match format {
+            ImageFormat::Jpeg => {
+                format!(
+                    "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len} >>\nstream\n",
+                    len = data.len(),
+                )
+            }
+            ImageFormat::Png => {
+                let meta = png_metadata.expect("PNG metadata required for PNG images");
+                let color_space = match meta.channels {
+                    1 | 2 => "/DeviceGray",
+                    _ => "/DeviceRGB",
+                };
+                format!(
+                    "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len} >>\nstream\n",
+                    bpc = meta.bit_depth,
+                    channels = meta.channels,
+                    len = data.len(),
+                )
+            }
+        };
         self.objects.push(header);
         self.binary_objects.insert(id, data.to_vec());
         id
@@ -1047,6 +1112,152 @@ mod tests {
             content.contains("/Times-Roman"),
             "Stylesheet font-family should produce Times-Roman"
         );
+    }
+
+    #[test]
+    fn render_jpeg_image_contains_xobject() {
+        // Use a data URI with a tiny JPEG-like payload
+        let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="100" height="80">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/XObject"),
+            "PDF with image should contain /XObject in resources"
+        );
+        assert!(
+            content.contains("/Subtype /Image"),
+            "PDF should contain image XObject"
+        );
+        assert!(
+            content.contains("/Filter /DCTDecode"),
+            "JPEG image should use DCTDecode filter"
+        );
+        assert!(
+            content.contains("Do"),
+            "PDF should contain Do operator to draw image"
+        );
+    }
+
+    #[test]
+    fn render_png_image_contains_flatedecode() {
+        // Build a minimal valid PNG as base64 data URI
+        let png_bytes = build_minimal_test_png();
+        let b64 = simple_base64_encode_test(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}" width="100" height="100">"#,);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/XObject"),
+            "PDF with PNG image should contain /XObject in resources"
+        );
+        assert!(
+            content.contains("/Subtype /Image"),
+            "PDF should contain image XObject"
+        );
+        assert!(
+            content.contains("/Filter /FlateDecode"),
+            "PNG image should use FlateDecode filter"
+        );
+        assert!(
+            content.contains("/Predictor 15"),
+            "PNG image should have Predictor 15 in DecodeParms"
+        );
+        assert!(
+            content.contains("/Colors 3"),
+            "RGB PNG should have Colors 3"
+        );
+        assert!(
+            content.contains("Do"),
+            "PDF should contain Do operator to draw image"
+        );
+    }
+
+    #[test]
+    fn render_png_grayscale_image() {
+        let png_bytes = build_test_png_with_color_type(0); // Grayscale
+        let b64 = simple_base64_encode_test(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}" width="50" height="50">"#,);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("/Filter /FlateDecode"));
+        assert!(content.contains("/ColorSpace /DeviceGray"));
+        assert!(content.contains("/Colors 1"));
+    }
+
+    /// Build a minimal valid PNG (1x1 RGB, 8-bit).
+    fn build_minimal_test_png() -> Vec<u8> {
+        build_test_png_with_color_type(2) // RGB
+    }
+
+    fn build_test_png_with_color_type(color_type: u8) -> Vec<u8> {
+        let mut png = Vec::new();
+        // PNG signature
+        png.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+        // IHDR chunk (13 bytes data)
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&1u32.to_be_bytes()); // width
+        ihdr.extend_from_slice(&1u32.to_be_bytes()); // height
+        ihdr.push(8); // bit depth
+        ihdr.push(color_type);
+        ihdr.push(0); // compression
+        ihdr.push(0); // filter
+        ihdr.push(0); // interlace
+        append_png_chunk(&mut png, b"IHDR", &ihdr);
+        // IDAT chunk with dummy zlib-compressed data
+        let idat = [
+            0x78, 0x01, 0x62, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01,
+        ];
+        append_png_chunk(&mut png, b"IDAT", &idat);
+        // IEND
+        append_png_chunk(&mut png, b"IEND", &[]);
+        png
+    }
+
+    fn append_png_chunk(buf: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
+        buf.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        buf.extend_from_slice(chunk_type);
+        buf.extend_from_slice(data);
+        buf.extend_from_slice(&[0, 0, 0, 0]); // CRC placeholder
+    }
+
+    fn simple_base64_encode_test(data: &[u8]) -> String {
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut result = String::new();
+        let mut i = 0;
+        while i < data.len() {
+            let b0 = data[i] as u32;
+            let b1 = if i + 1 < data.len() {
+                data[i + 1] as u32
+            } else {
+                0
+            };
+            let b2 = if i + 2 < data.len() {
+                data[i + 2] as u32
+            } else {
+                0
+            };
+            let triple = (b0 << 16) | (b1 << 8) | b2;
+            result.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
+            result.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
+            if i + 1 < data.len() {
+                result.push(CHARS[((triple >> 6) & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+            if i + 2 < data.len() {
+                result.push(CHARS[(triple & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+            i += 3;
+        }
+        result
     }
 
     #[test]

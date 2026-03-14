@@ -488,6 +488,55 @@ fn main() {
     }
 
     #[test]
+    fn html_to_pdf_display_none_hides_element() {
+        let html = r#"<p>Visible</p><p style="display: none">Secret</p><p>Remaining</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Visible"));
+        assert!(!content.contains("Secret"));
+        assert!(content.contains("Remaining"));
+    }
+
+    #[test]
+    fn html_to_pdf_display_block_on_span() {
+        let html = r#"<p><span style="display: block">Blocked</span></p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Blocked"));
+    }
+
+    #[test]
+    fn html_to_pdf_media_print_applied() {
+        let html = r#"
+            <html>
+            <head><style>
+                @media print { p { color: red } }
+            </style></head>
+            <body><p>Print styled</p></body>
+            </html>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("1 0 0 rg")); // red color applied
+    }
+
+    #[test]
+    fn html_to_pdf_media_screen_ignored() {
+        let html = r#"
+            <html>
+            <head><style>
+                @media screen { p { color: red } }
+            </style></head>
+            <body><p>Not red</p></body>
+            </html>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Should NOT have red color since screen media is ignored
+        assert!(!content.contains("1 0 0 rg"));
+    }
+
+    #[test]
     fn html_to_pdf_strikethrough() {
         let html = "<p><del>deleted</del> and <s>struck</s></p>";
         let pdf = html_to_pdf(html).unwrap();
