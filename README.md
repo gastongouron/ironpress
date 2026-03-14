@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
 [![docs.rs](https://docs.rs/ironpress/badge.svg)](https://docs.rs/ironpress)
 [![CI](https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg)](https://github.com/gastongouron/ironpress/actions)
-[![codecov](https://codecov.io/gh/gastongouron/ironpress/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
+[![codecov](https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
@@ -25,9 +25,11 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [Images](#images)
 - [Tables](#tables)
 - [Fonts](#fonts)
+- [Streaming Output](#streaming-output)
+- [Async API](#async-api)
 - [Security](#security)
 - [How It Works](#how-it-works)
-- [Roadmap](#roadmap)
+- [What's Next](#whats-next)
 - [License](#license)
 
 ## Quick Start
@@ -67,6 +69,18 @@ let pdf = HtmlConverter::new()
     .margin(Margin::uniform(54.0))      // default: 72pt (1 inch)
     .sanitize(false)                    // default: true
     .convert("<h1>Custom page</h1>")
+    .unwrap();
+```
+
+### Custom fonts
+
+```rust
+use ironpress::HtmlConverter;
+
+let ttf_data = std::fs::read("fonts/MyFont.ttf").unwrap();
+let pdf = HtmlConverter::new()
+    .add_font("MyFont", ttf_data)
+    .convert(r#"<p style="font-family: MyFont">Custom font text</p>"#)
     .unwrap();
 ```
 
@@ -114,12 +128,6 @@ Some **bold** and *italic* text with `inline code`.
 
 ---
 
-```
-fn main() {
-    println!("hello");
-}
-```
-
 [Link text](https://example.com)
 "#).unwrap();
 ```
@@ -139,7 +147,7 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Images | `<img>` with JPEG and PNG support (data URIs and local files) |
 | Line breaks | `<br>`, `<hr>` |
 | Lists | `<ul>`, `<ol>` with nested support, `<li>`, `<dl>`, `<dt>`, `<dd>` |
-| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` with colspan, rowspan, and cell borders |
+| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` with colspan, rowspan, auto-sized columns, and cell borders |
 
 ## CSS Support
 
@@ -147,14 +155,19 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 
 | Category | Properties |
 |----------|-----------|
-| Typography | `font-size`, `font-weight`, `font-style`, `font-family` |
-| Colors | `color`, `background-color` |
-| Box model | `margin`, `padding`, `border`, `border-width`, `border-color` |
-| Layout | `text-align`, `line-height`, `display` |
+| Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align` |
+| Colors | `color`, `background-color`, `opacity` |
+| Box model | `margin` (including `auto`), `padding`, `border`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
+| Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute) |
+| Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `gap` |
+| Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
+| Positioning | `top`, `left` |
+| Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
+| Backgrounds | `background-color`, `linear-gradient()`, `radial-gradient()` |
 | Decoration | `text-decoration` (underline, line-through) |
-| Page control | `page-break-before`, `page-break-after` |
+| Page control | `page-break-before`, `page-break-after`, `@page` (size, margin) |
 
-All properties support shorthand notation. Margin and padding accept 1, 2, 3, or 4 values. Border accepts `width style color` shorthand.
+All shorthand properties are supported. Margin and padding accept 1, 2, 3, or 4 values. Border accepts `width style color` shorthand.
 
 ### `<style>` blocks
 
@@ -180,6 +193,12 @@ All properties support shorthand notation. Margin and padding accept 1, 2, 3, or
 | ID | `#title`, `#nav` |
 | Combined | `p.highlight`, `div#main` |
 | Comma-separated | `h1, h2, h3` |
+| Descendant | `div p`, `article h2` |
+| Child | `div > p`, `ul > li` |
+| Adjacent sibling | `h1 + p` |
+| General sibling | `h1 ~ p` |
+| Attribute | `[href]`, `[type="text"]` |
+| Pseudo-class | `:first-child`, `:last-child`, `:nth-child()`, `:not()` |
 
 ### Values
 
@@ -187,11 +206,23 @@ All properties support shorthand notation. Margin and padding accept 1, 2, 3, or
 |------|---------|
 | Colors | `red`, `navy`, `darkblue`, `#f00`, `#ff0000`, `rgb(255, 0, 0)` |
 | Units | `12pt`, `16px`, `1.5em` |
-| Keywords | `bold`, `italic`, `center`, `none` |
+| Keywords | `bold`, `italic`, `center`, `justify`, `none`, `inherit`, `initial`, `unset` |
 
 ### Media queries
 
 `@media print` rules are applied (since PDF is print output). `@media screen` rules are ignored.
+
+### `@page` rule
+
+Control page size and margins from CSS:
+
+```html
+<style>
+  @page { size: letter landscape; margin: 0.5in; }
+</style>
+```
+
+Supported values: `A4`, `letter`, `legal`, `landscape`, custom dimensions (`210mm 297mm`), and individual margins.
 
 ## Images
 
@@ -209,7 +240,7 @@ Images are embedded directly in the PDF. JPEG uses DCTDecode, PNG uses FlateDeco
 
 ## Tables
 
-Full table support with sections, spanning, and styling.
+Full table support with sections, spanning, auto-sized columns, and styling.
 
 ```html
 <table>
@@ -234,19 +265,75 @@ Full table support with sections, spanning, and styling.
 </table>
 ```
 
-Features: `<thead>`, `<tbody>`, `<tfoot>` sections, `colspan` and `rowspan` attributes, bold headers in `<th>`, cell borders, background colors, and padding.
+Column widths are automatically calculated based on content. Features: `<thead>`, `<tbody>`, `<tfoot>` sections, `colspan` and `rowspan` attributes, bold headers in `<th>`, cell borders, background colors, and padding.
 
 ## Fonts
 
-ironpress uses the 14 standard PDF fonts (no font embedding required). CSS `font-family` values are mapped to the closest match:
+### Standard fonts
+
+ironpress includes the 14 standard PDF fonts (no embedding required). CSS `font-family` values are mapped to the closest match:
 
 | PDF Font | CSS Values |
 |----------|-----------|
-| Helvetica | `arial`, `helvetica`, `sans-serif`, `verdana`, `tahoma`, `roboto`, `open sans`, `inter`, `system-ui`, and more |
-| Times-Roman | `serif`, `times new roman`, `georgia`, `garamond`, `palatino`, `merriweather`, `lora`, and more |
-| Courier | `monospace`, `courier new`, `consolas`, `fira code`, `jetbrains mono`, `source code pro`, `menlo`, and more |
+| Helvetica | `arial`, `helvetica`, `sans-serif`, `verdana`, `tahoma`, `roboto`, `open sans`, `inter`, `system-ui`, and 20+ more |
+| Times-Roman | `serif`, `times new roman`, `georgia`, `garamond`, `palatino`, `merriweather`, `lora`, and 15+ more |
+| Courier | `monospace`, `courier new`, `consolas`, `fira code`, `jetbrains mono`, `source code pro`, `menlo`, and 15+ more |
 
-Each family includes regular, bold, italic, and bold-italic variants (12 fonts total). Unknown font names default to Helvetica.
+Each family includes regular, bold, italic, and bold-italic variants (12 fonts total).
+
+### Custom fonts (TrueType)
+
+Embed any TTF font for pixel-perfect rendering:
+
+```rust
+use ironpress::HtmlConverter;
+
+let font = std::fs::read("fonts/Inter.ttf").unwrap();
+let pdf = HtmlConverter::new()
+    .add_font("Inter", font)
+    .convert(r#"<p style="font-family: Inter">Rendered with Inter</p>"#)
+    .unwrap();
+```
+
+The TTF parser extracts character metrics for accurate text wrapping and embeds the font directly in the PDF.
+
+## Streaming Output
+
+Write PDF output directly to any `std::io::Write` implementation instead of allocating a `Vec<u8>`:
+
+```rust
+use std::fs::File;
+
+let mut file = File::create("output.pdf").unwrap();
+ironpress::html_to_pdf_writer("<h1>Hello</h1>", &mut file).unwrap();
+```
+
+Also available on the builder:
+
+```rust
+use ironpress::HtmlConverter;
+use std::fs::File;
+
+let mut file = File::create("output.pdf").unwrap();
+HtmlConverter::new()
+    .convert_to_writer("<h1>Hello</h1>", &mut file)
+    .unwrap();
+```
+
+## Async API
+
+Enable the `async` feature for async file I/O:
+
+```toml
+ironpress = { version = "0.5", features = ["async"] }
+```
+
+```rust
+ironpress::convert_file_async("input.html", "output.pdf").await.unwrap();
+ironpress::convert_markdown_file_async("input.md", "output.pdf").await.unwrap();
+```
+
+The HTML parsing, layout, and rendering remain synchronous (CPU-bound). Async is used for file reads and writes via tokio.
 
 ## Security
 
@@ -269,38 +356,25 @@ Input --> Sanitize --> Parse (html5ever) --> Extract <style> --> Style cascade -
 1. **Sanitize** the input HTML to remove dangerous elements
 2. **Parse** HTML into a DOM tree using html5ever, extracting `<style>` blocks
 3. **Resolve styles** by cascading: tag defaults, then `@media print` rules, then stylesheet rules, then inline CSS
-4. **Layout** elements with text wrapping, page breaks, tables, lists, images, and the CSS box model
-5. **Render** to PDF 1.4 with text, graphics, link annotations, and embedded images
+4. **Layout** elements with text wrapping, float positioning, page breaks, tables, lists, images, and the CSS box model
+5. **Render** to PDF 1.4 with text, graphics, link annotations, embedded images, and custom fonts
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
 
-## Roadmap
+## What's Next
 
-### v0.5 -- New input formats
+ironpress focuses on being the best HTML/CSS/Markdown to PDF engine in Rust. Other input formats (SVG, DOCX, EPUB, CSV) will be available as separate crates in the ironpress ecosystem.
 
-- [ ] Plain text (TXT) to PDF
-- [ ] CSV to PDF (auto-formatted tables)
-- [ ] PNG/JPEG to PDF (full-page image conversion)
-- [ ] XML to PDF
+Remaining work for HTML/CSS rendering:
 
-### v0.6 -- Vector graphics and e-books
-
-- [ ] SVG rendering (paths, shapes, text, basic CSS)
-- [ ] EPUB to PDF
-
-### v0.7 -- Office documents
-
-- [ ] DOCX to PDF
-- [ ] XLSX to PDF (spreadsheet tables)
-
-### Planned improvements
-
-- [ ] Remote image loading via URL (behind a feature flag)
-- [ ] TrueType/OpenType font embedding
-- [ ] CSS `float` and `position` properties
-- [ ] Advanced CSS selectors (descendant, child, attribute)
-- [ ] Table auto-sizing based on content width
-- [ ] Hyphenation and text justification
+- [ ] Rounded corners rendering (`border-radius` is parsed but not yet drawn as curves)
+- [ ] `z-index` stacking order
+- [ ] `list-style-type`, `list-style-position`
+- [ ] `background-position`, `background-size`, `background-repeat`
+- [ ] `text-overflow: ellipsis`
+- [ ] Hyphenation and advanced text shaping
+- [ ] PDF bookmarks from heading structure
+- [ ] WASM support for browser-side PDF generation
 
 ## License
 

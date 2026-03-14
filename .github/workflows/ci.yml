@@ -40,8 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-tarpaulin
-      - run: cargo tarpaulin --out xml --skip-clean
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-tarpaulin
+          key: tarpaulin-${{ runner.os }}-v2
+      - run: command -v cargo-tarpaulin || cargo install cargo-tarpaulin
+      - run: cargo tarpaulin --out xml --output-dir . --skip-clean
       - uses: codecov/codecov-action@v5
         with:
           files: ./cobertura.xml
