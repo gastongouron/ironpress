@@ -1,4 +1,4 @@
-use crate::parser::css::{selector_matches, CssRule, CssValue, StyleMap};
+use crate::parser::css::{CssRule, CssValue, StyleMap, selector_matches};
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
 use crate::types::{Color, EdgeSizes};
@@ -276,7 +276,9 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(
             HtmlTag::Div,
-            Some("margin-top: 10pt; margin-right: 20pt; margin-bottom: 30pt; margin-left: 40pt; padding-top: 5pt; padding-right: 6pt; padding-bottom: 7pt; padding-left: 8pt"),
+            Some(
+                "margin-top: 10pt; margin-right: 20pt; margin-bottom: 30pt; margin-left: 40pt; padding-top: 5pt; padding-right: 6pt; padding-bottom: 7pt; padding-left: 8pt",
+            ),
             &parent,
         );
         assert!((style.margin.top - 10.0).abs() < 0.1);

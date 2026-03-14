@@ -3,11 +3,17 @@
 [![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
 [![docs.rs](https://docs.rs/ironpress/badge.svg)](https://docs.rs/ironpress)
 [![CI](https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg)](https://github.com/gastongouron/ironpress/actions)
-[![codecov](https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg)](https://codecov.io/gh/gastongouron/ironpress)
+[![codecov](https://codecov.io/gh/gastongouron/ironpress/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
 
-Pure Rust HTML/CSS-to-PDF converter — no browser, no external dependencies.
+Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
-Every existing Rust crate that converts HTML to PDF shells out to headless Chrome or wkhtmltopdf. **ironpress** does it natively with a built-in layout engine, producing valid PDFs from HTML + CSS.
+<p align="center">
+  <a href="https://codecov.io/gh/gastongouron/ironpress">
+    <img src="https://codecov.io/gh/gastongouron/ironpress/graphs/tree.svg?token=w36XIAwRxG" alt="Coverage grid">
+  </a>
+</p>
+
+Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
 
 ## Quick Start
 
@@ -30,6 +36,18 @@ let pdf = HtmlConverter::new()
     .unwrap();
 ```
 
+## Markdown to PDF
+
+```rust
+let pdf = ironpress::markdown_to_pdf("# Hello\n\n**Bold** and *italic* text.").unwrap();
+```
+
+```rust
+ironpress::convert_markdown_file("README.md", "readme.pdf").unwrap();
+```
+
+Built-in Markdown parser with zero external dependencies. Supports headings, bold, italic, inline code, fenced code blocks, links, images, ordered and unordered lists, blockquotes, and horizontal rules.
+
 ## File Conversion
 
 ```rust
@@ -40,15 +58,15 @@ ironpress::convert_file("input.html", "output.pdf").unwrap();
 
 | Category | Elements |
 |----------|----------|
-| Headings | `<h1>` - `<h6>` with default sizes and bold |
+| Headings | `<h1>` through `<h6>` with default sizes and bold |
 | Block containers | `<p>`, `<div>`, `<blockquote>`, `<pre>`, `<figure>`, `<figcaption>`, `<address>` |
 | Semantic sections | `<section>`, `<article>`, `<nav>`, `<header>`, `<footer>`, `<main>`, `<aside>`, `<details>`, `<summary>` |
 | Inline formatting | `<strong>`, `<b>`, `<em>`, `<i>`, `<u>`, `<small>`, `<sub>`, `<sup>`, `<code>`, `<abbr>`, `<span>` |
 | Text decoration | `<del>`, `<s>` (strikethrough), `<ins>` (underline), `<mark>` (highlight) |
 | Links | `<a>` with colored underlined text |
 | Line breaks | `<br>`, `<hr>` |
-| Lists | `<ul>`, `<ol>` with bullets/numbers, `<li>`, `<dl>`, `<dt>`, `<dd>` |
-| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` — multi-column layout with cell borders |
+| Lists | `<ul>`, `<ol>` with bullets and numbers, `<li>`, `<dl>`, `<dt>`, `<dd>` |
+| Tables | `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<td>`, `<th>`, `<caption>` with multi-column layout and cell borders |
 
 ## CSS Support
 
@@ -86,14 +104,16 @@ Sanitization can be disabled with `.sanitize(false)` if you trust the input.
 ## How It Works
 
 ```
-HTML string → Sanitize → Parse (html5ever) → Extract <style> → Style resolution → Layout engine → PDF
+Input -> Sanitize -> Parse (html5ever) -> Extract <style> -> Style cascade -> Layout engine -> PDF
 ```
 
-1. **Sanitize** input HTML to remove dangerous elements
+1. **Sanitize** the input HTML to remove dangerous elements
 2. **Parse** HTML into a DOM tree using html5ever, extracting `<style>` blocks
-3. **Resolve styles** by cascading: tag defaults → stylesheet rules → inline CSS
+3. **Resolve styles** by cascading tag defaults, then stylesheet rules, then inline CSS
 4. **Layout** elements with text wrapping, page breaks, tables, lists, and box model
 5. **Render** to PDF using built-in Helvetica fonts (no font embedding needed)
+
+For Markdown input, an additional step converts Markdown to HTML first using the built-in parser.
 
 ## License
 

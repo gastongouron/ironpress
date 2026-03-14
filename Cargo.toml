@@ -1,12 +1,12 @@
 [package]
 name = "ironpress"
-version = "0.2.0"
-edition = "2021"
-rust-version = "1.70"
-description = "Pure Rust HTML/CSS-to-PDF converter — no browser, no external dependencies"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies."
 license = "MIT"
 repository = "https://github.com/gastongouron/ironpress"
-keywords = ["pdf", "html", "css", "converter", "document"]
+keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding"]
 
 [dependencies]

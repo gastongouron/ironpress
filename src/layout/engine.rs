@@ -1,7 +1,7 @@
 use crate::parser::css::CssRule;
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::style::computed::{
-    compute_style, compute_style_with_rules, ComputedStyle, FontStyle, FontWeight, TextAlign,
+    ComputedStyle, FontStyle, FontWeight, TextAlign, compute_style, compute_style_with_rules,
 };
 use crate::types::{Margin, PageSize};
 
