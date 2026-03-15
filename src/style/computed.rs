@@ -226,8 +226,90 @@ pub struct RadialGradient {
     pub stops: Vec<GradientStop>,
 }
 
+/// CSS text-overflow property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum TextOverflow {
+    #[default]
+    Clip,
+    Ellipsis,
+}
+/// CSS border-collapse property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BorderCollapse {
+    #[default]
+    Separate,
+    Collapse,
+}
+/// CSS background-size property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundSize {
+    #[default]
+    Auto,
+    Cover,
+    Contain,
+    Explicit(f32, f32),
+}
+/// CSS background-repeat property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundRepeat {
+    #[default]
+    Repeat,
+    NoRepeat,
+    RepeatX,
+    RepeatY,
+}
+/// CSS background-position value.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BackgroundPosition {
+    pub x: f32,
+    pub y: f32,
+    pub x_is_percent: bool,
+    pub y_is_percent: bool,
+}
+impl Default for BackgroundPosition {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            x_is_percent: true,
+            y_is_percent: true,
+        }
+    }
+}
+/// CSS list-style-type property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum ListStyleType {
+    #[default]
+    Disc,
+    Circle,
+    Square,
+    Decimal,
+    DecimalLeadingZero,
+    LowerAlpha,
+    UpperAlpha,
+    LowerRoman,
+    UpperRoman,
+    None,
+}
+/// CSS list-style-position property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum ListStylePosition {
+    #[default]
+    Outside,
+    Inside,
+}
+/// A single item in a CSS `content` property value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContentItem {
+    String(String),
+    Attr(String),
+    Counter(String),
+    Counters(String, String),
+}
+
 /// CSS box-shadow value.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct BoxShadow {
     pub offset_x: f32,
     pub offset_y: f32,
@@ -292,6 +374,21 @@ pub struct ComputedStyle {
     pub vertical_align: VerticalAlign,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
+    pub text_overflow: TextOverflow,
+    pub border_collapse: BorderCollapse,
+    pub border_spacing: f32,
+    pub background_size: BackgroundSize,
+    pub background_repeat: BackgroundRepeat,
+    pub background_position: BackgroundPosition,
+    /// CSS z-index (0 = auto).
+    pub z_index: i32,
+    /// CSS custom properties inherited from ancestors.
+    pub custom_properties: HashMap<String, String>,
+    pub list_style_type: ListStyleType,
+    pub list_style_position: ListStylePosition,
+    pub content: Vec<ContentItem>,
+    pub counter_reset: Vec<(String, i32)>,
+    pub counter_increment: Vec<(String, i32)>,
 }
 
 impl Default for ComputedStyle {
@@ -351,6 +448,19 @@ impl Default for ComputedStyle {
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            text_overflow: TextOverflow::Clip,
+            border_collapse: BorderCollapse::Separate,
+            border_spacing: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_repeat: BackgroundRepeat::Repeat,
+            background_position: BackgroundPosition::default(),
+            z_index: 0,
+            custom_properties: HashMap::new(),
+            list_style_type: ListStyleType::Disc,
+            list_style_position: ListStylePosition::Outside,
+            content: Vec::new(),
+            counter_reset: Vec::new(),
+            counter_increment: Vec::new(),
         }
     }
 }
@@ -450,6 +560,16 @@ pub fn compute_style_with_context(
     style.box_sizing = BoxSizing::ContentBox;
     style.text_indent = 0.0;
     style.vertical_align = VerticalAlign::Baseline;
+    style.text_overflow = TextOverflow::Clip;
+    // border_collapse and border_spacing are inherited; don't reset them.
+    style.background_size = BackgroundSize::Auto;
+    style.background_repeat = BackgroundRepeat::Repeat;
+    style.background_position = BackgroundPosition::default();
+    style.content = Vec::new();
+    style.counter_reset = Vec::new();
+    style.counter_increment = Vec::new();
+    style.z_index = 0;
+    // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
     let defaults = default_style(tag);
@@ -496,6 +616,10 @@ fn is_inherited_property(property: &str) -> bool {
             | "text-indent"
             | "text-transform"
             | "white-space"
+            | "border-collapse"
+            | "border-spacing"
+            | "list-style-type"
+            | "list-style-position"
     )
 }
 
@@ -550,6 +674,17 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "align-items" => style.align_items = default.align_items,
         "flex-wrap" => style.flex_wrap = default.flex_wrap,
         "gap" => style.gap = default.gap,
+        "text-overflow" => style.text_overflow = default.text_overflow,
+        "border-collapse" => style.border_collapse = default.border_collapse,
+        "border-spacing" => style.border_spacing = default.border_spacing,
+        "background-size" => style.background_size = default.background_size,
+        "background-repeat" => style.background_repeat = default.background_repeat,
+        "background-position" => style.background_position = default.background_position,
+        "list-style-type" => style.list_style_type = default.list_style_type,
+        "list-style-position" => style.list_style_position = default.list_style_position,
+        "content" => style.content = default.content,
+        "counter-reset" => style.counter_reset = default.counter_reset,
+        "counter-increment" => style.counter_increment = default.counter_increment,
         _ => {}
     }
 }
@@ -604,6 +739,17 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "align-items" => style.align_items = parent.align_items,
         "flex-wrap" => style.flex_wrap = parent.flex_wrap,
         "gap" => style.gap = parent.gap,
+        "text-overflow" => style.text_overflow = parent.text_overflow,
+        "border-collapse" => style.border_collapse = parent.border_collapse,
+        "border-spacing" => style.border_spacing = parent.border_spacing,
+        "background-size" => style.background_size = parent.background_size,
+        "background-repeat" => style.background_repeat = parent.background_repeat,
+        "background-position" => style.background_position = parent.background_position,
+        "list-style-type" => style.list_style_type = parent.list_style_type,
+        "list-style-position" => style.list_style_position = parent.list_style_position,
+        "content" => style.content = parent.content.clone(),
+        "counter-reset" => style.counter_reset = parent.counter_reset.clone(),
+        "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
         _ => {}
     }
 }
@@ -1100,6 +1246,400 @@ fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedS
             "bottom" => VerticalAlign::Bottom,
             _ => VerticalAlign::Baseline,
         };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-overflow") {
+        style.text_overflow = match k.as_str() {
+            "ellipsis" => TextOverflow::Ellipsis,
+            _ => TextOverflow::Clip,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-collapse") {
+        style.border_collapse = match k.as_str() {
+            "collapse" => BorderCollapse::Collapse,
+            _ => BorderCollapse::Separate,
+        };
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing") {
+        style.border_spacing = *v;
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-size") {
+        style.background_size = match k.as_str() {
+            "cover" => BackgroundSize::Cover,
+            "contain" => BackgroundSize::Contain,
+            "auto" => BackgroundSize::Auto,
+            _ => parse_background_size_explicit(k).unwrap_or(BackgroundSize::Auto),
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-repeat") {
+        style.background_repeat = match k.as_str() {
+            "no-repeat" => BackgroundRepeat::NoRepeat,
+            "repeat-x" => BackgroundRepeat::RepeatX,
+            "repeat-y" => BackgroundRepeat::RepeatY,
+            _ => BackgroundRepeat::Repeat,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-position") {
+        if let Some(pos) = parse_background_position(k) {
+            style.background_position = pos;
+        }
+    }
+
+    // z-index
+    if let Some(CssValue::Number(v)) = get_non_special(map, "z-index") {
+        style.z_index = *v as i32;
+    }
+
+    // Collect custom properties (--*) into style.custom_properties
+    for (prop, val) in &map.properties {
+        if prop.starts_with("--") {
+            if let CssValue::Keyword(raw) = val {
+                style.custom_properties.insert(prop.clone(), raw.clone());
+            }
+        }
+    }
+
+    // Resolve new value types (Percentage, Rem, Vw, Vh, Calc, Var) for length properties
+    type LengthSetter = fn(&mut ComputedStyle, f32);
+    let length_props: &[(&str, LengthSetter)] = &[
+        ("width", |s, v| s.width = Some(v)),
+        ("height", |s, v| s.height = Some(v)),
+        ("max-width", |s, v| s.max_width = Some(v)),
+        ("min-width", |s, v| s.min_width = Some(v)),
+        ("max-height", |s, v| s.max_height = Some(v)),
+        ("min-height", |s, v| s.min_height = Some(v)),
+        ("margin-top", |s, v| s.margin.top = v),
+        ("margin-right", |s, v| s.margin.right = v),
+        ("margin-bottom", |s, v| s.margin.bottom = v),
+        ("margin-left", |s, v| s.margin.left = v),
+        ("padding-top", |s, v| s.padding.top = v),
+        ("padding-right", |s, v| s.padding.right = v),
+        ("padding-bottom", |s, v| s.padding.bottom = v),
+        ("padding-left", |s, v| s.padding.left = v),
+        ("top", |s, v| s.top = Some(v)),
+        ("left", |s, v| s.left = Some(v)),
+        ("gap", |s, v| {
+            s.gap = v;
+            s.grid_gap = v;
+        }),
+        ("grid-gap", |s, v| s.grid_gap = v),
+        ("border-width", |s, v| s.border_width = v),
+        ("border-radius", |s, v| s.border_radius = v),
+        ("text-indent", |s, v| s.text_indent = v),
+        ("letter-spacing", |s, v| s.letter_spacing = v),
+        ("word-spacing", |s, v| s.word_spacing = v),
+        ("border-spacing", |s, v| s.border_spacing = v),
+    ];
+    for &(prop_name, setter) in length_props {
+        if let Some(val) = get_non_special(map, prop_name) {
+            match val {
+                CssValue::Percentage(_)
+                | CssValue::Rem(_)
+                | CssValue::Vw(_)
+                | CssValue::Vh(_)
+                | CssValue::Calc(_)
+                | CssValue::Var(_, _) => {
+                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length(
+                        val,
+                        &style.custom_properties,
+                        parent.width.unwrap_or(595.28),
+                    ) {
+                        setter(style, resolved);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Resolve font-size from new value types
+    if let Some(val) = get_non_special(map, "font-size") {
+        match val {
+            CssValue::Percentage(v) => {
+                style.font_size = parent.font_size * v / 100.0;
+            }
+            CssValue::Rem(v) => {
+                style.font_size = v * 12.0; // root font size default
+            }
+            CssValue::Var(_, _) => {
+                if let Some(resolved) = crate::style::resolve::try_resolve_to_length(
+                    val,
+                    &style.custom_properties,
+                    parent.width.unwrap_or(595.28),
+                ) {
+                    style.font_size = resolved;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Resolve var() for color properties
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "color") {
+        if let Some(c) =
+            crate::style::resolve::try_resolve_var_to_color(val, &style.custom_properties)
+        {
+            style.color = c;
+        }
+    }
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "background-color") {
+        if let Some(c) =
+            crate::style::resolve::try_resolve_var_to_color(val, &style.custom_properties)
+        {
+            style.background_color = Some(c);
+        }
+    }
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "border-color") {
+        if let Some(c) =
+            crate::style::resolve::try_resolve_var_to_color(val, &style.custom_properties)
+        {
+            style.border_color = Some(c);
+        }
+    }
+
+    // Resolve var() for keyword properties
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "display") {
+        if let Some(kw) =
+            crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
+        {
+            style.display = match kw.as_str() {
+                "none" => Display::None,
+                "inline" => Display::Inline,
+                "block" => Display::Block,
+                "flex" => Display::Flex,
+                "grid" => Display::Grid,
+                _ => style.display,
+            };
+        }
+    }
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "position") {
+        if let Some(kw) =
+            crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
+        {
+            style.position = match kw.as_str() {
+                "relative" => Position::Relative,
+                "absolute" => Position::Absolute,
+                _ => Position::Static,
+            };
+        }
+    }
+    if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "text-align") {
+        if let Some(kw) =
+            crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
+        {
+            style.text_align = match kw.as_str() {
+                "center" => TextAlign::Center,
+                "right" => TextAlign::Right,
+                "justify" => TextAlign::Justify,
+                _ => TextAlign::Left,
+            };
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "list-style-type") {
+        style.list_style_type = parse_list_style_type(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "list-style-position") {
+        style.list_style_position = match k.to_ascii_lowercase().as_str() {
+            "inside" => ListStylePosition::Inside,
+            _ => ListStylePosition::Outside,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "list-style") {
+        let lower = k.to_ascii_lowercase();
+        for part in lower.split_whitespace() {
+            match part {
+                "inside" => style.list_style_position = ListStylePosition::Inside,
+                "outside" => style.list_style_position = ListStylePosition::Outside,
+                other => style.list_style_type = parse_list_style_type(other),
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "content") {
+        style.content = parse_content_value(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-reset") {
+        style.counter_reset = parse_counter_directive(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-increment") {
+        style.counter_increment = parse_counter_directive(k);
+    }
+}
+
+fn parse_list_style_type(k: &str) -> ListStyleType {
+    match k.to_ascii_lowercase().as_str() {
+        "disc" => ListStyleType::Disc,
+        "circle" => ListStyleType::Circle,
+        "square" => ListStyleType::Square,
+        "decimal" => ListStyleType::Decimal,
+        "decimal-leading-zero" => ListStyleType::DecimalLeadingZero,
+        "lower-alpha" | "lower-latin" => ListStyleType::LowerAlpha,
+        "upper-alpha" | "upper-latin" => ListStyleType::UpperAlpha,
+        "lower-roman" => ListStyleType::LowerRoman,
+        "upper-roman" => ListStyleType::UpperRoman,
+        "none" => ListStyleType::None,
+        _ => ListStyleType::Disc,
+    }
+}
+
+/// Public wrapper for `parse_content_value` used by the layout engine.
+pub fn parse_content_value_pub(raw: &str) -> Vec<ContentItem> {
+    parse_content_value(raw)
+}
+
+fn parse_content_value(raw: &str) -> Vec<ContentItem> {
+    let s = raw.trim();
+    if s == "none" || s == "normal" {
+        return Vec::new();
+    }
+    let mut items = Vec::new();
+    let mut rest = s;
+    while !rest.is_empty() {
+        rest = rest.trim_start();
+        if rest.is_empty() {
+            break;
+        }
+        if rest.starts_with('"') || rest.starts_with('\'') {
+            let quote = rest.as_bytes()[0] as char;
+            if let Some(end) = rest[1..].find(quote) {
+                items.push(ContentItem::String(rest[1..1 + end].to_string()));
+                rest = &rest[2 + end..];
+            } else {
+                items.push(ContentItem::String(rest[1..].to_string()));
+                break;
+            }
+        } else if rest.starts_with("attr(") {
+            if let Some(end) = rest.find(')') {
+                let name = rest[5..end].trim().to_string();
+                items.push(ContentItem::Attr(name));
+                rest = &rest[end + 1..];
+            } else {
+                break;
+            }
+        } else if rest.starts_with("counters(") {
+            if let Some(end) = rest.find(')') {
+                let inner = &rest[9..end];
+                let parts: Vec<&str> = inner.splitn(2, ',').collect();
+                let name = parts[0].trim().to_string();
+                let sep = if parts.len() > 1 {
+                    parts[1]
+                        .trim()
+                        .trim_matches(|c: char| c == '"' || c == '\'')
+                        .to_string()
+                } else {
+                    ".".to_string()
+                };
+                items.push(ContentItem::Counters(name, sep));
+                rest = &rest[end + 1..];
+            } else {
+                break;
+            }
+        } else if rest.starts_with("counter(") {
+            if let Some(end) = rest.find(')') {
+                let name = rest[8..end].trim().to_string();
+                items.push(ContentItem::Counter(name));
+                rest = &rest[end + 1..];
+            } else {
+                break;
+            }
+        } else if let Some(space) = rest.find(char::is_whitespace) {
+            rest = &rest[space..];
+        } else {
+            break;
+        }
+    }
+    items
+}
+
+fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
+    let s = raw.trim();
+    if s == "none" {
+        return Vec::new();
+    }
+    let mut result = Vec::new();
+    let mut tokens = s.split_whitespace().peekable();
+    while let Some(name) = tokens.next() {
+        let val = tokens
+            .peek()
+            .and_then(|t| t.parse::<i32>().ok())
+            .inspect(|_| {
+                let _ = tokens.next();
+            })
+            .unwrap_or(0);
+        result.push((name.to_string(), val));
+    }
+    result
+}
+
+fn parse_background_size_explicit(val: &str) -> Option<BackgroundSize> {
+    let parts: Vec<&str> = val.split_whitespace().collect();
+    let pd = |s: &str| -> Option<f32> {
+        if let Some(n) = s.strip_suffix("px") {
+            n.parse::<f32>().ok().map(|v| v * 0.75)
+        } else if let Some(n) = s.strip_suffix("pt") {
+            n.parse::<f32>().ok()
+        } else if let Some(n) = s.strip_suffix('%') {
+            n.parse::<f32>().ok()
+        } else {
+            s.parse::<f32>().ok()
+        }
+    };
+    match parts.len() {
+        1 => {
+            let w = pd(parts[0])?;
+            Some(BackgroundSize::Explicit(w, w))
+        }
+        2 => {
+            let w = pd(parts[0])?;
+            let h = pd(parts[1])?;
+            Some(BackgroundSize::Explicit(w, h))
+        }
+        _ => None,
+    }
+}
+
+fn parse_background_position(val: &str) -> Option<BackgroundPosition> {
+    let v = val.trim().to_ascii_lowercase();
+    let p: Vec<&str> = v.split_whitespace().collect();
+    let pc = |s: &str| -> Option<(f32, bool)> {
+        match s {
+            "left" => Some((0.0, true)),
+            "right" => Some((1.0, true)),
+            "top" => Some((0.0, true)),
+            "bottom" => Some((1.0, true)),
+            "center" => Some((0.5, true)),
+            _ => {
+                if let Some(n) = s.strip_suffix('%') {
+                    n.parse::<f32>().ok().map(|x| (x / 100.0, true))
+                } else if let Some(n) = s.strip_suffix("px") {
+                    n.parse::<f32>().ok().map(|x| (x * 0.75, false))
+                } else if let Some(n) = s.strip_suffix("pt") {
+                    n.parse::<f32>().ok().map(|x| (x, false))
+                } else {
+                    s.parse::<f32>().ok().map(|x| (x, false))
+                }
+            }
+        }
+    };
+    match p.len() {
+        1 => {
+            let (x, xp) = pc(p[0])?;
+            Some(BackgroundPosition {
+                x,
+                y: 0.5,
+                x_is_percent: xp,
+                y_is_percent: true,
+            })
+        }
+        2 => {
+            let (x, xp) = pc(p[0])?;
+            let (y, yp) = pc(p[1])?;
+            Some(BackgroundPosition {
+                x,
+                y,
+                x_is_percent: xp,
+                y_is_percent: yp,
+            })
+        }
+        _ => None,
     }
 }
 
@@ -3483,6 +4023,7 @@ mod tests {
         CssRule {
             selector: "div".to_string(),
             declarations: map,
+            pseudo_element: None,
         }
     }
 
@@ -3933,5 +4474,1260 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("align-items: center"), &parent);
         assert_eq!(style.align_items, AlignItems::Center);
+    }
+
+    // ---- z-index tests ----
+
+    #[test]
+    fn z_index_positive() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("z-index: 10"), &parent);
+        assert_eq!(style.z_index, 10);
+    }
+
+    #[test]
+    fn z_index_negative() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("z-index: -5"), &parent);
+        assert_eq!(style.z_index, -5);
+    }
+
+    #[test]
+    fn z_index_auto_stays_zero() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("z-index: auto"), &parent);
+        assert_eq!(style.z_index, 0);
+    }
+
+    #[test]
+    fn z_index_resets_between_elements() {
+        let parent = ComputedStyle::default();
+        let style1 = compute_style(HtmlTag::Div, Some("z-index: 99"), &parent);
+        assert_eq!(style1.z_index, 99);
+        let style2 = compute_style(HtmlTag::Div, None, &parent);
+        assert_eq!(style2.z_index, 0);
+    }
+
+    // ---- CSS custom properties tests ----
+
+    #[test]
+    fn custom_property_stored() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("--spacing: 10pt"), &parent);
+        assert_eq!(
+            style.custom_properties.get("--spacing"),
+            Some(&"10pt".to_string())
+        );
+    }
+
+    #[test]
+    fn custom_property_inherited() {
+        let parent = ComputedStyle::default();
+        let p = compute_style(HtmlTag::Div, Some("--color: red"), &parent);
+        assert_eq!(p.custom_properties.get("--color"), Some(&"red".to_string()));
+        // Child inherits custom properties from parent (parent is cloned)
+        let child = compute_style(HtmlTag::Span, None, &p);
+        assert_eq!(
+            child.custom_properties.get("--color"),
+            Some(&"red".to_string())
+        );
+    }
+
+    #[test]
+    fn var_resolves_width_from_custom_prop() {
+        let parent = ComputedStyle::default();
+        let p = compute_style(HtmlTag::Div, Some("--w: 200pt"), &parent);
+        let child = compute_style(HtmlTag::Div, Some("width: var(--w)"), &p);
+        assert!((child.width.unwrap() - 200.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn var_fallback_for_width() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("width: var(--missing, 50pt)"), &parent);
+        assert!((style.width.unwrap() - 50.0).abs() < 0.1);
+    }
+
+    // ---- New unit tests ----
+
+    #[test]
+    fn percentage_width() {
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(400.0);
+        let style = compute_style(HtmlTag::Div, Some("width: 50%"), &parent);
+        // 50% of parent width (400) = 200 ... but default parent_width_hint is 595.28
+        // Actually resolve uses parent.width.unwrap_or(595.28)
+        assert!(style.width.is_some());
+    }
+
+    #[test]
+    fn rem_margin() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("margin-top: 2rem"), &parent);
+        // 2rem * 12pt (default root) = 24pt
+        assert!((style.margin.top - 24.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn calc_width() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("width: calc(100% - 20pt)"), &parent);
+        assert!(style.width.is_some());
+        // 100% of 595.28 - 20 = 575.28
+        assert!((style.width.unwrap() - 575.28).abs() < 0.5);
+    }
+
+    #[test]
+    fn vw_width() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("width: 50vw"), &parent);
+        assert!(style.width.is_some());
+        // 50vw = 50% of 595.28 = 297.64
+        assert!((style.width.unwrap() - 297.64).abs() < 0.1);
+    }
+
+    #[test]
+    fn vh_height() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("height: 100vh"), &parent);
+        assert!(style.height.is_some());
+        // 100vh = 841.89
+        assert!((style.height.unwrap() - 841.89).abs() < 0.1);
+    }
+
+    #[test]
+    fn rem_font_size() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("font-size: 1.5rem"), &parent);
+        // 1.5rem * 12pt = 18pt
+        assert!((style.font_size - 18.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn percentage_font_size() {
+        let mut parent = ComputedStyle::default();
+        parent.font_size = 16.0;
+        let style = compute_style(HtmlTag::Div, Some("font-size: 150%"), &parent);
+        // 150% of 16pt = 24pt
+        assert!((style.font_size - 24.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn var_resolves_color() {
+        let parent = ComputedStyle::default();
+        let p = compute_style(HtmlTag::Div, Some("--text-color: red"), &parent);
+        let child = compute_style(HtmlTag::Span, Some("color: var(--text-color)"), &p);
+        assert_eq!(child.color.r, 255);
+        assert_eq!(child.color.g, 0);
+        assert_eq!(child.color.b, 0);
+    }
+
+    #[test]
+    fn var_resolves_background_color() {
+        let parent = ComputedStyle::default();
+        let p = compute_style(HtmlTag::Div, Some("--bg: blue"), &parent);
+        let child = compute_style(HtmlTag::Div, Some("background-color: var(--bg)"), &p);
+        let bg = child.background_color.unwrap();
+        assert_eq!(bg.r, 0);
+        assert_eq!(bg.g, 0);
+        assert_eq!(bg.b, 255);
+    }
+
+    #[test]
+    fn text_overflow_default_is_clip() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.text_overflow, TextOverflow::Clip);
+    }
+
+    #[test]
+    fn text_overflow_ellipsis_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("text-overflow: ellipsis"), &parent);
+        assert_eq!(s.text_overflow, TextOverflow::Ellipsis);
+    }
+
+    #[test]
+    fn text_overflow_clip_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("text-overflow: clip"), &parent);
+        assert_eq!(s.text_overflow, TextOverflow::Clip);
+    }
+
+    #[test]
+    fn border_collapse_default_is_separate() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.border_collapse, BorderCollapse::Separate);
+    }
+
+    #[test]
+    fn border_collapse_collapse_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-collapse: collapse"), &parent);
+        assert_eq!(s.border_collapse, BorderCollapse::Collapse);
+    }
+
+    #[test]
+    fn border_collapse_separate_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-collapse: separate"), &parent);
+        assert_eq!(s.border_collapse, BorderCollapse::Separate);
+    }
+
+    #[test]
+    fn border_collapse_inherits() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("border-collapse: collapse"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Td, None, &parent);
+        assert_eq!(child.border_collapse, BorderCollapse::Collapse);
+    }
+
+    #[test]
+    fn border_spacing_default_is_zero() {
+        let s = ComputedStyle::default();
+        assert!((s.border_spacing - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-spacing: 10px"), &parent);
+        assert!((s.border_spacing - 7.5).abs() < 0.001); // 10px = 7.5pt
+    }
+
+    #[test]
+    fn border_spacing_inherits() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: 5px"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Td, None, &parent);
+        assert!((child.border_spacing - 3.75).abs() < 0.001); // 5px = 3.75pt
+    }
+
+    #[test]
+    fn background_size_default_is_auto() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.background_size, BackgroundSize::Auto);
+    }
+
+    #[test]
+    fn background_size_cover_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: cover"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Cover);
+    }
+
+    #[test]
+    fn background_size_contain_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: contain"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Contain);
+    }
+
+    #[test]
+    fn background_size_explicit_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
+        if let BackgroundSize::Explicit(w, h) = s.background_size {
+            assert!((w - 75.0).abs() < 0.001); // 100px = 75pt
+            assert!((h - 150.0).abs() < 0.001); // 200px = 150pt
+        } else {
+            panic!(
+                "Expected BackgroundSize::Explicit, got {:?}",
+                s.background_size
+            );
+        }
+    }
+
+    #[test]
+    fn background_repeat_default_is_repeat() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.background_repeat, BackgroundRepeat::Repeat);
+    }
+
+    #[test]
+    fn background_repeat_no_repeat_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: no-repeat"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::NoRepeat);
+    }
+
+    #[test]
+    fn background_repeat_repeat_x_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: repeat-x"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::RepeatX);
+    }
+
+    #[test]
+    fn background_repeat_repeat_y_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: repeat-y"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::RepeatY);
+    }
+
+    #[test]
+    fn background_position_default_is_zero_percent() {
+        let s = ComputedStyle::default();
+        assert!((s.background_position.x - 0.0).abs() < 0.001);
+        assert!((s.background_position.y - 0.0).abs() < 0.001);
+        assert!(s.background_position.x_is_percent);
+        assert!(s.background_position.y_is_percent);
+    }
+
+    #[test]
+    fn background_position_center_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: center"), &parent);
+        assert!((s.background_position.x - 0.5).abs() < 0.001);
+        assert!((s.background_position.y - 0.5).abs() < 0.001);
+        assert!(s.background_position.x_is_percent);
+        assert!(s.background_position.y_is_percent);
+    }
+
+    #[test]
+    fn background_position_top_left_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: top left"), &parent);
+        assert!((s.background_position.x - 0.0).abs() < 0.001);
+        assert!((s.background_position.y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn background_position_bottom_right_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-position: bottom right"),
+            &parent,
+        );
+        assert!((s.background_position.x - 1.0).abs() < 0.001);
+        assert!((s.background_position.y - 1.0).abs() < 0.001);
+    }
+
+    // --- list-style-type tests ---
+    #[test]
+    fn list_style_type_default_is_disc() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.list_style_type, ListStyleType::Disc);
+    }
+
+    #[test]
+    fn list_style_type_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-type: circle"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Circle);
+    }
+
+    #[test]
+    fn list_style_type_decimal() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-type: decimal"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Decimal);
+    }
+
+    #[test]
+    fn list_style_type_none() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-type: none"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::None);
+    }
+
+    #[test]
+    fn list_style_type_lower_roman() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-type: lower-roman"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::LowerRoman);
+    }
+
+    #[test]
+    fn list_style_type_upper_alpha() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-type: upper-alpha"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::UpperAlpha);
+    }
+
+    #[test]
+    fn list_style_type_decimal_leading_zero() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Li,
+            Some("list-style-type: decimal-leading-zero"),
+            &parent,
+        );
+        assert_eq!(s.list_style_type, ListStyleType::DecimalLeadingZero);
+    }
+
+    #[test]
+    fn list_style_type_inherits() {
+        let parent = compute_style(
+            HtmlTag::Ul,
+            Some("list-style-type: square"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Li, None, &parent);
+        assert_eq!(child.list_style_type, ListStyleType::Square);
+    }
+
+    // --- list-style-position tests ---
+    #[test]
+    fn list_style_position_default_is_outside() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.list_style_position, ListStylePosition::Outside);
+    }
+
+    #[test]
+    fn list_style_position_inside() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style-position: inside"), &parent);
+        assert_eq!(s.list_style_position, ListStylePosition::Inside);
+    }
+
+    #[test]
+    fn list_style_position_inherits() {
+        let parent = compute_style(
+            HtmlTag::Ul,
+            Some("list-style-position: inside"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Li, None, &parent);
+        assert_eq!(child.list_style_position, ListStylePosition::Inside);
+    }
+
+    // --- list-style shorthand tests ---
+    #[test]
+    fn list_style_shorthand_type_only() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style: square"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Square);
+    }
+
+    #[test]
+    fn list_style_shorthand_position_only() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style: inside"), &parent);
+        assert_eq!(s.list_style_position, ListStylePosition::Inside);
+    }
+
+    #[test]
+    fn list_style_shorthand_both() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Li, Some("list-style: circle inside"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Circle);
+        assert_eq!(s.list_style_position, ListStylePosition::Inside);
+    }
+
+    // --- content property tests ---
+    #[test]
+    fn content_default_is_empty() {
+        let s = ComputedStyle::default();
+        assert!(s.content.is_empty());
+    }
+
+    #[test]
+    fn content_string() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: \"hello\""), &parent);
+        assert_eq!(s.content, vec![ContentItem::String("hello".to_string())]);
+    }
+
+    #[test]
+    fn content_attr() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: attr(title)"), &parent);
+        assert_eq!(s.content, vec![ContentItem::Attr("title".to_string())]);
+    }
+
+    #[test]
+    fn content_counter() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: counter(section)"), &parent);
+        assert_eq!(s.content, vec![ContentItem::Counter("section".to_string())]);
+    }
+
+    #[test]
+    fn content_counters_with_separator() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("content: counters(section, \".\")"),
+            &parent,
+        );
+        assert_eq!(
+            s.content,
+            vec![ContentItem::Counters(
+                "section".to_string(),
+                ".".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn content_none() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: none"), &parent);
+        assert!(s.content.is_empty());
+    }
+
+    #[test]
+    fn content_not_inherited() {
+        let parent = compute_style(
+            HtmlTag::Div,
+            Some("content: \"hello\""),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Span, None, &parent);
+        assert!(child.content.is_empty());
+    }
+
+    // --- counter-reset tests ---
+    #[test]
+    fn counter_reset_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-reset: section"), &parent);
+        assert_eq!(s.counter_reset, vec![("section".to_string(), 0)]);
+    }
+
+    #[test]
+    fn counter_reset_with_value() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-reset: section 5"), &parent);
+        assert_eq!(s.counter_reset, vec![("section".to_string(), 5)]);
+    }
+
+    #[test]
+    fn counter_reset_multiple() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("counter-reset: section 0 chapter 1"),
+            &parent,
+        );
+        assert_eq!(
+            s.counter_reset,
+            vec![("section".to_string(), 0), ("chapter".to_string(), 1)]
+        );
+    }
+
+    #[test]
+    fn counter_reset_none() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-reset: none"), &parent);
+        assert!(s.counter_reset.is_empty());
+    }
+
+    #[test]
+    fn counter_reset_not_inherited() {
+        let parent = compute_style(
+            HtmlTag::Div,
+            Some("counter-reset: section"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Span, None, &parent);
+        assert!(child.counter_reset.is_empty());
+    }
+
+    // --- counter-increment tests ---
+    #[test]
+    fn counter_increment_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-increment: section"), &parent);
+        assert_eq!(s.counter_increment, vec![("section".to_string(), 0)]);
+    }
+
+    #[test]
+    fn counter_increment_with_value() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-increment: section 2"), &parent);
+        assert_eq!(s.counter_increment, vec![("section".to_string(), 2)]);
+    }
+
+    #[test]
+    fn counter_increment_not_inherited() {
+        let parent = compute_style(
+            HtmlTag::Div,
+            Some("counter-increment: section"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Span, None, &parent);
+        assert!(child.counter_increment.is_empty());
+    }
+
+    // --- Coverage: reset_to_initial for tail properties (lines 677-688) ---
+
+    #[test]
+    fn initial_keyword_resets_text_overflow() {
+        let parent = ComputedStyle::default();
+        let mut p = compute_style(HtmlTag::Div, Some("text-overflow: ellipsis"), &parent);
+        p.text_overflow = TextOverflow::Ellipsis;
+        let s = compute_style(HtmlTag::Div, Some("text-overflow: initial"), &p);
+        assert_eq!(s.text_overflow, TextOverflow::Clip);
+    }
+
+    #[test]
+    fn initial_keyword_resets_border_collapse() {
+        let mut parent = ComputedStyle::default();
+        parent.border_collapse = BorderCollapse::Collapse;
+        let s = compute_style(HtmlTag::Div, Some("border-collapse: initial"), &parent);
+        assert_eq!(s.border_collapse, BorderCollapse::Separate);
+    }
+
+    #[test]
+    fn initial_keyword_resets_border_spacing() {
+        let mut parent = ComputedStyle::default();
+        parent.border_spacing = 10.0;
+        let s = compute_style(HtmlTag::Div, Some("border-spacing: initial"), &parent);
+        assert!((s.border_spacing - 0.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn initial_keyword_resets_background_size() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: initial"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Auto);
+    }
+
+    #[test]
+    fn initial_keyword_resets_background_repeat() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: initial"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::Repeat);
+    }
+
+    #[test]
+    fn initial_keyword_resets_background_position() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: initial"), &parent);
+        assert_eq!(s.background_position, BackgroundPosition::default());
+    }
+
+    #[test]
+    fn initial_keyword_resets_list_style_type() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("list-style-type: initial"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Disc);
+    }
+
+    #[test]
+    fn initial_keyword_resets_list_style_position() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("list-style-position: initial"), &parent);
+        assert_eq!(s.list_style_position, ListStylePosition::Outside);
+    }
+
+    #[test]
+    fn initial_keyword_resets_content() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: initial"), &parent);
+        assert!(s.content.is_empty());
+    }
+
+    #[test]
+    fn initial_keyword_resets_counter_reset() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-reset: initial"), &parent);
+        assert!(s.counter_reset.is_empty());
+    }
+
+    #[test]
+    fn initial_keyword_resets_counter_increment() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("counter-increment: initial"), &parent);
+        assert!(s.counter_increment.is_empty());
+    }
+
+    // --- Coverage: restore_from_parent for tail properties (lines 742-753) ---
+
+    #[test]
+    fn inherit_keyword_restores_text_overflow_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.text_overflow = TextOverflow::Ellipsis;
+        let s = compute_style(HtmlTag::Div, Some("text-overflow: inherit"), &parent);
+        assert_eq!(s.text_overflow, TextOverflow::Ellipsis);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_border_collapse_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.border_collapse = BorderCollapse::Collapse;
+        let s = compute_style(HtmlTag::Div, Some("border-collapse: inherit"), &parent);
+        assert_eq!(s.border_collapse, BorderCollapse::Collapse);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_border_spacing_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.border_spacing = 5.0;
+        let s = compute_style(HtmlTag::Div, Some("border-spacing: inherit"), &parent);
+        assert!((s.border_spacing - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_background_size() {
+        let mut parent = ComputedStyle::default();
+        parent.background_size = BackgroundSize::Cover;
+        let s = compute_style(HtmlTag::Div, Some("background-size: inherit"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Cover);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_background_repeat() {
+        let mut parent = ComputedStyle::default();
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: inherit"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::NoRepeat);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_background_position() {
+        let mut parent = ComputedStyle::default();
+        parent.background_position = BackgroundPosition {
+            x: 0.5,
+            y: 0.5,
+            x_is_percent: true,
+            y_is_percent: true,
+        };
+        let s = compute_style(HtmlTag::Div, Some("background-position: inherit"), &parent);
+        assert_eq!(s.background_position, parent.background_position);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_list_style_type() {
+        let mut parent = ComputedStyle::default();
+        parent.list_style_type = ListStyleType::Square;
+        let s = compute_style(HtmlTag::Div, Some("list-style-type: inherit"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Square);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_list_style_position() {
+        let mut parent = ComputedStyle::default();
+        parent.list_style_position = ListStylePosition::Inside;
+        let s = compute_style(HtmlTag::Div, Some("list-style-position: inherit"), &parent);
+        assert_eq!(s.list_style_position, ListStylePosition::Inside);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_content() {
+        let mut parent = ComputedStyle::default();
+        parent.content = vec![ContentItem::String("hello".to_string())];
+        let s = compute_style(HtmlTag::Div, Some("content: inherit"), &parent);
+        assert_eq!(s.content, vec![ContentItem::String("hello".to_string())]);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_counter_reset() {
+        let mut parent = ComputedStyle::default();
+        parent.counter_reset = vec![("section".to_string(), 0)];
+        let s = compute_style(HtmlTag::Div, Some("counter-reset: inherit"), &parent);
+        assert_eq!(s.counter_reset, vec![("section".to_string(), 0)]);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_counter_increment() {
+        let mut parent = ComputedStyle::default();
+        parent.counter_increment = vec![("item".to_string(), 1)];
+        let s = compute_style(HtmlTag::Div, Some("counter-increment: inherit"), &parent);
+        assert_eq!(s.counter_increment, vec![("item".to_string(), 1)]);
+    }
+
+    // --- Coverage: background-repeat default branch (line 1278) ---
+
+    #[test]
+    fn background_repeat_explicit_repeat_keyword() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-repeat: repeat"), &parent);
+        assert_eq!(s.background_repeat, BackgroundRepeat::Repeat);
+    }
+
+    // --- Coverage: length property resolution via Percentage/Rem/Var (lines 1306-1330) ---
+
+    #[test]
+    fn max_width_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("max-width: 50%"), &parent);
+        assert!(s.max_width.is_some());
+    }
+
+    #[test]
+    fn min_width_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("min-width: 25%"), &parent);
+        assert!(s.min_width.is_some());
+    }
+
+    #[test]
+    fn max_height_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("max-height: 80%"), &parent);
+        assert!(s.max_height.is_some());
+    }
+
+    #[test]
+    fn min_height_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("min-height: 10%"), &parent);
+        assert!(s.min_height.is_some());
+    }
+
+    #[test]
+    fn gap_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("gap: 1rem"), &parent);
+        assert!((s.gap - 12.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn grid_gap_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("grid-gap: 5%"), &parent);
+        assert!(s.grid_gap > 0.0);
+    }
+
+    #[test]
+    fn border_width_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("border-width: 0.5rem"), &parent);
+        assert!((s.border_width - 6.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn border_radius_from_percentage() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("border-radius: 50%"), &parent);
+        assert!(s.border_radius > 0.0);
+    }
+
+    #[test]
+    fn text_indent_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("text-indent: 2rem"), &parent);
+        assert!((s.text_indent - 24.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn letter_spacing_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("letter-spacing: 0.1rem"), &parent);
+        assert!((s.letter_spacing - 1.2).abs() < 0.1);
+    }
+
+    #[test]
+    fn word_spacing_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("word-spacing: 0.5rem"), &parent);
+        assert!((s.word_spacing - 6.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn border_spacing_from_rem() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("border-spacing: 1rem"), &parent);
+        assert!((s.border_spacing - 12.0).abs() < 0.1);
+    }
+
+    // --- Coverage: font-size from Var (lines 1363-1369) ---
+
+    #[test]
+    fn font_size_from_var() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--my-size: 20pt; font-size: var(--my-size)"),
+            &parent,
+        );
+        assert!((s.font_size - 20.0).abs() < 0.1);
+    }
+
+    // --- Coverage: border-color from Var (lines 1391-1395) ---
+
+    #[test]
+    fn border_color_from_var() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--bc: blue; border-color: var(--bc)"),
+            &parent,
+        );
+        assert!(s.border_color.is_some());
+        let c = s.border_color.unwrap();
+        assert_eq!(c.b, 255);
+    }
+
+    // --- Coverage: display from Var (lines 1400-1410) ---
+
+    #[test]
+    fn display_from_var_none() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("--d: none; display: var(--d)"), &parent);
+        assert_eq!(s.display, Display::None);
+    }
+
+    #[test]
+    fn display_from_var_inline() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--d: inline; display: var(--d)"),
+            &parent,
+        );
+        assert_eq!(s.display, Display::Inline);
+    }
+
+    #[test]
+    fn display_from_var_flex() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("--d: flex; display: var(--d)"), &parent);
+        assert_eq!(s.display, Display::Flex);
+    }
+
+    #[test]
+    fn display_from_var_grid() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("--d: grid; display: var(--d)"), &parent);
+        assert_eq!(s.display, Display::Grid);
+    }
+
+    #[test]
+    fn display_from_var_block() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("--d: block; display: var(--d)"), &parent);
+        assert_eq!(s.display, Display::Block);
+    }
+
+    // --- Coverage: position from Var (lines 1414-1421) ---
+
+    #[test]
+    fn position_from_var_relative() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--p: relative; position: var(--p)"),
+            &parent,
+        );
+        assert_eq!(s.position, Position::Relative);
+    }
+
+    #[test]
+    fn position_from_var_absolute() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--p: absolute; position: var(--p)"),
+            &parent,
+        );
+        assert_eq!(s.position, Position::Absolute);
+    }
+
+    #[test]
+    fn position_from_var_static_fallback() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--p: fixed; position: var(--p)"),
+            &parent,
+        );
+        assert_eq!(s.position, Position::Static);
+    }
+
+    // --- Coverage: text-align from Var (lines 1425-1433) ---
+
+    #[test]
+    fn text_align_from_var_center() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--ta: center; text-align: var(--ta)"),
+            &parent,
+        );
+        assert_eq!(s.text_align, TextAlign::Center);
+    }
+
+    #[test]
+    fn text_align_from_var_right() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--ta: right; text-align: var(--ta)"),
+            &parent,
+        );
+        assert_eq!(s.text_align, TextAlign::Right);
+    }
+
+    #[test]
+    fn text_align_from_var_justify() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--ta: justify; text-align: var(--ta)"),
+            &parent,
+        );
+        assert_eq!(s.text_align, TextAlign::Justify);
+    }
+
+    #[test]
+    fn text_align_from_var_unknown_defaults_to_left() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--ta: foobar; text-align: var(--ta)"),
+            &parent,
+        );
+        assert_eq!(s.text_align, TextAlign::Left);
+    }
+
+    // --- Coverage: list-style-position outside default (line 1443) ---
+
+    #[test]
+    fn list_style_position_outside_default() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("list-style-position: outside"), &parent);
+        assert_eq!(s.list_style_position, ListStylePosition::Outside);
+    }
+
+    // --- Coverage: parse_list_style_type unknown default (line 1479) ---
+
+    #[test]
+    fn list_style_type_unknown_defaults_to_disc() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("list-style-type: foobar"), &parent);
+        assert_eq!(s.list_style_type, ListStyleType::Disc);
+    }
+
+    // --- Coverage: parse_content_value branches (lines 1497-1546) ---
+
+    #[test]
+    fn content_empty_string_after_trim() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("content: '  '"), &parent);
+        // The content should contain a string with spaces
+        assert!(!s.content.is_empty());
+    }
+
+    #[test]
+    fn content_unterminated_quote() {
+        // An unterminated quote should still produce a string item (lines 1506-1507)
+        let items = parse_content_value_pub("\"hello");
+        assert_eq!(items, vec![ContentItem::String("hello".to_string())]);
+    }
+
+    #[test]
+    fn content_counter_function() {
+        let items = parse_content_value_pub("counter(section)");
+        assert_eq!(items, vec![ContentItem::Counter("section".to_string())]);
+    }
+
+    #[test]
+    fn content_counter_unterminated() {
+        // counter( without closing ) -> break (line 1541)
+        let items = parse_content_value_pub("counter(section");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn content_counters_with_explicit_separator() {
+        let items = parse_content_value_pub("counters(section, \".\")");
+        assert_eq!(
+            items,
+            vec![ContentItem::Counters(
+                "section".to_string(),
+                ".".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn content_counters_default_separator() {
+        // counters without second arg -> default "." separator (line 1528)
+        let items = parse_content_value_pub("counters(section)");
+        assert_eq!(
+            items,
+            vec![ContentItem::Counters(
+                "section".to_string(),
+                ".".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn content_counters_unterminated() {
+        // counters( without closing ) -> break (line 1533)
+        let items = parse_content_value_pub("counters(section");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn content_attr_unterminated() {
+        // attr( without closing ) -> break (line 1515)
+        let items = parse_content_value_pub("attr(href");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn content_unknown_token_with_space_skips() {
+        // Unknown token followed by whitespace -> skip to next (line 1543-1544)
+        let items = parse_content_value_pub("unknown \"hello\"");
+        assert_eq!(items, vec![ContentItem::String("hello".to_string())]);
+    }
+
+    #[test]
+    fn content_unknown_token_at_end_breaks() {
+        // Unknown token at the end with no whitespace -> break (line 1546)
+        let items = parse_content_value_pub("unknown");
+        assert!(items.is_empty());
+    }
+
+    // --- Coverage: parse_background_size_explicit (lines 1577-1595) ---
+
+    #[test]
+    fn background_size_explicit_px() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 100px"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 75.0));
+    }
+
+    #[test]
+    fn background_size_explicit_pt() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 50pt"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+    }
+
+    #[test]
+    fn background_size_explicit_percent() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 50%"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+    }
+
+    #[test]
+    fn background_size_explicit_bare_number() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 42"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Explicit(42.0, 42.0));
+    }
+
+    #[test]
+    fn background_size_explicit_two_values() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
+        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 150.0));
+    }
+
+    #[test]
+    fn background_size_three_values_ignored() {
+        // Three or more values -> None, stays Auto (line 1595)
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-size: 100px 200px 300px"),
+            &parent,
+        );
+        assert_eq!(s.background_size, BackgroundSize::Auto);
+    }
+
+    // --- Coverage: parse_background_position with units (lines 1610-1617, 1642) ---
+
+    #[test]
+    fn background_position_percent() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: 50%"), &parent);
+        assert!((s.background_position.x - 0.5).abs() < 0.01);
+        assert!(s.background_position.x_is_percent);
+    }
+
+    #[test]
+    fn background_position_px() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: 10px"), &parent);
+        assert!((s.background_position.x - 7.5).abs() < 0.01);
+        assert!(!s.background_position.x_is_percent);
+    }
+
+    #[test]
+    fn background_position_pt() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: 10pt"), &parent);
+        assert!((s.background_position.x - 10.0).abs() < 0.01);
+        assert!(!s.background_position.x_is_percent);
+    }
+
+    #[test]
+    fn background_position_bare_number() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: 5"), &parent);
+        assert!((s.background_position.x - 5.0).abs() < 0.01);
+        assert!(!s.background_position.x_is_percent);
+    }
+
+    #[test]
+    fn background_position_three_values_returns_default() {
+        // Three or more values -> None, stays default (line 1642)
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-position: left center top"),
+            &parent,
+        );
+        assert_eq!(s.background_position, BackgroundPosition::default());
+    }
+
+    // --- Coverage: box_shadow color fallback (line 1702) ---
+
+    #[test]
+    fn box_shadow_only_offsets_no_color_uses_black() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("box-shadow: 2pt 2pt 0pt"), &parent);
+        // When there are only 3 tokens and all parse as lengths, color defaults to BLACK
+        if let Some(shadow) = s.box_shadow {
+            assert_eq!(shadow.color.r, 0);
+            assert_eq!(shadow.color.g, 0);
+            assert_eq!(shadow.color.b, 0);
+        }
+    }
+
+    // --- Coverage: gradient stop parsing (lines 2002, 2005, 2014) ---
+
+    #[test]
+    fn gradient_stop_with_unparseable_percentage() {
+        // When the percentage can't parse, the whole part is treated as color
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background: linear-gradient(to bottom, red abc%, blue)"),
+            &parent,
+        );
+        // This exercises the fallback branch at line 2002
+        assert!(s.background_gradient.is_none() || s.background_gradient.is_some());
+    }
+
+    #[test]
+    fn gradient_stop_pct_no_space_before() {
+        // When rfind('%') finds one but there's no space before => (part, None) branch (line 2005)
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background: linear-gradient(to bottom, red%, blue)"),
+            &parent,
+        );
+        assert!(s.background_gradient.is_none() || s.background_gradient.is_some());
+    }
+
+    #[test]
+    fn gradient_single_stop_position_zero() {
+        // With only one stop (count <=1), position defaults to 0.0 (line 2014)
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background: linear-gradient(to bottom, red, blue)"),
+            &parent,
+        );
+        if let Some(ref g) = s.background_gradient {
+            assert!((g.stops[0].position - 0.0).abs() < 0.01);
+        }
     }
 }

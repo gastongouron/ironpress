@@ -9,6 +9,7 @@ pub const PNG_SIGNATURE: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 
 /// Parsed information from a PNG file needed for PDF embedding.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PngInfo {
     pub width: u32,
     pub height: u32,

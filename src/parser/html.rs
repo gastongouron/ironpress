@@ -13,6 +13,7 @@ pub struct ParseResult {
 }
 
 /// Parse an HTML string into an internal DOM tree.
+#[allow(dead_code)]
 pub fn parse_html(html: &str) -> Result<Vec<DomNode>, IronpressError> {
     let result = parse_html_with_styles(html)?;
     Ok(result.nodes)

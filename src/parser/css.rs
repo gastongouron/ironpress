@@ -16,6 +16,32 @@ pub struct SelectorContext<'a> {
     pub preceding_siblings: Vec<(String, Vec<String>)>,
 }
 
+/// An operator in a calc() expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CalcOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+/// A token in a calc() expression.
+#[derive(Debug, Clone)]
+pub enum CalcToken {
+    /// Absolute length in points.
+    Length(f32),
+    /// Percentage value (0-100).
+    Percent(f32),
+    /// Value in rem units.
+    Rem(f32),
+    /// Value in vw units.
+    Vw(f32),
+    /// Value in vh units.
+    Vh(f32),
+    /// An operator.
+    Op(CalcOp),
+}
+
 /// Parsed CSS property value.
 #[derive(Debug, Clone)]
 pub enum CssValue {
@@ -23,6 +49,18 @@ pub enum CssValue {
     Color(Color),
     Keyword(String),
     Number(f32),
+    /// Percentage value (0-100 range, e.g. 50% stored as 50.0).
+    Percentage(f32),
+    /// Rem value (relative to root font-size).
+    Rem(f32),
+    /// Viewport-width percentage.
+    Vw(f32),
+    /// Viewport-height percentage.
+    Vh(f32),
+    /// A calc() expression as a list of tokens.
+    Calc(Vec<CalcToken>),
+    /// A var() reference: (variable_name, optional_fallback).
+    Var(String, Option<String>),
 }
 
 /// A map of CSS property names to values.
@@ -44,6 +82,7 @@ impl StyleMap {
         self.properties.get(key)
     }
 
+    #[allow(dead_code)]
     pub fn merge(&mut self, other: &StyleMap) {
         for (k, v) in &other.properties {
             self.properties.insert(k.clone(), v.clone());
@@ -62,8 +101,16 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
         }
 
         if let Some((prop, val)) = declaration.split_once(':') {
-            let prop = prop.trim().to_ascii_lowercase();
+            let raw_prop = prop.trim();
             let val = val.trim();
+
+            // Handle CSS custom properties (--*)
+            if raw_prop.starts_with("--") {
+                map.set(raw_prop, CssValue::Keyword(val.to_string()));
+                continue;
+            }
+
+            let prop = raw_prop.to_ascii_lowercase();
 
             if (prop == "margin" || prop == "padding") && !prop.contains('-') {
                 let parts: Vec<&str> = val.split_whitespace().collect();
@@ -129,6 +176,18 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
 fn parse_value(property: &str, val: &str) -> Option<CssValue> {
     let val = val.trim();
 
+    // Handle var() references for any property
+    if let Some(var_val) = parse_var_function(val) {
+        return Some(var_val);
+    }
+
+    // Handle calc() expressions for any property that accepts lengths
+    if val.starts_with("calc(") {
+        if let Some(calc_val) = parse_calc_expression(val) {
+            return Some(calc_val);
+        }
+    }
+
     // Handle inherit, initial, unset keywords for any property
     {
         let lower = val.to_ascii_lowercase();
@@ -179,6 +238,17 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return parse_color(val);
     }
 
+    // z-index — integer value
+    if property == "z-index" {
+        if val == "auto" {
+            return Some(CssValue::Keyword("auto".to_string()));
+        }
+        if let Ok(n) = val.parse::<i32>() {
+            return Some(CssValue::Number(n as f32));
+        }
+        return None;
+    }
+
     // Float, clear, position — keyword properties
     if property == "float" || property == "clear" || property == "position" {
         return Some(CssValue::Keyword(val.to_string()));
@@ -196,6 +266,24 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
     // Gap — length value
     if property == "gap" {
         return parse_length(val);
+    }
+
+    // Content property (for ::before / ::after pseudo-elements)
+    if property == "content" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Counter properties
+    if property == "counter-reset" || property == "counter-increment" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // List style properties
+    if property == "list-style-type"
+        || property == "list-style-position"
+        || property == "list-style"
+    {
+        return Some(CssValue::Keyword(val.to_string()));
     }
 
     // Overflow, visibility — keyword properties
@@ -244,6 +332,48 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Text-overflow — keyword
+    if property == "text-overflow" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Border-collapse — keyword
+    if property == "border-collapse" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Border-spacing — length value (single or two values; store first)
+    if property == "border-spacing" {
+        let parts: Vec<&str> = val.split_whitespace().collect();
+        // Use the first value (horizontal); vertical is the same for single value
+        return parse_length(parts.first().unwrap_or(&val));
+    }
+
+    // Background-size — keyword or explicit values
+    if property == "background-size" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Background-repeat — keyword
+    if property == "background-repeat" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Background-position — keyword/values
+    if property == "background-position" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // White-space — keyword
+    if property == "white-space" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
+    // Text-transform — keyword
+    if property == "text-transform" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     // Length values (font-size, margin, padding, width, height, top, left, etc.)
     parse_length(val)
 }
@@ -286,8 +416,9 @@ fn preprocess_media_queries(css: &str) -> String {
                     result.push(' ');
                 }
                 // For "screen" and any other media type, skip the inner rules
-            } else if at_rule_lower.starts_with("@page") {
-                // Pass through @page rules with their braces and content
+            } else if at_rule_lower.starts_with("@page") || at_rule_lower.starts_with("@font-face")
+            {
+                // Pass through @page and @font-face rules with their braces and content
                 result.push_str(&at_rule);
                 if chars.peek() == Some(&'{') {
                     result.push('{');
@@ -295,6 +426,17 @@ fn preprocess_media_queries(css: &str) -> String {
                     let inner = extract_braced_content(&mut chars);
                     result.push_str(&inner);
                     result.push('}');
+                }
+            } else if at_rule_lower.starts_with("@import") {
+                // Pass through @import rules as-is (they end at ';')
+                result.push_str(&at_rule);
+                // Consume up to and including the ';'
+                while let Some(&c) = chars.peek() {
+                    result.push(c);
+                    chars.next();
+                    if c == ';' {
+                        break;
+                    }
                 }
             } else {
                 // Non-media @-rules: pass through as-is
@@ -336,6 +478,16 @@ fn extract_braced_content(chars: &mut std::iter::Peekable<std::str::Chars>) -> S
 fn parse_length(val: &str) -> Option<CssValue> {
     let val = val.trim();
 
+    // Handle var() references
+    if let Some(var_val) = parse_var_function(val) {
+        return Some(var_val);
+    }
+
+    // Handle calc() expressions
+    if val.starts_with("calc(") {
+        return parse_calc_expression(val);
+    }
+
     if let Some(n) = val.strip_suffix("px") {
         n.trim()
             .parse::<f32>()
@@ -343,15 +495,152 @@ fn parse_length(val: &str) -> Option<CssValue> {
             .map(|v| CssValue::Length(v * 0.75)) // px to pt
     } else if let Some(n) = val.strip_suffix("pt") {
         n.trim().parse::<f32>().ok().map(CssValue::Length)
+    } else if let Some(n) = val.strip_suffix("rem") {
+        n.trim().parse::<f32>().ok().map(CssValue::Rem)
     } else if let Some(n) = val.strip_suffix("em") {
-        // Store em as negative to distinguish from absolute values
+        // Store em as Number to distinguish from absolute values
         // Will be resolved during style computation
         n.trim().parse::<f32>().ok().map(CssValue::Number)
+    } else if let Some(n) = val.strip_suffix("vw") {
+        n.trim().parse::<f32>().ok().map(CssValue::Vw)
+    } else if let Some(n) = val.strip_suffix("vh") {
+        n.trim().parse::<f32>().ok().map(CssValue::Vh)
+    } else if let Some(n) = val.strip_suffix('%') {
+        n.trim().parse::<f32>().ok().map(CssValue::Percentage)
     } else if val.parse::<f32>().is_ok() {
         val.parse::<f32>().ok().map(CssValue::Length)
     } else {
         None
     }
+}
+
+/// Parse a `var(--name)` or `var(--name, fallback)` function.
+fn parse_var_function(val: &str) -> Option<CssValue> {
+    let val = val.trim();
+    let inner = val.strip_prefix("var(")?.strip_suffix(')')?;
+    // Split on first comma to get variable name and optional fallback
+    if let Some((name, fallback)) = inner.split_once(',') {
+        let name = name.trim().to_string();
+        let fallback = fallback.trim().to_string();
+        if name.starts_with("--") {
+            Some(CssValue::Var(name, Some(fallback)))
+        } else {
+            None
+        }
+    } else {
+        let name = inner.trim().to_string();
+        if name.starts_with("--") {
+            Some(CssValue::Var(name, None))
+        } else {
+            None
+        }
+    }
+}
+
+/// Parse a calc() expression into a CssValue::Calc.
+fn parse_calc_expression(val: &str) -> Option<CssValue> {
+    let inner = val.trim().strip_prefix("calc(")?.strip_suffix(')')?;
+    let tokens = tokenize_calc(inner)?;
+    if tokens.is_empty() {
+        return None;
+    }
+    Some(CssValue::Calc(tokens))
+}
+
+/// Tokenize the inside of a calc() expression into CalcTokens.
+fn tokenize_calc(expr: &str) -> Option<Vec<CalcToken>> {
+    let mut tokens = Vec::new();
+    let mut chars = expr.chars().peekable();
+
+    while chars.peek().is_some() {
+        // Skip whitespace
+        while chars.peek() == Some(&' ') {
+            chars.next();
+        }
+        if chars.peek().is_none() {
+            break;
+        }
+
+        let ch = *chars.peek()?;
+
+        // Check for operator (must be surrounded by spaces per CSS spec, but be lenient)
+        if (ch == '+' || ch == '-') && !tokens.is_empty() {
+            // Only treat as operator if previous token is not an operator
+            let is_op = matches!(
+                tokens.last(),
+                Some(CalcToken::Length(_))
+                    | Some(CalcToken::Percent(_))
+                    | Some(CalcToken::Rem(_))
+                    | Some(CalcToken::Vw(_))
+                    | Some(CalcToken::Vh(_))
+            );
+            if is_op {
+                let op = match ch {
+                    '+' => CalcOp::Add,
+                    '-' => CalcOp::Sub,
+                    _ => unreachable!(),
+                };
+                tokens.push(CalcToken::Op(op));
+                chars.next();
+                continue;
+            }
+        }
+        if ch == '*' {
+            tokens.push(CalcToken::Op(CalcOp::Mul));
+            chars.next();
+            continue;
+        }
+        if ch == '/' {
+            tokens.push(CalcToken::Op(CalcOp::Div));
+            chars.next();
+            continue;
+        }
+
+        // Parse a number with optional unit
+        let mut num_str = String::new();
+        if ch == '-' || ch == '+' {
+            num_str.push(ch);
+            chars.next();
+        }
+        while let Some(&c) = chars.peek() {
+            if c.is_ascii_digit() || c == '.' {
+                num_str.push(c);
+                chars.next();
+            } else {
+                break;
+            }
+        }
+
+        // Parse unit suffix
+        let mut unit = String::new();
+        while let Some(&c) = chars.peek() {
+            if c.is_ascii_alphabetic() || c == '%' {
+                unit.push(c);
+                chars.next();
+            } else {
+                break;
+            }
+        }
+
+        if num_str.is_empty() || num_str == "-" || num_str == "+" {
+            return None;
+        }
+        let num: f32 = num_str.parse().ok()?;
+        let token = match unit.as_str() {
+            "px" => CalcToken::Length(num * 0.75),
+            "pt" => CalcToken::Length(num),
+            "em" => CalcToken::Length(num * 12.0), // approximate: resolved at compute time
+            "rem" => CalcToken::Rem(num),
+            "%" => CalcToken::Percent(num),
+            "vw" => CalcToken::Vw(num),
+            "vh" => CalcToken::Vh(num),
+            "" => CalcToken::Length(num),
+            _ => return None,
+        };
+        tokens.push(token);
+    }
+
+    Some(tokens)
 }
 
 fn parse_color(val: &str) -> Option<CssValue> {
@@ -422,11 +711,36 @@ fn parse_rgb_function(inner: &str) -> Option<CssValue> {
     Some(CssValue::Color(Color::rgb(r, g, b)))
 }
 
+/// Pseudo-element type for `::before` and `::after`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PseudoElement {
+    Before,
+    After,
+}
+
 /// A CSS rule: a selector and its declarations.
 #[derive(Debug, Clone)]
 pub struct CssRule {
     pub selector: String,
     pub declarations: StyleMap,
+    /// If this rule targets a `::before` or `::after` pseudo-element.
+    pub pseudo_element: Option<PseudoElement>,
+}
+
+/// A parsed `@font-face` rule with font-family name and source path.
+#[derive(Debug, Clone)]
+pub struct FontFaceRule {
+    /// The font-family name declared in the rule.
+    pub font_family: String,
+    /// The local file path from the `src: url(...)` declaration.
+    pub src_path: String,
+}
+
+/// A parsed `@import` rule with the local file path.
+#[derive(Debug, Clone)]
+pub struct ImportRule {
+    /// The local file path to import.
+    pub path: String,
 }
 
 /// A parsed `@page` rule with page size and margin overrides.
@@ -461,6 +775,230 @@ pub fn parse_stylesheet(css: &str) -> Vec<CssRule> {
 pub fn parse_page_rules(css: &str) -> Vec<PageRule> {
     let preprocessed = preprocess_media_queries(css);
     extract_page_rules(&preprocessed)
+}
+
+/// Parse a CSS stylesheet and extract `@font-face` rules.
+///
+/// Only local file paths are supported in `src: url(...)`. Remote URLs
+/// (http/https) are rejected for security reasons.
+pub fn parse_font_face_rules(css: &str) -> Vec<FontFaceRule> {
+    let preprocessed = preprocess_media_queries(css);
+    extract_font_face_rules(&preprocessed)
+}
+
+/// Extract @font-face rules from preprocessed CSS.
+fn extract_font_face_rules(css: &str) -> Vec<FontFaceRule> {
+    let mut rules = Vec::new();
+    let mut remaining = css;
+
+    while let Some(at_pos) = remaining.to_ascii_lowercase().find("@font-face") {
+        let after_at = &remaining[at_pos + 10..];
+        if let Some(brace_pos) = after_at.find('{') {
+            let after_brace = &after_at[brace_pos + 1..];
+            if let Some(close_pos) = after_brace.find('}') {
+                let declarations = &after_brace[..close_pos];
+                if let Some(rule) = parse_font_face_declarations(declarations) {
+                    rules.push(rule);
+                }
+                remaining = &after_brace[close_pos + 1..];
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    rules
+}
+
+/// Parse the declarations inside an @font-face block.
+fn parse_font_face_declarations(decls: &str) -> Option<FontFaceRule> {
+    let mut font_family: Option<String> = None;
+    let mut src_path: Option<String> = None;
+
+    for declaration in decls.split(';') {
+        let declaration = declaration.trim();
+        if declaration.is_empty() {
+            continue;
+        }
+
+        if let Some((prop, val)) = declaration.split_once(':') {
+            let prop = prop.trim().to_ascii_lowercase();
+            let val = val.trim();
+
+            match prop.as_str() {
+                "font-family" => {
+                    // Strip quotes: "MyFont" or 'MyFont' => MyFont
+                    let name = val.trim_matches('"').trim_matches('\'').trim().to_string();
+                    if !name.is_empty() {
+                        font_family = Some(name);
+                    }
+                }
+                "src" => {
+                    // Parse url("path") or url('path') or url(path)
+                    if let Some(path) = extract_url_path(val) {
+                        // Security: reject remote URLs
+                        if !path.starts_with("http://") && !path.starts_with("https://") {
+                            src_path = Some(path);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    match (font_family, src_path) {
+        (Some(family), Some(path)) => Some(FontFaceRule {
+            font_family: family,
+            src_path: path,
+        }),
+        _ => None,
+    }
+}
+
+/// Extract a file path from a CSS `url(...)` value.
+///
+/// Handles: `url("path")`, `url('path')`, `url(path)`
+fn extract_url_path(val: &str) -> Option<String> {
+    let val = val.trim();
+    // Look for url(...) pattern
+    let lower = val.to_ascii_lowercase();
+    if let Some(start) = lower.find("url(") {
+        let after_url = &val[start + 4..];
+        if let Some(end) = after_url.find(')') {
+            let inner = after_url[..end].trim();
+            let path = inner
+                .trim_matches('"')
+                .trim_matches('\'')
+                .trim()
+                .to_string();
+            if !path.is_empty() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+/// Parse `@import` rules from a CSS string.
+///
+/// Returns the list of import rules found. Only local file paths are
+/// supported; remote URLs (http/https) are rejected for security.
+pub fn parse_import_rules(css: &str) -> Vec<ImportRule> {
+    let preprocessed = preprocess_media_queries(css);
+    extract_import_rules(&preprocessed)
+}
+
+/// Extract @import rules from preprocessed CSS.
+fn extract_import_rules(css: &str) -> Vec<ImportRule> {
+    let mut rules = Vec::new();
+
+    for line in css.split(';') {
+        let line = line.trim();
+        let lower = line.to_ascii_lowercase();
+        if !lower.starts_with("@import") {
+            continue;
+        }
+        let after_import = line[7..].trim();
+        let path = if after_import.to_ascii_lowercase().starts_with("url(") {
+            // @import url("path") or @import url('path')
+            extract_url_path(after_import)
+        } else {
+            // @import "path" or @import 'path'
+            let trimmed = after_import
+                .trim_matches('"')
+                .trim_matches('\'')
+                .trim()
+                .to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        };
+
+        if let Some(path) = path {
+            // Security: reject remote URLs
+            if !path.starts_with("http://") && !path.starts_with("https://") {
+                rules.push(ImportRule { path });
+            }
+        }
+    }
+
+    rules
+}
+
+/// Maximum recursion depth for @import processing.
+pub const MAX_IMPORT_DEPTH: usize = 10;
+
+/// Resolve `@import` rules in a CSS string by reading and inlining local files.
+///
+/// The `base_dir` is the directory relative to which import paths are resolved.
+/// Recursion is limited to [`MAX_IMPORT_DEPTH`] levels to prevent infinite loops.
+pub fn resolve_imports(css: &str, base_dir: &std::path::Path, depth: usize) -> String {
+    if depth >= MAX_IMPORT_DEPTH {
+        return css.to_string();
+    }
+
+    let import_rules = parse_import_rules(css);
+    if import_rules.is_empty() {
+        return css.to_string();
+    }
+
+    let mut result = String::new();
+
+    // Prepend imported content
+    for import in &import_rules {
+        let path = base_dir.join(&import.path);
+        if let Ok(imported_css) = std::fs::read_to_string(&path) {
+            // Determine base dir for the imported file
+            let imported_base = path.parent().unwrap_or(base_dir);
+            let resolved = resolve_imports(&imported_css, imported_base, depth + 1);
+            result.push_str(&resolved);
+            result.push('\n');
+        }
+    }
+
+    // Strip the @import lines from original CSS and append the rest
+    result.push_str(&strip_import_rules(css));
+    result
+}
+
+/// Remove @import rules from CSS text, leaving all other content intact.
+fn strip_import_rules(css: &str) -> String {
+    let mut result = String::new();
+    let mut remaining = css;
+
+    while !remaining.is_empty() {
+        let trimmed = remaining.trim_start();
+        if trimmed.to_ascii_lowercase().starts_with("@import") {
+            // Skip past the semicolon
+            if let Some(semi_pos) = trimmed.find(';') {
+                remaining = &trimmed[semi_pos + 1..];
+            } else {
+                // Malformed @import with no semicolon — skip the rest
+                break;
+            }
+        } else {
+            // Copy characters until we might hit another @import
+            if let Some(at_pos) = remaining.find('@') {
+                result.push_str(&remaining[..at_pos]);
+                remaining = &remaining[at_pos..];
+                if !remaining.to_ascii_lowercase().starts_with("@import") {
+                    // Not an @import, copy the '@' and continue
+                    result.push('@');
+                    remaining = &remaining[1..];
+                }
+            } else {
+                result.push_str(remaining);
+                break;
+            }
+        }
+    }
+
+    result
 }
 
 /// Extract @page rules from preprocessed CSS.
@@ -645,19 +1183,46 @@ fn parse_rules_from(css: &str, rules: &mut Vec<CssRule>) {
             continue;
         }
         if let Some((selector, declarations)) = block.split_once('{') {
-            let selector = selector.trim().to_string();
-            if selector.is_empty() || selector.starts_with("@page") {
+            let raw_selector = selector.trim().to_string();
+            if raw_selector.is_empty()
+                || raw_selector.starts_with("@page")
+                || raw_selector.starts_with("@font-face")
+            {
                 continue;
             }
             let declarations = parse_inline_style(declarations.trim());
             if !declarations.properties.is_empty() {
+                let (clean_selector, pseudo_element) = extract_pseudo_element(&raw_selector);
                 rules.push(CssRule {
-                    selector,
+                    selector: clean_selector,
                     declarations,
+                    pseudo_element,
                 });
             }
         }
     }
+}
+
+/// Extract `::before` or `::after` from a selector, returning the base selector
+/// and the pseudo-element (if any). Handles both `::before` and `:before` syntax.
+fn extract_pseudo_element(selector: &str) -> (String, Option<PseudoElement>) {
+    for (suffix, pe) in [
+        ("::before", PseudoElement::Before),
+        ("::after", PseudoElement::After),
+        (":before", PseudoElement::Before),
+        (":after", PseudoElement::After),
+    ] {
+        if let Some(base) = selector.strip_suffix(suffix) {
+            let base = base.trim();
+            let base = if base.is_empty() {
+                "*".to_string()
+            } else {
+                base.to_string()
+            };
+            return (base, Some(pe));
+        }
+    }
+    (selector.to_string(), None)
 }
 
 /// Check if a CSS selector matches a given element (backward-compatible, no context).
@@ -2921,5 +3486,871 @@ mod tests {
         assert!(selector_matches("p:not(.active)", "p", &[], None));
         // p:not(.active) on p with .active => should NOT match
         assert!(!selector_matches("p:not(.active)", "p", &["active"], None));
+    }
+
+    // ==================== New feature tests ====================
+
+    #[test]
+    fn parse_percentage_unit() {
+        let map = parse_inline_style("width: 50%");
+        match map.get("width") {
+            Some(CssValue::Percentage(v)) => assert!((*v - 50.0).abs() < 0.01),
+            other => panic!("Expected Percentage, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_rem_unit() {
+        let map = parse_inline_style("font-size: 2rem");
+        match map.get("font-size") {
+            Some(CssValue::Rem(v)) => assert!((*v - 2.0).abs() < 0.01),
+            other => panic!("Expected Rem, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_vw_unit() {
+        let map = parse_inline_style("width: 100vw");
+        match map.get("width") {
+            Some(CssValue::Vw(v)) => assert!((*v - 100.0).abs() < 0.01),
+            other => panic!("Expected Vw, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_vh_unit() {
+        let map = parse_inline_style("height: 50vh");
+        match map.get("height") {
+            Some(CssValue::Vh(v)) => assert!((*v - 50.0).abs() < 0.01),
+            other => panic!("Expected Vh, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_calc_basic() {
+        let map = parse_inline_style("width: calc(100% - 20pt)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Percent(v) if (*v - 100.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Sub)));
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 20.0).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_calc_addition() {
+        let map = parse_inline_style("width: calc(50% + 10px)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Percent(v) if (*v - 50.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Add)));
+                // 10px = 7.5pt
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 7.5).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_calc_multiply() {
+        let map = parse_inline_style("width: calc(10pt * 3)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Length(v) if (*v - 10.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Mul)));
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 3.0).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_calc_divide() {
+        let map = parse_inline_style("width: calc(100pt / 2)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Length(v) if (*v - 100.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Div)));
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 2.0).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_calc_with_vw() {
+        let map = parse_inline_style("width: calc(100vw - 20pt)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Vw(v) if (*v - 100.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Sub)));
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 20.0).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_var_simple() {
+        let map = parse_inline_style("width: var(--my-width)");
+        match map.get("width") {
+            Some(CssValue::Var(name, fallback)) => {
+                assert_eq!(name, "--my-width");
+                assert!(fallback.is_none());
+            }
+            other => panic!("Expected Var, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_var_with_fallback() {
+        let map = parse_inline_style("color: var(--text-color, red)");
+        match map.get("color") {
+            Some(CssValue::Var(name, fallback)) => {
+                assert_eq!(name, "--text-color");
+                assert_eq!(fallback.as_deref(), Some("red"));
+            }
+            other => panic!("Expected Var, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_custom_property_declaration() {
+        let map = parse_inline_style("--my-var: 10pt");
+        match map.get("--my-var") {
+            Some(CssValue::Keyword(v)) => assert_eq!(v, "10pt"),
+            other => panic!("Expected Keyword with raw value, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_z_index_positive() {
+        let map = parse_inline_style("z-index: 5");
+        match map.get("z-index") {
+            Some(CssValue::Number(v)) => assert!((*v - 5.0).abs() < 0.01),
+            other => panic!("Expected Number(5), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_z_index_negative() {
+        let map = parse_inline_style("z-index: -1");
+        match map.get("z-index") {
+            Some(CssValue::Number(v)) => assert!((*v - (-1.0)).abs() < 0.01),
+            other => panic!("Expected Number(-1), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_z_index_auto() {
+        let map = parse_inline_style("z-index: auto");
+        match map.get("z-index") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "auto"),
+            other => panic!("Expected Keyword(auto), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_stylesheet_custom_properties() {
+        let css = ":root { --main-color: #ff0000; --spacing: 10pt; } .box { color: var(--main-color); padding-left: var(--spacing); }";
+        let rules = parse_stylesheet(css);
+        assert!(rules.len() >= 2);
+
+        // The :root rule should contain --main-color and --spacing
+        let root_rule = &rules[0];
+        assert!(root_rule.declarations.get("--main-color").is_some());
+        assert!(root_rule.declarations.get("--spacing").is_some());
+
+        // The .box rule should have var() references
+        let box_rule = &rules[1];
+        assert!(matches!(
+            box_rule.declarations.get("color"),
+            Some(CssValue::Var(_, _))
+        ));
+    }
+
+    #[test]
+    fn parse_calc_in_stylesheet() {
+        let css = ".container { width: calc(100% - 40pt); }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert!(matches!(
+            rules[0].declarations.get("width"),
+            Some(CssValue::Calc(_))
+        ));
+    }
+
+    #[test]
+    fn parse_rem_in_stylesheet() {
+        let css = "p { font-size: 1.5rem; }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert!(matches!(
+            rules[0].declarations.get("font-size"),
+            Some(CssValue::Rem(v)) if (*v - 1.5).abs() < 0.01
+        ));
+    }
+
+    #[test]
+    fn parse_calc_with_rem() {
+        let map = parse_inline_style("margin-top: calc(2rem + 5pt)");
+        match map.get("margin-top") {
+            Some(CssValue::Calc(tokens)) => {
+                assert_eq!(tokens.len(), 3);
+                assert!(matches!(&tokens[0], CalcToken::Rem(v) if (*v - 2.0).abs() < 0.01));
+                assert!(matches!(&tokens[1], CalcToken::Op(CalcOp::Add)));
+                assert!(matches!(&tokens[2], CalcToken::Length(v) if (*v - 5.0).abs() < 0.01));
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    // ===== @font-face parsing tests =====
+
+    #[test]
+    fn parse_font_face_basic() {
+        let css = r#"
+            @font-face {
+                font-family: "MyFont";
+                src: url("fonts/MyFont.ttf");
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "MyFont");
+        assert_eq!(rules[0].src_path, "fonts/MyFont.ttf");
+    }
+
+    #[test]
+    fn parse_font_face_single_quotes() {
+        let css = r#"
+            @font-face {
+                font-family: 'CustomFont';
+                src: url('assets/custom.ttf');
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "CustomFont");
+        assert_eq!(rules[0].src_path, "assets/custom.ttf");
+    }
+
+    #[test]
+    fn parse_font_face_no_quotes_in_url() {
+        let css = r#"
+            @font-face {
+                font-family: "NoQuotes";
+                src: url(path/to/font.ttf);
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].src_path, "path/to/font.ttf");
+    }
+
+    #[test]
+    fn parse_font_face_multiple() {
+        let css = r#"
+            @font-face {
+                font-family: "FontA";
+                src: url("a.ttf");
+            }
+            @font-face {
+                font-family: "FontB";
+                src: url("b.ttf");
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].font_family, "FontA");
+        assert_eq!(rules[1].font_family, "FontB");
+    }
+
+    #[test]
+    fn parse_font_face_rejects_http_url() {
+        let css = r#"
+            @font-face {
+                font-family: "Remote";
+                src: url("https://example.com/font.ttf");
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 0, "Remote URLs should be rejected");
+    }
+
+    #[test]
+    fn parse_font_face_rejects_http_url_no_s() {
+        let css = r#"
+            @font-face {
+                font-family: "Remote";
+                src: url("http://example.com/font.ttf");
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 0, "Remote HTTP URLs should be rejected");
+    }
+
+    #[test]
+    fn parse_font_face_missing_family() {
+        let css = r#"
+            @font-face {
+                src: url("font.ttf");
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 0, "Missing font-family should skip rule");
+    }
+
+    #[test]
+    fn parse_font_face_missing_src() {
+        let css = r#"
+            @font-face {
+                font-family: "NoSrc";
+            }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 0, "Missing src should skip rule");
+    }
+
+    #[test]
+    fn parse_font_face_with_other_rules() {
+        let css = r#"
+            body { color: black; }
+            @font-face {
+                font-family: "Mixed";
+                src: url("mixed.ttf");
+            }
+            p { font-size: 14px; }
+        "#;
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "Mixed");
+
+        // Regular rules should not include font-face
+        let style_rules = parse_stylesheet(css);
+        for rule in &style_rules {
+            assert!(
+                !rule.selector.contains("@font-face"),
+                "font-face should not appear in regular rules"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_font_face_in_media_print() {
+        let css = r#"
+            @media print {
+                @font-face {
+                    font-family: "PrintFont";
+                    src: url("print.ttf");
+                }
+            }
+        "#;
+        // @font-face inside @media print should be extracted
+        // (media print is inlined by preprocessor)
+        let rules = parse_font_face_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "PrintFont");
+    }
+
+    // ===== @import parsing tests =====
+
+    #[test]
+    fn parse_import_quoted_string() {
+        let css = r#"@import "styles.css";"#;
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].path, "styles.css");
+    }
+
+    #[test]
+    fn parse_import_single_quoted() {
+        let css = "@import 'other.css';";
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].path, "other.css");
+    }
+
+    #[test]
+    fn parse_import_url_function() {
+        let css = r#"@import url("path/to/styles.css");"#;
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].path, "path/to/styles.css");
+    }
+
+    #[test]
+    fn parse_import_url_single_quotes() {
+        let css = "@import url('path/to/styles.css');";
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].path, "path/to/styles.css");
+    }
+
+    #[test]
+    fn parse_import_url_no_quotes() {
+        let css = "@import url(styles.css);";
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].path, "styles.css");
+    }
+
+    #[test]
+    fn parse_import_multiple() {
+        let css = r#"
+            @import "a.css";
+            @import url("b.css");
+            body { color: black; }
+        "#;
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].path, "a.css");
+        assert_eq!(rules[1].path, "b.css");
+    }
+
+    #[test]
+    fn parse_import_rejects_https() {
+        let css = r#"@import "https://example.com/styles.css";"#;
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 0, "Remote HTTPS URLs should be rejected");
+    }
+
+    #[test]
+    fn parse_import_rejects_http() {
+        let css = r#"@import url("http://example.com/styles.css");"#;
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 0, "Remote HTTP URLs should be rejected");
+    }
+
+    #[test]
+    fn parse_import_no_rules_for_regular_css() {
+        let css = "body { color: red; } p { font-size: 14px; }";
+        let rules = parse_import_rules(css);
+        assert_eq!(rules.len(), 0);
+    }
+
+    // ===== strip_import_rules tests =====
+
+    #[test]
+    fn strip_import_preserves_regular_rules() {
+        let css = r#"@import "a.css"; body { color: red; }"#;
+        let stripped = strip_import_rules(css);
+        assert!(stripped.contains("body"));
+        assert!(stripped.contains("color: red"));
+        assert!(!stripped.contains("@import"));
+    }
+
+    #[test]
+    fn strip_import_multiple() {
+        let css = r#"@import "a.css"; @import "b.css"; p { margin: 0; }"#;
+        let stripped = strip_import_rules(css);
+        assert!(!stripped.contains("@import"));
+        assert!(stripped.contains("margin: 0"));
+    }
+
+    // ===== resolve_imports tests =====
+
+    #[test]
+    fn resolve_imports_no_imports() {
+        let css = "body { color: red; }";
+        let resolved = resolve_imports(css, std::path::Path::new("/tmp"), 0);
+        assert_eq!(resolved.trim(), css);
+    }
+
+    #[test]
+    fn resolve_imports_depth_limit() {
+        let css = r#"@import "a.css"; body { color: red; }"#;
+        // At max depth, imports should not be resolved
+        let resolved = resolve_imports(css, std::path::Path::new("/tmp"), MAX_IMPORT_DEPTH);
+        assert!(resolved.contains("@import"));
+    }
+
+    #[test]
+    fn resolve_imports_missing_file() {
+        let css = r#"@import "nonexistent.css"; body { color: red; }"#;
+        // Missing files should be silently ignored
+        let resolved = resolve_imports(css, std::path::Path::new("/tmp/nonexistent"), 0);
+        assert!(resolved.contains("body"));
+    }
+
+    // ===== extract_url_path tests =====
+
+    #[test]
+    fn extract_url_path_double_quotes() {
+        assert_eq!(
+            extract_url_path(r#"url("fonts/test.ttf")"#),
+            Some("fonts/test.ttf".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_url_path_single_quotes() {
+        assert_eq!(
+            extract_url_path("url('fonts/test.ttf')"),
+            Some("fonts/test.ttf".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_url_path_no_quotes() {
+        assert_eq!(
+            extract_url_path("url(fonts/test.ttf)"),
+            Some("fonts/test.ttf".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_url_path_empty() {
+        assert_eq!(extract_url_path("url()"), None);
+    }
+
+    #[test]
+    fn extract_url_path_no_url_function() {
+        assert_eq!(extract_url_path("fonts/test.ttf"), None);
+    }
+
+    // --- Pseudo-element parsing tests ---
+    #[test]
+    fn parse_before_pseudo_element() {
+        let css = r#"p::before { content: "Hello" }"#;
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, Some(PseudoElement::Before));
+        assert_eq!(rules[0].selector, "p");
+    }
+
+    #[test]
+    fn parse_after_pseudo_element() {
+        let css = r#"p::after { content: "!" }"#;
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, Some(PseudoElement::After));
+        assert_eq!(rules[0].selector, "p");
+    }
+
+    #[test]
+    fn parse_single_colon_before() {
+        let css = r#"p:before { content: "Hey" }"#;
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, Some(PseudoElement::Before));
+        assert_eq!(rules[0].selector, "p");
+    }
+
+    #[test]
+    fn parse_single_colon_after() {
+        let css = r#"p:after { content: "!" }"#;
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, Some(PseudoElement::After));
+        assert_eq!(rules[0].selector, "p");
+    }
+
+    #[test]
+    fn parse_class_with_pseudo_element() {
+        let css = r#".note::before { content: "Note: " }"#;
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, Some(PseudoElement::Before));
+        assert_eq!(rules[0].selector, ".note");
+    }
+
+    #[test]
+    fn parse_rule_without_pseudo_element() {
+        let css = "p { color: red }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].pseudo_element, None);
+        assert_eq!(rules[0].selector, "p");
+    }
+
+    #[test]
+    fn parse_content_property_as_keyword() {
+        let map = parse_inline_style(r#"content: "hello world""#);
+        assert!(map.get("content").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("content") {
+            assert_eq!(k, "\"hello world\"");
+        }
+    }
+
+    #[test]
+    fn parse_counter_reset_as_keyword() {
+        let map = parse_inline_style("counter-reset: section 0");
+        assert!(map.get("counter-reset").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("counter-reset") {
+            assert_eq!(k, "section 0");
+        }
+    }
+
+    #[test]
+    fn parse_counter_increment_as_keyword() {
+        let map = parse_inline_style("counter-increment: section");
+        assert!(map.get("counter-increment").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("counter-increment") {
+            assert_eq!(k, "section");
+        }
+    }
+
+    #[test]
+    fn parse_list_style_type_as_keyword() {
+        let map = parse_inline_style("list-style-type: circle");
+        assert!(map.get("list-style-type").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("list-style-type") {
+            assert_eq!(k, "circle");
+        }
+    }
+
+    #[test]
+    fn parse_list_style_position_as_keyword() {
+        let map = parse_inline_style("list-style-position: inside");
+        assert!(map.get("list-style-position").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("list-style-position") {
+            assert_eq!(k, "inside");
+        }
+    }
+
+    #[test]
+    fn parse_list_style_shorthand_as_keyword() {
+        let map = parse_inline_style("list-style: circle inside");
+        assert!(map.get("list-style").is_some());
+        if let Some(CssValue::Keyword(k)) = map.get("list-style") {
+            assert_eq!(k, "circle inside");
+        }
+    }
+
+    // --- Coverage tests for uncovered lines ---
+
+    #[test]
+    fn parse_border_color_as_color() {
+        // Covers line 238: border-color -> parse_color(val)
+        let map = parse_inline_style("border-color: #ff0000");
+        match map.get("border-color") {
+            Some(CssValue::Color(c)) => assert_eq!(c.r, 255),
+            other => panic!("Expected Color, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_z_index_invalid_returns_none() {
+        // Covers line 249: z-index with non-integer, non-auto value
+        let map = parse_inline_style("z-index: abc");
+        assert!(map.get("z-index").is_none());
+    }
+
+    #[test]
+    fn parse_outline_color_as_color() {
+        // Covers line 327: outline-color -> parse_color(val)
+        let map = parse_inline_style("outline-color: blue");
+        match map.get("outline-color") {
+            Some(CssValue::Color(c)) => {
+                assert_eq!(c.r, 0);
+                assert_eq!(c.g, 0);
+                assert_eq!(c.b, 255);
+            }
+            other => panic!("Expected Color, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_text_transform_keyword() {
+        // Covers line 374: text-transform as keyword
+        let map = parse_inline_style("text-transform: uppercase");
+        match map.get("text-transform") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "uppercase"),
+            other => panic!("Expected Keyword, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn preprocess_non_media_at_rule_passthrough() {
+        // Covers line 443: non-media @-rules pass through
+        let css = "@charset \"utf-8\"; p { color: red; }";
+        let result = preprocess_media_queries(css);
+        assert!(result.contains("@charset"));
+        assert!(result.contains("p { color: red; }"));
+    }
+
+    #[test]
+    fn parse_length_with_var_function() {
+        // Covers line 483: parse_length delegates to parse_var_function
+        let map = parse_inline_style("width: var(--my-width)");
+        match map.get("width") {
+            Some(CssValue::Var(name, fallback)) => {
+                assert_eq!(name, "--my-width");
+                assert!(fallback.is_none());
+            }
+            other => panic!("Expected Var, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_length_with_calc_expression() {
+        // Covers line 488: parse_length delegates to parse_calc_expression
+        let map = parse_inline_style("width: calc(100px - 20px)");
+        match map.get("width") {
+            Some(CssValue::Calc(tokens)) => {
+                assert!(!tokens.is_empty());
+            }
+            other => panic!("Expected Calc, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_var_with_invalid_name_and_fallback() {
+        // Covers line 528: var() with non-"--" name and fallback returns None
+        let result = parse_var_function("var(invalid, fallback)");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_var_with_invalid_name_no_fallback() {
+        // Covers line 535: var() without fallback, invalid name
+        let result = parse_var_function("var(invalid)");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_calc_empty_expression() {
+        // Covers line 545: calc() with empty content
+        let result = parse_calc_expression("calc()");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn tokenize_calc_trailing_whitespace() {
+        // Covers line 561: tokenize_calc with trailing whitespace
+        let tokens = tokenize_calc("10px   ").unwrap();
+        assert_eq!(tokens.len(), 1);
+    }
+
+    #[test]
+    fn tokenize_calc_with_sign_prefix() {
+        // Covers lines 602-603: negative/positive sign on value
+        let tokens = tokenize_calc("-5px + 10px").unwrap();
+        assert!(tokens.len() >= 3);
+    }
+
+    #[test]
+    fn tokenize_calc_invalid_bare_sign() {
+        // Covers line 626: bare sign with no digits returns None
+        let result = tokenize_calc("+");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn tokenize_calc_unknown_unit() {
+        // Covers line 638: unknown unit returns None
+        let result = tokenize_calc("10xyz");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_font_face_malformed_no_brace() {
+        // Covers line 808: @font-face with no opening brace
+        let rules = parse_font_face_rules("@font-face no-brace-here");
+        assert!(rules.is_empty());
+    }
+
+    #[test]
+    fn parse_font_face_malformed_no_close_brace() {
+        // Covers line 805: extract_font_face_rules with opening brace but no close
+        // (preprocess_media_queries adds closing braces, so we test the inner function directly)
+        let rules = extract_font_face_rules("@font-face { font-family: test; src: url(test.ttf);");
+        assert!(rules.is_empty());
+    }
+
+    #[test]
+    fn parse_font_face_unknown_property_ignored() {
+        // Covers line 847: unknown properties in @font-face are ignored
+        let rules = parse_font_face_rules(
+            r#"@font-face {
+                font-family: "Test";
+                src: url("test.ttf");
+                font-weight: bold;
+            }"#,
+        );
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "Test");
+    }
+
+    #[test]
+    fn parse_import_rules_empty_path() {
+        // Covers line 916: @import with empty quoted path
+        let rules = parse_import_rules("@import \"\";");
+        assert!(rules.is_empty());
+    }
+
+    #[test]
+    fn strip_import_rules_malformed_no_semicolon() {
+        // Covers line 982: @import with no semicolon
+        let result = strip_import_rules("@import url(test.css)");
+        // Should handle gracefully (skip the rest)
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn strip_import_rules_non_import_at_rule() {
+        // Covers lines 987-989, 991-992: non-@import @ rules pass through
+        let result = strip_import_rules("@charset 'utf-8'; p { color: red; }");
+        assert!(result.contains("@charset"));
+        assert!(result.contains("p { color: red; }"));
+    }
+
+    #[test]
+    fn parse_page_size_landscape_unknown_name() {
+        // Covers line 1153: landscape with unknown named size
+        let result = parse_page_size("unknown landscape");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn extract_pseudo_element_bare_before() {
+        // Covers line 1218: ::before with empty base becomes "*"
+        let (base, pe) = extract_pseudo_element("::before");
+        assert_eq!(base, "*");
+        assert!(matches!(pe, Some(PseudoElement::Before)));
+    }
+
+    #[test]
+    fn selector_matches_empty_selector() {
+        // Covers line 1428: empty selector returns false
+        let ctx = SelectorContext {
+            ancestors: vec![],
+            child_index: 0,
+            sibling_count: 0,
+            preceding_siblings: vec![],
+        };
+        let attrs = std::collections::HashMap::new();
+        let result = selector_matches_with_context("", "p", &[], None, &attrs, &ctx);
+        assert!(!result);
+    }
+
+    #[test]
+    fn simple_selector_core_matches_empty_string() {
+        // Covers line 1486: empty selector returns false
+        let result = simple_selector_core_matches("", "div", &[], None);
+        assert!(!result);
+    }
+
+    #[test]
+    fn resolve_imports_with_real_file() {
+        // Covers lines 957-960: resolve_imports loads a real file
+        let dir = std::env::temp_dir().join("ironpress_css_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let imported_file = dir.join("imported.css");
+        std::fs::write(&imported_file, "body { color: green; }").unwrap();
+        let css = "@import \"imported.css\";\np { font-size: 12pt; }";
+        let result = resolve_imports(css, &dir, 0);
+        assert!(result.contains("body { color: green; }"));
+        assert!(result.contains("p { font-size: 12pt; }"));
+        std::fs::remove_file(&imported_file).ok();
+        std::fs::remove_dir(&dir).ok();
     }
 }

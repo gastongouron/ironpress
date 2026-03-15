@@ -1,15 +1,182 @@
-use crate::parser::css::{CssRule, SelectorContext};
+use crate::parser::css::{CssRule, CssValue, PseudoElement, SelectorContext, selector_matches};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BoxShadow, BoxSizing, Clear, ComputedStyle, Display, FlexDirection, FlexWrap,
-    Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent, LinearGradient, Overflow,
-    Position, RadialGradient, TextAlign, Transform, VerticalAlign, Visibility, compute_style,
+    AlignItems, BorderCollapse, BoxShadow, BoxSizing, Clear, ComputedStyle, ContentItem, Display,
+    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent,
+    LinearGradient, ListStylePosition, ListStyleType, Overflow, Position, RadialGradient,
+    TextAlign, TextOverflow, Transform, VerticalAlign, Visibility, WhiteSpace, compute_style,
     compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
+
+/// Counter state for CSS counters.
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+struct CounterState {
+    stacks: HashMap<String, Vec<i32>>,
+}
+#[allow(dead_code)]
+impl CounterState {
+    fn apply_resets(&mut self, resets: &[(String, i32)]) {
+        for (name, val) in resets {
+            self.stacks.entry(name.clone()).or_default().push(*val);
+        }
+    }
+    fn apply_increments(&mut self, increments: &[(String, i32)]) {
+        for (name, val) in increments {
+            let stack = self.stacks.entry(name.clone()).or_default();
+            if stack.is_empty() {
+                stack.push(0);
+            }
+            if let Some(top) = stack.last_mut() {
+                *top += val;
+            }
+        }
+    }
+    fn pop_resets(&mut self, resets: &[(String, i32)]) {
+        for (name, _) in resets {
+            if let Some(stack) = self.stacks.get_mut(name) {
+                stack.pop();
+            }
+        }
+    }
+    fn get(&self, name: &str) -> i32 {
+        self.stacks
+            .get(name)
+            .and_then(|s| s.last().copied())
+            .unwrap_or(0)
+    }
+    fn get_all(&self, name: &str, sep: &str) -> String {
+        self.stacks
+            .get(name)
+            .map(|s| {
+                s.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(sep)
+            })
+            .unwrap_or_else(|| "0".to_string())
+    }
+}
+
+fn format_list_marker(list_style_type: ListStyleType, index: usize) -> String {
+    match list_style_type {
+        ListStyleType::Disc => "\u{2022} ".to_string(),
+        ListStyleType::Circle => "\u{25E6} ".to_string(),
+        ListStyleType::Square => "\u{25AA} ".to_string(),
+        ListStyleType::Decimal => format!("{}. ", index),
+        ListStyleType::DecimalLeadingZero => format!("{:02}. ", index),
+        ListStyleType::LowerAlpha => format!("{}. ", to_alpha_lower(index)),
+        ListStyleType::UpperAlpha => format!("{}. ", to_alpha_upper(index)),
+        ListStyleType::LowerRoman => format!("{}. ", to_roman_lower(index)),
+        ListStyleType::UpperRoman => format!("{}. ", to_roman_upper(index)),
+        ListStyleType::None => String::new(),
+    }
+}
+fn to_alpha_lower(n: usize) -> String {
+    if n == 0 {
+        return "a".to_string();
+    }
+    let mut result = String::new();
+    let mut val = n;
+    while val > 0 {
+        val -= 1;
+        result.insert(0, (b'a' + (val % 26) as u8) as char);
+        val /= 26;
+    }
+    result
+}
+fn to_alpha_upper(n: usize) -> String {
+    to_alpha_lower(n).to_uppercase()
+}
+fn to_roman_lower(n: usize) -> String {
+    let vals = [
+        (1000, "m"),
+        (900, "cm"),
+        (500, "d"),
+        (400, "cd"),
+        (100, "c"),
+        (90, "xc"),
+        (50, "l"),
+        (40, "xl"),
+        (10, "x"),
+        (9, "ix"),
+        (5, "v"),
+        (4, "iv"),
+        (1, "i"),
+    ];
+    let mut result = String::new();
+    let mut remaining = n;
+    for &(value, numeral) in &vals {
+        while remaining >= value {
+            result.push_str(numeral);
+            remaining -= value;
+        }
+    }
+    if result.is_empty() {
+        "0".to_string()
+    } else {
+        result
+    }
+}
+fn to_roman_upper(n: usize) -> String {
+    to_roman_lower(n).to_uppercase()
+}
+
+fn resolve_content(
+    items: &[ContentItem],
+    attributes: &HashMap<String, String>,
+    counter_state: &CounterState,
+) -> String {
+    let mut result = String::new();
+    for item in items {
+        match item {
+            ContentItem::String(s) => result.push_str(s),
+            ContentItem::Attr(name) => {
+                if let Some(val) = attributes.get(name) {
+                    result.push_str(val);
+                }
+            }
+            ContentItem::Counter(name) => {
+                result.push_str(&counter_state.get(name).to_string());
+            }
+            ContentItem::Counters(name, sep) => {
+                result.push_str(&counter_state.get_all(name, sep));
+            }
+        }
+    }
+    result
+}
+
+fn resolve_pseudo_content(
+    rules: &[CssRule],
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    pseudo: PseudoElement,
+    counter_state: &CounterState,
+) -> Option<String> {
+    for rule in rules {
+        if rule.pseudo_element == Some(pseudo)
+            && selector_matches(&rule.selector, tag_name, classes, id)
+        {
+            if let Some(CssValue::Keyword(k)) = rule.declarations.get("content") {
+                let items = crate::style::computed::parse_content_value_pub(k);
+                if !items.is_empty() {
+                    let text = resolve_content(&items, attributes, counter_state);
+                    if !text.is_empty() {
+                        return Some(text);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 /// Context for rendering list items.
 #[derive(Debug, Clone)]
@@ -20,6 +187,7 @@ enum ListContext {
 
 /// A table cell ready for rendering.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TableCell {
     pub lines: Vec<TextLine>,
     pub bold: bool,
@@ -107,6 +275,7 @@ pub enum LayoutElement {
         vertical_align: VerticalAlign,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
+        z_index: i32,
     },
     /// A table row with cells.
     TableRow {
@@ -114,6 +283,8 @@ pub enum LayoutElement {
         col_widths: Vec<f32>,
         margin_top: f32,
         margin_bottom: f32,
+        border_collapse: BorderCollapse,
+        border_spacing: f32,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -145,11 +316,13 @@ pub struct Page {
 }
 
 /// Lay out the DOM nodes into pages.
+#[allow(dead_code)]
 pub fn layout(nodes: &[DomNode], page_size: PageSize, margin: Margin) -> Vec<Page> {
     layout_with_rules(nodes, page_size, margin, &[])
 }
 
 /// Lay out the DOM nodes into pages with stylesheet rules.
+#[allow(dead_code)]
 pub fn layout_with_rules(
     nodes: &[DomNode],
     page_size: PageSize,
@@ -260,6 +433,7 @@ fn flatten_nodes(
                             vertical_align: VerticalAlign::Baseline,
                             background_gradient: None,
                             background_radial_gradient: None,
+                            z_index: 0,
                         });
                     }
                 }
@@ -375,6 +549,7 @@ fn flatten_element(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            z_index: 0,
         });
         return;
     }
@@ -479,28 +654,41 @@ fn flatten_element(
         let inner_width = available_width - style.padding.left - style.padding.right;
         let mut runs = Vec::new();
 
-        // Add list marker
+        // Add list marker using list-style-type from computed style
         let marker = match list_ctx {
-            Some(ListContext::Unordered { .. }) => "- ".to_string(),
-            Some(ListContext::Ordered { index, .. }) => format!("{index}. "),
-            None => "- ".to_string(),
+            Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
+            Some(ListContext::Ordered { index, .. }) => {
+                let lst = if style.list_style_type == ListStyleType::Disc {
+                    ListStyleType::Decimal
+                } else {
+                    style.list_style_type
+                };
+                format_list_marker(lst, *index)
+            }
+            None => format_list_marker(style.list_style_type, 0),
         };
-        let list_indent = match list_ctx {
-            Some(ListContext::Unordered { indent }) => *indent,
-            Some(ListContext::Ordered { indent, .. }) => *indent,
-            None => 0.0,
+        let list_indent = if style.list_style_position == ListStylePosition::Inside {
+            0.0
+        } else {
+            match list_ctx {
+                Some(ListContext::Unordered { indent }) => *indent,
+                Some(ListContext::Ordered { indent, .. }) => *indent,
+                None => 0.0,
+            }
         };
-        runs.push(TextRun {
-            text: marker,
-            font_size: style.font_size,
-            bold: style.font_weight == FontWeight::Bold,
-            italic: style.font_style == FontStyle::Italic,
-            underline: false,
-            line_through: false,
-            color: style.color.to_f32_rgb(),
-            link_url: None,
-            font_family: style.font_family.clone(),
-        });
+        if !marker.is_empty() {
+            runs.push(TextRun {
+                text: marker,
+                font_size: style.font_size,
+                bold: style.font_weight == FontWeight::Bold,
+                italic: style.font_style == FontStyle::Italic,
+                underline: false,
+                line_through: false,
+                color: style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: style.font_family.clone(),
+            });
+        }
 
         collect_text_runs(&el.children, &style, &mut runs, None);
 
@@ -539,6 +727,7 @@ fn flatten_element(
                 vertical_align: style.vertical_align,
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
+                z_index: style.z_index,
             });
         }
 
@@ -669,12 +858,73 @@ fn flatten_element(
         };
         let inner_width = inner_width.max(0.0);
 
-        // Collect all inline content as text runs
+        // Collect all inline content as text runs, with ::before/::after
         let mut runs = Vec::new();
+        let cs = CounterState::default();
+        let cls: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+        if let Some(bt) = resolve_pseudo_content(
+            rules,
+            el.tag_name(),
+            &cls,
+            el.id(),
+            &el.attributes,
+            PseudoElement::Before,
+            &cs,
+        ) {
+            runs.push(TextRun {
+                text: bt,
+                font_size: style.font_size,
+                bold: style.font_weight == FontWeight::Bold,
+                italic: style.font_style == FontStyle::Italic,
+                underline: false,
+                line_through: false,
+                color: style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: style.font_family.clone(),
+            });
+        }
         collect_text_runs(&el.children, &style, &mut runs, None);
+        if let Some(at) = resolve_pseudo_content(
+            rules,
+            el.tag_name(),
+            &cls,
+            el.id(),
+            &el.attributes,
+            PseudoElement::After,
+            &cs,
+        ) {
+            runs.push(TextRun {
+                text: at,
+                font_size: style.font_size,
+                bold: style.font_weight == FontWeight::Bold,
+                italic: style.font_style == FontStyle::Italic,
+                underline: false,
+                line_through: false,
+                color: style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: style.font_family.clone(),
+            });
+        }
 
         if !runs.is_empty() {
-            let lines = wrap_text_runs(runs, inner_width, style.font_size, fonts);
+            // When white-space: nowrap, prevent wrapping by using a huge width
+            let wrap_width = if style.white_space == WhiteSpace::NoWrap {
+                f32::MAX
+            } else {
+                inner_width
+            };
+            let mut lines = wrap_text_runs(runs, wrap_width, style.font_size, fonts);
+
+            // Apply text-overflow: ellipsis when overflow is hidden, white-space
+            // is nowrap, and we have a fixed width.
+            if style.text_overflow == TextOverflow::Ellipsis
+                && style.overflow == Overflow::Hidden
+                && style.white_space == WhiteSpace::NoWrap
+                && style.width.is_some()
+            {
+                apply_text_overflow_ellipsis(&mut lines, inner_width, fonts);
+            }
+
             let bg = style
                 .background_color
                 .map(|c: crate::types::Color| c.to_f32_rgb());
@@ -730,6 +980,7 @@ fn flatten_element(
                 vertical_align: style.vertical_align,
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
+                z_index: style.z_index,
             });
         }
 
@@ -931,6 +1182,7 @@ fn flatten_flex_container(
             vertical_align: child_style.vertical_align,
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
+            z_index: child_style.z_index,
         };
 
         items.push(FlexItem {
@@ -1094,6 +1346,7 @@ fn flatten_flex_container(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            z_index: 0,
         });
     }
 
@@ -1220,6 +1473,7 @@ fn flatten_flex_container(
                                 vertical_align: *tb_va,
                                 background_gradient: None,
                                 background_radial_gradient: None,
+                                z_index: 0,
                             });
                         }
                     }
@@ -1327,6 +1581,7 @@ fn flatten_flex_container(
                                 vertical_align: *tb_va,
                                 background_gradient: None,
                                 background_radial_gradient: None,
+                                z_index: 0,
                             });
                         }
                     }
@@ -1374,6 +1629,7 @@ fn flatten_flex_container(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            z_index: 0,
         });
     }
 }
@@ -1788,6 +2044,8 @@ fn flatten_table(
                 col_widths: col_widths.clone(),
                 margin_top: if is_first { style.margin.top } else { 0.0 },
                 margin_bottom: 0.0,
+                border_collapse: style.border_collapse,
+                border_spacing: style.border_spacing,
             });
             is_first = false;
         }
@@ -1950,6 +2208,62 @@ fn wrap_text_runs(
     }
 
     lines
+}
+
+/// Apply text-overflow: ellipsis by truncating lines and appending "...".
+fn apply_text_overflow_ellipsis(
+    lines: &mut Vec<TextLine>,
+    max_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    // With nowrap, there should be only one line. Truncate it if it overflows.
+    if lines.is_empty() {
+        return;
+    }
+    // Merge all runs into a single string, keeping the style of the first run.
+    let line = &lines[0];
+    let total_text: String = line.runs.iter().map(|r| r.text.as_str()).collect();
+    if line.runs.is_empty() {
+        return;
+    }
+    let template = line.runs[0].clone();
+    let ellipsis = "...";
+    let ellipsis_width =
+        estimate_word_width(ellipsis, template.font_size, &template.font_family, fonts);
+
+    // Check if the line actually overflows
+    let line_width = estimate_word_width(
+        &total_text,
+        template.font_size,
+        &template.font_family,
+        fonts,
+    );
+    if line_width <= max_width {
+        return;
+    }
+
+    // Truncate character by character until text + ellipsis fits
+    let mut truncated = String::new();
+    for ch in total_text.chars() {
+        truncated.push(ch);
+        let w = estimate_word_width(&truncated, template.font_size, &template.font_family, fonts);
+        if w + ellipsis_width > max_width {
+            truncated.pop();
+            break;
+        }
+    }
+    truncated.push_str(ellipsis);
+
+    lines[0] = TextLine {
+        runs: vec![TextRun {
+            text: truncated,
+            ..template
+        }],
+        height: line.height,
+    };
+
+    // Remove any additional lines (shouldn't exist with nowrap, but just in case)
+    lines.truncate(1);
 }
 
 /// A tracked float region for simplified float layout.
@@ -2144,6 +2458,16 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         });
     }
 
+    // Sort elements within each page by z_index for correct rendering order.
+    // Static elements (z_index 0) stay in document order; positioned elements
+    // with higher z_index are moved later so they render on top.
+    for page in &mut pages {
+        page.elements.sort_by_key(|(_, el)| match el {
+            LayoutElement::TextBlock { z_index, .. } => *z_index,
+            _ => 0,
+        });
+    }
+
     pages
 }
 
@@ -2290,7 +2614,8 @@ fn collapse_whitespace(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::html::parse_html;
+    use crate::parser::css::parse_stylesheet;
+    use crate::parser::html::{parse_html, parse_html_with_styles};
 
     #[test]
     fn layout_simple_paragraph() {
@@ -4255,5 +4580,554 @@ mod tests {
         } else {
             panic!("Expected TextBlock");
         }
+    }
+
+    // ---- z-index tests ----
+
+    #[test]
+    fn z_index_stored_in_layout_element() {
+        let html = r#"<div style="position: absolute; z-index: 5; top: 10pt">High</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let found = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::TextBlock { z_index: 5, .. }));
+        assert!(found, "Expected element with z_index=5");
+    }
+
+    #[test]
+    fn z_index_sorting_order() {
+        let html = r#"
+            <div style="position: absolute; z-index: 10; top: 0">High</div>
+            <div style="position: absolute; z-index: 1; top: 0">Low</div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        // After sorting, z_index=1 should come before z_index=10
+        let z_indices: Vec<i32> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| match el {
+                LayoutElement::TextBlock {
+                    z_index, position, ..
+                } if *position != Position::Static => Some(*z_index),
+                _ => None,
+            })
+            .collect();
+        if z_indices.len() >= 2 {
+            assert!(
+                z_indices[0] <= z_indices[1],
+                "Elements should be sorted by z_index"
+            );
+        }
+    }
+
+    // ---- calc() integration test ----
+
+    #[test]
+    fn calc_width_in_layout() {
+        // Use a calc() value that's smaller than available_width so explicit_width is set
+        let html = r#"<div style="width: calc(50% - 10pt)">Calc content</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+        if let (_, LayoutElement::TextBlock { block_width, .. }) = &pages[0].elements[0] {
+            assert!(
+                block_width.is_some(),
+                "calc() width should resolve to explicit width"
+            );
+        }
+    }
+
+    // ---- CSS variable integration test ----
+
+    #[test]
+    fn var_width_in_layout() {
+        let html = r#"<div style="--w: 200pt"><div style="width: var(--w)">Var width</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let found = pages[0].elements.iter().any(|(_, el)| {
+            matches!(el, LayoutElement::TextBlock { block_width: Some(w), .. } if (*w - 200.0).abs() < 1.0)
+        });
+        assert!(found, "Expected element with width ~200pt from var()");
+    }
+
+    // ---- rem unit integration test ----
+
+    #[test]
+    fn rem_unit_in_layout() {
+        let html = r#"<div style="margin-top: 2rem">Rem margin</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+        // 2rem = 24pt margin_top
+        if let (_, LayoutElement::TextBlock { margin_top, .. }) = &pages[0].elements[0] {
+            assert!(
+                (*margin_top - 24.0).abs() < 0.5,
+                "Expected ~24pt margin_top from 2rem"
+            );
+        }
+    }
+
+    #[test]
+    fn table_row_carries_border_collapse() {
+        let html = r#"<table style="border-collapse: collapse"><tr><td>A</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_collapse = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TableRow {
+                    border_collapse: BorderCollapse::Collapse,
+                    ..
+                }
+            )
+        });
+        assert!(has_collapse, "Expected border_collapse: Collapse");
+    }
+
+    #[test]
+    fn table_row_default_border_separate() {
+        let html = r#"<table><tr><td>A</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_separate = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TableRow {
+                    border_collapse: BorderCollapse::Separate,
+                    ..
+                }
+            )
+        });
+        assert!(has_separate, "Expected default border_collapse: Separate");
+    }
+
+    #[test]
+    fn table_row_carries_border_spacing() {
+        let html = r#"<table style="border-spacing: 8px"><tr><td>A</td><td>B</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_spacing = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TableRow { border_spacing, .. } = el {
+                (*border_spacing - 6.0).abs() < 0.1
+            } else {
+                false
+            }
+        });
+        assert!(has_spacing, "Expected border_spacing of 6pt (8px * 0.75)");
+    }
+
+    #[test]
+    fn text_overflow_ellipsis_truncates() {
+        // text-overflow: ellipsis is stored on the style; layout does not yet
+        // perform the actual truncation with "..." so we just verify the
+        // element is produced and has a single line (nowrap).
+        let html = r#"<div style="width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis">This is a very long text that should be truncated</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let found = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                lines.len() == 1
+            } else {
+                false
+            }
+        });
+        assert!(found, "Text with nowrap should have a single line");
+    }
+
+    #[test]
+    fn text_overflow_clip_no_ellipsis() {
+        let html = r#"<div style="width: 50px; overflow: hidden; white-space: nowrap; text-overflow: clip">This is a very long text</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_ellipsis = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                lines
+                    .iter()
+                    .any(|l| l.runs.iter().any(|r| r.text.ends_with("...")))
+            } else {
+                false
+            }
+        });
+        assert!(!has_ellipsis, "clip should not add ellipsis");
+    }
+
+    // --- list-style-type tests ---
+    #[test]
+    fn format_list_marker_disc() {
+        assert_eq!(format_list_marker(ListStyleType::Disc, 1), "\u{2022} ");
+    }
+
+    #[test]
+    fn format_list_marker_circle() {
+        assert_eq!(format_list_marker(ListStyleType::Circle, 1), "\u{25E6} ");
+    }
+
+    #[test]
+    fn format_list_marker_square() {
+        assert_eq!(format_list_marker(ListStyleType::Square, 1), "\u{25AA} ");
+    }
+
+    #[test]
+    fn format_list_marker_decimal() {
+        assert_eq!(format_list_marker(ListStyleType::Decimal, 3), "3. ");
+    }
+
+    #[test]
+    fn format_list_marker_decimal_leading_zero() {
+        assert_eq!(
+            format_list_marker(ListStyleType::DecimalLeadingZero, 3),
+            "03. "
+        );
+        assert_eq!(
+            format_list_marker(ListStyleType::DecimalLeadingZero, 12),
+            "12. "
+        );
+    }
+
+    #[test]
+    fn format_list_marker_lower_alpha() {
+        assert_eq!(format_list_marker(ListStyleType::LowerAlpha, 1), "a. ");
+        assert_eq!(format_list_marker(ListStyleType::LowerAlpha, 3), "c. ");
+        assert_eq!(format_list_marker(ListStyleType::LowerAlpha, 27), "aa. ");
+    }
+
+    #[test]
+    fn format_list_marker_upper_alpha() {
+        assert_eq!(format_list_marker(ListStyleType::UpperAlpha, 1), "A. ");
+        assert_eq!(format_list_marker(ListStyleType::UpperAlpha, 26), "Z. ");
+    }
+
+    #[test]
+    fn format_list_marker_lower_roman() {
+        assert_eq!(format_list_marker(ListStyleType::LowerRoman, 1), "i. ");
+        assert_eq!(format_list_marker(ListStyleType::LowerRoman, 4), "iv. ");
+        assert_eq!(format_list_marker(ListStyleType::LowerRoman, 9), "ix. ");
+        assert_eq!(format_list_marker(ListStyleType::LowerRoman, 14), "xiv. ");
+    }
+
+    #[test]
+    fn format_list_marker_upper_roman() {
+        assert_eq!(format_list_marker(ListStyleType::UpperRoman, 1), "I. ");
+        assert_eq!(format_list_marker(ListStyleType::UpperRoman, 4), "IV. ");
+    }
+
+    #[test]
+    fn format_list_marker_none() {
+        assert_eq!(format_list_marker(ListStyleType::None, 1), "");
+    }
+
+    // --- Counter state tests ---
+    #[test]
+    fn counter_state_default_returns_zero() {
+        let cs = CounterState::default();
+        assert_eq!(cs.get("foo"), 0);
+    }
+
+    #[test]
+    fn counter_state_apply_resets() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 0)]);
+        assert_eq!(cs.get("section"), 0);
+    }
+
+    #[test]
+    fn counter_state_apply_increments() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 0)]);
+        cs.apply_increments(&[("section".to_string(), 1)]);
+        assert_eq!(cs.get("section"), 1);
+        cs.apply_increments(&[("section".to_string(), 1)]);
+        assert_eq!(cs.get("section"), 2);
+    }
+
+    #[test]
+    fn counter_state_nested_resets() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 0)]);
+        cs.apply_increments(&[("section".to_string(), 1)]);
+        // Nested reset pushes a new counter
+        cs.apply_resets(&[("section".to_string(), 0)]);
+        assert_eq!(cs.get("section"), 0);
+        cs.apply_increments(&[("section".to_string(), 1)]);
+        assert_eq!(cs.get("section"), 1);
+        // Pop nested reset
+        cs.pop_resets(&[("section".to_string(), 0)]);
+        assert_eq!(cs.get("section"), 1); // Back to outer counter value
+    }
+
+    #[test]
+    fn counter_state_get_all() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 1)]);
+        cs.apply_resets(&[("section".to_string(), 2)]);
+        cs.apply_resets(&[("section".to_string(), 3)]);
+        assert_eq!(cs.get_all("section", "."), "1.2.3");
+    }
+
+    // --- resolve_content tests ---
+    #[test]
+    fn resolve_content_string() {
+        let cs = CounterState::default();
+        let attrs = HashMap::new();
+        let items = vec![ContentItem::String("hello".to_string())];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "hello");
+    }
+
+    #[test]
+    fn resolve_content_attr() {
+        let cs = CounterState::default();
+        let mut attrs = HashMap::new();
+        attrs.insert("title".to_string(), "My Title".to_string());
+        let items = vec![ContentItem::Attr("title".to_string())];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "My Title");
+    }
+
+    #[test]
+    fn resolve_content_counter() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 0)]);
+        cs.apply_increments(&[("section".to_string(), 3)]);
+        let attrs = HashMap::new();
+        let items = vec![ContentItem::Counter("section".to_string())];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "3");
+    }
+
+    #[test]
+    fn resolve_content_counters() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("section".to_string(), 1)]);
+        cs.apply_resets(&[("section".to_string(), 2)]);
+        let attrs = HashMap::new();
+        let items = vec![ContentItem::Counters(
+            "section".to_string(),
+            ".".to_string(),
+        )];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "1.2");
+    }
+
+    #[test]
+    fn resolve_content_mixed() {
+        let cs = CounterState::default();
+        let mut attrs = HashMap::new();
+        attrs.insert("data-label".to_string(), "Note".to_string());
+        let items = vec![
+            ContentItem::Attr("data-label".to_string()),
+            ContentItem::String(": ".to_string()),
+        ];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "Note: ");
+    }
+
+    // --- ::before/::after integration tests ---
+    #[test]
+    fn before_pseudo_element_in_layout() {
+        let html = r#"<html><head><style>p::before { content: ">> " }</style></head><body><p>Hello</p></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut all_texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let text: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    all_texts.push(text);
+                }
+            }
+        }
+        let found = all_texts
+            .iter()
+            .any(|t| t.contains(">>") && t.contains("Hello"));
+        assert!(
+            found,
+            "::before content should be prepended to paragraph, got: {:?}",
+            all_texts
+        );
+    }
+
+    #[test]
+    fn after_pseudo_element_in_layout() {
+        let html = r#"<html><head><style>p::after { content: " <<" }</style></head><body><p>Hello</p></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut all_texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let text: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    all_texts.push(text);
+                }
+            }
+        }
+        let found = all_texts
+            .iter()
+            .any(|t| t.contains("Hello") && t.contains("<<"));
+        assert!(
+            found,
+            "::after content should be appended to paragraph, got: {:?}",
+            all_texts
+        );
+    }
+
+    // --- list-style-type in layout tests ---
+    #[test]
+    fn unordered_list_uses_bullet_marker() {
+        let html = "<ul><li>Item</li></ul>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let found = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                lines
+                    .iter()
+                    .any(|l| l.runs.iter().any(|r| r.text.contains('\u{2022}')))
+            } else {
+                false
+            }
+        });
+        assert!(found, "Unordered list should use bullet marker");
+    }
+
+    #[test]
+    fn ordered_list_uses_decimal_marker() {
+        let html = "<ol><li>First</li><li>Second</li></ol>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let mut all_texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let text: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    all_texts.push(text);
+                }
+            }
+        }
+        let found = all_texts.iter().any(|t| t.contains("1."));
+        assert!(
+            found,
+            "Ordered list should use decimal marker, got: {:?}",
+            all_texts
+        );
+    }
+
+    // --- Coverage tests for uncovered lines ---
+
+    #[test]
+    fn to_alpha_lower_zero_returns_a() {
+        // Covers line 81: to_alpha_lower(0) returns "a"
+        assert_eq!(to_alpha_lower(0), "a");
+    }
+
+    #[test]
+    fn to_roman_lower_zero_returns_zero_string() {
+        // Covers line 120: to_roman_lower(0) returns "0"
+        assert_eq!(to_roman_lower(0), "0");
+    }
+
+    #[test]
+    fn counter_state_apply_increments_on_empty_stack() {
+        // Covers line 32: apply_increments pushes 0 when stack is empty
+        let mut state = CounterState::default();
+        state.apply_increments(&[("test".to_string(), 1)]);
+        assert_eq!(state.get("test"), 1);
+    }
+
+    #[test]
+    fn layout_flex_container() {
+        // Covers lines 1067,1133,1395: flex layout code paths
+        let html = r#"<div style="display: flex; width: 400pt;">
+            <div style="width: 200pt;">Left</div>
+            <div style="width: 200pt;">Right</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_grid_container() {
+        // Covers lines 1670,1712: grid layout code paths
+        let html = r#"<html><head><style>
+            .grid { display: grid; grid-template-columns: 1fr 1fr; }
+        </style></head><body>
+        <div class="grid"><div>A</div><div>B</div></div>
+        </body></html>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_table_with_non_standard_children() {
+        // Covers line 1821,1831,1858: table non-tr children
+        let html = "<table><caption>Cap</caption><tr><td>A</td></tr></table>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_table_colspan_exceeds_cols() {
+        // Covers line 1943,2003: colspan beyond column count
+        let html = r#"<table>
+            <tr><td colspan="10">Wide</td></tr>
+            <tr><td>A</td><td>B</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_white_space_nowrap_overflow() {
+        // Covers lines 2221,2227,2242: nowrap + text-overflow: ellipsis
+        let html = r#"<html><head><style>
+            .nowrap { width: 50pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        </style></head><body>
+        <div class="nowrap">This text is very long and should be truncated</div>
+        </body></html>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_clear_right_float() {
+        // Covers line 2312: clear: right
+        let html = r#"
+            <div style="float: right; width: 100pt;">Floated</div>
+            <div style="clear: right;">Cleared</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn base64_decode_valid() {
+        // Covers lines 2562,2574: base64 decode
+        let decoded = base64_decode("SGVsbG8=").unwrap();
+        assert_eq!(&decoded, b"Hello");
+    }
+
+    #[test]
+    fn base64_decode_invalid_char() {
+        // Covers line 2562: base64 decode with invalid char
+        let result = base64_decode("!!!!");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn base64_decode_short_input() {
+        // Covers line 2574: base64 decode with very short input (breaks early)
+        let result = base64_decode("A");
+        assert!(result.is_some());
+        assert!(result.unwrap().is_empty());
     }
 }

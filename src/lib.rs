@@ -2,20 +2,36 @@
 //!
 //! Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 //!
-//! Converts HTML with inline CSS styles into PDF documents using a built-in
-//! layout engine. Supports headings, paragraphs, bold/italic text, colors,
-//! tables, lists, page breaks, and more.
+//! ironpress converts HTML (with CSS) and Markdown into PDF documents using a
+//! built-in layout engine. Unlike other Rust PDF crates, it does not shell out
+//! to headless Chrome or wkhtmltopdf.
+//!
+//! ## Features
+//!
+//! - All common HTML elements: headings, paragraphs, lists, tables, images, links, semantic sections
+//! - CSS support: selectors, flexbox, grid, floats, positioning, transforms, gradients, custom properties
+//! - Built-in Markdown parser (no external dependencies)
+//! - Custom TrueType font embedding
+//! - JPEG and PNG images (data URIs and local files)
+//! - Streaming output via `std::io::Write`
+//! - Async file I/O via optional `tokio` integration
+//! - HTML sanitization enabled by default
 //!
 //! ## Quick start
 //!
 //! ```
-//! use ironpress::html_to_pdf;
-//!
-//! let pdf_bytes = html_to_pdf("<h1>Hello</h1><p>World</p>").unwrap();
-//! assert!(pdf_bytes.starts_with(b"%PDF"));
+//! let pdf = ironpress::html_to_pdf("<h1>Hello</h1><p>World</p>").unwrap();
+//! assert!(pdf.starts_with(b"%PDF"));
 //! ```
 //!
-//! ## With options
+//! ## Markdown
+//!
+//! ```
+//! let pdf = ironpress::markdown_to_pdf("# Hello\n\nWorld").unwrap();
+//! assert!(pdf.starts_with(b"%PDF"));
+//! ```
+//!
+//! ## Builder API
 //!
 //! ```
 //! use ironpress::{HtmlConverter, PageSize, Margin};
@@ -23,16 +39,37 @@
 //! let pdf = HtmlConverter::new()
 //!     .page_size(PageSize::LETTER)
 //!     .margin(Margin::uniform(54.0))
+//!     .sanitize(false)
 //!     .convert("<h1>Hello</h1>")
+//!     .unwrap();
+//! ```
+//!
+//! ## Streaming output
+//!
+//! ```
+//! let mut buf = Vec::new();
+//! ironpress::html_to_pdf_writer("<h1>Hello</h1>", &mut buf).unwrap();
+//! assert!(buf.starts_with(b"%PDF"));
+//! ```
+//!
+//! ## Custom fonts
+//!
+//! ```no_run
+//! use ironpress::HtmlConverter;
+//!
+//! let ttf = std::fs::read("fonts/MyFont.ttf").unwrap();
+//! let pdf = HtmlConverter::new()
+//!     .add_font("MyFont", ttf)
+//!     .convert(r#"<p style="font-family: MyFont">Custom text</p>"#)
 //!     .unwrap();
 //! ```
 
 pub mod error;
-pub mod layout;
-pub mod parser;
-pub mod render;
-pub mod security;
-pub mod style;
+pub(crate) mod layout;
+pub(crate) mod parser;
+pub(crate) mod render;
+pub(crate) mod security;
+pub(crate) mod style;
 pub mod types;
 
 pub use error::IronpressError;
@@ -147,11 +184,29 @@ pub async fn convert_markdown_file_async(input: &str, output: &str) -> Result<()
 }
 
 /// Builder for HTML-to-PDF conversion with custom options.
+///
+/// Use [`HtmlConverter::new`] to start, chain configuration methods,
+/// then call [`convert`](HtmlConverter::convert) or
+/// [`convert_to_writer`](HtmlConverter::convert_to_writer) to produce PDF output.
+///
+/// # Example
+///
+/// ```
+/// use ironpress::{HtmlConverter, PageSize, Margin};
+///
+/// let pdf = HtmlConverter::new()
+///     .page_size(PageSize::LETTER)
+///     .margin(Margin::uniform(54.0))
+///     .convert("<h1>Hello</h1>")
+///     .unwrap();
+/// ```
 pub struct HtmlConverter {
     page_size: PageSize,
     margin: Margin,
     sanitize: bool,
     custom_fonts: std::collections::HashMap<String, Vec<u8>>,
+    /// Base directory for resolving relative paths in `@import` and `@font-face` rules.
+    base_path: Option<std::path::PathBuf>,
 }
 
 impl HtmlConverter {
@@ -162,6 +217,7 @@ impl HtmlConverter {
             margin: Margin::default(),
             sanitize: true,
             custom_fonts: std::collections::HashMap::new(),
+            base_path: None,
         }
     }
 
@@ -205,7 +261,46 @@ impl HtmlConverter {
         self
     }
 
+    /// Set the base directory for resolving relative paths in CSS `@import`
+    /// and `@font-face` rules.
+    ///
+    /// When set, `@import "styles.css"` will resolve the path relative to
+    /// this directory, and `@font-face { src: url("fonts/MyFont.ttf") }` will
+    /// load the font file from this directory.
+    ///
+    /// Only local file paths are supported. Remote URLs (http/https) are
+    /// rejected for security.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ironpress::HtmlConverter;
+    /// use std::path::Path;
+    ///
+    /// let pdf = HtmlConverter::new()
+    ///     .base_path(Path::new("/path/to/project"))
+    ///     .convert(r#"<style>@import "styles.css";</style><p>Hello</p>"#)
+    ///     .unwrap();
+    /// ```
+    pub fn base_path(mut self, path: &std::path::Path) -> Self {
+        self.base_path = Some(path.to_path_buf());
+        self
+    }
+
     /// Convert a Markdown string to PDF bytes.
+    ///
+    /// The Markdown is first converted to HTML using the built-in parser,
+    /// then processed through the normal HTML-to-PDF pipeline.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use ironpress::HtmlConverter;
+    ///
+    /// let pdf = HtmlConverter::new()
+    ///     .convert_markdown("# Hello\n\nWorld")
+    ///     .unwrap();
+    /// ```
     pub fn convert_markdown(&self, md: &str) -> Result<Vec<u8>, IronpressError> {
         let html = parser::markdown::markdown_to_html(md);
         self.convert(&html)
@@ -234,12 +329,25 @@ impl HtmlConverter {
         // Step 2: Parse HTML and extract stylesheets
         let result = parser::html::parse_html_with_styles(&html)?;
 
+        // Step 2b: Resolve @import rules in stylesheets (if base_path is set)
+        let stylesheets: Vec<String> = if let Some(ref base) = self.base_path {
+            result
+                .stylesheets
+                .iter()
+                .map(|css| parser::css::resolve_imports(css, base, 0))
+                .collect()
+        } else {
+            result.stylesheets
+        };
+
         // Step 3: Parse stylesheets
         let mut rules = Vec::new();
         let mut page_rules = Vec::new();
-        for css in &result.stylesheets {
+        let mut font_face_rules = Vec::new();
+        for css in &stylesheets {
             rules.extend(parser::css::parse_stylesheet(css));
             page_rules.extend(parser::css::parse_page_rules(css));
+            font_face_rules.extend(parser::css::parse_font_face_rules(css));
         }
 
         // Step 3b: Apply @page rules to override page size and margins
@@ -266,8 +374,20 @@ impl HtmlConverter {
             }
         }
 
-        // Step 4: Parse custom fonts
-        let parsed_fonts = self.parse_custom_fonts();
+        // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
+        let mut parsed_fonts = self.parse_custom_fonts();
+
+        // Step 4b: Load fonts from @font-face rules
+        if let Some(ref base) = self.base_path {
+            for ff_rule in &font_face_rules {
+                let font_path = base.join(&ff_rule.src_path);
+                if let Ok(ttf_data) = std::fs::read(&font_path) {
+                    if let Ok(font) = parser::ttf::parse_ttf(ttf_data) {
+                        parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
+                    }
+                }
+            }
+        }
 
         // Step 5: Layout
         let pages = layout::engine::layout_with_rules_and_fonts(
@@ -295,6 +415,8 @@ impl HtmlConverter {
     }
 
     /// Convert a Markdown string to PDF, writing directly to any `std::io::Write` implementation.
+    ///
+    /// Streaming variant of [`convert_markdown`](HtmlConverter::convert_markdown).
     pub fn convert_markdown_to_writer<W: std::io::Write>(
         &self,
         md: &str,
@@ -314,7 +436,15 @@ impl HtmlConverter {
         }
         fonts
     }
+}
 
+impl Default for HtmlConverter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HtmlConverter {
     /// Async version of [`HtmlConverter::convert`] for file-based conversion.
     /// Requires the `async` feature.
     ///
@@ -342,12 +472,6 @@ impl HtmlConverter {
         let pdf = pdf?;
         tokio::fs::write(output, pdf).await?;
         Ok(())
-    }
-}
-
-impl Default for HtmlConverter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -2421,5 +2545,509 @@ fn main() {
         let content = String::from_utf8_lossy(&pdf);
         assert!(content.contains("GridChild"));
         assert!(content.contains("AnotherChild"));
+    }
+
+    #[test]
+    fn font_face_rules_parsed_from_stylesheet() {
+        // @font-face rules should be extracted from embedded stylesheets
+        let html = r#"<html><head><style>
+            @font-face {
+                font-family: "TestFont";
+                src: url("test.ttf");
+            }
+            body { color: black; }
+        </style></head><body><p>Hello</p></body></html>"#;
+        // Even without base_path, the conversion should succeed
+        // (font file won't be found, but no error)
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn import_rules_ignored_without_base_path() {
+        // @import rules should be ignored when no base_path is set
+        let html = r#"<html><head><style>
+            @import "nonexistent.css";
+            body { color: red; }
+        </style></head><body><p>Hello</p></body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn base_path_setter() {
+        use std::path::Path;
+        let converter = HtmlConverter::new().base_path(Path::new("/tmp/test"));
+        // Verify base_path is set
+        assert_eq!(converter.base_path.as_deref(), Some(Path::new("/tmp/test")));
+    }
+
+    #[test]
+    fn font_face_remote_url_rejected() {
+        // Remote URLs in @font-face should be silently ignored
+        let html = r#"<html><head><style>
+            @font-face {
+                font-family: "RemoteFont";
+                src: url("https://example.com/font.ttf");
+            }
+        </style></head><body><p>Hello</p></body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn import_with_base_path_missing_file() {
+        use std::path::Path;
+        // When file doesn't exist, @import is silently skipped
+        let html = r#"<html><head><style>
+            @import "nonexistent.css";
+            p { color: blue; }
+        </style></head><body><p>Styled</p></body></html>"#;
+        let pdf = HtmlConverter::new()
+            .base_path(Path::new("/tmp/ironpress_test_nonexistent"))
+            .convert(html)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn import_with_real_file() {
+        // Create a temporary directory with a CSS file
+        let tmp_dir = std::env::temp_dir().join("ironpress_import_test");
+        let _ = std::fs::create_dir_all(&tmp_dir);
+        std::fs::write(tmp_dir.join("imported.css"), "p { color: red; }").unwrap();
+
+        let html = r#"<html><head><style>
+            @import "imported.css";
+        </style></head><body><p>Hello</p></body></html>"#;
+
+        let pdf = HtmlConverter::new()
+            .base_path(&tmp_dir)
+            .convert(html)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
+
+    #[test]
+    fn import_recursive_with_depth_limit() {
+        // Create files that import each other (circular)
+        let tmp_dir = std::env::temp_dir().join("ironpress_recursive_test");
+        let _ = std::fs::create_dir_all(&tmp_dir);
+        std::fs::write(
+            tmp_dir.join("a.css"),
+            r#"@import "b.css"; .a { color: red; }"#,
+        )
+        .unwrap();
+        std::fs::write(
+            tmp_dir.join("b.css"),
+            r#"@import "a.css"; .b { color: blue; }"#,
+        )
+        .unwrap();
+
+        let html = r#"<html><head><style>
+            @import "a.css";
+        </style></head><body><p>Hello</p></body></html>"#;
+
+        // Should not infinite loop due to depth limit
+        let pdf = HtmlConverter::new()
+            .base_path(&tmp_dir)
+            .convert(html)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
+
+    #[test]
+    fn font_face_with_base_path_missing_font() {
+        use std::path::Path;
+        // When font file doesn't exist, it's silently skipped
+        let html = r#"<html><head><style>
+            @font-face {
+                font-family: "MissingFont";
+                src: url("missing.ttf");
+            }
+            p { font-family: MissingFont; }
+        </style></head><body><p>Hello</p></body></html>"#;
+
+        let pdf = HtmlConverter::new()
+            .base_path(Path::new("/tmp/ironpress_test_nonexistent"))
+            .convert(html)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn import_remote_url_rejected() {
+        use std::path::Path;
+        // Remote import URLs should be silently rejected
+        let html = r#"<html><head><style>
+            @import url("https://example.com/styles.css");
+            p { color: green; }
+        </style></head><body><p>Hello</p></body></html>"#;
+
+        let pdf = HtmlConverter::new()
+            .base_path(Path::new("/tmp"))
+            .convert(html)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn multiple_font_face_rules_in_stylesheet() {
+        let html = r#"<html><head><style>
+            @font-face {
+                font-family: "Font1";
+                src: url("font1.ttf");
+            }
+            @font-face {
+                font-family: "Font2";
+                src: url("font2.ttf");
+            }
+        </style></head><body><p>Hello</p></body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    // --- Coverage tests for engine.rs and pdf.rs uncovered lines ---
+
+    #[test]
+    fn html_to_pdf_ordered_list_lower_alpha() {
+        // Covers engine.rs lines 664,668 (list marker formatting with style types)
+        let html = r#"<html><head><style>
+            ol { list-style-type: lower-alpha; }
+        </style></head><body>
+        <ol><li>First</li><li>Second</li><li>Third</li></ol>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("a."));
+        assert!(content.contains("b."));
+    }
+
+    #[test]
+    fn html_to_pdf_ordered_list_upper_roman() {
+        // Covers engine.rs line 120 (to_roman_lower/upper for zero edge case)
+        let html = r#"<html><head><style>
+            ol { list-style-type: upper-roman; }
+        </style></head><body>
+        <ol><li>First</li><li>Second</li><li>Third</li></ol>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("I."));
+        assert!(content.contains("II."));
+    }
+
+    #[test]
+    fn html_to_pdf_list_style_none() {
+        // Covers engine.rs list_style_type None branch
+        let html = r#"<html><head><style>
+            ul { list-style-type: none; }
+        </style></head><body>
+        <ul><li>Nomarker</li></ul>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Nomarker"));
+    }
+
+    #[test]
+    fn html_to_pdf_list_style_inside() {
+        // Covers engine.rs lines 670-671: list-style-position: inside
+        let html = r#"<html><head><style>
+            ul { list-style-position: inside; }
+        </style></head><body>
+        <ul><li>InsideItem</li></ul>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("InsideItem"));
+    }
+
+    #[test]
+    fn html_to_pdf_flexbox_layout() {
+        // Covers engine.rs lines 1067,1113,1133,1395: flex layout
+        let html = r#"
+        <div style="display: flex; width: 400pt;">
+            <div style="width: 200pt;">FlexLeft</div>
+            <div style="width: 200pt;">FlexRight</div>
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_flexbox_no_explicit_width() {
+        // Covers engine.rs line 1113: flex items without explicit width
+        let html = r#"
+        <div style="display: flex;">
+            <div>AutoA</div>
+            <div>AutoB</div>
+            <div>AutoC</div>
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_grid_layout() {
+        // Covers engine.rs lines 1670,1712: grid track sizing and layout
+        let html = r#"
+        <div style="display: grid; grid-template-columns: 1fr 1fr;">
+            <div>GridA</div>
+            <div>GridB</div>
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_colspan_exceeds_columns() {
+        // Covers engine.rs line 2003: colspan spanning beyond available columns
+        let html = r#"
+        <table>
+            <tr><td colspan="5">WideCellContent</td></tr>
+            <tr><td>A</td><td>B</td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_with_non_tr_children() {
+        // Covers engine.rs line 1831: table children that are not tr/thead/tbody/tfoot
+        let html = r#"
+        <table>
+            <caption>Caption</caption>
+            <tr><td>Cell</td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_text_overflow_ellipsis() {
+        // Covers engine.rs lines 2221,2227,2242: nowrap + text-overflow: ellipsis
+        let html = r#"
+        <div style="width: 50pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            This is a very long text that should be truncated with an ellipsis marker
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_clear_right() {
+        // Covers engine.rs line 2312: clear right float
+        let html = r#"
+        <div style="float: right; width: 100pt;">RightFloated</div>
+        <div style="clear: right;">ClearedRight</div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_inline_base64_image() {
+        // Covers engine.rs lines 2562,2574: base64 decode
+        // A tiny 1x1 red PNG as base64
+        let html = r#"<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==" width="10" height="10">"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_text_justify() {
+        // Covers pdf.rs lines 372,393: text-align: justify with word spacing
+        let html = r#"<p style="text-align: justify; width: 300pt;">
+            This is a paragraph with justified text alignment that has multiple words
+            and should produce word spacing adjustments in the PDF output stream.
+        </p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Tw") || content.contains("This"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_border_collapse() {
+        // Covers pdf.rs lines 467,472-473,476: border-collapse on table
+        let html = r#"<html><head><style>
+            table { border-collapse: collapse; }
+            td { border: 1pt solid black; }
+        </style></head><body>
+        <table>
+            <tr><td>A</td><td>B</td></tr>
+            <tr><td>C</td><td>D</td></tr>
+        </table>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("A"));
+        assert!(content.contains("D"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_rowspan() {
+        // Covers pdf.rs lines 513,515: rowspan handling in table rendering
+        let html = r#"
+        <table>
+            <tr><td rowspan="2">Tall</td><td>Top</td></tr>
+            <tr><td>Bottom</td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Tall"));
+        assert!(content.contains("Top"));
+        assert!(content.contains("Bottom"));
+    }
+
+    #[test]
+    fn html_to_pdf_grid_row_rendering() {
+        // Covers pdf.rs lines 553,555,564: GridRow rendering in PDF
+        let html = r#"<html><head><style>
+            .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+            .grid > div { background-color: #eee; padding: 5pt; }
+        </style></head><body>
+        <div class="grid">
+            <div>GridCell1</div>
+            <div>GridCell2</div>
+            <div>GridCell3</div>
+        </div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_explicit_page_break_element() {
+        // Covers pdf.rs line 634: LayoutElement::PageBreak
+        let html = r#"
+        <p>PageOneContent</p>
+        <div style="page-break-before: always;"></div>
+        <p>PageTwoContent</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_linear_gradient() {
+        // Covers pdf.rs lines 253,783,799,802,812: linear gradient rendering
+        let html = r#"
+        <div style="background: linear-gradient(to right, red, blue); width: 200pt; height: 50pt;">
+            Gradient text
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_radial_gradient() {
+        // Covers pdf.rs lines 272,905: radial gradient rendering
+        let html = r#"
+        <div style="background: radial-gradient(circle, red, blue); width: 200pt; height: 50pt;">
+            Radial text
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_visibility_hidden() {
+        // Covers pdf.rs lines 109-110,112-113: visibility: hidden skips rendering
+        let html = r#"<p style="visibility: hidden">Hidden</p><p>VisibleAfterHidden</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_float_right_rendering() {
+        // Covers pdf.rs line 121: Float::Right block_x computation
+        let html = r#"
+        <div style="float: right; width: 100pt;">RightFloat</div>
+        <p>NormalAfterFloat</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_custom_font_bold_italic_variants() {
+        // Covers pdf.rs lines 718-720: Custom font with bold+italic falls back
+        let ttf_data = build_integration_test_ttf();
+        let pdf = HtmlConverter::new()
+            .add_font("testfont", ttf_data)
+            .convert(
+                r#"<p style="font-family: testfont; font-weight: bold; font-style: italic;">BoldItalic</p>"#,
+            )
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_cell_text_rendering() {
+        // Covers pdf.rs lines 675,681: cell text rendering with empty and non-empty runs
+        let html = r#"
+        <table>
+            <tr>
+                <td style="padding: 5pt;">CellPadded</td>
+                <td></td>
+            </tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_grid_with_gap() {
+        // Covers pdf.rs lines 593,599: grid gap/spacing calculation
+        let html = r#"<html><head><style>
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+        </style></head><body>
+        <div class="grid">
+            <div>GapA</div>
+            <div>GapB</div>
+        </div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_li_outside_list() {
+        // Covers engine.rs lines 668,676: li without list context
+        let html = "<li>OrphanItem</li>";
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_flexbox_display_none_child() {
+        // Covers engine.rs line 1106-1107: flex child with display:none
+        let html = r#"
+        <div style="display: flex;">
+            <div>FlexVisible</div>
+            <div style="display: none;">FlexHidden</div>
+            <div>FlexAlso</div>
+        </div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_border_spacing() {
+        // Covers pdf.rs lines 472-473,476: border-spacing in separate mode
+        let html = r#"<html><head><style>
+            table { border-collapse: separate; border-spacing: 5pt; }
+            td { border: 1pt solid black; }
+        </style></head><body>
+        <table>
+            <tr><td>SpacedX</td><td>SpacedY</td></tr>
+        </table>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
     }
 }

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 /// Parsed TrueType font data.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TtfFont {
     /// Font family name from the `name` table.
     pub font_name: String,

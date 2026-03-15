@@ -155,16 +155,22 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 
 | Category | Properties |
 |----------|-----------|
-| Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align` |
+| Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align`, `text-overflow` |
 | Colors | `color`, `background-color`, `opacity` |
 | Box model | `margin` (including `auto`), `padding`, `border`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
-| Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute) |
+| Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
 | Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `gap` |
 | Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
-| Positioning | `top`, `left` |
+| Positioning | `top`, `left`, `z-index` |
 | Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
-| Backgrounds | `background-color`, `linear-gradient()`, `radial-gradient()` |
+| Backgrounds | `background-color`, `background-position`, `background-size`, `background-repeat`, `linear-gradient()`, `radial-gradient()` |
 | Decoration | `text-decoration` (underline, line-through) |
+| Lists | `list-style-type` (disc, circle, square, decimal, lower-alpha, upper-alpha, lower-roman, upper-roman, none), `list-style-position` (inside, outside) |
+| Tables | `border-collapse`, `border-spacing` |
+| Counters | `counter-reset`, `counter-increment`, `content: counter()` |
+| Pseudo-elements | `::before`, `::after` with `content` property |
+| Custom properties | `--my-var: value`, `var(--my-var)`, `var(--my-var, fallback)` |
+| Functions | `calc()` (with `+`, `-`, `*`, `/` and mixed units) |
 | Page control | `page-break-before`, `page-break-after`, `@page` (size, margin) |
 
 All shorthand properties are supported. Margin and padding accept 1, 2, 3, or 4 values. Border accepts `width style color` shorthand.
@@ -199,13 +205,15 @@ All shorthand properties are supported. Margin and padding accept 1, 2, 3, or 4 
 | General sibling | `h1 ~ p` |
 | Attribute | `[href]`, `[type="text"]` |
 | Pseudo-class | `:first-child`, `:last-child`, `:nth-child()`, `:not()` |
+| Pseudo-element | `::before`, `::after` |
 
 ### Values
 
 | Type | Examples |
 |------|---------|
 | Colors | `red`, `navy`, `darkblue`, `#f00`, `#ff0000`, `rgb(255, 0, 0)` |
-| Units | `12pt`, `16px`, `1.5em` |
+| Units | `12pt`, `16px`, `1.5em`, `50%`, `2rem`, `10vw`, `5vh` |
+| Functions | `calc(100% - 20pt)`, `var(--my-color)`, `var(--size, 12pt)` |
 | Keywords | `bold`, `italic`, `center`, `justify`, `none`, `inherit`, `initial`, `unset` |
 
 ### Media queries
@@ -297,6 +305,23 @@ let pdf = HtmlConverter::new()
 
 The TTF parser extracts character metrics for accurate text wrapping and embeds the font directly in the PDF.
 
+### `@font-face`
+
+Load fonts directly from CSS (local files only, remote URLs are blocked for security):
+
+```html
+<style>
+  @font-face {
+    font-family: "MyFont";
+    src: url("fonts/MyFont.ttf");
+  }
+  p { font-family: MyFont; }
+</style>
+<p>Rendered with MyFont</p>
+```
+
+Requires `.base_path()` on the builder so the converter knows where to find font files.
+
 ## Streaming Output
 
 Write PDF output directly to any `std::io::Write` implementation instead of allocating a `Vec<u8>`:
@@ -325,7 +350,7 @@ HtmlConverter::new()
 Enable the `async` feature for async file I/O:
 
 ```toml
-ironpress = { version = "0.5", features = ["async"] }
+ironpress = { version = "0.7", features = ["async"] }
 ```
 
 ```rust
@@ -340,7 +365,8 @@ The HTML parsing, layout, and rendering remain synchronous (CPU-bound). Async is
 HTML is sanitized by default before conversion:
 
 - `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>` tags are stripped
-- `<style>` tags are preserved but dangerous CSS (`@import`, external `url()`, `expression()`) is removed
+- `<style>` tags are preserved but dangerous CSS (external `url()`, `expression()`) is removed
+- `@import` and `@font-face` only load local files (remote URLs are blocked)
 - Event handlers (`onclick`, `onload`, etc.) are removed
 - `javascript:` URLs are neutralized
 - Input size (10 MB) and nesting depth (100 levels) are limited
@@ -365,16 +391,11 @@ For Markdown input, a built-in parser converts Markdown to HTML first (no extern
 
 ironpress focuses on being the best HTML/CSS/Markdown to PDF engine in Rust. Other input formats (SVG, DOCX, EPUB, CSV) will be available as separate crates in the ironpress ecosystem.
 
-Remaining work for HTML/CSS rendering:
+Remaining work:
 
-- [ ] Rounded corners rendering (`border-radius` is parsed but not yet drawn as curves)
-- [ ] `z-index` stacking order
-- [ ] `list-style-type`, `list-style-position`
-- [ ] `background-position`, `background-size`, `background-repeat`
-- [ ] `text-overflow: ellipsis`
 - [ ] Hyphenation and advanced text shaping
-- [ ] PDF bookmarks from heading structure
 - [ ] WASM support for browser-side PDF generation
+- [ ] Inline SVG rendering
 
 ## License
 

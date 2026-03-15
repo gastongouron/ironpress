@@ -4,7 +4,8 @@ use crate::layout::engine::{
 };
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    Float, FontFamily, GradientStop, LinearGradient, Position, RadialGradient, TextAlign,
+    BorderCollapse, Float, FontFamily, GradientStop, LinearGradient, Position, RadialGradient,
+    TextAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -22,6 +23,7 @@ struct LinkAnnotation {
 ///
 /// Uses the PDF built-in Helvetica font family (one of the 14 standard fonts)
 /// so no font embedding is needed for the MVP.
+#[allow(dead_code)]
 pub fn render_pdf(
     pages: &[Page],
     page_size: PageSize,
@@ -463,9 +465,18 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                     }
                 }
                 LayoutElement::TableRow {
-                    cells, col_widths, ..
+                    cells,
+                    col_widths,
+                    border_collapse,
+                    border_spacing,
+                    ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
+                    let spacing = if *border_collapse == BorderCollapse::Collapse {
+                        0.0
+                    } else {
+                        *border_spacing
+                    };
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
                     let row_height = compute_row_height(cells);
@@ -480,10 +491,17 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                             continue;
                         }
 
-                        let cell_x = margin.left + col_widths.iter().take(col_pos).sum::<f32>();
+                        let cell_x = margin.left
+                            + col_widths.iter().take(col_pos).sum::<f32>()
+                            + spacing * col_pos as f32;
                         let cell_w: f32 = (0..cell.colspan)
                             .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
-                            .sum();
+                            .sum::<f32>()
+                            + if cell.colspan > 1 {
+                                spacing * (cell.colspan - 1) as f32
+                            } else {
+                                0.0
+                            };
 
                         // For cells with rowspan > 1, compute the total height
                         // spanning multiple rows.

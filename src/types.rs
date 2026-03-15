@@ -14,6 +14,14 @@ impl PageSize {
         width: 612.0,
         height: 792.0,
     };
+    pub const LEGAL: Self = Self {
+        width: 612.0,
+        height: 1008.0,
+    };
+
+    pub fn new(width: f32, height: f32) -> Self {
+        Self { width, height }
+    }
 }
 
 impl Default for PageSize {
@@ -32,13 +40,17 @@ pub struct Margin {
 }
 
 impl Margin {
-    pub fn uniform(v: f32) -> Self {
+    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
         Self {
-            top: v,
-            right: v,
-            bottom: v,
-            left: v,
+            top,
+            right,
+            bottom,
+            left,
         }
+    }
+
+    pub fn uniform(v: f32) -> Self {
+        Self::new(v, v, v, v)
     }
 }
 
@@ -48,18 +60,9 @@ impl Default for Margin {
     }
 }
 
-/// A rectangle defined by position and size.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Rect {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
 /// Edge sizes for margin, padding, border.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct EdgeSizes {
+pub(crate) struct EdgeSizes {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
@@ -68,13 +71,15 @@ pub struct EdgeSizes {
 
 /// RGBA color.
 #[derive(Debug, Clone, Copy)]
-pub struct Color {
+#[allow(dead_code)]
+pub(crate) struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
     pub a: u8,
 }
 
+#[allow(dead_code)]
 impl Color {
     pub const BLACK: Self = Self {
         r: 0,

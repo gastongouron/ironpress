@@ -211,6 +211,7 @@ pub struct ElementNode {
 }
 
 impl ElementNode {
+    #[allow(dead_code)]
     pub fn new(tag: HtmlTag) -> Self {
         Self {
             tag,
