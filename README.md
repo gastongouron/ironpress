@@ -421,48 +421,6 @@ graph LR
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
 
-## What's Next
-
-ironpress focuses on being the best HTML/CSS/Markdown to PDF engine in Rust. Other input formats (SVG, DOCX, EPUB, CSV) will be available as separate crates in the ironpress ecosystem.
-
-### Roadmap to v1.0
-
-**Security hardening**
-
-- [x] Path traversal protection — canonicalize and sandbox `@import` / `@font-face` paths within `base_dir`
-- [x] TTF parser hardening — validate `units_per_em > 0`, use checked arithmetic, reject malformed fonts
-- [x] PNG decompression bomb protection — cap accumulated IDAT chunk size (50 MB)
-- [x] CSS size limit — cap cumulative `@import` payload to prevent OOM (10 MB)
-- [x] Inline SVG rendering with dedicated SVG sanitizer (strip `<script>`, `foreignObject`, `use href=`, event handlers)
-
-**API polish**
-
-- [x] Derive `PartialEq` on public types (`PageSize`, `Margin`)
-- [x] `#![warn(missing_docs)]` — doc comments on all public items
-- [x] Cargo.toml metadata — `readme`, `documentation`, `exclude`
-
-**Rendering**
-
-- [x] Hyphenation for long words in narrow containers
-- [x] `letter-spacing` and `word-spacing` applied in PDF output (`Tc` / `Tw` operators)
-- [x] Per-side borders (`border-top`, `border-right`, `border-bottom`, `border-left`) with independent width and color
-- [x] Native PDF Shading Dictionaries for pixel-perfect linear and radial gradients (no banding)
-- [x] Adobe AFM font metrics for Helvetica, Helvetica-Bold, Courier, TimesRoman — precise text alignment and underline widths
-- [x] Gradient clipping to `border-radius` — rounded gradient backgrounds
-- [x] Inline span `border-radius` — badge/pill styling with rounded corners
-- [x] Vertical centering in table cells (CSS `vertical-align: middle` behavior)
-- [x] Flex container percentage widths resolve against actual container width (gap-aware)
-- [x] Wrapper backgrounds for block elements with only block children (gradient/border-radius on containers)
-- [x] `body` CSS rules applied to root style (font-size, color, font-family)
-- [x] Descendant selector matching in flex children and inline text collection
-- [x] Section-relative `nth-child` counting in tables (per thead/tbody/tfoot)
-
-**Post-v1**
-
-- [ ] WASM support for browser-side PDF generation
-- [ ] Fuzz testing on parsers (cargo-fuzz)
-- [ ] Property-based testing (quickcheck / proptest)
-
 ## License
 
 MIT
