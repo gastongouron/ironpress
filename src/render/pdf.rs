@@ -438,8 +438,19 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
 
                         let text_x = match text_align {
                             TextAlign::Left | TextAlign::Justify => block_x + padding_left,
-                            TextAlign::Center => block_x + (render_width - line_width) / 2.0,
-                            TextAlign::Right => block_x + render_width - padding_right - line_width,
+                            TextAlign::Center => {
+                                let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
+                                block_x + (render_width - line_width) / 2.0 + first_pad
+                            }
+                            TextAlign::Right => {
+                                // Account for inline padding: text_x is where the
+                                // text characters start, but line_width includes the
+                                // full visual width (with left+right padding of inline
+                                // spans).  Offset by the first run's left padding so
+                                // the visual right edge aligns with the right boundary.
+                                let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
+                                block_x + render_width - padding_right - line_width + first_pad
+                            }
                         };
 
                         // Set letter spacing (CSS letter-spacing)

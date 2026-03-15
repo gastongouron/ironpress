@@ -1198,8 +1198,10 @@ fn flatten_element(
                 margin_bottom: 0.0,
                 text_align: style.text_align,
                 background_color: bg,
-                padding_top: style.padding.top,
-                padding_bottom: style.padding.bottom,
+                // Padding is already included in container_h (block_height),
+                // so set 0 here to avoid double-counting in the paginator.
+                padding_top: 0.0,
+                padding_bottom: 0.0,
                 padding_left: style.padding.left,
                 padding_right: style.padding.right,
                 border: LayoutBorder::from_computed(&style.border),
@@ -1269,7 +1271,23 @@ fn flatten_element(
                 background_radial_gradient: None,
                 z_index: 0,
             });
-            // Emit the pre-flattened children
+            // Add the parent's left/right padding to children so they render
+            // inside the padded area, not at the page left margin.
+            if style.padding.left > 0.0 || style.padding.right > 0.0 {
+                for child_elem in &mut child_elements {
+                    match child_elem {
+                        LayoutElement::TextBlock {
+                            padding_left,
+                            padding_right,
+                            ..
+                        } => {
+                            *padding_left += style.padding.left;
+                            *padding_right += style.padding.right;
+                        }
+                        _ => {}
+                    }
+                }
+            }
             output.extend(child_elements);
             // Emit spacer for bottom padding + border + margin_bottom
             let bottom_space =
@@ -1452,14 +1470,22 @@ fn flatten_flex_container(
         }
         .max(0.0);
 
-        // Collect text runs for this child, including from nested block elements
+        // Collect text runs for this child, including from nested block elements.
+        // Include the child element itself in the ancestor chain so that
+        // descendant selectors like `.card h3` can match.
+        let mut child_ancestors = ancestors.to_vec();
+        child_ancestors.push(AncestorInfo {
+            element: child_el,
+            child_index: idx,
+            sibling_count: child_count,
+        });
         let mut runs = Vec::new();
         collect_flex_child_text_runs(
             &child_el.children,
             &child_style,
             &mut runs,
             rules,
-            ancestors,
+            &child_ancestors,
         );
 
         let lines = if !runs.is_empty() {

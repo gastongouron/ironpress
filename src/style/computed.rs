@@ -568,6 +568,9 @@ pub fn compute_style_with_context(
         style.background_radial_gradient = None;
     }
 
+    // Border does not inherit in CSS — reset for all elements
+    style.border = BorderSides::default();
+
     // Reset non-inherited sizing and opacity properties
     style.width = None;
     style.height = None;
