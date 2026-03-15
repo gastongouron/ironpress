@@ -1,16 +1,79 @@
-use crate::parser::css::{CssRule, CssValue, PseudoElement, SelectorContext, selector_matches};
+use crate::parser::css::{
+    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, selector_matches,
+};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BoxShadow, BoxSizing, Clear, ComputedStyle, ContentItem, Display,
-    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent,
-    LinearGradient, ListStylePosition, ListStyleType, Overflow, Position, RadialGradient,
-    TextAlign, TextOverflow, Transform, VerticalAlign, Visibility, WhiteSpace, compute_style,
-    compute_style_with_context,
+    AlignItems, BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle,
+    ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
+    GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
+    Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
+    WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
+
+/// A single border side for layout rendering.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LayoutBorderSide {
+    pub width: f32,
+    pub color: (f32, f32, f32),
+}
+
+/// Per-side border for layout rendering.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LayoutBorder {
+    pub top: LayoutBorderSide,
+    pub right: LayoutBorderSide,
+    pub bottom: LayoutBorderSide,
+    pub left: LayoutBorderSide,
+}
+
+// Default is derived via #[derive(Default)] on the struct.
+
+#[allow(dead_code)]
+impl LayoutBorder {
+    pub fn from_computed(b: &BorderSides) -> Self {
+        Self {
+            top: LayoutBorderSide {
+                width: b.top.width,
+                color: b.top.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+            },
+            right: LayoutBorderSide {
+                width: b.right.width,
+                color: b.right.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+            },
+            bottom: LayoutBorderSide {
+                width: b.bottom.width,
+                color: b.bottom.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+            },
+            left: LayoutBorderSide {
+                width: b.left.width,
+                color: b.left.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+            },
+        }
+    }
+    pub fn has_any(&self) -> bool {
+        self.top.width > 0.0
+            || self.right.width > 0.0
+            || self.bottom.width > 0.0
+            || self.left.width > 0.0
+    }
+    pub fn horizontal_width(&self) -> f32 {
+        self.left.width + self.right.width
+    }
+    pub fn vertical_width(&self) -> f32 {
+        self.top.width + self.bottom.width
+    }
+    pub fn max_width(&self) -> f32 {
+        self.top
+            .width
+            .max(self.right.width)
+            .max(self.bottom.width)
+            .max(self.left.width)
+    }
+}
 
 /// Counter state for CSS counters.
 #[derive(Debug, Default, Clone)]
@@ -200,6 +263,28 @@ pub struct TableCell {
     pub colspan: usize,
     /// Number of rows this cell spans (default 1).
     pub rowspan: usize,
+    /// Per-side border specification.
+    pub border: LayoutBorder,
+    /// Text alignment within the cell.
+    pub text_align: TextAlign,
+}
+
+/// A cell within a flex row, with its computed x-offset and width.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct FlexCell {
+    pub lines: Vec<TextLine>,
+    pub x_offset: f32,
+    pub width: f32,
+    pub text_align: TextAlign,
+    pub background_color: Option<(f32, f32, f32)>,
+    pub padding_top: f32,
+    pub padding_right: f32,
+    pub padding_bottom: f32,
+    pub padding_left: f32,
+    pub border_radius: f32,
+    pub background_gradient: Option<LinearGradient>,
+    pub background_radial_gradient: Option<RadialGradient>,
 }
 
 /// A styled text run (a piece of text with uniform style).
@@ -214,6 +299,12 @@ pub struct TextRun {
     pub color: (f32, f32, f32),
     pub link_url: Option<String>,
     pub font_family: FontFamily,
+    /// Background color for inline spans (e.g. badge/highlight).
+    pub background_color: Option<(f32, f32, f32)>,
+    /// Horizontal and vertical padding for inline background.
+    pub padding: (f32, f32),
+    /// Border radius for inline spans (e.g. badge with rounded corners).
+    pub border_radius: f32,
 }
 
 /// A laid-out line of text runs.
@@ -252,8 +343,7 @@ pub enum LayoutElement {
         padding_bottom: f32,
         padding_left: f32,
         padding_right: f32,
-        border_width: f32,
-        border_color: Option<(f32, f32, f32)>,
+        border: LayoutBorder,
         block_width: Option<f32>,
         block_height: Option<f32>,
         opacity: f32,
@@ -319,6 +409,27 @@ pub enum LayoutElement {
         /// Bottom margin.
         margin_bottom: f32,
     },
+    /// A flex row with cells positioned horizontally.
+    #[allow(dead_code)]
+    FlexRow {
+        cells: Vec<FlexCell>,
+        row_height: f32,
+        margin_top: f32,
+        margin_bottom: f32,
+        /// Container background color.
+        background_color: Option<(f32, f32, f32)>,
+        /// Full container width (including padding).
+        container_width: f32,
+        padding_top: f32,
+        padding_bottom: f32,
+        padding_left: f32,
+        padding_right: f32,
+        border: LayoutBorder,
+        border_radius: f32,
+        box_shadow: Option<BoxShadow>,
+        background_gradient: Option<LinearGradient>,
+        background_radial_gradient: Option<RadialGradient>,
+    },
     /// A page break.
     PageBreak,
 }
@@ -353,13 +464,27 @@ pub fn layout_with_rules_and_fonts(
     rules: &[CssRule],
     custom_fonts: &HashMap<String, TtfFont>,
 ) -> Vec<Page> {
-    let parent_style = ComputedStyle::default();
+    // Apply body/html rules to the root style so that properties like
+    // `body { font-size: 10pt; color: #333 }` take effect (the HTML parser
+    // unwraps <html>/<body>, so these selectors would otherwise never match).
+    let mut parent_style = ComputedStyle::default();
+    let default_parent = ComputedStyle::default();
+    for rule in rules {
+        let sel = rule.selector.trim();
+        if sel == "body" || sel == "html" {
+            crate::style::computed::apply_style_map(
+                &mut parent_style,
+                &rule.declarations,
+                &default_parent,
+            );
+        }
+    }
     let available_width = page_size.width - margin.left - margin.right;
     let content_height = page_size.height - margin.top - margin.bottom;
 
     // First, flatten DOM into layout elements
     let mut elements = Vec::new();
-    let ancestors: Vec<&ElementNode> = Vec::new();
+    let ancestors: Vec<AncestorInfo> = Vec::new();
     flatten_nodes(
         nodes,
         &parent_style,
@@ -383,7 +508,7 @@ fn flatten_nodes(
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
-    ancestors: &[&ElementNode],
+    ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
     // Count element children for sibling context
@@ -409,6 +534,9 @@ fn flatten_nodes(
                         color: parent_style.color.to_f32_rgb(),
                         link_url: None,
                         font_family: parent_style.font_family.clone(),
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
                     };
                     let lines =
                         wrap_text_runs(vec![run], available_width, parent_style.font_size, fonts);
@@ -423,8 +551,7 @@ fn flatten_nodes(
                             padding_bottom: 0.0,
                             padding_left: 0.0,
                             padding_right: 0.0,
-                            border_width: 0.0,
-                            border_color: None,
+                            border: LayoutBorder::default(),
                             block_width: None,
                             block_height: None,
                             opacity: 1.0,
@@ -484,7 +611,7 @@ fn flatten_element(
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
-    ancestors: &[&ElementNode],
+    ancestors: &[AncestorInfo],
     child_index: usize,
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
@@ -526,6 +653,9 @@ fn flatten_element(
                 color: (0.0, 0.0, 0.0),
                 link_url: None,
                 font_family: style.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
             }],
             height: style.font_size * style.line_height,
         };
@@ -538,8 +668,7 @@ fn flatten_element(
             padding_top: 0.0,
             padding_bottom: 0.0,
             padding_left: 0.0,
-            border_width: 0.0,
-            border_color: None,
+            border: LayoutBorder::default(),
             padding_right: 0.0,
             block_width: None,
             block_height: None,
@@ -608,8 +737,12 @@ fn flatten_element(
     }
 
     // Build ancestors list for children of this element
-    let mut child_ancestors: Vec<&ElementNode> = ancestors.to_vec();
-    child_ancestors.push(el);
+    let mut child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
+    child_ancestors.push(AncestorInfo {
+        element: el,
+        child_index,
+        sibling_count,
+    });
 
     // List handling — Ul/Ol pass context to Li children
     if el.tag == HtmlTag::Ul || el.tag == HtmlTag::Ol {
@@ -715,10 +848,13 @@ fn flatten_element(
                 color: style.color.to_f32_rgb(),
                 link_url: None,
                 font_family: style.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
             });
         }
 
-        collect_text_runs(&el.children, &style, &mut runs, None);
+        collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
 
         if !runs.is_empty() {
             let lines = wrap_text_runs(runs, inner_width, style.font_size, fonts);
@@ -732,8 +868,7 @@ fn flatten_element(
                 padding_bottom: 0.0,
                 padding_left: list_indent,
                 padding_right: 0.0,
-                border_width: 0.0,
-                border_color: None,
+                border: LayoutBorder::default(),
                 block_width: None,
                 block_height: None,
                 opacity: style.opacity,
@@ -880,7 +1015,7 @@ fn flatten_element(
         // When border-box, the specified width includes padding and border,
         // so the content area is width minus padding and border.
         let inner_width = if style.box_sizing == BoxSizing::BorderBox {
-            block_w - style.padding.left - style.padding.right - style.border_width * 2.0
+            block_w - style.padding.left - style.padding.right - style.border.horizontal_width()
         } else {
             block_w - style.padding.left - style.padding.right
         };
@@ -909,9 +1044,12 @@ fn flatten_element(
                 color: style.color.to_f32_rgb(),
                 link_url: None,
                 font_family: style.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
             });
         }
-        collect_text_runs(&el.children, &style, &mut runs, None);
+        collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
         if let Some(at) = resolve_pseudo_content(
             rules,
             el.tag_name(),
@@ -931,9 +1069,13 @@ fn flatten_element(
                 color: style.color.to_f32_rgb(),
                 link_url: None,
                 font_family: style.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
             });
         }
 
+        let had_inline_runs = !runs.is_empty();
         if !runs.is_empty() {
             // When white-space: nowrap, prevent wrapping by using a huge width
             let wrap_width = if style.white_space == WhiteSpace::NoWrap {
@@ -956,8 +1098,6 @@ fn flatten_element(
             let bg = style
                 .background_color
                 .map(|c: crate::types::Color| c.to_f32_rgb());
-
-            let border_clr = style.border_color.map(|c| c.to_f32_rgb());
 
             let explicit_width = if block_w < available_width || style.min_width.is_some() {
                 Some(block_w)
@@ -985,8 +1125,7 @@ fn flatten_element(
                 padding_bottom: style.padding.bottom,
                 padding_left: style.padding.left,
                 padding_right: style.padding.right,
-                border_width: style.border_width,
-                border_color: border_clr,
+                border: LayoutBorder::from_computed(&style.border),
                 block_width: explicit_width,
                 block_height: effective_height,
                 opacity: style.opacity,
@@ -1012,31 +1151,215 @@ fn flatten_element(
             });
         }
 
-        // Also process block children recursively
+        // Also process block children recursively, using inner_width
+        // so children respect the parent's padding boundaries.
         let child_el_count = el
             .children
             .iter()
             .filter(|c| matches!(c, DomNode::Element(_)))
             .count();
-        let mut child_el_idx = 0;
-        for child in &el.children {
-            if let DomNode::Element(child_el) = child {
-                if child_el.tag.is_block() {
-                    flatten_element(
-                        child_el,
-                        &style,
-                        available_width,
-                        output,
-                        None,
-                        rules,
-                        &child_ancestors,
-                        child_el_idx,
-                        child_el_count,
-                        &[],
-                        fonts,
-                    );
+
+        // If no inline content but the element has visual properties (background,
+        // gradient, border, border-radius), emit a wrapper TextBlock so the visuals
+        // are rendered.  Children are then pulled back inside via a negative-margin
+        // spacer (same technique as flex column containers).
+        // NB: check before runs is moved into wrap_text_runs above.
+        let has_visual = style.background_color.is_some()
+            || style.background_gradient.is_some()
+            || style.background_radial_gradient.is_some()
+            || style.border.has_any()
+            || style.border_radius > 0.0
+            || style.box_shadow.is_some();
+        let no_inline_content = !had_inline_runs;
+
+        if no_inline_content && has_visual {
+            // Pre-flatten children to measure total height
+            let mut child_elements = Vec::new();
+            let mut child_el_idx = 0;
+            for child in &el.children {
+                if let DomNode::Element(child_el) = child {
+                    if child_el.tag.is_block() {
+                        flatten_element(
+                            child_el,
+                            &style,
+                            inner_width,
+                            &mut child_elements,
+                            None,
+                            rules,
+                            &child_ancestors,
+                            child_el_idx,
+                            child_el_count,
+                            &[],
+                            fonts,
+                        );
+                    }
+                    child_el_idx += 1;
                 }
-                child_el_idx += 1;
+            }
+            // Measure children total height
+            let children_h: f32 = child_elements.iter().map(estimate_element_height).sum();
+            let container_h = style.padding.top + children_h + style.padding.bottom;
+            let container_h = effective_height.map_or(container_h, |h| container_h.max(h));
+
+            let bg = style
+                .background_color
+                .map(|c: crate::types::Color| c.to_f32_rgb());
+            // Emit wrapper with visual properties
+            output.push(LayoutElement::TextBlock {
+                lines: Vec::new(),
+                margin_top: style.margin.top,
+                margin_bottom: 0.0,
+                text_align: style.text_align,
+                background_color: bg,
+                // Padding is already included in container_h (block_height),
+                // so set 0 here to avoid double-counting in the paginator.
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: style.padding.left,
+                padding_right: style.padding.right,
+                border: LayoutBorder::from_computed(&style.border),
+                block_width: Some(block_w),
+                block_height: Some(container_h),
+                opacity: style.opacity,
+                float: style.float,
+                clear: style.clear,
+                position: style.position,
+                offset_top: style.top.unwrap_or(0.0),
+                offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                box_shadow: style.box_shadow,
+                visible: style.visibility == Visibility::Visible,
+                clip_rect: if style.overflow == Overflow::Hidden {
+                    Some((0.0, 0.0, block_w, container_h))
+                } else {
+                    None
+                },
+                transform: style.transform,
+                border_radius: style.border_radius,
+                outline_width: style.outline_width,
+                outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+                text_indent: 0.0,
+                letter_spacing: 0.0,
+                word_spacing: 0.0,
+                vertical_align: VerticalAlign::Baseline,
+                background_gradient: style.background_gradient.clone(),
+                background_radial_gradient: style.background_radial_gradient.clone(),
+                z_index: style.z_index,
+            });
+            // Pull y back so children flow inside the wrapper, starting
+            // after the top padding.  The wrapper advanced y by its full
+            // height; we only pull back by (children_h + padding_bottom + border)
+            // so that padding_top of space remains above the children.
+            let pullback = children_h + style.padding.bottom + style.border.vertical_width();
+            output.push(LayoutElement::TextBlock {
+                lines: Vec::new(),
+                margin_top: -pullback,
+                margin_bottom: 0.0,
+                text_align: TextAlign::Left,
+                background_color: None,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: style.padding.left,
+                padding_right: style.padding.right,
+                border: LayoutBorder::default(),
+                block_width: None,
+                block_height: None,
+                opacity: 1.0,
+                float: Float::None,
+                clear: Clear::None,
+                position: Position::Static,
+                offset_top: 0.0,
+                offset_left: 0.0,
+                box_shadow: None,
+                visible: true,
+                clip_rect: None,
+                transform: None,
+                border_radius: 0.0,
+                outline_width: 0.0,
+                outline_color: None,
+                text_indent: 0.0,
+                letter_spacing: 0.0,
+                word_spacing: 0.0,
+                vertical_align: VerticalAlign::Baseline,
+                background_gradient: None,
+                background_radial_gradient: None,
+                z_index: 0,
+            });
+            // Add the parent's left/right padding to children so they render
+            // inside the padded area, not at the page left margin.
+            if style.padding.left > 0.0 || style.padding.right > 0.0 {
+                for child_elem in &mut child_elements {
+                    if let LayoutElement::TextBlock {
+                        padding_left,
+                        padding_right,
+                        ..
+                    } = child_elem
+                    {
+                        *padding_left += style.padding.left;
+                        *padding_right += style.padding.right;
+                    }
+                }
+            }
+            output.extend(child_elements);
+            // Emit spacer for bottom padding + border + margin_bottom
+            let bottom_space =
+                style.padding.bottom + style.border.vertical_width() + style.margin.bottom;
+            if bottom_space > 0.0 {
+                output.push(LayoutElement::TextBlock {
+                    lines: Vec::new(),
+                    margin_top: bottom_space,
+                    margin_bottom: 0.0,
+                    text_align: TextAlign::Left,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    padding_right: 0.0,
+                    border: LayoutBorder::default(),
+                    block_width: None,
+                    block_height: None,
+                    opacity: 1.0,
+                    float: Float::None,
+                    clear: Clear::None,
+                    position: Position::Static,
+                    offset_top: 0.0,
+                    offset_left: 0.0,
+                    box_shadow: None,
+                    visible: true,
+                    clip_rect: None,
+                    transform: None,
+                    border_radius: 0.0,
+                    outline_width: 0.0,
+                    outline_color: None,
+                    text_indent: 0.0,
+                    letter_spacing: 0.0,
+                    word_spacing: 0.0,
+                    vertical_align: VerticalAlign::Baseline,
+                    background_gradient: None,
+                    background_radial_gradient: None,
+                    z_index: 0,
+                });
+            }
+        } else {
+            let mut child_el_idx = 0;
+            for child in &el.children {
+                if let DomNode::Element(child_el) = child {
+                    if child_el.tag.is_block() {
+                        flatten_element(
+                            child_el,
+                            &style,
+                            inner_width,
+                            output,
+                            None,
+                            rules,
+                            &child_ancestors,
+                            child_el_idx,
+                            child_el_count,
+                            &[],
+                            fonts,
+                        );
+                    }
+                    child_el_idx += 1;
+                }
             }
         }
     } else {
@@ -1071,7 +1394,7 @@ fn flatten_flex_container(
     available_width: f32,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
-    ancestors: &[&ElementNode],
+    ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
     let mut block_w = available_width;
@@ -1111,6 +1434,16 @@ fn flatten_flex_container(
 
     let mut items: Vec<FlexItem> = Vec::new();
 
+    // For percentage width resolution, children need the actual container width
+    // as the parent reference (not the CSS width which may be None).
+    // Subtract total gap space so that percentage widths + gaps fit within the container.
+    let total_gaps = style.gap * (child_count.saturating_sub(1)) as f32;
+    let width_for_percentages = (inner_width - total_gaps).max(0.0);
+    let mut parent_for_children = style.clone();
+    if parent_for_children.width.is_none() {
+        parent_for_children.width = Some(width_for_percentages);
+    }
+
     for (idx, child_el) in child_elements.iter().enumerate() {
         let classes = child_el.class_list();
         let selector_ctx = SelectorContext {
@@ -1122,7 +1455,7 @@ fn flatten_flex_container(
         let child_style = compute_style_with_context(
             child_el.tag,
             child_el.style_attr(),
-            style,
+            &parent_for_children,
             rules,
             child_el.tag_name(),
             &classes,
@@ -1137,23 +1470,37 @@ fn flatten_flex_container(
 
         // Determine child width
         let child_w = child_style.width.unwrap_or_else(|| {
-            // Distribute remaining space equally among items without explicit width
-            inner_width / child_count as f32
+            // Distribute remaining space (minus gaps) equally among items without explicit width
+            width_for_percentages / child_count as f32
         });
 
         let child_inner_w = if child_style.box_sizing == BoxSizing::BorderBox {
             child_w
                 - child_style.padding.left
                 - child_style.padding.right
-                - child_style.border_width * 2.0
+                - child_style.border.horizontal_width()
         } else {
             child_w - child_style.padding.left - child_style.padding.right
         }
         .max(0.0);
 
-        // Collect text runs for this child
+        // Collect text runs for this child, including from nested block elements.
+        // Include the child element itself in the ancestor chain so that
+        // descendant selectors like `.card h3` can match.
+        let mut child_ancestors = ancestors.to_vec();
+        child_ancestors.push(AncestorInfo {
+            element: child_el,
+            child_index: idx,
+            sibling_count: child_count,
+        });
         let mut runs = Vec::new();
-        collect_text_runs(&child_el.children, &child_style, &mut runs, None);
+        collect_flex_child_text_runs(
+            &child_el.children,
+            &child_style,
+            &mut runs,
+            rules,
+            &child_ancestors,
+        );
 
         let lines = if !runs.is_empty() {
             wrap_text_runs(runs, child_inner_w.max(1.0), child_style.font_size, fonts)
@@ -1171,8 +1518,6 @@ fn flatten_flex_container(
         let bg = child_style
             .background_color
             .map(|c: crate::types::Color| c.to_f32_rgb());
-        let border_clr = child_style.border_color.map(|c| c.to_f32_rgb());
-
         let elem = LayoutElement::TextBlock {
             lines,
             margin_top: child_style.margin.top,
@@ -1183,8 +1528,7 @@ fn flatten_flex_container(
             padding_bottom: child_style.padding.bottom,
             padding_left: child_style.padding.left,
             padding_right: child_style.padding.right,
-            border_width: child_style.border_width,
-            border_color: border_clr,
+            border: LayoutBorder::from_computed(&child_style.border),
             block_width: Some(child_w),
             block_height: child_style.height,
             opacity: child_style.opacity,
@@ -1301,7 +1645,7 @@ fn flatten_flex_container(
         }
     }
 
-    // Emit the container background/border as a wrapper element
+    // Compute container dimensions
     let total_cross: f32 = match direction {
         FlexDirection::Row => {
             lines.iter().map(|l| l.cross_size).sum::<f32>()
@@ -1333,10 +1677,15 @@ fn flatten_flex_container(
     let bg = style
         .background_color
         .map(|c: crate::types::Color| c.to_f32_rgb());
-    let border_clr = style.border_color.map(|c| c.to_f32_rgb());
-
-    // Emit container background if it has styling
-    if bg.is_some() || style.border_width > 0.0 || style.box_shadow.is_some() {
+    // For column direction, emit container background separately
+    let emitted_column_bg = direction == FlexDirection::Column
+        && (bg.is_some() || style.border.has_any() || style.box_shadow.is_some());
+    if emitted_column_bg {
+        // Emit the container background/border as a visual element.
+        // It advances y by its full height in paginate.  We then emit a
+        // negative-margin spacer to pull y back so children flow *inside*
+        // the background rather than after it.
+        let bg_flow_height = container_h + style.border.vertical_width();
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
             margin_top: style.margin.top,
@@ -1347,8 +1696,7 @@ fn flatten_flex_container(
             padding_bottom: style.padding.bottom,
             padding_left: style.padding.left,
             padding_right: style.padding.right,
-            border_width: style.border_width,
-            border_color: border_clr,
+            border: LayoutBorder::from_computed(&style.border),
             block_width: Some(block_w),
             block_height: Some(container_h),
             opacity: style.opacity,
@@ -1368,6 +1716,41 @@ fn flatten_flex_container(
             border_radius: style.border_radius,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            z_index: 0,
+        });
+        // Pull y back so children flow inside the container background
+        output.push(LayoutElement::TextBlock {
+            lines: Vec::new(),
+            margin_top: -bg_flow_height,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: None,
+            block_height: None,
+            opacity: 1.0,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Static,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
             text_indent: 0.0,
             letter_spacing: 0.0,
             word_spacing: 0.0,
@@ -1393,7 +1776,19 @@ fn flatten_flex_container(
                 } else {
                     0.0
                 };
-                let free_space = inner_width - total_item_width - total_gap;
+                let mut free_space = (inner_width - total_item_width - total_gap).max(0.0);
+
+                // Implicit flex-grow: when the remaining free space is small
+                // (< 5% of container), distribute it among items to fill the
+                // container exactly.  This matches browser behavior where
+                // percentage widths like 33%×3 fill the row despite rounding.
+                if free_space > 0.0 && free_space < inner_width * 0.05 && line_item_count > 0 {
+                    let grow_each = free_space / line_item_count as f32;
+                    for &i in &line_items {
+                        items[i].width += grow_each;
+                    }
+                    free_space = 0.0;
+                }
 
                 // Calculate starting x and spacing based on justify-content
                 let (mut x, extra_gap) = match justify {
@@ -1413,101 +1808,78 @@ fn flatten_flex_container(
                     }
                 };
 
-                x += style.padding.left;
-
+                // Build FlexCells for this row line
+                let mut flex_cells = Vec::new();
                 for &item_idx in &line_items {
                     let item = &items[item_idx];
 
-                    // Calculate cross-axis (vertical) alignment
-                    let y_offset = match align {
-                        AlignItems::FlexStart => 0.0,
-                        AlignItems::FlexEnd => line.cross_size - item.height,
-                        AlignItems::Center => (line.cross_size - item.height) / 2.0,
-                        AlignItems::Stretch => 0.0,
-                    };
-
-                    // Update the element's offset_left and offset_top
-                    for elem in &item.elements {
-                        if let LayoutElement::TextBlock {
-                            lines: tb_lines,
-                            margin_top: tb_mt,
-                            margin_bottom: tb_mb,
-                            text_align: tb_ta,
-                            background_color: tb_bg,
-                            padding_top: tb_pt,
-                            padding_bottom: tb_pb,
-                            padding_left: tb_pl,
-                            padding_right: tb_pr,
-                            border_width: tb_bw,
-                            border_color: tb_bc,
-                            block_width: tb_bwi,
-                            block_height: tb_bh,
-                            opacity: tb_op,
-                            position: _tb_pos,
-                            box_shadow: tb_bs,
-                            visible: tb_vis,
-                            clip_rect: tb_clip,
-                            transform: tb_transform,
-                            border_radius: tb_br,
-                            outline_width: tb_ow,
-                            outline_color: tb_oc,
-                            text_indent: tb_ti,
-                            letter_spacing: tb_ls,
-                            word_spacing: tb_ws,
-                            vertical_align: tb_va,
-                            ..
-                        } = elem
-                        {
-                            let effective_height = if align == AlignItems::Stretch {
-                                Some(line.cross_size)
-                            } else {
-                                *tb_bh
-                            };
-
-                            output.push(LayoutElement::TextBlock {
-                                lines: tb_lines.clone(),
-                                margin_top: if cross_offset == 0.0 {
-                                    style.margin.top + style.padding.top
-                                } else {
-                                    0.0
-                                },
-                                margin_bottom: *tb_mb,
-                                text_align: *tb_ta,
-                                background_color: *tb_bg,
-                                padding_top: *tb_pt,
-                                padding_bottom: *tb_pb,
-                                padding_left: *tb_pl,
-                                padding_right: *tb_pr,
-                                border_width: *tb_bw,
-                                border_color: *tb_bc,
-                                block_width: *tb_bwi,
-                                block_height: effective_height,
-                                opacity: *tb_op,
-                                float: Float::None,
-                                clear: Clear::None,
-                                position: Position::Relative,
-                                offset_top: cross_offset + y_offset + *tb_mt,
-                                offset_left: x,
-                                box_shadow: *tb_bs,
-                                visible: *tb_vis,
-                                clip_rect: *tb_clip,
-                                transform: *tb_transform,
-                                border_radius: *tb_br,
-                                outline_width: *tb_ow,
-                                outline_color: *tb_oc,
-                                text_indent: *tb_ti,
-                                letter_spacing: *tb_ls,
-                                word_spacing: *tb_ws,
-                                vertical_align: *tb_va,
-                                background_gradient: None,
-                                background_radial_gradient: None,
-                                z_index: 0,
-                            });
-                        }
+                    // Extract text properties from the item's TextBlock
+                    if let Some(LayoutElement::TextBlock {
+                        lines: tb_lines,
+                        text_align: tb_ta,
+                        background_color: tb_bg,
+                        padding_top: tb_pt,
+                        padding_bottom: tb_pb,
+                        padding_left: tb_pl,
+                        padding_right: tb_pr,
+                        border_radius: tb_br,
+                        background_gradient: tb_grad,
+                        background_radial_gradient: tb_rgrad,
+                        ..
+                    }) = item.elements.first()
+                    {
+                        flex_cells.push(FlexCell {
+                            lines: tb_lines.clone(),
+                            x_offset: x,
+                            width: item.width,
+                            text_align: *tb_ta,
+                            background_color: *tb_bg,
+                            padding_top: *tb_pt,
+                            padding_right: *tb_pr,
+                            padding_bottom: *tb_pb,
+                            padding_left: *tb_pl,
+                            border_radius: *tb_br,
+                            background_gradient: tb_grad.clone(),
+                            background_radial_gradient: tb_rgrad.clone(),
+                        });
                     }
 
                     x += item.width + gap + extra_gap;
                 }
+
+                output.push(LayoutElement::FlexRow {
+                    cells: flex_cells,
+                    row_height: line.cross_size,
+                    margin_top: style.margin.top + cross_offset,
+                    margin_bottom: 0.0,
+                    background_color: if cross_offset == 0.0 { bg } else { None },
+                    container_width: block_w,
+                    padding_top: style.padding.top,
+                    padding_bottom: style.padding.bottom,
+                    padding_left: style.padding.left,
+                    padding_right: style.padding.right,
+                    border: if cross_offset == 0.0 {
+                        LayoutBorder::from_computed(&style.border)
+                    } else {
+                        LayoutBorder::default()
+                    },
+                    border_radius: style.border_radius,
+                    box_shadow: if cross_offset == 0.0 {
+                        style.box_shadow
+                    } else {
+                        None
+                    },
+                    background_gradient: if cross_offset == 0.0 {
+                        style.background_gradient.clone()
+                    } else {
+                        None
+                    },
+                    background_radial_gradient: if cross_offset == 0.0 {
+                        style.background_radial_gradient.clone()
+                    } else {
+                        None
+                    },
+                });
             }
             FlexDirection::Column => {
                 let _total_item_height: f32 = line_items.iter().map(|&i| items[i].height).sum();
@@ -1549,8 +1921,7 @@ fn flatten_flex_container(
                             padding_bottom: tb_pb,
                             padding_left: tb_pl,
                             padding_right: tb_pr,
-                            border_width: tb_bw,
-                            border_color: tb_bc,
+                            border: tb_border,
                             block_height: tb_bh,
                             opacity: tb_op,
                             position: tb_pos,
@@ -1565,13 +1936,19 @@ fn flatten_flex_container(
                             letter_spacing: tb_ls,
                             word_spacing: tb_ws,
                             vertical_align: tb_va,
+                            background_gradient: tb_grad,
+                            background_radial_gradient: tb_rgrad,
                             ..
                         } = elem
                         {
                             output.push(LayoutElement::TextBlock {
                                 lines: tb_lines.clone(),
-                                margin_top: if y == 0.0 {
+                                margin_top: if y == 0.0 && !emitted_column_bg {
                                     style.margin.top + style.padding.top + *tb_mt
+                                } else if y == 0.0 {
+                                    // Background element already accounts for margin;
+                                    // add only the container padding offset.
+                                    style.padding.top + *tb_mt
                                 } else {
                                     *tb_mt
                                 },
@@ -1582,8 +1959,7 @@ fn flatten_flex_container(
                                 padding_bottom: *tb_pb,
                                 padding_left: *tb_pl,
                                 padding_right: *tb_pr,
-                                border_width: *tb_bw,
-                                border_color: *tb_bc,
+                                border: *tb_border,
                                 block_width: effective_width,
                                 block_height: *tb_bh,
                                 opacity: *tb_op,
@@ -1607,8 +1983,8 @@ fn flatten_flex_container(
                                 letter_spacing: *tb_ls,
                                 word_spacing: *tb_ws,
                                 vertical_align: *tb_va,
-                                background_gradient: None,
-                                background_radial_gradient: None,
+                                background_gradient: tb_grad.clone(),
+                                background_radial_gradient: tb_rgrad.clone(),
                                 z_index: 0,
                             });
                         }
@@ -1622,11 +1998,16 @@ fn flatten_flex_container(
         cross_offset += line.cross_size + gap;
     }
 
-    // Emit trailing margin
-    if style.margin.bottom > 0.0 {
+    // Emit trailing margin (include bottom padding when bg spacer shifted y back)
+    let trailing = if emitted_column_bg {
+        style.padding.bottom + style.margin.bottom
+    } else {
+        style.margin.bottom
+    };
+    if trailing > 0.0 {
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
-            margin_top: style.margin.bottom,
+            margin_top: trailing,
             margin_bottom: 0.0,
             text_align: TextAlign::Left,
             background_color: None,
@@ -1634,8 +2015,7 @@ fn flatten_flex_container(
             padding_bottom: 0.0,
             padding_left: 0.0,
             padding_right: 0.0,
-            border_width: 0.0,
-            border_color: None,
+            border: LayoutBorder::default(),
             block_width: None,
             block_height: None,
             opacity: 1.0,
@@ -1716,7 +2096,7 @@ fn flatten_grid_container(
     available_width: f32,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
-    ancestors: &[&ElementNode],
+    ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
     let inner_width = available_width - style.padding.left - style.padding.right;
@@ -1726,8 +2106,12 @@ fn flatten_grid_container(
     let num_cols = col_widths.len();
 
     // Build ancestors list for children of this element
-    let mut child_ancestors: Vec<&ElementNode> = ancestors.to_vec();
-    child_ancestors.push(el);
+    let mut child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
+    child_ancestors.push(AncestorInfo {
+        element: el,
+        child_index: 0,
+        sibling_count: 0,
+    });
 
     // Collect element children (skip text nodes)
     let children: Vec<&ElementNode> = el
@@ -1777,7 +2161,14 @@ fn flatten_grid_container(
                 (cell_width - child_style.padding.left - child_style.padding.right).max(1.0);
 
             let mut runs = Vec::new();
-            collect_text_runs(&child_el.children, &child_style, &mut runs, None);
+            collect_text_runs(
+                &child_el.children,
+                &child_style,
+                &mut runs,
+                None,
+                rules,
+                &child_ancestors,
+            );
             let lines = wrap_text_runs(runs, cell_inner, child_style.font_size, fonts);
 
             let bg = child_style
@@ -1794,6 +2185,8 @@ fn flatten_grid_container(
                 padding_left: child_style.padding.left,
                 colspan: 1,
                 rowspan: 1,
+                border: LayoutBorder::from_computed(&child_style.border),
+                text_align: child_style.text_align,
             });
         }
 
@@ -1809,6 +2202,8 @@ fn flatten_grid_container(
                 padding_left: 0.0,
                 colspan: 1,
                 rowspan: 1,
+                border: LayoutBorder::default(),
+                text_align: TextAlign::Left,
             });
         }
 
@@ -1836,24 +2231,45 @@ fn flatten_table(
     style: &ComputedStyle,
     available_width: f32,
     output: &mut Vec<LayoutElement>,
-    _rules: &[CssRule],
+    rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
 ) {
     let inner_width = available_width - style.margin.left - style.margin.right;
 
-    // Collect all <tr> elements (from direct children, thead, tbody, tfoot)
+    // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
+    // Track section-relative indices so nth-child counts within each section
+    // (thead, tbody, tfoot) as browsers do, not globally.
     let mut rows: Vec<&ElementNode> = Vec::new();
+    let mut row_section_indices: Vec<usize> = Vec::new();
+    let mut row_section_sizes: Vec<usize> = Vec::new();
     for child in &el.children {
         if let DomNode::Element(child_el) = child {
             match child_el.tag {
-                HtmlTag::Tr => rows.push(child_el),
+                HtmlTag::Tr => {
+                    // Direct <tr> child of <table> — standalone section
+                    let idx = rows.len();
+                    rows.push(child_el);
+                    row_section_indices.push(idx);
+                    row_section_sizes.push(1);
+                }
                 HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
-                    for grandchild in &child_el.children {
-                        if let DomNode::Element(gc) = grandchild {
-                            if gc.tag == HtmlTag::Tr {
-                                rows.push(gc);
+                    let section_rows: Vec<&ElementNode> = child_el
+                        .children
+                        .iter()
+                        .filter_map(|gc| {
+                            if let DomNode::Element(g) = gc {
+                                if g.tag == HtmlTag::Tr {
+                                    return Some(g);
+                                }
                             }
-                        }
+                            None
+                        })
+                        .collect();
+                    let section_size = section_rows.len();
+                    for (i, gc) in section_rows.into_iter().enumerate() {
+                        rows.push(gc);
+                        row_section_indices.push(i);
+                        row_section_sizes.push(section_size);
                     }
                 }
                 _ => {}
@@ -1894,8 +2310,25 @@ fn flatten_table(
     let min_col_width: f32 = 30.0;
     let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
 
-    for row in &rows {
-        let row_style = compute_style(row.tag, row.style_attr(), style);
+    for (sizing_row_idx, row) in rows.iter().enumerate() {
+        let row_classes = row.class_list();
+        let sizing_row_ctx = SelectorContext {
+            ancestors: Vec::new(),
+            child_index: row_section_indices[sizing_row_idx],
+            sibling_count: row_section_sizes[sizing_row_idx],
+            preceding_siblings: Vec::new(),
+        };
+        let row_style = compute_style_with_context(
+            row.tag,
+            row.style_attr(),
+            style,
+            rules,
+            row.tag_name(),
+            &row_classes,
+            row.id(),
+            &row.attributes,
+            &sizing_row_ctx,
+        );
         let mut col_pos: usize = 0;
         for child in &row.children {
             if let DomNode::Element(cell_el) = child {
@@ -1906,12 +2339,61 @@ fn flatten_table(
                         .and_then(|v| v.parse::<usize>().ok())
                         .unwrap_or(1)
                         .max(1);
-                    let cell_style = compute_style(cell_el.tag, cell_el.style_attr(), &row_style);
+                    let cell_classes = cell_el.class_list();
+                    let cell_sizing_ctx = SelectorContext {
+                        ancestors: vec![AncestorInfo {
+                            element: row,
+                            child_index: sizing_row_idx,
+                            sibling_count: rows.len(),
+                        }],
+                        child_index: col_pos,
+                        sibling_count: num_cols,
+                        preceding_siblings: Vec::new(),
+                    };
+                    let cell_style = compute_style_with_context(
+                        cell_el.tag,
+                        cell_el.style_attr(),
+                        &row_style,
+                        rules,
+                        cell_el.tag_name(),
+                        &cell_classes,
+                        cell_el.id(),
+                        &cell_el.attributes,
+                        &cell_sizing_ctx,
+                    );
                     let mut runs = Vec::new();
-                    collect_text_runs(&cell_el.children, &cell_style, &mut runs, None);
+                    collect_text_runs(
+                        &cell_el.children,
+                        &cell_style,
+                        &mut runs,
+                        None,
+                        rules,
+                        &cell_sizing_ctx.ancestors,
+                    );
+                    // Estimate content width using estimate_word_width for accurate
+                    // measurement. Use the maximum of (full text width, longest word
+                    // width) to avoid hyphenation of short columns like "Unit Price".
                     let content_width: f32 = runs
                         .iter()
-                        .map(|run| run.text.len() as f32 * run.font_size * 0.5)
+                        .map(|run| {
+                            // Measure full text width using estimate_word_width
+                            let full_width = estimate_word_width(
+                                &run.text,
+                                run.font_size,
+                                &run.font_family,
+                                fonts,
+                            );
+                            // Also ensure the column is at least as wide as
+                            // the longest word to prevent hyphenation.
+                            let longest_word_width = run
+                                .text
+                                .split_whitespace()
+                                .map(|w| {
+                                    estimate_word_width(w, run.font_size, &run.font_family, fonts)
+                                })
+                                .fold(0.0f32, f32::max);
+                            full_width.max(longest_word_width)
+                        })
                         .sum();
                     let total_preferred =
                         content_width + cell_style.padding.left + cell_style.padding.right;
@@ -1943,7 +2425,16 @@ fn flatten_table(
 
     let total_preferred: f32 = preferred_widths.iter().sum();
     let col_widths: Vec<f32> = if total_preferred <= inner_width {
-        preferred_widths
+        // Distribute remaining space proportionally to each column's preferred width
+        let extra = inner_width - total_preferred;
+        if total_preferred > 0.0 && extra > 0.0 {
+            preferred_widths
+                .iter()
+                .map(|w| w + (w / total_preferred) * extra)
+                .collect()
+        } else {
+            preferred_widths
+        }
     } else {
         let scale = inner_width / total_preferred;
         preferred_widths
@@ -1956,8 +2447,30 @@ fn flatten_table(
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
-    for row in &rows {
-        let row_style = compute_style(row.tag, row.style_attr(), style);
+    let total_rows = rows.len();
+    for (row_idx, row) in rows.iter().enumerate() {
+        let row_classes = row.class_list();
+        // Use section-relative index for nth-child matching (browsers count
+        // within thead/tbody/tfoot, not globally across all rows).
+        let section_idx = row_section_indices[row_idx];
+        let section_size = row_section_sizes[row_idx];
+        let row_selector_ctx = SelectorContext {
+            ancestors: Vec::new(),
+            child_index: section_idx,
+            sibling_count: section_size,
+            preceding_siblings: Vec::new(),
+        };
+        let row_style = compute_style_with_context(
+            row.tag,
+            row.style_attr(),
+            style,
+            rules,
+            row.tag_name(),
+            &row_classes,
+            row.id(),
+            &row.attributes,
+            &row_selector_ctx,
+        );
         let mut cells = Vec::new();
 
         // Current logical column position in the grid
@@ -1996,6 +2509,8 @@ fn flatten_table(
                     padding_left: 0.0,
                     colspan: span_cols,
                     rowspan: 0, // phantom cell marker
+                    border: LayoutBorder::default(),
+                    text_align: TextAlign::Left,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -2021,7 +2536,28 @@ fn flatten_table(
                 .unwrap_or(1)
                 .max(1);
 
-            let cell_style = compute_style(cell_el.tag, cell_el.style_attr(), &row_style);
+            let cell_classes = cell_el.class_list();
+            let cell_selector_ctx = SelectorContext {
+                ancestors: vec![AncestorInfo {
+                    element: row,
+                    child_index: row_idx,
+                    sibling_count: total_rows,
+                }],
+                child_index: col_pos,
+                sibling_count: num_cols,
+                preceding_siblings: Vec::new(),
+            };
+            let cell_style = compute_style_with_context(
+                cell_el.tag,
+                cell_el.style_attr(),
+                &row_style,
+                rules,
+                cell_el.tag_name(),
+                &cell_classes,
+                cell_el.id(),
+                &cell_el.attributes,
+                &cell_selector_ctx,
+            );
             // Compute effective width from auto-sized column widths
             let effective_width: f32 = (0..colspan)
                 .map(|i| {
@@ -2035,11 +2571,19 @@ fn flatten_table(
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
             let mut runs = Vec::new();
-            collect_text_runs(&cell_el.children, &cell_style, &mut runs, None);
+            collect_text_runs(
+                &cell_el.children,
+                &cell_style,
+                &mut runs,
+                None,
+                rules,
+                &cell_selector_ctx.ancestors,
+            );
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
 
             let bg = cell_style
                 .background_color
+                .or(row_style.background_color)
                 .map(|c: crate::types::Color| c.to_f32_rgb());
 
             cells.push(TableCell {
@@ -2052,6 +2596,8 @@ fn flatten_table(
                 padding_left: cell_style.padding.left,
                 colspan,
                 rowspan,
+                border: LayoutBorder::from_computed(&cell_style.border),
+                text_align: cell_style.text_align,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1
@@ -2085,11 +2631,15 @@ fn flatten_table(
     }
 }
 
-fn collect_text_runs(
+/// Collect text runs from flex child content, recursively descending into
+/// block-level children so that nested `<h1>`, `<p>`, etc. are captured.
+#[allow(clippy::only_used_in_recursion)]
+fn collect_flex_child_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
     runs: &mut Vec<TextRun>,
-    link_url: Option<&str>,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
 ) {
     for node in nodes {
         match node {
@@ -2104,8 +2654,145 @@ fn collect_text_runs(
                         underline: parent_style.text_decoration_underline,
                         line_through: parent_style.text_decoration_line_through,
                         color: parent_style.color.to_f32_rgb(),
+                        link_url: None,
+                        font_family: parent_style.font_family.clone(),
+                        background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
+                        padding: (parent_style.padding.left, parent_style.padding.top),
+                        border_radius: 0.0,
+                    });
+                }
+            }
+            DomNode::Element(el) => {
+                let classes = el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: 0,
+                    sibling_count: nodes.len(),
+                    preceding_siblings: Vec::new(),
+                };
+                let child_style = compute_style_with_context(
+                    el.tag,
+                    el.style_attr(),
+                    parent_style,
+                    rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                );
+
+                if child_style.display == Display::None {
+                    continue;
+                }
+
+                if el.tag == HtmlTag::Br {
+                    runs.push(TextRun {
+                        text: "\n".to_string(),
+                        font_size: parent_style.font_size,
+                        bold: false,
+                        italic: false,
+                        underline: false,
+                        line_through: false,
+                        color: (0.0, 0.0, 0.0),
+                        link_url: None,
+                        font_family: parent_style.font_family.clone(),
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
+                    });
+                } else {
+                    // Build ancestor chain including current element for recursive calls
+                    let mut child_ancestors = ancestors.to_vec();
+                    child_ancestors.push(AncestorInfo {
+                        element: el,
+                        child_index: 0,
+                        sibling_count: nodes.len(),
+                    });
+                    // Recurse into both inline and block children so flex items
+                    // with nested block elements (h1, h2, p, div, …) produce text.
+                    collect_flex_child_text_runs(
+                        &el.children,
+                        &child_style,
+                        runs,
+                        rules,
+                        &child_ancestors,
+                    );
+                    // Insert a line break after block-level elements so they don't
+                    // merge with following content on the same line.
+                    if el.tag.is_block() && !runs.is_empty() {
+                        runs.push(TextRun {
+                            text: "\n".to_string(),
+                            font_size: child_style.font_size,
+                            bold: false,
+                            italic: false,
+                            underline: false,
+                            line_through: false,
+                            color: child_style.color.to_f32_rgb(),
+                            link_url: None,
+                            font_family: child_style.font_family.clone(),
+                            background_color: None,
+                            padding: (0.0, 0.0),
+                            border_radius: 0.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn collect_text_runs(
+    nodes: &[DomNode],
+    parent_style: &ComputedStyle,
+    runs: &mut Vec<TextRun>,
+    link_url: Option<&str>,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+) {
+    collect_text_runs_inner(nodes, parent_style, runs, link_url, rules, false, ancestors)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_text_runs_inner(
+    nodes: &[DomNode],
+    parent_style: &ComputedStyle,
+    runs: &mut Vec<TextRun>,
+    link_url: Option<&str>,
+    rules: &[CssRule],
+    inline_parent: bool,
+    ancestors: &[AncestorInfo],
+) {
+    for node in nodes {
+        match node {
+            DomNode::Text(text) => {
+                let trimmed = collapse_whitespace(text);
+                if !trimmed.is_empty() {
+                    // Only propagate background_color when the immediate
+                    // parent is an inline element (e.g. <span>).  Block-level
+                    // backgrounds are drawn by the TextBlock itself.
+                    let (bg, pad, br) = if inline_parent {
+                        (
+                            parent_style.background_color.map(|c| c.to_f32_rgb()),
+                            (parent_style.padding.left, parent_style.padding.top),
+                            parent_style.border_radius,
+                        )
+                    } else {
+                        (None, (0.0, 0.0), 0.0)
+                    };
+                    runs.push(TextRun {
+                        text: trimmed,
+                        font_size: parent_style.font_size,
+                        bold: parent_style.font_weight == FontWeight::Bold,
+                        italic: parent_style.font_style == FontStyle::Italic,
+                        underline: parent_style.text_decoration_underline,
+                        line_through: parent_style.text_decoration_line_through,
+                        color: parent_style.color.to_f32_rgb(),
                         link_url: link_url.map(String::from),
                         font_family: parent_style.font_family.clone(),
+                        background_color: bg,
+                        padding: pad,
+                        border_radius: br,
                     });
                 }
             }
@@ -2122,15 +2809,43 @@ fn collect_text_runs(
                             color: (0.0, 0.0, 0.0),
                             link_url: None,
                             font_family: parent_style.font_family.clone(),
+                            background_color: None,
+                            padding: (0.0, 0.0),
+                            border_radius: 0.0,
                         });
                     } else {
-                        let style = compute_style(el.tag, el.style_attr(), parent_style);
+                        let classes = el.class_list();
+                        let selector_ctx = SelectorContext {
+                            ancestors: ancestors.to_vec(),
+                            child_index: 0,
+                            sibling_count: nodes.len(),
+                            preceding_siblings: Vec::new(),
+                        };
+                        let style = compute_style_with_context(
+                            el.tag,
+                            el.style_attr(),
+                            parent_style,
+                            rules,
+                            el.tag_name(),
+                            &classes,
+                            el.id(),
+                            &el.attributes,
+                            &selector_ctx,
+                        );
                         let url = if el.tag == HtmlTag::A {
                             el.attributes.get("href").map(|s| s.as_str()).or(link_url)
                         } else {
                             link_url
                         };
-                        collect_text_runs(&el.children, &style, runs, url);
+                        collect_text_runs_inner(
+                            &el.children,
+                            &style,
+                            runs,
+                            url,
+                            rules,
+                            true,
+                            ancestors,
+                        );
                     }
                 }
             }
@@ -2153,8 +2868,8 @@ fn estimate_word_width(
                 .sum();
         }
     }
-    // Fallback: fixed-width estimation
-    word.len() as f32 * font_size * 0.5
+    // Use AFM metrics for standard fonts (non-bold for layout estimation)
+    crate::fonts::str_width(word, font_size, font_family, false)
 }
 
 /// Try to hyphenate a word so that its prefix (plus a hyphen character) fits
@@ -2379,6 +3094,69 @@ struct FloatRegion {
     side: Float,
 }
 
+/// Estimate the height of a layout element for wrapper sizing.
+fn estimate_element_height(element: &LayoutElement) -> f32 {
+    match element {
+        LayoutElement::TextBlock {
+            lines,
+            margin_top,
+            margin_bottom,
+            padding_top,
+            padding_bottom,
+            border,
+            block_height,
+            ..
+        } => {
+            let text_height: f32 = lines.iter().map(|l| l.height).sum();
+            let content_h = padding_top + text_height + padding_bottom;
+            let effective_h = block_height.map_or(content_h, |h| content_h.max(h));
+            margin_top + effective_h + margin_bottom + border.vertical_width()
+        }
+        LayoutElement::FlexRow {
+            row_height,
+            margin_top,
+            margin_bottom,
+            padding_top,
+            padding_bottom,
+            border,
+            ..
+        } => {
+            margin_top
+                + padding_top
+                + row_height
+                + padding_bottom
+                + margin_bottom
+                + border.vertical_width()
+        }
+        LayoutElement::TableRow {
+            cells,
+            margin_top,
+            margin_bottom,
+            ..
+        } => {
+            let row_h = cells
+                .iter()
+                .map(|c| {
+                    let th: f32 = c.lines.iter().map(|l| l.height).sum();
+                    c.padding_top + th + c.padding_bottom
+                })
+                .fold(0.0f32, f32::max);
+            margin_top + row_h + margin_bottom
+        }
+        LayoutElement::Image {
+            height,
+            margin_top,
+            margin_bottom,
+            ..
+        } => margin_top + height + margin_bottom,
+        LayoutElement::HorizontalRule {
+            margin_top,
+            margin_bottom,
+        } => margin_top + 1.0 + margin_bottom,
+        _ => 0.0,
+    }
+}
+
 fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
@@ -2471,18 +3249,35 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                     .fold(0.0f32, f32::max);
                 (margin_top + row_height + margin_bottom, *margin_top)
             }
+            LayoutElement::FlexRow {
+                row_height,
+                margin_top,
+                margin_bottom,
+                padding_top,
+                padding_bottom,
+                border,
+                ..
+            } => {
+                let total = margin_top
+                    + padding_top
+                    + row_height
+                    + padding_bottom
+                    + margin_bottom
+                    + border.vertical_width();
+                (total, *margin_top)
+            }
             LayoutElement::TextBlock {
                 lines,
                 margin_top,
                 margin_bottom,
                 padding_top,
                 padding_bottom,
-                border_width,
+                border,
                 block_height,
                 ..
             } => {
                 let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                let border_extra = border_width * 2.0;
+                let border_extra = border.vertical_width();
                 let content_h = padding_top + text_height + padding_bottom;
                 // If CSS height is set, use it as minimum content height
                 let effective_content_h = match block_height {
@@ -3651,8 +4446,7 @@ mod tests {
             content.contains("Bottom"),
             "Cell text 'Bottom' should be in PDF"
         );
-        // Should have cell borders
-        assert!(content.contains("re\nS\n"));
+        // No default cell borders — only CSS-specified borders produce strokes
     }
 
     #[test]
@@ -3959,27 +4753,118 @@ mod tests {
         }
     }
 
+    #[test]
+    fn table_four_column_invoice_non_equal_widths() {
+        // A 4-column invoice table: Description should be wider than Qty/Amount
+        let html = r#"<table>
+            <tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr>
+            <tr><td>Web development services - January</td><td>1</td><td>2500.00</td><td>2500.00</td></tr>
+            <tr><td>Hosting and maintenance</td><td>12</td><td>50.00</td><td>600.00</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::TableRow { col_widths, .. } = el {
+                    Some(col_widths.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(!table_rows.is_empty());
+        let cw = &table_rows[0];
+        assert_eq!(cw.len(), 4);
+        // Description column (index 0) should be wider than Qty (index 1)
+        assert!(
+            cw[0] > cw[1],
+            "Description column ({}) should be wider than Qty column ({})",
+            cw[0],
+            cw[1]
+        );
+        // Description column should be wider than Amount column
+        assert!(
+            cw[0] > cw[3],
+            "Description column ({}) should be wider than Amount column ({})",
+            cw[0],
+            cw[3]
+        );
+        // Columns should NOT all be equal
+        assert!(
+            !(cw[0] == cw[1] && cw[1] == cw[2] && cw[2] == cw[3]),
+            "Column widths should not all be equal: {:?}",
+            cw
+        );
+    }
+
+    #[test]
+    fn simple_invoice_fits_on_one_page() {
+        // A simple invoice with ~15 lines should fit on a single A4 page
+        let html = r#"
+            <h1>Invoice #1001</h1>
+            <p>Date: 2026-01-15</p>
+            <p>Bill To: Acme Corp</p>
+            <p>123 Main Street, Springfield</p>
+            <table>
+                <tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr>
+                <tr><td>Web development</td><td>1</td><td>2500.00</td><td>2500.00</td></tr>
+                <tr><td>Hosting</td><td>12</td><td>50.00</td><td>600.00</td></tr>
+                <tr><td>Domain renewal</td><td>1</td><td>15.00</td><td>15.00</td></tr>
+                <tr><td>SSL certificate</td><td>1</td><td>75.00</td><td>75.00</td></tr>
+            </table>
+            <p>Subtotal: 3190.00</p>
+            <p>Tax (10%): 319.00</p>
+            <p>Total: 3509.00</p>
+            <p>Thank you for your business!</p>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            pages.len(),
+            1,
+            "Simple invoice should fit on one page, got {} pages",
+            pages.len()
+        );
+    }
+
     // --- Flexbox layout tests ---
 
     fn extract_flex_items(pages: &[Page]) -> Vec<(f32, f32, Option<f32>, String)> {
         let mut result = Vec::new();
         for page in pages {
             for (y, elem) in &page.elements {
-                if let LayoutElement::TextBlock {
-                    lines,
-                    offset_left,
-                    block_width,
-                    ..
-                } = elem
-                {
-                    let text: String = lines
-                        .iter()
-                        .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
-                        .collect::<Vec<_>>()
-                        .join("");
-                    if !text.is_empty() {
-                        result.push((*y, *offset_left, *block_width, text));
+                match elem {
+                    LayoutElement::TextBlock {
+                        lines,
+                        offset_left,
+                        block_width,
+                        ..
+                    } => {
+                        let text: String = lines
+                            .iter()
+                            .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                            .collect::<Vec<_>>()
+                            .join("");
+                        if !text.is_empty() {
+                            result.push((*y, *offset_left, *block_width, text));
+                        }
                     }
+                    LayoutElement::FlexRow { cells, .. } => {
+                        for cell in cells {
+                            let text: String = cell
+                                .lines
+                                .iter()
+                                .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                                .collect::<Vec<_>>()
+                                .join("");
+                            if !text.is_empty() {
+                                result.push((*y, cell.x_offset, Some(cell.width), text));
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -4146,6 +5031,112 @@ mod tests {
         let items = extract_flex_items(&pages);
         assert!(items.iter().all(|i| !i.3.contains('H')));
         assert!(items.len() >= 2);
+    }
+
+    #[test]
+    fn flex_row_children_same_y_not_stacked() {
+        let html = r#"<div style="display: flex;"><div>Left</div><div>Right</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let items = extract_flex_items(&pages);
+        let left = items
+            .iter()
+            .find(|i| i.3.contains("Left"))
+            .expect("Left text");
+        let right = items
+            .iter()
+            .find(|i| i.3.contains("Right"))
+            .expect("Right text");
+        // Both should be at the same y position (same row, not stacked)
+        assert!(
+            (left.0 - right.0).abs() < 1.0,
+            "Left y={} Right y={} -- should be on the same line",
+            left.0,
+            right.0
+        );
+        // Right should be to the right of Left
+        assert!(
+            right.1 > left.1,
+            "Right x={} should be greater than Left x={}",
+            right.1,
+            left.1
+        );
+    }
+
+    #[test]
+    fn flex_space_between_positions() {
+        let html = r#"<div style="display: flex; justify-content: space-between;">
+            <div>Left content</div>
+            <div>Right content</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let items = extract_flex_items(&pages);
+        let left = items
+            .iter()
+            .find(|i| i.3.contains("Left"))
+            .expect("Left content");
+        let right = items
+            .iter()
+            .find(|i| i.3.contains("Right"))
+            .expect("Right content");
+        // Both at same y
+        assert!(
+            (left.0 - right.0).abs() < 1.0,
+            "space-between: both should be on same y"
+        );
+        // First child should be at x=0 (or near 0)
+        assert!(
+            left.1 < 5.0,
+            "space-between: first child near left edge, got {}",
+            left.1
+        );
+        // Second child should be far to the right
+        assert!(
+            right.1 > 100.0,
+            "space-between: second child should be far right, got {}",
+            right.1
+        );
+    }
+
+    #[test]
+    fn flex_text_align_right_in_child() {
+        let html = r#"<div style="display: flex;">
+            <div style="width: 200pt; text-align: right">Aligned</div>
+            <div style="width: 200pt">Normal</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        // Verify we can find both items as flex cells
+        let items = extract_flex_items(&pages);
+        let aligned = items
+            .iter()
+            .find(|i| i.3.contains("Aligned"))
+            .expect("Aligned text");
+        let normal = items
+            .iter()
+            .find(|i| i.3.contains("Normal"))
+            .expect("Normal text");
+        // Aligned should be in first cell (x_offset = 0)
+        assert!(aligned.1 < normal.1, "first cell before second");
+        // Verify the FlexRow element stores text_align correctly
+        for page in &pages {
+            for (_y, elem) in &page.elements {
+                if let LayoutElement::FlexRow { cells, .. } = elem {
+                    if let Some(cell) = cells.iter().find(|c| {
+                        c.lines
+                            .iter()
+                            .any(|l| l.runs.iter().any(|r| r.text.contains("Aligned")))
+                    }) {
+                        assert_eq!(
+                            cell.text_align,
+                            TextAlign::Right,
+                            "text-align: right should be preserved in FlexCell"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     // --- CSS Grid tests ---
@@ -5255,6 +6246,9 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             link_url: None,
             font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -5294,6 +6288,9 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             link_url: None,
             font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
         };
         // Wide enough to fit everything
         let lines = wrap_text_runs(vec![run], 500.0, 12.0, &fonts);
@@ -5319,6 +6316,9 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             link_url: None,
             font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
         };
         // Narrow enough that words may not fit, but each word is <= 3 chars
         // At 12pt, each char ~6pt. "Hi" = 12pt, "the" = 18pt, "end" = 18pt.
@@ -5333,6 +6333,821 @@ mod tests {
                     run.text
                 );
             }
+        }
+    }
+
+    /// Helper: extract all Tj strings from a PDF byte vector.
+    fn extract_tj_strings(pdf: &[u8]) -> Vec<String> {
+        let pdf_str = String::from_utf8_lossy(pdf);
+        pdf_str
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.ends_with("Tj") && trimmed.starts_with('(') {
+                    Some(trimmed[1..trimmed.len() - 4].to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn spaces_preserved_in_text() {
+        // "Hello World" must stay "Hello World" through the full pipeline
+        let html = "<p>Hello World</p>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let tj = extract_tj_strings(&pdf);
+        let all_text = tj.join("");
+        assert!(
+            all_text.contains("Hello World"),
+            "Expected 'Hello World' in PDF text, got: {tj:?}"
+        );
+    }
+
+    #[test]
+    fn spaces_between_inline_elements() {
+        // `<span>Hello</span> <span>World</span>` must have a space
+        let html = "<p><span>Hello</span> <span>World</span></p>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let tj = extract_tj_strings(&pdf);
+        let all_text = tj.join("");
+        assert!(
+            all_text.contains("Hello World"),
+            "Expected space between inline elements, got: {tj:?}"
+        );
+    }
+
+    #[test]
+    fn invoice_text_spaces_preserved() {
+        // Verify the specific failing cases from the invoice
+        let html = r#"
+            <p><strong>Bill to:</strong><br>
+            Acme Corp<br>
+            456 Enterprise Blvd<br>
+            New York, NY 10001</p>
+            <table>
+                <tr><td>Custom font embedding module</td></tr>
+                <tr><td>SVG rendering add-on</td></tr>
+            </table>
+        "#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let tj = extract_tj_strings(&pdf);
+        let has = |needle: &str| tj.iter().any(|s| s.contains(needle));
+
+        assert!(has("Acme Corp"), "Expected 'Acme Corp', got: {tj:?}");
+        assert!(has("New York"), "Expected 'New York', got: {tj:?}");
+        assert!(has("Custom font"), "Expected 'Custom font', got: {tj:?}");
+        assert!(
+            has("SVG rendering"),
+            "Expected 'SVG rendering', got: {tj:?}"
+        );
+        assert!(
+            has("Enterprise Blvd"),
+            "Expected 'Enterprise Blvd', got: {tj:?}"
+        );
+    }
+
+    /// Block children inside a padded parent should use inner_width (parent
+    /// width minus padding) so that their text wraps within the padding.
+    #[test]
+    fn padded_div_child_block_respects_inner_width() {
+        let html = r#"<div style="padding: 20pt;"><p>short</p></div>"#;
+        let dom = parse_html(html).unwrap();
+        let pages = layout(
+            &dom,
+            crate::types::PageSize::new(200.0, 800.0),
+            crate::types::Margin::uniform(0.0),
+        );
+        // The <p> inside the padded div should be laid out within 200 - 40 = 160pt.
+        // We verify that the p's TextBlock has block_width <= 160.
+        let mut found = false;
+        for page in &pages {
+            for (_, elem) in &page.elements {
+                if let LayoutElement::TextBlock {
+                    lines, block_width, ..
+                } = elem
+                {
+                    let text: String = lines
+                        .iter()
+                        .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                        .collect();
+                    if text.contains("short") {
+                        if let Some(bw) = block_width {
+                            assert!(
+                                *bw <= 160.0,
+                                "child block width {bw} should be <= inner_width 160"
+                            );
+                        }
+                        found = true;
+                    }
+                }
+            }
+        }
+        assert!(found, "did not find the child paragraph");
+    }
+
+    /// Flex child with inline background (badge) should propagate the
+    /// background_color from the computed style to the TextRun.
+    #[test]
+    fn flex_child_propagates_background_color() {
+        let html = r#"
+        <div style="display: flex;">
+          <div><span style="background-color: #27ae60; color: white;">PAID</span></div>
+        </div>"#;
+        let dom = parse_html(html).unwrap();
+        let rules = parse_stylesheet("span { background-color: #27ae60; color: white; }");
+        let pages = layout_with_rules(
+            &dom,
+            crate::types::PageSize::default(),
+            crate::types::Margin::uniform(20.0),
+            &rules,
+        );
+        let mut found_bg = false;
+        for page in &pages {
+            for (_, elem) in &page.elements {
+                if let LayoutElement::FlexRow { cells, .. } = elem {
+                    for cell in cells {
+                        for line in &cell.lines {
+                            for run in &line.runs {
+                                if run.text.contains("PAID") && run.background_color.is_some() {
+                                    found_bg = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            found_bg,
+            "PAID badge text run should have background_color set"
+        );
+    }
+
+    /// Notes-style div with padding, br tags, and inline content should
+    /// produce wrapped text that fits within the padded area.
+    #[test]
+    fn notes_div_with_padding_and_br_wraps_correctly() {
+        let html = r#"<div style="padding: 10pt; font-size: 9pt;">
+          <strong>Notes:</strong><br>
+          First line of text that should be fully visible inside the padded area.<br>
+          Second line with content.
+        </div>"#;
+        let dom = parse_html(html).unwrap();
+        let pages = layout(
+            &dom,
+            crate::types::PageSize::new(300.0, 800.0),
+            crate::types::Margin::uniform(0.0),
+        );
+        // Verify that lines exist and the text is present
+        let mut all_text = String::new();
+        let mut line_count = 0;
+        for page in &pages {
+            for (_, elem) in &page.elements {
+                if let LayoutElement::TextBlock { lines, .. } = elem {
+                    for line in lines {
+                        for run in &line.runs {
+                            all_text.push_str(&run.text);
+                        }
+                        line_count += 1;
+                    }
+                }
+            }
+        }
+        assert!(all_text.contains("Notes:"), "Notes: text missing");
+        assert!(
+            all_text.contains("First line"),
+            "First line text missing: {all_text:?}"
+        );
+        assert!(
+            all_text.contains("Second line"),
+            "Second line text missing: {all_text:?}"
+        );
+        // Should have at least 3 lines due to the <br> tags
+        assert!(
+            line_count >= 3,
+            "expected at least 3 lines from br tags, got {line_count}"
+        );
+    }
+
+    #[test]
+    fn body_rules_applied_to_root() {
+        let css = "body { font-size: 10pt }";
+        let rules = parse_stylesheet(css);
+        let html = "<p>text</p>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages[0].elements[0] {
+            assert!(!lines.is_empty());
+            let font_size = lines[0].runs[0].font_size;
+            assert!(
+                (font_size - 10.0).abs() < 0.1,
+                "Expected font_size 10.0 from body rule, got {font_size}"
+            );
+        } else {
+            panic!("Expected TextBlock");
+        }
+    }
+
+    #[test]
+    fn wrapper_textblock_for_visual_blocks() {
+        let css = ".box { background-color: red; padding: 10pt }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box"><p>hello</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let has_bg = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    background_color: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_bg,
+            "Expected a TextBlock with background_color from .box div"
+        );
+    }
+
+    #[test]
+    fn flex_child_ancestor_selectors() {
+        let css = ".card .value { font-size: 20pt }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="card" style="display: flex"><div class="value">big</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let items = extract_flex_items(&pages);
+        let big_item = items.iter().find(|i| i.3.contains("big"));
+        assert!(
+            big_item.is_some(),
+            "Did not find 'big' text in flex layout output"
+        );
+        // Verify the font size was applied via ancestor selector
+        // Check via the layout elements directly for font_size
+        let mut found = false;
+        for (_, el) in &pages[0].elements {
+            match el {
+                LayoutElement::TextBlock { lines, .. } => {
+                    for line in lines {
+                        for run in &line.runs {
+                            if run.text.contains("big") && (run.font_size - 20.0).abs() < 0.1 {
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                LayoutElement::FlexRow { cells, .. } => {
+                    for cell in cells {
+                        for line in &cell.lines {
+                            for run in &line.runs {
+                                if run.text.contains("big") && (run.font_size - 20.0).abs() < 0.1 {
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert!(found, "Expected font_size 20.0 for .value in flex child");
+    }
+
+    #[test]
+    fn p_inherits_parent_font_size() {
+        let html = r#"<div style="font-size: 8pt"><p>small</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+        let mut found = false;
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for line in lines {
+                    for run in &line.runs {
+                        if run.text.contains("small") {
+                            assert!(
+                                (run.font_size - 8.0).abs() < 0.1,
+                                "Expected font_size 8.0 for p inside div, got {}",
+                                run.font_size
+                            );
+                            found = true;
+                        }
+                    }
+                }
+            }
+        }
+        assert!(found, "Did not find 'small' text run in layout output");
+    }
+
+    #[test]
+    fn table_nth_child_section_relative() {
+        let css = "tbody tr:nth-child(even) { background-color: #eee }";
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <table>
+                <thead><tr><th>H</th></tr></thead>
+                <tbody>
+                    <tr><td>Row 1</td></tr>
+                    <tr><td>Row 2</td></tr>
+                    <tr><td>Row 3</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // Should have at least 4 rows (1 thead + 3 tbody)
+        assert!(
+            table_rows.len() >= 4,
+            "Expected at least 4 table rows, got {}",
+            table_rows.len()
+        );
+    }
+
+    #[test]
+    fn layout_border_horizontal_width() {
+        let border = LayoutBorder {
+            top: LayoutBorderSide {
+                width: 1.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            right: LayoutBorderSide {
+                width: 3.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            bottom: LayoutBorderSide {
+                width: 2.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            left: LayoutBorderSide {
+                width: 5.0,
+                color: (0.0, 0.0, 0.0),
+            },
+        };
+        assert!((border.horizontal_width() - 8.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn layout_border_vertical_width() {
+        let border = LayoutBorder {
+            top: LayoutBorderSide {
+                width: 4.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            right: LayoutBorderSide {
+                width: 1.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            bottom: LayoutBorderSide {
+                width: 6.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            left: LayoutBorderSide {
+                width: 1.0,
+                color: (0.0, 0.0, 0.0),
+            },
+        };
+        assert!((border.vertical_width() - 10.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn layout_border_max_width() {
+        let border = LayoutBorder {
+            top: LayoutBorderSide {
+                width: 2.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            right: LayoutBorderSide {
+                width: 7.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            bottom: LayoutBorderSide {
+                width: 3.0,
+                color: (0.0, 0.0, 0.0),
+            },
+            left: LayoutBorderSide {
+                width: 5.0,
+                color: (0.0, 0.0, 0.0),
+            },
+        };
+        assert!((border.max_width() - 7.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn flex_column_layout() {
+        let html = r#"<div style="display: flex; flex-direction: column">
+            <div>First</div>
+            <div>Second</div>
+            <div>Third</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let text_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::TextBlock { .. }))
+            .collect();
+        assert!(
+            text_blocks.len() >= 3,
+            "Expected at least 3 text blocks for column flex children, got {}",
+            text_blocks.len()
+        );
+    }
+
+    #[test]
+    fn flex_column_with_background() {
+        let html = r#"<div style="display: flex; flex-direction: column; background-color: #eee">
+            <p>Child A</p>
+            <p>Child B</p>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let has_bg = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    background_color: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_bg,
+            "Expected a wrapper TextBlock with background_color for flex column container"
+        );
+    }
+
+    #[test]
+    fn table_rowspan_layout() {
+        let html = r#"
+            <table>
+                <tr><td rowspan="2">Spanning</td><td>A</td></tr>
+                <tr><td>B</td></tr>
+                <tr><td>C</td><td>D</td></tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::TableRow { .. }))
+            .collect();
+        assert!(
+            table_rows.len() >= 2,
+            "Expected at least 2 table rows with rowspan, got {}",
+            table_rows.len()
+        );
+    }
+
+    #[test]
+    fn inline_span_inherits_border_radius() {
+        let css = "span.badge { background-color: green; border-radius: 5pt; padding: 2pt; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<p><span class="badge">Tag</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let mut found_br = false;
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for line in lines {
+                    for run in &line.runs {
+                        if run.text.contains("Tag") && run.border_radius > 0.0 {
+                            found_br = true;
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            found_br,
+            "Expected TextRun for 'Tag' to have border_radius > 0 from stylesheet"
+        );
+    }
+
+    #[test]
+    fn grid_layout_produces_rows() {
+        let css = ".grid { display: grid; grid-template-columns: 1fr 1fr; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>A</div><div>B</div><div>C</div><div>D</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert!(
+            !grid_rows.is_empty(),
+            "Expected GridRow elements from display: grid layout"
+        );
+    }
+
+    #[test]
+    fn page_break_produces_multiple_pages() {
+        let html = r#"
+            <p>Page one content</p>
+            <div style="page-break-before: always">
+                <p>Page two content</p>
+            </div>
+            <div style="page-break-before: always">
+                <p>Page three content</p>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(
+            pages.len() >= 3,
+            "Expected at least 3 pages from two page-break-before: always, got {}",
+            pages.len()
+        );
+    }
+
+    #[test]
+    fn image_element_in_layout() {
+        let html = r#"<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==" style="width: 50px; height: 50px">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let has_image = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Image { .. }));
+        assert!(has_image, "Expected an Image layout element from img tag");
+    }
+
+    #[test]
+    fn wrapper_textblock_with_border() {
+        let css = ".bordered { border: 2pt solid black; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="bordered"><p>inside</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let has_border = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock { border, .. } = el {
+                border.has_any()
+            } else {
+                false
+            }
+        });
+        assert!(
+            has_border,
+            "Expected a wrapper TextBlock with border from .bordered div"
+        );
+    }
+
+    #[test]
+    fn wrapper_textblock_with_box_shadow() {
+        let css = ".shadow { box-shadow: 2pt 2pt 4pt #000; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="shadow"><p>shadowed</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let has_shadow = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    box_shadow: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_shadow,
+            "Expected a wrapper TextBlock with box_shadow from .shadow div"
+        );
+    }
+
+    #[test]
+    fn flex_column_child_positioning() {
+        let html = r#"<div style="display: flex; flex-direction: column">
+            <div>Alpha</div>
+            <div>Beta</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let text_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                if let LayoutElement::TextBlock { lines, .. } = el {
+                    !lines.is_empty()
+                } else {
+                    false
+                }
+            })
+            .collect();
+        if text_blocks.len() >= 2 {
+            assert!(
+                text_blocks[1].0 >= text_blocks[0].0,
+                "Expected second flex column child to be at or below first child"
+            );
+        }
+    }
+
+    #[test]
+    fn grid_row_alignment_in_paginate() {
+        let css = ".g { display: grid; grid-template-columns: 1fr 1fr 1fr; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="g"><div>X</div><div>Y</div><div>Z</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(pages.len(), 1);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert!(
+            !grid_rows.is_empty(),
+            "Expected GridRow elements from grid layout"
+        );
+        for (y, _) in &grid_rows {
+            assert!(*y >= 0.0, "Grid row y position should be non-negative");
+        }
+    }
+}
+
+// (end of file -- debug tests removed)
+#[cfg(any())]
+mod _removed {
+    #![allow(unused)]
+    fn debug_pdf_output() {
+        let html = r#"<p><span>Acme</span> <span>Corp</span></p>
+            <p><strong>Bold</strong> Normal</p>
+            <table><tr><td>SVG rendering add-on</td></tr></table>"#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Search for text rendering commands in the PDF content
+        for line in pdf_str.lines() {
+            if line.contains("Tj") {
+                eprintln!("PDF Tj: {:?}", line.trim());
+            }
+        }
+        // Check that the PDF contains properly spaced text
+        assert!(
+            pdf_str.contains("(Acme") || pdf_str.contains("( Corp"),
+            "PDF should contain Acme and Corp text"
+        );
+    }
+
+    #[test]
+    fn debug_space_preservation_html_parser() {
+        // Check what the HTML parser produces for various inputs
+        use crate::parser::dom::DomNode;
+
+        fn dump_nodes(nodes: &[DomNode], indent: usize) -> String {
+            let mut out = String::new();
+            for node in nodes {
+                match node {
+                    DomNode::Text(t) => {
+                        out.push_str(&format!("{:indent$}Text({:?})\n", "", t, indent = indent));
+                    }
+                    DomNode::Element(el) => {
+                        out.push_str(&format!(
+                            "{:indent$}Element({:?})\n",
+                            "",
+                            el.tag,
+                            indent = indent
+                        ));
+                        out.push_str(&dump_nodes(&el.children, indent + 2));
+                    }
+                }
+            }
+            out
+        }
+
+        // Test what html5ever produces for span-space-span
+        let html = "<p><span>Acme</span> <span>Corp</span></p>";
+        let nodes = parse_html(html).unwrap();
+        let dump = dump_nodes(&nodes, 0);
+        eprintln!("=== span-space-span ===\n{dump}");
+
+        // Test what html5ever produces for br-separated text
+        let html2 = "<p><strong>Bill to:</strong><br>Acme Corp<br>New York</p>";
+        let nodes2 = parse_html(html2).unwrap();
+        let dump2 = dump_nodes(&nodes2, 0);
+        eprintln!("=== br-separated ===\n{dump2}");
+
+        // Test strong followed by text in same element
+        let html3 = "<p><strong>Hello</strong> World</p>";
+        let nodes3 = parse_html(html3).unwrap();
+        let dump3 = dump_nodes(&nodes3, 0);
+        eprintln!("=== strong-space-text ===\n{dump3}");
+
+        // Test with the full invoice-like structure
+        let html4 =
+            r#"<p><span class="label">Invoice #</span><br><strong>INV-2026-0042</strong></p>"#;
+        let nodes4 = parse_html(html4).unwrap();
+        let dump4 = dump_nodes(&nodes4, 0);
+        eprintln!("=== invoice label ===\n{dump4}");
+    }
+
+    #[test]
+    fn debug_space_preservation() {
+        // Test 1: Simple text with spaces
+        let html = "<p>Hello World</p>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages[0].elements[0] {
+            let text: String = lines
+                .iter()
+                .flat_map(|l| l.runs.iter())
+                .map(|r| r.text.as_str())
+                .collect();
+            eprintln!("Test 1 text: {:?}", text);
+            assert!(
+                text.contains("Hello World"),
+                "Spaces lost in simple text: {text:?}"
+            );
+        }
+
+        // Test 2: Inline elements with space between
+        let html2 = "<p><span>Hello</span> <span>World</span></p>";
+        let nodes2 = parse_html(html2).unwrap();
+        let pages2 = layout(&nodes2, PageSize::A4, Margin::default());
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages2[0].elements[0] {
+            let text: String = lines
+                .iter()
+                .flat_map(|l| l.runs.iter())
+                .map(|r| r.text.as_str())
+                .collect();
+            eprintln!("Test 2 text: {:?}", text);
+            assert!(
+                text.contains("Hello") && text.contains("World"),
+                "Missing text: {text:?}"
+            );
+            let combined = text.replace(' ', "");
+            assert_ne!(text, combined, "Spaces completely lost: {text:?}");
+        }
+
+        // Test 3: Table cell with spaces
+        let html3 = "<table><tr><td>Custom font embedding module</td></tr></table>";
+        let nodes3 = parse_html(html3).unwrap();
+        let pages3 = layout(&nodes3, PageSize::A4, Margin::default());
+        for (_, el) in &pages3[0].elements {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                let text: String = cells[0]
+                    .lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter())
+                    .map(|r| r.text.as_str())
+                    .collect();
+                eprintln!("Test 3 text: {:?}", text);
+                assert!(
+                    text.contains("Custom font"),
+                    "Spaces lost in table cell: {text:?}"
+                );
+            }
+        }
+
+        // Test 4: bold/br structure from invoice
+        let html4 = "<p><strong>Bill to:</strong><br>Acme Corp<br>New York, NY 10001</p>";
+        let nodes4 = parse_html(html4).unwrap();
+        let pages4 = layout(&nodes4, PageSize::A4, Margin::default());
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages4[0].elements[0] {
+            for (i, line) in lines.iter().enumerate() {
+                let line_text: String = line.runs.iter().map(|r| r.text.as_str()).collect();
+                eprintln!(
+                    "Test 4 line {i}: {:?} (runs: {:?})",
+                    line_text,
+                    line.runs
+                        .iter()
+                        .map(|r| r.text.as_str())
+                        .collect::<Vec<_>>()
+                );
+            }
+            let all_text: String = lines
+                .iter()
+                .map(|l| l.runs.iter().map(|r| r.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n");
+            eprintln!("Test 4 combined: {:?}", all_text);
+            assert!(
+                all_text.contains("Acme Corp"),
+                "Spaces in 'Acme Corp' lost: {all_text:?}"
+            );
+            assert!(
+                all_text.contains("New York"),
+                "Spaces in 'New York' lost: {all_text:?}"
+            );
         }
     }
 }

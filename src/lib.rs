@@ -67,6 +67,8 @@
 
 /// Error types for conversion failures.
 pub mod error;
+/// Adobe Font Metrics for standard PDF fonts (Helvetica, Times, Courier).
+pub(crate) mod fonts;
 pub(crate) mod layout;
 pub(crate) mod parser;
 pub(crate) mod render;
@@ -648,8 +650,7 @@ mod tests {
         assert!(content.contains("Name"));
         assert!(content.contains("Alice"));
         assert!(content.contains("Bob"));
-        // Should have cell borders (rectangle stroke)
-        assert!(content.contains("re\nS\n"));
+        // No default cell borders — only CSS-specified borders produce strokes
     }
 
     #[test]
@@ -1770,57 +1771,62 @@ fn main() {
 
     #[test]
     fn pdf_linear_gradient_renders_strips() {
-        // Covers pdf.rs lines 245-261, 806-864: linear gradient rendering
+        // Linear gradient uses native PDF shading dictionaries
         let html = r#"<p style="background: linear-gradient(to right, red, blue); width: 200pt; height: 50pt; padding: 10pt">Gradient</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("rg\n"));
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_linear_gradient_vertical() {
-        // Covers pdf.rs lines 831-847: vertical gradient (to bottom)
+        // Vertical gradient (to bottom) uses shading dictionary
         let html = r#"<p style="background: linear-gradient(to bottom, red, blue); width: 200pt; height: 50pt; padding: 10pt">VertGrad</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_linear_gradient_with_block_height() {
-        // Covers pdf.rs line 251: gradient with block_height Some(h)
+        // Gradient with block_height uses shading dictionary
         let html = r#"<p style="background: linear-gradient(to right, red, blue); width: 200pt; height: 100pt; padding: 10pt">GradHeight</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_linear_gradient_diagonal() {
-        // Covers pdf.rs lines 848-863: angled gradient (45deg)
+        // Diagonal gradient uses shading dictionary
         let html = r#"<p style="background: linear-gradient(45deg, red, blue); width: 200pt; height: 50pt; padding: 10pt">DiagGrad</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_radial_gradient_renders_circles() {
-        // Covers pdf.rs lines 264-281, 867-900: radial gradient rendering
+        // Radial gradient uses native PDF shading dictionary (Type 3)
         let html = r#"<p style="background: radial-gradient(red, blue); width: 200pt; height: 100pt; padding: 10pt">Radial</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains(" c\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 3"));
     }
 
     #[test]
     fn pdf_radial_gradient_with_block_height() {
-        // Covers pdf.rs line 270: radial gradient with block_height Some(h)
+        // Radial gradient with block_height uses shading dictionary
         let html = r#"<p style="background: radial-gradient(red, blue); width: 200pt; height: 120pt; padding: 10pt">RadialH</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains(" c\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 3"));
     }
 
     #[test]
@@ -2422,29 +2428,32 @@ fn main() {
 
     #[test]
     fn pdf_linear_gradient_to_left() {
-        // Covers pdf.rs line 819: reversed horizontal gradient (to left)
+        // Reversed horizontal gradient uses shading dictionary
         let html = r#"<p style="background: linear-gradient(to left, red, blue); width: 200pt; height: 50pt; padding: 10pt">ToLeft</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_linear_gradient_to_top_vertical() {
-        // Covers pdf.rs lines 832-845: vertical gradient to top (reversed)
+        // Vertical gradient to top uses shading dictionary
         let html = r#"<p style="background: linear-gradient(to top, red, blue); width: 200pt; height: 50pt; padding: 10pt">ToTop</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/ShadingType 2"));
     }
 
     #[test]
     fn pdf_gradient_three_stops() {
-        // Covers pdf.rs lines 781, 784, 794: color_at_position with multiple stops
+        // Three-stop gradient uses stitching function (Type 3)
         let html = r#"<p style="background: linear-gradient(to right, red 0%, white 50%, blue 100%); width: 200pt; height: 50pt; padding: 10pt">ThreeStops</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"));
+        assert!(content.contains("sh\n"));
+        assert!(content.contains("/FunctionType 3"));
     }
 
     #[test]
@@ -3400,5 +3409,143 @@ fn main() {
         </svg>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn flex_children_with_block_elements_render_content() {
+        // Flex children containing block elements (h1, h2, p) should produce text
+        let html = r#"<html><body>
+        <div style="display: flex; justify-content: space-between;">
+            <div>
+                <h1>ironpress</h1>
+                <h2>Pure Rust PDF Engine</h2>
+            </div>
+            <div>
+                <p>Invoice #INV-2026-0042</p>
+            </div>
+        </div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("ironpress"),
+            "flex child h1 text should appear in PDF"
+        );
+        // Words may be in separate PDF text objects due to word-by-word rendering
+        assert!(
+            content.contains("Pure"),
+            "flex child h2 word 'Pure' should appear in PDF"
+        );
+        assert!(
+            content.contains("Rust"),
+            "flex child h2 word 'Rust' should appear in PDF"
+        );
+        assert!(
+            content.contains("Engine"),
+            "flex child h2 word 'Engine' should appear in PDF"
+        );
+        assert!(
+            content.contains("INV-2026"),
+            "flex child p text should appear in PDF"
+        );
+    }
+
+    #[test]
+    fn flex_children_simple_divs_render_both() {
+        // Basic flex with two simple div children
+        let html = r#"<div style="display: flex;"><div>Left</div><div>Right</div></div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Left"), "flex child 'Left' should appear");
+        assert!(
+            content.contains("Right"),
+            "flex child 'Right' should appear"
+        );
+    }
+
+    #[test]
+    fn stylesheet_color_applies_to_text() {
+        // Colors from <style> blocks should produce color operators in PDF
+        let html = r#"<html><head><style>
+            h1 { color: red; }
+        </style></head><body><h1>Crimson</h1></body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Crimson"), "text should appear in PDF");
+        // red = (1, 0, 0) in PDF color space → "1 0 0 rg"
+        assert!(
+            content.contains("1 0 0 rg"),
+            "red color operator should appear in PDF stream"
+        );
+    }
+
+    #[test]
+    fn stylesheet_background_color_applies_to_table_header() {
+        // background-color from <style> block should apply to th elements
+        let html = r#"<html><head><style>
+            th { background-color: #2c3e50; color: white; }
+        </style></head><body>
+        <table>
+            <tr><th>Header</th></tr>
+            <tr><td>Data</td></tr>
+        </table>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Header"), "th text should appear in PDF");
+        // #2c3e50 = (44/255, 62/255, 80/255) ≈ (0.172549, 0.243137, 0.313725)
+        // Check for any non-zero background color operator (not 0 0 0)
+        assert!(
+            content.contains("0.17254902 0.24313726 0.3137255 rg"),
+            "background color from stylesheet should produce rg operator"
+        );
+    }
+
+    #[test]
+    fn stylesheet_class_color_applies() {
+        // Colors applied via class selectors from <style> blocks
+        let html = r#"<html><head><style>
+            .badge { background-color: #27ae60; color: white; }
+        </style></head><body>
+        <div class="badge">Paid</div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Paid"), "badge text should appear");
+        // white text = (1, 1, 1) → "1 1 1 rg"
+        assert!(
+            content.contains("1 1 1 rg"),
+            "white color from stylesheet class should be applied"
+        );
+    }
+
+    #[test]
+    fn stylesheet_color_on_inline_element() {
+        // Colors from <style> on inline elements like <span> inside <p>
+        let html = r#"<html><head><style>
+            span { color: blue; }
+        </style></head><body>
+        <p>Normal <span>Azul</span></p>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Azul"), "span text should appear");
+        // blue = (0, 0, 1) → "0 0 1 rg"
+        assert!(
+            content.contains("0 0 1 rg"),
+            "blue color from stylesheet should be applied to inline span"
+        );
+    }
+
+    #[test]
+    fn inline_span_background_color() {
+        let html = r#"<p><span style="background-color: green; color: white; padding: 2pt 8pt;">BADGE</span></p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Should contain fill color operator for the background rectangle
+        assert!(
+            content.contains("rg") && content.contains("re\nf"),
+            "inline span background should produce a filled rectangle (re + f operators)"
+        );
     }
 }

@@ -159,7 +159,7 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 |----------|-----------|
 | Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align`, `text-overflow` |
 | Colors | `color`, `background-color`, `opacity` |
-| Box model | `margin` (including `auto`), `padding`, `border`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
+| Box model | `margin` (including `auto`), `padding`, `border`, `border-top/right/bottom/left`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
 | Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
 | Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `gap` |
 | Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
@@ -371,7 +371,7 @@ HtmlConverter::new()
 Enable the `async` feature for async file I/O:
 
 ```toml
-ironpress = { version = "0.8", features = ["async"] }
+ironpress = { version = "0.9", features = ["async"] }
 ```
 
 ```rust
@@ -400,48 +400,26 @@ Sanitization can be disabled with `.sanitize(false)` if you trust the input.
 
 ## How It Works
 
-```
-Input --> Sanitize --> Parse (html5ever) --> Extract <style> --> Style cascade --> Layout engine --> PDF
+```mermaid
+graph LR
+    A[HTML / Markdown] --> B[Sanitize]
+    B --> C[Parse<br/>html5ever]
+    C --> D[Extract<br/>‹style›]
+    D --> E[Style<br/>Cascade]
+    E --> F[Layout<br/>Engine]
+    F --> G[PDF 1.4]
+
+    style A fill:#3498db,color:#fff,stroke:none
+    style G fill:#27ae60,color:#fff,stroke:none
 ```
 
-1. **Sanitize** the input HTML to remove dangerous elements
-2. **Parse** HTML into a DOM tree using html5ever, extracting `<style>` blocks
-3. **Resolve styles** by cascading: tag defaults, then `@media print` rules, then stylesheet rules, then inline CSS
-4. **Layout** elements with text wrapping, float positioning, page breaks, tables, lists, images, and the CSS box model
-5. **Render** to PDF 1.4 with text, graphics, link annotations, embedded images, and custom fonts
+1. **Sanitize** — strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
+2. **Parse** — build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
+3. **Style cascade** — resolve tag defaults → `@media print` rules → stylesheet rules → inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
+4. **Layout** — text wrapping with Adobe font metrics, flexbox, tables with colspan/rowspan, floats, page breaks, images, SVG, and the full CSS box model
+5. **Render** — PDF 1.4 output with native Shading Dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
-
-## What's Next
-
-ironpress focuses on being the best HTML/CSS/Markdown to PDF engine in Rust. Other input formats (SVG, DOCX, EPUB, CSV) will be available as separate crates in the ironpress ecosystem.
-
-### Roadmap to v1.0
-
-**Security hardening**
-
-- [x] Path traversal protection — canonicalize and sandbox `@import` / `@font-face` paths within `base_dir`
-- [x] TTF parser hardening — validate `units_per_em > 0`, use checked arithmetic, reject malformed fonts
-- [x] PNG decompression bomb protection — cap accumulated IDAT chunk size (50 MB)
-- [x] CSS size limit — cap cumulative `@import` payload to prevent OOM (10 MB)
-- [x] Inline SVG rendering with dedicated SVG sanitizer (strip `<script>`, `foreignObject`, `use href=`, event handlers)
-
-**API polish**
-
-- [x] Derive `PartialEq` on public types (`PageSize`, `Margin`)
-- [x] `#![warn(missing_docs)]` — doc comments on all public items
-- [x] Cargo.toml metadata — `readme`, `documentation`, `exclude`
-
-**Rendering**
-
-- [x] Hyphenation for long words in narrow containers
-- [x] `letter-spacing` and `word-spacing` applied in PDF output (`Tc` / `Tw` operators)
-
-**Post-v1**
-
-- [ ] WASM support for browser-side PDF generation
-- [ ] Fuzz testing on parsers (cargo-fuzz)
-- [ ] Property-based testing (quickcheck / proptest)
 
 ## License
 

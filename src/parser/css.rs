@@ -3,11 +3,23 @@ use std::collections::HashMap;
 use crate::parser::dom::ElementNode;
 use crate::types::Color;
 
+/// Per-ancestor context for nth-child matching in descendant selectors.
+#[derive(Debug, Clone)]
+pub struct AncestorInfo<'a> {
+    /// The ancestor element.
+    pub element: &'a ElementNode,
+    /// Zero-based index of this ancestor among its parent's children.
+    pub child_index: usize,
+    /// Total number of children in this ancestor's parent.
+    pub sibling_count: usize,
+}
+
 /// Context for advanced CSS selector matching (descendant, child, pseudo-class).
 #[derive(Debug, Clone, Default)]
 pub struct SelectorContext<'a> {
-    /// Ancestor elements from root to direct parent (outermost first).
-    pub ancestors: Vec<&'a ElementNode>,
+    /// Ancestor elements from root to direct parent (outermost first),
+    /// each carrying its own nth-child position.
+    pub ancestors: Vec<AncestorInfo<'a>>,
     /// Zero-based index of this element among its parent's element children.
     pub child_index: usize,
     /// Total number of element children in the parent.
@@ -229,6 +241,13 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
 
     // Border shorthand and individual border properties
     if property == "border" || property == "border-style" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+    if property == "border-top"
+        || property == "border-right"
+        || property == "border-bottom"
+        || property == "border-left"
+    {
         return Some(CssValue::Keyword(val.to_string()));
     }
     if property == "border-width" {
@@ -1375,20 +1394,20 @@ fn compound_selector_matches(
         }
         // The parent selector must match the direct parent
         if let Some(parent) = ctx.ancestors.last() {
-            let parent_classes = parent.class_list();
-            let parent_attrs = &parent.attributes;
+            let parent_classes = parent.element.class_list();
+            let parent_attrs = &parent.element.attributes;
             // Build a context for the parent (its ancestors are our ancestors minus the last)
             let parent_ctx = SelectorContext {
                 ancestors: ctx.ancestors[..ctx.ancestors.len() - 1].to_vec(),
-                child_index: 0,
-                sibling_count: 0,
+                child_index: parent.child_index,
+                sibling_count: parent.sibling_count,
                 preceding_siblings: Vec::new(),
             };
             return compound_selector_matches(
                 parent_sel,
-                parent.tag_name(),
+                parent.element.tag_name(),
                 &parent_classes,
-                parent.id(),
+                parent.element.id(),
                 parent_attrs,
                 &parent_ctx,
             );
@@ -1407,19 +1426,19 @@ fn compound_selector_matches(
         }
         // The ancestor selector must match some ancestor in the chain
         for (i, ancestor) in ctx.ancestors.iter().enumerate() {
-            let anc_classes = ancestor.class_list();
-            let anc_attrs = &ancestor.attributes;
+            let anc_classes = ancestor.element.class_list();
+            let anc_attrs = &ancestor.element.attributes;
             let anc_ctx = SelectorContext {
                 ancestors: ctx.ancestors[..i].to_vec(),
-                child_index: 0,
-                sibling_count: 0,
+                child_index: ancestor.child_index,
+                sibling_count: ancestor.sibling_count,
                 preceding_siblings: Vec::new(),
             };
             if compound_selector_matches(
                 ancestor_sel,
-                ancestor.tag_name(),
+                ancestor.element.tag_name(),
                 &anc_classes,
-                ancestor.id(),
+                ancestor.element.id(),
                 anc_attrs,
                 &anc_ctx,
             ) {
@@ -2129,12 +2148,20 @@ mod tests {
         el
     }
 
+    fn anc(element: &ElementNode) -> AncestorInfo<'_> {
+        AncestorInfo {
+            element,
+            child_index: 0,
+            sibling_count: 1,
+        }
+    }
+
     #[test]
     fn descendant_selector_matches() {
         // "div p" should match <div><p>
         let div = make_element("div");
         let ctx = SelectorContext {
-            ancestors: vec![&div],
+            ancestors: vec![anc(&div)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2174,7 +2201,7 @@ mod tests {
         let div = make_element("div");
         let section = make_element("section");
         let ctx = SelectorContext {
-            ancestors: vec![&div, &section],
+            ancestors: vec![anc(&div), anc(&section)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2194,7 +2221,7 @@ mod tests {
         // "div > p" should match when div is direct parent
         let div = make_element("div");
         let ctx = SelectorContext {
-            ancestors: vec![&div],
+            ancestors: vec![anc(&div)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2215,7 +2242,7 @@ mod tests {
         let div = make_element("div");
         let section = make_element("section");
         let ctx = SelectorContext {
-            ancestors: vec![&div, &section],
+            ancestors: vec![anc(&div), anc(&section)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2424,7 +2451,7 @@ mod tests {
         // ".container p" should match <div class="container"><p>
         let container = make_element_with_class("div", "container");
         let ctx = SelectorContext {
-            ancestors: vec![&container],
+            ancestors: vec![anc(&container)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2444,7 +2471,7 @@ mod tests {
         // ".wrap > span" should match <div class="wrap"><span>
         let wrap = make_element_with_class("div", "wrap");
         let ctx = SelectorContext {
-            ancestors: vec![&wrap],
+            ancestors: vec![anc(&wrap)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -2488,7 +2515,7 @@ mod tests {
         // "a[href] span" — <a href="x"><span>
         let a_el = make_element_with_attr("a", "href", "https://example.com");
         let ctx = SelectorContext {
-            ancestors: vec![&a_el],
+            ancestors: vec![anc(&a_el)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -3305,7 +3332,7 @@ mod tests {
         // Line 761: child combinator where current element doesn't match
         let parent = ElementNode::new(crate::parser::dom::HtmlTag::Div);
         let ctx = SelectorContext {
-            ancestors: vec![&parent],
+            ancestors: vec![anc(&parent)],
             child_index: 0,
             sibling_count: 1,
             preceding_siblings: Vec::new(),
@@ -4485,5 +4512,23 @@ mod tests {
         assert!(result_limited.contains("body { color: red; }"));
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn parse_border_top_property() {
+        let style = parse_inline_style("border-top: 1pt solid red");
+        match style.get("border-top") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "1pt solid red"),
+            other => panic!("Expected Keyword for border-top, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_border_bottom_property() {
+        let style = parse_inline_style("border-bottom: 2pt solid blue");
+        match style.get("border-bottom") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "2pt solid blue"),
+            other => panic!("Expected Keyword for border-bottom, got {:?}", other),
+        }
     }
 }

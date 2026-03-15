@@ -2,3 +2,4 @@
 Cargo.lock
 .claude/
 .DS_Store
+examples/*.pdf

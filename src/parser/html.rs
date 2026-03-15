@@ -46,7 +46,15 @@ fn convert_handle(handle: &Handle, stylesheets: &mut Vec<String>) -> Vec<DomNode
         NodeData::Text { contents } => {
             let text = contents.borrow().to_string();
             if text.trim().is_empty() {
-                vec![]
+                // Preserve whitespace-only text nodes that contain at least
+                // one space (as opposed to consisting solely of newlines and
+                // tabs).  These often represent inter-element spacing, e.g.
+                // `<span>A</span> <span>B</span>`.
+                if text.contains(' ') {
+                    vec![DomNode::Text(" ".to_string())]
+                } else {
+                    vec![]
+                }
             } else {
                 vec![DomNode::Text(text)]
             }

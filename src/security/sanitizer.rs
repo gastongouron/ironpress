@@ -149,6 +149,26 @@ fn remove_event_handlers(html: &str) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
+        // Skip multi-byte UTF-8 sequences — they are never HTML syntax
+        if bytes[i] & 0x80 != 0 {
+            // Determine UTF-8 sequence length and copy all bytes
+            let seq_len = if bytes[i] & 0xE0 == 0xC0 {
+                2
+            } else if bytes[i] & 0xF0 == 0xE0 {
+                3
+            } else if bytes[i] & 0xF8 == 0xF0 {
+                4
+            } else {
+                1 // invalid, copy single byte
+            };
+            let end = (i + seq_len).min(bytes.len());
+            if let Ok(s) = std::str::from_utf8(&bytes[i..end]) {
+                result.push_str(s);
+            }
+            i = end;
+            continue;
+        }
+
         let c = bytes[i] as char;
 
         if c == '<' {

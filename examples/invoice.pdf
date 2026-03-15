@@ -1,0 +1,455 @@
+%PDF-1.4
+1 0 obj
+<< /Length 6184 >>
+stream
+0.17254902 0.24313726 0.3137255 rg
+BT
+/Helvetica-Bold 24 Tf
+72 736.29004 Td
+(ironpress) Tj
+ET
+0.49803922 0.54901963 0.5529412 rg
+BT
+/Helvetica 14 Tf
+72 716.69006 Td
+(Pure Rust PDF Engine) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+72 702.69006 Td
+(123 Crate Street) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+72 688.69006 Td
+(San Francisco, CA 94107) Tj
+ET
+0.49803922 0.54901963 0.5529412 rg
+BT
+/Helvetica 9 Tf
+487.26202 755.89 Td
+(Invoice #) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica-Bold 10 Tf
+455.47003 741.89 Td
+(INV-2026-0042) Tj
+ET
+0.49803922 0.54901963 0.5529412 rg
+BT
+/Helvetica 9 Tf
+504.27203 727.89 Td
+(Date) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+453.80002 713.89 Td
+(March 15, 2026) Tj
+ET
+0.49803922 0.54901963 0.5529412 rg
+BT
+/Helvetica 9 Tf
+506.77405 699.89 Td
+(Due) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+461.58002 685.89 Td
+(April 14, 2026) Tj
+ET
+0.15294118 0.68235296 0.3764706 rg
+488.60803 667.89 34.672 14 re
+f
+1 1 1 rg
+BT
+/Helvetica 8 Tf
+496.60803 671.89 Td
+(PAID) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica-Bold 10 Tf
+72 627.89 Td
+(Bill to:) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+72 613.89 Td
+(Acme Corp) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+72 599.89 Td
+(456 Enterprise Blvd) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+72 585.89 Td
+(New York, NY 10001) Tj
+ET
+0.17254902 0.24313726 0.3137255 rg
+72 533.29004 260.11713 28.599998 re
+f
+1 1 1 rg
+BT
+/Helvetica-Bold 9 Tf
+84 542.64 Td
+(Description) Tj
+ET
+0.17254902 0.24313726 0.3137255 rg
+332.11713 533.29004 39.51352 28.599998 re
+f
+1 1 1 rg
+BT
+/Helvetica-Bold 9 Tf
+344.11713 542.64 Td
+(Qty) Tj
+ET
+0.17254902 0.24313726 0.3137255 rg
+371.63065 533.29004 71.20002 28.599998 re
+f
+1 1 1 rg
+BT
+/Helvetica-Bold 9 Tf
+383.63065 542.64 Td
+(Unit Price) Tj
+ET
+0.17254902 0.24313726 0.3137255 rg
+442.83066 533.29004 80.44939 28.599998 re
+f
+1 1 1 rg
+BT
+/Helvetica-Bold 9 Tf
+477.28705 542.64 Td
+(Amount) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+72 503.29004 260.11713 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+72 503.29004 m 332.11713 503.29004 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+84 512.79004 Td
+(HTML/CSS to PDF conversion \227 Enterprise license) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+332.11713 503.29004 39.51352 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+332.11713 503.29004 m 371.63065 503.29004 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+344.11713 512.79004 Td
+(1) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+371.63065 503.29004 71.20002 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+371.63065 503.29004 m 442.83066 503.29004 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+383.63065 512.79004 Td
+($2,500.00) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+442.83066 503.29004 80.44939 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+442.83066 503.29004 m 523.28 503.29004 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+466.80005 512.79004 Td
+($2,500.00) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+72 473.29 m 332.11713 473.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+84 482.79 Td
+(Custom font embedding module) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+332.11713 473.29 m 371.63065 473.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+344.11713 482.79 Td
+(2) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+371.63065 473.29 m 442.83066 473.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+383.63065 482.79 Td
+($500.00) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+442.83066 473.29 m 523.28 473.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+466.80005 482.79 Td
+($1,000.00) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+72 443.29 260.11713 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+72 443.29 m 332.11713 443.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+84 452.79 Td
+(SVG rendering add-on) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+332.11713 443.29 39.51352 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+332.11713 443.29 m 371.63065 443.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+344.11713 452.79 Td
+(1) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+371.63065 443.29 71.20002 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+371.63065 443.29 m 442.83066 443.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+383.63065 452.79 Td
+($750.00) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+442.83066 443.29 80.44939 30 re
+f
+0.9254902 0.9411765 0.94509804 RG
+1 w
+442.83066 443.29 m 523.28 443.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+475.14005 452.79 Td
+($750.00) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+72 413.29 m 332.11713 413.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+84 422.79 Td
+(Priority support \(12 months\)) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+332.11713 413.29 m 371.63065 413.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+344.11713 422.79 Td
+(1) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+371.63065 413.29 m 442.83066 413.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+383.63065 422.79 Td
+($1,200.00) Tj
+ET
+0.9254902 0.9411765 0.94509804 RG
+1 w
+442.83066 413.29 m 523.28 413.29 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica 10 Tf
+466.80005 422.79 Td
+($1,200.00) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+72 380.49002 370.83066 32.8 re
+f
+0.17254902 0.24313726 0.3137255 RG
+2 w
+72 413.29 m 442.83066 413.29 l S
+0.9254902 0.9411765 0.94509804 RG
+1 w
+72 380.49002 m 442.83066 380.49002 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica-Bold 12 Tf
+84 390.29 Td
+(Total) Tj
+ET
+0.9764706 0.9764706 0.9764706 rg
+442.83066 380.49002 80.44939 32.8 re
+f
+0.17254902 0.24313726 0.3137255 RG
+2 w
+442.83066 413.29 m 523.28 413.29 l S
+0.9254902 0.9411765 0.94509804 RG
+1 w
+442.83066 380.49002 m 523.28 380.49002 l S
+0.2 0.2 0.2 rg
+BT
+/Helvetica-Bold 12 Tf
+457.90405 390.29 Td
+($5,450.00) Tj
+ET
+0.972549 0.9764706 0.98039216 rg
+72 302.69003 451.28003 57.8 re
+f
+0.2 0.2 0.2 rg
+BT
+/Helvetica-Bold 9 Tf
+82 337.89 Td
+(Notes:) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 9 Tf
+82 325.29 Td
+(Payment received via wire transfer on March 15, 2026. Thank you for your business!) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/Helvetica 9 Tf
+82 312.69 Td
+(Questions? Contact) Tj
+ET
+0.20392157 0.59607846 0.85882354 rg
+BT
+/Helvetica 9 Tf
+161.038 312.69 Td
+( billing@ironpress.dev) Tj
+ET
+0.20392157 0.59607846 0.85882354 RG
+0.5 w
+161.038 311.19 m 249.69699 311.19 l
+S
+0.7411765 0.7647059 0.78039217 RG
+1 w
+72 263.19 m 523.28 263.19 l S
+0.58431375 0.64705884 0.6509804 rg
+BT
+/Helvetica 8 Tf
+72 241.49 Td
+(ironpress \227 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.) Tj
+ET
+
+endstream
+endobj
+2 0 obj
+<< /Type /Annot /Subtype /Link /Rect [161.038 310.69 249.69699 321.69] /Border [0 0 0] /A << /Type /Action /S /URI /URI (mailto:billing@ironpress.dev) >> >>
+endobj
+3 0 obj
+<< /Type /Page /MediaBox [0 0 595.28 841.89] /Parent 18 0 R /Resources 17 0 R /Annots [2 0 R] /Contents 1 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>
+endobj
+10 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >>
+endobj
+11 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-BoldItalic /Encoding /WinAnsiEncoding >>
+endobj
+12 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+13 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>
+endobj
+14 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Oblique /Encoding /WinAnsiEncoding >>
+endobj
+15 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier-BoldOblique /Encoding /WinAnsiEncoding >>
+endobj
+16 0 obj
+<< /Helvetica 4 0 R /Helvetica-Bold 5 0 R /Helvetica-Oblique 6 0 R /Helvetica-BoldOblique 7 0 R /Times-Roman 8 0 R /Times-Bold 9 0 R /Times-Italic 10 0 R /Times-BoldItalic 11 0 R /Courier 12 0 R /Courier-Bold 13 0 R /Courier-Oblique 14 0 R /Courier-BoldOblique 15 0 R >>
+endobj
+17 0 obj
+<< /Font 16 0 R >>
+endobj
+18 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+19 0 obj
+<< /Type /Catalog /Pages 18 0 R >>
+endobj
+xref
+0 20
+0000000000 65535 f 
+0000000009 00000 n 
+0000006245 00000 n 
+0000006417 00000 n 
+0000006545 00000 n 
+0000006642 00000 n 
+0000006744 00000 n 
+0000006849 00000 n 
+0000006958 00000 n 
+0000007057 00000 n 
+0000007155 00000 n 
+0000007256 00000 n 
+0000007361 00000 n 
+0000007457 00000 n 
+0000007558 00000 n 
+0000007662 00000 n 
+0000007770 00000 n 
+0000008057 00000 n 
+0000008092 00000 n 
+0000008150 00000 n 
+trailer
+<< /Size 20 /Root 19 0 R >>
+startxref
+8201
+%%EOF
