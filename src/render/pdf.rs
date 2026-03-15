@@ -106,6 +106,8 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                     border_radius,
                     outline_width,
                     outline_color,
+                    letter_spacing,
+                    word_spacing: css_word_spacing,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (but space is preserved)
@@ -362,7 +364,7 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                         let is_last_line = line_idx == line_count - 1;
 
                         // Calculate word spacing for justified text
-                        let word_spacing = if *text_align == TextAlign::Justify && !is_last_line {
+                        let justify_ws = if *text_align == TextAlign::Justify && !is_last_line {
                             let content_width = render_width - padding_left - padding_right;
                             let remaining = content_width - line_width;
                             let space_count = line_text.matches(' ').count();
@@ -374,6 +376,7 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                         } else {
                             0.0
                         };
+                        let total_ws = justify_ws + *css_word_spacing;
 
                         let text_x = match text_align {
                             TextAlign::Left | TextAlign::Justify => block_x + padding_left,
@@ -381,9 +384,14 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                             TextAlign::Right => block_x + render_width - padding_right - line_width,
                         };
 
-                        // Set word spacing for justified lines
-                        if word_spacing > 0.0 {
-                            content.push_str(&format!("{word_spacing} Tw\n"));
+                        // Set letter spacing (CSS letter-spacing)
+                        if *letter_spacing > 0.0 {
+                            content.push_str(&format!("{letter_spacing} Tc\n"));
+                        }
+
+                        // Set word spacing (justify + CSS word-spacing)
+                        if total_ws > 0.0 {
+                            content.push_str(&format!("{total_ws} Tw\n"));
                         }
 
                         // Render each run
@@ -443,8 +451,13 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                             x += run_width;
                         }
 
-                        // Reset word spacing after justified line
-                        if word_spacing > 0.0 {
+                        // Reset letter spacing after line
+                        if *letter_spacing > 0.0 {
+                            content.push_str("0 Tc\n");
+                        }
+
+                        // Reset word spacing after line
+                        if total_ws > 0.0 {
                             content.push_str("0 Tw\n");
                         }
                     }
@@ -621,6 +634,36 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                         name: img_name,
                         obj_id: img_obj_id,
                     });
+                }
+                LayoutElement::Svg {
+                    tree,
+                    width,
+                    height,
+                    ..
+                } => {
+                    let svg_x = margin.left;
+                    // PDF y-axis is bottom-up, SVG is top-down
+                    let svg_y = page_size.height - margin.top - y_pos - height;
+
+                    content.push_str("q\n");
+                    // Position on page and flip y-axis for SVG coordinates
+                    content.push_str(&format!("1 0 0 -1 {} {} cm\n", svg_x, svg_y + height));
+
+                    // Apply viewBox scaling if present
+                    if let Some(ref vb) = tree.view_box {
+                        if vb.width > 0.0 && vb.height > 0.0 {
+                            let sx = width / vb.width;
+                            let sy = height / vb.height;
+                            content.push_str(&format!(
+                                "{sx} 0 0 {sy} {} {} cm\n",
+                                -vb.min_x * sx,
+                                -vb.min_y * sy
+                            ));
+                        }
+                    }
+
+                    crate::render::svg_to_pdf::render_svg_tree(tree, &mut content);
+                    content.push_str("Q\n");
                 }
                 LayoutElement::HorizontalRule { .. } => {
                     let rule_y = page_size.height - margin.top - y_pos;
@@ -2272,5 +2315,349 @@ mod tests {
             content.contains("re\n"),
             "Zero border-radius should use rectangle operator"
         );
+    }
+
+    #[test]
+    fn color_at_position_empty_stops() {
+        // Covers line 842: empty stops returns black
+        let result = color_at_position(&[], 0.5);
+        assert_eq!(result, (0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn color_at_position_before_first_stop() {
+        // Covers line 845: t <= first stop position
+        use crate::types::Color;
+        let stops = vec![GradientStop {
+            color: Color {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
+            position: 0.5,
+        }];
+        let (r, _g, _b) = color_at_position(&stops, 0.1);
+        assert!((r - 1.0).abs() < 0.01); // returns first stop color (red)
+    }
+
+    #[test]
+    fn color_at_position_after_last_stop() {
+        // Covers line 845 (>= last position) and line 855 (fallback)
+        use crate::types::Color;
+        let stops = vec![
+            GradientStop {
+                color: Color {
+                    r: 255,
+                    g: 0,
+                    b: 0,
+                    a: 255,
+                },
+                position: 0.0,
+            },
+            GradientStop {
+                color: Color {
+                    r: 0,
+                    g: 0,
+                    b: 255,
+                    a: 255,
+                },
+                position: 0.5,
+            },
+        ];
+        let (_r, _g, b) = color_at_position(&stops, 0.9);
+        assert!((b - 1.0).abs() < 0.01); // returns last stop color (blue)
+    }
+
+    #[test]
+    fn interpolate_color_same_position_stops() {
+        // Covers line 826: stops at same position yield frac = 0.0
+        use crate::types::Color;
+        let s1 = GradientStop {
+            color: Color {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
+            position: 0.5,
+        };
+        let s2 = GradientStop {
+            color: Color {
+                r: 0,
+                g: 0,
+                b: 255,
+                a: 255,
+            },
+            position: 0.5,
+        };
+        let (r, _g, b) = interpolate_color(&s1, &s2, 0.5);
+        // frac is 0.0, so result should be s1's color
+        assert!((r - 1.0).abs() < 0.01);
+        assert!(b.abs() < 0.01);
+    }
+
+    #[test]
+    fn render_cell_text_with_empty_line_and_empty_run() {
+        // Covers lines 718, 724: empty line text skipped, empty run skipped
+        let empty_run = TextRun {
+            text: String::new(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+        };
+        let non_empty_run = TextRun {
+            text: "Hello".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+        };
+        let cell = TableCell {
+            lines: vec![
+                TextLine {
+                    runs: vec![empty_run.clone()],
+                    height: 14.0,
+                },
+                TextLine {
+                    runs: vec![empty_run.clone(), non_empty_run],
+                    height: 14.0,
+                },
+            ],
+            bold: false,
+            colspan: 1,
+            rowspan: 1,
+            padding_top: 2.0,
+            padding_bottom: 2.0,
+            padding_left: 2.0,
+            padding_right: 2.0,
+            background_color: None,
+        };
+        let mut content = String::new();
+        let fonts = HashMap::new();
+        render_cell_text(&mut content, &cell, 0.0, 100.0, 50.0, &fonts);
+        assert!(content.contains("Hello"));
+    }
+
+    #[test]
+    fn text_block_empty_run_skipped() {
+        // Covers line 401: empty text run within a text block line is skipped
+        use crate::layout::engine::LayoutElement;
+        let empty_run = TextRun {
+            text: String::new(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+        };
+        let real_run = TextRun {
+            text: "Data".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+        };
+        let page = Page {
+            elements: vec![(
+                0.0,
+                LayoutElement::TextBlock {
+                    lines: vec![TextLine {
+                        runs: vec![empty_run, real_run],
+                        height: 14.0,
+                    }],
+                    margin_top: 0.0,
+                    margin_bottom: 0.0,
+                    text_align: TextAlign::Left,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    padding_right: 0.0,
+                    border_width: 0.0,
+                    border_color: None,
+                    block_width: None,
+                    block_height: None,
+                    opacity: 1.0,
+                    float: Float::None,
+                    clear: crate::style::computed::Clear::None,
+                    position: Position::Static,
+                    offset_top: 0.0,
+                    offset_left: 0.0,
+                    box_shadow: None,
+                    visible: true,
+                    clip_rect: None,
+                    transform: None,
+                    background_gradient: None,
+                    background_radial_gradient: None,
+                    border_radius: 0.0,
+                    outline_width: 0.0,
+                    outline_color: None,
+                    text_indent: 0.0,
+                    letter_spacing: 0.0,
+                    word_spacing: 0.0,
+                    vertical_align: crate::style::computed::VerticalAlign::Baseline,
+                    z_index: 0,
+                },
+            )],
+        };
+        let pdf = render_pdf(&[page], PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Data"));
+    }
+
+    #[test]
+    fn page_break_element_renders() {
+        // Covers line 677: PageBreak empty match arm
+        let page = Page {
+            elements: vec![
+                (
+                    0.0,
+                    LayoutElement::TextBlock {
+                        lines: vec![TextLine {
+                            runs: vec![TextRun {
+                                text: "Before".to_string(),
+                                font_size: 12.0,
+                                bold: false,
+                                italic: false,
+                                underline: false,
+                                line_through: false,
+                                color: (0.0, 0.0, 0.0),
+                                font_family: FontFamily::Helvetica,
+                                link_url: None,
+                            }],
+                            height: 14.0,
+                        }],
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        text_align: TextAlign::Left,
+                        background_color: None,
+                        padding_top: 0.0,
+                        padding_bottom: 0.0,
+                        padding_left: 0.0,
+                        padding_right: 0.0,
+                        border_width: 0.0,
+                        border_color: None,
+                        block_width: None,
+                        block_height: None,
+                        opacity: 1.0,
+                        float: Float::None,
+                        clear: crate::style::computed::Clear::None,
+                        position: Position::Static,
+                        offset_top: 0.0,
+                        offset_left: 0.0,
+                        box_shadow: None,
+                        visible: true,
+                        clip_rect: None,
+                        transform: None,
+                        background_gradient: None,
+                        background_radial_gradient: None,
+                        border_radius: 0.0,
+                        outline_width: 0.0,
+                        outline_color: None,
+                        text_indent: 0.0,
+                        letter_spacing: 0.0,
+                        word_spacing: 0.0,
+                        vertical_align: crate::style::computed::VerticalAlign::Baseline,
+                        z_index: 0,
+                    },
+                ),
+                (20.0, LayoutElement::PageBreak),
+            ],
+        };
+        let pdf = render_pdf(&[page], PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Before"));
+    }
+
+    #[test]
+    fn font_name_for_run_custom_bold_italic() {
+        // Covers lines 761-763: Custom font bold+italic fallback names
+        let run_bi = TextRun {
+            text: "test".to_string(),
+            font_size: 12.0,
+            bold: true,
+            italic: true,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Custom("MyFont".to_string()),
+            link_url: None,
+        };
+        assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
+
+        let run_b = TextRun {
+            text: "test".to_string(),
+            font_size: 12.0,
+            bold: true,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Custom("MyFont".to_string()),
+            link_url: None,
+        };
+        assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
+
+        let run_i = TextRun {
+            text: "test".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: true,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Custom("MyFont".to_string()),
+            link_url: None,
+        };
+        assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
+    }
+
+    #[test]
+    fn render_radial_gradient_skips_tiny_radius() {
+        // Covers line 948: radius < 0.5 continue
+        use crate::types::Color;
+        let mut content = String::new();
+        let gradient = RadialGradient {
+            stops: vec![
+                GradientStop {
+                    color: Color {
+                        r: 255,
+                        g: 0,
+                        b: 0,
+                        a: 255,
+                    },
+                    position: 0.0,
+                },
+                GradientStop {
+                    color: Color {
+                        r: 0,
+                        g: 0,
+                        b: 255,
+                        a: 255,
+                    },
+                    position: 1.0,
+                },
+            ],
+        };
+        // Very small dimensions so many rings have radius < 0.5
+        render_radial_gradient(&mut content, &gradient, 0.0, 0.0, 1.0, 1.0);
+        assert!(!content.is_empty());
     }
 }

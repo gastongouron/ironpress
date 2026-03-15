@@ -1,24 +1,30 @@
 /// Page size in points (1 pt = 1/72 inch).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PageSize {
+    /// Page width in points.
     pub width: f32,
+    /// Page height in points.
     pub height: f32,
 }
 
 impl PageSize {
+    /// ISO A4: 210 mm x 297 mm (595.28 x 841.89 pt).
     pub const A4: Self = Self {
         width: 595.28,
         height: 841.89,
     };
+    /// US Letter: 8.5 x 11 in (612 x 792 pt).
     pub const LETTER: Self = Self {
         width: 612.0,
         height: 792.0,
     };
+    /// US Legal: 8.5 x 14 in (612 x 1008 pt).
     pub const LEGAL: Self = Self {
         width: 612.0,
         height: 1008.0,
     };
 
+    /// Create a custom page size from width and height in points.
     pub fn new(width: f32, height: f32) -> Self {
         Self { width, height }
     }
@@ -31,15 +37,20 @@ impl Default for PageSize {
 }
 
 /// Page margins in points.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Margin {
+    /// Top margin in points.
     pub top: f32,
+    /// Right margin in points.
     pub right: f32,
+    /// Bottom margin in points.
     pub bottom: f32,
+    /// Left margin in points.
     pub left: f32,
 }
 
 impl Margin {
+    /// Create margins with individual values for each side.
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
         Self {
             top,
@@ -49,6 +60,7 @@ impl Margin {
         }
     }
 
+    /// Create margins with the same value on all sides.
     pub fn uniform(v: f32) -> Self {
         Self::new(v, v, v, v)
     }

@@ -1,13 +1,16 @@
 [package]
 name = "ironpress"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Pure Rust HTML/CSS/Markdown to PDF converter with layout engine, tables, images, custom fonts, and streaming output. No browser, no system dependencies."
 license = "MIT"
 repository = "https://github.com/gastongouron/ironpress"
+documentation = "https://docs.rs/ironpress"
+readme = "README.md"
 keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding", "template-engine"]
+exclude = [".github/", ".claude/", "target/"]
 
 [features]
 default = []

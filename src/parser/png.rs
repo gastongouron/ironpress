@@ -7,6 +7,9 @@
 /// PNG file signature (8 bytes).
 pub const PNG_SIGNATURE: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 
+/// Maximum total size of accumulated IDAT data (50 MB).
+pub const MAX_IDAT_SIZE: usize = 50 * 1024 * 1024;
+
 /// Parsed information from a PNG file needed for PDF embedding.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -29,7 +32,13 @@ pub fn is_png(data: &[u8]) -> bool {
 /// Parse a PNG file and extract the information needed for PDF embedding.
 ///
 /// Returns `None` if the data is not a valid PNG or cannot be parsed.
+/// Accumulated IDAT data is limited to [`MAX_IDAT_SIZE`] bytes.
 pub fn parse_png(data: &[u8]) -> Option<PngInfo> {
+    parse_png_with_limit(data, MAX_IDAT_SIZE)
+}
+
+/// Internal parser with a configurable IDAT size limit (used for testing).
+fn parse_png_with_limit(data: &[u8], max_idat: usize) -> Option<PngInfo> {
     if !is_png(data) {
         return None;
     }
@@ -66,6 +75,9 @@ pub fn parse_png(data: &[u8]) -> Option<PngInfo> {
                 ihdr_found = true;
             }
             b"IDAT" => {
+                if idat_data.len() + chunk_len > max_idat {
+                    return None; // IDAT data exceeds safety limit
+                }
                 idat_data.extend_from_slice(&data[chunk_data_start..chunk_data_start + chunk_len]);
             }
             b"IEND" => {
@@ -256,5 +268,40 @@ mod tests {
         buf.extend_from_slice(data);
         // CRC (we just write zeros; our parser doesn't verify CRC)
         buf.extend_from_slice(&[0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn parse_png_idat_within_limit() {
+        // A normal small PNG should parse fine with a small limit
+        let idat_payload = vec![0x78; 32]; // 32 bytes of IDAT data
+        let mut png = Vec::new();
+        png.extend_from_slice(&PNG_SIGNATURE);
+        let ihdr_data = build_ihdr(1, 1, 8, 2);
+        append_chunk(&mut png, b"IHDR", &ihdr_data);
+        append_chunk(&mut png, b"IDAT", &idat_payload);
+        append_chunk(&mut png, b"IEND", &[]);
+
+        // Limit of 64 bytes is well above 32 bytes of IDAT
+        let info = parse_png_with_limit(&png, 64).unwrap();
+        assert_eq!(info.idat_data.len(), 32);
+    }
+
+    #[test]
+    fn parse_png_idat_exceeds_limit() {
+        // Build a PNG whose accumulated IDAT data exceeds a small limit
+        let mut png = Vec::new();
+        png.extend_from_slice(&PNG_SIGNATURE);
+        let ihdr_data = build_ihdr(1, 1, 8, 2);
+        append_chunk(&mut png, b"IHDR", &ihdr_data);
+
+        // Add several IDAT chunks that together exceed the limit
+        let chunk = vec![0xAA; 20];
+        append_chunk(&mut png, b"IDAT", &chunk); // 20 bytes
+        append_chunk(&mut png, b"IDAT", &chunk); // 40 bytes total
+        append_chunk(&mut png, b"IDAT", &chunk); // 60 bytes total — over limit
+        append_chunk(&mut png, b"IEND", &[]);
+
+        // Limit of 50 bytes: third chunk pushes total to 60, should fail
+        assert!(parse_png_with_limit(&png, 50).is_none());
     }
 }
