@@ -30,7 +30,8 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [Async API](#async-api)
 - [Security](#security)
 - [How It Works](#how-it-works)
-- [What's Next](#whats-next)
+- [WASM](#wasm)
+- [Testing](#testing)
 - [License](#license)
 
 ## Quick Start
@@ -413,13 +414,31 @@ graph LR
     style G fill:#27ae60,color:#fff,stroke:none
 ```
 
-1. **Sanitize** — strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
-2. **Parse** — build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
-3. **Style cascade** — resolve tag defaults → `@media print` rules → stylesheet rules → inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
-4. **Layout** — text wrapping with Adobe font metrics, flexbox, tables with colspan/rowspan, floats, page breaks, images, SVG, and the full CSS box model
-5. **Render** — PDF 1.4 output with native Shading Dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
+1. **Sanitize**:strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
+2. **Parse**:build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
+3. **Style cascade**:resolve tag defaults → `@media print` rules → stylesheet rules → inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
+4. **Layout**:text wrapping with Adobe font metrics, flexbox, tables with colspan/rowspan, floats, page breaks, images, SVG, and the full CSS box model
+5. **Render**:PDF 1.4 output with native Shading Dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
+
+## WASM
+
+ironpress compiles to WebAssembly for browser-side PDF generation:
+
+```bash
+cargo build --target wasm32-unknown-unknown --no-default-features
+```
+
+No system dependencies, no filesystem access needed in the core pipeline.
+
+## Testing
+
+ironpress uses three layers of testing:
+
+- **Unit tests**: 1500+ tests covering parsing, style computation, layout, and rendering
+- **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
+- **Fuzz targets**: [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets for HTML, CSS, Markdown, and the full pipeline (`cargo +nightly fuzz run fuzz_html`)
 
 ## License
 
