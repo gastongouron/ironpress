@@ -1,17 +1,11 @@
-<p align="center">
-  <img src="docs/ironpress-logo.png" alt="ironpress" width="600">
-</p>
+# ironpress
 
-<h1 align="center">ironpress</h1>
+[![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
+[![docs.rs](https://docs.rs/ironpress/badge.svg)](https://docs.rs/ironpress)
+[![CI](https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg)](https://github.com/gastongouron/ironpress/actions)
+[![codecov](https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
 
-<p align="center">
-  <a href="https://crates.io/crates/ironpress"><img src="https://img.shields.io/crates/v/ironpress.svg" alt="Crates.io"></a>
-  <a href="https://docs.rs/ironpress"><img src="https://docs.rs/ironpress/badge.svg" alt="docs.rs"></a>
-  <a href="https://github.com/gastongouron/ironpress/actions"><img src="https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://codecov.io/gh/gastongouron/ironpress"><img src="https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg?token=w36XIAwRxG" alt="codecov"></a>
-</p>
-
-<p align="center">Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.</p>
+Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
 <p align="center">
   <a href="https://codecov.io/gh/gastongouron/ironpress">
