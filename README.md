@@ -23,6 +23,7 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [HTML Elements](#html-elements)
 - [CSS Support](#css-support)
 - [Images](#images)
+- [SVG](#svg)
 - [Tables](#tables)
 - [Fonts](#fonts)
 - [Streaming Output](#streaming-output)
@@ -247,6 +248,25 @@ JPEG and PNG images are supported via data URIs and local file paths.
 
 Images are embedded directly in the PDF. JPEG uses DCTDecode, PNG uses FlateDecode with PNG predictors. Width and height attributes are converted from px to pt.
 
+## SVG
+
+Inline SVG elements are rendered as vector graphics directly in the PDF (not rasterized):
+
+```html
+<svg width="200" height="200" viewBox="0 0 100 100">
+  <rect x="10" y="10" width="80" height="80" fill="#e74c3c" stroke="#333" stroke-width="2"/>
+  <circle cx="50" cy="50" r="30" fill="#3498db"/>
+  <path d="M 20 80 L 50 20 L 80 80 Z" fill="#2ecc71"/>
+  <g transform="translate(50, 50) rotate(45)">
+    <rect x="-10" y="-10" width="20" height="20" fill="#f39c12"/>
+  </g>
+</svg>
+```
+
+Supported elements: `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>` (full path command set: M, L, H, V, C, S, Q, T, Z with relative variants), `<g>` groups with `transform` (translate, scale, rotate, matrix), and `viewBox` scaling.
+
+SVG content is automatically sanitized: `<script>`, `<foreignObject>`, `<use>`, `<image>`, and event handlers are stripped.
+
 ## Tables
 
 Full table support with sections, spanning, auto-sized columns, and styling.
@@ -367,10 +387,14 @@ HTML is sanitized by default before conversion:
 
 - `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>` tags are stripped
 - `<style>` tags are preserved but dangerous CSS (external `url()`, `expression()`) is removed
-- `@import` and `@font-face` only load local files (remote URLs are blocked)
+- `@import` and `@font-face` only load local files (remote URLs are blocked, paths sandboxed in `base_dir`)
 - Event handlers (`onclick`, `onload`, etc.) are removed
 - `javascript:` URLs are neutralized
 - Input size (10 MB) and nesting depth (100 levels) are limited
+- SVG sanitizer strips `<script>`, `<foreignObject>`, `<use>`, `<image>`, `<style>`, and event handlers inside `<svg>` blocks
+- PNG IDAT accumulation capped at 50 MB to prevent decompression bombs
+- CSS `@import` cumulative payload capped at 10 MB
+- TTF parser validates font metrics and uses checked arithmetic
 
 Sanitization can be disabled with `.sanitize(false)` if you trust the input.
 

@@ -117,7 +117,7 @@ fn emit_circle(cx: f32, cy: f32, r: f32, out: &mut String) {
 }
 
 fn emit_ellipse(cx: f32, cy: f32, rx: f32, ry: f32, out: &mut String) {
-    let k = 0.5522847498_f32;
+    let k = 0.552_284_8_f32;
     let kx = rx * k;
     let ky = ry * k;
     // Start at (cx+rx, cy)
