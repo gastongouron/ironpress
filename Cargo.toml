@@ -10,7 +10,7 @@ documentation = "https://docs.rs/ironpress"
 readme = "README.md"
 keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding", "template-engine"]
-exclude = [".github/", ".claude/", "target/"]
+exclude = [".github/", ".claude/", "target/", "docs/"]
 
 [features]
 default = []
