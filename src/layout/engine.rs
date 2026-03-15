@@ -5261,12 +5261,10 @@ mod tests {
         // With max_width=100, "Hi" (12pt) fits, then the long word (204pt)
         // doesn't fit (12 + 6 space + 204 > 100), so hyphenation kicks in.
         // Available for prefix: 100 - 12 - 6 = 82pt => ~13 chars + hyphen.
-        let runs = vec![
-            TextRun {
-                text: "Hi Supercalifragilisticexpialidocious".to_string(),
-                ..template
-            },
-        ];
+        let runs = vec![TextRun {
+            text: "Hi Supercalifragilisticexpialidocious".to_string(),
+            ..template
+        }];
         let lines = wrap_text_runs(runs, 100.0, 12.0, &fonts);
         // Should produce more than one line (hyphenation happened)
         assert!(

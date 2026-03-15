@@ -3072,7 +3072,10 @@ fn main() {
         let mut buf = Vec::new();
         // Should succeed without loading the traversal path
         let result = converter.convert_to_writer(html, &mut buf);
-        assert!(result.is_ok(), "converter should not fail on traversal font path");
+        assert!(
+            result.is_ok(),
+            "converter should not fail on traversal font path"
+        );
         assert!(buf.starts_with(b"%PDF"));
 
         std::fs::remove_dir_all(&dir).ok();
@@ -3083,7 +3086,10 @@ fn main() {
         let html = r#"<p style="letter-spacing: 2pt">Spaced letters</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Tc"), "PDF should contain Tc operator for letter-spacing");
+        assert!(
+            content.contains("Tc"),
+            "PDF should contain Tc operator for letter-spacing"
+        );
     }
 
     #[test]
@@ -3091,16 +3097,26 @@ fn main() {
         let html = r#"<p style="word-spacing: 5pt">Spaced words here</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Tw"), "PDF should contain Tw operator for word-spacing");
+        assert!(
+            content.contains("Tw"),
+            "PDF should contain Tw operator for word-spacing"
+        );
     }
 
     #[test]
     fn html_to_pdf_letter_and_word_spacing_combined() {
-        let html = r#"<p style="letter-spacing: 2pt; word-spacing: 5pt">Spaced letters and words</p>"#;
+        let html =
+            r#"<p style="letter-spacing: 2pt; word-spacing: 5pt">Spaced letters and words</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Tc"), "PDF should contain Tc operator for letter-spacing");
-        assert!(content.contains("Tw"), "PDF should contain Tw operator for word-spacing");
+        assert!(
+            content.contains("Tc"),
+            "PDF should contain Tc operator for letter-spacing"
+        );
+        assert!(
+            content.contains("Tw"),
+            "PDF should contain Tw operator for word-spacing"
+        );
     }
 
     #[test]
@@ -3108,8 +3124,7 @@ fn main() {
         // A very long word preceded by short content in a narrow div should be
         // hyphenated in the PDF output (hyphenation triggers when the line
         // already has content and the next word doesn't fit).
-        let html =
-            r#"<div style="width: 80pt"><p>Hi Supercalifragilisticexpialidocious</p></div>"#;
+        let html = r#"<div style="width: 80pt"><p>Hi Supercalifragilisticexpialidocious</p></div>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
         // The PDF text streams should contain a hyphen from the hyphenation
@@ -3130,7 +3145,8 @@ fn main() {
 
     #[test]
     fn html_to_pdf_inline_svg_circle() {
-        let html = r#"<svg width="100" height="100"><circle cx="50" cy="50" r="40" fill="blue"/></svg>"#;
+        let html =
+            r#"<svg width="100" height="100"><circle cx="50" cy="50" r="40" fill="blue"/></svg>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
     }

@@ -957,7 +957,13 @@ pub fn is_path_within(path: &std::path::Path, base: &std::path::Path) -> bool {
 
 pub fn resolve_imports(css: &str, base_dir: &std::path::Path, depth: usize) -> String {
     let mut total_imported = 0usize;
-    resolve_imports_inner(css, base_dir, depth, &mut total_imported, MAX_IMPORT_TOTAL_SIZE)
+    resolve_imports_inner(
+        css,
+        base_dir,
+        depth,
+        &mut total_imported,
+        MAX_IMPORT_TOTAL_SIZE,
+    )
 }
 
 fn resolve_imports_inner(
@@ -991,8 +997,13 @@ fn resolve_imports_inner(
             }
             // Determine base dir for the imported file
             let imported_base = path.parent().unwrap_or(base_dir);
-            let resolved =
-                resolve_imports_inner(&imported_css, imported_base, depth + 1, total_imported, max_total);
+            let resolved = resolve_imports_inner(
+                &imported_css,
+                imported_base,
+                depth + 1,
+                total_imported,
+                max_total,
+            );
             result.push_str(&resolved);
             result.push('\n');
         }
@@ -4397,7 +4408,10 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let css = "@import \"../../etc/passwd\";\nbody { color: red; }";
         let result = resolve_imports(css, &dir, 0);
-        assert!(!result.contains("root:"), "path traversal import should be silently skipped");
+        assert!(
+            !result.contains("root:"),
+            "path traversal import should be silently skipped"
+        );
         assert!(result.contains("body { color: red; }"));
         std::fs::remove_dir(&dir).ok();
     }
@@ -4409,7 +4423,10 @@ mod tests {
         std::fs::create_dir_all(&subdir).unwrap();
         let css = "@import \"subdir/../../etc/passwd\";\np { margin: 0; }";
         let result = resolve_imports(css, &dir, 0);
-        assert!(!result.contains("root:"), "path traversal via subdir/.. should be blocked");
+        assert!(
+            !result.contains("root:"),
+            "path traversal via subdir/.. should be blocked"
+        );
         assert!(result.contains("p { margin: 0; }"));
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -4423,7 +4440,10 @@ mod tests {
         std::fs::write(&sub_file, "h1 { color: blue; }").unwrap();
         let css = "@import \"subdir/styles.css\";\np { font-size: 10pt; }";
         let result = resolve_imports(css, &dir, 0);
-        assert!(result.contains("h1 { color: blue; }"), "subdirectory import should work");
+        assert!(
+            result.contains("h1 { color: blue; }"),
+            "subdirectory import should work"
+        );
         assert!(result.contains("p { font-size: 10pt; }"));
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -4442,7 +4462,8 @@ mod tests {
         std::fs::write(dir.join("b.css"), &content_b).unwrap();
         std::fs::write(dir.join("c.css"), &content_c).unwrap();
 
-        let css = "@import \"a.css\";\n@import \"b.css\";\n@import \"c.css\";\nbody { color: red; }";
+        let css =
+            "@import \"a.css\";\n@import \"b.css\";\n@import \"c.css\";\nbody { color: red; }";
 
         // With a generous limit, all three imports resolve
         let mut total = 0usize;

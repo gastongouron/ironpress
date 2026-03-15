@@ -49,13 +49,17 @@ impl TtfFont {
     pub fn char_width_pdf(&self, ch: u16) -> u16 {
         let w = self.char_width(ch) as u64;
         let upm = self.units_per_em as u64;
-        if upm == 0 { return 0; }
+        if upm == 0 {
+            return 0;
+        }
         ((w * 1000) / upm) as u16
     }
 
     /// Get the advance width scaled to a given font size in points.
     pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
-        if self.units_per_em == 0 { return 0.0; }
+        if self.units_per_em == 0 {
+            return 0.0;
+        }
         let w = self.char_width(ch) as f32;
         w * font_size / self.units_per_em as f32
     }

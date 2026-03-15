@@ -647,11 +647,7 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
 
                     content.push_str("q\n");
                     // Position on page and flip y-axis for SVG coordinates
-                    content.push_str(&format!(
-                        "1 0 0 -1 {} {} cm\n",
-                        svg_x,
-                        svg_y + height
-                    ));
+                    content.push_str(&format!("1 0 0 -1 {} {} cm\n", svg_x, svg_y + height));
 
                     // Apply viewBox scaling if present
                     if let Some(ref vb) = tree.view_box {

@@ -313,8 +313,7 @@ mod tests {
 
     #[test]
     fn sanitize_preserves_basic_shapes() {
-        let input =
-            r#"<svg><rect width="10" height="10"/><circle cx="5" cy="5" r="3"/><path d="M0 0L10 10"/></svg>"#;
+        let input = r#"<svg><rect width="10" height="10"/><circle cx="5" cy="5" r="3"/><path d="M0 0L10 10"/></svg>"#;
         let result = sanitize_svg(input);
         assert!(result.contains("rect"));
         assert!(result.contains("circle"));

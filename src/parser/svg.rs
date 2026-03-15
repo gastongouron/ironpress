@@ -87,7 +87,7 @@ pub enum PathCommand {
     MoveTo(f32, f32),
     LineTo(f32, f32),
     CubicTo(f32, f32, f32, f32, f32, f32), // C command
-    QuadTo(f32, f32, f32, f32),             // Q command
+    QuadTo(f32, f32, f32, f32),            // Q command
     ClosePath,
 }
 
@@ -267,10 +267,7 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
 /// Parse fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     let fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
-    let stroke = el
-        .attributes
-        .get("stroke")
-        .and_then(|v| parse_svg_color(v));
+    let stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
     let stroke_width = el
         .attributes
         .get("stroke-width")
@@ -318,10 +315,7 @@ pub fn parse_svg_color(val: &str) -> Option<(f32, f32, f32)> {
     }
 
     // rgb(r, g, b)
-    if let Some(inner) = val
-        .strip_prefix("rgb(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
+    if let Some(inner) = val.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
         let parts: Vec<&str> = inner.split(',').collect();
         if parts.len() == 3 {
             let r = parts[0].trim().parse::<f32>().ok()?;
