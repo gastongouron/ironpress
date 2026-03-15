@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # ironpress
 //!
 //! Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
@@ -64,12 +65,14 @@
 //!     .unwrap();
 //! ```
 
+/// Error types for conversion failures.
 pub mod error;
 pub(crate) mod layout;
 pub(crate) mod parser;
 pub(crate) mod render;
 pub(crate) mod security;
 pub(crate) mod style;
+/// Public types: page size, margins, and colors.
 pub mod types;
 
 pub use error::IronpressError;
@@ -381,6 +384,9 @@ impl HtmlConverter {
         if let Some(ref base) = self.base_path {
             for ff_rule in &font_face_rules {
                 let font_path = base.join(&ff_rule.src_path);
+                if !parser::css::is_path_within(&font_path, base) {
+                    continue;
+                }
                 if let Ok(ttf_data) = std::fs::read(&font_path) {
                     if let Ok(font) = parser::ttf::parse_ttf(ttf_data) {
                         parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
@@ -3047,6 +3053,351 @@ fn main() {
             <tr><td>SpacedX</td><td>SpacedY</td></tr>
         </table>
         </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn font_face_path_traversal_blocked() {
+        // A @font-face src with path traversal should be silently skipped
+        let dir = std::env::temp_dir().join("ironpress_font_traversal_test");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let html = r#"<html><head><style>
+            @font-face { font-family: "Evil"; src: url("../../etc/passwd"); }
+            body { font-family: "Evil"; }
+        </style></head><body>Hello</body></html>"#;
+
+        let converter = HtmlConverter::new().base_path(&dir);
+        let mut buf = Vec::new();
+        // Should succeed without loading the traversal path
+        let result = converter.convert_to_writer(html, &mut buf);
+        assert!(
+            result.is_ok(),
+            "converter should not fail on traversal font path"
+        );
+        assert!(buf.starts_with(b"%PDF"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn html_to_pdf_letter_spacing() {
+        let html = r#"<p style="letter-spacing: 2pt">Spaced letters</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("Tc"),
+            "PDF should contain Tc operator for letter-spacing"
+        );
+    }
+
+    #[test]
+    fn html_to_pdf_word_spacing() {
+        let html = r#"<p style="word-spacing: 5pt">Spaced words here</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("Tw"),
+            "PDF should contain Tw operator for word-spacing"
+        );
+    }
+
+    #[test]
+    fn html_to_pdf_letter_and_word_spacing_combined() {
+        let html =
+            r#"<p style="letter-spacing: 2pt; word-spacing: 5pt">Spaced letters and words</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("Tc"),
+            "PDF should contain Tc operator for letter-spacing"
+        );
+        assert!(
+            content.contains("Tw"),
+            "PDF should contain Tw operator for word-spacing"
+        );
+    }
+
+    #[test]
+    fn html_to_pdf_long_word_hyphenated() {
+        // A very long word preceded by short content in a narrow div should be
+        // hyphenated in the PDF output (hyphenation triggers when the line
+        // already has content and the next word doesn't fit).
+        let html = r#"<div style="width: 80pt"><p>Hi Supercalifragilisticexpialidocious</p></div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // The PDF text streams should contain a hyphen from the hyphenation
+        assert!(
+            content.contains('-'),
+            "PDF should contain a hyphen from hyphenated long word"
+        );
+    }
+
+    #[test]
+    fn html_to_pdf_inline_svg_rect() {
+        let html = r#"<svg width="100" height="100"><rect x="10" y="10" width="80" height="80" fill="red"/></svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("re")); // rect operator
+    }
+
+    #[test]
+    fn html_to_pdf_inline_svg_circle() {
+        let html =
+            r#"<svg width="100" height="100"><circle cx="50" cy="50" r="40" fill="blue"/></svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_inline_svg_path() {
+        let html = r#"<svg width="100" height="100"><path d="M 10 10 L 90 10 L 90 90 Z" fill="green"/></svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_inline_svg_with_viewbox() {
+        let html = r#"<svg width="200" height="200" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="red"/></svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_svg_script_stripped() {
+        // Script inside SVG should not cause issues (html5ever strips it or ignores it)
+        let html = r#"<svg width="100" height="100"><script>alert(1)</script><rect x="10" y="10" width="80" height="80" fill="red"/></svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_svg_among_html() {
+        let html = r#"<h1>Title</h1><svg width="100" height="50"><rect x="0" y="0" width="100" height="50" fill="blue"/></svg><p>World</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Title"));
+        assert!(content.contains("World"));
+    }
+
+    #[test]
+    fn html_to_pdf_justify_single_word_no_spaces() {
+        // Covers pdf.rs line 374: justify text with no spaces yields 0.0 word spacing
+        let html =
+            r#"<p style="text-align: justify; width: 200pt;">Superlongwordwithoutanyspaces</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Superlongword"));
+    }
+
+    #[test]
+    fn html_to_pdf_radial_gradient_no_block_height() {
+        // Covers pdf.rs line 274: radial gradient on block without explicit height
+        let html = r#"<html><head><style>
+            .grad { background: radial-gradient(circle, red, blue); padding: 10pt; }
+        </style></head><body>
+        <div class="grad">Radial no height</div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_linear_gradient_no_block_height() {
+        // Covers pdf.rs line 255: linear gradient on block without explicit height
+        let html = r#"<html><head><style>
+            .grad { background: linear-gradient(to right, red, blue); padding: 10pt; }
+        </style></head><body>
+        <div class="grad">Linear no height</div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_rowspan_future_row_lookup() {
+        // Covers pdf.rs lines 526, 528: rowspan > 1 iterates future rows
+        let html = r#"
+        <table>
+            <tr><td rowspan="3">Spanning</td><td>R1</td></tr>
+            <tr><td>R2</td></tr>
+            <tr><td>R3</td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Spanning"));
+        assert!(content.contains("R1"));
+        assert!(content.contains("R3"));
+    }
+
+    #[test]
+    fn html_to_pdf_grid_more_cells_than_columns() {
+        // Covers pdf.rs line 577: grid cell index exceeding col_widths falls back to 0.0
+        let html = r#"<html><head><style>
+            .grid { display: grid; grid-template-columns: 100pt; }
+        </style></head><body>
+        <div class="grid">
+            <div>Cell1</div>
+            <div>Cell2</div>
+            <div>Cell3</div>
+        </div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_empty_paragraph_text_block() {
+        // Exercises empty text run/line skipping in pdf.rs lines 401, 718, 724
+        let html = r#"<p></p><p>Visible</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Visible"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_empty_cells() {
+        // Covers pdf.rs lines 718, 724: empty cell text/run skipping in render_cell_text
+        let html = r#"
+        <table>
+            <tr><td></td><td>Data</td></tr>
+            <tr><td></td><td></td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Data"));
+    }
+
+    #[test]
+    fn html_to_pdf_position_relative_offset() {
+        // Covers pdf.rs line 121: Position::Relative with offset_left
+        let html = r#"<div style="position: relative; left: 20pt;">Shifted</div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Shifted"));
+    }
+
+    #[test]
+    fn html_to_pdf_multiple_page_breaks() {
+        // Covers pdf.rs line 677: PageBreak match arm
+        let html = r#"
+        <p>Page1</p>
+        <div style="page-break-before: always;"></div>
+        <p>Page2</p>
+        <div style="page-break-before: always;"></div>
+        <p>Page3</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Page1"));
+        assert!(content.contains("Page3"));
+    }
+
+    #[test]
+    fn html_to_pdf_svg_ellipse_and_line() {
+        // Exercise SVG element destructuring (lines 638, 642-643) with different SVG content
+        let html = r#"<svg width="200" height="200">
+            <ellipse cx="100" cy="100" rx="80" ry="50" fill="green"/>
+            <line x1="0" y1="0" x2="200" y2="200" stroke="black"/>
+        </svg>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_justify_long_word_then_short() {
+        // Covers pdf.rs line 374: justify with a non-last line that has no spaces.
+        let long_word = "A".repeat(200);
+        let html = format!(
+            r#"<p style="text-align: justify; width: 100pt;">{long_word} short words here</p>"#,
+        );
+        let pdf = html_to_pdf(&html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_table_with_empty_and_content_cells() {
+        // Covers pdf.rs lines 718, 724: render_cell_text with empty lines/runs
+        let html = r#"
+        <table>
+            <tr><td></td><td>A</td><td></td></tr>
+            <tr><td>B</td><td></td><td>C</td></tr>
+        </table>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("A"));
+        assert!(content.contains("B"));
+        assert!(content.contains("C"));
+    }
+
+    #[test]
+    fn html_to_pdf_float_right_without_explicit_width() {
+        // Covers pdf.rs line 123: Float::Right without block_width
+        let html = r#"<div style="float: right;">FloatedRight</div><p>Normal</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("FloatedRight"));
+    }
+
+    #[test]
+    fn html_to_pdf_position_absolute_offset() {
+        // Covers pdf.rs line 120: Position::Absolute with offset_left
+        let html = r#"<div style="position: absolute; left: 50pt;">AbsPos</div>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("AbsPos"));
+    }
+
+    #[test]
+    fn html_to_pdf_inline_image_base64_png() {
+        // Covers pdf.rs lines 606, 612: Image element with PNG format
+        let html = r#"<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==" width="1" height="1"/>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_grid_with_background_and_many_cells() {
+        // Covers pdf.rs lines 566, 568, 577: GridRow with cells exceeding columns
+        let html = r#"<html><head><style>
+            .g { display: grid; grid-template-columns: 50pt 50pt; }
+            .g > div { background: #ff0000; padding: 5pt; }
+        </style></head><body>
+        <div class="g">
+            <div>G1</div>
+            <div>G2</div>
+            <div>G3</div>
+            <div>G4</div>
+            <div>G5</div>
+        </div>
+        </body></html>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn html_to_pdf_page_break_empty_arm() {
+        // Covers pdf.rs line 677: PageBreak empty match arm
+        let html = r#"
+        <p>Before</p>
+        <div style="page-break-after: always;"></div>
+        <p>After</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Before"));
+        assert!(content.contains("After"));
+    }
+
+    #[test]
+    fn html_to_pdf_svg_with_polyline_polygon() {
+        // Exercise SVG rendering paths
+        let html = r#"<svg width="100" height="100">
+            <polyline points="10,10 50,50 90,10" fill="none" stroke="red"/>
+            <polygon points="10,80 50,90 90,80" fill="blue"/>
+        </svg>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
     }

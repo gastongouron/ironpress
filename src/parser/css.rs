@@ -933,11 +933,46 @@ fn extract_import_rules(css: &str) -> Vec<ImportRule> {
 /// Maximum recursion depth for @import processing.
 pub const MAX_IMPORT_DEPTH: usize = 10;
 
+/// Maximum cumulative size (in bytes) of all imported CSS content (10 MB).
+pub const MAX_IMPORT_TOTAL_SIZE: usize = 10 * 1024 * 1024;
+
 /// Resolve `@import` rules in a CSS string by reading and inlining local files.
 ///
 /// The `base_dir` is the directory relative to which import paths are resolved.
 /// Recursion is limited to [`MAX_IMPORT_DEPTH`] levels to prevent infinite loops.
+/// Check whether a joined path stays within the given base directory.
+///
+/// Returns `true` only when the canonical form of `path` starts with the
+/// canonical form of `base`. Any I/O error (non-existent base, permission
+/// denied, etc.) causes the function to return `false`.
+pub fn is_path_within(path: &std::path::Path, base: &std::path::Path) -> bool {
+    let Ok(canonical_base) = base.canonicalize() else {
+        return false;
+    };
+    let Ok(canonical_path) = path.canonicalize() else {
+        return false;
+    };
+    canonical_path.starts_with(&canonical_base)
+}
+
 pub fn resolve_imports(css: &str, base_dir: &std::path::Path, depth: usize) -> String {
+    let mut total_imported = 0usize;
+    resolve_imports_inner(
+        css,
+        base_dir,
+        depth,
+        &mut total_imported,
+        MAX_IMPORT_TOTAL_SIZE,
+    )
+}
+
+fn resolve_imports_inner(
+    css: &str,
+    base_dir: &std::path::Path,
+    depth: usize,
+    total_imported: &mut usize,
+    max_total: usize,
+) -> String {
     if depth >= MAX_IMPORT_DEPTH {
         return css.to_string();
     }
@@ -952,10 +987,23 @@ pub fn resolve_imports(css: &str, base_dir: &std::path::Path, depth: usize) -> S
     // Prepend imported content
     for import in &import_rules {
         let path = base_dir.join(&import.path);
+        if !is_path_within(&path, base_dir) {
+            continue;
+        }
         if let Ok(imported_css) = std::fs::read_to_string(&path) {
+            *total_imported += imported_css.len();
+            if *total_imported > max_total {
+                break; // Stop importing to prevent OOM
+            }
             // Determine base dir for the imported file
             let imported_base = path.parent().unwrap_or(base_dir);
-            let resolved = resolve_imports(&imported_css, imported_base, depth + 1);
+            let resolved = resolve_imports_inner(
+                &imported_css,
+                imported_base,
+                depth + 1,
+                total_imported,
+                max_total,
+            );
             result.push_str(&resolved);
             result.push('\n');
         }
@@ -4352,5 +4400,90 @@ mod tests {
         assert!(result.contains("p { font-size: 12pt; }"));
         std::fs::remove_file(&imported_file).ok();
         std::fs::remove_dir(&dir).ok();
+    }
+
+    #[test]
+    fn path_traversal_blocked() {
+        let dir = std::env::temp_dir().join("ironpress_traversal_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let css = "@import \"../../etc/passwd\";\nbody { color: red; }";
+        let result = resolve_imports(css, &dir, 0);
+        assert!(
+            !result.contains("root:"),
+            "path traversal import should be silently skipped"
+        );
+        assert!(result.contains("body { color: red; }"));
+        std::fs::remove_dir(&dir).ok();
+    }
+
+    #[test]
+    fn path_traversal_dot_dot_in_middle() {
+        let dir = std::env::temp_dir().join("ironpress_traversal_mid_test");
+        let subdir = dir.join("subdir");
+        std::fs::create_dir_all(&subdir).unwrap();
+        let css = "@import \"subdir/../../etc/passwd\";\np { margin: 0; }";
+        let result = resolve_imports(css, &dir, 0);
+        assert!(
+            !result.contains("root:"),
+            "path traversal via subdir/.. should be blocked"
+        );
+        assert!(result.contains("p { margin: 0; }"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn normal_subdirectory_import_allowed() {
+        let dir = std::env::temp_dir().join("ironpress_subdir_import_test");
+        let subdir = dir.join("subdir");
+        std::fs::create_dir_all(&subdir).unwrap();
+        let sub_file = subdir.join("styles.css");
+        std::fs::write(&sub_file, "h1 { color: blue; }").unwrap();
+        let css = "@import \"subdir/styles.css\";\np { font-size: 10pt; }";
+        let result = resolve_imports(css, &dir, 0);
+        assert!(
+            result.contains("h1 { color: blue; }"),
+            "subdirectory import should work"
+        );
+        assert!(result.contains("p { font-size: 10pt; }"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn resolve_imports_size_limit() {
+        // Create multiple CSS files that together exceed a small cumulative limit
+        let dir = std::env::temp_dir().join("ironpress_css_size_limit_test");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Each file is 100 bytes of CSS content
+        let content_a = format!("a {{ padding: {}; }}", "x".repeat(80));
+        let content_b = format!("b {{ padding: {}; }}", "y".repeat(80));
+        let content_c = format!("c {{ padding: {}; }}", "z".repeat(80));
+        std::fs::write(dir.join("a.css"), &content_a).unwrap();
+        std::fs::write(dir.join("b.css"), &content_b).unwrap();
+        std::fs::write(dir.join("c.css"), &content_c).unwrap();
+
+        let css =
+            "@import \"a.css\";\n@import \"b.css\";\n@import \"c.css\";\nbody { color: red; }";
+
+        // With a generous limit, all three imports resolve
+        let mut total = 0usize;
+        let result_all = resolve_imports_inner(css, &dir, 0, &mut total, 10 * 1024 * 1024);
+        assert!(result_all.contains("padding:"));
+        // Count how many padding rules appeared (should be 3)
+        let full_count = result_all.matches("padding:").count();
+        assert_eq!(full_count, 3);
+
+        // With a tiny limit (smaller than the size of two files), importing stops early
+        let mut total2 = 0usize;
+        let result_limited = resolve_imports_inner(css, &dir, 0, &mut total2, 150);
+        let limited_count = result_limited.matches("padding:").count();
+        assert!(
+            limited_count < 3,
+            "expected fewer than 3 imports with size limit, got {limited_count}"
+        );
+        // The original CSS body rule should still be present
+        assert!(result_limited.contains("body { color: red; }"));
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

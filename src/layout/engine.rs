@@ -306,6 +306,19 @@ pub enum LayoutElement {
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },
+    /// An inline SVG element.
+    Svg {
+        /// The parsed SVG tree.
+        tree: crate::parser::svg::SvgTree,
+        /// Rendered width in points.
+        width: f32,
+        /// Rendered height in points.
+        height: f32,
+        /// Top margin.
+        margin_top: f32,
+        /// Bottom margin.
+        margin_bottom: f32,
+    },
     /// A page break.
     PageBreak,
 }
@@ -565,6 +578,21 @@ fn flatten_element(
     if el.tag == HtmlTag::Img {
         if let Some(img_element) = load_image_from_element(el, available_width, &style) {
             output.push(img_element);
+        }
+        return;
+    }
+
+    if el.tag == HtmlTag::Svg {
+        if let Some(tree) = crate::parser::svg::parse_svg_from_element(el) {
+            let svg_width = tree.width.min(available_width);
+            let svg_height = tree.height;
+            output.push(LayoutElement::Svg {
+                tree,
+                width: svg_width,
+                height: svg_height,
+                margin_top: style.margin.top,
+                margin_bottom: style.margin.bottom,
+            });
         }
         return;
     }
@@ -2129,6 +2157,45 @@ fn estimate_word_width(
     word.len() as f32 * font_size * 0.5
 }
 
+/// Try to hyphenate a word so that its prefix (plus a hyphen character) fits
+/// within `available_width`.  Returns `Some((prefix, remainder))` on success.
+///
+/// Rules:
+/// - The word must be at least 4 characters long (so both sides get >= 2 chars).
+/// - The break point must leave at least 2 characters on each side.
+/// - We scan from the longest fitting prefix down to the shortest.
+fn try_hyphenate(
+    word: &str,
+    available_width: f32,
+    font_size: f32,
+    font_family: &FontFamily,
+    fonts: &HashMap<String, TtfFont>,
+) -> Option<(String, String)> {
+    let chars: Vec<char> = word.chars().collect();
+    let len = chars.len();
+
+    // Need at least 4 chars to hyphenate (2 on each side)
+    if len < 4 {
+        return None;
+    }
+
+    let hyphen_width = estimate_word_width("-", font_size, font_family, fonts);
+
+    // Try break points from longest prefix to shortest.
+    // prefix length ranges from (len - 2) down to 2.
+    let max_prefix = len - 2;
+    for prefix_len in (2..=max_prefix).rev() {
+        let prefix: String = chars[..prefix_len].iter().collect();
+        let prefix_width = estimate_word_width(&prefix, font_size, font_family, fonts);
+        if prefix_width + hyphen_width <= available_width {
+            let remainder: String = chars[prefix_len..].iter().collect();
+            return Some((prefix, remainder));
+        }
+    }
+
+    None
+}
+
 /// Simple text wrapping using character width estimation.
 /// Uses TTF metrics when a custom font is available, otherwise 0.5 * font_size.
 fn wrap_text_runs(
@@ -2154,7 +2221,11 @@ fn wrap_text_runs(
         }
     }
 
-    for (word, template) in styled_words {
+    // Use a VecDeque so hyphenation remainders can be re-queued for processing.
+    let mut queue: std::collections::VecDeque<(String, TextRun)> =
+        styled_words.into_iter().collect();
+
+    while let Some((word, template)) = queue.pop_front() {
         if word == "\n" {
             // Line break
             lines.push(TextLine {
@@ -2177,8 +2248,40 @@ fn wrap_text_runs(
             word_width
         };
 
-        if current_width + needed > max_width && current_width > 0.0 {
-            // Wrap to new line
+        let overflows = current_width + needed > max_width;
+
+        if overflows && current_width > 0.0 {
+            // Try to hyphenate the word before wrapping to a new line.
+            let avail = max_width - current_width - space_width;
+            let hyphenated = try_hyphenate(
+                &word,
+                avail,
+                template.font_size,
+                &template.font_family,
+                fonts,
+            );
+
+            if let Some((prefix, remainder)) = hyphenated {
+                // Add the hyphenated prefix (with hyphen) to the current line
+                let prefix_text = format!(" {prefix}-");
+                line_height = line_height.max(template.font_size * 1.4);
+                current_runs.push(TextRun {
+                    text: prefix_text,
+                    ..template.clone()
+                });
+
+                // Push current line, re-queue the remainder for further processing
+                lines.push(TextLine {
+                    runs: std::mem::take(&mut current_runs),
+                    height: line_height,
+                });
+                current_width = 0.0;
+                line_height = default_font_size * 1.4;
+                queue.push_front((remainder, template));
+                continue;
+            }
+
+            // No valid hyphenation — wrap to new line (original behavior)
             lines.push(TextLine {
                 runs: std::mem::take(&mut current_runs),
                 height: line_height,
@@ -2390,6 +2493,12 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 (total, *margin_top)
             }
             LayoutElement::Image {
+                height,
+                margin_top,
+                margin_bottom,
+                ..
+            } => (*margin_top + *height + *margin_bottom, *margin_top),
+            LayoutElement::Svg {
                 height,
                 margin_top,
                 margin_bottom,
@@ -5129,5 +5238,101 @@ mod tests {
         let result = base64_decode("A");
         assert!(result.is_some());
         assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn wrap_hyphenates_long_word() {
+        // A very long word in a narrow container should be hyphenated when the
+        // line already has some content.
+        let fonts = HashMap::new();
+        let template = TextRun {
+            text: String::new(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+        };
+        // At 12pt, each char ~6pt. "Hi" = 12pt.
+        // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
+        // With max_width=100, "Hi" (12pt) fits, then the long word (204pt)
+        // doesn't fit (12 + 6 space + 204 > 100), so hyphenation kicks in.
+        // Available for prefix: 100 - 12 - 6 = 82pt => ~13 chars + hyphen.
+        let runs = vec![TextRun {
+            text: "Hi Supercalifragilisticexpialidocious".to_string(),
+            ..template
+        }];
+        let lines = wrap_text_runs(runs, 100.0, 12.0, &fonts);
+        // Should produce more than one line (hyphenation happened)
+        assert!(
+            lines.len() > 1,
+            "expected hyphenation to produce multiple lines, got {}",
+            lines.len()
+        );
+        // First line should end with a hyphen
+        let first_line_text: String = lines[0].runs.iter().map(|r| r.text.as_str()).collect();
+        assert!(
+            first_line_text.ends_with('-'),
+            "first line should end with hyphen, got: {first_line_text:?}"
+        );
+    }
+
+    #[test]
+    fn wrap_no_hyphen_short_word() {
+        // Short words that fit on the line should not be hyphenated.
+        let fonts = HashMap::new();
+        let run = TextRun {
+            text: "Hello world".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+        };
+        // Wide enough to fit everything
+        let lines = wrap_text_runs(vec![run], 500.0, 12.0, &fonts);
+        assert_eq!(lines.len(), 1);
+        let text: String = lines[0].runs.iter().map(|r| r.text.as_str()).collect();
+        assert!(
+            !text.contains('-'),
+            "no hyphen expected for short fitting text, got: {text:?}"
+        );
+    }
+
+    #[test]
+    fn wrap_hyphen_respects_min_chars() {
+        // Words shorter than 4 chars should never be hyphenated.
+        let fonts = HashMap::new();
+        let run = TextRun {
+            text: "Hi the end".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+        };
+        // Narrow enough that words may not fit, but each word is <= 3 chars
+        // At 12pt, each char ~6pt. "Hi" = 12pt, "the" = 18pt, "end" = 18pt.
+        // With width=20, "Hi" fits, then "the" won't fit on same line but is
+        // only 3 chars so cannot be hyphenated.
+        let lines = wrap_text_runs(vec![run], 20.0, 12.0, &fonts);
+        for line in &lines {
+            for run in &line.runs {
+                assert!(
+                    !run.text.contains('-'),
+                    "short word should not be hyphenated, got: {:?}",
+                    run.text
+                );
+            }
+        }
     }
 }

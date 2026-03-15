@@ -61,6 +61,7 @@ pub enum HtmlTag {
     Address,
     Details,
     Summary,
+    Svg,
     Unknown,
 }
 
@@ -125,6 +126,7 @@ impl HtmlTag {
             "address" => Self::Address,
             "details" => Self::Details,
             "summary" => Self::Summary,
+            "svg" => Self::Svg,
             _ => Self::Unknown,
         }
     }
@@ -169,6 +171,7 @@ impl HtmlTag {
                 | Self::Address
                 | Self::Details
                 | Self::Summary
+                | Self::Svg
         )
     }
 
@@ -206,6 +209,9 @@ pub enum DomNode {
 #[derive(Debug)]
 pub struct ElementNode {
     pub tag: HtmlTag,
+    /// The original tag name as it appeared in the HTML (lowercase).
+    /// Used by the SVG parser to identify SVG-specific elements like `rect`, `circle`, etc.
+    pub raw_tag_name: String,
     pub attributes: HashMap<String, String>,
     pub children: Vec<DomNode>,
 }
@@ -213,8 +219,17 @@ pub struct ElementNode {
 impl ElementNode {
     #[allow(dead_code)]
     pub fn new(tag: HtmlTag) -> Self {
+        // Create a temporary to get the tag name string
+        let tmp = Self {
+            tag,
+            raw_tag_name: String::new(),
+            attributes: HashMap::new(),
+            children: Vec::new(),
+        };
+        let raw = tmp.tag_name().to_string();
         Self {
             tag,
+            raw_tag_name: raw,
             attributes: HashMap::new(),
             children: Vec::new(),
         }
@@ -295,6 +310,7 @@ impl ElementNode {
             HtmlTag::Address => "address",
             HtmlTag::Details => "details",
             HtmlTag::Summary => "summary",
+            HtmlTag::Svg => "svg",
             HtmlTag::Unknown => "unknown",
         }
     }
@@ -453,6 +469,7 @@ mod tests {
             (HtmlTag::Address, "address"),
             (HtmlTag::Details, "details"),
             (HtmlTag::Summary, "summary"),
+            (HtmlTag::Svg, "svg"),
             (HtmlTag::Unknown, "unknown"),
         ];
         for (tag, expected_name) in cases {

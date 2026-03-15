@@ -89,6 +89,7 @@ fn convert_handle(handle: &Handle, stylesheets: &mut Vec<String>) -> Vec<DomNode
 
             let elem = ElementNode {
                 tag,
+                raw_tag_name: tag_name.to_ascii_lowercase(),
                 attributes,
                 children,
             };

@@ -47,12 +47,19 @@ impl TtfFont {
 
     /// Get the advance width for a character in PDF units (1/1000 of text space).
     pub fn char_width_pdf(&self, ch: u16) -> u16 {
-        let w = self.char_width(ch) as u32;
-        ((w * 1000) / self.units_per_em as u32) as u16
+        let w = self.char_width(ch) as u64;
+        let upm = self.units_per_em as u64;
+        if upm == 0 {
+            return 0;
+        }
+        ((w * 1000) / upm) as u16
     }
 
     /// Get the advance width scaled to a given font size in points.
     pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
+        if self.units_per_em == 0 {
+            return 0.0;
+        }
         let w = self.char_width(ch) as f32;
         w * font_size / self.units_per_em as f32
     }
@@ -99,6 +106,9 @@ pub fn parse_ttf(data: Vec<u8>) -> Result<TtfFont, String> {
         return Err("head table too short".to_string());
     }
     let units_per_em = read_u16(&data, head_off + 18);
+    if units_per_em == 0 {
+        return Err("Invalid units_per_em (0) in head table".to_string());
+    }
     let x_min = read_i16(&data, head_off + 36);
     let y_min = read_i16(&data, head_off + 38);
     let x_max = read_i16(&data, head_off + 40);
@@ -1397,6 +1407,64 @@ mod tests {
         data[18 + 65] = 3; // char 65 -> glyph 3
         let result = parse_cmap(&data, 0).unwrap();
         assert_eq!(result.get(&65), Some(&3));
+    }
+
+    #[test]
+    fn parse_ttf_rejects_zero_units_per_em() {
+        let head = make_head_table(0); // units_per_em = 0
+        let hhea = make_hhea_table(800, -200, 1);
+        let maxp = make_maxp_table(1);
+        let hmtx = make_hmtx_table(&[500]);
+        let cmap = make_cmap_format4(65, 65, -64);
+        let name = make_name_table_ascii(1, b"Test");
+        let data = build_full_ttf(&head, &hhea, &maxp, &hmtx, &cmap, &name, None);
+        let err = parse_ttf(data).unwrap_err();
+        assert!(err.contains("units_per_em"));
+    }
+
+    #[test]
+    fn char_width_pdf_large_width_no_overflow() {
+        let font = TtfFont {
+            font_name: String::new(),
+            units_per_em: 1000,
+            bbox: [0; 4],
+            ascent: 0,
+            descent: 0,
+            cmap: {
+                let mut m = HashMap::new();
+                m.insert(65, 0);
+                m
+            },
+            glyph_widths: vec![u16::MAX], // 65535 — would overflow u32 with * 1000
+            num_h_metrics: 1,
+            flags: 32,
+            data: vec![],
+        };
+        // Should not panic; 65535 * 1000 / 1000 = 65535
+        let w = font.char_width_pdf(65);
+        assert_eq!(w, 65535);
+    }
+
+    #[test]
+    fn char_width_scaled_zero_upm_returns_zero() {
+        let font = TtfFont {
+            font_name: String::new(),
+            units_per_em: 0,
+            bbox: [0; 4],
+            ascent: 0,
+            descent: 0,
+            cmap: {
+                let mut m = HashMap::new();
+                m.insert(65, 0);
+                m
+            },
+            glyph_widths: vec![500],
+            num_h_metrics: 1,
+            flags: 32,
+            data: vec![],
+        };
+        assert_eq!(font.char_width_scaled(65, 12.0), 0.0);
+        assert_eq!(font.char_width_pdf(65), 0);
     }
 
     #[test]
