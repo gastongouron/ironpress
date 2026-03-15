@@ -1,0 +1,37 @@
+[package]
+name = "ironpress-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.ironpress]
+path = ".."
+
+[[bin]]
+name = "fuzz_html"
+path = "fuzz_targets/fuzz_html.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_css"
+path = "fuzz_targets/fuzz_css.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_markdown"
+path = "fuzz_targets/fuzz_markdown.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_full_pipeline"
+path = "fuzz_targets/fuzz_full_pipeline.rs"
+doc = false
+
+[workspace]
+members = ["."]
