@@ -90,6 +90,12 @@ fn sanitize_style_tags(html: &str) -> String {
                 // Find end of opening tag
                 if let Some(gt) = remaining[s..].find('>') {
                     let css_start = s + gt + 1;
+                    if css_start > e {
+                        // Malformed: </style> appears before the opening tag closes.
+                        // Skip past the </style> and continue scanning.
+                        remaining = &remaining[e + 8..];
+                        continue;
+                    }
                     let css = &remaining[css_start..e];
                     // Remove dangerous CSS: @import, url(), expression()
                     let safe_css = css

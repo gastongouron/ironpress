@@ -3603,4 +3603,17 @@ fn main() {
             "inline span background should produce a filled rectangle (re + f operators)"
         );
     }
+
+    #[test]
+    fn fuzz_css_crash_null_bytes() {
+        // Reproducer from fuzz_css crash-0a719b393ce35ba946cd6e5cb968203aef229e18
+        let data: &[u8] = &[
+            0, 0, 0, 0, 0, 13, 64, 0, 12, 64, 60, 47, 115, 116, 121, 108, 101, 62, 4, 4, 4, 64, 12,
+            64, 0, 47, 60, 115, 116, 121, 108, 101,
+        ];
+        if let Ok(s) = std::str::from_utf8(data) {
+            let html = format!("<style>{s}</style><p>test</p>");
+            let _ = html_to_pdf(&html);
+        }
+    }
 }
