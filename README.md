@@ -1,9 +1,13 @@
 # ironpress
 
 [![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
+[![npm](https://img.shields.io/npm/v/ironpress.svg)](https://www.npmjs.com/package/ironpress)
 [![docs.rs](https://docs.rs/ironpress/badge.svg)](https://docs.rs/ironpress)
 [![CI](https://github.com/gastongouron/ironpress/actions/workflows/ci.yml/badge.svg)](https://github.com/gastongouron/ironpress/actions)
 [![codecov](https://codecov.io/gh/gastongouron/ironpress/branch/main/graph/badge.svg?token=w36XIAwRxG)](https://codecov.io/gh/gastongouron/ironpress)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![WASM](https://img.shields.io/badge/wasm-ready-blueviolet.svg)](#wasm)
+[![Downloads](https://img.shields.io/crates/d/ironpress.svg)](https://crates.io/crates/ironpress)
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
@@ -14,8 +18,6 @@ Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies
 </p>
 
 Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
-
-<img width="1469" height="925" alt="Image" src="https://github.com/user-attachments/assets/db18a4cc-72a3-4ccd-8cea-78cf07c40f7a" />
 
 ## Table of Contents
 
@@ -164,7 +166,7 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Colors | `color`, `background-color`, `opacity` |
 | Box model | `margin` (including `auto`), `padding`, `border`, `border-top/right/bottom/left`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
 | Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
-| Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `gap` |
+| Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `flex-grow`, `flex-shrink`, `flex-basis`, `flex` (shorthand), `gap` |
 | Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
 | Positioning | `top`, `left`, `z-index` |
 | Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
@@ -419,28 +421,54 @@ graph LR
 1. **Sanitize**:strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
 2. **Parse**:build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
 3. **Style cascade**:resolve tag defaults → `@media print` rules → stylesheet rules → inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
-4. **Layout**:text wrapping with Adobe font metrics, flexbox, tables with colspan/rowspan, floats, page breaks, images, SVG, and the full CSS box model
+4. **Layout**:text wrapping with Adobe font metrics, flexbox (with flex-grow/shrink/basis), tables with colspan/rowspan, margin collapsing, floats, page breaks, images, SVG, and the full CSS box model
 5. **Render**:PDF 1.4 output with native Shading Dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
 
 ## WASM
 
-ironpress compiles to WebAssembly for browser-side PDF generation:
+ironpress compiles to WebAssembly for browser-side PDF generation with no system dependencies.
+
+### Install via npm
 
 ```bash
-cargo build --target wasm32-unknown-unknown --no-default-features
+npm install ironpress
 ```
 
-No system dependencies, no filesystem access needed in the core pipeline.
+### Build from source
+
+```bash
+wasm-pack build --target web --features wasm --no-default-features
+```
+
+### Usage in JavaScript
+
+```javascript
+import init, { htmlToPdf, markdownToPdf, htmlToPdfCustom } from 'ironpress';
+
+await init();
+
+// HTML to PDF
+const pdfBytes = htmlToPdf('<h1>Hello</h1><p>World</p>');
+const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+// Markdown to PDF
+const mdPdf = markdownToPdf('# Hello\n\nWorld');
+
+// Custom page size and margins (in points, 72pt = 1 inch)
+const customPdf = htmlToPdfCustom(html, 612, 792, 72, 72, 72, 72);
+```
+
+Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlToPdfCustom(html, pageWidth, pageHeight, marginTop, marginRight, marginBottom, marginLeft)`. All return a `Uint8Array` with the PDF bytes.
 
 ## Testing
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1500+ tests covering parsing, style computation, layout, and rendering
+- **Unit tests**: 1580+ tests covering parsing, style computation, layout, and rendering
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
-- **Fuzz targets**: [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets for HTML, CSS, Markdown, and the full pipeline (`cargo +nightly fuzz run fuzz_html`)
+- **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
 
 ## License
 

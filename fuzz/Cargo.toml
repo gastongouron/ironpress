@@ -33,5 +33,15 @@ name = "fuzz_full_pipeline"
 path = "fuzz_targets/fuzz_full_pipeline.rs"
 doc = false
 
+[[bin]]
+name = "fuzz_svg"
+path = "fuzz_targets/fuzz_svg.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_table_flex"
+path = "fuzz_targets/fuzz_table_flex.rs"
+doc = false
+
 [workspace]
 members = ["."]

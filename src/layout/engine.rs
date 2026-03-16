@@ -7293,6 +7293,207 @@ mod tests {
             "flex shorthand 1:2 should produce ~2:1 width ratio, got {ratio}"
         );
     }
+
+    #[test]
+    fn flex_shrink_overflow() {
+        // Items totalling 600pt in a 300pt container should shrink
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 300pt; }
+            .a { flex-basis: 400pt; flex-shrink: 1; }
+            .b { flex-basis: 200pt; flex-shrink: 1; }
+        </style></head><body>
+        <div class="container">
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        let total: f32 = cells.iter().map(|c| c.width).sum();
+        assert!(
+            total <= 305.0,
+            "Shrunk items should fit in container (~300pt), got {total}"
+        );
+        // Proportional: 400 shrinks more than 200
+        assert!(
+            cells[0].width > cells[1].width,
+            "Larger basis should still be wider after shrink"
+        );
+    }
+
+    #[test]
+    fn flex_shrink_zero_prevents_shrink() {
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 200pt; }
+            .a { flex-basis: 150pt; flex-shrink: 0; }
+            .b { flex-basis: 150pt; flex-shrink: 1; }
+        </style></head><body>
+        <div class="container">
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        // First item has shrink: 0 so it keeps its basis
+        assert!(
+            (cells[0].width - 150.0).abs() < 5.0,
+            "flex-shrink: 0 should prevent shrinking, got {}",
+            cells[0].width
+        );
+        // Second item absorbs all the deficit
+        assert!(
+            cells[1].width < 150.0,
+            "flex-shrink: 1 item should shrink, got {}",
+            cells[1].width
+        );
+    }
+
+    #[test]
+    fn margin_collapsing_negative_margins() {
+        let html = r#"<html><head><style>
+            .a { margin-bottom: -10pt; }
+            .b { margin-top: -20pt; }
+        </style></head><body>
+        <p class="a">First</p>
+        <p class="b">Second</p>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut ys: Vec<f32> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                if !lines.is_empty() {
+                    ys.push(*y);
+                }
+            }
+        }
+        assert_eq!(ys.len(), 2);
+        // Both negative: most negative wins (-20), not sum (-30)
+        // Second block may overlap first (negative gap)
+    }
+
+    #[test]
+    fn margin_collapsing_mixed_signs() {
+        let html = r#"<html><head><style>
+            .a { margin-bottom: -10pt; }
+            .b { margin-top: 30pt; }
+        </style></head><body>
+        <p class="a">First</p>
+        <p class="b">Second</p>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut ys: Vec<f32> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                if !lines.is_empty() {
+                    ys.push(*y);
+                }
+            }
+        }
+        assert_eq!(ys.len(), 2);
+        // Mixed: sum = -10 + 30 = 20pt gap (not 30 or 40)
+        let gap = ys[1] - ys[0];
+        assert!(gap > 0.0, "Gap should be positive with mixed margins");
+    }
+
+    #[test]
+    fn margin_collapsing_zero_margins() {
+        let html = r#"<html><head><style>
+            .a { margin-bottom: 0; }
+            .b { margin-top: 0; }
+        </style></head><body>
+        <p class="a">First</p>
+        <p class="b">Second</p>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages.is_empty());
+    }
+
+    #[test]
+    fn table_descendant_selector_thead_th() {
+        let html = r#"<html><head><style>
+            thead th { color: red; font-size: 14pt; }
+        </style></head><body>
+        <table>
+            <thead><tr><th>Header</th></tr></thead>
+            <tbody><tr><td>Body</td></tr></tbody>
+        </table>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages.is_empty());
+        // Should render without panics; thead th selector exercises section ancestor chain
+    }
+
+    #[test]
+    fn table_descendant_selector_tbody_td() {
+        let html = r#"<html><head><style>
+            tbody td { font-style: italic; }
+            table td { font-size: 11pt; }
+        </style></head><body>
+        <table>
+            <thead><tr><th>H</th></tr></thead>
+            <tbody><tr><td>B</td></tr></tbody>
+        </table>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages.is_empty());
+    }
 }
 
 // (end of file -- debug tests removed)

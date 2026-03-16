@@ -1,6 +1,6 @@
 [package]
 name = "ironpress"
-version = "0.9.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Pure Rust HTML/CSS/Markdown to PDF converter with layout engine, tables, images, custom fonts, and streaming output. No browser, no system dependencies."
@@ -12,15 +12,21 @@ keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding", "template-engine"]
 exclude = [".github/", ".claude/", "target/", "docs/"]
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [features]
 default = []
 async = ["tokio"]
+wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
 html5ever = "0.27"
 markup5ever_rcdom = "0.3"
 thiserror = "2"
 tokio = { version = "1", features = ["fs", "rt"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
