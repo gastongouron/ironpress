@@ -403,6 +403,9 @@ pub struct ComputedStyle {
     pub justify_content: JustifyContent,
     pub align_items: AlignItems,
     pub flex_wrap: FlexWrap,
+    pub flex_grow: f32,
+    pub flex_shrink: f32,
+    pub flex_basis: Option<f32>,
     pub gap: f32,
     pub overflow: Overflow,
     pub visibility: Visibility,
@@ -476,6 +479,9 @@ impl Default for ComputedStyle {
             justify_content: JustifyContent::FlexStart,
             align_items: AlignItems::Stretch,
             flex_wrap: FlexWrap::NoWrap,
+            flex_grow: 0.0,
+            flex_shrink: 1.0,
+            flex_basis: None,
             gap: 0.0,
             overflow: Overflow::Visible,
             visibility: Visibility::Visible,
@@ -607,6 +613,9 @@ pub fn compute_style_with_context(
     style.justify_content = JustifyContent::FlexStart;
     style.align_items = AlignItems::Stretch;
     style.flex_wrap = FlexWrap::NoWrap;
+    style.flex_grow = 0.0;
+    style.flex_shrink = 1.0;
+    style.flex_basis = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.visibility = Visibility::Visible;
@@ -741,6 +750,9 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "justify-content" => style.justify_content = default.justify_content,
         "align-items" => style.align_items = default.align_items,
         "flex-wrap" => style.flex_wrap = default.flex_wrap,
+        "flex-grow" => style.flex_grow = default.flex_grow,
+        "flex-shrink" => style.flex_shrink = default.flex_shrink,
+        "flex-basis" => style.flex_basis = default.flex_basis,
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
         "border-collapse" => style.border_collapse = default.border_collapse,
@@ -815,6 +827,9 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "justify-content" => style.justify_content = parent.justify_content,
         "align-items" => style.align_items = parent.align_items,
         "flex-wrap" => style.flex_wrap = parent.flex_wrap,
+        "flex-grow" => style.flex_grow = parent.flex_grow,
+        "flex-shrink" => style.flex_shrink = parent.flex_shrink,
+        "flex-basis" => style.flex_basis = parent.flex_basis,
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "border-collapse" => style.border_collapse = parent.border_collapse,
@@ -1050,6 +1065,52 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "wrap" => FlexWrap::Wrap,
             _ => FlexWrap::NoWrap,
         };
+    }
+
+    if let Some(CssValue::Length(v)) = get_non_special(map, "flex-grow") {
+        style.flex_grow = v.max(0.0);
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "flex-shrink") {
+        style.flex_shrink = v.max(0.0);
+    }
+    match get_non_special(map, "flex-basis") {
+        Some(CssValue::Length(v)) => style.flex_basis = Some(*v),
+        Some(CssValue::Keyword(k)) if k == "auto" => style.flex_basis = None,
+        _ => {}
+    }
+
+    // flex shorthand: "flex: <grow>" or "flex: <grow> <shrink>" or "flex: <grow> <shrink> <basis>"
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex") {
+        let parts: Vec<&str> = k.split_whitespace().collect();
+        if let Some(first) = parts.first() {
+            if *first == "none" {
+                style.flex_grow = 0.0;
+                style.flex_shrink = 0.0;
+                style.flex_basis = None;
+            } else if *first == "auto" {
+                style.flex_grow = 1.0;
+                style.flex_shrink = 1.0;
+                style.flex_basis = None;
+            } else if let Ok(grow) = first.parse::<f32>() {
+                style.flex_grow = grow.max(0.0);
+                style.flex_shrink = 1.0;
+                style.flex_basis = Some(0.0);
+                if let Some(second) = parts.get(1) {
+                    if let Ok(shrink) = second.parse::<f32>() {
+                        style.flex_shrink = shrink.max(0.0);
+                    }
+                }
+                if let Some(third) = parts.get(2) {
+                    if *third == "auto" {
+                        style.flex_basis = None;
+                    } else if let Some(CssValue::Length(v)) =
+                        crate::parser::css::parse_length(third)
+                    {
+                        style.flex_basis = Some(v);
+                    }
+                }
+            }
+        }
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "gap") {
@@ -5936,5 +5997,95 @@ mod tests {
         assert!((style.border.bottom.width).abs() < 0.01);
         assert!((style.border.left.width).abs() < 0.01);
         assert!((style.border.right.width).abs() < 0.01);
+    }
+
+    #[test]
+    fn border_sides_max_and_widths() {
+        // Lines 353-358: BorderSides max_width, horizontal_width, vertical_width
+        let b = BorderSides {
+            top: BorderSide {
+                width: 3.0,
+                color: None,
+            },
+            right: BorderSide {
+                width: 5.0,
+                color: None,
+            },
+            bottom: BorderSide {
+                width: 2.0,
+                color: None,
+            },
+            left: BorderSide {
+                width: 4.0,
+                color: None,
+            },
+        };
+        assert!((b.max_width() - 5.0).abs() < 0.01);
+        assert!((b.horizontal_width() - 9.0).abs() < 0.01); // left + right = 4 + 5
+        assert!((b.vertical_width() - 5.0).abs() < 0.01); // top + bottom = 3 + 2
+    }
+
+    #[test]
+    fn border_color_from_stylesheet() {
+        // Line 830, 1093-1094: Per-side border color parsing
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("border-right: 2pt solid red; border-left: 3pt solid blue"),
+            &parent,
+        );
+        assert!((style.border.right.width - 2.0).abs() < 0.1);
+        let rc = style.border.right.color.unwrap();
+        assert_eq!(rc.r, 255);
+        assert!((style.border.left.width - 3.0).abs() < 0.1);
+        let lc = style.border.left.color.unwrap();
+        assert_eq!(lc.b, 255);
+    }
+
+    #[test]
+    fn var_resolution_for_width() {
+        // Lines 1410-1418: Var resolution for width/height via custom properties
+        let mut parent = ComputedStyle::default();
+        parent
+            .custom_properties
+            .insert("--my-width".to_string(), "200pt".to_string());
+        let style = compute_style(HtmlTag::Div, Some("width: var(--my-width)"), &parent);
+        assert!(
+            style.width.is_some(),
+            "Expected width to be resolved from var"
+        );
+        assert!((style.width.unwrap() - 200.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn content_property_parsing() {
+        // Line 1517: Content property parsing
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some(r#"content: "Hello""#), &parent);
+        assert!(!style.content.is_empty(), "Expected content to be parsed");
+        if let ContentItem::String(s) = &style.content[0] {
+            assert_eq!(s, "Hello");
+        } else {
+            panic!("Expected ContentItem::String");
+        }
+    }
+
+    #[test]
+    fn counter_increment_from_inline() {
+        // Line 1605: Counter increment parsing
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("counter-increment: section 2"), &parent);
+        assert_eq!(style.counter_increment.len(), 1);
+        assert_eq!(style.counter_increment[0].0, "section");
+        assert_eq!(style.counter_increment[0].1, 2);
+    }
+
+    #[test]
+    fn line_height_from_length_value() {
+        // Line 2140: Line-height from Length value
+        let parent = ComputedStyle::default(); // font_size = 12.0
+        let style = compute_style(HtmlTag::Div, Some("line-height: 24pt"), &parent);
+        // 24pt / 12pt = 2.0
+        assert!((style.line_height - 2.0).abs() < 0.1);
     }
 }

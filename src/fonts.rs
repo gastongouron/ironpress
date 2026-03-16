@@ -209,6 +209,26 @@ static HELVETICA_BOLD_WIDTHS: [u16; 95] = [
 /// Default width for characters outside ASCII 32–126 (AFM units).
 const DEFAULT_WIDTH: u16 = 556;
 
+/// Ascender height as a fraction of 1 em, from Adobe AFM data.
+/// Helvetica: Ascender 718, Times-Roman: 683, Courier: 629.
+pub(crate) fn ascender_ratio(font_family: &FontFamily) -> f32 {
+    match font_family {
+        FontFamily::Helvetica | FontFamily::Custom(_) => 0.718,
+        FontFamily::TimesRoman => 0.683,
+        FontFamily::Courier => 0.629,
+    }
+}
+
+/// Descender depth as a fraction of 1 em (positive value), from Adobe AFM data.
+/// Helvetica: Descender -207, Times-Roman: -217, Courier: -157.
+pub(crate) fn descender_ratio(font_family: &FontFamily) -> f32 {
+    match font_family {
+        FontFamily::Helvetica | FontFamily::Custom(_) => 0.207,
+        FontFamily::TimesRoman => 0.217,
+        FontFamily::Courier => 0.157,
+    }
+}
+
 /// Courier character width (all glyphs are the same in a monospace font).
 const COURIER_WIDTH: u16 = 600;
 
@@ -301,6 +321,33 @@ mod tests {
             w_upper > w_lower,
             "W ({w_upper}) should be wider than i ({w_lower})"
         );
+    }
+
+    #[test]
+    fn ascender_ratio_helvetica() {
+        let r = ascender_ratio(&FontFamily::Helvetica);
+        assert!((r - 0.718).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn descender_ratio_helvetica() {
+        let r = descender_ratio(&FontFamily::Helvetica);
+        assert!((r - 0.207).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn ascender_plus_descender_less_than_one() {
+        for family in &[
+            FontFamily::Helvetica,
+            FontFamily::TimesRoman,
+            FontFamily::Courier,
+        ] {
+            let sum = ascender_ratio(family) + descender_ratio(family);
+            assert!(
+                sum < 1.0,
+                "ascender + descender should be < 1.0 em for {family:?}"
+            );
+        }
     }
 
     #[test]

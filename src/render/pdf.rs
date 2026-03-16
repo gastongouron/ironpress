@@ -457,7 +457,12 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
 
                     let line_count = lines.len();
                     for (line_idx, line) in lines.iter().enumerate() {
-                        text_y -= line.height;
+                        // Half-leading model: distribute excess leading equally
+                        // above and below so text sits at the CSS baseline position.
+                        let line_font_size =
+                            line.runs.iter().map(|r| r.font_size).fold(0.0f32, f32::max);
+                        let half_leading = (line.height - line_font_size) / 2.0;
+                        text_y -= line_font_size + half_leading;
 
                         let line_text = line_text_content(line);
                         if line_text.is_empty() {
@@ -560,11 +565,14 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                             }
                             content.push_str("ET\n");
 
-                            // Draw underline
+                            // Draw underline (font-size-relative position and thickness)
                             if run.underline {
-                                let uy = text_y - 1.5;
+                                let desc =
+                                    crate::fonts::descender_ratio(&run.font_family) * run.font_size;
+                                let uy = text_y - desc * 0.6;
+                                let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n0.5 w\n{x} {uy} m {x2} {uy} l\nS\n",
+                                    "{r} {g} {b} RG\n{thickness} w\n{x} {uy} m {x2} {uy} l\nS\n",
                                     x2 = x + run_width,
                                 ));
                             }
@@ -572,8 +580,9 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                             // Draw strikethrough (line-through)
                             if run.line_through {
                                 let sy = text_y + run.font_size * 0.3;
+                                let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n0.5 w\n{x} {sy} m {x2} {sy} l\nS\n",
+                                    "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
                                     x2 = x + run_width,
                                 ));
                             }
@@ -1064,7 +1073,10 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                         // Render cell text
                         let mut text_y = text_area_top - cell.padding_top;
                         for line in &cell.lines {
-                            text_y -= line.height;
+                            let line_font_size =
+                                line.runs.iter().map(|r| r.font_size).fold(0.0f32, f32::max);
+                            let half_leading = (line.height - line_font_size) / 2.0;
+                            text_y -= line_font_size + half_leading;
                             let text_content: String =
                                 line.runs.iter().map(|r| r.text.as_str()).collect();
                             if text_content.is_empty() {
@@ -1135,6 +1147,29 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                                     content.push_str(&format!("({encoded}) Tj\n"));
                                 }
                                 content.push_str("ET\n");
+
+                                // Draw underline (font-size-relative)
+                                if run.underline {
+                                    let desc = crate::fonts::descender_ratio(&run.font_family)
+                                        * run.font_size;
+                                    let uy = text_y - desc * 0.6;
+                                    let thickness = (run.font_size * 0.07).max(0.5);
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{thickness} w\n{x} {uy} m {x2} {uy} l\nS\n",
+                                        x2 = x + rw,
+                                    ));
+                                }
+
+                                // Draw strikethrough (line-through)
+                                if run.line_through {
+                                    let sy = text_y + run.font_size * 0.3;
+                                    let thickness = (run.font_size * 0.07).max(0.5);
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
+                                        x2 = x + rw,
+                                    ));
+                                }
+
                                 x += rw;
                             }
                         }
@@ -1250,20 +1285,28 @@ fn render_cell_text(
     custom_fonts: &HashMap<String, TtfFont>,
 ) {
     let cell_inner_w = col_width - cell.padding_left - cell.padding_right;
-    // Vertical centering: position text so glyphs are visually centered
-    // within the row height (matches browser vertical-align: middle).
-    // For single-line cells: place baseline so the visual center of the
-    // glyphs (≈ baseline + 0.35 * font_size) is at the row's vertical center.
+    // Vertical centering using font metrics: place glyphs so the visual
+    // midpoint between ascender top and descender bottom sits at the row's
+    // vertical center.
     let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
     let font_size = cell
         .lines
         .first()
         .and_then(|l| l.runs.first())
         .map_or(12.0, |r| r.font_size);
+    let font_family = cell
+        .lines
+        .first()
+        .and_then(|l| l.runs.first())
+        .map_or(FontFamily::Helvetica, |r| r.font_family.clone());
+    let ascender = crate::fonts::ascender_ratio(&font_family) * font_size;
+    let descender = crate::fonts::descender_ratio(&font_family) * font_size;
     let visual_center = row_y - row_height / 2.0;
-    let mut text_y = visual_center + text_h / 2.0 + font_size * 0.15;
+    let mut text_y = visual_center + text_h / 2.0 + (ascender - descender) / 2.0 - ascender;
     for line in &cell.lines {
-        text_y -= line.height;
+        let line_font_size = line.runs.iter().map(|r| r.font_size).fold(0.0f32, f32::max);
+        let half_leading = (line.height - line_font_size) / 2.0;
+        text_y -= line_font_size + half_leading;
         let text_content: String = line.runs.iter().map(|r| r.text.as_str()).collect();
         if text_content.is_empty() {
             continue;
@@ -1314,6 +1357,28 @@ fn render_cell_text(
                 content.push_str(&format!("({encoded}) Tj\n"));
             }
             content.push_str("ET\n");
+
+            // Draw underline (font-size-relative)
+            if run.underline {
+                let desc = crate::fonts::descender_ratio(&run.font_family) * run.font_size;
+                let uy = text_y - desc * 0.6;
+                let thickness = (run.font_size * 0.07).max(0.5);
+                content.push_str(&format!(
+                    "{r} {g} {b} RG\n{thickness} w\n{x} {uy} m {x2} {uy} l\nS\n",
+                    x2 = x + rw,
+                ));
+            }
+
+            // Draw strikethrough (line-through)
+            if run.line_through {
+                let sy = text_y + run.font_size * 0.3;
+                let thickness = (run.font_size * 0.07).max(0.5);
+                content.push_str(&format!(
+                    "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
+                    x2 = x + rw,
+                ));
+            }
+
             x += rw;
         }
     }
@@ -3900,5 +3965,534 @@ mod tests {
             "Should have fill for box shadow"
         );
         assert!(pdf_str.contains("Shadow"), "Should contain the text");
+    }
+
+    // --- Coverage tests for uncovered lines ---
+
+    #[test]
+    fn position_absolute_block_x() {
+        // Covers line 93, 128: Position::Absolute uses margin.left + offset_left
+        let html =
+            r#"<div style="position: absolute; left: 50pt; background-color: cyan">Absolute</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Absolute"),
+            "Should render absolute positioned text"
+        );
+    }
+
+    #[test]
+    fn position_relative_block_x() {
+        // Covers lines 119-120, 129: Position::Relative block_x calculation
+        let html =
+            r#"<div style="position: relative; left: 30pt; background-color: lime">Relative</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Relative"),
+            "Should render relative positioned text"
+        );
+    }
+
+    #[test]
+    fn float_right_positioning() {
+        // Covers line 131: Float::Right block_x = margin.left + available_width - render_w
+        let html = r#"<div style="float: right; width: 100pt">Float right</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Float right"),
+            "Should render float right text"
+        );
+    }
+
+    #[test]
+    fn per_side_border_rendering() {
+        // Covers lines 390-396: non-uniform per-side borders (left border with x_left offset)
+        let html = r#"<div style="border-top: 2pt solid red; border-right: 3pt solid green; border-bottom: 1pt solid blue; border-left: 4pt solid black; width: 200pt; height: 50pt">Borders</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Non-uniform borders produce per-side stroke commands
+        assert!(
+            pdf_str.contains("1 0 0 RG"),
+            "Should have red top border stroke"
+        );
+        assert!(
+            pdf_str.contains("0 0 0 RG"),
+            "Should have black left border stroke"
+        );
+        assert!(
+            pdf_str.contains("l\nS\n") || pdf_str.contains("l S\n"),
+            "Should have per-side line strokes"
+        );
+    }
+
+    #[test]
+    fn center_align_with_inline_span() {
+        // Covers line 487: TextAlign::Center branch in TextBlock with inline padding
+        let html = r#"<p style="text-align: center"><span style="background-color: yellow; padding: 4pt">Centered Span</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Centered Span"),
+            "Should render centered span text"
+        );
+        assert!(
+            pdf_str.contains("1 1 0 rg"),
+            "Should have yellow background fill"
+        );
+    }
+
+    #[test]
+    fn right_align_with_inline_span() {
+        // Covers line 491: TextAlign::Right branch in TextBlock with inline padding
+        let html = r#"<p style="text-align: right"><span style="background-color: lime; padding: 4pt">Right Span</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Right Span"),
+            "Should render right-aligned span text"
+        );
+    }
+
+    #[test]
+    fn letter_spacing_in_text_rendering() {
+        // Covers line 519 (letter-spacing sets Tc operator)
+        let html = r#"<p style="letter-spacing: 2pt">Spaced out</p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Tc\n"),
+            "Letter spacing should produce Tc operator"
+        );
+        assert!(
+            pdf_str.contains("0 Tc\n"),
+            "Letter spacing should be reset to 0"
+        );
+    }
+
+    #[test]
+    fn underline_and_strikethrough_rendering() {
+        // Covers underline and strikethrough draw lines with font-size-relative thickness
+        let html = r#"<p><span style="text-decoration: underline">Under</span> <span style="text-decoration: line-through">Strike</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Both underline and strikethrough produce line strokes (S operator)
+        let stroke_count = pdf_str.matches(" w\n").count();
+        assert!(
+            stroke_count >= 2,
+            "Should have at least 2 stroke weight commands (underline + strikethrough), got {stroke_count}"
+        );
+        // Thickness should scale with font size (not hardcoded 0.5)
+        assert!(
+            pdf_str.contains(" l\nS\n"),
+            "Should draw stroke lines for text decorations"
+        );
+    }
+
+    #[test]
+    fn table_cell_all_borders() {
+        // Covers lines 621, 626-627, 705-724: table cell border rendering (all 4 sides)
+        use crate::parser::css::parse_stylesheet;
+        let html = r#"<html><head><style>
+            td { border: 2pt solid red; }
+        </style></head><body>
+        <table><tr><td>Bordered Cell</td></tr></table>
+        </body></html>"#;
+        let result = crate::parser::html::parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = crate::layout::engine::layout_with_rules(
+            &result.nodes,
+            PageSize::A4,
+            Margin::default(),
+            &rules,
+        );
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Bordered Cell"), "Should render cell text");
+        // Red border strokes
+        assert!(
+            pdf_str.contains("1 0 0 RG"),
+            "Should have red border stroke color"
+        );
+        // Should have multiple line strokes (top, right, bottom, left)
+        let stroke_count = pdf_str.matches("l S\n").count() + pdf_str.matches("l\nS\n").count();
+        assert!(
+            stroke_count >= 4,
+            "Should have at least 4 border line strokes, got {stroke_count}"
+        );
+    }
+
+    #[test]
+    fn table_cell_rowspan_continuation() {
+        // Covers lines 667, 669: rowspan > 1 cell rendering
+        let html = r#"<table>
+            <tr><td rowspan="2">Spanning</td><td>A</td></tr>
+            <tr><td>B</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Spanning"), "Should render rowspan cell");
+        assert!(pdf_str.contains("A"), "Should render first row cell");
+        assert!(pdf_str.contains("B"), "Should render second row cell");
+    }
+
+    #[test]
+    fn flexrow_container_gradient() {
+        // Covers lines 742, 744, 753, 848-874: FlexRow linear gradient with border-radius
+        let html = r#"<div style="display: flex; background: linear-gradient(to right, red, blue); border-radius: 5pt"><div>Gradient Flex</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Gradient Flex"),
+            "Should render flex content"
+        );
+        // Linear gradient produces shading reference
+        assert!(
+            pdf_str.contains("sh\n"),
+            "Should have shading operator for gradient"
+        );
+    }
+
+    #[test]
+    fn flexrow_non_uniform_border() {
+        // Covers lines 790, 798, 804-805, 939-969: FlexRow non-uniform per-side border
+        let html = r#"<div style="display: flex; border-top: 2pt solid red; border-right: 3pt solid green; border-bottom: 1pt solid blue; border-left: 4pt solid black"><div>Flex Borders</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Flex Borders"),
+            "Should render flex content"
+        );
+        // Non-uniform borders produce per-side strokes
+        assert!(
+            pdf_str.contains("1 0 0 RG"),
+            "Should have red stroke for top"
+        );
+    }
+
+    #[test]
+    fn flexrow_cell_inline_background_with_border_radius() {
+        // Covers lines 852-903, 982-1001: FlexRow cell bg with border-radius and gradient
+        let html = r#"<div style="display: flex"><div style="background-color: orange; border-radius: 8pt; width: 100pt">Cell BG</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Cell BG"), "Should render cell text");
+        // Orange background: 1 0.647.. 0 rg — check for the fill command
+        assert!(
+            pdf_str.contains("rg\n"),
+            "Should have fill color for cell background"
+        );
+    }
+
+    #[test]
+    fn flexrow_cell_text_alignment() {
+        // Covers lines 918-969, 1084, 1090: FlexRow cell text-align center and right
+        let html = r#"<div style="display: flex">
+            <div style="width: 200pt; text-align: center">Center</div>
+            <div style="width: 200pt; text-align: right">Right</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("Center"),
+            "Should render center-aligned text"
+        );
+        assert!(
+            pdf_str.contains("Right"),
+            "Should render right-aligned text"
+        );
+    }
+
+    #[test]
+    fn render_cell_text_vertical_centering() {
+        // Covers lines 1116-1123: render_cell_text vertical centering with bg + border-radius
+        let run = TextRun {
+            text: "Centered".to_string(),
+            font_size: 14.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: Some((1.0, 0.0, 0.0)),
+            padding: (4.0, 2.0),
+            border_radius: 3.0,
+        };
+        let cell = TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 16.0,
+            }],
+            bold: false,
+            colspan: 1,
+            rowspan: 1,
+            padding_top: 4.0,
+            padding_bottom: 4.0,
+            padding_left: 4.0,
+            padding_right: 4.0,
+            background_color: None,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Center,
+        };
+        let mut content = String::new();
+        let fonts = HashMap::new();
+        render_cell_text(&mut content, &cell, 10.0, 200.0, 100.0, 40.0, &fonts);
+        assert!(content.contains("Centered"), "Should render cell text");
+        // Background with border-radius produces rounded rect
+        assert!(
+            content.contains("1 0 0 rg"),
+            "Should have red inline background"
+        );
+    }
+
+    #[test]
+    fn merge_runs_border_radius_comparison() {
+        // Covers lines 1175, 1179-1180: merge_runs checks border_radius equality
+        let run_a = TextRun {
+            text: "Hello ".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: Some((1.0, 1.0, 0.0)),
+            padding: (2.0, 1.0),
+            border_radius: 4.0,
+        };
+        let run_b = TextRun {
+            text: "World".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: Some((1.0, 1.0, 0.0)),
+            padding: (2.0, 1.0),
+            border_radius: 8.0, // Different border_radius
+        };
+        let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
+        // Different border_radius should prevent merging
+        assert_eq!(
+            merged.len(),
+            2,
+            "Runs with different border_radius should not merge"
+        );
+        // Same border_radius should merge
+        let mut run_b_same = run_b;
+        run_b_same.border_radius = 4.0;
+        let merged2 = merge_runs(&[run_a, run_b_same]);
+        assert_eq!(
+            merged2.len(),
+            1,
+            "Runs with same border_radius should merge"
+        );
+    }
+
+    #[test]
+    fn build_shading_function_four_stops_stitching() {
+        // Covers lines 1277-1304: Type 3 stitching function with 4 stops
+        let stops = vec![
+            (0.0, (1.0, 0.0, 0.0)),
+            (0.33, (0.0, 1.0, 0.0)),
+            (0.66, (0.0, 0.0, 1.0)),
+            (1.0, (1.0, 1.0, 0.0)),
+        ];
+        let result = build_shading_function(&stops);
+        assert!(
+            result.contains("/FunctionType 3"),
+            "4 stops should produce Type 3 stitching function"
+        );
+        assert!(
+            result.contains("/Bounds [0.33 0.66]"),
+            "Should have bounds for intermediate stops"
+        );
+        assert!(
+            result.contains("/Encode [0 1 0 1 0 1]"),
+            "Should have encode entries for each sub-function"
+        );
+        // Should contain 3 sub-functions (one per stop pair)
+        let subfn_count = result.matches("/FunctionType 2").count();
+        assert_eq!(
+            subfn_count, 3,
+            "Should have 3 Type 2 sub-functions, got {subfn_count}"
+        );
+    }
+
+    #[test]
+    fn custom_font_embedding_in_pdf() {
+        // Covers lines 1628-1657: TTF font objects in PDF
+        use crate::parser::ttf::TtfFont;
+        let mut cmap = HashMap::new();
+        for c in 32u16..=126 {
+            cmap.insert(c, c - 31);
+        }
+        let ttf = TtfFont {
+            font_name: "TestFont".to_string(),
+            units_per_em: 1000,
+            bbox: [0, -200, 800, 800],
+            ascent: 800,
+            descent: -200,
+            cmap,
+            glyph_widths: (0..=96).map(|_| 500).collect(),
+            num_h_metrics: 96,
+            flags: 32,
+            data: vec![0u8; 64], // Minimal dummy font data
+        };
+        let mut fonts = HashMap::new();
+        fonts.insert("TestFont".to_string(), ttf);
+
+        let run = TextRun {
+            text: "Custom".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Custom("TestFont".to_string()),
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let page = Page {
+            elements: vec![(
+                0.0,
+                LayoutElement::TextBlock {
+                    lines: vec![TextLine {
+                        runs: vec![run],
+                        height: 14.0,
+                    }],
+                    margin_top: 0.0,
+                    margin_bottom: 0.0,
+                    text_align: TextAlign::Left,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    padding_right: 0.0,
+                    border: LayoutBorder::default(),
+                    block_width: None,
+                    block_height: None,
+                    opacity: 1.0,
+                    float: Float::None,
+                    clear: crate::style::computed::Clear::None,
+                    position: Position::Static,
+                    offset_top: 0.0,
+                    offset_left: 0.0,
+                    box_shadow: None,
+                    visible: true,
+                    clip_rect: None,
+                    transform: None,
+                    background_gradient: None,
+                    background_radial_gradient: None,
+                    border_radius: 0.0,
+                    outline_width: 0.0,
+                    outline_color: None,
+                    text_indent: 0.0,
+                    letter_spacing: 0.0,
+                    word_spacing: 0.0,
+                    vertical_align: crate::style::computed::VerticalAlign::Baseline,
+                    z_index: 0,
+                },
+            )],
+        };
+        let pdf = render_pdf_with_fonts(&[page], PageSize::A4, Margin::default(), &fonts).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("/BaseFont /TestFont"),
+            "Should have custom font BaseFont entry"
+        );
+        assert!(
+            pdf_str.contains("/Subtype /TrueType"),
+            "Should have TrueType subtype"
+        );
+        assert!(
+            pdf_str.contains("/FontDescriptor"),
+            "Should have FontDescriptor reference"
+        );
+        assert!(
+            pdf_str.contains("/FontFile2"),
+            "Should have FontFile2 reference for embedded TTF"
+        );
+        assert!(
+            pdf_str.contains("/TestFont"),
+            "Should reference custom font name"
+        );
+    }
+
+    #[test]
+    fn ext_gstate_objects_rendered() {
+        // Covers line 2011: ExtGState objects in resource dict
+        let html = r#"<div style="opacity: 0.3">Dim</div><div style="opacity: 0.7">Bright</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("/ca 0.3"), "Should have fill opacity 0.3");
+        assert!(pdf_str.contains("/ca 0.7"), "Should have fill opacity 0.7");
+        assert!(
+            pdf_str.contains("/ExtGState"),
+            "Should have ExtGState in resources"
+        );
+        // Should have default GS reset
+        assert!(
+            pdf_str.contains("/GSDefault gs"),
+            "Should reset to default graphics state"
+        );
+    }
+
+    #[test]
+    fn flexrow_cell_gradient_with_border_radius() {
+        // Covers lines 1009-1060: FlexRow cell with linear gradient + border-radius clip
+        let html = r#"<div style="display: flex"><div style="width: 150pt; background: linear-gradient(to bottom, red, blue); border-radius: 10pt">Grad Cell</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Grad Cell"), "Should render cell text");
+        assert!(
+            pdf_str.contains("sh\n"),
+            "Should have shading operator for cell gradient"
+        );
     }
 }
