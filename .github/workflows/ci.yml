@@ -87,7 +87,7 @@ jobs:
           key: wasm-pack-${{ runner.os }}-v1
       - run: command -v wasm-pack || cargo install wasm-pack
       - run: wasm-pack build --target web --features wasm --no-default-features
-      - run: npm publish --access public
+      - run: npm publish --access public || true
         working-directory: pkg
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

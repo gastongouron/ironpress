@@ -2,7 +2,8 @@
 Cargo.lock
 .claude/
 .DS_Store
-examples/*.pdf
+docs/
+examples/
 fuzz/corpus/
 fuzz/artifacts/
 fuzz/target/
