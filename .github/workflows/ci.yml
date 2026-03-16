@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -64,6 +65,43 @@ jobs:
             echo "=== Fuzzing $target for 30s ==="
             cargo fuzz run "$target" -- -max_total_time=30
           done
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: [test, clippy, fmt, wasm]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: wasm-pack-${{ runner.os }}-v1
+      - run: command -v wasm-pack || cargo install wasm-pack
+      - run: wasm-pack build --target web --features wasm --no-default-features
+      - run: npm publish --access public
+        working-directory: pkg
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-crate:
+    runs-on: ubuntu-latest
+    needs: [test, clippy, fmt]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   coverage:
     runs-on: ubuntu-latest
