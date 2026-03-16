@@ -6088,4 +6088,123 @@ mod tests {
         // 24pt / 12pt = 2.0
         assert!((style.line_height - 2.0).abs() < 0.1);
     }
+
+    // --- flex-grow / flex-shrink / flex-basis coverage tests ---
+
+    #[test]
+    fn flex_grow_property() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-grow: 2"), &parent);
+        assert!((style.flex_grow - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn flex_shrink_property() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-shrink: 0"), &parent);
+        assert!((style.flex_shrink - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn flex_basis_length() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-basis: 200pt"), &parent);
+        assert_eq!(style.flex_basis, Some(200.0));
+    }
+
+    #[test]
+    fn flex_basis_auto() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-basis: auto"), &parent);
+        assert_eq!(style.flex_basis, None);
+    }
+
+    #[test]
+    fn flex_grow_negative_clamped() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-grow: -3"), &parent);
+        assert!((style.flex_grow - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn flex_shorthand_none() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: none"), &parent);
+        assert!((style.flex_grow - 0.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 0.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, None);
+    }
+
+    #[test]
+    fn flex_shorthand_auto() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: auto"), &parent);
+        assert!((style.flex_grow - 1.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 1.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, None);
+    }
+
+    #[test]
+    fn flex_shorthand_single_number() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: 3"), &parent);
+        assert!((style.flex_grow - 3.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 1.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, Some(0.0));
+    }
+
+    #[test]
+    fn flex_shorthand_two_values() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: 2 0"), &parent);
+        assert!((style.flex_grow - 2.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 0.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, Some(0.0));
+    }
+
+    #[test]
+    fn flex_shorthand_three_values() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: 1 0 200px"), &parent);
+        assert!((style.flex_grow - 1.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 0.0).abs() < f32::EPSILON);
+        // 200px ≈ 200 * 0.75 = 150pt
+        assert!(style.flex_basis.is_some());
+        assert!(style.flex_basis.unwrap() > 0.0);
+    }
+
+    #[test]
+    fn flex_shorthand_three_values_auto_basis() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex: 1 1 auto"), &parent);
+        assert!((style.flex_grow - 1.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 1.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, None);
+    }
+
+    #[test]
+    fn flex_grow_resets_on_non_inherited() {
+        let mut parent = ComputedStyle::default();
+        parent.flex_grow = 5.0;
+        // flex properties don't inherit — child should get default
+        let style = compute_style(HtmlTag::Div, None, &parent);
+        assert!((style.flex_grow - 0.0).abs() < f32::EPSILON);
+        assert!((style.flex_shrink - 1.0).abs() < f32::EPSILON);
+        assert_eq!(style.flex_basis, None);
+    }
+
+    #[test]
+    fn flex_grow_initial_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("flex-grow: initial"), &parent);
+        assert!((style.flex_grow - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn flex_grow_inherit() {
+        let mut parent = ComputedStyle::default();
+        parent.flex_grow = 3.0;
+        let style = compute_style(HtmlTag::Div, Some("flex-grow: inherit"), &parent);
+        assert!((style.flex_grow - 3.0).abs() < f32::EPSILON);
+    }
 }

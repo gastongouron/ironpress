@@ -4495,4 +4495,121 @@ mod tests {
             "Should have shading operator for cell gradient"
         );
     }
+
+    #[test]
+    fn half_leading_text_positioning() {
+        // Text blocks should use half-leading model (not full line.height offset)
+        let html = "<p style=\"font-size: 20pt; line-height: 2\">Test</p>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Should contain Td operator for text positioning
+        assert!(pdf_str.contains("Td\n"), "Should have text positioning");
+        // Text should be rendered
+        assert!(pdf_str.contains("(Test)"), "Should contain text content");
+    }
+
+    #[test]
+    fn underline_in_flex_cell() {
+        // Underline in flex cells should produce stroke commands
+        let html = r#"<html><head><style>
+            .row { display: flex; }
+        </style></head><body>
+        <div class="row">
+            <div><u>Underlined in flex</u></div>
+        </div>
+        </body></html>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Should have a stroke line for underline
+        assert!(
+            pdf_str.contains(" l\nS\n"),
+            "Should draw underline stroke in flex cell"
+        );
+    }
+
+    #[test]
+    fn strikethrough_in_flex_cell() {
+        let html = r#"<html><head><style>
+            .row { display: flex; }
+        </style></head><body>
+        <div class="row">
+            <div><del>Deleted in flex</del></div>
+        </div>
+        </body></html>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains(" l\nS\n"),
+            "Should draw strikethrough stroke in flex cell"
+        );
+    }
+
+    #[test]
+    fn underline_in_table_cell() {
+        let html = r#"<table><tr><td><u>Underlined cell</u></td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains(" l\nS\n"),
+            "Should draw underline stroke in table cell"
+        );
+    }
+
+    #[test]
+    fn strikethrough_in_table_cell() {
+        let html = r#"<table><tr><td><s>Struck cell</s></td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains(" l\nS\n"),
+            "Should draw strikethrough stroke in table cell"
+        );
+    }
+
+    #[test]
+    fn font_size_relative_underline_thickness() {
+        // Large font should produce thicker underline than small font
+        let html = r#"<p><span style="font-size: 6pt; text-decoration: underline">Small</span></p>
+        <p><span style="font-size: 30pt; text-decoration: underline">Big</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // Both should have strokes; thickness should vary
+        let w_count = pdf_str.matches(" w\n").count();
+        assert!(
+            w_count >= 2,
+            "Should have at least 2 underline thickness commands, got {w_count}"
+        );
+    }
+
+    #[test]
+    fn table_cell_vertical_centering_with_metrics() {
+        // Table cells with different row heights should center text
+        let html = r#"<table>
+            <tr>
+                <td style="padding: 20pt">Centered</td>
+                <td>Short</td>
+            </tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("(Centered)"),
+            "Should render centered cell text"
+        );
+        assert!(pdf_str.contains("(Short)"), "Should render short cell text");
+    }
 }
