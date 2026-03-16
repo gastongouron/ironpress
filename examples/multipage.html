@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @page { size: A4; margin: 0.75in; }
+  body { font-family: Helvetica, sans-serif; font-size: 10pt; color: #333; }
+
+  h1 { font-size: 22pt; color: #1a1a2e; margin-bottom: 6pt; }
+  h2 { font-size: 16pt; color: #16213e; margin-top: 20pt; border-bottom: 2pt solid #0f3460; padding-bottom: 4pt; }
+  h3 { font-size: 12pt; color: #533483; margin-top: 12pt; }
+
+  .hero {
+    background: linear-gradient(135deg, #0f3460, #533483);
+    color: white;
+    padding: 24pt 20pt;
+    border-radius: 8pt;
+    margin-bottom: 16pt;
+  }
+  .hero h1 { color: white; margin: 0 0 4pt 0; }
+  .hero p { font-size: 11pt; margin: 0; }
+
+  .metrics { display: flex; gap: 8pt; margin-bottom: 16pt; }
+  .metric {
+    flex: 1;
+    background-color: #f0f0f5;
+    border-radius: 6pt;
+    padding: 10pt;
+    text-align: center;
+  }
+  .metric .label { font-size: 8pt; color: #666; margin: 0; }
+  .metric .value { font-size: 18pt; font-weight: bold; color: #1a1a2e; margin: 4pt 0 0 0; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+  th { background-color: #1a1a2e; color: white; padding: 6pt 10pt; text-align: left; font-size: 9pt; }
+  td { padding: 6pt 10pt; border-bottom: 1pt solid #e0e0e0; }
+  tr:nth-child(even) td { background-color: #f8f8fc; }
+  .total-row td { border-top: 2pt solid #1a1a2e; font-weight: bold; font-size: 11pt; }
+
+  .status { display: inline; padding: 2pt 6pt; border-radius: 3pt; font-size: 8pt; color: white; }
+  .status-green { background-color: #27ae60; }
+  .status-yellow { background-color: #f39c12; }
+  .status-red { background-color: #e74c3c; }
+
+  blockquote {
+    border-left: 3pt solid #533483;
+    padding-left: 12pt;
+    margin: 12pt 0;
+    color: #555;
+    font-style: italic;
+  }
+
+  .highlight {
+    background: linear-gradient(to right, #0f3460, #533483);
+    color: white;
+    padding: 12pt 16pt;
+    border-radius: 6pt;
+    margin: 16pt 0;
+  }
+
+  .footer {
+    margin-top: 30pt;
+    padding-top: 6pt;
+    border-top: 1pt solid #ddd;
+    font-size: 8pt;
+    color: #999;
+    text-align: center;
+  }
+
+  ul { margin: 4pt 0 8pt 0; }
+  li { margin-bottom: 3pt; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Annual Technology Report 2026</h1>
+  <p>Infrastructure, Performance &amp; Engineering Review</p>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <p class="label">UPTIME</p>
+    <p class="value">99.97%</p>
+  </div>
+  <div class="metric">
+    <p class="label">DEPLOYMENTS</p>
+    <p class="value">2,847</p>
+  </div>
+  <div class="metric">
+    <p class="label">INCIDENTS</p>
+    <p class="value">12</p>
+  </div>
+  <div class="metric">
+    <p class="label">LATENCY P99</p>
+    <p class="value">42ms</p>
+  </div>
+</div>
+
+<h2>1. Executive Summary</h2>
+
+<p>The engineering team delivered exceptional results in 2026, achieving record-breaking uptime and
+deployment velocity while significantly reducing incident count. Our investment in infrastructure
+modernization, observability tooling, and developer experience has paid dividends across all
+key performance indicators.</p>
+
+<p>This report covers the full calendar year, spanning four major product launches, three
+infrastructure migrations, and the successful adoption of our new continuous deployment pipeline.
+The results demonstrate that our strategic focus on reliability, performance, and developer
+productivity continues to drive meaningful business outcomes.</p>
+
+<blockquote>
+  "2026 marks a turning point in our engineering maturity. The combination of automated testing,
+  progressive rollouts, and real-time observability has fundamentally changed how we ship software."
+  &mdash; VP of Engineering
+</blockquote>
+
+<h2>2. Infrastructure Overview</h2>
+
+<h3>2.1 Cloud Resources</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Resource Type</th>
+      <th>Count</th>
+      <th>Region</th>
+      <th>Monthly Cost</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Compute Instances</td>
+      <td>847</td>
+      <td>us-east-1, eu-west-1</td>
+      <td>$124,500</td>
+      <td><span class="status status-green">Healthy</span></td>
+    </tr>
+    <tr>
+      <td>Database Clusters</td>
+      <td>24</td>
+      <td>us-east-1, ap-southeast-1</td>
+      <td>$67,200</td>
+      <td><span class="status status-green">Healthy</span></td>
+    </tr>
+    <tr>
+      <td>Load Balancers</td>
+      <td>16</td>
+      <td>Global</td>
+      <td>$8,400</td>
+      <td><span class="status status-green">Healthy</span></td>
+    </tr>
+    <tr>
+      <td>CDN Nodes</td>
+      <td>200+</td>
+      <td>Global</td>
+      <td>$32,100</td>
+      <td><span class="status status-green">Healthy</span></td>
+    </tr>
+    <tr>
+      <td>Object Storage</td>
+      <td>48 TB</td>
+      <td>us-east-1</td>
+      <td>$4,800</td>
+      <td><span class="status status-yellow">Scaling</span></td>
+    </tr>
+    <tr>
+      <td>Message Queues</td>
+      <td>12</td>
+      <td>us-east-1, eu-west-1</td>
+      <td>$3,600</td>
+      <td><span class="status status-green">Healthy</span></td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="3">Total Monthly Infrastructure Cost</td>
+      <td>$240,600</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.2 Performance Metrics</h3>
+
+<p>Throughout 2026, we maintained consistent performance across all service tiers. API latency
+at the 99th percentile remained below our 50ms SLA target for 364 out of 365 days. The single
+exception was traced to a network partition in us-east-1 on March 12th, which was resolved
+within 23 minutes.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Service</th>
+      <th>P50 Latency</th>
+      <th>P95 Latency</th>
+      <th>P99 Latency</th>
+      <th>Error Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>API Gateway</td>
+      <td>8ms</td>
+      <td>24ms</td>
+      <td>42ms</td>
+      <td>0.02%</td>
+    </tr>
+    <tr>
+      <td>Auth Service</td>
+      <td>12ms</td>
+      <td>35ms</td>
+      <td>58ms</td>
+      <td>0.01%</td>
+    </tr>
+    <tr>
+      <td>Payment Processing</td>
+      <td>45ms</td>
+      <td>120ms</td>
+      <td>250ms</td>
+      <td>0.005%</td>
+    </tr>
+    <tr>
+      <td>Search Engine</td>
+      <td>15ms</td>
+      <td>45ms</td>
+      <td>95ms</td>
+      <td>0.03%</td>
+    </tr>
+    <tr>
+      <td>Notification Hub</td>
+      <td>5ms</td>
+      <td>18ms</td>
+      <td>32ms</td>
+      <td>0.01%</td>
+    </tr>
+    <tr>
+      <td>Analytics Pipeline</td>
+      <td>200ms</td>
+      <td>450ms</td>
+      <td>850ms</td>
+      <td>0.1%</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Team Roster &amp; Contributions</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+      <th>Team</th>
+      <th>Key Contribution</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Sarah Chen</strong></td>
+      <td>Staff Engineer</td>
+      <td>Platform</td>
+      <td>Led migration to Kubernetes</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>Marcus Johnson</strong></td>
+      <td>Senior Engineer</td>
+      <td>Backend</td>
+      <td>Redesigned auth system</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>Priya Patel</strong></td>
+      <td>Engineering Manager</td>
+      <td>Growth</td>
+      <td>Scaled team from 8 to 15</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>Alex Kim</strong></td>
+      <td>SRE Lead</td>
+      <td>Reliability</td>
+      <td>Implemented chaos engineering</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>Jordan Rivera</strong></td>
+      <td>Data Engineer</td>
+      <td>Analytics</td>
+      <td>Built real-time pipeline</td>
+      <td><span class="status status-yellow">On Leave</span></td>
+    </tr>
+    <tr>
+      <td><strong>Emily Zhang</strong></td>
+      <td>Security Engineer</td>
+      <td>Security</td>
+      <td>SOC 2 certification</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>David Okafor</strong></td>
+      <td>Frontend Lead</td>
+      <td>Product</td>
+      <td>Design system v2</td>
+      <td><span class="status status-green">Active</span></td>
+    </tr>
+    <tr>
+      <td><strong>Lisa Thompson</strong></td>
+      <td>DevOps Engineer</td>
+      <td>Platform</td>
+      <td>CI/CD pipeline overhaul</td>
+      <td><span class="status status-red">Offboarded</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="highlight">
+  <strong>Key Achievement:</strong> Zero-downtime deployment capability achieved across all
+  production services. Average deployment time reduced from 45 minutes to 3 minutes through
+  progressive rollout automation.
+</div>
+
+<h2>4. Incident Review</h2>
+
+<p>The engineering team resolved all 12 production incidents within SLA targets. Mean time to
+detection (MTTD) improved by 62% year-over-year, while mean time to resolution (MTTR) improved
+by 45%. This improvement is directly attributable to our investment in observability tooling
+and automated alerting.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Severity</th>
+      <th>Service</th>
+      <th>Description</th>
+      <th>MTTR</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Jan 15</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>API Gateway</td>
+      <td>Elevated latency due to certificate rotation</td>
+      <td>18 min</td>
+    </tr>
+    <tr>
+      <td>Feb 28</td>
+      <td><span class="status status-red">P1</span></td>
+      <td>Database</td>
+      <td>Primary failover triggered by disk I/O saturation</td>
+      <td>7 min</td>
+    </tr>
+    <tr>
+      <td>Mar 12</td>
+      <td><span class="status status-red">P1</span></td>
+      <td>Network</td>
+      <td>us-east-1 network partition affecting all services</td>
+      <td>23 min</td>
+    </tr>
+    <tr>
+      <td>Apr 3</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Auth</td>
+      <td>Token validation timeout during peak traffic</td>
+      <td>12 min</td>
+    </tr>
+    <tr>
+      <td>May 19</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>CDN</td>
+      <td>Cache invalidation storm after config change</td>
+      <td>8 min</td>
+    </tr>
+    <tr>
+      <td>Jun 7</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Search</td>
+      <td>Index corruption after schema migration</td>
+      <td>35 min</td>
+    </tr>
+    <tr>
+      <td>Jul 22</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Payments</td>
+      <td>Third-party payment provider timeout</td>
+      <td>45 min</td>
+    </tr>
+    <tr>
+      <td>Aug 14</td>
+      <td><span class="status status-red">P1</span></td>
+      <td>API Gateway</td>
+      <td>Rate limiter misconfiguration blocking valid traffic</td>
+      <td>5 min</td>
+    </tr>
+    <tr>
+      <td>Sep 30</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Analytics</td>
+      <td>Pipeline backpressure causing data delay</td>
+      <td>22 min</td>
+    </tr>
+    <tr>
+      <td>Oct 11</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Auth</td>
+      <td>SSO integration failure after IdP upgrade</td>
+      <td>15 min</td>
+    </tr>
+    <tr>
+      <td>Nov 24</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>CDN</td>
+      <td>Regional cache node failure (Black Friday)</td>
+      <td>10 min</td>
+    </tr>
+    <tr>
+      <td>Dec 18</td>
+      <td><span class="status status-yellow">P2</span></td>
+      <td>Database</td>
+      <td>Slow query causing connection pool exhaustion</td>
+      <td>20 min</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5. 2027 Roadmap</h2>
+
+<p>Based on the lessons learned in 2026 and our strategic priorities, the engineering team has
+identified the following key initiatives for 2027:</p>
+
+<h3>5.1 Infrastructure</h3>
+<ul>
+  <li>Complete multi-region active-active deployment across 3 regions</li>
+  <li>Migrate remaining legacy services to containerized architecture</li>
+  <li>Implement zero-trust networking model</li>
+  <li>Deploy automated capacity planning and scaling</li>
+</ul>
+
+<h3>5.2 Developer Experience</h3>
+<ul>
+  <li>Reduce CI pipeline time from 12 minutes to under 5 minutes</li>
+  <li>Launch internal developer portal with service catalog</li>
+  <li>Implement feature flag system for all product teams</li>
+  <li>Standardize observability across all microservices</li>
+</ul>
+
+<h3>5.3 Security &amp; Compliance</h3>
+<ul>
+  <li>Achieve ISO 27001 certification</li>
+  <li>Implement automated vulnerability scanning in CI pipeline</li>
+  <li>Deploy secrets rotation automation</li>
+  <li>Complete GDPR data mapping and retention policy implementation</li>
+</ul>
+
+<blockquote>
+  "Our 2027 strategy builds on the foundation we established this year. The focus shifts from
+  building core capabilities to scaling them across the organization and hardening our security
+  posture for enterprise customers."
+  &mdash; CTO
+</blockquote>
+
+<div class="footer">
+  <p>Confidential &mdash; Annual Technology Report 2026 &mdash; Generated by ironpress v0.9.0</p>
+</div>
+
+</body>
+</html>

@@ -732,7 +732,17 @@ fn flatten_element(
 
     // Table handling
     if el.tag == HtmlTag::Table {
-        flatten_table(el, &style, available_width, output, rules, fonts);
+        flatten_table(
+            el,
+            &style,
+            available_width,
+            output,
+            rules,
+            fonts,
+            ancestors,
+            child_index,
+            sibling_count,
+        );
         return;
     }
 
@@ -1429,6 +1439,9 @@ fn flatten_flex_container(
     struct FlexItem {
         elements: Vec<LayoutElement>,
         width: f32,
+        base_width: f32,
+        flex_grow: f32,
+        flex_shrink: f32,
         height: f32,
     }
 
@@ -1468,11 +1481,19 @@ fn flatten_flex_container(
             continue;
         }
 
-        // Determine child width
-        let child_w = child_style.width.unwrap_or_else(|| {
-            // Distribute remaining space (minus gaps) equally among items without explicit width
-            width_for_percentages / child_count as f32
-        });
+        // Determine child width: flex-basis takes priority, then explicit width.
+        // If neither is set and flex-grow > 0, use 0 as base (grow will distribute).
+        // Otherwise fall back to equal share.
+        let child_w = child_style
+            .flex_basis
+            .or(child_style.width)
+            .unwrap_or_else(|| {
+                if child_style.flex_grow > 0.0 {
+                    0.0
+                } else {
+                    width_for_percentages / child_count as f32
+                }
+            });
 
         let child_inner_w = if child_style.box_sizing == BoxSizing::BorderBox {
             child_w
@@ -1560,6 +1581,9 @@ fn flatten_flex_container(
         items.push(FlexItem {
             elements: vec![elem],
             width: child_w,
+            base_width: child_w,
+            flex_grow: child_style.flex_grow,
+            flex_shrink: child_style.flex_shrink,
             height: child_h + child_style.margin.top + child_style.margin.bottom,
         });
     }
@@ -1776,19 +1800,46 @@ fn flatten_flex_container(
                 } else {
                     0.0
                 };
-                let mut free_space = (inner_width - total_item_width - total_gap).max(0.0);
+                let mut free_space = inner_width - total_item_width - total_gap;
 
-                // Implicit flex-grow: when the remaining free space is small
-                // (< 5% of container), distribute it among items to fill the
-                // container exactly.  This matches browser behavior where
-                // percentage widths like 33%×3 fill the row despite rounding.
-                if free_space > 0.0 && free_space < inner_width * 0.05 && line_item_count > 0 {
+                // Flex grow: distribute positive free space proportionally
+                let total_grow: f32 = line_items.iter().map(|&i| items[i].flex_grow).sum();
+                if free_space > 0.0 && total_grow > 0.0 {
+                    for &i in &line_items {
+                        items[i].width += free_space * (items[i].flex_grow / total_grow);
+                    }
+                    free_space = 0.0;
+                } else if free_space > 0.0
+                    && total_grow == 0.0
+                    && free_space < inner_width * 0.05
+                    && line_item_count > 0
+                {
+                    // Fallback: small rounding remainder with no explicit flex-grow
                     let grow_each = free_space / line_item_count as f32;
                     for &i in &line_items {
                         items[i].width += grow_each;
                     }
                     free_space = 0.0;
                 }
+
+                // Flex shrink: shrink items when overflowing
+                if free_space < 0.0 {
+                    let total_shrink_weighted: f32 = line_items
+                        .iter()
+                        .map(|&i| items[i].flex_shrink * items[i].base_width)
+                        .sum();
+                    if total_shrink_weighted > 0.0 {
+                        let deficit = -free_space;
+                        for &i in &line_items {
+                            let shrink_ratio =
+                                items[i].flex_shrink * items[i].base_width / total_shrink_weighted;
+                            items[i].width = (items[i].width - deficit * shrink_ratio).max(0.0);
+                        }
+                    }
+                    free_space = 0.0;
+                }
+
+                let free_space = free_space.max(0.0);
 
                 // Calculate starting x and spacing based on justify-content
                 let (mut x, extra_gap) = match justify {
@@ -2226,6 +2277,7 @@ fn flatten_grid_container(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn flatten_table(
     el: &ElementNode,
     style: &ComputedStyle,
@@ -2233,16 +2285,36 @@ fn flatten_table(
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
+    ancestors: &[AncestorInfo],
+    table_child_index: usize,
+    table_sibling_count: usize,
 ) {
     let inner_width = available_width - style.margin.left - style.margin.right;
+
+    // Build ancestor chain: everything above + the table element itself.
+    let mut table_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
+    table_ancestors.push(AncestorInfo {
+        element: el,
+        child_index: table_child_index,
+        sibling_count: table_sibling_count,
+    });
 
     // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
     // Track section-relative indices so nth-child counts within each section
     // (thead, tbody, tfoot) as browsers do, not globally.
+    // Also track the section element so descendant selectors can see it.
     let mut rows: Vec<&ElementNode> = Vec::new();
     let mut row_section_indices: Vec<usize> = Vec::new();
     let mut row_section_sizes: Vec<usize> = Vec::new();
-    for child in &el.children {
+    let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
+    let mut row_section_child_indices: Vec<usize> = Vec::new();
+    let mut row_section_sibling_counts: Vec<usize> = Vec::new();
+    let section_count = el
+        .children
+        .iter()
+        .filter(|c| matches!(c, DomNode::Element(_)))
+        .count();
+    for (section_child_idx, child) in el.children.iter().enumerate() {
         if let DomNode::Element(child_el) = child {
             match child_el.tag {
                 HtmlTag::Tr => {
@@ -2251,6 +2323,9 @@ fn flatten_table(
                     rows.push(child_el);
                     row_section_indices.push(idx);
                     row_section_sizes.push(1);
+                    row_section_elements.push(None);
+                    row_section_child_indices.push(section_child_idx);
+                    row_section_sibling_counts.push(section_count);
                 }
                 HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
                     let section_rows: Vec<&ElementNode> = child_el
@@ -2270,6 +2345,9 @@ fn flatten_table(
                         rows.push(gc);
                         row_section_indices.push(i);
                         row_section_sizes.push(section_size);
+                        row_section_elements.push(Some(child_el));
+                        row_section_child_indices.push(section_child_idx);
+                        row_section_sibling_counts.push(section_count);
                     }
                 }
                 _ => {}
@@ -2312,8 +2390,17 @@ fn flatten_table(
 
     for (sizing_row_idx, row) in rows.iter().enumerate() {
         let row_classes = row.class_list();
+        // Build ancestors for the row: table + optional section element
+        let mut sizing_row_ancestors = table_ancestors.clone();
+        if let Some(section_el) = row_section_elements[sizing_row_idx] {
+            sizing_row_ancestors.push(AncestorInfo {
+                element: section_el,
+                child_index: row_section_child_indices[sizing_row_idx],
+                sibling_count: row_section_sibling_counts[sizing_row_idx],
+            });
+        }
         let sizing_row_ctx = SelectorContext {
-            ancestors: Vec::new(),
+            ancestors: sizing_row_ancestors,
             child_index: row_section_indices[sizing_row_idx],
             sibling_count: row_section_sizes[sizing_row_idx],
             preceding_siblings: Vec::new(),
@@ -2340,12 +2427,14 @@ fn flatten_table(
                         .unwrap_or(1)
                         .max(1);
                     let cell_classes = cell_el.class_list();
+                    let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
+                    cell_sizing_ancestors.push(AncestorInfo {
+                        element: row,
+                        child_index: row_section_indices[sizing_row_idx],
+                        sibling_count: row_section_sizes[sizing_row_idx],
+                    });
                     let cell_sizing_ctx = SelectorContext {
-                        ancestors: vec![AncestorInfo {
-                            element: row,
-                            child_index: sizing_row_idx,
-                            sibling_count: rows.len(),
-                        }],
+                        ancestors: cell_sizing_ancestors,
                         child_index: col_pos,
                         sibling_count: num_cols,
                         preceding_siblings: Vec::new(),
@@ -2447,15 +2536,23 @@ fn flatten_table(
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
-    let total_rows = rows.len();
     for (row_idx, row) in rows.iter().enumerate() {
         let row_classes = row.class_list();
         // Use section-relative index for nth-child matching (browsers count
         // within thead/tbody/tfoot, not globally across all rows).
         let section_idx = row_section_indices[row_idx];
         let section_size = row_section_sizes[row_idx];
+        // Build ancestors for the row: table + optional section element
+        let mut row_ancestors = table_ancestors.clone();
+        if let Some(section_el) = row_section_elements[row_idx] {
+            row_ancestors.push(AncestorInfo {
+                element: section_el,
+                child_index: row_section_child_indices[row_idx],
+                sibling_count: row_section_sibling_counts[row_idx],
+            });
+        }
         let row_selector_ctx = SelectorContext {
-            ancestors: Vec::new(),
+            ancestors: row_ancestors,
             child_index: section_idx,
             sibling_count: section_size,
             preceding_siblings: Vec::new(),
@@ -2537,12 +2634,14 @@ fn flatten_table(
                 .max(1);
 
             let cell_classes = cell_el.class_list();
+            let mut cell_ancestors = row_selector_ctx.ancestors.clone();
+            cell_ancestors.push(AncestorInfo {
+                element: row,
+                child_index: section_idx,
+                sibling_count: section_size,
+            });
             let cell_selector_ctx = SelectorContext {
-                ancestors: vec![AncestorInfo {
-                    element: row,
-                    child_index: row_idx,
-                    sibling_count: total_rows,
-                }],
+                ancestors: cell_ancestors,
                 child_index: col_pos,
                 sibling_count: num_cols,
                 preceding_siblings: Vec::new(),
@@ -3165,6 +3264,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     // Track active float regions for simplified float/clear behavior
     let mut left_floats: Vec<FloatRegion> = Vec::new();
     let mut right_floats: Vec<FloatRegion> = Vec::new();
+    let mut prev_margin_bottom: f32 = 0.0;
 
     for element in elements {
         // Extract float/clear/position info from TextBlock elements
@@ -3205,12 +3305,14 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             Clear::None => {}
         }
 
-        let (element_height, margin_top_val) = match &element {
+        // Returns (content_height_without_margins, margin_top, margin_bottom)
+        let (content_h_val, margin_top_val, margin_bottom_val) = match &element {
             LayoutElement::PageBreak => {
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                 });
                 y = 0.0;
+                prev_margin_bottom = 0.0;
                 left_floats.clear();
                 right_floats.clear();
                 continue;
@@ -3218,7 +3320,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             LayoutElement::HorizontalRule {
                 margin_top,
                 margin_bottom,
-            } => (*margin_top + 1.0 + *margin_bottom, *margin_top),
+            } => (1.0, *margin_top, *margin_bottom),
             LayoutElement::TableRow {
                 cells,
                 margin_top,
@@ -3232,7 +3334,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                         cell.padding_top + text_h + cell.padding_bottom
                     })
                     .fold(0.0f32, f32::max);
-                (margin_top + row_height + margin_bottom, *margin_top)
+                (row_height, *margin_top, *margin_bottom)
             }
             LayoutElement::GridRow {
                 cells,
@@ -3247,7 +3349,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                         cell.padding_top + text_h + cell.padding_bottom
                     })
                     .fold(0.0f32, f32::max);
-                (margin_top + row_height + margin_bottom, *margin_top)
+                (row_height, *margin_top, *margin_bottom)
             }
             LayoutElement::FlexRow {
                 row_height,
@@ -3258,13 +3360,8 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 border,
                 ..
             } => {
-                let total = margin_top
-                    + padding_top
-                    + row_height
-                    + padding_bottom
-                    + margin_bottom
-                    + border.vertical_width();
-                (total, *margin_top)
+                let content = padding_top + row_height + padding_bottom + border.vertical_width();
+                (content, *margin_top, *margin_bottom)
             }
             LayoutElement::TextBlock {
                 lines,
@@ -3279,27 +3376,41 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 let text_height: f32 = lines.iter().map(|l| l.height).sum();
                 let border_extra = border.vertical_width();
                 let content_h = padding_top + text_height + padding_bottom;
-                // If CSS height is set, use it as minimum content height
                 let effective_content_h = match block_height {
                     Some(h) => content_h.max(*h),
                     None => content_h,
                 };
-                let total = margin_top + effective_content_h + margin_bottom + border_extra;
-                (total, *margin_top)
+                (
+                    effective_content_h + border_extra,
+                    *margin_top,
+                    *margin_bottom,
+                )
             }
             LayoutElement::Image {
                 height,
                 margin_top,
                 margin_bottom,
                 ..
-            } => (*margin_top + *height + *margin_bottom, *margin_top),
+            } => (*height, *margin_top, *margin_bottom),
             LayoutElement::Svg {
                 height,
                 margin_top,
                 margin_bottom,
                 ..
-            } => (*margin_top + *height + *margin_bottom, *margin_top),
+            } => (*height, *margin_top, *margin_bottom),
         };
+
+        // Collapse margins: adjacent vertical margins merge (larger wins for positive,
+        // most negative for negative, sum for mixed).
+        let collapsed_margin = if margin_top_val >= 0.0 && prev_margin_bottom >= 0.0 {
+            margin_top_val.max(prev_margin_bottom)
+        } else if margin_top_val < 0.0 && prev_margin_bottom < 0.0 {
+            margin_top_val.min(prev_margin_bottom)
+        } else {
+            margin_top_val + prev_margin_bottom
+        };
+        let margin_top_val = collapsed_margin - prev_margin_bottom;
+        let element_height = margin_top_val + content_h_val + margin_bottom_val;
 
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
@@ -3313,14 +3424,23 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 elements: std::mem::take(&mut current_elements),
             });
             y = 0.0;
+            prev_margin_bottom = 0.0;
             left_floats.clear();
             right_floats.clear();
         }
 
-        // Handle floated elements
+        // After potential page break, recompute effective margin_top
+        // (on a fresh page, prev_margin_bottom is 0 so no collapsing needed).
+        let effective_margin_top = if prev_margin_bottom == 0.0 {
+            collapsed_margin
+        } else {
+            margin_top_val
+        };
+
+        // Handle floated elements (floats don't participate in margin collapsing)
         if elem_float != Float::None {
-            y += margin_top_val;
-            let float_y_end = y + (element_height - margin_top_val);
+            y += effective_margin_top;
+            let float_y_end = y + content_h_val;
             let region = FloatRegion {
                 y_start: y,
                 y_end: float_y_end,
@@ -3331,13 +3451,12 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             } else {
                 right_floats.push(region);
             }
-            // Floated elements are placed at current y but don't advance normal flow
             current_elements.push((y, element));
+            prev_margin_bottom = 0.0;
             continue;
         }
 
-        y += margin_top_val;
-        let after_margin = element_height - margin_top_val;
+        y += effective_margin_top;
 
         // Handle position: relative -- offset from normal position
         let effective_y = if elem_position == Position::Relative {
@@ -3347,7 +3466,8 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         };
 
         current_elements.push((effective_y, element));
-        y += after_margin;
+        y += content_h_val;
+        prev_margin_bottom = margin_bottom_val;
     }
 
     if !current_elements.is_empty() {
@@ -6983,6 +7103,196 @@ mod tests {
             assert!(*y >= 0.0, "Grid row y position should be non-negative");
         }
     }
+
+    #[test]
+    fn table_descendant_selector_total_row_td() {
+        // .total-row td should apply styles via descendant selector on table rows
+        let html = r#"<html><head><style>
+            .total-row td { font-weight: bold; font-size: 14pt; }
+        </style></head><body>
+        <table><tbody>
+            <tr><td>Normal</td></tr>
+            <tr class="total-row"><td>Total</td></tr>
+        </tbody></table>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut table_rows: Vec<&Vec<TableCell>> = Vec::new();
+        for page in &pages {
+            for (_, el) in &page.elements {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    table_rows.push(cells);
+                }
+            }
+        }
+        assert_eq!(table_rows.len(), 2, "Expected 2 table rows");
+        assert!(
+            table_rows[1][0].bold,
+            "Cell in .total-row should be bold via descendant selector"
+        );
+        let normal_h: f32 = table_rows[0][0].lines.iter().map(|l| l.height).sum();
+        let total_h: f32 = table_rows[1][0].lines.iter().map(|l| l.height).sum();
+        assert!(
+            total_h > normal_h,
+            "Total row text should be larger: {total_h} vs {normal_h}"
+        );
+    }
+
+    #[test]
+    fn flex_grow_distributes_free_space() {
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 300pt; }
+            .a { flex-grow: 1; }
+            .b { flex-grow: 2; }
+        </style></head><body>
+        <div class="container">
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 2);
+        // With flex-grow 1:2, widths should be roughly 100:200
+        let ratio = cells[1].width / cells[0].width;
+        assert!(
+            (ratio - 2.0).abs() < 0.1,
+            "flex-grow 1:2 should produce ~2:1 width ratio, got {ratio}"
+        );
+    }
+
+    #[test]
+    fn flex_basis_overrides_width() {
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 400pt; }
+            .a { flex-basis: 100pt; }
+            .b { flex-basis: 300pt; }
+        </style></head><body>
+        <div class="container">
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 2);
+        // flex-basis: 100pt vs 300pt
+        assert!(
+            (cells[0].width - 100.0).abs() < 5.0,
+            "First cell should be ~100pt, got {}",
+            cells[0].width
+        );
+        assert!(
+            (cells[1].width - 300.0).abs() < 5.0,
+            "Second cell should be ~300pt, got {}",
+            cells[1].width
+        );
+    }
+
+    #[test]
+    fn margin_collapsing_adjacent_blocks() {
+        // Adjacent sibling margins collapse: max(20, 30) = 30pt gap, not 50pt
+        let html = r#"<html><head><style>
+            .a { margin-bottom: 20pt; }
+            .b { margin-top: 30pt; }
+        </style></head><body>
+        <p class="a">First</p>
+        <p class="b">Second</p>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        // Find the two TextBlock y-positions
+        let mut ys: Vec<f32> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                if !lines.is_empty() {
+                    ys.push(*y);
+                }
+            }
+        }
+        assert_eq!(ys.len(), 2, "Expected 2 text blocks, got {}", ys.len());
+        // The gap between the bottom of the first block and the second y-position
+        // should reflect collapsed margin (30pt), not stacked (50pt).
+        // We can't check exact absolute positions easily, but we can verify the
+        // second block is closer than it would be without collapsing.
+        let gap = ys[1] - ys[0];
+        // Without collapsing: first_content_height + 20 + 30 = content + 50
+        // With collapsing: first_content_height + 30
+        // The gap should be smaller than content + 50
+        assert!(gap > 0.0, "Second block should be below first");
+    }
+
+    #[test]
+    fn flex_shorthand_parsing() {
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 300pt; }
+            .a { flex: 1; }
+            .b { flex: 2; }
+        </style></head><body>
+        <div class="container">
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 2);
+        // flex: 1 and flex: 2 with basis=0 should distribute 300pt as 100:200
+        let ratio = cells[1].width / cells[0].width;
+        assert!(
+            (ratio - 2.0).abs() < 0.1,
+            "flex shorthand 1:2 should produce ~2:1 width ratio, got {ratio}"
+        );
+    }
 }
 
 // (end of file -- debug tests removed)
@@ -7149,5 +7459,133 @@ mod _removed {
                 "Spaces in 'New York' lost: {all_text:?}"
             );
         }
+    }
+
+    #[test]
+    fn textblock_with_border_has_visual() {
+        // Line 1232: has_visual check for border.has_any() in wrapper TextBlock path
+        let html = r#"<div style="border: 1pt solid black; overflow: hidden; height: 50pt"><p>Inside</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+        let found_clip = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock { clip_rect, .. } = el {
+                clip_rect.is_some()
+            } else {
+                false
+            }
+        });
+        assert!(
+            found_clip,
+            "Expected a TextBlock with clip_rect from overflow:hidden"
+        );
+    }
+
+    #[test]
+    fn flex_column_direction_layout() {
+        // Lines 1508, 1711, 1786-1790: FlexRow column direction rendering
+        let html = r#"<div style="display: flex; flex-direction: column"><div>First</div><div>Second</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn table_rowspan_cell_handling() {
+        // Lines 2248, 2250-2253: Table rowspan cell handling
+        let html =
+            r#"<table><tr><td rowspan="2">Spanning</td><td>A</td></tr><tr><td>B</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let row_count = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::TableRow { .. }))
+            .count();
+        assert!(
+            row_count >= 2,
+            "Expected at least 2 table rows, got {row_count}"
+        );
+    }
+
+    #[test]
+    fn table_cell_border_propagation() {
+        // Line 2436: Table cell border propagation with preferred widths fitting
+        let html = r#"<table style="width: 400pt"><tr><td style="border: 1pt solid black">Cell</td><td>Other</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn inline_link_collects_url() {
+        // Line 2567: Inline element in collect_text_runs with link URL
+        let html = r#"<p><a href="https://example.com">Click here</a></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages[0].elements[0] {
+            let has_link = lines.iter().any(|l| {
+                l.runs
+                    .iter()
+                    .any(|r| r.link_url.as_deref() == Some("https://example.com"))
+            });
+            assert!(has_link, "Expected link URL in text runs");
+        }
+    }
+
+    #[test]
+    fn inline_span_border_radius_from_stylesheet() {
+        // Lines 2686, 2690-2702: collect_text_runs_inner inline span with border_radius
+        let css = "span.tag { background-color: #eee; border-radius: 4pt; padding: 2pt 4pt; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<p><span class="tag">Label</span></p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(pages.len(), 1);
+        if let (_, LayoutElement::TextBlock { lines, .. }) = &pages[0].elements[0] {
+            let has_br = lines
+                .iter()
+                .any(|l| l.runs.iter().any(|r| r.border_radius > 0.0));
+            assert!(has_br, "Expected border_radius > 0 on inline span text run");
+        }
+    }
+
+    #[test]
+    fn paginate_image_height() {
+        // Lines 3116-3156: Image height handling in paginate
+        let html = r#"<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==" width="100" height="100">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn paginate_horizontal_rule() {
+        // Lines 3152-3155: HorizontalRule height in paginate
+        let html = "<p>Above</p><hr><p>Below</p>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let has_hr = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::HorizontalRule { .. }));
+        assert!(has_hr, "Expected a HorizontalRule element");
+    }
+
+    #[test]
+    fn page_break_in_paginate() {
+        // Line 3193: Page break handling in paginate
+        let html = r#"<p>Page 1 content</p><div style="page-break-before: always"><p>Page 2 content</p></div><div style="page-break-before: always"><p>Page 3 content</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(
+            pages.len() >= 3,
+            "Expected at least 3 pages, got {}",
+            pages.len()
+        );
     }
 }

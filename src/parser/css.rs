@@ -282,6 +282,24 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // flex-grow / flex-shrink — numeric values
+    if property == "flex-grow" || property == "flex-shrink" {
+        return parse_length(val);
+    }
+
+    // flex-basis — length or keyword (auto, content)
+    if property == "flex-basis" {
+        if val == "auto" || val == "content" {
+            return Some(CssValue::Keyword(val.to_string()));
+        }
+        return parse_length(val);
+    }
+
+    // flex shorthand — e.g. "flex: 1", "flex: 1 0 auto", "flex: 0 1 200px"
+    if property == "flex" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     // Gap — length value
     if property == "gap" {
         return parse_length(val);
@@ -494,7 +512,7 @@ fn extract_braced_content(chars: &mut std::iter::Peekable<std::str::Chars>) -> S
     content
 }
 
-fn parse_length(val: &str) -> Option<CssValue> {
+pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
     let val = val.trim();
 
     // Handle var() references
@@ -4530,5 +4548,72 @@ mod tests {
             Some(CssValue::Keyword(k)) => assert_eq!(k, "2pt solid blue"),
             other => panic!("Expected Keyword for border-bottom, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn parse_border_right_and_left() {
+        // Line 257: border-right/left parsing
+        let style = parse_inline_style("border-right: 3pt solid green");
+        match style.get("border-right") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "3pt solid green"),
+            other => panic!("Expected Keyword for border-right, got {:?}", other),
+        }
+        let style2 = parse_inline_style("border-left: 1pt dashed red");
+        match style2.get("border-left") {
+            Some(CssValue::Keyword(k)) => assert_eq!(k, "1pt dashed red"),
+            other => panic!("Expected Keyword for border-left, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_outline_color_inline() {
+        // Line 346: outline-color parsing
+        let style = parse_inline_style("outline-color: blue");
+        match style.get("outline-color") {
+            Some(CssValue::Color(c)) => assert_eq!(c.b, 255),
+            other => panic!("Expected Color for outline-color, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_length_with_var() {
+        // Line 502: parse_length with var() reference
+        let style = parse_inline_style("width: var(--my-width)");
+        match style.get("width") {
+            Some(CssValue::Var(name, _)) => assert_eq!(name, "--my-width"),
+            other => panic!("Expected Var for width, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_length_with_calc() {
+        // Line 507: parse_length with calc() expression
+        let style = parse_inline_style("width: calc(100% - 20px)");
+        match style.get("width") {
+            Some(CssValue::Calc(_)) => {} // calc expression parsed
+            other => panic!("Expected Calc for width, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn selector_empty_does_not_match() {
+        // Line 1495: Empty selector should not match
+        assert!(!selector_matches("", "div", &[], None));
+    }
+
+    #[test]
+    fn extract_pseudo_element_after() {
+        // Line 1495: Pseudo-element extraction for ::after
+        let (base, pe) = extract_pseudo_element("p::after");
+        assert_eq!(base, "p");
+        assert_eq!(pe, Some(PseudoElement::After));
+    }
+
+    #[test]
+    fn extract_pseudo_element_single_colon_before() {
+        // Pseudo-element extraction with single-colon syntax
+        let (base, pe) = extract_pseudo_element("div:before");
+        assert_eq!(base, "div");
+        assert_eq!(pe, Some(PseudoElement::Before));
     }
 }
