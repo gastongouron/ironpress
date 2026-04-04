@@ -36,6 +36,7 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [How It Works](#how-it-works)
 - [WASM](#wasm)
 - [Testing](#testing)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Quick Start
@@ -74,9 +75,13 @@ let pdf = HtmlConverter::new()
     .page_size(PageSize::LETTER)        // default: A4
     .margin(Margin::uniform(54.0))      // default: 72pt (1 inch)
     .sanitize(false)                    // default: true
+    .header("My Document")              // optional page header
+    .footer("Page {page} of {pages}")   // optional page footer
     .convert("<h1>Custom page</h1>")
     .unwrap();
 ```
+
+Headings (`<h1>` through `<h6>`) are automatically added as PDF bookmarks/outlines, visible in the sidebar of most PDF readers.
 
 ### Custom fonts
 
@@ -149,6 +154,9 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Semantic sections | `<section>`, `<article>`, `<nav>`, `<header>`, `<footer>`, `<main>`, `<aside>`, `<details>`, `<summary>` |
 | Inline formatting | `<strong>`, `<b>`, `<em>`, `<i>`, `<u>`, `<small>`, `<sub>`, `<sup>`, `<code>`, `<abbr>`, `<span>` |
 | Text decoration | `<del>`, `<s>` (strikethrough), `<ins>` (underline), `<mark>` (highlight) |
+| Form controls | `<input>`, `<select>`, `<textarea>` with static visual rendering (borders, value/placeholder text) |
+| Media | `<video>`, `<audio>` rendered as placeholder rectangles with play icon |
+| Gauges | `<progress>`, `<meter>` with filled bar (meter supports `low`/`high` color thresholds) |
 | Links | `<a>` with clickable PDF link annotations |
 | Images | `<img>` with JPEG and PNG support (data URIs and local files) |
 | SVG | Inline `<svg>` with `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>`, `<g>`, transforms, viewBox |
@@ -167,7 +175,8 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Box model | `margin` (including `auto`), `padding`, `border`, `border-top/right/bottom/left`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
 | Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
 | Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `flex-grow`, `flex-shrink`, `flex-basis`, `flex` (shorthand), `gap` |
-| Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
+| Grid | `grid-template-columns` (fixed, `fr`, `auto`, `repeat()`, `minmax()`, `auto-fill`, `auto-fit`), `grid-gap` |
+| Multi-column | `column-count`, `columns`, `column-gap` |
 | Positioning | `top`, `left`, `z-index` |
 | Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
 | Backgrounds | `background-color`, `background-position`, `background-size`, `background-repeat`, `linear-gradient()`, `radial-gradient()` |
@@ -466,9 +475,39 @@ Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlT
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1580+ tests covering parsing, style computation, layout, and rendering
+- **Unit tests**: 1610+ tests covering parsing, style computation, layout, and rendering
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
 - **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
+
+## Roadmap
+
+### v1.1 — More HTML elements
+
+- [x] `<input>`, `<select>`, `<textarea>` — static visual rendering for PDF forms (invoices, contracts)
+- [x] `<video>`, `<audio>` — placeholder with play icon
+- [x] `<progress>`, `<meter>` — visual bars with color thresholds
+
+### v1.2 — Advanced CSS
+
+- [x] CSS Grid: `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
+- [x] `columns` / `column-count` / `column-gap` (multi-column layout)
+- [ ] `@media` queries beyond print/screen
+
+### v1.3 — PDF features
+
+- [x] Auto-generated PDF bookmarks/outlines from headings (h1-h6)
+- [x] Page headers and footers with page numbering (`{page}` / `{pages}` placeholders)
+- [ ] Remote images (`<img src="https://...">`)
+- [ ] Remote fonts (Google Fonts URLs)
+
+### Future
+
+- [ ] CLI tool (`ironpress convert input.html output.pdf`)
+- [ ] Python bindings (PyO3)
+- [ ] Node.js native addon
+- [ ] Online playground (WASM-powered live preview)
+- [ ] Visual examples and screenshots in README
+- [ ] Ready-to-use templates (invoice, resume, report, letter)
 
 ## License
 

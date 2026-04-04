@@ -348,6 +348,17 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Multi-column layout
+    if property == "column-count" || property == "columns" {
+        if let Some(v) = parse_length(val) {
+            return Some(v);
+        }
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+    if property == "column-gap" {
+        return parse_length(val);
+    }
+
     // Border-radius — parse as length (single value shorthand)
     if property == "border-radius" {
         return parse_length(val);

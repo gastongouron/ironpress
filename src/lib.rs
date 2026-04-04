@@ -212,6 +212,11 @@ pub struct HtmlConverter {
     custom_fonts: std::collections::HashMap<String, Vec<u8>>,
     /// Base directory for resolving relative paths in `@import` and `@font-face` rules.
     base_path: Option<std::path::PathBuf>,
+    /// Optional header text rendered at the top of each page.
+    header: Option<String>,
+    /// Optional footer text rendered at the bottom of each page.
+    /// Use `{page}` for current page number and `{pages}` for total page count.
+    footer: Option<String>,
 }
 
 impl HtmlConverter {
@@ -223,6 +228,8 @@ impl HtmlConverter {
             sanitize: true,
             custom_fonts: std::collections::HashMap::new(),
             base_path: None,
+            header: None,
+            footer: None,
         }
     }
 
@@ -289,6 +296,21 @@ impl HtmlConverter {
     /// ```
     pub fn base_path(mut self, path: &std::path::Path) -> Self {
         self.base_path = Some(path.to_path_buf());
+        self
+    }
+
+    /// Set a header text rendered at the top of each page (in the top margin area).
+    pub fn header(mut self, text: impl Into<String>) -> Self {
+        self.header = Some(text.into());
+        self
+    }
+
+    /// Set a footer text rendered at the bottom of each page (in the bottom margin area).
+    ///
+    /// Use `{page}` for the current page number and `{pages}` for the total page count.
+    /// For example: `"Page {page} of {pages}"`.
+    pub fn footer(mut self, text: impl Into<String>) -> Self {
+        self.footer = Some(text.into());
         self
     }
 
@@ -407,19 +429,23 @@ impl HtmlConverter {
         );
 
         // Step 6: Render PDF
-        if parsed_fonts.is_empty() {
-            render::pdf::render_pdf_to_writer(&pages, effective_page_size, effective_margin, writer)
+        let decoration = if self.header.is_some() || self.footer.is_some() {
+            Some(render::pdf::PageDecoration {
+                header: self.header.clone(),
+                footer: self.footer.clone(),
+            })
         } else {
-            let pdf_bytes = render::pdf::render_pdf_with_fonts(
-                &pages,
-                effective_page_size,
-                effective_margin,
-                &parsed_fonts,
-            )?;
-            writer
-                .write_all(&pdf_bytes)
-                .map_err(|e| IronpressError::RenderError(format!("write error: {e}")))
-        }
+            None
+        };
+
+        render::pdf::render_pdf_to_writer_full(
+            &pages,
+            effective_page_size,
+            effective_margin,
+            writer,
+            &parsed_fonts,
+            decoration.as_ref(),
+        )
     }
 
     /// Convert a Markdown string to PDF, writing directly to any `std::io::Write` implementation.
