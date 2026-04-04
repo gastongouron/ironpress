@@ -15,6 +15,10 @@ exclude = [".github/", ".claude/", "target/", "docs/"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "ironpress"
+path = "src/bin/cli.rs"
+
 [features]
 default = []
 async = ["tokio"]
