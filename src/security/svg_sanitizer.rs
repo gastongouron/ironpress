@@ -69,9 +69,15 @@ fn remove_tag_with_content(input: &str, tag: &str) -> String {
         let end = lower.find(&close);
 
         match (start, end) {
-            (Some(s), Some(e)) => {
+            (Some(s), Some(e)) if s <= e => {
+                // Opening tag before or at closing tag — remove the whole block
                 let end_pos = e + close.len();
                 result = format!("{}{}", &result[..s], &result[end_pos..]);
+            }
+            (Some(_), Some(e)) => {
+                // Orphan closing tag appears before opening — remove just the closing tag
+                let end_pos = e + close.len();
+                result = format!("{}{}", &result[..e], &result[end_pos..]);
             }
             (Some(s), None) => {
                 // Self-closing or unclosed — remove from start to end of tag
@@ -506,6 +512,24 @@ mod tests {
         let input = "<svg><rect\txlink:href=\"http://evil.com\" width=\"10\"/></svg>";
         let result = sanitize_svg(input);
         assert!(!result.contains("xlink:href"));
+    }
+
+    #[test]
+    fn sanitize_orphan_closing_tag_no_oom() {
+        // Regression: </script>o/o<//<script caused exponential string growth (OOM)
+        let input = "</script>o/o<//<script";
+        let result = sanitize_svg(input);
+        // Must terminate without OOM; unclosed fragment is harmless (never parsed as a tag)
+        assert!(result.len() <= input.len());
+    }
+
+    #[test]
+    fn sanitize_orphan_closing_before_open() {
+        let input = "<svg></script><script>evil</script><rect/></svg>";
+        let result = sanitize_svg(input);
+        assert!(!result.contains("script"));
+        assert!(!result.contains("evil"));
+        assert!(result.contains("rect"));
     }
 
     #[test]
