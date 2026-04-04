@@ -386,12 +386,10 @@ impl HtmlConverter {
             result.stylesheets
         };
 
-        // Step 3: Parse stylesheets
-        let mut rules = Vec::new();
+        // Step 3: Parse @page rules first (they affect page dimensions for media queries)
         let mut page_rules = Vec::new();
         let mut font_face_rules = Vec::new();
         for css in &stylesheets {
-            rules.extend(parser::css::parse_stylesheet(css));
             page_rules.extend(parser::css::parse_page_rules(css));
             font_face_rules.extend(parser::css::parse_font_face_rules(css));
         }
@@ -418,6 +416,19 @@ impl HtmlConverter {
             if let Some(v) = pr.margin_left {
                 effective_margin.left = v;
             }
+        }
+
+        // Step 3c: Parse stylesheets with page-aware media query context
+        let media_ctx = parser::css::MediaContext {
+            width: effective_page_size.width,
+            height: effective_page_size.height,
+        };
+        let mut rules = Vec::new();
+        for css in &stylesheets {
+            rules.extend(parser::css::parse_stylesheet_with_context(
+                css,
+                Some(media_ctx),
+            ));
         }
 
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)

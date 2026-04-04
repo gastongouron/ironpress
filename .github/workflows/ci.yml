@@ -114,9 +114,10 @@ jobs:
           path: ~/.cargo/bin/cargo-tarpaulin
           key: tarpaulin-${{ runner.os }}-v2
       - run: command -v cargo-tarpaulin || cargo install cargo-tarpaulin
-      - run: cargo tarpaulin --out xml --output-dir . --skip-clean --features remote
+      - run: cargo tarpaulin --out xml --output-dir ./default-cov --skip-clean
+      - run: cargo tarpaulin --out xml --output-dir ./remote-cov --skip-clean --features remote
       - uses: codecov/codecov-action@v5
         with:
-          files: ./cobertura.xml
+          files: ./default-cov/cobertura.xml,./remote-cov/cobertura.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false

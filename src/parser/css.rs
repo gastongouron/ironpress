@@ -3,6 +3,15 @@ use std::collections::HashMap;
 use crate::parser::dom::ElementNode;
 use crate::types::Color;
 
+/// Context for evaluating CSS media queries against the target page.
+#[derive(Debug, Clone, Copy)]
+pub struct MediaContext {
+    /// Page width in points.
+    pub width: f32,
+    /// Page height in points.
+    pub height: f32,
+}
+
 /// Per-ancestor context for nth-child matching in descendant selectors.
 #[derive(Debug, Clone)]
 pub struct AncestorInfo<'a> {
@@ -426,11 +435,107 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
     parse_length(val)
 }
 
-/// Preprocess CSS to handle @media queries.
-/// - `@media print { ... }` => extract inner rules (we are a print renderer)
-/// - `@media screen { ... }` => skip entirely
-/// - Other @media blocks => skip
+/// Evaluate whether a media query matches the PDF output context.
+///
+/// Supported queries:
+///
+/// - `print` — always matches (PDF is print output)
+/// - `all` — always matches
+/// - `screen` — never matches
+/// - `(orientation: portrait)` / `(orientation: landscape)` — based on page dimensions
+/// - `(min-width: Xpt)` / `(max-width: Xpt)` — based on page width
+/// - `(min-height: Xpt)` / `(max-height: Xpt)` — based on page height
+/// - Compound queries with `and` (e.g. `print and (orientation: portrait)`)
+fn evaluate_media_query(query: &str, ctx: Option<MediaContext>) -> bool {
+    let query = query.trim();
+    if query.is_empty() {
+        return false;
+    }
+
+    // Split on " and " to handle compound queries like "print and (orientation: portrait)"
+    let parts: Vec<&str> = query.split(" and ").map(|s| s.trim()).collect();
+
+    for part in &parts {
+        if !evaluate_media_part(part, ctx) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Evaluate a single media query part.
+fn evaluate_media_part(part: &str, ctx: Option<MediaContext>) -> bool {
+    let part = part.trim();
+
+    // Media types
+    match part {
+        "print" | "all" => return true,
+        "screen" => return false,
+        _ => {}
+    }
+
+    // Feature conditions in parentheses: (feature: value)
+    let inner = match part.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+        Some(i) => i.trim(),
+        None => return false,
+    };
+
+    let (feature, value) = match inner.split_once(':') {
+        Some((f, v)) => (f.trim(), v.trim()),
+        None => return false,
+    };
+
+    let ctx = match ctx {
+        Some(c) => c,
+        None => {
+            // Without context, only orientation and basic checks can be approximated
+            // Default to A4 portrait dimensions
+            MediaContext {
+                width: 595.28,
+                height: 841.89,
+            }
+        }
+    };
+
+    match feature {
+        "orientation" => {
+            let is_landscape = ctx.width > ctx.height;
+            match value {
+                "landscape" => is_landscape,
+                "portrait" => !is_landscape,
+                _ => false,
+            }
+        }
+        "min-width" => parse_media_length(value).is_some_and(|v| ctx.width >= v),
+        "max-width" => parse_media_length(value).is_some_and(|v| ctx.width <= v),
+        "min-height" => parse_media_length(value).is_some_and(|v| ctx.height >= v),
+        "max-height" => parse_media_length(value).is_some_and(|v| ctx.height <= v),
+        // color, hover, pointer etc. — not applicable to PDF
+        _ => false,
+    }
+}
+
+/// Parse a length value from a media query (e.g. "600pt", "800px", "210mm").
+fn parse_media_length(val: &str) -> Option<f32> {
+    let val = val.trim();
+    if let Some(n) = val.strip_suffix("pt") {
+        n.trim().parse().ok()
+    } else if let Some(n) = val.strip_suffix("px") {
+        n.trim().parse::<f32>().ok().map(|v| v * 0.75)
+    } else if let Some(n) = val.strip_suffix("mm") {
+        n.trim().parse::<f32>().ok().map(|v| v * 2.835)
+    } else if let Some(n) = val.strip_suffix("in") {
+        n.trim().parse::<f32>().ok().map(|v| v * 72.0)
+    } else {
+        val.parse().ok()
+    }
+}
+
 fn preprocess_media_queries(css: &str) -> String {
+    preprocess_media_queries_with_context(css, None)
+}
+
+fn preprocess_media_queries_with_context(css: &str, ctx: Option<MediaContext>) -> String {
     let mut result = String::new();
     let mut chars = css.chars().peekable();
 
@@ -458,12 +563,10 @@ fn preprocess_media_queries(css: &str) -> String {
                 let inner = extract_braced_content(&mut chars);
 
                 let media_type = at_rule_lower.trim_start_matches("@media").trim();
-                if media_type == "print" {
-                    // Include inner rules for print media
+                if evaluate_media_query(media_type, ctx) {
                     result.push_str(&inner);
                     result.push(' ');
                 }
-                // For "screen" and any other media type, skip the inner rules
             } else if at_rule_lower.starts_with("@page") || at_rule_lower.starts_with("@font-face")
             {
                 // Pass through @page and @font-face rules with their braces and content
@@ -812,9 +915,15 @@ pub struct PageRule {
 ///
 /// Handles `@media print { ... }` (rules are applied since we generate PDFs)
 /// and `@media screen { ... }` (rules are ignored).
+#[allow(dead_code)]
 pub fn parse_stylesheet(css: &str) -> Vec<CssRule> {
+    parse_stylesheet_with_context(css, None)
+}
+
+/// Parse a CSS stylesheet with page-aware media query evaluation.
+pub fn parse_stylesheet_with_context(css: &str, ctx: Option<MediaContext>) -> Vec<CssRule> {
     let mut rules = Vec::new();
-    let preprocessed = preprocess_media_queries(css);
+    let preprocessed = preprocess_media_queries_with_context(css, ctx);
     parse_rules_from(&preprocessed, &mut rules);
     rules
 }
@@ -2152,6 +2261,199 @@ mod tests {
         assert_eq!(rules.len(), 2);
         assert_eq!(rules[0].selector, "h1");
         assert_eq!(rules[1].selector, "p");
+    }
+
+    // --- Media query evaluation tests ---
+
+    #[test]
+    fn media_query_all_matches() {
+        let css = "@media all { p { color: red } }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_orientation_portrait() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let css = "@media (orientation: portrait) { p { color: blue } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1, "Portrait page should match portrait query");
+    }
+
+    #[test]
+    fn media_query_orientation_landscape() {
+        let ctx = MediaContext {
+            width: 842.0,
+            height: 595.0,
+        };
+        let css = "@media (orientation: landscape) { p { color: green } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(
+            rules.len(),
+            1,
+            "Landscape page should match landscape query"
+        );
+    }
+
+    #[test]
+    fn media_query_orientation_mismatch() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let css = "@media (orientation: landscape) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 0, "Portrait page should NOT match landscape");
+    }
+
+    #[test]
+    fn media_query_min_width_match() {
+        let ctx = MediaContext {
+            width: 612.0,
+            height: 792.0,
+        };
+        let css = "@media (min-width: 600pt) { p { font-size: 14pt } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_min_width_no_match() {
+        let ctx = MediaContext {
+            width: 500.0,
+            height: 792.0,
+        };
+        let css = "@media (min-width: 600pt) { p { font-size: 14pt } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 0);
+    }
+
+    #[test]
+    fn media_query_max_width_match() {
+        let ctx = MediaContext {
+            width: 400.0,
+            height: 792.0,
+        };
+        let css = "@media (max-width: 500pt) { p { font-size: 10pt } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_max_height() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 700.0,
+        };
+        let css = "@media (max-height: 800pt) { p { margin: 0 } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_min_height_no_match() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 700.0,
+        };
+        let css = "@media (min-height: 800pt) { p { margin: 0 } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 0);
+    }
+
+    #[test]
+    fn media_query_compound_print_and_portrait() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let css = "@media print and (orientation: portrait) { p { color: navy } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_compound_screen_and_portrait() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let css = "@media screen and (orientation: portrait) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 0, "screen media type should fail");
+    }
+
+    #[test]
+    fn media_query_px_units() {
+        let ctx = MediaContext {
+            width: 612.0,
+            height: 792.0,
+        };
+        // 800px = 600pt, and page width is 612pt → matches
+        let css = "@media (min-width: 800px) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_mm_units() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        // 200mm ≈ 567pt, page is 595pt → matches
+        let css = "@media (min-width: 200mm) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_in_units() {
+        let ctx = MediaContext {
+            width: 612.0,
+            height: 792.0,
+        };
+        // 8in = 576pt, page is 612pt → matches
+        let css = "@media (min-width: 8in) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn media_query_unknown_feature_ignored() {
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let css = "@media (hover: hover) { p { color: red } }";
+        let rules = parse_stylesheet_with_context(css, Some(ctx));
+        assert_eq!(rules.len(), 0, "Unknown feature should not match");
+    }
+
+    #[test]
+    fn media_query_no_context_uses_a4_default() {
+        // Without context, defaults to A4 (595.28 x 841.89) = portrait
+        let css = "@media (orientation: portrait) { p { color: red } }";
+        let rules = parse_stylesheet(css);
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn evaluate_media_query_empty_is_false() {
+        assert!(!evaluate_media_query("", None));
+    }
+
+    #[test]
+    fn parse_media_length_bare_number() {
+        assert_eq!(parse_media_length("100"), Some(100.0));
+    }
+
+    #[test]
+    fn parse_media_length_invalid() {
+        assert_eq!(parse_media_length("abc"), None);
     }
 
     // --- Advanced selector tests ---
