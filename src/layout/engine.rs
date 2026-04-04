@@ -366,6 +366,8 @@ pub enum LayoutElement {
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         z_index: i32,
+        /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
+        heading_level: Option<u8>,
     },
     /// A table row with cells.
     TableRow {
@@ -429,6 +431,21 @@ pub enum LayoutElement {
         box_shadow: Option<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
+    },
+    /// A progress bar or meter element.
+    ProgressBar {
+        /// Fraction filled (0.0 to 1.0).
+        fraction: f32,
+        /// Total width in points.
+        width: f32,
+        /// Total height in points.
+        height: f32,
+        /// Fill color (r, g, b).
+        fill_color: (f32, f32, f32),
+        /// Track color (r, g, b).
+        track_color: (f32, f32, f32),
+        margin_top: f32,
+        margin_bottom: f32,
     },
     /// A page break.
     PageBreak,
@@ -574,6 +591,7 @@ fn flatten_nodes(
                             background_gradient: None,
                             background_radial_gradient: None,
                             z_index: 0,
+                            heading_level: None,
                         });
                     }
                 }
@@ -600,6 +618,20 @@ fn flatten_nodes(
                 element_index += 1;
             }
         }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+/// Returns the heading level (1-6) for a tag, or None if not a heading.
+fn heading_level(tag: HtmlTag) -> Option<u8> {
+    match tag {
+        HtmlTag::H1 => Some(1),
+        HtmlTag::H2 => Some(2),
+        HtmlTag::H3 => Some(3),
+        HtmlTag::H4 => Some(4),
+        HtmlTag::H5 => Some(5),
+        HtmlTag::H6 => Some(6),
+        _ => None,
     }
 }
 
@@ -692,6 +724,7 @@ fn flatten_element(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            heading_level: None,
         });
         return;
     }
@@ -723,6 +756,286 @@ fn flatten_element(
                 margin_bottom: style.margin.bottom,
             });
         }
+        return;
+    }
+
+    // Form control elements — render as styled boxes with placeholder text
+    if el.tag == HtmlTag::Input || el.tag == HtmlTag::Select || el.tag == HtmlTag::Textarea {
+        let ctrl_width = style
+            .width
+            .unwrap_or(if el.tag == HtmlTag::Textarea {
+                available_width.min(300.0)
+            } else {
+                150.0
+            })
+            .min(available_width);
+        let ctrl_height = style.height.unwrap_or(if el.tag == HtmlTag::Textarea {
+            80.0
+        } else {
+            20.0
+        });
+
+        let label = if el.tag == HtmlTag::Select {
+            el.children
+                .iter()
+                .find_map(|c| {
+                    if let DomNode::Element(opt) = c {
+                        opt.children.iter().find_map(|t| {
+                            if let DomNode::Text(s) = t {
+                                Some(s.trim().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        } else if el.tag == HtmlTag::Textarea {
+            el.children
+                .iter()
+                .find_map(|c| {
+                    if let DomNode::Text(s) = c {
+                        Some(s.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        } else {
+            el.attributes
+                .get("value")
+                .or(el.attributes.get("placeholder"))
+                .cloned()
+                .unwrap_or_default()
+        };
+
+        let mut lines = Vec::new();
+        if !label.is_empty() {
+            let runs = vec![TextRun {
+                text: label,
+                font_size: style.font_size,
+                bold: false,
+                italic: false,
+                underline: false,
+                line_through: false,
+                color: style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: style.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+            }];
+            let inner_w = ctrl_width - style.padding.left - style.padding.right;
+            lines = wrap_text_runs(runs, inner_w, style.font_size, fonts);
+        }
+
+        let bg = style
+            .background_color
+            .map(|c| c.to_f32_rgb())
+            .unwrap_or((1.0, 1.0, 1.0));
+
+        output.push(LayoutElement::TextBlock {
+            lines,
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+            text_align: style.text_align,
+            background_color: Some(bg),
+            padding_top: style.padding.top,
+            padding_bottom: style.padding.bottom,
+            padding_left: style.padding.left,
+            padding_right: style.padding.right,
+            border: LayoutBorder::from_computed(&style.border),
+            block_width: Some(ctrl_width),
+            block_height: Some(ctrl_height),
+            opacity: style.opacity,
+            float: style.float,
+            clear: style.clear,
+            position: style.position,
+            offset_top: style.top.unwrap_or(0.0),
+            offset_left: style.left.unwrap_or(0.0),
+            box_shadow: style.box_shadow,
+            visible: style.visibility == Visibility::Visible,
+            clip_rect: None,
+            transform: style.transform,
+            border_radius: style.border_radius,
+            outline_width: style.outline_width,
+            outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+            text_indent: 0.0,
+            letter_spacing: style.letter_spacing,
+            word_spacing: style.word_spacing,
+            vertical_align: style.vertical_align,
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            z_index: style.z_index,
+            heading_level: None,
+        });
+        return;
+    }
+
+    // Media elements — render as placeholder rectangles
+    if el.tag == HtmlTag::Video || el.tag == HtmlTag::Audio {
+        let media_width = style
+            .width
+            .or_else(|| {
+                el.attributes
+                    .get("width")
+                    .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
+            })
+            .unwrap_or(if el.tag == HtmlTag::Video {
+                300.0
+            } else {
+                200.0
+            })
+            .min(available_width);
+        let media_height = style
+            .height
+            .or_else(|| {
+                el.attributes
+                    .get("height")
+                    .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
+            })
+            .unwrap_or(if el.tag == HtmlTag::Video {
+                150.0
+            } else {
+                24.0
+            });
+
+        let label = if el.tag == HtmlTag::Video {
+            "\u{25B6} Video".to_string()
+        } else {
+            "\u{25B6} Audio".to_string()
+        };
+
+        let bg =
+            style
+                .background_color
+                .map(|c| c.to_f32_rgb())
+                .unwrap_or(if el.tag == HtmlTag::Video {
+                    (0.0, 0.0, 0.0)
+                } else {
+                    (0.94, 0.94, 0.94)
+                });
+        let text_color = if el.tag == HtmlTag::Video {
+            (1.0, 1.0, 1.0)
+        } else {
+            (0.3, 0.3, 0.3)
+        };
+
+        let runs = vec![TextRun {
+            text: label,
+            font_size: style.font_size,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: text_color,
+            link_url: None,
+            font_family: style.font_family.clone(),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        }];
+        let lines = wrap_text_runs(runs, media_width, style.font_size, fonts);
+
+        output.push(LayoutElement::TextBlock {
+            lines,
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+            text_align: TextAlign::Center,
+            background_color: Some(bg),
+            padding_top: if el.tag == HtmlTag::Video {
+                (media_height - style.font_size) / 2.0
+            } else {
+                4.0
+            },
+            padding_bottom: if el.tag == HtmlTag::Video {
+                (media_height - style.font_size) / 2.0
+            } else {
+                4.0
+            },
+            padding_left: 4.0,
+            padding_right: 4.0,
+            border: LayoutBorder::from_computed(&style.border),
+            block_width: Some(media_width),
+            block_height: Some(media_height),
+            opacity: style.opacity,
+            float: style.float,
+            clear: style.clear,
+            position: style.position,
+            offset_top: style.top.unwrap_or(0.0),
+            offset_left: style.left.unwrap_or(0.0),
+            box_shadow: style.box_shadow,
+            visible: style.visibility == Visibility::Visible,
+            clip_rect: None,
+            transform: style.transform,
+            border_radius: style.border_radius,
+            outline_width: style.outline_width,
+            outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+            text_indent: 0.0,
+            letter_spacing: style.letter_spacing,
+            word_spacing: style.word_spacing,
+            vertical_align: style.vertical_align,
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            z_index: style.z_index,
+            heading_level: None,
+        });
+        return;
+    }
+
+    // Progress and meter elements — render as a horizontal bar
+    if el.tag == HtmlTag::Progress || el.tag == HtmlTag::Meter {
+        let bar_width = style.width.unwrap_or(150.0).min(available_width);
+        let bar_height = style.height.unwrap_or(12.0);
+        let value: f32 = el
+            .attributes
+            .get("value")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.0);
+        let max: f32 = el
+            .attributes
+            .get("max")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1.0);
+        let fraction = if max > 0.0 {
+            (value / max).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        let fill_color = if el.tag == HtmlTag::Progress {
+            (0.12, 0.53, 0.90)
+        } else {
+            let low: f32 = el
+                .attributes
+                .get("low")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(max * 0.25);
+            let high: f32 = el
+                .attributes
+                .get("high")
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(max * 0.75);
+            if value <= low {
+                (0.90, 0.20, 0.20)
+            } else if value >= high {
+                (0.20, 0.78, 0.35)
+            } else {
+                (0.95, 0.77, 0.06)
+            }
+        };
+
+        output.push(LayoutElement::ProgressBar {
+            fraction,
+            width: bar_width,
+            height: bar_height,
+            fill_color,
+            track_color: (0.88, 0.88, 0.88),
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+        });
         return;
     }
 
@@ -866,6 +1179,8 @@ fn flatten_element(
 
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
 
+        let block_heading_level = heading_level(el.tag);
+
         if !runs.is_empty() {
             let lines = wrap_text_runs(runs, inner_width, style.font_size, fonts);
             output.push(LayoutElement::TextBlock {
@@ -901,6 +1216,7 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                heading_level: block_heading_level,
             });
         }
 
@@ -982,6 +1298,31 @@ fn flatten_element(
             output.push(LayoutElement::PageBreak);
         }
         return;
+    }
+
+    // Multi-column layout: treat as implicit grid with equal columns
+    if let Some(col_count) = style.column_count {
+        if col_count >= 2 {
+            let gap = style.column_gap;
+            let tracks: Vec<GridTrack> = (0..col_count).map(|_| GridTrack::Fr(1.0)).collect();
+            let mut col_style = style.clone();
+            col_style.grid_template_columns = tracks;
+            col_style.grid_gap = gap;
+            flatten_grid_container(
+                el,
+                &col_style,
+                available_width,
+                output,
+                rules,
+                &child_ancestors,
+                fonts,
+            );
+
+            if style.page_break_after {
+                output.push(LayoutElement::PageBreak);
+            }
+            return;
+        }
     }
 
     if style.display == Display::Block {
@@ -1158,6 +1499,7 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                heading_level: heading_level(el.tag),
             });
         }
 
@@ -1254,6 +1596,7 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                heading_level: None,
             });
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
@@ -1293,6 +1636,7 @@ fn flatten_element(
                 background_gradient: None,
                 background_radial_gradient: None,
                 z_index: 0,
+                heading_level: None,
             });
             // Add the parent's left/right padding to children so they render
             // inside the padded area, not at the page left margin.
@@ -1347,6 +1691,7 @@ fn flatten_element(
                     background_gradient: None,
                     background_radial_gradient: None,
                     z_index: 0,
+                    heading_level: None,
                 });
             }
         } else {
@@ -1576,6 +1921,7 @@ fn flatten_flex_container(
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
             z_index: child_style.z_index,
+            heading_level: None,
         };
 
         items.push(FlexItem {
@@ -1747,6 +2093,7 @@ fn flatten_flex_container(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             z_index: 0,
+            heading_level: None,
         });
         // Pull y back so children flow inside the container background
         output.push(LayoutElement::TextBlock {
@@ -1782,6 +2129,7 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            heading_level: None,
         });
     }
 
@@ -2037,6 +2385,7 @@ fn flatten_flex_container(
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
                                 z_index: 0,
+                                heading_level: None,
                             });
                         }
                     }
@@ -2089,6 +2438,7 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            heading_level: None,
         });
     }
 }
@@ -2110,19 +2460,24 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
     let mut fixed_total: f32 = 0.0;
     let mut fr_total: f32 = 0.0;
     let mut auto_count: usize = 0;
+    let mut minmax_count: usize = 0;
 
     for track in tracks {
         match track {
             GridTrack::Fixed(v) => fixed_total += *v,
             GridTrack::Fr(v) => fr_total += *v,
             GridTrack::Auto => auto_count += 1,
+            GridTrack::Minmax(min, _) => {
+                fixed_total += min;
+                minmax_count += 1;
+            }
         }
     }
 
     let remaining = (space - fixed_total).max(0.0);
 
     // Auto columns are treated like 1fr each for distribution purposes
-    let effective_fr_total = fr_total + auto_count as f32;
+    let effective_fr_total = fr_total + auto_count as f32 + minmax_count as f32;
     let per_fr = if effective_fr_total > 0.0 {
         remaining / effective_fr_total
     } else {
@@ -2135,6 +2490,14 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
             GridTrack::Fixed(v) => *v,
             GridTrack::Fr(v) => per_fr * *v,
             GridTrack::Auto => per_fr,
+            GridTrack::Minmax(min, max) => {
+                let desired = min + per_fr;
+                if *max < f32::MAX {
+                    desired.clamp(*min, *max)
+                } else {
+                    desired
+                }
+            }
         })
         .collect()
 }
@@ -3252,6 +3615,12 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             margin_top,
             margin_bottom,
         } => margin_top + 1.0 + margin_bottom,
+        LayoutElement::ProgressBar {
+            height,
+            margin_top,
+            margin_bottom,
+            ..
+        } => margin_top + height + margin_bottom,
         _ => 0.0,
     }
 }
@@ -3393,6 +3762,12 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 ..
             } => (*height, *margin_top, *margin_bottom),
             LayoutElement::Svg {
+                height,
+                margin_top,
+                margin_bottom,
+                ..
+            } => (*height, *margin_top, *margin_bottom),
+            LayoutElement::ProgressBar {
                 height,
                 margin_top,
                 margin_bottom,
@@ -3541,7 +3916,41 @@ fn load_image_from_element(
     })
 }
 
-/// Load image data from a src attribute (supports data: URIs and local file paths).
+/// Maximum size for remote resources (10 MB).
+#[cfg(feature = "remote")]
+const MAX_REMOTE_SIZE: usize = 10 * 1024 * 1024;
+
+/// Fetch bytes from an HTTP/HTTPS URL (requires the `remote` feature).
+/// Returns `None` if the feature is disabled, the request fails, or the response exceeds 10 MB.
+fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
+    #[cfg(feature = "remote")]
+    {
+        let resp = ureq::get(url).call().ok()?;
+        let len = resp
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        if len > MAX_REMOTE_SIZE {
+            return None;
+        }
+        let buf = resp
+            .into_body()
+            .with_config()
+            .limit(MAX_REMOTE_SIZE as u64)
+            .read_to_vec()
+            .ok()?;
+        Some(buf)
+    }
+    #[cfg(not(feature = "remote"))]
+    {
+        let _ = url;
+        None
+    }
+}
+
+/// Load image data from a src attribute (supports data: URIs, local files, and remote URLs).
 /// Returns (raw_bytes, format, optional_png_metadata).
 fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
     let raw = if let Some(rest) = src.strip_prefix("data:") {
@@ -3550,8 +3959,7 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
         // Only support base64 for now
         base64_decode(encoded)?
     } else if src.starts_with("http://") || src.starts_with("https://") {
-        // Remote URLs are not supported (SSRF risk)
-        return None;
+        fetch_remote_url(src)?
     } else {
         // Treat as local file path
         std::fs::read(src).ok()?
@@ -4120,6 +4528,39 @@ mod tests {
             pages[0].elements.is_empty()
                 || !matches!(&pages[0].elements[0].1, LayoutElement::Image { .. })
         );
+    }
+
+    #[test]
+    fn fetch_remote_url_returns_none_without_feature() {
+        // Without the "remote" feature, fetch_remote_url always returns None
+        let result = fetch_remote_url("https://example.com/image.png");
+        #[cfg(not(feature = "remote"))]
+        assert!(result.is_none());
+        // With the feature enabled, it would attempt a real HTTP request
+        // (which may or may not succeed depending on network)
+        let _ = result;
+    }
+
+    #[test]
+    fn load_image_data_http_without_feature() {
+        let result = load_image_data("http://example.com/test.jpg");
+        #[cfg(not(feature = "remote"))]
+        assert!(
+            result.is_none(),
+            "HTTP images should be None without remote feature"
+        );
+        let _ = result;
+    }
+
+    #[test]
+    fn load_image_data_https_without_feature() {
+        let result = load_image_data("https://example.com/test.png");
+        #[cfg(not(feature = "remote"))]
+        assert!(
+            result.is_none(),
+            "HTTPS images should be None without remote feature"
+        );
+        let _ = result;
     }
 
     #[test]
@@ -7787,6 +8228,481 @@ mod _removed {
             pages.len() >= 3,
             "Expected at least 3 pages, got {}",
             pages.len()
+        );
+    }
+
+    #[test]
+    fn layout_input_element() {
+        let html = r#"<input type="text" value="Hello">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_input_with_placeholder() {
+        let html = r#"<input type="text" placeholder="Enter name...">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_select_element() {
+        let html = r#"<select><option>One</option><option>Two</option></select>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_textarea_element() {
+        let html = r#"<textarea>Some text content</textarea>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_textarea_with_custom_size() {
+        let html = r#"<textarea style="width: 200px; height: 100px">Content</textarea>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_video_element() {
+        let html = r#"<video width="320" height="240"></video>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_video_default_size() {
+        let html = r#"<video></video>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_audio_element() {
+        let html = r#"<audio></audio>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_progress_element() {
+        let html = r#"<progress value="0.7" max="1"></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let has_bar = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::ProgressBar { .. }));
+        assert!(has_bar, "Expected a ProgressBar element");
+    }
+
+    #[test]
+    fn layout_progress_zero_value() {
+        let html = r#"<progress value="0" max="100"></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let bar = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fraction, .. } = el {
+                Some(*fraction)
+            } else {
+                None
+            }
+        });
+        assert_eq!(bar, Some(0.0));
+    }
+
+    #[test]
+    fn layout_progress_full_value() {
+        let html = r#"<progress value="100" max="100"></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let bar = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fraction, .. } = el {
+                Some(*fraction)
+            } else {
+                None
+            }
+        });
+        assert_eq!(bar, Some(1.0));
+    }
+
+    #[test]
+    fn layout_progress_over_max_clamped() {
+        let html = r#"<progress value="200" max="100"></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let bar = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fraction, .. } = el {
+                Some(*fraction)
+            } else {
+                None
+            }
+        });
+        assert_eq!(bar, Some(1.0));
+    }
+
+    #[test]
+    fn layout_meter_element() {
+        let html = r#"<meter value="0.6" max="1"></meter>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let has_bar = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::ProgressBar { .. }));
+        assert!(has_bar, "Expected a ProgressBar element for meter");
+    }
+
+    #[test]
+    fn layout_meter_low_high_thresholds() {
+        let html = r#"<meter value="10" max="100" low="25" high="75"></meter>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let fill = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fill_color, .. } = el {
+                Some(*fill_color)
+            } else {
+                None
+            }
+        });
+        assert!(fill.is_some());
+        let (r, _, _) = fill.unwrap();
+        assert!(r > 0.8, "Expected red fill for low meter value");
+    }
+
+    #[test]
+    fn layout_meter_high_value_green() {
+        let html = r#"<meter value="90" max="100" low="25" high="75"></meter>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let fill = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fill_color, .. } = el {
+                Some(*fill_color)
+            } else {
+                None
+            }
+        });
+        assert!(fill.is_some());
+        let (_, g, _) = fill.unwrap();
+        assert!(g > 0.7, "Expected green fill for high meter value");
+    }
+
+    #[test]
+    fn layout_form_elements_in_context() {
+        let html = r#"
+            <div>
+                <p>Name:</p>
+                <input type="text" value="John">
+                <p>Country:</p>
+                <select><option>France</option><option>USA</option></select>
+                <p>Bio:</p>
+                <textarea>Some biography text here</textarea>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(pages[0].elements.len() >= 3);
+    }
+
+    #[test]
+    fn layout_progress_custom_width() {
+        let html = r#"<progress value="50" max="100" style="width: 200px"></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let width = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { width, .. } = el {
+                Some(*width)
+            } else {
+                None
+            }
+        });
+        assert_eq!(width, Some(200.0));
+    }
+
+    #[test]
+    fn grid_layout_repeat() {
+        let css = ".grid { display: grid; grid-template-columns: repeat(3, 1fr); }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>A</div><div>B</div><div>C</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert_eq!(
+            grid_rows.len(),
+            1,
+            "Expected 1 grid row with 3 columns from repeat(3, 1fr)"
+        );
+    }
+
+    #[test]
+    fn grid_layout_minmax() {
+        let css = ".grid { display: grid; grid-template-columns: minmax(50pt, 200pt) 1fr; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>A</div><div>B</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert!(!grid_rows.is_empty(), "Expected GridRow from minmax grid");
+    }
+
+    #[test]
+    fn grid_layout_auto_fill() {
+        let css = ".grid { display: grid; grid-template-columns: repeat(auto-fill, 100px); }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>A</div><div>B</div><div>C</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn grid_layout_repeat_with_minmax() {
+        let css = ".grid { display: grid; grid-template-columns: repeat(3, minmax(50px, 1fr)); }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>A</div><div>B</div><div>C</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert_eq!(grid_rows.len(), 1);
+    }
+
+    #[test]
+    fn multi_column_layout() {
+        let css = ".cols { column-count: 2; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="cols"><div>Col 1</div><div>Col 2</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert_eq!(grid_rows.len(), 1, "Expected 1 row from 2-column layout");
+    }
+
+    #[test]
+    fn multi_column_three_cols() {
+        let css = ".cols { column-count: 3; column-gap: 10pt; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="cols"><div>A</div><div>B</div><div>C</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert_eq!(grid_rows.len(), 1);
+    }
+
+    #[test]
+    fn multi_column_wraps_rows() {
+        let css = ".cols { column-count: 2; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="cols"><div>A</div><div>B</div><div>C</div><div>D</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert_eq!(
+            grid_rows.len(),
+            2,
+            "Expected 2 rows from 4 items in 2-column layout"
+        );
+    }
+
+    #[test]
+    fn layout_input_empty_no_value() {
+        let html = r#"<input type="text">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_select_empty_options() {
+        let html = r#"<select></select>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_textarea_empty() {
+        let html = r#"<textarea></textarea>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_video_with_css_dimensions() {
+        let html = r#"<video style="width: 400px; height: 300px"></video>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn layout_audio_with_css_dimensions() {
+        let html = r#"<audio style="width: 250px"></audio>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn layout_progress_no_value_attr() {
+        let html = r#"<progress></progress>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let bar = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fraction, .. } = el {
+                Some(*fraction)
+            } else {
+                None
+            }
+        });
+        assert_eq!(bar, Some(0.0));
+    }
+
+    #[test]
+    fn layout_meter_no_thresholds() {
+        let html = r#"<meter value="50" max="100"></meter>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let fill = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fill_color, .. } = el {
+                Some(*fill_color)
+            } else {
+                None
+            }
+        });
+        // 50/100 = 0.5, between default low (25) and high (75) → yellow
+        assert!(fill.is_some());
+        let (r, _, _) = fill.unwrap();
+        assert!(r > 0.9, "Expected yellow fill for mid-range meter");
+    }
+
+    #[test]
+    fn layout_meter_zero_max() {
+        let html = r#"<meter value="5" max="0"></meter>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let bar = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::ProgressBar { fraction, .. } = el {
+                Some(*fraction)
+            } else {
+                None
+            }
+        });
+        assert_eq!(bar, Some(0.0), "Zero max should produce 0 fraction");
+    }
+
+    #[test]
+    fn heading_level_returns_correct_values() {
+        assert_eq!(heading_level(HtmlTag::H1), Some(1));
+        assert_eq!(heading_level(HtmlTag::H2), Some(2));
+        assert_eq!(heading_level(HtmlTag::H3), Some(3));
+        assert_eq!(heading_level(HtmlTag::H4), Some(4));
+        assert_eq!(heading_level(HtmlTag::H5), Some(5));
+        assert_eq!(heading_level(HtmlTag::H6), Some(6));
+        assert_eq!(heading_level(HtmlTag::P), None);
+        assert_eq!(heading_level(HtmlTag::Div), None);
+    }
+
+    #[test]
+    fn layout_heading_has_level_in_textblock() {
+        let html = "<h2>Section Title</h2>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_heading = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    heading_level: Some(2),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_heading,
+            "h2 should produce TextBlock with heading_level=2"
+        );
+    }
+
+    #[test]
+    fn layout_paragraph_has_no_heading_level() {
+        let html = "<p>Just text</p>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_heading = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    heading_level: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(!has_heading, "p should not have a heading_level");
+    }
+
+    #[test]
+    fn column_count_1_not_grid() {
+        // column-count: 1 should not trigger grid layout
+        let css = ".cols { column-count: 1; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="cols"><p>Single column</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let grid_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .collect();
+        assert!(
+            grid_rows.is_empty(),
+            "column-count: 1 should not produce grid rows"
         );
     }
 }

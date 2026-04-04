@@ -26,6 +26,15 @@ struct LinkAnnotation {
     url: String,
 }
 
+/// A bookmark entry for PDF outline (table of contents).
+#[allow(dead_code)]
+struct BookmarkEntry {
+    title: String,
+    level: u8,
+    page_index: usize,
+    y_pos: f32,
+}
+
 /// Render laid-out pages into a PDF byte buffer.
 ///
 /// Uses the PDF built-in Helvetica font family (one of the 14 standard fonts)
@@ -51,10 +60,20 @@ pub fn render_pdf_with_fonts(
     Ok(buf)
 }
 
+/// Header and footer text for page decoration.
+pub struct PageDecoration {
+    /// Header text rendered top-center of each page.
+    pub header: Option<String>,
+    /// Footer text rendered bottom-center of each page.
+    /// `{page}` and `{pages}` are replaced with page number and total count.
+    pub footer: Option<String>,
+}
+
 /// Render laid-out pages as PDF, writing directly to any `std::io::Write` implementation.
 ///
 /// This is the streaming variant of [`render_pdf`]. It writes PDF content incrementally
 /// to the provided writer instead of building an in-memory buffer.
+#[allow(dead_code)]
 pub fn render_pdf_to_writer<W: std::io::Write>(
     pages: &[Page],
     page_size: PageSize,
@@ -72,15 +91,28 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
     writer: &mut W,
     custom_fonts: &HashMap<String, TtfFont>,
 ) -> Result<(), IronpressError> {
+    render_pdf_to_writer_full(pages, page_size, margin, writer, custom_fonts, None)
+}
+
+/// Full render function with optional page decoration (headers/footers).
+pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
+    pages: &[Page],
+    page_size: PageSize,
+    margin: Margin,
+    writer: &mut W,
+    custom_fonts: &HashMap<String, TtfFont>,
+    decoration: Option<&PageDecoration>,
+) -> Result<(), IronpressError> {
     let mut pdf_writer = PdfWriter::new();
     let available_width = page_size.width - margin.left - margin.right;
+    let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
 
     // Register custom TrueType fonts
     for (name, ttf) in custom_fonts {
         pdf_writer.add_ttf_font(name, ttf);
     }
 
-    for page in pages {
+    for (page_idx, page) in pages.iter().enumerate() {
         let mut content = String::new();
         let mut annotations: Vec<LinkAnnotation> = Vec::new();
         let mut page_images: Vec<ImageRef> = Vec::new();
@@ -116,11 +148,29 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                     outline_color,
                     letter_spacing,
                     word_spacing: css_word_spacing,
+                    heading_level,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (but space is preserved)
                     if !visible {
                         continue;
+                    }
+
+                    // Collect heading bookmark for PDF outlines
+                    if let Some(level) = heading_level {
+                        let title: String = lines
+                            .iter()
+                            .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                            .collect::<Vec<_>>()
+                            .join("");
+                        if !title.trim().is_empty() {
+                            bookmarks.push(BookmarkEntry {
+                                title: title.trim().to_string(),
+                                level: *level,
+                                page_index: page_idx,
+                                y_pos: *y_pos,
+                            });
+                        }
                     }
 
                     // Compute block_x with float/position offsets
@@ -1246,7 +1296,89 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
                         y = rule_y,
                     ));
                 }
+                LayoutElement::ProgressBar {
+                    fraction,
+                    width,
+                    height,
+                    fill_color,
+                    track_color,
+                    ..
+                } => {
+                    let bar_x = margin.left;
+                    let bar_y = page_size.height - margin.top - y_pos - height;
+
+                    // Draw track background
+                    content.push_str(&format!(
+                        "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                        r = track_color.0,
+                        g = track_color.1,
+                        b = track_color.2,
+                        x = bar_x,
+                        y = bar_y,
+                        w = width,
+                        h = height,
+                    ));
+
+                    // Draw filled portion
+                    if *fraction > 0.0 {
+                        let fill_w = width * fraction;
+                        content.push_str(&format!(
+                            "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                            r = fill_color.0,
+                            g = fill_color.1,
+                            b = fill_color.2,
+                            x = bar_x,
+                            y = bar_y,
+                            w = fill_w,
+                            h = height,
+                        ));
+                    }
+
+                    // Draw border
+                    content.push_str(&format!(
+                        "0.5 w\n0.6 0.6 0.6 RG\n{x} {y} {w} {h} re\nS\n",
+                        x = bar_x,
+                        y = bar_y,
+                        w = width,
+                        h = height,
+                    ));
+                }
                 LayoutElement::PageBreak => {}
+            }
+        }
+
+        // Render page header/footer in margin area
+        if let Some(dec) = decoration {
+            let total_pages = pages.len();
+            let page_num = page_idx + 1;
+            let center_x = page_size.width / 2.0;
+
+            if let Some(ref header_text) = dec.header {
+                let text = header_text
+                    .replace("{page}", &page_num.to_string())
+                    .replace("{pages}", &total_pages.to_string());
+                let encoded = encode_pdf_text(&text);
+                let header_y = page_size.height - margin.top / 2.0;
+                content.push_str("BT\n");
+                content.push_str("/Helvetica 9 Tf\n");
+                content.push_str("0.4 0.4 0.4 rg\n");
+                content.push_str(&format!("{center_x} {header_y} Td\n"));
+                content.push_str(&format!("({encoded}) Tj\n"));
+                content.push_str("ET\n");
+            }
+
+            if let Some(ref footer_text) = dec.footer {
+                let text = footer_text
+                    .replace("{page}", &page_num.to_string())
+                    .replace("{pages}", &total_pages.to_string());
+                let encoded = encode_pdf_text(&text);
+                let footer_y = margin.bottom / 2.0;
+                content.push_str("BT\n");
+                content.push_str("/Helvetica 9 Tf\n");
+                content.push_str("0.4 0.4 0.4 rg\n");
+                content.push_str(&format!("{center_x} {footer_y} Td\n"));
+                content.push_str(&format!("({encoded}) Tj\n"));
+                content.push_str("ET\n");
             }
         }
 
@@ -1261,7 +1393,7 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
         );
     }
 
-    pdf_writer.finish_to_writer(writer)
+    pdf_writer.finish_to_writer(writer, &bookmarks)
 }
 
 /// Compute the height of a table row from its cells.
@@ -1285,28 +1417,24 @@ fn render_cell_text(
     custom_fonts: &HashMap<String, TtfFont>,
 ) {
     let cell_inner_w = col_width - cell.padding_left - cell.padding_right;
-    // Vertical centering using font metrics: place glyphs so the visual
-    // midpoint between ascender top and descender bottom sits at the row's
-    // vertical center.
+    // Vertical centering: place text block so its visual center aligns with
+    // the row's vertical center.  In PDF, the baseline is where we position
+    // text — glyphs extend upward by ascender and downward by descender.
     let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-    let font_size = cell
-        .lines
-        .first()
-        .and_then(|l| l.runs.first())
-        .map_or(12.0, |r| r.font_size);
-    let font_family = cell
-        .lines
-        .first()
-        .and_then(|l| l.runs.first())
-        .map_or(FontFamily::Helvetica, |r| r.font_family.clone());
-    let ascender = crate::fonts::ascender_ratio(&font_family) * font_size;
-    let descender = crate::fonts::descender_ratio(&font_family) * font_size;
-    let visual_center = row_y - row_height / 2.0;
-    let mut text_y = visual_center + text_h / 2.0 + (ascender - descender) / 2.0 - ascender;
+
+    // Top of the text block, centered in the row
+    let text_block_top = row_y - (row_height - text_h) / 2.0;
+    let mut text_y = text_block_top;
     for line in &cell.lines {
         let line_font_size = line.runs.iter().map(|r| r.font_size).fold(0.0f32, f32::max);
+        let line_family = line
+            .runs
+            .first()
+            .map_or(FontFamily::Helvetica, |r| r.font_family.clone());
+        let line_ascender = crate::fonts::ascender_ratio(&line_family) * line_font_size;
         let half_leading = (line.height - line_font_size) / 2.0;
-        text_y -= line_font_size + half_leading;
+        // Baseline sits at: top of line - half_leading - ascender
+        text_y -= half_leading + line_ascender;
         let text_content: String = line.runs.iter().map(|r| r.text.as_str()).collect();
         if text_content.is_empty() {
             continue;
@@ -1381,6 +1509,8 @@ fn render_cell_text(
 
             x += rw;
         }
+        // Move past the rest of the line (descender + bottom half-leading)
+        text_y -= line.height - half_leading - line_ascender;
     }
 }
 
@@ -1956,7 +2086,11 @@ impl PdfWriter {
         self.page_shadings.push(shadings);
     }
 
-    fn finish_to_writer<W: std::io::Write>(self, out: &mut W) -> Result<(), IronpressError> {
+    fn finish_to_writer<W: std::io::Write>(
+        self,
+        out: &mut W,
+        bookmarks: &[BookmarkEntry],
+    ) -> Result<(), IronpressError> {
         let mut bytes_written: usize = 0;
         out.write_all(b"%PDF-1.4\n")?;
         bytes_written += b"%PDF-1.4\n".len();
@@ -2143,10 +2277,46 @@ impl PdfWriter {
             self.page_ids.len(),
         ));
 
+        // Outlines (PDF bookmarks from headings)
+        let outlines_ref = if bookmarks.is_empty() {
+            String::new()
+        } else {
+            let count = bookmarks.len();
+            // Outline root object
+            let root_id = all_objects.len() + 1;
+            let first_entry_id = root_id + 1;
+            let last_entry_id = first_entry_id + count - 1;
+            all_objects.push(format!(
+                "{root_id} 0 obj\n<< /Type /Outlines /First {first_entry_id} 0 R /Last {last_entry_id} 0 R /Count {count} >>\nendobj",
+            ));
+
+            // Outline entry objects (flat list, linked via Prev/Next)
+            for (i, bm) in bookmarks.iter().enumerate() {
+                let entry_id = first_entry_id + i;
+                let page_obj_id = self.page_ids.get(bm.page_index).copied().unwrap_or(1);
+
+                let mut entry = format!(
+                    "{entry_id} 0 obj\n<< /Title ({title}) /Parent {root_id} 0 R /Dest [{page_obj_id} 0 R /XYZ 0 {dest_y} 0]",
+                    title = escape_pdf_string(&bm.title),
+                    dest_y = bm.y_pos,
+                );
+                if i > 0 {
+                    entry.push_str(&format!(" /Prev {} 0 R", first_entry_id + i - 1));
+                }
+                if i + 1 < count {
+                    entry.push_str(&format!(" /Next {} 0 R", first_entry_id + i + 1));
+                }
+                entry.push_str(" >>\nendobj");
+                all_objects.push(entry);
+            }
+
+            format!(" /Outlines {root_id} 0 R /PageMode /UseOutlines")
+        };
+
         // Catalog
-        let catalog_id = pages_id + 1;
+        let catalog_id = all_objects.len() + 1;
         all_objects.push(format!(
-            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R >>\nendobj",
+            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref} >>\nendobj",
         ));
 
         // Write objects and track offsets for xref
@@ -2391,6 +2561,278 @@ mod tests {
         let content = String::from_utf8_lossy(&pdf);
         // HR draws a line with stroke
         assert!(content.contains(" l\nS\n"));
+    }
+
+    #[test]
+    fn render_input_element() {
+        let pdf = crate::html_to_pdf(r#"<input type="text" value="Hello">"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 100);
+    }
+
+    #[test]
+    fn render_input_with_placeholder() {
+        let pdf = crate::html_to_pdf(r#"<input placeholder="Type here...">"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn render_select_element() {
+        let pdf =
+            crate::html_to_pdf(r#"<select><option>A</option><option>B</option></select>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 100);
+    }
+
+    #[test]
+    fn render_textarea_element() {
+        let pdf = crate::html_to_pdf(r#"<textarea>Hello World</textarea>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 100);
+    }
+
+    #[test]
+    fn render_video_element() {
+        let pdf = crate::html_to_pdf(r#"<video width="320" height="240"></video>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 100);
+    }
+
+    #[test]
+    fn render_audio_element() {
+        let pdf = crate::html_to_pdf(r#"<audio></audio>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 100);
+    }
+
+    #[test]
+    fn render_progress_element() {
+        let pdf = crate::html_to_pdf(r#"<progress value="0.7" max="1"></progress>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        // Progress bar draws rectangles (track + fill + border)
+        assert!(
+            content.contains("re\nf\n"),
+            "Expected filled rectangles for progress bar"
+        );
+    }
+
+    #[test]
+    fn render_progress_empty() {
+        let pdf = crate::html_to_pdf(r#"<progress value="0" max="1"></progress>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn render_meter_element() {
+        let pdf = crate::html_to_pdf(r#"<meter value="0.5" max="1"></meter>"#).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("re\nf\n"),
+            "Expected filled rectangles for meter bar"
+        );
+    }
+
+    #[test]
+    fn render_meter_low_value() {
+        let pdf = crate::html_to_pdf(r#"<meter value="5" max="100" low="25" high="75"></meter>"#)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn render_form_controls_styled() {
+        let html = r#"
+            <input type="text" value="styled" style="width: 200px; border: 2px solid blue; background-color: #eee">
+        "#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn render_mixed_form_and_text() {
+        let html = r#"
+            <p>Fill in the form:</p>
+            <input type="text" value="John">
+            <p>Select country:</p>
+            <select><option>France</option></select>
+            <p>Comments:</p>
+            <textarea>Great product!</textarea>
+            <p>Rating:</p>
+            <progress value="80" max="100"></progress>
+        "#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        assert!(pdf.len() > 500);
+    }
+
+    #[test]
+    fn render_pdf_bookmarks_from_headings() {
+        let html = "<h1>Chapter 1</h1><p>Content</p><h2>Section 1.1</h2><p>More</p>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("/Type /Outlines"), "Expected PDF outlines");
+        assert!(
+            content.contains("Chapter 1"),
+            "Expected heading text in bookmark"
+        );
+        assert!(
+            content.contains("Section 1.1"),
+            "Expected h2 heading in bookmark"
+        );
+    }
+
+    #[test]
+    fn render_pdf_no_bookmarks_without_headings() {
+        let html = "<p>No headings here</p>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            !content.contains("/Type /Outlines"),
+            "Should not have outlines without headings"
+        );
+    }
+
+    #[test]
+    fn render_pdf_bookmarks_multi_page() {
+        let html = r#"
+            <h1>Page 1 Title</h1>
+            <p>Content</p>
+            <div style="page-break-before: always">
+                <h1>Page 2 Title</h1>
+                <p>More content</p>
+            </div>
+        "#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Page 1 Title"));
+        assert!(content.contains("Page 2 Title"));
+        assert!(content.contains("/Type /Outlines"));
+    }
+
+    #[test]
+    fn render_pdf_bookmarks_all_levels() {
+        let html = "<h1>H1</h1><h2>H2</h2><h3>H3</h3><h4>H4</h4><h5>H5</h5><h6>H6</h6>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("/Count 6"), "Expected 6 outline entries");
+    }
+
+    #[test]
+    fn render_page_footer() {
+        let pdf = crate::HtmlConverter::new()
+            .footer("Page {page} of {pages}")
+            .convert("<h1>Title</h1><p>Content</p>")
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("Page 1 of 1"),
+            "Expected footer with page numbers"
+        );
+    }
+
+    #[test]
+    fn render_page_header() {
+        let pdf = crate::HtmlConverter::new()
+            .header("My Document")
+            .convert("<p>Content</p>")
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("My Document"),
+            "Expected header text in PDF"
+        );
+    }
+
+    #[test]
+    fn render_header_and_footer() {
+        let pdf = crate::HtmlConverter::new()
+            .header("Report Title")
+            .footer("Page {page} of {pages}")
+            .convert("<p>Page 1</p>")
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Report Title"));
+        assert!(content.contains("Page 1 of 1"));
+    }
+
+    #[test]
+    fn render_footer_multi_page() {
+        let html = r#"
+            <p>First page</p>
+            <div style="page-break-before: always"><p>Second page</p></div>
+        "#;
+        let pdf = crate::HtmlConverter::new()
+            .footer("Page {page} of {pages}")
+            .convert(html)
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Verify page number substitution works (at least page 1 and last page are present)
+        assert!(content.contains("Page 1 of"), "Expected footer with page 1");
+        assert!(content.contains("Page 2 of"), "Expected footer with page 2");
+    }
+
+    #[test]
+    fn render_no_header_footer_by_default() {
+        let pdf = crate::html_to_pdf("<p>Test</p>").unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(!content.contains("Page 1 of"));
+    }
+
+    #[test]
+    fn render_header_only_no_footer() {
+        let pdf = crate::HtmlConverter::new()
+            .header("Header Only")
+            .convert("<p>Content</p>")
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Header Only"));
+        assert!(!content.contains("Page 1"));
+    }
+
+    #[test]
+    fn render_footer_only_no_header() {
+        let pdf = crate::HtmlConverter::new()
+            .footer("{page}/{pages}")
+            .convert("<p>Content</p>")
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("1/1"));
+    }
+
+    #[test]
+    fn render_progress_bar_zero_fraction() {
+        let html = r#"<progress value="0" max="1"></progress>"#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Track is drawn but fill is skipped when fraction=0
+        assert!(content.contains("re\nf\n")); // track rect
+        assert!(content.contains("re\nS\n")); // border stroke
+    }
+
+    #[test]
+    fn render_progress_bar_full_fraction() {
+        let html = r#"<progress value="1" max="1"></progress>"#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn render_bookmark_special_chars() {
+        let html = r#"<h1>Title with (parens) &amp; "quotes"</h1>"#;
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("/Type /Outlines"));
+    }
+
+    #[test]
+    fn render_single_heading_bookmark() {
+        let html = "<h1>Only One</h1><p>Text</p>";
+        let pdf = crate::html_to_pdf(html).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("/Count 1"));
+        assert!(content.contains("Only One"));
     }
 
     #[test]
@@ -3267,6 +3709,7 @@ mod tests {
                     word_spacing: 0.0,
                     vertical_align: crate::style::computed::VerticalAlign::Baseline,
                     z_index: 0,
+                    heading_level: None,
                 },
             )],
         };
@@ -3331,6 +3774,7 @@ mod tests {
                         word_spacing: 0.0,
                         vertical_align: crate::style::computed::VerticalAlign::Baseline,
                         z_index: 0,
+                        heading_level: None,
                     },
                 ),
                 (20.0, LayoutElement::PageBreak),
@@ -4433,6 +4877,7 @@ mod tests {
                     word_spacing: 0.0,
                     vertical_align: crate::style::computed::VerticalAlign::Baseline,
                     z_index: 0,
+                    heading_level: None,
                 },
             )],
         };

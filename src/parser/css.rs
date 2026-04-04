@@ -348,6 +348,17 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Multi-column layout
+    if property == "column-count" || property == "columns" {
+        if let Some(v) = parse_length(val) {
+            return Some(v);
+        }
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+    if property == "column-gap" {
+        return parse_length(val);
+    }
+
     // Border-radius — parse as length (single value shorthand)
     if property == "border-radius" {
         return parse_length(val);
@@ -875,10 +886,7 @@ fn parse_font_face_declarations(decls: &str) -> Option<FontFaceRule> {
                 "src" => {
                     // Parse url("path") or url('path') or url(path)
                     if let Some(path) = extract_url_path(val) {
-                        // Security: reject remote URLs
-                        if !path.starts_with("http://") && !path.starts_with("https://") {
-                            src_path = Some(path);
-                        }
+                        src_path = Some(path);
                     }
                 }
                 _ => {}
@@ -3867,7 +3875,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_font_face_rejects_http_url() {
+    fn parse_font_face_accepts_https_url() {
         let css = r#"
             @font-face {
                 font-family: "Remote";
@@ -3875,11 +3883,12 @@ mod tests {
             }
         "#;
         let rules = parse_font_face_rules(css);
-        assert_eq!(rules.len(), 0, "Remote URLs should be rejected");
+        assert_eq!(rules.len(), 1, "Remote HTTPS URLs should be parsed");
+        assert_eq!(rules[0].src_path, "https://example.com/font.ttf");
     }
 
     #[test]
-    fn parse_font_face_rejects_http_url_no_s() {
+    fn parse_font_face_accepts_http_url() {
         let css = r#"
             @font-face {
                 font-family: "Remote";
@@ -3887,7 +3896,8 @@ mod tests {
             }
         "#;
         let rules = parse_font_face_rules(css);
-        assert_eq!(rules.len(), 0, "Remote HTTP URLs should be rejected");
+        assert_eq!(rules.len(), 1, "Remote HTTP URLs should be parsed");
+        assert_eq!(rules[0].src_path, "http://example.com/font.ttf");
     }
 
     #[test]

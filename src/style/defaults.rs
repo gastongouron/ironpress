@@ -154,6 +154,52 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
         HtmlTag::Summary => {
             style.set("font-weight", CssValue::Keyword("bold".into()));
         }
+        HtmlTag::Input => {
+            style.set("padding-top", CssValue::Length(2.0));
+            style.set("padding-right", CssValue::Length(4.0));
+            style.set("padding-bottom", CssValue::Length(2.0));
+            style.set("padding-left", CssValue::Length(4.0));
+            style.set("border-width", CssValue::Length(1.0));
+            style.set("border-color", CssValue::Color(Color::rgb(169, 169, 169)));
+        }
+        HtmlTag::Select => {
+            style.set("padding-top", CssValue::Length(2.0));
+            style.set("padding-right", CssValue::Length(4.0));
+            style.set("padding-bottom", CssValue::Length(2.0));
+            style.set("padding-left", CssValue::Length(4.0));
+            style.set("border-width", CssValue::Length(1.0));
+            style.set("border-color", CssValue::Color(Color::rgb(169, 169, 169)));
+        }
+        HtmlTag::Textarea => {
+            style.set("padding-top", CssValue::Length(4.0));
+            style.set("padding-right", CssValue::Length(4.0));
+            style.set("padding-bottom", CssValue::Length(4.0));
+            style.set("padding-left", CssValue::Length(4.0));
+            style.set("border-width", CssValue::Length(1.0));
+            style.set("border-color", CssValue::Color(Color::rgb(169, 169, 169)));
+            style.set("font-size", CssValue::Length(10.0));
+        }
+        HtmlTag::Video => {
+            style.set("margin-top", CssValue::Length(4.0));
+            style.set("margin-bottom", CssValue::Length(4.0));
+            style.set("background-color", CssValue::Color(Color::rgb(0, 0, 0)));
+        }
+        HtmlTag::Audio => {
+            style.set("margin-top", CssValue::Length(2.0));
+            style.set("margin-bottom", CssValue::Length(2.0));
+            style.set(
+                "background-color",
+                CssValue::Color(Color::rgb(240, 240, 240)),
+            );
+        }
+        HtmlTag::Progress => {
+            style.set("margin-top", CssValue::Length(2.0));
+            style.set("margin-bottom", CssValue::Length(2.0));
+        }
+        HtmlTag::Meter => {
+            style.set("margin-top", CssValue::Length(2.0));
+            style.set("margin-bottom", CssValue::Length(2.0));
+        }
         _ => {}
     }
 
@@ -245,6 +291,43 @@ mod tests {
                 .is_some()
         );
         assert!(default_style(HtmlTag::Summary).get("font-weight").is_some());
+    }
+
+    #[test]
+    fn form_element_defaults() {
+        let input = default_style(HtmlTag::Input);
+        assert!(input.get("padding-top").is_some());
+        assert!(input.get("border-width").is_some());
+        assert!(input.get("border-color").is_some());
+
+        let select = default_style(HtmlTag::Select);
+        assert!(select.get("padding-top").is_some());
+        assert!(select.get("border-width").is_some());
+
+        let textarea = default_style(HtmlTag::Textarea);
+        assert!(textarea.get("padding-top").is_some());
+        assert!(textarea.get("font-size").is_some());
+        assert!(textarea.get("border-width").is_some());
+    }
+
+    #[test]
+    fn media_element_defaults() {
+        let video = default_style(HtmlTag::Video);
+        assert!(video.get("background-color").is_some());
+        assert!(video.get("margin-top").is_some());
+
+        let audio = default_style(HtmlTag::Audio);
+        assert!(audio.get("background-color").is_some());
+        assert!(audio.get("margin-top").is_some());
+    }
+
+    #[test]
+    fn progress_meter_defaults() {
+        let progress = default_style(HtmlTag::Progress);
+        assert!(progress.get("margin-top").is_some());
+
+        let meter = default_style(HtmlTag::Meter);
+        assert!(meter.get("margin-top").is_some());
     }
 
     #[test]

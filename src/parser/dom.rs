@@ -62,6 +62,13 @@ pub enum HtmlTag {
     Details,
     Summary,
     Svg,
+    Input,
+    Select,
+    Textarea,
+    Video,
+    Audio,
+    Progress,
+    Meter,
     Unknown,
 }
 
@@ -127,6 +134,13 @@ impl HtmlTag {
             "details" => Self::Details,
             "summary" => Self::Summary,
             "svg" => Self::Svg,
+            "input" => Self::Input,
+            "select" => Self::Select,
+            "textarea" => Self::Textarea,
+            "video" => Self::Video,
+            "audio" => Self::Audio,
+            "progress" => Self::Progress,
+            "meter" => Self::Meter,
             _ => Self::Unknown,
         }
     }
@@ -172,6 +186,8 @@ impl HtmlTag {
                 | Self::Details
                 | Self::Summary
                 | Self::Svg
+                | Self::Video
+                | Self::Textarea
         )
     }
 
@@ -194,6 +210,11 @@ impl HtmlTag {
                 | Self::Ins
                 | Self::Mark
                 | Self::Abbr
+                | Self::Input
+                | Self::Select
+                | Self::Audio
+                | Self::Progress
+                | Self::Meter
         )
     }
 }
@@ -311,6 +332,13 @@ impl ElementNode {
             HtmlTag::Details => "details",
             HtmlTag::Summary => "summary",
             HtmlTag::Svg => "svg",
+            HtmlTag::Input => "input",
+            HtmlTag::Select => "select",
+            HtmlTag::Textarea => "textarea",
+            HtmlTag::Video => "video",
+            HtmlTag::Audio => "audio",
+            HtmlTag::Progress => "progress",
+            HtmlTag::Meter => "meter",
             HtmlTag::Unknown => "unknown",
         }
     }
@@ -357,6 +385,13 @@ mod tests {
         assert_eq!(HtmlTag::from_tag_name("dd"), HtmlTag::Dd);
         assert_eq!(HtmlTag::from_tag_name("img"), HtmlTag::Img);
         assert_eq!(HtmlTag::from_tag_name("table"), HtmlTag::Table);
+        assert_eq!(HtmlTag::from_tag_name("input"), HtmlTag::Input);
+        assert_eq!(HtmlTag::from_tag_name("select"), HtmlTag::Select);
+        assert_eq!(HtmlTag::from_tag_name("textarea"), HtmlTag::Textarea);
+        assert_eq!(HtmlTag::from_tag_name("video"), HtmlTag::Video);
+        assert_eq!(HtmlTag::from_tag_name("audio"), HtmlTag::Audio);
+        assert_eq!(HtmlTag::from_tag_name("progress"), HtmlTag::Progress);
+        assert_eq!(HtmlTag::from_tag_name("meter"), HtmlTag::Meter);
         assert_eq!(HtmlTag::from_tag_name("nonsense"), HtmlTag::Unknown);
     }
 
@@ -372,6 +407,12 @@ mod tests {
         assert!(HtmlTag::Dl.is_block());
         assert!(!HtmlTag::Span.is_inline() || HtmlTag::Span.is_inline());
         assert!(!HtmlTag::Code.is_block());
+        assert!(HtmlTag::Video.is_block());
+        assert!(HtmlTag::Textarea.is_block());
+        assert!(!HtmlTag::Input.is_block());
+        assert!(!HtmlTag::Audio.is_block());
+        assert!(!HtmlTag::Progress.is_block());
+        assert!(!HtmlTag::Meter.is_block());
     }
 
     #[test]
@@ -388,6 +429,13 @@ mod tests {
         assert!(HtmlTag::Mark.is_inline());
         assert!(HtmlTag::Abbr.is_inline());
         assert!(!HtmlTag::P.is_inline());
+        assert!(HtmlTag::Input.is_inline());
+        assert!(HtmlTag::Select.is_inline());
+        assert!(HtmlTag::Audio.is_inline());
+        assert!(HtmlTag::Progress.is_inline());
+        assert!(HtmlTag::Meter.is_inline());
+        assert!(!HtmlTag::Video.is_inline());
+        assert!(!HtmlTag::Textarea.is_inline());
     }
 
     #[test]
@@ -470,6 +518,13 @@ mod tests {
             (HtmlTag::Details, "details"),
             (HtmlTag::Summary, "summary"),
             (HtmlTag::Svg, "svg"),
+            (HtmlTag::Input, "input"),
+            (HtmlTag::Select, "select"),
+            (HtmlTag::Textarea, "textarea"),
+            (HtmlTag::Video, "video"),
+            (HtmlTag::Audio, "audio"),
+            (HtmlTag::Progress, "progress"),
+            (HtmlTag::Meter, "meter"),
             (HtmlTag::Unknown, "unknown"),
         ];
         for (tag, expected_name) in cases {

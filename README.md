@@ -36,6 +36,7 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [How It Works](#how-it-works)
 - [WASM](#wasm)
 - [Testing](#testing)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Quick Start
@@ -74,9 +75,13 @@ let pdf = HtmlConverter::new()
     .page_size(PageSize::LETTER)        // default: A4
     .margin(Margin::uniform(54.0))      // default: 72pt (1 inch)
     .sanitize(false)                    // default: true
+    .header("My Document")              // optional page header
+    .footer("Page {page} of {pages}")   // optional page footer
     .convert("<h1>Custom page</h1>")
     .unwrap();
 ```
+
+Headings (`<h1>` through `<h6>`) are automatically added as PDF bookmarks/outlines, visible in the sidebar of most PDF readers.
 
 ### Custom fonts
 
@@ -149,6 +154,9 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Semantic sections | `<section>`, `<article>`, `<nav>`, `<header>`, `<footer>`, `<main>`, `<aside>`, `<details>`, `<summary>` |
 | Inline formatting | `<strong>`, `<b>`, `<em>`, `<i>`, `<u>`, `<small>`, `<sub>`, `<sup>`, `<code>`, `<abbr>`, `<span>` |
 | Text decoration | `<del>`, `<s>` (strikethrough), `<ins>` (underline), `<mark>` (highlight) |
+| Form controls | `<input>`, `<select>`, `<textarea>` with static visual rendering (borders, value/placeholder text) |
+| Media | `<video>`, `<audio>` rendered as placeholder rectangles with play icon |
+| Gauges | `<progress>`, `<meter>` with filled bar (meter supports `low`/`high` color thresholds) |
 | Links | `<a>` with clickable PDF link annotations |
 | Images | `<img>` with JPEG and PNG support (data URIs and local files) |
 | SVG | Inline `<svg>` with `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>`, `<g>`, transforms, viewBox |
@@ -167,7 +175,8 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Box model | `margin` (including `auto`), `padding`, `border`, `border-top/right/bottom/left`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
 | Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
 | Flexbox | `flex-direction`, `justify-content`, `align-items`, `flex-wrap`, `flex-grow`, `flex-shrink`, `flex-basis`, `flex` (shorthand), `gap` |
-| Grid | `grid-template-columns` (fixed, `fr`, `auto`), `grid-gap` |
+| Grid | `grid-template-columns` (fixed, `fr`, `auto`, `repeat()`, `minmax()`, `auto-fill`, `auto-fit`), `grid-gap` |
+| Multi-column | `column-count`, `columns`, `column-gap` |
 | Positioning | `top`, `left`, `z-index` |
 | Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
 | Backgrounds | `background-color`, `background-position`, `background-size`, `background-repeat`, `linear-gradient()`, `radial-gradient()` |
@@ -241,11 +250,14 @@ Supported values: `A4`, `letter`, `legal`, `landscape`, custom dimensions (`210m
 
 ## Images
 
-JPEG and PNG images are supported via data URIs and local file paths.
+JPEG and PNG images are supported via data URIs, local file paths, and remote URLs.
 
 ```html
 <!-- Data URI -->
 <img src="data:image/jpeg;base64,/9j/4AAQ..." width="200" height="150">
+
+<!-- Remote URL (requires "remote" feature) -->
+<img src="https://example.com/photo.jpg" width="300" height="200">
 
 <!-- Local file -->
 <img src="photo.jpg" width="300" height="200">
@@ -386,13 +398,34 @@ ironpress::convert_markdown_file_async("input.md", "output.pdf").await.unwrap();
 
 The HTML parsing, layout, and rendering remain synchronous (CPU-bound). Async is used for file reads and writes via tokio.
 
+## Remote Resources
+
+Enable the `remote` feature to load images and fonts from HTTP/HTTPS URLs:
+
+```toml
+ironpress = { version = "1.0", features = ["remote"] }
+```
+
+```html
+<img src="https://example.com/logo.png" width="200" height="100">
+
+<style>
+  @font-face {
+    font-family: "RemoteFont";
+    src: url("https://example.com/font.ttf");
+  }
+</style>
+```
+
+Remote resources are capped at 10 MB each. Without the `remote` feature, remote URLs are silently ignored (no network requests are made).
+
 ## Security
 
 HTML is sanitized by default before conversion:
 
 - `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>` tags are stripped
 - `<style>` tags are preserved but dangerous CSS (external `url()`, `expression()`) is removed
-- `@import` and `@font-face` only load local files (remote URLs are blocked, paths sandboxed in `base_dir`)
+- `@import` and `@font-face` load local files only by default (paths sandboxed in `base_dir`); remote URLs require the `remote` feature
 - Event handlers (`onclick`, `onload`, etc.) are removed
 - `javascript:` URLs are neutralized
 - Input size (10 MB) and nesting depth (100 levels) are limited
@@ -466,9 +499,39 @@ Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlT
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1580+ tests covering parsing, style computation, layout, and rendering
+- **Unit tests**: 1620+ tests covering parsing, style computation, layout, and rendering
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
 - **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
+
+## Roadmap
+
+### v1.1 — More HTML elements
+
+- [x] `<input>`, `<select>`, `<textarea>` — static visual rendering for PDF forms (invoices, contracts)
+- [x] `<video>`, `<audio>` — placeholder with play icon
+- [x] `<progress>`, `<meter>` — visual bars with color thresholds
+
+### v1.2 — Advanced CSS
+
+- [x] CSS Grid: `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
+- [x] `columns` / `column-count` / `column-gap` (multi-column layout)
+- [ ] `@media` queries beyond print/screen
+
+### v1.3 — PDF features
+
+- [x] Auto-generated PDF bookmarks/outlines from headings (h1-h6)
+- [x] Page headers and footers with page numbering (`{page}` / `{pages}` placeholders)
+- [x] Remote images (`<img src="https://...">`) via `remote` feature
+- [x] Remote fonts (`@font-face src: url("https://...")`) via `remote` feature
+
+### Future
+
+- [ ] CLI tool (`ironpress convert input.html output.pdf`)
+- [ ] Python bindings (PyO3)
+- [ ] Node.js native addon
+- [ ] Online playground (WASM-powered live preview)
+- [ ] Visual examples and screenshots in README
+- [ ] Ready-to-use templates (invoice, resume, report, letter)
 
 ## License
 

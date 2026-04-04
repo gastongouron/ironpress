@@ -63,6 +63,8 @@ pub enum GridTrack {
     Fr(f32),
     /// Automatic sizing (equal share of remaining space).
     Auto,
+    /// `minmax(min, max)` — the track is at least `min` and at most `max`.
+    Minmax(f32, f32),
 }
 
 /// Text alignment.
@@ -439,6 +441,8 @@ pub struct ComputedStyle {
     pub content: Vec<ContentItem>,
     pub counter_reset: Vec<(String, i32)>,
     pub counter_increment: Vec<(String, i32)>,
+    pub column_count: Option<u32>,
+    pub column_gap: f32,
 }
 
 impl Default for ComputedStyle {
@@ -513,6 +517,8 @@ impl Default for ComputedStyle {
             content: Vec::new(),
             counter_reset: Vec::new(),
             counter_increment: Vec::new(),
+            column_count: None,
+            column_gap: 0.0,
         }
     }
 }
@@ -765,6 +771,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "content" => style.content = default.content,
         "counter-reset" => style.counter_reset = default.counter_reset,
         "counter-increment" => style.counter_increment = default.counter_increment,
+        "column-count" | "columns" => style.column_count = default.column_count,
+        "column-gap" => style.column_gap = default.column_gap,
         _ => {}
     }
 }
@@ -842,6 +850,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "content" => style.content = parent.content.clone(),
         "counter-reset" => style.counter_reset = parent.counter_reset.clone(),
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
+        "column-count" | "columns" => style.column_count = parent.column_count,
+        "column-gap" => style.column_gap = parent.column_gap,
         _ => {}
     }
 }
@@ -1292,6 +1302,33 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let Some(shadow) = parse_box_shadow(k) {
             style.box_shadow = Some(shadow);
         }
+    }
+
+    // Multi-column layout
+    if let Some(val) = get_non_special(map, "column-count") {
+        match val {
+            CssValue::Length(n) => style.column_count = Some(*n as u32),
+            CssValue::Keyword(k) => {
+                if let Ok(n) = k.parse::<u32>() {
+                    style.column_count = Some(n);
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(val) = get_non_special(map, "columns") {
+        match val {
+            CssValue::Length(n) => style.column_count = Some(*n as u32),
+            CssValue::Keyword(k) => {
+                if let Ok(n) = k.parse::<u32>() {
+                    style.column_count = Some(n);
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "column-gap") {
+        style.column_gap = *v;
     }
 
     // Overflow
@@ -1959,26 +1996,137 @@ fn parse_transform_length(val: &str) -> Option<f32> {
     }
 }
 
+/// Parse a single grid track token (e.g. `1fr`, `200pt`, `100px`, `auto`).
+fn parse_single_track(token: &str) -> Option<GridTrack> {
+    let token = token.trim();
+    if let Some(n) = token.strip_suffix("fr") {
+        n.parse::<f32>().ok().map(GridTrack::Fr)
+    } else if token == "auto" || token == "auto-fill" || token == "auto-fit" {
+        Some(GridTrack::Auto)
+    } else if let Some(n) = token.strip_suffix("pt") {
+        n.parse::<f32>().ok().map(GridTrack::Fixed)
+    } else if let Some(n) = token.strip_suffix("px") {
+        n.parse::<f32>().ok().map(|v| GridTrack::Fixed(v * 0.75))
+    } else {
+        token.parse::<f32>().ok().map(GridTrack::Fixed)
+    }
+}
+
+/// Parse a `minmax(min, max)` expression.
+fn parse_minmax(val: &str) -> Option<GridTrack> {
+    let inner = val.strip_prefix("minmax(")?.strip_suffix(')')?;
+    let mut parts = inner.splitn(2, ',');
+    let min_s = parts.next()?.trim();
+    let max_s = parts.next()?.trim();
+
+    let min_val = if min_s == "auto" || min_s == "0" {
+        0.0
+    } else if let Some(n) = min_s.strip_suffix("px") {
+        n.parse::<f32>().ok()? * 0.75
+    } else if let Some(n) = min_s.strip_suffix("pt") {
+        n.parse::<f32>().ok()?
+    } else {
+        min_s.parse::<f32>().ok().unwrap_or(0.0)
+    };
+
+    // If max is `1fr` or `auto`, treat as flexible — use Minmax with a large max
+    let max_val = if max_s.ends_with("fr") || max_s == "auto" {
+        f32::MAX
+    } else if let Some(n) = max_s.strip_suffix("px") {
+        n.parse::<f32>().ok()? * 0.75
+    } else if let Some(n) = max_s.strip_suffix("pt") {
+        n.parse::<f32>().ok()?
+    } else {
+        max_s.parse::<f32>().ok().unwrap_or(f32::MAX)
+    };
+
+    Some(GridTrack::Minmax(min_val, max_val))
+}
+
 /// Parse a `grid-template-columns` value string into a list of `GridTrack` values.
 ///
-/// Supports tokens like `1fr`, `200pt`, `100px`, and `auto`.
+/// Supports tokens like `1fr`, `200pt`, `100px`, `auto`, `repeat(3, 1fr)`,
+/// `minmax(100px, 1fr)`, `auto-fill`, and `auto-fit`.
 fn parse_grid_template_columns(val: &str) -> Vec<GridTrack> {
-    val.split_whitespace()
-        .filter_map(|token| {
-            if let Some(n) = token.strip_suffix("fr") {
-                n.parse::<f32>().ok().map(GridTrack::Fr)
-            } else if token == "auto" {
-                Some(GridTrack::Auto)
-            } else if let Some(n) = token.strip_suffix("pt") {
-                n.parse::<f32>().ok().map(GridTrack::Fixed)
-            } else if let Some(n) = token.strip_suffix("px") {
-                n.parse::<f32>().ok().map(|v| GridTrack::Fixed(v * 0.75))
-            } else {
-                // Try bare number as pt
-                token.parse::<f32>().ok().map(GridTrack::Fixed)
+    let mut result = Vec::new();
+    let mut remaining = val.trim();
+
+    while !remaining.is_empty() {
+        remaining = remaining.trim_start();
+        if remaining.is_empty() {
+            break;
+        }
+
+        // Handle repeat(...)
+        if remaining.starts_with("repeat(") {
+            if let Some(close) = find_matching_paren(remaining, 7) {
+                let inner = &remaining[7..close];
+                let rest = &remaining[close + 1..];
+
+                // Parse repeat(count, track_pattern)
+                if let Some(comma) = inner.find(',') {
+                    let count_str = inner[..comma].trim();
+                    let pattern = inner[comma + 1..].trim();
+
+                    // auto-fill and auto-fit: default to 3 columns for PDF (no viewport)
+                    let count: usize = if count_str == "auto-fill" || count_str == "auto-fit" {
+                        3
+                    } else {
+                        count_str.parse().unwrap_or(1)
+                    };
+
+                    let track_list = parse_grid_template_columns(pattern);
+                    for _ in 0..count {
+                        result.extend(track_list.clone());
+                    }
+                }
+                remaining = rest;
+                continue;
             }
-        })
-        .collect()
+        }
+
+        // Handle minmax(...)
+        if remaining.starts_with("minmax(") {
+            if let Some(close) = find_matching_paren(remaining, 7) {
+                let expr = &remaining[..close + 1];
+                if let Some(track) = parse_minmax(expr) {
+                    result.push(track);
+                }
+                remaining = &remaining[close + 1..];
+                continue;
+            }
+        }
+
+        // Regular token — read until next whitespace or function start
+        let end = remaining
+            .find(|c: char| c.is_whitespace())
+            .unwrap_or(remaining.len());
+        let token = &remaining[..end];
+        if let Some(track) = parse_single_track(token) {
+            result.push(track);
+        }
+        remaining = &remaining[end..];
+    }
+
+    result
+}
+
+/// Find the closing `)` matching an opening `(` at `start` in `s`.
+fn find_matching_paren(s: &str, start: usize) -> Option<usize> {
+    let mut depth = 1;
+    for (i, c) in s[start..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(start + i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Parse a border shorthand string like "1px solid black" into (width_pt, Option<Color>).
@@ -4459,6 +4607,155 @@ mod tests {
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0], GridTrack::Fixed(100.0));
         assert_eq!(tracks[1], GridTrack::Fixed(200.0));
+    }
+
+    #[test]
+    fn grid_template_columns_repeat() {
+        let tracks = parse_grid_template_columns("repeat(3, 1fr)");
+        assert_eq!(tracks.len(), 3);
+        assert_eq!(tracks[0], GridTrack::Fr(1.0));
+        assert_eq!(tracks[1], GridTrack::Fr(1.0));
+        assert_eq!(tracks[2], GridTrack::Fr(1.0));
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_fixed() {
+        let tracks = parse_grid_template_columns("repeat(2, 100px)");
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(tracks[0], GridTrack::Fixed(75.0));
+        assert_eq!(tracks[1], GridTrack::Fixed(75.0));
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_multi_track() {
+        let tracks = parse_grid_template_columns("repeat(2, 1fr 2fr)");
+        assert_eq!(tracks.len(), 4);
+        assert_eq!(tracks[0], GridTrack::Fr(1.0));
+        assert_eq!(tracks[1], GridTrack::Fr(2.0));
+        assert_eq!(tracks[2], GridTrack::Fr(1.0));
+        assert_eq!(tracks[3], GridTrack::Fr(2.0));
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_auto_fill() {
+        let tracks = parse_grid_template_columns("repeat(auto-fill, 100px)");
+        // auto-fill defaults to 3 columns for PDF
+        assert_eq!(tracks.len(), 3);
+        assert_eq!(tracks[0], GridTrack::Fixed(75.0));
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_auto_fit() {
+        let tracks = parse_grid_template_columns("repeat(auto-fit, 1fr)");
+        assert_eq!(tracks.len(), 3);
+        assert_eq!(tracks[0], GridTrack::Fr(1.0));
+    }
+
+    #[test]
+    fn grid_template_columns_minmax() {
+        let tracks = parse_grid_template_columns("minmax(100px, 1fr)");
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0], GridTrack::Minmax(75.0, f32::MAX));
+    }
+
+    #[test]
+    fn grid_template_columns_minmax_fixed() {
+        let tracks = parse_grid_template_columns("minmax(50pt, 200pt)");
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0], GridTrack::Minmax(50.0, 200.0));
+    }
+
+    #[test]
+    fn grid_template_columns_mixed_with_repeat() {
+        let tracks = parse_grid_template_columns("100pt repeat(2, 1fr) auto");
+        assert_eq!(tracks.len(), 4);
+        assert_eq!(tracks[0], GridTrack::Fixed(100.0));
+        assert_eq!(tracks[1], GridTrack::Fr(1.0));
+        assert_eq!(tracks[2], GridTrack::Fr(1.0));
+        assert_eq!(tracks[3], GridTrack::Auto);
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_with_minmax() {
+        let tracks = parse_grid_template_columns("repeat(3, minmax(100px, 1fr))");
+        assert_eq!(tracks.len(), 3);
+        assert_eq!(tracks[0], GridTrack::Minmax(75.0, f32::MAX));
+    }
+
+    #[test]
+    fn column_count_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-count: 3"), &parent);
+        assert_eq!(style.column_count, Some(3));
+    }
+
+    #[test]
+    fn column_gap_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("column-count: 2; column-gap: 15pt"),
+            &parent,
+        );
+        assert_eq!(style.column_count, Some(2));
+        assert!((style.column_gap - 15.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn columns_shorthand_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("columns: 2"), &parent);
+        assert_eq!(style.column_count, Some(2));
+    }
+
+    #[test]
+    fn column_count_initial_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-count: initial"), &parent);
+        assert_eq!(style.column_count, None);
+    }
+
+    #[test]
+    fn column_count_inherit_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.column_count = Some(3);
+        let style = compute_style(HtmlTag::Div, Some("column-count: inherit"), &parent);
+        assert_eq!(style.column_count, Some(3));
+    }
+
+    #[test]
+    fn column_gap_initial_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-gap: initial"), &parent);
+        assert!((style.column_gap - 0.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn column_count_invalid_value_ignored() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-count: auto"), &parent);
+        assert_eq!(style.column_count, None);
+    }
+
+    #[test]
+    fn grid_template_columns_repeat_single() {
+        let tracks = parse_grid_template_columns("repeat(1, 100pt)");
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0], GridTrack::Fixed(100.0));
+    }
+
+    #[test]
+    fn grid_minmax_auto_min() {
+        let tracks = parse_grid_template_columns("minmax(auto, 200pt)");
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0], GridTrack::Minmax(0.0, 200.0));
+    }
+
+    #[test]
+    fn grid_minmax_auto_max() {
+        let tracks = parse_grid_template_columns("minmax(50pt, auto)");
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0], GridTrack::Minmax(50.0, f32::MAX));
     }
 
     // --- parse_hex_to_color invalid length (line 1313) ---

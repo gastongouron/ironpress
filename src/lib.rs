@@ -77,6 +77,25 @@ pub(crate) mod style;
 /// Public types: page size, margins, and colors.
 pub mod types;
 
+/// Fetch bytes from a remote URL (requires the `remote` feature).
+/// Returns `None` when the feature is disabled or the request fails.
+#[allow(unused_variables)]
+fn fetch_remote_bytes(url: &str) -> Option<Vec<u8>> {
+    #[cfg(feature = "remote")]
+    {
+        let resp = ureq::get(url).call().ok()?;
+        resp.into_body()
+            .with_config()
+            .limit(10 * 1024 * 1024)
+            .read_to_vec()
+            .ok()
+    }
+    #[cfg(not(feature = "remote"))]
+    {
+        None
+    }
+}
+
 pub use error::IronpressError;
 pub use types::{Margin, PageSize};
 
@@ -212,6 +231,11 @@ pub struct HtmlConverter {
     custom_fonts: std::collections::HashMap<String, Vec<u8>>,
     /// Base directory for resolving relative paths in `@import` and `@font-face` rules.
     base_path: Option<std::path::PathBuf>,
+    /// Optional header text rendered at the top of each page.
+    header: Option<String>,
+    /// Optional footer text rendered at the bottom of each page.
+    /// Use `{page}` for current page number and `{pages}` for total page count.
+    footer: Option<String>,
 }
 
 impl HtmlConverter {
@@ -223,6 +247,8 @@ impl HtmlConverter {
             sanitize: true,
             custom_fonts: std::collections::HashMap::new(),
             base_path: None,
+            header: None,
+            footer: None,
         }
     }
 
@@ -289,6 +315,21 @@ impl HtmlConverter {
     /// ```
     pub fn base_path(mut self, path: &std::path::Path) -> Self {
         self.base_path = Some(path.to_path_buf());
+        self
+    }
+
+    /// Set a header text rendered at the top of each page (in the top margin area).
+    pub fn header(mut self, text: impl Into<String>) -> Self {
+        self.header = Some(text.into());
+        self
+    }
+
+    /// Set a footer text rendered at the bottom of each page (in the bottom margin area).
+    ///
+    /// Use `{page}` for the current page number and `{pages}` for the total page count.
+    /// For example: `"Page {page} of {pages}"`.
+    pub fn footer(mut self, text: impl Into<String>) -> Self {
+        self.footer = Some(text.into());
         self
     }
 
@@ -382,17 +423,26 @@ impl HtmlConverter {
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 
-        // Step 4b: Load fonts from @font-face rules
-        if let Some(ref base) = self.base_path {
-            for ff_rule in &font_face_rules {
+        // Step 4b: Load fonts from @font-face rules (local files + remote URLs)
+        for ff_rule in &font_face_rules {
+            let is_remote =
+                ff_rule.src_path.starts_with("http://") || ff_rule.src_path.starts_with("https://");
+
+            let ttf_data = if is_remote {
+                fetch_remote_bytes(&ff_rule.src_path)
+            } else if let Some(ref base) = self.base_path {
                 let font_path = base.join(&ff_rule.src_path);
                 if !parser::css::is_path_within(&font_path, base) {
                     continue;
                 }
-                if let Ok(ttf_data) = std::fs::read(&font_path) {
-                    if let Ok(font) = parser::ttf::parse_ttf(ttf_data) {
-                        parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
-                    }
+                std::fs::read(&font_path).ok()
+            } else {
+                None
+            };
+
+            if let Some(data) = ttf_data {
+                if let Ok(font) = parser::ttf::parse_ttf(data) {
+                    parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
                 }
             }
         }
@@ -407,19 +457,23 @@ impl HtmlConverter {
         );
 
         // Step 6: Render PDF
-        if parsed_fonts.is_empty() {
-            render::pdf::render_pdf_to_writer(&pages, effective_page_size, effective_margin, writer)
+        let decoration = if self.header.is_some() || self.footer.is_some() {
+            Some(render::pdf::PageDecoration {
+                header: self.header.clone(),
+                footer: self.footer.clone(),
+            })
         } else {
-            let pdf_bytes = render::pdf::render_pdf_with_fonts(
-                &pages,
-                effective_page_size,
-                effective_margin,
-                &parsed_fonts,
-            )?;
-            writer
-                .write_all(&pdf_bytes)
-                .map_err(|e| IronpressError::RenderError(format!("write error: {e}")))
-        }
+            None
+        };
+
+        render::pdf::render_pdf_to_writer_full(
+            &pages,
+            effective_page_size,
+            effective_margin,
+            writer,
+            &parsed_fonts,
+            decoration.as_ref(),
+        )
     }
 
     /// Convert a Markdown string to PDF, writing directly to any `std::io::Write` implementation.
@@ -1041,9 +1095,80 @@ fn main() {
     }
 
     #[test]
-    fn url_image_ignored_for_security() {
-        // Remote URLs are not loaded (SSRF risk). The PDF is generated without the image.
+    fn url_image_ignored_without_remote_feature() {
+        // Without the "remote" feature, remote URLs produce no image
         let html = r#"<img src="https://example.com/image.png" width="100" height="100">"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn fetch_remote_bytes_returns_none_without_feature() {
+        #[cfg(not(feature = "remote"))]
+        assert!(fetch_remote_bytes("https://example.com/test").is_none());
+    }
+
+    #[test]
+    fn remote_image_produces_valid_pdf() {
+        // Remote images are silently ignored without the "remote" feature
+        let html =
+            r#"<img src="https://example.com/test.png" width="100" height="100"><p>Text</p>"#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Text"));
+    }
+
+    #[test]
+    fn remote_font_face_produces_valid_pdf() {
+        // Remote font-face URLs are parsed but font loading is skipped without "remote" feature
+        let html = r#"
+            <style>
+                @font-face { font-family: "RemoteFont"; src: url("https://example.com/font.ttf"); }
+                p { font-family: RemoteFont; }
+            </style>
+            <p>Fallback to Helvetica</p>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn header_footer_with_special_chars() {
+        let pdf = HtmlConverter::new()
+            .header("Report (Draft)")
+            .footer("Page {page} / {pages}")
+            .convert("<p>Content</p>")
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn multi_column_full_pipeline() {
+        let html = r#"
+            <style>.cols { column-count: 2; column-gap: 10pt; }</style>
+            <div class="cols"><div>Left</div><div>Right</div></div>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn grid_repeat_full_pipeline() {
+        let html = r#"
+            <style>.g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5pt; }</style>
+            <div class="g"><div>A</div><div>B</div><div>C</div></div>
+        "#;
+        let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn grid_minmax_full_pipeline() {
+        let html = r#"
+            <style>.g { display: grid; grid-template-columns: minmax(50px, 1fr) 2fr; }</style>
+            <div class="g"><div>A</div><div>B</div></div>
+        "#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
     }
