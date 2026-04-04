@@ -234,7 +234,16 @@ All shorthand properties are supported. Margin and padding accept 1, 2, 3, or 4 
 
 ### Media queries
 
-`@media print` rules are applied (since PDF is print output). `@media screen` rules are ignored.
+`@media print` and `@media all` rules are applied (since PDF is print output). `@media screen` rules are ignored. Page-aware conditions are supported:
+
+```css
+@media (orientation: portrait) { /* matches when page height > width */ }
+@media (orientation: landscape) { /* matches when page width > height */ }
+@media (min-width: 600pt) { /* matches when page width >= 600pt */ }
+@media print and (orientation: landscape) { /* compound queries with and */ }
+```
+
+Supported features: `orientation`, `min-width`, `max-width`, `min-height`, `max-height`. Units: `pt`, `px`, `mm`, `in`.
 
 ### `@page` rule
 
@@ -515,7 +524,7 @@ ironpress uses three layers of testing:
 
 - [x] CSS Grid: `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
 - [x] `columns` / `column-count` / `column-gap` (multi-column layout)
-- [ ] `@media` queries beyond print/screen
+- [x] `@media` queries: `orientation`, `min-width`, `max-width`, `min-height`, `max-height`, compound (`and`)
 
 ### v1.3 — PDF features
 
