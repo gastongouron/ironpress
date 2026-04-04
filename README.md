@@ -11,17 +11,12 @@
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
-<p align="center">
-  <a href="https://codecov.io/gh/gastongouron/ironpress">
-    <img src="https://codecov.io/gh/gastongouron/ironpress/graphs/sunburst.svg?token=w36XIAwRxG" alt="Coverage grid">
-  </a>
-</p>
-
 Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [CLI](#cli)
 - [API Reference](#api-reference)
 - [Markdown to PDF](#markdown-to-pdf)
 - [HTML Elements](#html-elements)
@@ -32,11 +27,11 @@ Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress doe
 - [Fonts](#fonts)
 - [Streaming Output](#streaming-output)
 - [Async API](#async-api)
+- [Remote Resources](#remote-resources)
 - [Security](#security)
 - [How It Works](#how-it-works)
 - [WASM](#wasm)
 - [Testing](#testing)
-- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Quick Start
@@ -47,6 +42,37 @@ use ironpress::html_to_pdf;
 let pdf_bytes = html_to_pdf("<h1>Hello</h1><p>World</p>").unwrap();
 std::fs::write("output.pdf", pdf_bytes).unwrap();
 ```
+
+## CLI
+
+Install the CLI with Cargo:
+
+```bash
+cargo install ironpress
+```
+
+Convert HTML or Markdown files to PDF:
+
+```bash
+ironpress input.html output.pdf
+ironpress document.md output.pdf
+```
+
+With options:
+
+```bash
+ironpress --page-size letter --landscape --margin 54 input.html output.pdf
+ironpress --header "My Report" --footer "Page {page} of {pages}" input.html output.pdf
+```
+
+Pipe from stdin:
+
+```bash
+echo '<h1>Hello</h1>' | ironpress --stdin output.pdf
+curl -s https://example.com | ironpress --stdin page.pdf
+```
+
+Run `ironpress --help` for all options.
 
 ## API Reference
 
@@ -158,7 +184,7 @@ Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`)
 | Media | `<video>`, `<audio>` rendered as placeholder rectangles with play icon |
 | Gauges | `<progress>`, `<meter>` with filled bar (meter supports `low`/`high` color thresholds) |
 | Links | `<a>` with clickable PDF link annotations |
-| Images | `<img>` with JPEG and PNG support (data URIs and local files) |
+| Images | `<img>` with JPEG and PNG support (data URIs, local files, remote URLs) |
 | SVG | Inline `<svg>` with `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>`, `<g>`, transforms, viewBox |
 | Line breaks | `<br>`, `<hr>` |
 | Lists | `<ul>`, `<ol>` with nested support, `<li>`, `<dl>`, `<dt>`, `<dd>` |
@@ -354,7 +380,7 @@ The TTF parser extracts character metrics for accurate text wrapping and embeds 
 
 ### `@font-face`
 
-Load fonts directly from CSS (local files only, remote URLs are blocked for security):
+Load fonts from CSS using local files or remote URLs (remote requires the `remote` feature):
 
 ```html
 <style>
@@ -367,7 +393,7 @@ Load fonts directly from CSS (local files only, remote URLs are blocked for secu
 <p>Rendered with MyFont</p>
 ```
 
-Requires `.base_path()` on the builder so the converter knows where to find font files.
+Local files require `.base_path()` on the builder so the converter knows where to find font files.
 
 ## Streaming Output
 
@@ -397,7 +423,7 @@ HtmlConverter::new()
 Enable the `async` feature for async file I/O:
 
 ```toml
-ironpress = { version = "0.9", features = ["async"] }
+ironpress = { version = "1.1", features = ["async"] }
 ```
 
 ```rust
@@ -412,7 +438,7 @@ The HTML parsing, layout, and rendering remain synchronous (CPU-bound). Async is
 Enable the `remote` feature to load images and fonts from HTTP/HTTPS URLs:
 
 ```toml
-ironpress = { version = "1.0", features = ["remote"] }
+ironpress = { version = "1.1", features = ["remote"] }
 ```
 
 ```html
@@ -460,11 +486,11 @@ graph LR
     style G fill:#27ae60,color:#fff,stroke:none
 ```
 
-1. **Sanitize**:strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
-2. **Parse**:build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
-3. **Style cascade**:resolve tag defaults → `@media print` rules → stylesheet rules → inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
-4. **Layout**:text wrapping with Adobe font metrics, flexbox (with flex-grow/shrink/basis), tables with colspan/rowspan, margin collapsing, floats, page breaks, images, SVG, and the full CSS box model
-5. **Render**:PDF 1.4 output with native Shading Dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
+1. **Sanitize**: strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
+2. **Parse**: build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
+3. **Style cascade**: resolve tag defaults, `@media` rules, stylesheet rules, inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
+4. **Layout**: text wrapping with Adobe font metrics, flexbox, CSS grid, multi-column, tables with colspan/rowspan, margin collapsing, floats, page breaks, images, SVG, and the full CSS box model
+5. **Render**: PDF 1.4 output with bookmarks, headers/footers, shading dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
 
@@ -508,39 +534,9 @@ Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlT
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1620+ tests covering parsing, style computation, layout, and rendering
+- **Unit tests**: 1690+ tests covering parsing, style computation, layout, rendering, and CLI
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
 - **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
-
-## Roadmap
-
-### v1.1 — More HTML elements
-
-- [x] `<input>`, `<select>`, `<textarea>` — static visual rendering for PDF forms (invoices, contracts)
-- [x] `<video>`, `<audio>` — placeholder with play icon
-- [x] `<progress>`, `<meter>` — visual bars with color thresholds
-
-### v1.2 — Advanced CSS
-
-- [x] CSS Grid: `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
-- [x] `columns` / `column-count` / `column-gap` (multi-column layout)
-- [x] `@media` queries: `orientation`, `min-width`, `max-width`, `min-height`, `max-height`, compound (`and`)
-
-### v1.3 — PDF features
-
-- [x] Auto-generated PDF bookmarks/outlines from headings (h1-h6)
-- [x] Page headers and footers with page numbering (`{page}` / `{pages}` placeholders)
-- [x] Remote images (`<img src="https://...">`) via `remote` feature
-- [x] Remote fonts (`@font-face src: url("https://...")`) via `remote` feature
-
-### Future
-
-- [ ] CLI tool (`ironpress convert input.html output.pdf`)
-- [ ] Python bindings (PyO3)
-- [ ] Node.js native addon
-- [ ] Online playground (WASM-powered live preview)
-- [ ] Visual examples and screenshots in README
-- [ ] Ready-to-use templates (invoice, resume, report, letter)
 
 ## License
 
