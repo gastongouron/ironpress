@@ -77,6 +77,25 @@ pub(crate) mod style;
 /// Public types: page size, margins, and colors.
 pub mod types;
 
+/// Fetch bytes from a remote URL (requires the `remote` feature).
+/// Returns `None` when the feature is disabled or the request fails.
+#[allow(unused_variables)]
+fn fetch_remote_bytes(url: &str) -> Option<Vec<u8>> {
+    #[cfg(feature = "remote")]
+    {
+        let resp = ureq::get(url).call().ok()?;
+        resp.into_body()
+            .with_config()
+            .limit(10 * 1024 * 1024)
+            .read_to_vec()
+            .ok()
+    }
+    #[cfg(not(feature = "remote"))]
+    {
+        None
+    }
+}
+
 pub use error::IronpressError;
 pub use types::{Margin, PageSize};
 
@@ -404,17 +423,26 @@ impl HtmlConverter {
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 
-        // Step 4b: Load fonts from @font-face rules
-        if let Some(ref base) = self.base_path {
-            for ff_rule in &font_face_rules {
+        // Step 4b: Load fonts from @font-face rules (local files + remote URLs)
+        for ff_rule in &font_face_rules {
+            let is_remote =
+                ff_rule.src_path.starts_with("http://") || ff_rule.src_path.starts_with("https://");
+
+            let ttf_data = if is_remote {
+                fetch_remote_bytes(&ff_rule.src_path)
+            } else if let Some(ref base) = self.base_path {
                 let font_path = base.join(&ff_rule.src_path);
                 if !parser::css::is_path_within(&font_path, base) {
                     continue;
                 }
-                if let Ok(ttf_data) = std::fs::read(&font_path) {
-                    if let Ok(font) = parser::ttf::parse_ttf(ttf_data) {
-                        parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
-                    }
+                std::fs::read(&font_path).ok()
+            } else {
+                None
+            };
+
+            if let Some(data) = ttf_data {
+                if let Ok(font) = parser::ttf::parse_ttf(data) {
+                    parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
                 }
             }
         }
@@ -1067,11 +1095,17 @@ fn main() {
     }
 
     #[test]
-    fn url_image_ignored_for_security() {
-        // Remote URLs are not loaded (SSRF risk). The PDF is generated without the image.
+    fn url_image_ignored_without_remote_feature() {
+        // Without the "remote" feature, remote URLs produce no image
         let html = r#"<img src="https://example.com/image.png" width="100" height="100">"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn fetch_remote_bytes_returns_none_without_feature() {
+        #[cfg(not(feature = "remote"))]
+        assert!(fetch_remote_bytes("https://example.com/test").is_none());
     }
 
     // --- Async tests (feature-gated) ---

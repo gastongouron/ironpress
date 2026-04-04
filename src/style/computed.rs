@@ -4692,7 +4692,11 @@ mod tests {
     #[test]
     fn column_gap_parsed() {
         let parent = ComputedStyle::default();
-        let style = compute_style(HtmlTag::Div, Some("column-count: 2; column-gap: 15pt"), &parent);
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("column-count: 2; column-gap: 15pt"),
+            &parent,
+        );
         assert_eq!(style.column_count, Some(2));
         assert!((style.column_gap - 15.0).abs() < 0.1);
     }

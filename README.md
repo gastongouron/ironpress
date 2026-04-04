@@ -250,11 +250,14 @@ Supported values: `A4`, `letter`, `legal`, `landscape`, custom dimensions (`210m
 
 ## Images
 
-JPEG and PNG images are supported via data URIs and local file paths.
+JPEG and PNG images are supported via data URIs, local file paths, and remote URLs.
 
 ```html
 <!-- Data URI -->
 <img src="data:image/jpeg;base64,/9j/4AAQ..." width="200" height="150">
+
+<!-- Remote URL (requires "remote" feature) -->
+<img src="https://example.com/photo.jpg" width="300" height="200">
 
 <!-- Local file -->
 <img src="photo.jpg" width="300" height="200">
@@ -395,13 +398,34 @@ ironpress::convert_markdown_file_async("input.md", "output.pdf").await.unwrap();
 
 The HTML parsing, layout, and rendering remain synchronous (CPU-bound). Async is used for file reads and writes via tokio.
 
+## Remote Resources
+
+Enable the `remote` feature to load images and fonts from HTTP/HTTPS URLs:
+
+```toml
+ironpress = { version = "1.0", features = ["remote"] }
+```
+
+```html
+<img src="https://example.com/logo.png" width="200" height="100">
+
+<style>
+  @font-face {
+    font-family: "RemoteFont";
+    src: url("https://example.com/font.ttf");
+  }
+</style>
+```
+
+Remote resources are capped at 10 MB each. Without the `remote` feature, remote URLs are silently ignored (no network requests are made).
+
 ## Security
 
 HTML is sanitized by default before conversion:
 
 - `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>` tags are stripped
 - `<style>` tags are preserved but dangerous CSS (external `url()`, `expression()`) is removed
-- `@import` and `@font-face` only load local files (remote URLs are blocked, paths sandboxed in `base_dir`)
+- `@import` and `@font-face` load local files only by default (paths sandboxed in `base_dir`); remote URLs require the `remote` feature
 - Event handlers (`onclick`, `onload`, etc.) are removed
 - `javascript:` URLs are neutralized
 - Input size (10 MB) and nesting depth (100 levels) are limited
@@ -475,7 +499,7 @@ Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlT
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1610+ tests covering parsing, style computation, layout, and rendering
+- **Unit tests**: 1620+ tests covering parsing, style computation, layout, and rendering
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
 - **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
 
@@ -497,8 +521,8 @@ ironpress uses three layers of testing:
 
 - [x] Auto-generated PDF bookmarks/outlines from headings (h1-h6)
 - [x] Page headers and footers with page numbering (`{page}` / `{pages}` placeholders)
-- [ ] Remote images (`<img src="https://...">`)
-- [ ] Remote fonts (Google Fonts URLs)
+- [x] Remote images (`<img src="https://...">`) via `remote` feature
+- [x] Remote fonts (`@font-face src: url("https://...")`) via `remote` feature
 
 ### Future
 

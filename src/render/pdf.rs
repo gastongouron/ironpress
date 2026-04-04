@@ -1360,7 +1360,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                 let encoded = encode_pdf_text(&text);
                 let header_y = page_size.height - margin.top / 2.0;
                 content.push_str("BT\n");
-                content.push_str(&format!("/Helvetica 9 Tf\n"));
+                content.push_str("/Helvetica 9 Tf\n");
                 content.push_str("0.4 0.4 0.4 rg\n");
                 content.push_str(&format!("{center_x} {header_y} Td\n"));
                 content.push_str(&format!("({encoded}) Tj\n"));
@@ -1374,7 +1374,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                 let encoded = encode_pdf_text(&text);
                 let footer_y = margin.bottom / 2.0;
                 content.push_str("BT\n");
-                content.push_str(&format!("/Helvetica 9 Tf\n"));
+                content.push_str("/Helvetica 9 Tf\n");
                 content.push_str("0.4 0.4 0.4 rg\n");
                 content.push_str(&format!("{center_x} {footer_y} Td\n"));
                 content.push_str(&format!("({encoded}) Tj\n"));
@@ -2581,8 +2581,7 @@ mod tests {
     #[test]
     fn render_select_element() {
         let pdf =
-            crate::html_to_pdf(r#"<select><option>A</option><option>B</option></select>"#)
-                .unwrap();
+            crate::html_to_pdf(r#"<select><option>A</option><option>B</option></select>"#).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
         assert!(pdf.len() > 100);
     }
@@ -2614,7 +2613,10 @@ mod tests {
         assert!(pdf.starts_with(b"%PDF"));
         let content = String::from_utf8_lossy(&pdf);
         // Progress bar draws rectangles (track + fill + border)
-        assert!(content.contains("re\nf\n"), "Expected filled rectangles for progress bar");
+        assert!(
+            content.contains("re\nf\n"),
+            "Expected filled rectangles for progress bar"
+        );
     }
 
     #[test]
@@ -2628,15 +2630,16 @@ mod tests {
         let pdf = crate::html_to_pdf(r#"<meter value="0.5" max="1"></meter>"#).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("re\nf\n"), "Expected filled rectangles for meter bar");
+        assert!(
+            content.contains("re\nf\n"),
+            "Expected filled rectangles for meter bar"
+        );
     }
 
     #[test]
     fn render_meter_low_value() {
-        let pdf = crate::html_to_pdf(
-            r#"<meter value="5" max="100" low="25" high="75"></meter>"#,
-        )
-        .unwrap();
+        let pdf = crate::html_to_pdf(r#"<meter value="5" max="100" low="25" high="75"></meter>"#)
+            .unwrap();
         assert!(pdf.starts_with(b"%PDF"));
     }
 
@@ -2672,8 +2675,14 @@ mod tests {
         let pdf = crate::html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(content.contains("/Type /Outlines"), "Expected PDF outlines");
-        assert!(content.contains("Chapter 1"), "Expected heading text in bookmark");
-        assert!(content.contains("Section 1.1"), "Expected h2 heading in bookmark");
+        assert!(
+            content.contains("Chapter 1"),
+            "Expected heading text in bookmark"
+        );
+        assert!(
+            content.contains("Section 1.1"),
+            "Expected h2 heading in bookmark"
+        );
     }
 
     #[test]
@@ -2681,7 +2690,10 @@ mod tests {
         let html = "<p>No headings here</p>";
         let pdf = crate::html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(!content.contains("/Type /Outlines"), "Should not have outlines without headings");
+        assert!(
+            !content.contains("/Type /Outlines"),
+            "Should not have outlines without headings"
+        );
     }
 
     #[test]
@@ -2716,7 +2728,10 @@ mod tests {
             .convert("<h1>Title</h1><p>Content</p>")
             .unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Page 1 of 1"), "Expected footer with page numbers");
+        assert!(
+            content.contains("Page 1 of 1"),
+            "Expected footer with page numbers"
+        );
     }
 
     #[test]
@@ -2726,7 +2741,10 @@ mod tests {
             .convert("<p>Content</p>")
             .unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("My Document"), "Expected header text in PDF");
+        assert!(
+            content.contains("My Document"),
+            "Expected header text in PDF"
+        );
     }
 
     #[test]

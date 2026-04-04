@@ -635,6 +635,7 @@ fn heading_level(tag: HtmlTag) -> Option<u8> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn flatten_element(
     el: &ElementNode,
     parent_style: &ComputedStyle,
@@ -760,11 +761,14 @@ fn flatten_element(
 
     // Form control elements — render as styled boxes with placeholder text
     if el.tag == HtmlTag::Input || el.tag == HtmlTag::Select || el.tag == HtmlTag::Textarea {
-        let ctrl_width = style.width.unwrap_or(if el.tag == HtmlTag::Textarea {
-            available_width.min(300.0)
-        } else {
-            150.0
-        }).min(available_width);
+        let ctrl_width = style
+            .width
+            .unwrap_or(if el.tag == HtmlTag::Textarea {
+                available_width.min(300.0)
+            } else {
+                150.0
+            })
+            .min(available_width);
         let ctrl_height = style.height.unwrap_or(if el.tag == HtmlTag::Textarea {
             80.0
         } else {
@@ -772,21 +776,36 @@ fn flatten_element(
         });
 
         let label = if el.tag == HtmlTag::Select {
-            el.children.iter().find_map(|c| {
-                if let DomNode::Element(opt) = c {
-                    opt.children.iter().find_map(|t| {
-                        if let DomNode::Text(s) = t { Some(s.trim().to_string()) } else { None }
-                    })
-                } else {
-                    None
-                }
-            }).unwrap_or_default()
+            el.children
+                .iter()
+                .find_map(|c| {
+                    if let DomNode::Element(opt) = c {
+                        opt.children.iter().find_map(|t| {
+                            if let DomNode::Text(s) = t {
+                                Some(s.trim().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
         } else if el.tag == HtmlTag::Textarea {
-            el.children.iter().find_map(|c| {
-                if let DomNode::Text(s) = c { Some(s.trim().to_string()) } else { None }
-            }).unwrap_or_default()
+            el.children
+                .iter()
+                .find_map(|c| {
+                    if let DomNode::Text(s) = c {
+                        Some(s.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
         } else {
-            el.attributes.get("value")
+            el.attributes
+                .get("value")
                 .or(el.attributes.get("placeholder"))
                 .cloned()
                 .unwrap_or_default()
@@ -812,7 +831,10 @@ fn flatten_element(
             lines = wrap_text_runs(runs, inner_w, style.font_size, fonts);
         }
 
-        let bg = style.background_color.map(|c| c.to_f32_rgb()).unwrap_or((1.0, 1.0, 1.0));
+        let bg = style
+            .background_color
+            .map(|c| c.to_f32_rgb())
+            .unwrap_or((1.0, 1.0, 1.0));
 
         output.push(LayoutElement::TextBlock {
             lines,
@@ -854,12 +876,31 @@ fn flatten_element(
 
     // Media elements — render as placeholder rectangles
     if el.tag == HtmlTag::Video || el.tag == HtmlTag::Audio {
-        let media_width = style.width.or_else(|| {
-            el.attributes.get("width").and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
-        }).unwrap_or(if el.tag == HtmlTag::Video { 300.0 } else { 200.0 }).min(available_width);
-        let media_height = style.height.or_else(|| {
-            el.attributes.get("height").and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
-        }).unwrap_or(if el.tag == HtmlTag::Video { 150.0 } else { 24.0 });
+        let media_width = style
+            .width
+            .or_else(|| {
+                el.attributes
+                    .get("width")
+                    .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
+            })
+            .unwrap_or(if el.tag == HtmlTag::Video {
+                300.0
+            } else {
+                200.0
+            })
+            .min(available_width);
+        let media_height = style
+            .height
+            .or_else(|| {
+                el.attributes
+                    .get("height")
+                    .and_then(|v| v.trim_end_matches("px").parse::<f32>().ok())
+            })
+            .unwrap_or(if el.tag == HtmlTag::Video {
+                150.0
+            } else {
+                24.0
+            });
 
         let label = if el.tag == HtmlTag::Video {
             "\u{25B6} Video".to_string()
@@ -867,10 +908,20 @@ fn flatten_element(
             "\u{25B6} Audio".to_string()
         };
 
-        let bg = style.background_color.map(|c| c.to_f32_rgb()).unwrap_or(
-            if el.tag == HtmlTag::Video { (0.0, 0.0, 0.0) } else { (0.94, 0.94, 0.94) }
-        );
-        let text_color = if el.tag == HtmlTag::Video { (1.0, 1.0, 1.0) } else { (0.3, 0.3, 0.3) };
+        let bg =
+            style
+                .background_color
+                .map(|c| c.to_f32_rgb())
+                .unwrap_or(if el.tag == HtmlTag::Video {
+                    (0.0, 0.0, 0.0)
+                } else {
+                    (0.94, 0.94, 0.94)
+                });
+        let text_color = if el.tag == HtmlTag::Video {
+            (1.0, 1.0, 1.0)
+        } else {
+            (0.3, 0.3, 0.3)
+        };
 
         let runs = vec![TextRun {
             text: label,
@@ -894,8 +945,16 @@ fn flatten_element(
             margin_bottom: style.margin.bottom,
             text_align: TextAlign::Center,
             background_color: Some(bg),
-            padding_top: if el.tag == HtmlTag::Video { (media_height - style.font_size) / 2.0 } else { 4.0 },
-            padding_bottom: if el.tag == HtmlTag::Video { (media_height - style.font_size) / 2.0 } else { 4.0 },
+            padding_top: if el.tag == HtmlTag::Video {
+                (media_height - style.font_size) / 2.0
+            } else {
+                4.0
+            },
+            padding_bottom: if el.tag == HtmlTag::Video {
+                (media_height - style.font_size) / 2.0
+            } else {
+                4.0
+            },
             padding_left: 4.0,
             padding_right: 4.0,
             border: LayoutBorder::from_computed(&style.border),
@@ -930,21 +989,33 @@ fn flatten_element(
     if el.tag == HtmlTag::Progress || el.tag == HtmlTag::Meter {
         let bar_width = style.width.unwrap_or(150.0).min(available_width);
         let bar_height = style.height.unwrap_or(12.0);
-        let value: f32 = el.attributes.get("value")
+        let value: f32 = el
+            .attributes
+            .get("value")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
-        let max: f32 = el.attributes.get("max")
+        let max: f32 = el
+            .attributes
+            .get("max")
             .and_then(|s| s.parse().ok())
             .unwrap_or(1.0);
-        let fraction = if max > 0.0 { (value / max).clamp(0.0, 1.0) } else { 0.0 };
+        let fraction = if max > 0.0 {
+            (value / max).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
 
         let fill_color = if el.tag == HtmlTag::Progress {
             (0.12, 0.53, 0.90)
         } else {
-            let low: f32 = el.attributes.get("low")
+            let low: f32 = el
+                .attributes
+                .get("low")
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(max * 0.25);
-            let high: f32 = el.attributes.get("high")
+            let high: f32 = el
+                .attributes
+                .get("high")
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(max * 0.75);
             if value <= low {
@@ -2396,7 +2467,10 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
             GridTrack::Fixed(v) => fixed_total += *v,
             GridTrack::Fr(v) => fr_total += *v,
             GridTrack::Auto => auto_count += 1,
-            GridTrack::Minmax(min, _) => { fixed_total += min; minmax_count += 1; }
+            GridTrack::Minmax(min, _) => {
+                fixed_total += min;
+                minmax_count += 1;
+            }
         }
     }
 
@@ -2416,7 +2490,14 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
             GridTrack::Fixed(v) => *v,
             GridTrack::Fr(v) => per_fr * *v,
             GridTrack::Auto => per_fr,
-            GridTrack::Minmax(min, max) => { let desired = min + per_fr; if *max < f32::MAX { desired.clamp(*min, *max) } else { desired } }
+            GridTrack::Minmax(min, max) => {
+                let desired = min + per_fr;
+                if *max < f32::MAX {
+                    desired.clamp(*min, *max)
+                } else {
+                    desired
+                }
+            }
         })
         .collect()
 }
@@ -3835,7 +3916,41 @@ fn load_image_from_element(
     })
 }
 
-/// Load image data from a src attribute (supports data: URIs and local file paths).
+/// Maximum size for remote resources (10 MB).
+#[cfg(feature = "remote")]
+const MAX_REMOTE_SIZE: usize = 10 * 1024 * 1024;
+
+/// Fetch bytes from an HTTP/HTTPS URL (requires the `remote` feature).
+/// Returns `None` if the feature is disabled, the request fails, or the response exceeds 10 MB.
+fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
+    #[cfg(feature = "remote")]
+    {
+        let resp = ureq::get(url).call().ok()?;
+        let len = resp
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        if len > MAX_REMOTE_SIZE {
+            return None;
+        }
+        let buf = resp
+            .into_body()
+            .with_config()
+            .limit(MAX_REMOTE_SIZE as u64)
+            .read_to_vec()
+            .ok()?;
+        Some(buf)
+    }
+    #[cfg(not(feature = "remote"))]
+    {
+        let _ = url;
+        None
+    }
+}
+
+/// Load image data from a src attribute (supports data: URIs, local files, and remote URLs).
 /// Returns (raw_bytes, format, optional_png_metadata).
 fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
     let raw = if let Some(rest) = src.strip_prefix("data:") {
@@ -3844,8 +3959,7 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
         // Only support base64 for now
         base64_decode(encoded)?
     } else if src.starts_with("http://") || src.starts_with("https://") {
-        // Remote URLs are not supported (SSRF risk)
-        return None;
+        fetch_remote_url(src)?
     } else {
         // Treat as local file path
         std::fs::read(src).ok()?
@@ -4414,6 +4528,39 @@ mod tests {
             pages[0].elements.is_empty()
                 || !matches!(&pages[0].elements[0].1, LayoutElement::Image { .. })
         );
+    }
+
+    #[test]
+    fn fetch_remote_url_returns_none_without_feature() {
+        // Without the "remote" feature, fetch_remote_url always returns None
+        let result = fetch_remote_url("https://example.com/image.png");
+        #[cfg(not(feature = "remote"))]
+        assert!(result.is_none());
+        // With the feature enabled, it would attempt a real HTTP request
+        // (which may or may not succeed depending on network)
+        let _ = result;
+    }
+
+    #[test]
+    fn load_image_data_http_without_feature() {
+        let result = load_image_data("http://example.com/test.jpg");
+        #[cfg(not(feature = "remote"))]
+        assert!(
+            result.is_none(),
+            "HTTP images should be None without remote feature"
+        );
+        let _ = result;
+    }
+
+    #[test]
+    fn load_image_data_https_without_feature() {
+        let result = load_image_data("https://example.com/test.png");
+        #[cfg(not(feature = "remote"))]
+        assert!(
+            result.is_none(),
+            "HTTPS images should be None without remote feature"
+        );
+        let _ = result;
     }
 
     #[test]
@@ -8305,7 +8452,11 @@ mod _removed {
             .iter()
             .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
             .collect();
-        assert_eq!(grid_rows.len(), 1, "Expected 1 grid row with 3 columns from repeat(3, 1fr)");
+        assert_eq!(
+            grid_rows.len(),
+            1,
+            "Expected 1 grid row with 3 columns from repeat(3, 1fr)"
+        );
     }
 
     #[test]
@@ -8390,6 +8541,10 @@ mod _removed {
             .iter()
             .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
             .collect();
-        assert_eq!(grid_rows.len(), 2, "Expected 2 rows from 4 items in 2-column layout");
+        assert_eq!(
+            grid_rows.len(),
+            2,
+            "Expected 2 rows from 4 items in 2-column layout"
+        );
     }
 }

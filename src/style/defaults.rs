@@ -182,10 +182,7 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
         HtmlTag::Video => {
             style.set("margin-top", CssValue::Length(4.0));
             style.set("margin-bottom", CssValue::Length(4.0));
-            style.set(
-                "background-color",
-                CssValue::Color(Color::rgb(0, 0, 0)),
-            );
+            style.set("background-color", CssValue::Color(Color::rgb(0, 0, 0)));
         }
         HtmlTag::Audio => {
             style.set("margin-top", CssValue::Length(2.0));
