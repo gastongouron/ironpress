@@ -161,7 +161,7 @@ Margin::new(top, right, bottom, left)  // individual values in pt
 
 ## Markdown to PDF
 
-Built-in Markdown parser with zero external dependencies.
+[CommonMark](https://commonmark.org/)-compliant Markdown parser powered by [pulldown-cmark](https://crates.io/crates/pulldown-cmark).
 
 ```rust
 let pdf = ironpress::markdown_to_pdf(r#"
@@ -186,7 +186,7 @@ Some **bold** and *italic* text with `inline code`.
 "#).unwrap();
 ```
 
-Supported Markdown syntax: headings (`#` to `######`), bold (`**`), italic (`*`), bold+italic (`***`), inline code, fenced code blocks, links, images, unordered lists (`-`, `*`, `+`), ordered lists, blockquotes, and horizontal rules.
+Full [CommonMark](https://spec.commonmark.org/) support including headings, emphasis, inline code, fenced code blocks, links, images, lists (nested), blockquotes, horizontal rules, and raw HTML passthrough.
 
 ## HTML Elements
 
