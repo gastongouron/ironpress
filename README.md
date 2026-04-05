@@ -8,8 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![WASM](https://img.shields.io/badge/wasm-ready-blueviolet.svg)](#wasm)
 [![Downloads](https://img.shields.io/crates/d/ironpress.svg)](https://crates.io/crates/ironpress)
+[![Playground](https://img.shields.io/badge/try_it-playground-blueviolet.svg)](https://gastongouron.github.io/ironpress/)
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
+
+**[Try it in your browser](https://gastongouron.github.io/ironpress/)** — the playground runs 100% client-side via WebAssembly.
 
 Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
 

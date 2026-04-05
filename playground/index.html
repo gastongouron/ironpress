@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ironpress playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; height: 100vh; display: flex; flex-direction: column; }
+
+    header { padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #21262d; background: #161b22; }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header h1 span { color: #58a6ff; }
+    header a { color: #8b949e; text-decoration: none; font-size: 13px; }
+    header a:hover { color: #58a6ff; }
+
+    .toolbar { padding: 8px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #21262d; background: #161b22; }
+    .toolbar select, .toolbar button { background: #21262d; color: #e1e4e8; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+    .toolbar select:hover, .toolbar button:hover { border-color: #58a6ff; }
+    .toolbar button.primary { background: #238636; border-color: #2ea043; font-weight: 600; }
+    .toolbar button.primary:hover { background: #2ea043; }
+    .toolbar button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toolbar .spacer { flex: 1; }
+    .toolbar .status { font-size: 12px; color: #8b949e; }
+
+    .panels { flex: 1; display: flex; min-height: 0; }
+    .editor-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #21262d; }
+    .preview-panel { flex: 1; display: flex; flex-direction: column; background: #1c2028; }
+    .panel-header { padding: 8px 16px; font-size: 12px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #21262d; }
+
+    textarea { flex: 1; background: #0d1117; color: #c9d1d9; border: none; padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; resize: none; outline: none; tab-size: 2; }
+    textarea::placeholder { color: #484f58; }
+
+    .preview-panel iframe { flex: 1; border: none; background: white; }
+    .preview-panel .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #484f58; font-size: 14px; }
+
+    .loading { display: none; position: fixed; top: 0; left: 0; right: 0; height: 2px; background: #58a6ff; animation: loading 1s ease-in-out infinite; }
+    .loading.active { display: block; }
+    @keyframes loading { 0%, 100% { transform: scaleX(0); transform-origin: left; } 50% { transform: scaleX(1); transform-origin: left; } }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading"></div>
+
+  <header>
+    <h1><span>ironpress</span> playground</h1>
+    <a href="https://github.com/gastongouron/ironpress" target="_blank">GitHub</a>
+  </header>
+
+  <div class="toolbar">
+    <select id="mode">
+      <option value="html">HTML</option>
+      <option value="markdown">Markdown</option>
+    </select>
+    <select id="examples">
+      <option value="">Load example...</option>
+      <option value="simple">Simple page</option>
+      <option value="invoice">Invoice</option>
+      <option value="report">Report</option>
+      <option value="markdown">Markdown doc</option>
+    </select>
+    <div class="spacer"></div>
+    <span class="status" id="status">Loading WASM...</span>
+    <button class="primary" id="convert" disabled>Convert to PDF</button>
+    <button id="download" style="display:none">Download PDF</button>
+  </div>
+
+  <div class="panels">
+    <div class="editor-panel">
+      <div class="panel-header">Input</div>
+      <textarea id="input" placeholder="Paste your HTML or Markdown here..." spellcheck="false"></textarea>
+    </div>
+    <div class="preview-panel">
+      <div class="panel-header">Preview</div>
+      <div class="empty" id="placeholder">Click "Convert to PDF" to see the result</div>
+      <iframe id="preview" style="display:none"></iframe>
+    </div>
+  </div>
+
+  <script type="module">
+    import init, { htmlToPdf, markdownToPdf } from './ironpress.js';
+
+    const input = document.getElementById('input');
+    const preview = document.getElementById('preview');
+    const placeholder = document.getElementById('placeholder');
+    const convertBtn = document.getElementById('convert');
+    const downloadBtn = document.getElementById('download');
+    const status = document.getElementById('status');
+    const loading = document.getElementById('loading');
+    const modeSelect = document.getElementById('mode');
+    const examplesSelect = document.getElementById('examples');
+
+    let lastBlob = null;
+
+    const EXAMPLES = {
+simple: `<h1>Hello, ironpress!</h1>
+<p>This PDF was generated <strong>entirely in your browser</strong> using WebAssembly.</p>
+<p>No server, no Chrome, no system dependencies.</p>
+<hr>
+<p style="color: navy; font-size: 10pt;">Generated with <a href="https://github.com/gastongouron/ironpress">ironpress</a></p>`,
+
+invoice: `<style>
+body { font-size: 10pt; color: #333; }
+h1 { color: #2c3e50; margin-bottom: 4pt; }
+.header { display: flex; justify-content: space-between; margin-bottom: 20pt; }
+.header div { flex: 1; }
+table { width: 100%; border-collapse: collapse; margin: 16pt 0; }
+th { background-color: #2c3e50; color: white; padding: 8pt; text-align: left; }
+td { padding: 8pt; border-bottom: 1pt solid #eee; }
+.total { text-align: right; font-size: 14pt; font-weight: bold; margin-top: 12pt; }
+.footer { margin-top: 30pt; font-size: 9pt; color: #999; text-align: center; }
+</style>
+<h1>INVOICE #2026-042</h1>
+<div class="header">
+<div>
+<strong>From:</strong><br>
+Acme Corp<br>
+123 Main Street<br>
+contact@acme.com
+</div>
+<div style="text-align: right;">
+<strong>To:</strong><br>
+Client Inc<br>
+456 Oak Avenue<br>
+billing@client.com
+</div>
+</div>
+<p><strong>Date:</strong> April 5, 2026 | <strong>Due:</strong> May 5, 2026</p>
+<table>
+<thead>
+<tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+</thead>
+<tbody>
+<tr><td>Web Development</td><td>40h</td><td>$150</td><td>$6,000</td></tr>
+<tr><td>UI/UX Design</td><td>20h</td><td>$120</td><td>$2,400</td></tr>
+<tr><td>Server Setup</td><td>1</td><td>$500</td><td>$500</td></tr>
+<tr><td>Domain &amp; Hosting (1yr)</td><td>1</td><td>$200</td><td>$200</td></tr>
+</tbody>
+</table>
+<p class="total">Total: $9,100.00</p>
+<p class="footer">Thank you for your business.</p>`,
+
+report: `<style>
+body { font-size: 11pt; }
+h1 { color: navy; border-bottom: 2pt solid #ccc; padding-bottom: 4pt; }
+h2 { color: #336699; margin-top: 16pt; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+th { background: #336699; color: white; padding: 6pt; }
+td { border: 1pt solid #ddd; padding: 6pt; }
+.highlight { background-color: #ffffcc; }
+blockquote { border-left: 3pt solid #336699; padding-left: 10pt; color: #666; font-style: italic; }
+.flex { display: flex; gap: 10pt; margin: 12pt 0; }
+.flex > div { flex: 1; background: #f0f4f8; padding: 10pt; border-radius: 4pt; text-align: center; }
+.flex strong { display: block; font-size: 18pt; color: #336699; }
+</style>
+<h1>Q1 2026 Report</h1>
+<p>Prepared by the Analytics team.</p>
+<h2>Key Metrics</h2>
+<div class="flex">
+<div><strong>$5.5M</strong>Revenue</div>
+<div><strong>12,450</strong>Users</div>
+<div><strong>+13%</strong>Growth</div>
+</div>
+<h2>Revenue by Quarter</h2>
+<table>
+<thead><tr><th>Quarter</th><th>Revenue</th><th>Expenses</th><th>Margin</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>$1.2M</td><td>$0.8M</td><td class="highlight">33%</td></tr>
+<tr><td>Q2</td><td>$1.4M</td><td>$0.9M</td><td class="highlight">36%</td></tr>
+<tr><td>Q3</td><td>$1.1M</td><td>$0.7M</td><td>36%</td></tr>
+<tr><td>Q4</td><td>$1.8M</td><td>$1.0M</td><td class="highlight">44%</td></tr>
+</tbody>
+</table>
+<h2>Highlights</h2>
+<ul>
+<li>Launched mobile app (50k downloads in first month)</li>
+<li>Expanded to 3 new markets</li>
+<li>Hired 12 engineers</li>
+</ul>
+<blockquote>The best way to predict the future is to create it. — Peter Drucker</blockquote>`,
+
+markdown: `# Project Documentation
+
+## Overview
+
+This document demonstrates **Markdown to PDF** conversion running entirely in the browser via WebAssembly.
+
+## Features
+
+- **Bold** and *italic* formatting
+- Inline \`code\` snippets
+- [Links](https://github.com/gastongouron/ironpress)
+- Lists (ordered and unordered)
+
+## Code Example
+
+\`\`\`rust
+use ironpress::html_to_pdf;
+
+let pdf = html_to_pdf("<h1>Hello</h1>").unwrap();
+std::fs::write("output.pdf", pdf).unwrap();
+\`\`\`
+
+## Roadmap
+
+1. Phase 1: Core engine
+2. Phase 2: CSS support
+3. Phase 3: Advanced features
+
+> ironpress: Pure Rust HTML to PDF. No browser needed.
+
+---
+
+*Generated with ironpress WASM playground*`
+    };
+
+    // Init WASM
+    await init();
+    status.textContent = 'Ready';
+    convertBtn.disabled = false;
+    input.value = EXAMPLES.simple;
+
+    // Examples dropdown
+    examplesSelect.addEventListener('change', () => {
+      const key = examplesSelect.value;
+      if (key && EXAMPLES[key]) {
+        input.value = EXAMPLES[key];
+        modeSelect.value = key === 'markdown' ? 'markdown' : 'html';
+        examplesSelect.value = '';
+      }
+    });
+
+    // Convert
+    convertBtn.addEventListener('click', () => {
+      const text = input.value.trim();
+      if (!text) return;
+
+      loading.classList.add('active');
+      convertBtn.disabled = true;
+      status.textContent = 'Converting...';
+
+      setTimeout(() => {
+        try {
+          const start = performance.now();
+          const pdfBytes = modeSelect.value === 'markdown'
+            ? markdownToPdf(text)
+            : htmlToPdf(text);
+          const elapsed = (performance.now() - start).toFixed(1);
+
+          lastBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(lastBlob);
+
+          preview.src = url;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+          downloadBtn.style.display = '';
+
+          status.textContent = `${(pdfBytes.length / 1024).toFixed(1)} KB in ${elapsed} ms`;
+        } catch (e) {
+          status.textContent = `Error: ${e.message}`;
+          console.error(e);
+        } finally {
+          loading.classList.remove('active');
+          convertBtn.disabled = false;
+        }
+      }, 10);
+    });
+
+    // Download
+    downloadBtn.addEventListener('click', () => {
+      if (!lastBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(lastBlob);
+      a.download = 'ironpress-output.pdf';
+      a.click();
+    });
+
+    // Ctrl+Enter shortcut
+    input.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        convertBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
