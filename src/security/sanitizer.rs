@@ -4,7 +4,7 @@ use crate::error::IronpressError;
 const MAX_INPUT_SIZE: usize = 10 * 1024 * 1024;
 
 /// Maximum allowed nesting depth.
-const MAX_NESTING_DEPTH: usize = 100;
+const MAX_NESTING_DEPTH: usize = 500;
 
 /// Sanitize HTML input by removing dangerous elements and attributes.
 pub fn sanitize_html(html: &str) -> Result<String, IronpressError> {
