@@ -158,7 +158,7 @@ Margin::new(top, right, bottom, left)  // individual values in pt
 
 ## Markdown to PDF
 
-Built-in Markdown parser with zero external dependencies.
+[CommonMark](https://commonmark.org/)-compliant Markdown parser powered by [pulldown-cmark](https://crates.io/crates/pulldown-cmark).
 
 ```rust
 let pdf = ironpress::markdown_to_pdf(r#"
