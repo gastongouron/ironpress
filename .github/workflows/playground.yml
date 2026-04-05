@@ -1,0 +1,45 @@
+name: Deploy Playground
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'playground/**'
+      - 'Cargo.toml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: wasm-pack-${{ runner.os }}-v1
+      - run: command -v wasm-pack || cargo install wasm-pack
+      - run: wasm-pack build --target web --features wasm --no-default-features
+      - run: |
+          cp pkg/ironpress.js playground/
+          cp pkg/ironpress_bg.wasm playground/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playground
+      - id: deployment
+        uses: actions/deploy-pages@v4
