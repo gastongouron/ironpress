@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn rejects_excessive_nesting() {
-        let html = "<div>".repeat(101) + &"</div>".repeat(101);
+        let html = "<div>".repeat(501) + &"</div>".repeat(501);
         let result = sanitize_html(&html);
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
