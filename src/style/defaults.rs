@@ -119,6 +119,7 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
                 "background-color",
                 CssValue::Color(Color::rgb(245, 245, 245)),
             );
+            style.set("white-space", CssValue::Keyword("pre".into()));
         }
         HtmlTag::Code => {
             style.set("font-size", CssValue::Length(10.0));

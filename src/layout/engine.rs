@@ -3225,15 +3225,27 @@ fn collect_text_runs_inner(
     inline_parent: bool,
     ancestors: &[AncestorInfo],
 ) {
+    let preserve_ws = matches!(
+        parent_style.white_space,
+        WhiteSpace::Pre | WhiteSpace::PreWrap
+    );
+
     for node in nodes {
         match node {
             DomNode::Text(text) => {
-                let trimmed = collapse_whitespace(text);
-                if !trimmed.is_empty() {
+                let processed = if preserve_ws {
+                    // In pre/pre-wrap: preserve newlines as \n runs for line breaking
+                    text.clone()
+                } else {
+                    collapse_whitespace(text)
+                };
+                if !processed.is_empty() {
                     // Only propagate background_color when the immediate
                     // parent is an inline element (e.g. <span>).  Block-level
                     // backgrounds are drawn by the TextBlock itself.
-                    let (bg, pad, br) = if inline_parent {
+                    // In preformatted blocks (<pre>), skip inline backgrounds
+                    // to avoid overlapping rects that hide subsequent lines.
+                    let (bg, pad, br) = if inline_parent && !preserve_ws {
                         (
                             parent_style.background_color.map(|c| c.to_f32_rgb()),
                             (parent_style.padding.left, parent_style.padding.top),
@@ -3243,7 +3255,7 @@ fn collect_text_runs_inner(
                         (None, (0.0, 0.0), 0.0)
                     };
                     runs.push(TextRun {
-                        text: trimmed,
+                        text: processed,
                         font_size: parent_style.font_size,
                         bold: parent_style.font_weight == FontWeight::Bold,
                         italic: parent_style.font_style == FontStyle::Italic,
@@ -3386,15 +3398,29 @@ fn wrap_text_runs(
     let mut current_width: f32 = 0.0;
     let mut line_height = default_font_size * 1.4;
 
-    // Concatenate all text then re-split by words, preserving run styles
+    // Concatenate all text then re-split by words, preserving run styles.
+    // For text containing \n (white-space: pre), split on newlines first,
+    // then split each segment by words.
     let mut styled_words: Vec<(String, TextRun)> = Vec::new();
     for run in &runs {
         if run.text == "\n" {
             styled_words.push(("\n".to_string(), run.clone()));
             continue;
         }
-        for word in run.text.split_whitespace() {
-            styled_words.push((word.to_string(), run.clone()));
+        let has_newlines = run.text.contains('\n');
+        if has_newlines {
+            for (seg_idx, segment) in run.text.split('\n').enumerate() {
+                if seg_idx > 0 {
+                    styled_words.push(("\n".to_string(), run.clone()));
+                }
+                for word in segment.split_whitespace() {
+                    styled_words.push((word.to_string(), run.clone()));
+                }
+            }
+        } else {
+            for word in run.text.split_whitespace() {
+                styled_words.push((word.to_string(), run.clone()));
+            }
         }
     }
 
