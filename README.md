@@ -13,6 +13,20 @@ Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies
 
 Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
 
+### Performance
+
+Benchmarked on Apple M4 (release build, `cargo bench`):
+
+| Document | Time | Pages/sec |
+|----------|------|-----------|
+| Simple HTML (`<h1>` + `<p>`) | **16 us** | 62,500 |
+| Styled HTML (CSS, lists, links) | **71 us** | 14,000 |
+| Markdown (headings, code, lists) | **141 us** | 7,000 |
+| Table (5 rows, styled headers) | **341 us** | 2,900 |
+| Full report (tables, flex, progress bars) | **587 us** | 1,700 |
+
+For comparison, Chrome headless takes ~2,500 ms per page — **ironpress is 4,000x faster**.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
