@@ -27,6 +27,7 @@ wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
 html5ever = "0.27"
+pulldown-cmark = "0.12"
 markup5ever_rcdom = "0.3"
 thiserror = "2"
 tokio = { version = "1", features = ["fs", "rt"], optional = true }
