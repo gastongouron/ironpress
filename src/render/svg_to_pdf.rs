@@ -86,6 +86,9 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             x,
             y,
             font_size,
+            font_size_attr,
+            fill_specified,
+            fill_raw,
             font_family,
             font_bold,
             font_italic,
@@ -93,9 +96,17 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             style,
         } => {
             // Use SVG-explicit font_size if set, otherwise inherit from CSS context
-            let size = font_size.unwrap_or(text_ctx.font_size);
-            // Use SVG fill color if set, otherwise inherit CSS color
-            let fill = style.fill.or(text_ctx.color);
+            let size = font_size_attr
+                .as_deref()
+                .and_then(|raw| resolve_svg_font_size(raw, text_ctx.font_size))
+                .or(*font_size)
+                .unwrap_or(text_ctx.font_size);
+            let fill = resolve_svg_text_fill(
+                *fill_specified,
+                fill_raw.as_deref(),
+                style.fill,
+                text_ctx,
+            );
             // Use per-element font if specified, falling back to inherited CSS font
             let font = resolve_svg_text_font(
                 font_family.as_deref(),
@@ -117,6 +128,48 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             out.push_str(&format!("({encoded}) Tj\n"));
             out.push_str("ET\n");
         }
+    }
+}
+
+fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
+    let raw = raw.trim();
+    if let Some(pct) = raw.strip_suffix('%') {
+        let pct = pct.trim().parse::<f32>().ok()?;
+        return Some(inherited_size * pct / 100.0);
+    }
+    if let Some(em) = raw.strip_suffix("em") {
+        let em = em.trim().parse::<f32>().ok()?;
+        return Some(inherited_size * em);
+    }
+    if let Some(px) = raw.strip_suffix("px") {
+        let px = px.trim().parse::<f32>().ok()?;
+        return Some(px * 0.75);
+    }
+    if let Some(pt) = raw.strip_suffix("pt") {
+        return pt.trim().parse::<f32>().ok();
+    }
+    raw.parse::<f32>().ok().map(|px| px * 0.75)
+}
+
+fn resolve_svg_text_fill(
+    fill_specified: bool,
+    fill_raw: Option<&str>,
+    parsed_fill: Option<(f32, f32, f32)>,
+    text_ctx: &SvgTextContext,
+) -> Option<(f32, f32, f32)> {
+    if let Some(fill) = parsed_fill {
+        return Some(fill);
+    }
+
+    if !fill_specified {
+        return Some((0.0, 0.0, 0.0));
+    }
+
+    let raw = fill_raw?.trim().to_ascii_lowercase();
+    match raw.as_str() {
+        "none" => None,
+        "currentcolor" => text_ctx.color.or(Some((0.0, 0.0, 0.0))),
+        _ => Some((0.0, 0.0, 0.0)),
     }
 }
 
@@ -340,6 +393,8 @@ mod tests {
         SvgTree {
             width: 100.0,
             height: 100.0,
+            width_attr: None,
+            height_attr: None,
             view_box: None,
             children,
             text_ctx: SvgTextContext::default(),
@@ -847,5 +902,231 @@ mod tests {
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
         assert!(out.contains("n\n"), "should emit no-paint");
+    }
+
+    #[test]
+    fn text_fill_none_does_not_fallback_to_context_color() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: None,
+                fill_specified: true,
+                fill_raw: Some("none".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: None,
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext {
+                color: Some((1.0, 0.0, 0.0)),
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            !out.contains(" rg\n"),
+            "explicit fill:none should not fall back to inherited text color"
+        );
+        assert!(out.contains("(Hello) Tj\n"));
+    }
+
+    #[test]
+    fn text_fill_defaults_to_black_when_unspecified() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: None,
+                fill_specified: false,
+                fill_raw: None,
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: None,
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext {
+                color: Some((1.0, 0.0, 0.0)),
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("0 0 0 rg\n"),
+            "unspecified SVG text fill should default to black"
+        );
+    }
+
+    #[test]
+    fn text_font_size_percent_scales_from_context() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: Some("150%".to_string()),
+                fill_specified: true,
+                fill_raw: Some("currentColor".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: Some((0.0, 0.0, 0.0)),
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext {
+                font_size: 12.0,
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("/Helvetica 18 Tf\n"),
+            "150% font-size should resolve from the inherited SVG text size"
+        );
+    }
+
+    #[test]
+    fn text_font_size_unitless_number_treated_as_px() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: Some("12".to_string()),
+                fill_specified: true,
+                fill_raw: Some("currentColor".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: Some((0.0, 0.0, 0.0)),
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext::default(),
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("/Helvetica 9 Tf\n"),
+            "unitless SVG font-size should resolve like px"
+        );
+    }
+
+    #[test]
+    fn text_fill_current_color_uses_context_color() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: None,
+                fill_specified: true,
+                fill_raw: Some("currentColor".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: None,
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext {
+                color: Some((0.0, 0.5, 1.0)),
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("0 0.5 1 rg\n"));
+    }
+
+    #[test]
+    fn text_invalid_fill_defaults_to_black() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: None,
+                fill_specified: true,
+                fill_raw: Some("bogus".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: None,
+                    stroke: None,
+                    stroke_width: 0.0,
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext {
+                color: Some((1.0, 0.0, 0.0)),
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("0 0 0 rg\n"));
     }
 }
