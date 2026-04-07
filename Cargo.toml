@@ -27,6 +27,8 @@ wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
 html5ever = "0.27"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+png_decoder = { package = "png", version = "0.18" }
 pulldown-cmark = "0.12"
 markup5ever_rcdom = "0.3"
 thiserror = "2"

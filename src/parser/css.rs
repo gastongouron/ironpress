@@ -342,6 +342,11 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Filter — store as keyword (e.g. "blur(20px)")
+    if property == "filter" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     // Grid template columns — store as keyword for later parsing
     if property == "grid-template-columns" {
         return Some(CssValue::Keyword(val.to_string()));

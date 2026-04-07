@@ -395,6 +395,8 @@ pub enum LayoutElement {
         png_metadata: Option<PngMetadata>,
         margin_top: f32,
         margin_bottom: f32,
+        /// CSS `filter: blur()` radius in points (0.0 = no blur).
+        blur_radius: f32,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },
@@ -3897,13 +3899,22 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
 }
 
 /// Load image data from an <img> element and return a LayoutElement::Image.
+///
+/// When the element has a `filter: blur()` style, the image is decoded with the
+/// `image` crate, Gaussian-blurred, and re-encoded as JPEG before embedding.
 fn load_image_from_element(
     el: &ElementNode,
     available_width: f32,
     style: &ComputedStyle,
 ) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
-    let (data, format, png_meta) = load_image_data(src)?;
+
+    // When blur is requested, decode the raw image, apply blur, and re-encode as JPEG.
+    let (data, format, png_meta) = if style.blur_radius > 0.0 {
+        load_image_data_blurred(src, style.blur_radius)?
+    } else {
+        load_image_data(src)?
+    };
 
     // Determine dimensions from attributes
     let attr_width = el
@@ -3939,7 +3950,102 @@ fn load_image_from_element(
         png_metadata: png_meta,
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
+        blur_radius: style.blur_radius,
     })
+}
+
+/// Load image data from a src attribute, apply Gaussian blur, and return the
+/// blurred image re-encoded as JPEG for PDF embedding.
+///
+/// Both JPEG and PNG sources are supported. The blurred result is always
+/// re-encoded as JPEG (the `image` crate decodes the full file, so PNG IDAT
+/// extraction is bypassed).
+///
+/// Returns `None` if the source cannot be loaded or decoded.
+fn load_image_data_blurred(
+    src: &str,
+    blur_sigma: f32,
+) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
+    // Get the raw file bytes (before any PNG IDAT extraction).
+    let raw = if let Some(rest) = src.strip_prefix("data:") {
+        let (_header, encoded) = rest.split_once(',')?;
+        base64_decode(encoded)?
+    } else if src.starts_with("http://") || src.starts_with("https://") {
+        fetch_remote_url(src)?
+    } else {
+        std::fs::read(src).ok()?
+    };
+
+    // Decode the image into a DynamicImage.
+    // For PNG: use the `png` crate directly with CRC checking disabled (some
+    // data-URI PNGs omit valid CRC checksums, and ironpress's own PNG parser
+    // already tolerates this).
+    // For JPEG: use the `image` crate's normal decoder.
+    let img = if png::is_png(&raw) {
+        decode_png_for_blur(&raw)?
+    } else {
+        image::load_from_memory(&raw).ok()?
+    };
+
+    // Apply Gaussian blur (sigma = blur_radius in points).
+    let blurred = image::DynamicImage::from(image::imageops::blur(&img, blur_sigma));
+
+    // Convert to RGB (JPEG does not support alpha channels) and re-encode.
+    let rgb = blurred.to_rgb8();
+    let mut buf = Vec::new();
+    image::DynamicImage::ImageRgb8(rgb)
+        .write_to(
+            &mut std::io::Cursor::new(&mut buf),
+            image::ImageFormat::Jpeg,
+        )
+        .ok()?;
+
+    Some((buf, ImageFormat::Jpeg, None))
+}
+
+/// Decode a PNG file into a `DynamicImage` with CRC checking disabled.
+///
+/// This is necessary because some PNGs (especially those in data URIs) may
+/// have incorrect CRC checksums that the `image` crate's default PNG decoder
+/// would reject.
+fn decode_png_for_blur(data: &[u8]) -> Option<image::DynamicImage> {
+    use image::{DynamicImage, ImageBuffer, RgbImage, RgbaImage};
+    use std::io::Cursor;
+
+    let cursor = Cursor::new(data);
+    let mut decoder = png_decoder::Decoder::new(cursor);
+    decoder.ignore_checksums(true);
+    let mut reader = decoder.read_info().ok()?;
+    let mut buf = vec![0u8; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut buf).ok()?;
+    buf.truncate(info.buffer_size());
+
+    let width = info.width;
+    let height = info.height;
+
+    match info.color_type {
+        png_decoder::ColorType::Rgba => {
+            let img_buf: RgbaImage = ImageBuffer::from_raw(width, height, buf)?;
+            Some(DynamicImage::ImageRgba8(img_buf))
+        }
+        png_decoder::ColorType::Rgb => {
+            let img_buf: RgbImage = ImageBuffer::from_raw(width, height, buf)?;
+            Some(DynamicImage::ImageRgb8(img_buf))
+        }
+        png_decoder::ColorType::Grayscale => {
+            let img_buf: image::GrayImage = ImageBuffer::from_raw(width, height, buf)?;
+            Some(DynamicImage::ImageLuma8(img_buf))
+        }
+        png_decoder::ColorType::GrayscaleAlpha => {
+            let img_buf: image::GrayAlphaImage = ImageBuffer::from_raw(width, height, buf)?;
+            Some(DynamicImage::ImageLumaA8(img_buf))
+        }
+        _ => {
+            // For indexed/other color types, fall back to the image crate
+            // (which may fail on CRC, but these are rare)
+            image::load_from_memory(data).ok()
+        }
+    }
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -7960,6 +8066,61 @@ mod tests {
             .collect();
         let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
         assert!(!pages.is_empty());
+    }
+
+    #[test]
+    fn load_image_data_blurred_decodes_png() {
+        // 10x10 RGBA PNG (note: this PNG has invalid CRC checksums, which is
+        // common for hand-crafted test PNGs; our decoder tolerates this)
+        let b64 = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==";
+
+        // Step 1: Verify base64 decode works
+        let raw = super::base64_decode(b64).expect("base64 decode should succeed");
+        assert_eq!(raw.len(), 79, "decoded PNG should be 79 bytes");
+        assert_eq!(
+            &raw[..4],
+            &[0x89, 0x50, 0x4E, 0x47],
+            "should start with PNG magic"
+        );
+
+        // Step 2: Verify the CRC-tolerant PNG decoder works
+        let img =
+            super::decode_png_for_blur(&raw).expect("CRC-tolerant decoder should decode the PNG");
+        assert_eq!(img.width(), 10);
+        assert_eq!(img.height(), 10);
+
+        // Step 3: Verify the full load_image_data_blurred pipeline
+        let src = format!("data:image/png;base64,{}", b64);
+        let result = super::load_image_data_blurred(&src, 3.75);
+        assert!(
+            result.is_some(),
+            "load_image_data_blurred should decode the PNG data URI and apply blur"
+        );
+        let (data, format, meta) = result.unwrap();
+        assert_eq!(format, ImageFormat::Jpeg, "should be re-encoded as JPEG");
+        assert!(meta.is_none(), "JPEG has no PNG metadata");
+        assert!(!data.is_empty(), "blurred JPEG should have data");
+        // JPEG files start with FF D8
+        assert_eq!(data[0], 0xFF, "JPEG should start with FF");
+        assert_eq!(data[1], 0xD8, "JPEG should start with FF D8");
+    }
+
+    #[test]
+    fn blur_image_produces_jpeg_layout_element() {
+        let html = r#"<img style="filter: blur(5px)" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="100" height="100" />"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages.is_empty());
+        let has_jpeg_image = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| {
+                matches!(el, LayoutElement::Image { format: ImageFormat::Jpeg, .. })
+            });
+        assert!(
+            has_jpeg_image,
+            "Blurred PNG image should be re-encoded as JPEG in layout"
+        );
     }
 }
 

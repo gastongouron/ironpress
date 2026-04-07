@@ -443,6 +443,8 @@ pub struct ComputedStyle {
     pub counter_increment: Vec<(String, i32)>,
     pub column_count: Option<u32>,
     pub column_gap: f32,
+    /// CSS `filter: blur(Npx)` radius in points (0.0 = no blur).
+    pub blur_radius: f32,
 }
 
 impl Default for ComputedStyle {
@@ -519,6 +521,7 @@ impl Default for ComputedStyle {
             counter_increment: Vec::new(),
             column_count: None,
             column_gap: 0.0,
+            blur_radius: 0.0,
         }
     }
 }
@@ -643,6 +646,7 @@ pub fn compute_style_with_context(
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
     style.z_index = 0;
+    style.blur_radius = 0.0;
     // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
@@ -773,6 +777,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "counter-increment" => style.counter_increment = default.counter_increment,
         "column-count" | "columns" => style.column_count = default.column_count,
         "column-gap" => style.column_gap = default.column_gap,
+        "filter" => style.blur_radius = default.blur_radius,
         _ => {}
     }
 }
@@ -852,6 +857,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
         "column-count" | "columns" => style.column_count = parent.column_count,
         "column-gap" => style.column_gap = parent.column_gap,
+        "filter" => style.blur_radius = parent.blur_radius,
         _ => {}
     }
 }
@@ -1352,6 +1358,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform") {
         if let Some(t) = parse_transform(k) {
             style.transform = Some(t);
+        }
+    }
+
+    // Filter: blur(Npx)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
+        if let Some(radius) = parse_filter_blur(k) {
+            style.blur_radius = radius;
         }
     }
 
@@ -1924,6 +1937,35 @@ fn parse_shadow_length(val: &str) -> Option<f32> {
         n.parse::<f32>().ok()
     } else {
         val.parse::<f32>().ok()
+    }
+}
+
+/// Parse a CSS `filter: blur(Npx)` value and return the blur radius in points.
+///
+/// Supported forms:
+/// - `blur(20px)` — converts px to pt (1px = 0.75pt)
+/// - `blur(15pt)` — used as-is
+/// - `blur(10)` — bare number treated as px
+/// - `none` — returns 0.0 (no blur)
+///
+/// Returns `None` if the value is not a recognized blur filter.
+fn parse_filter_blur(val: &str) -> Option<f32> {
+    let val = val.trim();
+    if val == "none" {
+        return Some(0.0);
+    }
+    let inner = val.strip_prefix("blur(")?.strip_suffix(')')?;
+    let inner = inner.trim();
+    if let Some(px_str) = inner.strip_suffix("px") {
+        let px: f32 = px_str.trim().parse().ok()?;
+        // Convert CSS pixels to PDF points (1px = 0.75pt)
+        Some(px * 0.75)
+    } else if let Some(pt_str) = inner.strip_suffix("pt") {
+        pt_str.trim().parse().ok()
+    } else {
+        // Bare number: treat as px
+        let px: f32 = inner.parse().ok()?;
+        Some(px * 0.75)
     }
 }
 
@@ -6503,5 +6545,98 @@ mod tests {
         parent.flex_grow = 3.0;
         let style = compute_style(HtmlTag::Div, Some("flex-grow: inherit"), &parent);
         assert!((style.flex_grow - 3.0).abs() < f32::EPSILON);
+    }
+
+    // --- filter: blur() ---
+
+    #[test]
+    fn filter_blur_default_is_zero() {
+        let style = ComputedStyle::default();
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_from_inline_style_px() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(20px)"), &parent);
+        // 20px * 0.75 = 15pt
+        assert!((style.blur_radius - 15.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_from_inline_style_pt() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(10pt)"), &parent);
+        assert!((style.blur_radius - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_bare_number() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(8)"), &parent);
+        // 8px * 0.75 = 6pt
+        assert!((style.blur_radius - 6.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_none_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: none"), &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_not_inherited() {
+        let mut parent = ComputedStyle::default();
+        parent.blur_radius = 10.0;
+        let style = compute_style(HtmlTag::Div, None, &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_inherit_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.blur_radius = 12.0;
+        let style = compute_style(HtmlTag::Div, Some("filter: inherit"), &parent);
+        assert!((style.blur_radius - 12.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_initial_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: initial"), &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn parse_filter_blur_valid_px() {
+        assert!((parse_filter_blur("blur(5px)").unwrap() - 3.75).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_filter_blur_valid_pt() {
+        assert!((parse_filter_blur("blur(10pt)").unwrap() - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_filter_blur_bare_number() {
+        assert!((parse_filter_blur("blur(12)").unwrap() - 9.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_filter_blur_none() {
+        assert!((parse_filter_blur("none").unwrap() - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn parse_filter_blur_invalid() {
+        assert!(parse_filter_blur("brightness(50%)").is_none());
+        assert!(parse_filter_blur("blur()").is_none());
+        assert!(parse_filter_blur("blur(abc)").is_none());
+    }
+
+    #[test]
+    fn parse_filter_blur_whitespace() {
+        assert!((parse_filter_blur("  blur( 5px )  ").unwrap() - 3.75).abs() < 0.01);
     }
 }

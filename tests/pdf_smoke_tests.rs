@@ -302,3 +302,80 @@ fn smoke_full_document() {
     assert!(pdf_has_text(&pdf, "Confidential"));
     assert!(pdf_page_count(&pdf) >= 1);
 }
+
+// === CSS filter: blur() ===
+
+#[test]
+fn smoke_filter_blur_png_image() {
+    // 10x10 orange PNG encoded as a base64 data URI
+    let html = r#"
+        <style>
+        .blurred { filter: blur(5px); }
+        </style>
+        <img class="blurred" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="200" height="200" />
+        <p>Text below blurred image</p>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    // The blurred PNG is re-encoded as JPEG, so the PDF should contain a DCTDecode image
+    assert!(pdf_has_text(&pdf, "/Filter /DCTDecode"));
+    // Text after the image should still be present
+    assert!(pdf_has_text(&pdf, "Text below blurred image"));
+}
+
+#[test]
+fn smoke_filter_blur_zero_radius_no_blur() {
+    // blur(0px) should not alter the image pipeline (PNG stays as PNG)
+    let html = r#"
+        <style>
+        .no-blur { filter: blur(0px); }
+        </style>
+        <img class="no-blur" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="100" height="100" />
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    // With blur(0px), the PNG should remain as FlateDecode (not re-encoded to JPEG)
+    assert!(pdf_has_text(&pdf, "/Filter /FlateDecode"));
+}
+
+#[test]
+fn smoke_filter_blur_none_keyword() {
+    // filter: none should not apply any blur
+    let html = r#"
+        <style>
+        .clear { filter: none; }
+        </style>
+        <img class="clear" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="100" height="100" />
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /FlateDecode"));
+}
+
+#[test]
+fn smoke_filter_blur_inline_style() {
+    // Inline style should also work
+    let html = r#"
+        <img style="filter: blur(10px)" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="150" height="150" />
+        <p>After inline blur</p>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /DCTDecode"));
+    assert!(pdf_has_text(&pdf, "After inline blur"));
+}
+
+#[test]
+fn smoke_filter_blur_text_element_no_crash() {
+    // Blur on a non-image element should not crash (blur is silently ignored for text)
+    let html = r#"
+        <style>
+        .blurred-text { filter: blur(3px); }
+        </style>
+        <p class="blurred-text">This text has a blur filter applied</p>
+        <p>Normal text</p>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Normal text"));
+}
