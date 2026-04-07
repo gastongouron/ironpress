@@ -3896,13 +3896,132 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     pages
 }
 
-/// Load image data from an <img> element and return a LayoutElement::Image.
+/// Try to load SVG content from a `src` attribute value.
+///
+/// Supports `data:image/svg+xml;base64,...` URIs, local `.svg` files, and remote
+/// SVG URLs.  Returns a parsed `SvgTree` on success, or `None` if the source is
+/// not SVG content.
+fn load_svg_from_src(src: &str) -> Option<crate::parser::svg::SvgTree> {
+    // Obtain the raw bytes from the source.
+    let raw = if let Some(rest) = src.strip_prefix("data:") {
+        let (header, encoded) = rest.split_once(',')?;
+        // Quick reject: if the MIME type is present and clearly not SVG, skip.
+        let header_lower = header.to_ascii_lowercase();
+        if !header_lower.is_empty()
+            && !header_lower.contains("svg")
+            && !header_lower.contains("xml")
+        {
+            return None;
+        }
+        if header_lower.contains("base64") {
+            base64_decode(encoded)?
+        } else {
+            // Plain-text or percent-encoded data URI — decode %XX sequences.
+            percent_decode(encoded).into_bytes()
+        }
+    } else if src.starts_with("http://") || src.starts_with("https://") {
+        fetch_remote_url(src)?
+    } else {
+        std::fs::read(src).ok()?
+    };
+
+    // Heuristic: check if the content looks like SVG (XML with an <svg element).
+    let prefix = if raw.len() > 512 { &raw[..512] } else { &raw };
+    let text = String::from_utf8_lossy(prefix);
+    let trimmed = text.trim_start();
+    if !(trimmed.starts_with("<svg") || trimmed.starts_with("<?xml") || trimmed.starts_with("<!--"))
+    {
+        // Not XML / SVG content.
+        return None;
+    }
+    // For the comment case, do a deeper check.
+    if trimmed.starts_with("<!--") && !text.contains("<svg") {
+        return None;
+    }
+
+    // Parse the SVG string through the HTML parser to get a DOM, then extract
+    // the <svg> element and convert it to an SvgTree.
+    let svg_str = std::str::from_utf8(&raw).ok()?;
+    let nodes = crate::parser::html::parse_html(svg_str).ok()?;
+    // Find the first <svg> element in the parsed DOM.
+    fn find_svg(nodes: &[crate::parser::dom::DomNode]) -> Option<&ElementNode> {
+        for node in nodes {
+            if let crate::parser::dom::DomNode::Element(el) = node {
+                if el.tag == HtmlTag::Svg {
+                    return Some(el);
+                }
+                if let Some(found) = find_svg(&el.children) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+    let svg_el = find_svg(&nodes)?;
+    crate::parser::svg::parse_svg_from_element(svg_el)
+}
+
+/// Load image data from an <img> element and return a LayoutElement.
+///
+/// When the source contains SVG content (data URI, local file, or remote URL),
+/// the SVG is parsed and rendered as vector graphics (LayoutElement::Svg) instead
+/// of being treated as a raster image.
 fn load_image_from_element(
     el: &ElementNode,
     available_width: f32,
     style: &ComputedStyle,
 ) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
+
+    // Try SVG path first — render as vector graphics instead of raster.
+    if let Some(tree) = load_svg_from_src(src) {
+        // Determine dimensions from <img> attributes, falling back to the SVG's
+        // intrinsic width/height.
+        let attr_width = style
+            .width
+            .or_else(|| {
+                el.attributes
+                    .get("width")
+                    .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+                    .map(|px| px * 0.75)
+            });
+        let attr_height = style
+            .height
+            .or_else(|| {
+                el.attributes
+                    .get("height")
+                    .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+                    .map(|px| px * 0.75)
+            });
+
+        let (mut width, mut height) = match (attr_width, attr_height) {
+            (Some(w), Some(h)) => (w, h),
+            (Some(w), None) => {
+                let scale = w / tree.width;
+                (w, tree.height * scale)
+            }
+            (None, Some(h)) => {
+                let scale = h / tree.height;
+                (tree.width * scale, h)
+            }
+            (None, None) => (tree.width, tree.height),
+        };
+
+        if width > available_width {
+            let scale = available_width / width;
+            width = available_width;
+            height *= scale;
+        }
+
+        return Some(LayoutElement::Svg {
+            tree,
+            width,
+            height,
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+        });
+    }
+
     let (data, format, png_meta) = load_image_data(src)?;
 
     // Determine dimensions from attributes
@@ -4050,6 +4169,35 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     }
 
     Some(result)
+}
+
+/// Decode percent-encoded strings (e.g. `%3C` → `<`).  Used for plain-text SVG
+/// data URIs like `data:image/svg+xml,%3Csvg ...%3E`.
+fn percent_decode(input: &str) -> String {
+    let mut out = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
+                out.push((hi << 4) | lo);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_default()
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn collapse_whitespace(text: &str) -> String {
