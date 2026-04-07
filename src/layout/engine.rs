@@ -384,13 +384,13 @@ fn build_pseudo_block(
 }
 
 /// Build a `TextRun` for an inline `::before` or `::after` pseudo-element.
-fn build_pseudo_inline_run(pseudo_style: &ComputedStyle, el: &ElementNode) -> Option<TextRun> {
+fn build_pseudo_inline_run(pseudo_style: &ComputedStyle, el: &ElementNode) -> TextRun {
     let content_text = resolve_content(
         &pseudo_style.content,
         &el.attributes,
         &CounterState::default(),
     );
-    Some(TextRun {
+    TextRun {
         text: content_text,
         font_size: pseudo_style.font_size,
         bold: pseudo_style.font_weight == FontWeight::Bold,
@@ -403,7 +403,7 @@ fn build_pseudo_inline_run(pseudo_style: &ComputedStyle, el: &ElementNode) -> Op
         background_color: pseudo_style.background_color.map(|c| c.to_f32_rgb()),
         padding: (0.0, 0.0),
         border_radius: 0.0,
-    })
+    }
 }
 
 /// Context for rendering list items.
@@ -1646,9 +1646,7 @@ fn flatten_element(
         let mut runs = Vec::new();
         if let Some(ref ps) = before_style {
             if !before_is_block {
-                if let Some(run) = build_pseudo_inline_run(ps, el) {
-                    runs.push(run);
-                }
+                runs.push(build_pseudo_inline_run(ps, el));
             }
         }
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
@@ -1656,9 +1654,7 @@ fn flatten_element(
             let after_is_block =
                 ps.display == Display::Block || ps.position == Position::Absolute;
             if !after_is_block {
-                if let Some(run) = build_pseudo_inline_run(ps, el) {
-                    runs.push(run);
-                }
+                runs.push(build_pseudo_inline_run(ps, el));
             }
         }
 
