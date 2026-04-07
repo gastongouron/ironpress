@@ -3202,14 +3202,31 @@ fn flatten_table(
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
             let mut runs = Vec::new();
-            collect_text_runs(
-                &cell_el.children,
-                &cell_style,
-                &mut runs,
-                None,
-                rules,
-                &cell_selector_ctx.ancestors,
-            );
+            // When a cell contains block-level children (e.g. a nested
+            // table), plain `collect_text_runs` would skip them because it
+            // only handles inline elements.  Use the flex-child variant
+            // which recursively descends into block children.
+            let has_block_child = cell_el.children.iter().any(|c| {
+                matches!(c, DomNode::Element(e) if e.tag.is_block())
+            });
+            if has_block_child {
+                collect_flex_child_text_runs(
+                    &cell_el.children,
+                    &cell_style,
+                    &mut runs,
+                    rules,
+                    &cell_selector_ctx.ancestors,
+                );
+            } else {
+                collect_text_runs(
+                    &cell_el.children,
+                    &cell_style,
+                    &mut runs,
+                    None,
+                    rules,
+                    &cell_selector_ctx.ancestors,
+                );
+            }
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
 
             let bg = cell_style
