@@ -395,8 +395,6 @@ pub enum LayoutElement {
         png_metadata: Option<PngMetadata>,
         margin_top: f32,
         margin_bottom: f32,
-        /// CSS `filter: blur()` radius in points (0.0 = no blur).
-        blur_radius: f32,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },
@@ -3950,7 +3948,6 @@ fn load_image_from_element(
         png_metadata: png_meta,
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
-        blur_radius: style.blur_radius,
     })
 }
 
