@@ -3936,13 +3936,21 @@ fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
     let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
     let trimmed = text.trim_start();
-    if !(trimmed.starts_with("<svg") || trimmed.starts_with("<?xml") || trimmed.starts_with("<!--"))
+    let trimmed_lower = trimmed.to_ascii_lowercase();
+    if !(trimmed.starts_with("<svg")
+        || trimmed.starts_with("<?xml")
+        || trimmed.starts_with("<!--")
+        || trimmed_lower.starts_with("<!doctype"))
     {
         return None;
     }
-    // For the comment case, do a deeper check.
-    if trimmed.starts_with("<!--") && !text.contains("<svg") {
-        return None;
+    // For the comment case, search the full content (comments may exceed the
+    // 512-byte prefix before the <svg> tag appears).
+    if trimmed.starts_with("<!--") {
+        let full_text = String::from_utf8_lossy(raw);
+        if !full_text.contains("<svg") {
+            return None;
+        }
     }
 
     // Parse the full SVG content — use lossy conversion so that stray non-UTF-8
