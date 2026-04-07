@@ -2,6 +2,28 @@
 
 use crate::parser::dom::ElementNode;
 
+/// Inherited CSS context for SVG text rendering.
+#[derive(Debug, Clone)]
+pub struct SvgTextContext {
+    pub font_family: String,
+    pub font_size: f32,
+    pub font_bold: bool,
+    pub font_italic: bool,
+    pub color: Option<(f32, f32, f32)>,
+}
+
+impl Default for SvgTextContext {
+    fn default() -> Self {
+        Self {
+            font_family: "Helvetica".to_string(),
+            font_size: 12.0,
+            font_bold: false,
+            font_italic: false,
+            color: None,
+        }
+    }
+}
+
 /// A parsed SVG tree ready for rendering.
 #[derive(Debug, Clone)]
 pub struct SvgTree {
@@ -9,6 +31,7 @@ pub struct SvgTree {
     pub height: f32,
     pub view_box: Option<ViewBox>,
     pub children: Vec<SvgNode>,
+    pub text_ctx: SvgTextContext,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +90,13 @@ pub enum SvgNode {
         commands: Vec<PathCommand>,
         style: SvgStyle,
     },
+    Text {
+        x: f32,
+        y: f32,
+        font_size: Option<f32>,
+        content: String,
+        style: SvgStyle,
+    },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -93,6 +123,13 @@ pub enum PathCommand {
 
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
+    parse_svg_from_element_with_ctx(el, SvgTextContext::default())
+}
+
+pub fn parse_svg_from_element_with_ctx(
+    el: &ElementNode,
+    text_ctx: SvgTextContext,
+) -> Option<SvgTree> {
     let width = el
         .attributes
         .get("width")
@@ -119,6 +156,7 @@ pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
         height,
         view_box,
         children,
+        text_ctx,
     })
 }
 
@@ -226,6 +264,20 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             let style = parse_svg_style(el);
             Some(SvgNode::Path { commands, style })
         }
+        "text" => {
+            let x = attr_f32(el, "x");
+            let y = attr_f32(el, "y");
+            let font_size = parse_font_size(el);
+            let content = collect_text_content(el);
+            let style = parse_svg_style(el);
+            Some(SvgNode::Text {
+                x,
+                y,
+                font_size,
+                content,
+                style,
+            })
+        }
         _ => None,
     }
 }
@@ -285,6 +337,48 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         stroke_width,
         opacity,
     }
+}
+
+/// Extract font-size from a `<text>` element.
+///
+/// Checks the `font-size` attribute first, then falls back to parsing
+/// `font-size:` from the inline `style` attribute.
+fn parse_font_size(el: &ElementNode) -> Option<f32> {
+    // 1) Direct attribute: font-size="20"
+    if let Some(val) = el.attributes.get("font-size") {
+        if let Some(size) = parse_length(val) {
+            return Some(size);
+        }
+    }
+    // 2) Inline style: style="font-size:20px"
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in style_val.split(';') {
+            let part = part.trim();
+            if let Some(val) = part.strip_prefix("font-size") {
+                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
+                if let Some(size) = parse_length(val) {
+                    return Some(size);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Collect all text content from a `<text>` element, including `<tspan>` children.
+fn collect_text_content(el: &ElementNode) -> String {
+    let mut text = String::new();
+    for child in &el.children {
+        match child {
+            crate::parser::dom::DomNode::Text(s) => text.push_str(s),
+            crate::parser::dom::DomNode::Element(child_el) => {
+                if child_el.raw_tag_name == "tspan" {
+                    text.push_str(&collect_text_content(child_el));
+                }
+            }
+        }
+    }
+    text
 }
 
 /// Parse common SVG colors: named, hex (#rgb / #rrggbb), rgb(r,g,b), or "none".
@@ -1532,7 +1626,7 @@ mod tests {
 
     #[test]
     fn parse_node_unknown_tag_returns_none() {
-        let el = make_el("text", vec![]);
+        let el = make_el("defs", vec![]);
         assert!(parse_svg_node(&el).is_none());
     }
 
@@ -1620,8 +1714,8 @@ mod tests {
 
     #[test]
     fn parse_svg_from_element_unknown_child_skipped() {
-        let text_el = make_el("text", vec![]);
-        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text_el]);
+        let defs_el = make_el("defs", vec![]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs_el]);
         let tree = parse_svg_from_element(&svg).unwrap();
         assert!(tree.children.is_empty());
     }
