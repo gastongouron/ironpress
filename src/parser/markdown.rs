@@ -1,11 +1,73 @@
 /// Convert a Markdown string to HTML using a CommonMark-compliant parser.
 ///
+/// Enables GFM extensions (tables, strikethrough, task lists, footnotes)
+/// and LaTeX math (`$...$` for inline, `$$...$$` for display).
+///
 /// Powered by [pulldown-cmark](https://crates.io/crates/pulldown-cmark).
 pub fn markdown_to_html(md: &str) -> String {
-    let parser = pulldown_cmark::Parser::new(md);
+    use pulldown_cmark::{Event, Options, Parser};
+
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_MATH;
+
+    let parser = Parser::new_ext(md, options);
     let mut html = String::new();
-    pulldown_cmark::html::push_html(&mut html, parser);
+
+    // Collect events, converting math events to HTML inline, then flush
+    // non-math events through pulldown-cmark's HTML renderer in batches
+    // so that multi-event constructs (images, links) stay intact.
+    let mut batch: Vec<Event<'_>> = Vec::new();
+    let events: Vec<Event<'_>> = parser.collect();
+
+    for event in events {
+        match event {
+            Event::InlineMath(tex) => {
+                // Flush pending non-math events
+                if !batch.is_empty() {
+                    pulldown_cmark::html::push_html(&mut html, batch.drain(..));
+                }
+                html.push_str("<span class=\"math-inline\" data-math=\"");
+                push_html_escaped(&tex, &mut html);
+                html.push_str("\">");
+                push_html_escaped(&tex, &mut html);
+                html.push_str("</span>");
+            }
+            Event::DisplayMath(tex) => {
+                if !batch.is_empty() {
+                    pulldown_cmark::html::push_html(&mut html, batch.drain(..));
+                }
+                html.push_str("<div class=\"math-display\" data-math=\"");
+                push_html_escaped(&tex, &mut html);
+                html.push_str("\">");
+                push_html_escaped(&tex, &mut html);
+                html.push_str("</div>");
+            }
+            other => {
+                batch.push(other);
+            }
+        }
+    }
+    // Flush remaining
+    if !batch.is_empty() {
+        pulldown_cmark::html::push_html(&mut html, batch.into_iter());
+    }
     html
+}
+
+/// HTML-escape a string for safe attribute/text embedding.
+fn push_html_escaped(s: &str, out: &mut String) {
+    for ch in s.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            _ => out.push(ch),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -58,6 +58,7 @@
       <option value="invoice">Invoice</option>
       <option value="report">Report</option>
       <option value="markdown">Markdown doc</option>
+      <option value="math">Math paper</option>
     </select>
     <div class="spacer"></div>
     <span class="status" id="status">Loading WASM...</span>
@@ -211,7 +212,45 @@ std::fs::write("output.pdf", pdf).unwrap();
 
 ---
 
-*Generated with ironpress WASM playground*`
+*Generated with ironpress WASM playground*`,
+
+math: `# Mathematical Analysis
+
+## The Quadratic Formula
+
+For any quadratic equation $ax^2 + bx + c = 0$ with $a \\neq 0$, the solutions are:
+
+$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+
+## Gauss's Sum
+
+For all $n \\geq 1$:
+
+$$\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}$$
+
+**Proof.** By induction. Base case $n = 1$: $\\frac{1 \\cdot 2}{2} = 1$. Assuming the result for $n$, then:
+
+$$\\sum_{k=1}^{n+1} k = \\frac{n(n+1)}{2} + (n+1) = \\frac{(n+1)(n+2)}{2}$$
+
+## Euler's Identity
+
+The most beautiful equation in mathematics:
+
+$$e^{i\\pi} + 1 = 0$$
+
+It connects five fundamental constants: $e$, $i$, $\\pi$, $1$, and $0$.
+
+## Gaussian Integral
+
+$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$
+
+## Matrix Notation
+
+$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} \\begin{pmatrix} x \\\\ y \\end{pmatrix} = \\begin{pmatrix} ax + by \\\\ cx + dy \\end{pmatrix}$$
+
+---
+
+*Generated with ironpress*`
     };
 
     // Init WASM
@@ -225,7 +264,7 @@ std::fs::write("output.pdf", pdf).unwrap();
       const key = examplesSelect.value;
       if (key && EXAMPLES[key]) {
         input.value = EXAMPLES[key];
-        modeSelect.value = key === 'markdown' ? 'markdown' : 'html';
+        modeSelect.value = (key === 'markdown' || key === 'math') ? 'markdown' : 'html';
         examplesSelect.value = '';
       }
     });

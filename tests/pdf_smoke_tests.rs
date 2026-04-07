@@ -302,3 +302,105 @@ fn smoke_full_document() {
     assert!(pdf_has_text(&pdf, "Confidential"));
     assert!(pdf_page_count(&pdf) >= 1);
 }
+
+// === Math (LaTeX) ===
+
+#[test]
+fn smoke_inline_math_markdown() {
+    let md = "The equation $E = mc^2$ is famous.";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    // Should contain text from the expression
+    assert!(pdf_has_text(&pdf, "E"));
+}
+
+#[test]
+fn smoke_display_math_markdown() {
+    let md = "Euler's identity:\n\n$$e^{i\\pi} + 1 = 0$$\n\nBeautiful.";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Beautiful"));
+}
+
+#[test]
+fn smoke_math_fraction() {
+    let md = "Consider: $$\\frac{a^2 + b^2}{c}$$";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_math_sqrt_greek() {
+    let md = "Root: $\\sqrt{\\alpha^2 + \\beta^2}$, and $\\Omega$";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_math_sum_integral() {
+    let md = r"$$\sum_{i=1}^{n} x_i = \int_0^\infty f(x)\,dx$$";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_math_matrix() {
+    let md = r"$$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$$";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_math_via_html() {
+    let html = r#"<p>Inline: <span class="math-inline" data-math="x^2">x^2</span></p>
+    <div class="math-display" data-math="\frac{1}{2}">\frac{1}{2}</div>"#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_math_complex_document() {
+    let md = r#"# Mathematical Analysis
+
+## Theorem 1
+
+For all $n \geq 1$, we have:
+
+$$\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$$
+
+## Proof
+
+By induction. The base case $n = 1$ gives $\frac{1 \cdot 2}{2} = 1$. Assuming
+the result holds for $n$, then for $n + 1$:
+
+$$\sum_{k=1}^{n+1} k = \frac{n(n+1)}{2} + (n+1) = \frac{(n+1)(n+2)}{2}$$
+
+Which completes the proof. $\blacksquare$
+"#;
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Mathematical Analysis"));
+    assert!(pdf_has_text(&pdf, "Theorem"));
+    assert!(pdf_has_text(&pdf, "Proof"));
+}
+
+#[test]
+fn smoke_gfm_table_from_markdown() {
+    let md = "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_gfm_strikethrough_from_markdown() {
+    let md = "This is ~~deleted~~ text.";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_gfm_footnotes_from_markdown() {
+    let md = "Main text[^1].\n\n[^1]: Footnote content.";
+    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}

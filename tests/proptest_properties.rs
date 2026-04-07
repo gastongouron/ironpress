@@ -101,4 +101,42 @@ proptest! {
         let result = ironpress::html_to_pdf(&html);
         prop_assert!(result.is_ok());
     }
+
+    /// Inline math in markdown should never panic
+    #[test]
+    fn inline_math_never_panics(tex in "[a-zA-Z0-9^_{}+\\-=*/() ]{0,100}") {
+        let md = format!("Text ${}$ more text.", tex);
+        let _ = ironpress::markdown_to_pdf(&md);
+    }
+
+    /// Display math in markdown should never panic
+    #[test]
+    fn display_math_never_panics(tex in "[a-zA-Z0-9^_{}+\\-=*/() ]{0,100}") {
+        let md = format!("$${}$$", tex);
+        let _ = ironpress::markdown_to_pdf(&md);
+    }
+
+    /// Math via HTML data-math attribute should never panic
+    #[test]
+    fn math_html_never_panics(tex in "[a-zA-Z0-9^_{}\\\\+\\-=*/() ]{0,100}") {
+        let html = format!(
+            r#"<span class="math-inline" data-math="{}">{}</span>"#,
+            tex, tex
+        );
+        let _ = ironpress::html_to_pdf(&html);
+    }
+
+    /// Complex LaTeX expressions should never panic
+    #[test]
+    fn complex_math_never_panics(
+        a in "[a-z]",
+        b in "[a-z]",
+        n in 1u32..20
+    ) {
+        let md = format!(
+            "$$\\frac{{{}^{{{n}}}}}{{\\sqrt{{{}}}}}$$",
+            a, b
+        );
+        let _ = ironpress::markdown_to_pdf(&md);
+    }
 }
