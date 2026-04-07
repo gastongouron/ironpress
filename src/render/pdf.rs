@@ -3927,6 +3927,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -3941,6 +3942,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         let cell = TableCell {
             lines: vec![
@@ -3987,6 +3989,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         let real_run = TextRun {
             text: "Data".to_string(),
@@ -4001,6 +4004,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         let page = Page {
             elements: vec![(
@@ -4072,6 +4076,7 @@ mod tests {
                                 background_color: None,
                                 padding: (0.0, 0.0),
                                 border_radius: 0.0,
+                                preserve_whitespace: false,
                             }],
                             height: 14.0,
                         }],
@@ -4133,6 +4138,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -4149,6 +4155,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -4165,6 +4172,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -5026,6 +5034,7 @@ mod tests {
             background_color: Some((1.0, 0.0, 0.0)),
             padding: (4.0, 2.0),
             border_radius: 3.0,
+            preserve_whitespace: false,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -5070,6 +5079,7 @@ mod tests {
             background_color: Some((1.0, 1.0, 0.0)),
             padding: (2.0, 1.0),
             border_radius: 4.0,
+            preserve_whitespace: false,
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -5084,6 +5094,7 @@ mod tests {
             background_color: Some((1.0, 1.0, 0.0)),
             padding: (2.0, 1.0),
             border_radius: 8.0, // Different border_radius
+            preserve_whitespace: false,
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -5169,6 +5180,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         let page = Page {
             elements: vec![(
