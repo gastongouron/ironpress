@@ -2965,42 +2965,12 @@ fn flatten_table(
 
     let col_widths: Vec<f32> = if has_explicit_widths {
         let mut widths = vec![0.0f32; num_cols];
-        let mut explicit_total = 0.0f32;
-        let mut auto_preferred_total = 0.0f32;
         for i in 0..num_cols {
             if let Some(pct) = explicit_col_widths[i] {
                 let w = (pct * inner_width).max(min_col_width);
                 widths[i] = w;
-                explicit_total += w;
             } else {
-                auto_preferred_total += preferred_widths[i].max(min_col_width);
-            }
-        }
-        let remaining = (inner_width - explicit_total).max(0.0);
-        for i in 0..num_cols {
-            if explicit_col_widths[i].is_none() {
-                let pref = preferred_widths[i].max(min_col_width);
-                widths[i] = if auto_preferred_total > 0.0 {
-                    (pref / auto_preferred_total) * remaining
-                } else {
-                    remaining / num_cols.max(1) as f32
-                }
-                .max(min_col_width);
-            }
-        }
-        // Clamp auto column total to remaining space to prevent overflow.
-        let auto_total: f32 = widths
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| explicit_col_widths[*i].is_none())
-            .map(|(_, w)| *w)
-            .sum();
-        if auto_total > remaining && auto_total > 0.0 {
-            let scale = remaining / auto_total;
-            for i in 0..num_cols {
-                if explicit_col_widths[i].is_none() {
-                    widths[i] *= scale;
-                }
+                widths[i] = preferred_widths[i].max(min_col_width);
             }
         }
         widths
@@ -8255,6 +8225,43 @@ mod tests {
             "Auto-sizing should still work: longer column ({}) should be wider than short ({})",
             col_widths[1],
             col_widths[0]
+        );
+    }
+
+    #[test]
+    fn table_mixed_explicit_and_auto_widths() {
+        let html = r#"<table>
+            <colgroup>
+                <col width="25%">
+                <col>
+            </colgroup>
+            <tr><td>Fixed</td><td>Auto column content</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let table_rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::TableRow { col_widths, .. } = el {
+                    Some(col_widths.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(table_rows.len(), 1);
+        let col_widths = &table_rows[0];
+        assert_eq!(col_widths.len(), 2);
+        assert!(
+            col_widths[0] > 0.0 && col_widths[1] > 0.0,
+            "Both explicit and auto columns should keep usable widths: {:?}",
+            col_widths
+        );
+        assert!(
+            col_widths[0] < col_widths[1] || (col_widths[0] - col_widths[1]).abs() < 5.0,
+            "Auto column should not be collapsed by explicit width redistribution: {:?}",
+            col_widths
         );
     }
 }
