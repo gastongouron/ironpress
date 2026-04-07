@@ -367,7 +367,8 @@ fn smoke_filter_blur_inline_style() {
 
 #[test]
 fn smoke_filter_blur_text_element_no_crash() {
-    // Blur on a non-image element should not crash (blur is silently ignored for text)
+    // Non-image elements still need to parse cleanly even though this branch
+    // only rewrites raster image sources today.
     let html = r#"
         <style>
         .blurred-text { filter: blur(3px); }

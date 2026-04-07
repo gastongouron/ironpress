@@ -1940,15 +1940,11 @@ fn parse_shadow_length(val: &str) -> Option<f32> {
     }
 }
 
-/// Parse a CSS `filter: blur(Npx)` value and return the blur radius in points.
+/// Parse a CSS `filter: blur(<length>)` value and return the blur radius in points.
 ///
-/// Supported forms:
-/// - `blur(20px)` — converts px to pt (1px = 0.75pt)
-/// - `blur(15pt)` — used as-is
-/// - `blur(10)` — bare number treated as px
-/// - `none` — returns 0.0 (no blur)
-///
-/// Returns `None` if the value is not a recognized blur filter.
+/// The CSS `blur()` function takes a length. We reuse the shared length parser
+/// so any supported absolute CSS length works here. Unitless zero is accepted
+/// because CSS length syntax allows `0` without a unit.
 fn parse_filter_blur(val: &str) -> Option<f32> {
     let val = val.trim();
     if val == "none" {
@@ -1956,16 +1952,10 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
     }
     let inner = val.strip_prefix("blur(")?.strip_suffix(')')?;
     let inner = inner.trim();
-    if let Some(px_str) = inner.strip_suffix("px") {
-        let px: f32 = px_str.trim().parse().ok()?;
-        // Convert CSS pixels to PDF points (1px = 0.75pt)
-        Some(px * 0.75)
-    } else if let Some(pt_str) = inner.strip_suffix("pt") {
-        pt_str.trim().parse().ok()
-    } else {
-        // Bare number: treat as px
-        let px: f32 = inner.parse().ok()?;
-        Some(px * 0.75)
+    let is_unitless = inner.parse::<f32>().is_ok();
+    match crate::parser::css::parse_length(inner) {
+        Some(CssValue::Length(v)) if v >= 0.0 && (!is_unitless || v == 0.0) => Some(v),
+        _ => None,
     }
 }
 
@@ -6571,11 +6561,10 @@ mod tests {
     }
 
     #[test]
-    fn filter_blur_bare_number() {
+    fn filter_blur_bare_number_is_rejected() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("filter: blur(8)"), &parent);
-        // 8px * 0.75 = 6pt
-        assert!((style.blur_radius - 6.0).abs() < 0.01);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -6620,7 +6609,7 @@ mod tests {
 
     #[test]
     fn parse_filter_blur_bare_number() {
-        assert!((parse_filter_blur("blur(12)").unwrap() - 9.0).abs() < 0.01);
+        assert_eq!(parse_filter_blur("blur(12)"), None);
     }
 
     #[test]
@@ -6633,6 +6622,12 @@ mod tests {
         assert!(parse_filter_blur("brightness(50%)").is_none());
         assert!(parse_filter_blur("blur()").is_none());
         assert!(parse_filter_blur("blur(abc)").is_none());
+        assert!(parse_filter_blur("blur(-1px)").is_none());
+    }
+
+    #[test]
+    fn parse_filter_blur_unitless_zero() {
+        assert!((parse_filter_blur("blur(0)").unwrap() - 0.0).abs() < f32::EPSILON);
     }
 
     #[test]
