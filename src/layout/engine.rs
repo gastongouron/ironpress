@@ -2643,29 +2643,29 @@ fn flatten_grid_container(
 /// Parse a percentage width from a `<col>` element.
 fn parse_col_width_percent(col_el: &ElementNode) -> Option<f32> {
     if let Some(style_str) = col_el.style_attr() {
-        for decl in style_str.split(';') {
-            let decl = decl.trim();
+        let mut saw_inline_width = false;
+        let mut last_inline_width = None;
+        for decl in style_str.split(';').map(str::trim) {
             if let Some((prop, val)) = decl.split_once(':') {
                 if prop.trim().eq_ignore_ascii_case("width") {
-                    let val = val.trim();
-                    if let Some(pct_str) = val.strip_suffix('%') {
-                        if let Ok(pct) = pct_str.trim().parse::<f32>() {
-                            return Some(pct / 100.0);
-                        }
-                    }
+                    saw_inline_width = true;
+                    last_inline_width = parse_percent_width(val);
                 }
             }
         }
-    }
-    if let Some(val) = col_el.attributes.get("width") {
-        let val = val.trim();
-        if let Some(pct_str) = val.strip_suffix('%') {
-            if let Ok(pct) = pct_str.trim().parse::<f32>() {
-                return Some(pct / 100.0);
-            }
+        if saw_inline_width {
+            return last_inline_width;
         }
     }
-    None
+    col_el
+        .attributes
+        .get("width")
+        .and_then(|val| parse_percent_width(val))
+}
+
+fn parse_percent_width(val: &str) -> Option<f32> {
+    let pct_str = val.trim().strip_suffix('%')?;
+    pct_str.trim().parse::<f32>().ok().map(|pct| pct / 100.0)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -8127,6 +8127,61 @@ mod tests {
             (ratio - 0.25).abs() < 0.05,
             "First column should be ~25% of total, got {:.1}%",
             ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn table_colgroup_last_inline_width_wins() {
+        let html = r#"<table>
+            <colgroup>
+                <col style="width: 10%; width: 40%;" width="90%">
+                <col style="width: 60%;">
+            </colgroup>
+            <tr><td>A</td><td>B</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        let total: f32 = col_widths.iter().sum();
+        let ratio = col_widths[0] / total;
+        assert!(
+            (ratio - 0.40).abs() < 0.05,
+            "Last inline width declaration should win, got {:.1}% ({:?})",
+            ratio * 100.0,
+            col_widths
+        );
+    }
+
+    #[test]
+    fn table_colgroup_inline_width_ignores_width_attribute() {
+        let html = r#"<table>
+            <colgroup>
+                <col style="width: auto" width="80%">
+                <col>
+            </colgroup>
+            <tr><td>Short</td><td>Much longer content here</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        assert!(
+            col_widths[1] > col_widths[0],
+            "Inline width should override width attribute; got {:?}",
+            col_widths
         );
     }
 
