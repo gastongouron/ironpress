@@ -249,7 +249,7 @@ enum ListContext {
 }
 
 /// A table cell ready for rendering.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct TableCell {
     pub lines: Vec<TextLine>,
@@ -329,7 +329,7 @@ pub struct PngMetadata {
 }
 
 /// A layout element ready for rendering.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum LayoutElement {
     /// A block of text lines with optional background.
@@ -2461,6 +2461,10 @@ fn flatten_flex_container(
                             vertical_align: tb_va,
                             background_gradient: tb_grad,
                             background_radial_gradient: tb_rgrad,
+                            background_svg: tb_bg_svg,
+                            background_size: tb_bg_size,
+                            background_position: tb_bg_pos,
+                            background_repeat: tb_bg_repeat,
                             ..
                         } = elem
                         {
@@ -2508,10 +2512,10 @@ fn flatten_flex_container(
                                 vertical_align: *tb_va,
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
-                                background_svg: None,
-                                background_size: BackgroundSize::Auto,
-                                background_position: BackgroundPosition::default(),
-                                background_repeat: BackgroundRepeat::Repeat,
+                                background_svg: tb_bg_svg.clone(),
+                                background_size: *tb_bg_size,
+                                background_position: *tb_bg_pos,
+                                background_repeat: *tb_bg_repeat,
                                 z_index: 0,
                                 heading_level: None,
                             });
@@ -3793,6 +3797,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     let mut right_floats: Vec<FloatRegion> = Vec::new();
     let mut prev_margin_bottom: f32 = 0.0;
 
+    // Collect absolute background elements (z_index < 0) so they can be
+    // duplicated onto every page during pagination.
+    let mut absolute_backgrounds: Vec<(f32, LayoutElement)> = Vec::new();
+
     for element in elements {
         // Extract float/clear/position info from TextBlock elements
         let (elem_float, elem_clear, elem_position, elem_offset_top) = match &element {
@@ -3838,6 +3846,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                 });
+                // Duplicate root background onto the new page.
+                for bg in &absolute_backgrounds {
+                    current_elements.push(bg.clone());
+                }
                 y = 0.0;
                 prev_margin_bottom = 0.0;
                 left_floats.clear();
@@ -3948,6 +3960,15 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
             let abs_y = elem_offset_top;
+            // Track absolute background elements (z_index < 0) for duplication
+            // across all pages.
+            let is_bg = match &element {
+                LayoutElement::TextBlock { z_index, .. } => *z_index < 0,
+                _ => false,
+            };
+            if is_bg {
+                absolute_backgrounds.push((abs_y, element.clone()));
+            }
             current_elements.push((abs_y, element));
             continue;
         }
@@ -3956,6 +3977,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
             });
+            // Duplicate root background onto the new page.
+            for bg in &absolute_backgrounds {
+                current_elements.push(bg.clone());
+            }
             y = 0.0;
             prev_margin_bottom = 0.0;
             left_floats.clear();
