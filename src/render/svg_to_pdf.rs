@@ -1,6 +1,7 @@
 //! SVG tree to PDF content stream renderer.
 
 use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTextContext, SvgTransform, SvgTree};
+use crate::render::pdf::encode_pdf_text;
 
 /// Render an SVG tree to PDF content stream operators.
 ///
@@ -85,6 +86,9 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             x,
             y,
             font_size,
+            font_family,
+            font_bold,
+            font_italic,
             content,
             style,
         } => {
@@ -92,8 +96,13 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             let size = font_size.unwrap_or(text_ctx.font_size);
             // Use SVG fill color if set, otherwise inherit CSS color
             let fill = style.fill.or(text_ctx.color);
-            // Use inherited CSS font family (already resolved to PDF name)
-            let font = &text_ctx.font_family;
+            // Use per-element font if specified, falling back to inherited CSS font
+            let font = resolve_svg_text_font(
+                font_family.as_deref(),
+                *font_bold,
+                *font_italic,
+                text_ctx,
+            );
 
             out.push_str("BT\n");
             out.push_str(&format!("/{font} {size} Tf\n"));
@@ -104,8 +113,8 @@ fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
             // SVG coordinates to PDF coordinates. Text must counter this flip via
             // the text matrix, otherwise glyphs render upside-down.
             out.push_str(&format!("1 0 0 -1 {x} {y} Tm\n"));
-            let escaped = escape_pdf_text_simple(content);
-            out.push_str(&format!("({escaped}) Tj\n"));
+            let encoded = encode_pdf_text(content);
+            out.push_str(&format!("({encoded}) Tj\n"));
             out.push_str("ET\n");
         }
     }
@@ -134,6 +143,69 @@ fn paint(style: &SvgStyle, out: &mut String) {
         (true, false) => out.push_str("f\n"),  // fill only
         (false, true) => out.push_str("S\n"),  // stroke only
         (false, false) => out.push_str("n\n"), // no paint
+    }
+}
+
+/// Resolve the PDF font name for an SVG `<text>` element.
+///
+/// If the element has a per-element `font_family` override, combine it with
+/// bold/italic flags (falling back to the context flags when the element
+/// doesn't specify them).  Otherwise use the context font as-is.
+fn resolve_svg_text_font(
+    font_family: Option<&str>,
+    font_bold: Option<bool>,
+    font_italic: Option<bool>,
+    text_ctx: &SvgTextContext,
+) -> String {
+    if let Some(base) = font_family {
+        let bold = font_bold.unwrap_or(text_ctx.font_bold);
+        let italic = font_italic.unwrap_or(text_ctx.font_italic);
+        pdf_font_name(base, bold, italic).to_string()
+    } else if font_bold.is_some() || font_italic.is_some() {
+        // No family override but bold/italic overrides -- derive from context family base name
+        let base = base_family_from_pdf_name(&text_ctx.font_family);
+        let bold = font_bold.unwrap_or(text_ctx.font_bold);
+        let italic = font_italic.unwrap_or(text_ctx.font_italic);
+        pdf_font_name(base, bold, italic).to_string()
+    } else {
+        text_ctx.font_family.clone()
+    }
+}
+
+/// Extract the base family name from a fully-qualified PDF font name.
+fn base_family_from_pdf_name(name: &str) -> &str {
+    if name.starts_with("Times") {
+        "Times-Roman"
+    } else if name.starts_with("Courier") {
+        "Courier"
+    } else {
+        "Helvetica"
+    }
+}
+
+/// Map (base_family, bold, italic) to a concrete PDF built-in font name.
+fn pdf_font_name(base: &str, bold: bool, italic: bool) -> &'static str {
+    if base.starts_with("Times") {
+        match (bold, italic) {
+            (true, true) => "Times-BoldItalic",
+            (true, false) => "Times-Bold",
+            (false, true) => "Times-Italic",
+            (false, false) => "Times-Roman",
+        }
+    } else if base.starts_with("Courier") {
+        match (bold, italic) {
+            (true, true) => "Courier-BoldOblique",
+            (true, false) => "Courier-Bold",
+            (false, true) => "Courier-Oblique",
+            (false, false) => "Courier",
+        }
+    } else {
+        match (bold, italic) {
+            (true, true) => "Helvetica-BoldOblique",
+            (true, false) => "Helvetica-Bold",
+            (false, true) => "Helvetica-Oblique",
+            (false, false) => "Helvetica",
+        }
     }
 }
 
@@ -222,22 +294,6 @@ fn emit_path(commands: &[PathCommand], out: &mut String) {
     }
 }
 
-/// Escape a string for use inside a PDF text literal `(...)`.
-///
-/// Handles the three special characters that must be escaped in PDF
-/// parenthesised strings: backslash, open-paren, close-paren.
-fn escape_pdf_text_simple(text: &str) -> String {
-    let mut result = String::with_capacity(text.len());
-    for ch in text.chars() {
-        match ch {
-            '\\' => result.push_str("\\\\"),
-            '(' => result.push_str("\\("),
-            ')' => result.push_str("\\)"),
-            _ => result.push(ch),
-        }
-    }
-    result
-}
 
 #[cfg(test)]
 mod tests {

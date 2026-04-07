@@ -94,6 +94,12 @@ pub enum SvgNode {
         x: f32,
         y: f32,
         font_size: Option<f32>,
+        /// Per-element font-family override (resolved PDF name, e.g. "Helvetica-Bold").
+        font_family: Option<String>,
+        /// Per-element font-weight override (true = bold).
+        font_bold: Option<bool>,
+        /// Per-element font-style override (true = italic/oblique).
+        font_italic: Option<bool>,
         content: String,
         style: SvgStyle,
     },
@@ -268,12 +274,16 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             let x = attr_f32(el, "x");
             let y = attr_f32(el, "y");
             let font_size = parse_font_size(el);
+            let (font_family, font_bold, font_italic) = parse_text_font_attrs(el);
             let content = collect_text_content(el);
             let style = parse_svg_style(el);
             Some(SvgNode::Text {
                 x,
                 y,
                 font_size,
+                font_family,
+                font_bold,
+                font_italic,
                 content,
                 style,
             })
@@ -363,6 +373,79 @@ fn parse_font_size(el: &ElementNode) -> Option<f32> {
         }
     }
     None
+}
+
+/// Parse per-element font-family, font-weight, and font-style from a `<text>` element.
+///
+/// Checks both XML attributes (`font-family`, `font-weight`, `font-style`) and
+/// properties inside the `style` attribute.  Returns `(font_family, font_bold, font_italic)`,
+/// each `None` when no explicit value was found on the element.
+fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
+    let mut family: Option<String> = None;
+    let mut bold: Option<bool> = None;
+    let mut italic: Option<bool> = None;
+
+    // 1) Direct XML attributes
+    if let Some(val) = el.attributes.get("font-family") {
+        let val = val.trim().trim_matches(|c| c == '\'' || c == '"');
+        if !val.is_empty() {
+            family = Some(val.to_string());
+        }
+    }
+    if let Some(val) = el.attributes.get("font-weight") {
+        bold = Some(is_bold_value(val.trim()));
+    }
+    if let Some(val) = el.attributes.get("font-style") {
+        italic = Some(is_italic_value(val.trim()));
+    }
+
+    // 2) Inline `style` attribute (overrides XML attributes when present)
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in style_val.split(';') {
+            let part = part.trim();
+            if let Some(val) = part.strip_prefix("font-family") {
+                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
+                let val = val.trim_matches(|c| c == '\'' || c == '"');
+                if !val.is_empty() {
+                    family = Some(val.to_string());
+                }
+            } else if let Some(val) = part.strip_prefix("font-weight") {
+                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
+                bold = Some(is_bold_value(val));
+            } else if let Some(val) = part.strip_prefix("font-style") {
+                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
+                italic = Some(is_italic_value(val));
+            }
+        }
+    }
+
+    // Resolve family to a PDF base name (sans bold/italic suffix -- that's applied at render time)
+    let family = family.map(|f| resolve_svg_font_family(&f));
+
+    (family, bold, italic)
+}
+
+/// Map a CSS font-family value to a PDF base-font family name.
+fn resolve_svg_font_family(css_family: &str) -> String {
+    let lower = css_family.to_ascii_lowercase();
+    if lower.contains("times") || lower == "serif" {
+        "Times-Roman".to_string()
+    } else if lower.contains("courier") || lower == "monospace" {
+        "Courier".to_string()
+    } else {
+        // Default to Helvetica for sans-serif / Arial / Helvetica / anything else
+        "Helvetica".to_string()
+    }
+}
+
+fn is_bold_value(val: &str) -> bool {
+    let lower = val.to_ascii_lowercase();
+    lower == "bold" || lower == "bolder" || lower.parse::<u32>().map_or(false, |w| w >= 700)
+}
+
+fn is_italic_value(val: &str) -> bool {
+    let lower = val.to_ascii_lowercase();
+    lower == "italic" || lower == "oblique"
 }
 
 /// Collect all text content from a `<text>` element, including `<tspan>` children.
