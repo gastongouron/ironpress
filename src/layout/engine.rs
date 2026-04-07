@@ -8008,6 +8008,48 @@ mod tests {
         let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
         assert!(!pages.is_empty());
     }
+
+    #[test]
+    fn table_cell_block_content_preserves_link_and_whitespace() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td>
+                        <div><a href="https://example.com">Click here</a></div>
+                        <pre>  keep   spaces  </pre>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let cells = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                Some(cells)
+            } else {
+                None
+            }
+        });
+        let cells = cells.expect("expected table row");
+        let text: String = cells[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter())
+            .map(|run| run.text.as_str())
+            .collect();
+        assert!(
+            cells[0]
+                .lines
+                .iter()
+                .flat_map(|line| line.runs.iter())
+                .any(|run| run.link_url.as_deref() == Some("https://example.com")),
+            "Expected link URL to survive nested block traversal"
+        );
+        assert!(
+            text.contains("  keep   spaces  "),
+            "Expected preformatted whitespace to survive nested block traversal: {text:?}"
+        );
+    }
 }
 
 // (end of file -- debug tests removed)
