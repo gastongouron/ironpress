@@ -2,6 +2,36 @@
 
 use crate::parser::dom::ElementNode;
 
+/// Split a style declaration string on `;`, respecting quoted strings and
+/// parenthesized function arguments.
+fn split_style_declarations(style: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let bytes = style.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut paren_depth = 0usize;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double_quote && paren_depth > 0 => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote && paren_depth > 0 => in_double_quote = !in_double_quote,
+            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
+            b')' if !in_single_quote && !in_double_quote && paren_depth > 0 => paren_depth -= 1,
+            b';' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+                parts.push(&style[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if start < style.len() {
+        parts.push(&style[start..]);
+    }
+    parts
+}
+
 /// Inherited CSS context for SVG text rendering.
 #[derive(Debug, Clone)]
 pub struct SvgTextContext {
@@ -29,6 +59,8 @@ impl Default for SvgTextContext {
 pub struct SvgTree {
     pub width: f32,
     pub height: f32,
+    pub width_attr: Option<String>,
+    pub height_attr: Option<String>,
     pub view_box: Option<ViewBox>,
     pub children: Vec<SvgNode>,
     pub text_ctx: SvgTextContext,
@@ -94,6 +126,10 @@ pub enum SvgNode {
         x: f32,
         y: f32,
         font_size: Option<f32>,
+        font_size_attr: Option<String>,
+        /// True when the element explicitly set `fill` (including `none`).
+        fill_specified: bool,
+        fill_raw: Option<String>,
         /// Per-element font-family override (resolved PDF name, e.g. "Helvetica-Bold").
         font_family: Option<String>,
         /// Per-element font-weight override (true = bold).
@@ -136,15 +172,15 @@ pub fn parse_svg_from_element_with_ctx(
     el: &ElementNode,
     text_ctx: SvgTextContext,
 ) -> Option<SvgTree> {
-    let width = el
-        .attributes
-        .get("width")
-        .and_then(|v| parse_length(v))
+    let width_attr = el.attributes.get("width").cloned();
+    let height_attr = el.attributes.get("height").cloned();
+    let width = width_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(300.0);
-    let height = el
-        .attributes
-        .get("height")
-        .and_then(|v| parse_length(v))
+    let height = height_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(150.0);
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
@@ -160,6 +196,8 @@ pub fn parse_svg_from_element_with_ctx(
     Some(SvgTree {
         width,
         height,
+        width_attr,
+        height_attr,
         view_box,
         children,
         text_ctx,
@@ -273,7 +311,12 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
         "text" => {
             let x = attr_f32(el, "x");
             let y = attr_f32(el, "y");
-            let font_size = parse_font_size(el);
+            let font_size_attr = parse_font_size_attr(el);
+            let font_size = font_size_attr
+                .as_deref()
+                .and_then(parse_absolute_length);
+            let fill_specified = has_fill_specified(el);
+            let fill_raw = parse_fill_raw(el);
             let (font_family, font_bold, font_italic) = parse_text_font_attrs(el);
             let content = collect_text_content(el);
             let style = parse_svg_style(el);
@@ -281,6 +324,9 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
                 x,
                 y,
                 font_size,
+                font_size_attr,
+                fill_specified,
+                fill_raw,
                 font_family,
                 font_bold,
                 font_italic,
@@ -301,10 +347,18 @@ fn attr_f32(el: &ElementNode, name: &str) -> f32 {
 }
 
 /// Parse a length value (strip px/em/etc suffix, parse number).
-fn parse_length(val: &str) -> Option<f32> {
+pub(crate) fn parse_length(val: &str) -> Option<f32> {
     let trimmed = val.trim();
     let num_str = trimmed.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
     num_str.trim().parse::<f32>().ok()
+}
+
+fn parse_absolute_length(val: &str) -> Option<f32> {
+    let trimmed = val.trim();
+    if trimmed.ends_with('%') {
+        return None;
+    }
+    parse_length(trimmed)
 }
 
 /// Parse a viewBox attribute: "min-x min-y width height".
@@ -328,18 +382,35 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
 
 /// Parse fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
-    let fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
-    let stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
-    let stroke_width = el
+    let mut fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
+    let mut stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
+    let mut stroke_width = el
         .attributes
         .get("stroke-width")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
-    let opacity = el
+    let mut opacity = el
         .attributes
         .get("opacity")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
+
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in split_style_declarations(style_val) {
+            let part = part.trim();
+            if let Some((prop, val)) = part.split_once(':') {
+                match prop.trim() {
+                    "fill" => fill = parse_svg_color(val.trim()),
+                    "stroke" => stroke = parse_svg_color(val.trim()),
+                    "stroke-width" => {
+                        stroke_width = val.trim().parse().ok().unwrap_or(stroke_width)
+                    }
+                    "opacity" => opacity = val.trim().parse().ok().unwrap_or(opacity),
+                    _ => {}
+                }
+            }
+        }
+    }
 
     SvgStyle {
         fill,
@@ -349,25 +420,21 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     }
 }
 
-/// Extract font-size from a `<text>` element.
+/// Extract the raw `font-size` value from a `<text>` element.
 ///
 /// Checks the `font-size` attribute first, then falls back to parsing
 /// `font-size:` from the inline `style` attribute.
-fn parse_font_size(el: &ElementNode) -> Option<f32> {
-    // 1) Direct attribute: font-size="20"
+fn parse_font_size_attr(el: &ElementNode) -> Option<String> {
     if let Some(val) = el.attributes.get("font-size") {
-        if let Some(size) = parse_length(val) {
-            return Some(size);
-        }
+        return Some(val.trim().to_string());
     }
     // 2) Inline style: style="font-size:20px"
     if let Some(style_val) = el.attributes.get("style") {
-        for part in style_val.split(';') {
+        for part in split_style_declarations(style_val) {
             let part = part.trim();
-            if let Some(val) = part.strip_prefix("font-size") {
-                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
-                if let Some(size) = parse_length(val) {
-                    return Some(size);
+            if let Some((prop, val)) = part.split_once(':') {
+                if prop.trim() == "font-size" {
+                    return Some(val.trim().to_string());
                 }
             }
         }
@@ -401,20 +468,21 @@ fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opt
 
     // 2) Inline `style` attribute (overrides XML attributes when present)
     if let Some(style_val) = el.attributes.get("style") {
-        for part in style_val.split(';') {
+        for part in split_style_declarations(style_val) {
             let part = part.trim();
-            if let Some(val) = part.strip_prefix("font-family") {
-                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
-                let val = val.trim_matches(|c| c == '\'' || c == '"');
-                if !val.is_empty() {
-                    family = Some(val.to_string());
+            if let Some((prop, val)) = part.split_once(':') {
+                let prop = prop.trim();
+                let val = val.trim();
+                if prop == "font-family" {
+                    let val = val.trim_matches(|c| c == '\'' || c == '"');
+                    if !val.is_empty() {
+                        family = Some(val.to_string());
+                    }
+                } else if prop == "font-weight" {
+                    bold = Some(is_bold_value(val));
+                } else if prop == "font-style" {
+                    italic = Some(is_italic_value(val));
                 }
-            } else if let Some(val) = part.strip_prefix("font-weight") {
-                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
-                bold = Some(is_bold_value(val));
-            } else if let Some(val) = part.strip_prefix("font-style") {
-                let val = val.trim_start().strip_prefix(':').unwrap_or(val).trim();
-                italic = Some(is_italic_value(val));
             }
         }
     }
@@ -423,6 +491,40 @@ fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opt
     let family = family.map(|f| resolve_svg_font_family(&f));
 
     (family, bold, italic)
+}
+
+fn has_fill_specified(el: &ElementNode) -> bool {
+    if el.attributes.contains_key("fill") {
+        return true;
+    }
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in split_style_declarations(style_val) {
+            let part = part.trim();
+            if let Some((prop, _val)) = part.split_once(':') {
+                if prop.trim() == "fill" {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn parse_fill_raw(el: &ElementNode) -> Option<String> {
+    if let Some(val) = el.attributes.get("fill") {
+        return Some(val.trim().to_string());
+    }
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in split_style_declarations(style_val) {
+            let part = part.trim();
+            if let Some((prop, val)) = part.split_once(':') {
+                if prop.trim() == "fill" {
+                    return Some(val.trim().to_string());
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Map a CSS font-family value to a PDF base-font family name.
@@ -1757,6 +1859,22 @@ mod tests {
         assert!(style.stroke.is_none());
     }
 
+    #[test]
+    fn parse_style_from_style_attribute() {
+        let el = make_el(
+            "rect",
+            vec![(
+                "style",
+                "fill: #00ff00; stroke: rgb(0,0,255); stroke-width: 3; opacity: 0.25;",
+            )],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, Some((0.0, 1.0, 0.0)));
+        assert_eq!(style.stroke, Some((0.0, 0.0, 1.0)));
+        assert!((style.stroke_width - 3.0).abs() < 0.001);
+        assert!((style.opacity - 0.25).abs() < 0.001);
+    }
+
     // ── parse_svg_from_element ─────────────────────────────────────────
 
     #[test]
@@ -1785,6 +1903,54 @@ mod tests {
         assert_eq!(tree.height, 150.0);
         assert!(tree.view_box.is_none());
         assert!(tree.children.is_empty());
+    }
+
+    #[test]
+    fn parse_text_style_ignores_font_size_adjust_prefix() {
+        let text = make_el(
+            "text",
+            vec![(
+                "style",
+                "font-size-adjust: 0.5; font-size: 20px",
+            )],
+        );
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text {
+                font_size_attr,
+                font_size,
+                ..
+            } => {
+                assert_eq!(font_size_attr.as_deref(), Some("20px"));
+                assert_eq!(*font_size, Some(20.0));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_style_ignores_fill_opacity_prefix() {
+        let text = make_el(
+            "text",
+            vec![(
+                "style",
+                "fill-opacity: 0.5; fill: currentColor",
+            )],
+        );
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text {
+                fill_raw,
+                fill_specified,
+                ..
+            } => {
+                assert!(*fill_specified);
+                assert_eq!(fill_raw.as_deref(), Some("currentColor"));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
     }
 
     #[test]
