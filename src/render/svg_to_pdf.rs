@@ -1,6 +1,6 @@
 //! SVG tree to PDF content stream renderer.
 
-use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTransform, SvgTree};
+use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTextContext, SvgTransform, SvgTree};
 
 /// Render an SVG tree to PDF content stream operators.
 ///
@@ -8,11 +8,11 @@ use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTransform, SvgTree};
 /// transform (position on page + y-axis flip).
 pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     for node in &tree.children {
-        render_node(node, out);
+        render_node(node, &tree.text_ctx, out);
     }
 }
 
-fn render_node(node: &SvgNode, out: &mut String) {
+fn render_node(node: &SvgNode, text_ctx: &SvgTextContext, out: &mut String) {
     match node {
         SvgNode::Group {
             transform,
@@ -24,7 +24,7 @@ fn render_node(node: &SvgNode, out: &mut String) {
                 out.push_str(&format!("{a} {b} {c} {d} {e} {f} cm\n"));
             }
             for child in children {
-                render_node(child, out);
+                render_node(child, text_ctx, out);
             }
             out.push_str("Q\n");
         }
@@ -42,7 +42,6 @@ fn render_node(node: &SvgNode, out: &mut String) {
         }
         SvgNode::Circle { cx, cy, r, style } => {
             apply_style(style, out);
-            // Approximate circle with 4 cubic bezier curves
             emit_circle(*cx, *cy, *r, out);
             paint(style, out);
         }
@@ -70,7 +69,7 @@ fn render_node(node: &SvgNode, out: &mut String) {
         SvgNode::Polyline { points, style } => {
             apply_style(style, out);
             emit_polyline(points, false, out);
-            out.push_str("S\n"); // stroke only for polyline
+            out.push_str("S\n");
         }
         SvgNode::Polygon { points, style } => {
             apply_style(style, out);
@@ -81,6 +80,33 @@ fn render_node(node: &SvgNode, out: &mut String) {
             apply_style(style, out);
             emit_path(commands, out);
             paint(style, out);
+        }
+        SvgNode::Text {
+            x,
+            y,
+            font_size,
+            content,
+            style,
+        } => {
+            // Use SVG-explicit font_size if set, otherwise inherit from CSS context
+            let size = font_size.unwrap_or(text_ctx.font_size);
+            // Use SVG fill color if set, otherwise inherit CSS color
+            let fill = style.fill.or(text_ctx.color);
+            // Use inherited CSS font family (already resolved to PDF name)
+            let font = &text_ctx.font_family;
+
+            out.push_str("BT\n");
+            out.push_str(&format!("/{font} {size} Tf\n"));
+            if let Some((r, g, b)) = fill {
+                out.push_str(&format!("{r} {g} {b} rg\n"));
+            }
+            // The parent SVG content stream has a y-flip (scale 1,-1) to convert
+            // SVG coordinates to PDF coordinates. Text must counter this flip via
+            // the text matrix, otherwise glyphs render upside-down.
+            out.push_str(&format!("1 0 0 -1 {x} {y} Tm\n"));
+            let escaped = escape_pdf_text_simple(content);
+            out.push_str(&format!("({escaped}) Tj\n"));
+            out.push_str("ET\n");
         }
     }
 }
@@ -196,10 +222,27 @@ fn emit_path(commands: &[PathCommand], out: &mut String) {
     }
 }
 
+/// Escape a string for use inside a PDF text literal `(...)`.
+///
+/// Handles the three special characters that must be escaped in PDF
+/// parenthesised strings: backslash, open-paren, close-paren.
+fn escape_pdf_text_simple(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    for ch in text.chars() {
+        match ch {
+            '\\' => result.push_str("\\\\"),
+            '(' => result.push_str("\\("),
+            ')' => result.push_str("\\)"),
+            _ => result.push(ch),
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTransform, SvgTree};
+    use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTextContext, SvgTransform, SvgTree};
 
     fn style_fill(r: f32, g: f32, b: f32) -> SvgStyle {
         SvgStyle {
@@ -243,6 +286,7 @@ mod tests {
             height: 100.0,
             view_box: None,
             children,
+            text_ctx: SvgTextContext::default(),
         }
     }
 

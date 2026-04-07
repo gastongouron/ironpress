@@ -745,7 +745,31 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
-        if let Some(tree) = crate::parser::svg::parse_svg_from_element(el) {
+        let text_ctx = crate::parser::svg::SvgTextContext {
+            font_family: match (&style.font_family, style.font_weight == FontWeight::Bold, style.font_style == FontStyle::Italic) {
+                (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
+                (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
+                (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
+                (FontFamily::Helvetica, false, false) => "Helvetica",
+                (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
+                (FontFamily::TimesRoman, true, false) => "Times-Bold",
+                (FontFamily::TimesRoman, false, true) => "Times-Italic",
+                (FontFamily::TimesRoman, false, false) => "Times-Roman",
+                (FontFamily::Courier, true, true) => "Courier-BoldOblique",
+                (FontFamily::Courier, true, false) => "Courier-Bold",
+                (FontFamily::Courier, false, true) => "Courier-Oblique",
+                (FontFamily::Courier, false, false) => "Courier",
+                (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
+                (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
+                (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
+                (FontFamily::Custom(_), false, false) => "Helvetica",
+            }.to_string(),
+            font_size: style.font_size,
+            font_bold: style.font_weight == FontWeight::Bold,
+            font_italic: style.font_style == FontStyle::Italic,
+            color: Some((style.color.r as f32 / 255.0, style.color.g as f32 / 255.0, style.color.b as f32 / 255.0)),
+        };
+        if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx) {
             let svg_width = tree.width.min(available_width);
             let svg_height = tree.height;
             output.push(LayoutElement::Svg {
