@@ -136,7 +136,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     opacity,
                     float,
                     position,
+                    offset_top: _,
                     offset_left,
+                    offset_bottom: _,
+                    offset_right: _,
+                    containing_block,
                     box_shadow,
                     visible,
                     clip_rect,
@@ -175,7 +179,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Compute block_x with float/position offsets
                     let block_x = match position {
-                        Position::Absolute => margin.left + offset_left,
+                        Position::Absolute => {
+                            if let Some(cb) = containing_block {
+                                // Position relative to the containing block.
+                                // bottom/right offsets are pre-resolved into top/left
+                                // at layout time, so we only use offset_left here.
+                                margin.left + cb.x + offset_left
+                            } else {
+                                margin.left + offset_left
+                            }
+                        }
                         Position::Relative => margin.left + offset_left,
                         Position::Static => match float {
                             Float::Right => {
@@ -3695,6 +3708,9 @@ mod tests {
                     position: Position::Static,
                     offset_top: 0.0,
                     offset_left: 0.0,
+                    offset_bottom: 0.0,
+                    offset_right: 0.0,
+                    containing_block: None,
                     box_shadow: None,
                     visible: true,
                     clip_rect: None,
@@ -3760,6 +3776,9 @@ mod tests {
                         position: Position::Static,
                         offset_top: 0.0,
                         offset_left: 0.0,
+                        offset_bottom: 0.0,
+                        offset_right: 0.0,
+                        containing_block: None,
                         box_shadow: None,
                         visible: true,
                         clip_rect: None,
@@ -4863,6 +4882,9 @@ mod tests {
                     position: Position::Static,
                     offset_top: 0.0,
                     offset_left: 0.0,
+                    offset_bottom: 0.0,
+                    offset_right: 0.0,
+                    containing_block: None,
                     box_shadow: None,
                     visible: true,
                     clip_rect: None,

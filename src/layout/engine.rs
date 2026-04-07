@@ -249,6 +249,7 @@ fn build_pseudo_block(
     el: &ElementNode,
     available_width: f32,
     fonts: &HashMap<String, TtfFont>,
+    containing_block_info: Option<ContainingBlock>,
 ) -> LayoutElement {
     let content_text = resolve_content(
         &pseudo_style.content,
@@ -309,6 +310,39 @@ fn build_pseudo_block(
         h
     };
 
+    // Resolve bottom/right into top/left when a containing block is present.
+    // This allows pagination and rendering to only deal with top/left offsets.
+    let (resolved_top, resolved_left) = if let Some(cb) = containing_block_info {
+        let text_height: f32 = lines.iter().map(|l| l.height).sum();
+        let elem_h = effective_height.unwrap_or(
+            pseudo_style.padding.top + text_height + pseudo_style.padding.bottom,
+        );
+        let elem_w = explicit_width.unwrap_or(block_w);
+
+        let top = if pseudo_style.top.is_some() {
+            pseudo_style.top.unwrap_or(0.0)
+        } else if pseudo_style.bottom.is_some() {
+            // bottom offset: position from the bottom of the containing block
+            cb.height - elem_h - pseudo_style.bottom.unwrap_or(0.0)
+        } else {
+            0.0
+        };
+        let left = if pseudo_style.left.is_some() {
+            pseudo_style.left.unwrap_or(0.0)
+        } else if pseudo_style.right.is_some() {
+            // right offset: position from the right edge of the containing block
+            cb.width - elem_w - pseudo_style.right.unwrap_or(0.0)
+        } else {
+            0.0
+        };
+        (top, left)
+    } else {
+        (
+            pseudo_style.top.unwrap_or(0.0),
+            pseudo_style.left.unwrap_or(0.0),
+        )
+    };
+
     LayoutElement::TextBlock {
         lines,
         margin_top: pseudo_style.margin.top,
@@ -326,8 +360,11 @@ fn build_pseudo_block(
         float: pseudo_style.float,
         clear: pseudo_style.clear,
         position: pseudo_style.position,
-        offset_top: pseudo_style.top.unwrap_or(0.0),
-        offset_left: pseudo_style.left.unwrap_or(0.0),
+        offset_top: resolved_top,
+        offset_left: resolved_left,
+        offset_bottom: pseudo_style.bottom.unwrap_or(0.0),
+        offset_right: pseudo_style.right.unwrap_or(0.0),
+        containing_block: containing_block_info,
         box_shadow: pseudo_style.box_shadow,
         visible: pseudo_style.visibility == Visibility::Visible,
         clip_rect: None,
@@ -459,9 +496,22 @@ pub struct PngMetadata {
     pub bit_depth: u8,
 }
 
+/// Containing block information for `position: absolute` elements.
+/// Stores the containing block's position and dimensions so the renderer
+/// can resolve offsets relative to the nearest positioned ancestor.
+#[derive(Debug, Clone, Copy)]
+pub struct ContainingBlock {
+    /// X-offset of the containing block's left edge from the page left margin.
+    pub x: f32,
+    /// Width of the containing block.
+    pub width: f32,
+    /// Height of the containing block.
+    pub height: f32,
+}
+
 /// A layout element ready for rendering.
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, dead_code)]
 pub enum LayoutElement {
     /// A block of text lines with optional background.
     TextBlock {
@@ -483,6 +533,11 @@ pub enum LayoutElement {
         position: Position,
         offset_top: f32,
         offset_left: f32,
+        offset_bottom: f32,
+        offset_right: f32,
+        /// Containing block for `position: absolute` elements.
+        /// When `Some`, offsets are relative to this block instead of the page.
+        containing_block: Option<ContainingBlock>,
         box_shadow: Option<BoxShadow>,
         visible: bool,
         clip_rect: Option<(f32, f32, f32, f32)>,
@@ -708,6 +763,9 @@ fn flatten_nodes(
                             position: Position::Static,
                             offset_top: 0.0,
                             offset_left: 0.0,
+                            offset_bottom: 0.0,
+                            offset_right: 0.0,
+                            containing_block: None,
                             box_shadow: None,
                             visible: true,
                             clip_rect: None,
@@ -841,6 +899,9 @@ fn flatten_element(
             position: Position::Static,
             offset_top: 0.0,
             offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: None,
             visible: true,
             clip_rect: None,
@@ -986,6 +1047,9 @@ fn flatten_element(
             position: style.position,
             offset_top: style.top.unwrap_or(0.0),
             offset_left: style.left.unwrap_or(0.0),
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: style.box_shadow,
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
@@ -1097,6 +1161,9 @@ fn flatten_element(
             position: style.position,
             offset_top: style.top.unwrap_or(0.0),
             offset_left: style.left.unwrap_or(0.0),
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: style.box_shadow,
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
@@ -1333,6 +1400,9 @@ fn flatten_element(
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
                 offset_left: style.left.unwrap_or(0.0),
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: None,
@@ -1526,15 +1596,54 @@ fn flatten_element(
         };
         let inner_width = inner_width.max(0.0);
 
-        // Emit block-level ::before pseudo-element
+        // Build containing block info for absolute pseudo-elements inside
+        // a positioned (relative/absolute) parent.
+        let cb_info = if style.position == Position::Relative
+            || style.position == Position::Absolute
+        {
+            // Containing block = padding box of the positioned ancestor.
+            let cb_width = if style.box_sizing == BoxSizing::BorderBox {
+                block_w - style.border.horizontal_width()
+            } else {
+                block_w + style.padding.left + style.padding.right
+            };
+            let cb_height = if style.box_sizing == BoxSizing::BorderBox {
+                effective_height.unwrap_or(0.0) - style.border.vertical_width()
+            } else {
+                effective_height.unwrap_or(0.0)
+                    + style.padding.top
+                    + style.padding.bottom
+            };
+            Some(ContainingBlock {
+                x: auto_offset_left,
+                width: cb_width,
+                height: cb_height,
+            })
+        } else {
+            None
+        };
+
+        // Emit block-level ::before pseudo-element.
+        // Absolute ::before with a containing block is deferred until after the
+        // parent wrapper so that pagination can resolve the y-position correctly.
         let before_is_block = before_style
             .as_ref()
             .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
-        if let Some(ref ps) = before_style {
-            if before_is_block {
-                output.push(build_pseudo_block(ps, el, inner_width, fonts));
+        let before_is_abs = before_style
+            .as_ref()
+            .is_some_and(|s| s.position == Position::Absolute);
+        let mut deferred_before = if before_is_block && before_is_abs && cb_info.is_some() {
+            before_style.as_ref().map(|ps| {
+                build_pseudo_block(ps, el, inner_width, fonts, cb_info)
+            })
+        } else {
+            if let Some(ref ps) = before_style {
+                if before_is_block {
+                    output.push(build_pseudo_block(ps, el, inner_width, fonts, None));
+                }
             }
-        }
+            None
+        };
 
         // Collect all inline content as text runs, with inline ::before/::after
         let mut runs = Vec::new();
@@ -1615,6 +1724,9 @@ fn flatten_element(
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
                 offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
                 clip_rect,
@@ -1631,6 +1743,10 @@ fn flatten_element(
                 z_index: style.z_index,
                 heading_level: heading_level(el.tag),
             });
+            // Emit deferred absolute ::before after the parent wrapper.
+            if let Some(elem) = deferred_before.take() {
+                output.push(elem);
+            }
         }
 
         // Also process block children recursively, using inner_width
@@ -1708,6 +1824,9 @@ fn flatten_element(
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
                 offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: if style.overflow == Overflow::Hidden {
@@ -1728,6 +1847,10 @@ fn flatten_element(
                 z_index: style.z_index,
                 heading_level: None,
             });
+            // Emit deferred absolute ::before after the parent wrapper.
+            if let Some(elem) = deferred_before.take() {
+                output.push(elem);
+            }
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
             // height; we only pull back by (children_h + padding_bottom + border)
@@ -1752,6 +1875,9 @@ fn flatten_element(
                 position: Position::Static,
                 offset_top: 0.0,
                 offset_left: 0.0,
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
                 box_shadow: None,
                 visible: true,
                 clip_rect: None,
@@ -1807,6 +1933,9 @@ fn flatten_element(
                     position: Position::Static,
                     offset_top: 0.0,
                     offset_left: 0.0,
+                    offset_bottom: 0.0,
+                    offset_right: 0.0,
+                    containing_block: None,
                     box_shadow: None,
                     visible: true,
                     clip_rect: None,
@@ -1825,6 +1954,10 @@ fn flatten_element(
                 });
             }
         } else {
+            // Emit deferred absolute ::before if not yet emitted.
+            if let Some(elem) = deferred_before.take() {
+                output.push(elem);
+            }
             let mut child_el_idx = 0;
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
@@ -1853,7 +1986,12 @@ fn flatten_element(
             let after_is_block =
                 ps.display == Display::Block || ps.position == Position::Absolute;
             if after_is_block {
-                output.push(build_pseudo_block(ps, el, inner_width, fonts));
+                let pseudo_cb = if ps.position == Position::Absolute {
+                    cb_info
+                } else {
+                    None
+                };
+                output.push(build_pseudo_block(ps, el, inner_width, fonts, pseudo_cb));
             }
         }
     } else {
@@ -2042,6 +2180,9 @@ fn flatten_flex_container(
             position: child_style.position,
             offset_top: 0.0,
             offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: child_style.box_shadow,
             visible: child_style.visibility == Visibility::Visible,
             clip_rect: if child_style.overflow == Overflow::Hidden {
@@ -2214,6 +2355,9 @@ fn flatten_flex_container(
             position: style.position,
             offset_top: style.top.unwrap_or(0.0),
             offset_left: style.left.unwrap_or(0.0),
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: style.box_shadow,
             visible: style.visibility == Visibility::Visible,
             clip_rect: if style.overflow == Overflow::Hidden {
@@ -2254,6 +2398,9 @@ fn flatten_flex_container(
             position: Position::Static,
             offset_top: 0.0,
             offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: None,
             visible: true,
             clip_rect: None,
@@ -2510,6 +2657,9 @@ fn flatten_flex_container(
                                 },
                                 offset_top: 0.0,
                                 offset_left: x_offset + style.padding.left,
+                                offset_bottom: 0.0,
+                                offset_right: 0.0,
+                                containing_block: None,
                                 box_shadow: *tb_bs,
                                 visible: *tb_vis,
                                 clip_rect: *tb_clip,
@@ -2563,6 +2713,9 @@ fn flatten_flex_container(
             position: Position::Static,
             offset_top: 0.0,
             offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
             box_shadow: None,
             visible: true,
             clip_rect: None,
@@ -3800,17 +3953,36 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     let mut right_floats: Vec<FloatRegion> = Vec::new();
     let mut prev_margin_bottom: f32 = 0.0;
 
+    // Track the y-position of the last positioned ancestor for absolute children.
+    let mut last_positioned_y: f32 = 0.0;
+
     for element in elements {
         // Extract float/clear/position info from TextBlock elements
-        let (elem_float, elem_clear, elem_position, elem_offset_top) = match &element {
+        let (
+            elem_float,
+            elem_clear,
+            elem_position,
+            elem_offset_top,
+            _elem_offset_bottom,
+            elem_containing_block,
+        ) = match &element {
             LayoutElement::TextBlock {
                 float,
                 clear,
                 position,
                 offset_top,
+                offset_bottom,
+                containing_block,
                 ..
-            } => (*float, *clear, *position, *offset_top),
-            _ => (Float::None, Clear::None, Position::Static, 0.0),
+            } => (
+                *float,
+                *clear,
+                *position,
+                *offset_top,
+                *offset_bottom,
+                *containing_block,
+            ),
+            _ => (Float::None, Clear::None, Position::Static, 0.0, 0.0, None),
         };
 
         // Handle clear: move y below active floats on the specified side
@@ -3954,7 +4126,14 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
 
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
-            let abs_y = elem_offset_top;
+            let abs_y = if elem_containing_block.is_some() {
+                // Position relative to the containing block (nearest positioned ancestor).
+                // bottom/right offsets are pre-resolved into top/left in build_pseudo_block.
+                last_positioned_y + elem_offset_top
+            } else {
+                // No containing block — position relative to page (legacy behavior).
+                elem_offset_top
+            };
             current_elements.push((abs_y, element));
             continue;
         }
@@ -4004,6 +4183,11 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         } else {
             y
         };
+
+        // Track positioned ancestor y for absolute children.
+        if elem_position == Position::Relative || elem_position == Position::Absolute {
+            last_positioned_y = effective_y;
+        }
 
         current_elements.push((effective_y, element));
         y += content_h_val;
@@ -8248,6 +8432,254 @@ mod tests {
         assert!(
             !abs_blocks.is_empty(),
             "Expected an absolutely positioned pseudo-element"
+        );
+    }
+
+    #[test]
+    fn absolute_pseudo_positioned_relative_to_containing_block() {
+        // An absolute ::before inside a position:relative container should
+        // carry containing_block info so that offsets are relative to the
+        // container, not the page.
+        let css = r#"
+            .container {
+                position: relative;
+                width: 300px;
+                height: 200px;
+                background: #eeeeee;
+                padding: 20px;
+            }
+            .container::before {
+                content: "TOP-LEFT";
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: #ffcccc;
+                padding: 5px;
+            }
+            .container::after {
+                content: "BOTTOM-RIGHT";
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: #ccffcc;
+                padding: 5px;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="container"><p>Content in the middle</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .collect();
+        assert_eq!(
+            abs_blocks.len(),
+            2,
+            "Expected two absolutely positioned pseudo-elements"
+        );
+
+        // Check ::before has containing block info with correct dimensions.
+        // The container has width: 300px (225pt), padding: 20px (15pt),
+        // so the containing block (padding box):
+        //   width  = 225 + 15 + 15 = 255pt
+        //   height = 150 + 15 + 15 = 180pt
+        // Offsets: top: 10px = 7.5pt, left: 10px = 7.5pt
+        if let (_, LayoutElement::TextBlock {
+            containing_block,
+            offset_left,
+            offset_top,
+            ..
+        }) = &abs_blocks[0]
+        {
+            let cb = containing_block.expect("::before should have containing_block");
+            assert!(
+                (cb.width - 255.0).abs() < 1.0,
+                "CB width should be ~255, got {}",
+                cb.width
+            );
+            assert!(
+                (cb.height - 180.0).abs() < 1.0,
+                "CB height should be ~180, got {}",
+                cb.height
+            );
+            assert!(
+                (*offset_left - 7.5).abs() < 1.0,
+                "offset_left should be ~7.5, got {}",
+                offset_left
+            );
+            assert!(
+                (*offset_top - 7.5).abs() < 1.0,
+                "offset_top should be ~7.5, got {}",
+                offset_top
+            );
+        } else {
+            panic!("Expected TextBlock");
+        }
+
+        // Check ::after has containing block info and bottom/right offsets.
+        if let (_, LayoutElement::TextBlock {
+            containing_block,
+            offset_bottom,
+            offset_right,
+            ..
+        }) = &abs_blocks[1]
+        {
+            let cb = containing_block.expect("::after should have containing_block");
+            assert!(
+                (cb.width - 255.0).abs() < 1.0,
+                "CB width should be ~255, got {}",
+                cb.width
+            );
+            assert!(
+                (*offset_bottom - 7.5).abs() < 1.0,
+                "offset_bottom should be ~7.5, got {}",
+                offset_bottom
+            );
+            assert!(
+                (*offset_right - 7.5).abs() < 1.0,
+                "offset_right should be ~7.5, got {}",
+                offset_right
+            );
+        } else {
+            panic!("Expected TextBlock");
+        }
+    }
+
+    #[test]
+    #[allow(unused_variables)]
+    fn absolute_without_containing_block_uses_page_position() {
+        // An absolute element without a positioned ancestor should
+        // position relative to the page (legacy behavior).
+        // 100px = 75pt, 50px = 37.5pt
+        let css = r#"
+            .abs {
+                position: absolute;
+                top: 100px;
+                left: 50px;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="abs">Absolute</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        if let (y, LayoutElement::TextBlock {
+            containing_block,
+            offset_top,
+            offset_left,
+            ..
+        }) = &pages[0].elements[0]
+        {
+            assert!(containing_block.is_none(), "No containing block expected");
+            assert!(
+                (*y - 75.0).abs() < 1.0,
+                "y should be ~75pt (page-relative), got {}",
+                y
+            );
+            assert!(
+                (*offset_left - 37.5).abs() < 1.0,
+                "offset_left should be ~37.5pt, got {}",
+                offset_left
+            );
+        } else {
+            panic!("Expected TextBlock");
+        }
+    }
+
+    #[test]
+    fn absolute_pseudo_y_position_relative_to_container() {
+        // Verify that pagination places absolute pseudo-elements at y
+        // positions relative to the containing block, not the page.
+        // Container is at some y from the top; ::before top:0 should be
+        // at the same y as the container, not at y=0.
+        let css = r#"
+            .container {
+                position: relative;
+                width: 200pt;
+                height: 150pt;
+                background-color: #ddd;
+                margin-top: 100pt;
+            }
+            .container::before {
+                content: "X";
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            .container::after {
+                content: "Y";
+                position: absolute;
+                bottom: 0;
+                right: 0;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="container">Content</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        // Find the container wrapper (position: relative, with a background)
+        let container_elem = pages[0]
+            .elements
+            .iter()
+            .find(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Relative,
+                        background_color: Some(_),
+                        ..
+                    }
+                )
+            });
+        let container_y = container_elem.map(|(y, _)| *y).unwrap_or(0.0);
+
+        // The spacer has height: 100pt, so the container is below it.
+        // (The spacer might generate as a block_height=100pt element)
+        assert!(
+            container_y >= 50.0,
+            "Container should be below spacer, y={container_y}"
+        );
+
+        // Find absolute pseudo-elements
+        let abs_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .collect();
+        assert_eq!(abs_blocks.len(), 2);
+
+        // ::before with top:0 should be at the container's y position.
+        let before_y = abs_blocks[0].0;
+        assert!(
+            (before_y - container_y).abs() < 5.0,
+            "::before y ({before_y}) should be near container y ({container_y})"
+        );
+
+        // ::after with bottom:0 should be at container_y + container_height - element_height.
+        let after_y = abs_blocks[1].0;
+        assert!(
+            after_y > container_y,
+            "::after y ({after_y}) should be below container start ({container_y})"
         );
     }
 
