@@ -241,6 +241,8 @@ mod tests {
         SvgTree {
             width: 100.0,
             height: 100.0,
+            width_attr: None,
+            height_attr: None,
             view_box: None,
             children,
         }

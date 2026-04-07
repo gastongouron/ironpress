@@ -7,6 +7,8 @@ use crate::parser::dom::ElementNode;
 pub struct SvgTree {
     pub width: f32,
     pub height: f32,
+    pub width_attr: Option<String>,
+    pub height_attr: Option<String>,
     pub view_box: Option<ViewBox>,
     pub children: Vec<SvgNode>,
 }
@@ -93,15 +95,15 @@ pub enum PathCommand {
 
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
-    let width = el
-        .attributes
-        .get("width")
-        .and_then(|v| parse_length(v))
+    let width_attr = el.attributes.get("width").cloned();
+    let height_attr = el.attributes.get("height").cloned();
+    let width = width_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(300.0);
-    let height = el
-        .attributes
-        .get("height")
-        .and_then(|v| parse_length(v))
+    let height = height_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(150.0);
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
@@ -117,6 +119,8 @@ pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
     Some(SvgTree {
         width,
         height,
+        width_attr,
+        height_attr,
         view_box,
         children,
     })
@@ -239,10 +243,18 @@ fn attr_f32(el: &ElementNode, name: &str) -> f32 {
 }
 
 /// Parse a length value (strip px/em/etc suffix, parse number).
-fn parse_length(val: &str) -> Option<f32> {
+pub(crate) fn parse_length(val: &str) -> Option<f32> {
     let trimmed = val.trim();
     let num_str = trimmed.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
     num_str.trim().parse::<f32>().ok()
+}
+
+fn parse_absolute_length(val: &str) -> Option<f32> {
+    let trimmed = val.trim();
+    if trimmed.ends_with('%') {
+        return None;
+    }
+    parse_length(trimmed)
 }
 
 /// Parse a viewBox attribute: "min-x min-y width height".
@@ -266,18 +278,35 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
 
 /// Parse fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
-    let fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
-    let stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
-    let stroke_width = el
+    let mut fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
+    let mut stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
+    let mut stroke_width = el
         .attributes
         .get("stroke-width")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
-    let opacity = el
+    let mut opacity = el
         .attributes
         .get("opacity")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
+
+    if let Some(style_val) = el.attributes.get("style") {
+        for part in style_val.split(';') {
+            let part = part.trim();
+            if let Some((prop, val)) = part.split_once(':') {
+                match prop.trim() {
+                    "fill" => fill = parse_svg_color(val.trim()),
+                    "stroke" => stroke = parse_svg_color(val.trim()),
+                    "stroke-width" => {
+                        stroke_width = val.trim().parse().ok().unwrap_or(stroke_width)
+                    }
+                    "opacity" => opacity = val.trim().parse().ok().unwrap_or(opacity),
+                    _ => {}
+                }
+            }
+        }
+    }
 
     SvgStyle {
         fill,
@@ -1580,6 +1609,22 @@ mod tests {
         assert!(style.stroke.is_none());
     }
 
+    #[test]
+    fn parse_style_from_style_attribute() {
+        let el = make_el(
+            "rect",
+            vec![(
+                "style",
+                "fill: #00ff00; stroke: rgb(0,0,255); stroke-width: 3; opacity: 0.25;",
+            )],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, Some((0.0, 1.0, 0.0)));
+        assert_eq!(style.stroke, Some((0.0, 0.0, 1.0)));
+        assert!((style.stroke_width - 3.0).abs() < 0.001);
+        assert!((style.opacity - 0.25).abs() < 0.001);
+    }
+
     // ── parse_svg_from_element ─────────────────────────────────────────
 
     #[test]
@@ -1608,6 +1653,19 @@ mod tests {
         assert_eq!(tree.height, 150.0);
         assert!(tree.view_box.is_none());
         assert!(tree.children.is_empty());
+    }
+
+    #[test]
+    fn parse_svg_from_element_percent_dimensions_preserve_raw_attrs() {
+        let svg = make_svg_el(
+            vec![("width", "100%"), ("height", "50%")],
+            vec![],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert_eq!(tree.width, 300.0);
+        assert_eq!(tree.height, 150.0);
+        assert_eq!(tree.width_attr.as_deref(), Some("100%"));
+        assert_eq!(tree.height_attr.as_deref(), Some("50%"));
     }
 
     #[test]

@@ -506,6 +506,7 @@ pub fn layout_with_rules_and_fonts(
         nodes,
         &parent_style,
         available_width,
+        content_height,
         &mut elements,
         None,
         rules,
@@ -522,6 +523,7 @@ fn flatten_nodes(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
     available_width: f32,
+    available_height: f32,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -601,6 +603,7 @@ fn flatten_nodes(
                     el,
                     parent_style,
                     available_width,
+                    available_height,
                     output,
                     list_ctx,
                     rules,
@@ -640,6 +643,7 @@ fn flatten_element(
     el: &ElementNode,
     parent_style: &ComputedStyle,
     available_width: f32,
+    available_height: f32,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -667,6 +671,7 @@ fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+    let available_height = style.height.unwrap_or(available_height);
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -738,7 +743,9 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Img {
-        if let Some(img_element) = load_image_from_element(el, available_width, &style) {
+        if let Some(img_element) =
+            load_image_from_element(el, available_width, available_height, &style)
+        {
             output.push(img_element);
         }
         return;
@@ -746,8 +753,8 @@ fn flatten_element(
 
     if el.tag == HtmlTag::Svg {
         if let Some(tree) = crate::parser::svg::parse_svg_from_element(el) {
-            let svg_width = tree.width.min(available_width);
-            let svg_height = tree.height;
+            let (svg_width, svg_height) =
+                resolve_svg_size(&tree, available_width, available_height, true, true);
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,
@@ -1100,6 +1107,7 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
                         output,
                         Some(&ctx),
                         rules,
@@ -1117,6 +1125,7 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
                         output,
                         None,
                         rules,
@@ -1234,6 +1243,7 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
                         output,
                         list_ctx,
                         rules,
@@ -1248,6 +1258,7 @@ fn flatten_element(
                         child_el,
                         &style,
                         available_width,
+                        available_height,
                         output,
                         None,
                         rules,
@@ -1535,6 +1546,7 @@ fn flatten_element(
                             child_el,
                             &style,
                             inner_width,
+                            available_height,
                             &mut child_elements,
                             None,
                             rules,
@@ -1703,6 +1715,7 @@ fn flatten_element(
                             child_el,
                             &style,
                             inner_width,
+                            available_height,
                             output,
                             None,
                             rules,
@@ -1723,6 +1736,7 @@ fn flatten_element(
             &el.children,
             &style,
             available_width,
+            available_height,
             output,
             None,
             rules,
@@ -3999,6 +4013,7 @@ fn load_image_bytes(raw: Vec<u8>) -> Option<(Vec<u8>, ImageFormat, Option<PngMet
 fn load_image_from_element(
     el: &ElementNode,
     available_width: f32,
+    available_height: f32,
     style: &ComputedStyle,
 ) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
@@ -4015,30 +4030,37 @@ fn load_image_from_element(
     // Try SVG path first — render as vector graphics instead of raster.
     if !skip_svg {
         if let Some(tree) = try_parse_svg_bytes(&raw) {
-            let attr_width = style.width.or_else(|| {
+            let intrinsic = resolve_svg_size(&tree, available_width, available_height, false, false);
+            let html_attr_width = style.width.or_else(|| {
                 el.attributes
                     .get("width")
                     .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
                     .map(|px| px * 0.75)
             });
-            let attr_height = style.height.or_else(|| {
+            let html_attr_height = style.height.or_else(|| {
                 el.attributes
                     .get("height")
                     .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
                     .map(|px| px * 0.75)
             });
 
-            let (mut width, mut height) = match (attr_width, attr_height) {
+            let (mut width, mut height) = match (html_attr_width, html_attr_height) {
                 (Some(w), Some(h)) => (w, h),
                 (Some(w), None) => {
-                    let scale = w / tree.width;
-                    (w, tree.height * scale)
+                    if intrinsic.0 > 0.0 {
+                        (w, intrinsic.1 * (w / intrinsic.0))
+                    } else {
+                        (w, intrinsic.1)
+                    }
                 }
                 (None, Some(h)) => {
-                    let scale = h / tree.height;
-                    (tree.width * scale, h)
+                    if intrinsic.1 > 0.0 {
+                        (intrinsic.0 * (h / intrinsic.1), h)
+                    } else {
+                        (intrinsic.0, h)
+                    }
                 }
-                (None, None) => (tree.width, tree.height),
+                (None, None) => intrinsic,
             };
 
             if width > available_width {
@@ -4095,6 +4117,87 @@ fn load_image_from_element(
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
     })
+}
+
+/// Resolve the rendered size of an SVG from its intrinsic dimensions and raw
+/// `width`/`height` attributes.
+fn resolve_svg_size(
+    tree: &crate::parser::svg::SvgTree,
+    available_width: f32,
+    available_height: f32,
+    allow_percent_width: bool,
+    allow_percent_height: bool,
+) -> (f32, f32) {
+    let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
+    let intrinsic_height = if tree.height > 0.0 { tree.height } else { 150.0 };
+    let intrinsic_ratio = if let Some(vb) = &tree.view_box {
+        if vb.width > 0.0 {
+            vb.height / vb.width
+        } else {
+            intrinsic_height / intrinsic_width.max(1.0)
+        }
+    } else {
+        intrinsic_height / intrinsic_width.max(1.0)
+    };
+
+    let width = resolve_svg_dimension(
+        tree.width_attr.as_deref(),
+        intrinsic_width,
+        available_width,
+        allow_percent_width,
+    );
+    let height = resolve_svg_dimension(
+        tree.height_attr.as_deref(),
+        intrinsic_height,
+        available_height,
+        allow_percent_height,
+    );
+
+    if matches!(
+        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
+        (Some(w_attr), None) if allow_percent_width && w_attr.trim_end().ends_with('%')
+    ) {
+        return (width, width * intrinsic_ratio);
+    }
+
+    if matches!(
+        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
+        (None, Some(h_attr)) if allow_percent_height && h_attr.trim_end().ends_with('%')
+    ) {
+        return (height / intrinsic_ratio.max(f32::EPSILON), height);
+    }
+
+    if tree.width_attr.is_none() && tree.height_attr.is_none() {
+        return (width.min(available_width), height);
+    }
+
+    let _ = allow_percent_height;
+    (width, height)
+}
+
+fn resolve_svg_dimension(
+    raw: Option<&str>,
+    fallback: f32,
+    available_space: f32,
+    allow_percent: bool,
+) -> f32 {
+    let Some(raw) = raw else {
+        return fallback;
+    };
+    let raw = raw.trim();
+    if let Some(pct) = raw.strip_suffix('%') {
+        if allow_percent {
+            if let Ok(value) = pct.trim().parse::<f32>() {
+                if value >= 0.0 {
+                    return available_space * (value / 100.0);
+                }
+            }
+        }
+        return fallback;
+    }
+
+    let value = crate::parser::svg::parse_length(raw).unwrap_or(fallback);
+    if value >= 0.0 { value } else { fallback }
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -4235,6 +4338,7 @@ mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
+    use crate::parser::svg::SvgTree;
 
     #[test]
     fn layout_simple_paragraph() {
@@ -4300,6 +4404,57 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn svg_size_percent_attrs_do_not_override_intrinsic_image_size() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: Some("100%".to_string()),
+            height_attr: Some("50%".to_string()),
+            view_box: None,
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (300.0, 150.0)
+        );
+    }
+
+    #[test]
+    fn svg_size_negative_percent_falls_back_to_intrinsic_size() {
+        let tree = SvgTree {
+            width: 120.0,
+            height: 60.0,
+            width_attr: Some("-10%".to_string()),
+            height_attr: None,
+            view_box: None,
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, true, false),
+            (120.0, 60.0)
+        );
+    }
+
+    #[test]
+    fn nested_svg_percent_height_uses_parent_height() {
+        let html = r#"<div style="height: 200pt"><svg width="100" height="50%"></svg></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let svg = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg { width, height, .. } => Some((*width, *height)),
+                _ => None,
+            })
+            .expect("expected nested svg element");
+        assert!((svg.0 - 100.0).abs() < 0.1);
+        assert!((svg.1 - 100.0).abs() < 0.1);
     }
 
     #[test]
@@ -4659,6 +4814,21 @@ mod tests {
                 assert!(png_metadata.is_none());
             }
             _ => panic!("Expected Image layout element"),
+        }
+    }
+
+    #[test]
+    fn layout_svg_image_from_data_uri_uses_intrinsic_size() {
+        let html = r#"<img src="data:image/svg+xml,%3Csvg%20width%3D%22100%25%22%20height%3D%2250%25%22%20viewBox%3D%220%200%20100%2050%22%3E%3C/svg%3E">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 300.0).abs() < 0.1);
+                assert!((*height - 150.0).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
         }
     }
 
