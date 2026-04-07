@@ -1428,6 +1428,7 @@ fn extract_pseudo_element(selector: &str) -> (String, Option<PseudoElement>) {
 }
 
 /// Check if a CSS selector matches a given element (backward-compatible, no context).
+#[allow(dead_code)]
 pub fn selector_matches(
     selector: &str,
     tag_name: &str,

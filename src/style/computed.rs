@@ -399,6 +399,8 @@ pub struct ComputedStyle {
     pub clear: Clear,
     pub position: Position,
     pub top: Option<f32>,
+    pub right: Option<f32>,
+    pub bottom: Option<f32>,
     pub left: Option<f32>,
     pub box_shadow: Option<BoxShadow>,
     pub flex_direction: FlexDirection,
@@ -477,6 +479,8 @@ impl Default for ComputedStyle {
             clear: Clear::None,
             position: Position::Static,
             top: None,
+            right: None,
+            bottom: None,
             left: None,
             box_shadow: None,
             flex_direction: FlexDirection::Row,
@@ -613,6 +617,8 @@ pub fn compute_style_with_context(
     style.clear = Clear::None;
     style.position = Position::Static;
     style.top = None;
+    style.right = None;
+    style.bottom = None;
     style.left = None;
     style.box_shadow = None;
     style.flex_direction = FlexDirection::Row;
@@ -649,8 +655,12 @@ pub fn compute_style_with_context(
     let defaults = default_style(tag);
     apply_style_map(&mut style, &defaults, parent);
 
-    // Apply stylesheet rules (between defaults and inline)
+    // Apply stylesheet rules (between defaults and inline).
+    // Skip pseudo-element rules — they target ::before/::after, not the element itself.
     for rule in rules {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
         if selector_matches_with_context(
             &rule.selector,
             tag_name,
@@ -670,6 +680,118 @@ pub fn compute_style_with_context(
     }
 
     style
+}
+
+/// Compute the style for a `::before` or `::after` pseudo-element.
+///
+/// The pseudo-element inherits all inherited properties from the originating
+/// element's computed style, resets non-inherited properties, then applies
+/// matching pseudo-element CSS rules.  `parent_style` is the fully computed
+/// style of the originating element.
+#[allow(clippy::too_many_arguments)]
+pub fn compute_pseudo_element_style(
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    selector_ctx: &SelectorContext,
+    pseudo: crate::parser::css::PseudoElement,
+) -> Option<ComputedStyle> {
+    // Collect all matching pseudo-element rules
+    let mut matched_declarations: Vec<&crate::parser::css::StyleMap> = Vec::new();
+    for rule in rules {
+        if rule.pseudo_element == Some(pseudo)
+            && selector_matches_with_context(
+                &rule.selector,
+                tag_name,
+                classes,
+                id,
+                attributes,
+                selector_ctx,
+            )
+        {
+            matched_declarations.push(&rule.declarations);
+        }
+    }
+
+    if matched_declarations.is_empty() {
+        return None;
+    }
+
+    // Check that the content property is declared (required for pseudo-elements).
+    let has_content = matched_declarations
+        .iter()
+        .any(|d| d.get("content").is_some());
+    if !has_content {
+        return None;
+    }
+
+    // Start from parent style (inherits inherited properties)
+    let mut style = parent_style.clone();
+
+    // Reset non-inherited properties (pseudo-elements are generated boxes)
+    style.margin = EdgeSizes::default();
+    style.padding = EdgeSizes::default();
+    style.background_color = None;
+    style.background_gradient = None;
+    style.background_radial_gradient = None;
+    style.border = BorderSides::default();
+    style.width = None;
+    style.height = None;
+    style.max_width = None;
+    style.min_width = None;
+    style.min_height = None;
+    style.max_height = None;
+    style.margin_left_auto = false;
+    style.margin_right_auto = false;
+    style.opacity = 1.0;
+    style.float = Float::None;
+    style.clear = Clear::None;
+    style.position = Position::Static;
+    style.top = None;
+    style.right = None;
+    style.bottom = None;
+    style.left = None;
+    style.box_shadow = None;
+    style.flex_direction = FlexDirection::Row;
+    style.justify_content = JustifyContent::FlexStart;
+    style.align_items = AlignItems::Stretch;
+    style.flex_wrap = FlexWrap::NoWrap;
+    style.flex_grow = 0.0;
+    style.flex_shrink = 1.0;
+    style.flex_basis = None;
+    style.gap = 0.0;
+    style.overflow = Overflow::Visible;
+    style.transform = None;
+    style.grid_template_columns = Vec::new();
+    style.grid_gap = 0.0;
+    style.border_radius = 0.0;
+    style.outline_width = 0.0;
+    style.outline_color = None;
+    style.box_sizing = BoxSizing::ContentBox;
+    style.text_indent = 0.0;
+    style.vertical_align = VerticalAlign::Baseline;
+    style.text_overflow = TextOverflow::Clip;
+    style.background_size = BackgroundSize::Auto;
+    style.background_repeat = BackgroundRepeat::Repeat;
+    style.background_position = BackgroundPosition::default();
+    style.content = Vec::new();
+    style.counter_reset = Vec::new();
+    style.counter_increment = Vec::new();
+    style.z_index = 0;
+    // Default display for pseudo-elements is inline
+    style.display = Display::Inline;
+
+    // Apply matched pseudo-element declarations.
+    // Use parent_style as the "parent" for inherit resolution so that
+    // `background-image: inherit` copies from the originating element.
+    for declarations in &matched_declarations {
+        apply_style_map(&mut style, declarations, parent_style);
+    }
+
+    Some(style)
 }
 
 /// Returns true if the property is inherited by default in CSS.
@@ -748,6 +870,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "clear" => style.clear = default.clear,
         "position" => style.position = default.position,
         "top" => style.top = default.top,
+        "right" => style.right = default.right,
+        "bottom" => style.bottom = default.bottom,
         "left" => style.left = default.left,
         "overflow" => style.overflow = default.overflow,
         "transform" => style.transform = default.transform,
@@ -827,6 +951,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "clear" => style.clear = parent.clear,
         "position" => style.position = parent.position,
         "top" => style.top = parent.top,
+        "right" => style.right = parent.right,
+        "bottom" => style.bottom = parent.bottom,
         "left" => style.left = parent.left,
         "overflow" => style.overflow = parent.overflow,
         "transform" => style.transform = parent.transform,
@@ -845,6 +971,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
+        "background-image" | "background" | "background-gradient" | "background-radial-gradient" => {
+            style.background_gradient = parent.background_gradient.clone();
+            style.background_radial_gradient = parent.background_radial_gradient.clone();
+        }
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -1289,9 +1419,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
     }
 
-    // Top / Left for positioned elements
+    // Top / Right / Bottom / Left for positioned elements
     if let Some(CssValue::Length(v)) = get_non_special(map, "top") {
         style.top = Some(*v);
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "right") {
+        style.right = Some(*v);
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "bottom") {
+        style.bottom = Some(*v);
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "left") {
         style.left = Some(*v);
@@ -1686,6 +1822,7 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
 }
 
 /// Public wrapper for `parse_content_value` used by the layout engine.
+#[allow(dead_code)]
 pub fn parse_content_value_pub(raw: &str) -> Vec<ContentItem> {
     parse_content_value(raw)
 }
@@ -6503,5 +6640,143 @@ mod tests {
         parent.flex_grow = 3.0;
         let style = compute_style(HtmlTag::Div, Some("flex-grow: inherit"), &parent);
         assert!((style.flex_grow - 3.0).abs() < f32::EPSILON);
+    }
+
+    // ---- Pseudo-element style computation tests ----
+
+    #[test]
+    fn pseudo_element_style_inherits_color() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let mut parent_with_color = parent.clone();
+        parent_with_color.color = Color::rgb(255, 0, 0);
+        let rules = parse_stylesheet(".box::before { content: 'X'; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent_with_color,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_some());
+        let ps = result.unwrap();
+        // Color should be inherited from parent
+        let (r, g, b) = ps.color.to_f32_rgb();
+        assert!((r - 1.0).abs() < 0.01 && g < 0.01 && b < 0.01);
+    }
+
+    #[test]
+    fn pseudo_element_style_applies_own_declarations() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let rules = parse_stylesheet(".box::after { content: 'Y'; font-weight: bold; display: block; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::After,
+        );
+        assert!(result.is_some());
+        let ps = result.unwrap();
+        assert_eq!(ps.font_weight, FontWeight::Bold);
+        assert_eq!(ps.display, Display::Block);
+    }
+
+    #[test]
+    fn pseudo_element_none_without_content() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        // No content property = no pseudo-element
+        let rules = parse_stylesheet(".box::before { color: red; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_resets_non_inherited() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(200.0);
+        parent.position = Position::Relative;
+        parent.background_color = Some(Color::rgb(128, 128, 128));
+        let rules = parse_stylesheet(".box::before { content: 'X'; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        let ps = result.unwrap();
+        // Non-inherited properties should be reset
+        assert_eq!(ps.width, None);
+        assert_eq!(ps.position, Position::Static);
+        assert!(ps.background_color.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_rules_skipped_in_normal_style() {
+        use crate::parser::css::parse_stylesheet;
+        let parent = ComputedStyle::default();
+        // This rule targets ::before, not the element itself
+        let rules = parse_stylesheet(".box::before { content: 'X'; font-weight: bold; }");
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+        );
+        // The element should NOT get font-weight: bold from the ::before rule
+        assert_eq!(style.font_weight, FontWeight::Normal);
+    }
+
+    #[test]
+    fn background_image_inherit_copies_gradient() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let mut parent = ComputedStyle::default();
+        parent.background_gradient = Some(LinearGradient {
+            angle: 90.0,
+            stops: vec![],
+        });
+        let rules = parse_stylesheet(".box::after { content: ''; background-image: inherit; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::After,
+        );
+        let ps = result.unwrap();
+        assert!(ps.background_gradient.is_some());
     }
 }

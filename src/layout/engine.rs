@@ -9,7 +9,7 @@ use crate::style::computed::{
     ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
     GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
     Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    WhiteSpace, compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -214,6 +214,7 @@ fn resolve_content(
     result
 }
 
+#[allow(dead_code)]
 fn resolve_pseudo_content(
     rules: &[CssRule],
     tag_name: &str,
@@ -239,6 +240,136 @@ fn resolve_pseudo_content(
         }
     }
     None
+}
+
+/// Build a `LayoutElement::TextBlock` for a `::before` or `::after` pseudo-element
+/// that uses `display: block` (or `position: absolute`).
+fn build_pseudo_block(
+    pseudo_style: &ComputedStyle,
+    el: &ElementNode,
+    available_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) -> LayoutElement {
+    let content_text = resolve_content(
+        &pseudo_style.content,
+        &el.attributes,
+        &CounterState::default(),
+    );
+
+    let mut block_w = available_width;
+    if let Some(w) = pseudo_style.width {
+        block_w = w.min(available_width);
+    }
+
+    let inner_w = if pseudo_style.box_sizing == BoxSizing::BorderBox {
+        block_w
+            - pseudo_style.padding.left
+            - pseudo_style.padding.right
+            - pseudo_style.border.horizontal_width()
+    } else {
+        block_w - pseudo_style.padding.left - pseudo_style.padding.right
+    }
+    .max(0.0);
+
+    let mut lines = Vec::new();
+    if !content_text.is_empty() {
+        let runs = vec![TextRun {
+            text: content_text,
+            font_size: pseudo_style.font_size,
+            bold: pseudo_style.font_weight == FontWeight::Bold,
+            italic: pseudo_style.font_style == FontStyle::Italic,
+            underline: pseudo_style.text_decoration_underline,
+            line_through: pseudo_style.text_decoration_line_through,
+            color: pseudo_style.color.to_f32_rgb(),
+            link_url: None,
+            font_family: pseudo_style.font_family.clone(),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        }];
+        lines = wrap_text_runs(runs, inner_w, pseudo_style.font_size, fonts);
+    }
+
+    let bg = pseudo_style.background_color.map(|c| c.to_f32_rgb());
+
+    let explicit_width = if pseudo_style.width.is_some() || pseudo_style.min_width.is_some() {
+        Some(block_w)
+    } else {
+        None
+    };
+
+    let effective_height = {
+        let mut h = pseudo_style.height;
+        if let Some(min_h) = pseudo_style.min_height {
+            h = Some(h.map_or(min_h, |v| v.max(min_h)));
+        }
+        if let Some(max_h) = pseudo_style.max_height {
+            h = h.map(|v| v.min(max_h));
+        }
+        h
+    };
+
+    LayoutElement::TextBlock {
+        lines,
+        margin_top: pseudo_style.margin.top,
+        margin_bottom: pseudo_style.margin.bottom,
+        text_align: pseudo_style.text_align,
+        background_color: bg,
+        padding_top: pseudo_style.padding.top,
+        padding_bottom: pseudo_style.padding.bottom,
+        padding_left: pseudo_style.padding.left,
+        padding_right: pseudo_style.padding.right,
+        border: LayoutBorder::from_computed(&pseudo_style.border),
+        block_width: explicit_width,
+        block_height: effective_height,
+        opacity: pseudo_style.opacity,
+        float: pseudo_style.float,
+        clear: pseudo_style.clear,
+        position: pseudo_style.position,
+        offset_top: pseudo_style.top.unwrap_or(0.0),
+        offset_left: pseudo_style.left.unwrap_or(0.0),
+        box_shadow: pseudo_style.box_shadow,
+        visible: pseudo_style.visibility == Visibility::Visible,
+        clip_rect: None,
+        transform: pseudo_style.transform,
+        border_radius: pseudo_style.border_radius,
+        outline_width: pseudo_style.outline_width,
+        outline_color: pseudo_style.outline_color.map(|c| c.to_f32_rgb()),
+        text_indent: pseudo_style.text_indent,
+        letter_spacing: pseudo_style.letter_spacing,
+        word_spacing: pseudo_style.word_spacing,
+        vertical_align: pseudo_style.vertical_align,
+        background_gradient: pseudo_style.background_gradient.clone(),
+        background_radial_gradient: pseudo_style.background_radial_gradient.clone(),
+        z_index: pseudo_style.z_index,
+        heading_level: None,
+    }
+}
+
+/// Build a `TextRun` for an inline `::before` or `::after` pseudo-element.
+fn build_pseudo_inline_run(pseudo_style: &ComputedStyle, el: &ElementNode) -> Option<TextRun> {
+    let content_text = resolve_content(
+        &pseudo_style.content,
+        &el.attributes,
+        &CounterState::default(),
+    );
+    if content_text.is_empty() {
+        return None;
+    }
+    Some(TextRun {
+        text: content_text,
+        font_size: pseudo_style.font_size,
+        bold: pseudo_style.font_weight == FontWeight::Bold,
+        italic: pseudo_style.font_style == FontStyle::Italic,
+        underline: pseudo_style.text_decoration_underline,
+        line_through: pseudo_style.text_decoration_line_through,
+        color: pseudo_style.color.to_f32_rgb(),
+        link_url: None,
+        font_family: pseudo_style.font_family.clone(),
+        background_color: pseudo_style.background_color.map(|c| c.to_f32_rgb()),
+        padding: (0.0, 0.0),
+        border_radius: 0.0,
+    })
 }
 
 /// Context for rendering list items.
@@ -1325,6 +1456,29 @@ fn flatten_element(
         }
     }
 
+    // Compute ::before and ::after pseudo-element styles
+    let cls: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+    let before_style = compute_pseudo_element_style(
+        &style,
+        rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::Before,
+    );
+    let after_style = compute_pseudo_element_style(
+        &style,
+        rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::After,
+    );
+
     if style.display == Display::Block {
         // Compute effective block width considering CSS width/max-width/min-width
         let mut block_w = available_width;
@@ -1372,58 +1526,34 @@ fn flatten_element(
         };
         let inner_width = inner_width.max(0.0);
 
-        // Collect all inline content as text runs, with ::before/::after
+        // Emit block-level ::before pseudo-element
+        let before_is_block = before_style
+            .as_ref()
+            .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
+        if let Some(ref ps) = before_style {
+            if before_is_block {
+                output.push(build_pseudo_block(ps, el, inner_width, fonts));
+            }
+        }
+
+        // Collect all inline content as text runs, with inline ::before/::after
         let mut runs = Vec::new();
-        let cs = CounterState::default();
-        let cls: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
-        if let Some(bt) = resolve_pseudo_content(
-            rules,
-            el.tag_name(),
-            &cls,
-            el.id(),
-            &el.attributes,
-            PseudoElement::Before,
-            &cs,
-        ) {
-            runs.push(TextRun {
-                text: bt,
-                font_size: style.font_size,
-                bold: style.font_weight == FontWeight::Bold,
-                italic: style.font_style == FontStyle::Italic,
-                underline: false,
-                line_through: false,
-                color: style.color.to_f32_rgb(),
-                link_url: None,
-                font_family: style.font_family.clone(),
-                background_color: None,
-                padding: (0.0, 0.0),
-                border_radius: 0.0,
-            });
+        if let Some(ref ps) = before_style {
+            if !before_is_block {
+                if let Some(run) = build_pseudo_inline_run(ps, el) {
+                    runs.push(run);
+                }
+            }
         }
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
-        if let Some(at) = resolve_pseudo_content(
-            rules,
-            el.tag_name(),
-            &cls,
-            el.id(),
-            &el.attributes,
-            PseudoElement::After,
-            &cs,
-        ) {
-            runs.push(TextRun {
-                text: at,
-                font_size: style.font_size,
-                bold: style.font_weight == FontWeight::Bold,
-                italic: style.font_style == FontStyle::Italic,
-                underline: false,
-                line_through: false,
-                color: style.color.to_f32_rgb(),
-                link_url: None,
-                font_family: style.font_family.clone(),
-                background_color: None,
-                padding: (0.0, 0.0),
-                border_radius: 0.0,
-            });
+        if let Some(ref ps) = after_style {
+            let after_is_block =
+                ps.display == Display::Block || ps.position == Position::Absolute;
+            if !after_is_block {
+                if let Some(run) = build_pseudo_inline_run(ps, el) {
+                    runs.push(run);
+                }
+            }
         }
 
         let had_inline_runs = !runs.is_empty();
@@ -1715,6 +1845,15 @@ fn flatten_element(
                     }
                     child_el_idx += 1;
                 }
+            }
+        }
+
+        // Emit block-level ::after pseudo-element (inside block path)
+        if let Some(ref ps) = after_style {
+            let after_is_block =
+                ps.display == Display::Block || ps.position == Position::Absolute;
+            if after_is_block {
+                output.push(build_pseudo_block(ps, el, inner_width, fonts));
             }
         }
     } else {
@@ -7960,6 +8099,266 @@ mod tests {
             .collect();
         let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
         assert!(!pages.is_empty());
+    }
+
+    // ---- Pseudo-element (::before / ::after) tests ----
+
+    #[test]
+    fn pseudo_before_inline_text_appears() {
+        let css = ".box::before { content: 'BEFORE '; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let all_text: String = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(
+            all_text.contains("BEFORE"),
+            "Expected ::before text 'BEFORE' in output, got: {all_text}"
+        );
+        assert!(
+            all_text.contains("Main"),
+            "Expected main content 'Main' in output, got: {all_text}"
+        );
+    }
+
+    #[test]
+    fn pseudo_after_inline_text_appears() {
+        let css = ".box::after { content: ' AFTER'; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let all_text: String = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(
+            all_text.contains("AFTER"),
+            "Expected ::after text 'AFTER' in output, got: {all_text}"
+        );
+    }
+
+    #[test]
+    fn pseudo_before_and_after_with_styling() {
+        let css = r#"
+            .box::before { content: 'B'; color: red; font-weight: bold; }
+            .box::after { content: 'A'; color: blue; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">M</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let runs: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => {
+                    lines.iter().flat_map(|l| l.runs.clone()).collect::<Vec<_>>()
+                }
+                _ => Vec::new(),
+            })
+            .collect();
+        let before_run = runs.iter().find(|r| r.text == "B");
+        assert!(
+            before_run.is_some(),
+            "Expected a run with text 'B' for ::before"
+        );
+        let before_run = before_run.unwrap();
+        assert!(before_run.bold, "::before should be bold");
+        let after_run = runs.iter().find(|r| r.text.trim() == "A");
+        assert!(
+            after_run.is_some(),
+            "Expected a run with text 'A' for ::after"
+        );
+    }
+
+    #[test]
+    fn pseudo_block_before_emitted_as_separate_element() {
+        let css = ".box::before { content: 'BLOCK'; display: block; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let text_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => Some(lines),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            text_blocks.len() >= 2,
+            "Expected at least 2 text blocks (::before + main), got {}",
+            text_blocks.len()
+        );
+    }
+
+    #[test]
+    fn pseudo_block_after_positioned_absolute() {
+        let css = r#"
+            .container { position: relative; }
+            .container::after {
+                content: '';
+                display: block;
+                position: absolute;
+                width: 100px;
+                height: 50px;
+                top: 10px;
+                left: 20px;
+                z-index: -1;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="container">Content</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let abs_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .collect();
+        assert!(
+            !abs_blocks.is_empty(),
+            "Expected an absolutely positioned pseudo-element"
+        );
+    }
+
+    #[test]
+    fn pseudo_without_content_not_generated() {
+        let css = ".box::before { color: red; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let all_text: String = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        assert_eq!(
+            all_text.trim(),
+            "Main",
+            "Without content property, no pseudo-element text should appear"
+        );
+    }
+
+    #[test]
+    fn pseudo_element_rules_not_applied_to_base_element() {
+        let css = ".box::before { content: 'X'; color: red; font-weight: bold; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let runs: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => {
+                    lines.iter().flat_map(|l| l.runs.clone()).collect::<Vec<_>>()
+                }
+                _ => Vec::new(),
+            })
+            .collect();
+        let main_run = runs.iter().find(|r| r.text.contains("Main"));
+        assert!(main_run.is_some(), "Expected main content run");
+        let main_run = main_run.unwrap();
+        assert!(
+            !main_run.bold,
+            "::before's font-weight: bold should not affect the base element"
+        );
+    }
+
+    #[test]
+    fn pseudo_single_colon_syntax_works() {
+        let css = ".box:before { content: 'OLD'; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let all_text: String = pages[0]
+            .elements
+            .iter()
+            .flat_map(|(_, el)| match el {
+                LayoutElement::TextBlock { lines, .. } => lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(
+            all_text.contains("OLD"),
+            "Single-colon :before should generate content, got: {all_text}"
+        );
+    }
+
+    #[test]
+    fn pseudo_empty_content_generates_block() {
+        let css = r#"
+            .box::after {
+                content: '';
+                display: block;
+                width: 50px;
+                height: 30px;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="box">Main</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let block_count = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        block_height: Some(_),
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert!(
+            block_count >= 1,
+            "Empty content with display:block should still generate a block element"
+        );
     }
 }
 
