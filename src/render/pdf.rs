@@ -4,7 +4,8 @@ use crate::layout::engine::{
 };
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BorderCollapse, Float, FontFamily, LinearGradient, Position, RadialGradient, TextAlign,
+    BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, Float, FontFamily,
+    LinearGradient, Position, RadialGradient, TextAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -144,6 +145,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_gradient,
                     background_radial_gradient,
                     background_svg,
+                    background_size,
+                    background_position,
+                    background_repeat,
                     border_radius,
                     outline_width,
                     outline_color,
@@ -392,6 +396,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             bg_y,
                             render_width,
                             total_h,
+                            background_size,
+                            background_position,
+                            background_repeat,
                         );
                     }
 
@@ -881,6 +888,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_gradient,
                     background_radial_gradient,
                     background_svg,
+                    background_size: flex_bg_size,
+                    background_position: flex_bg_pos,
+                    background_repeat: flex_bg_repeat,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
@@ -995,6 +1005,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             bg_y,
                             *container_width,
                             full_height,
+                            flex_bg_size,
+                            flex_bg_pos,
+                            flex_bg_repeat,
                         );
                     }
 
@@ -1767,8 +1780,7 @@ fn render_radial_gradient(
 
 /// Render an SVG tree as a background behind content.
 ///
-/// The SVG is scaled to cover the given rectangle (respecting aspect ratio
-/// for `background-size: cover` semantics) and clipped to the box.
+/// Supports CSS `background-size`, `background-position`, and `background-repeat`.
 fn render_svg_background(
     content: &mut String,
     tree: &crate::parser::svg::SvgTree,
@@ -1776,6 +1788,9 @@ fn render_svg_background(
     y: f32,
     width: f32,
     height: f32,
+    bg_size: &BackgroundSize,
+    bg_pos: &BackgroundPosition,
+    bg_repeat: &BackgroundRepeat,
 ) {
     if tree.width <= 0.0 || tree.height <= 0.0 {
         return;
@@ -1790,29 +1805,115 @@ fn render_svg_background(
         return;
     }
 
-    // Render SVG background at natural size, positioned at top-left per CSS defaults
-    // (background-size: auto, background-position: 0% 0%, background-repeat: repeat).
-    // Currently stretches to fill the element box (no repeat).
-    // TODO: wire background_size, background_position, background_repeat from
-    // ComputedStyle through LayoutElement to support the full CSS spec.
-    let sx = width / vb_w;
-    let sy = height / vb_h;
+    // Compute the rendered size of one SVG tile based on background-size.
+    let (scaled_w, scaled_h) = match bg_size {
+        BackgroundSize::Cover => {
+            let s = (width / vb_w).max(height / vb_h);
+            (vb_w * s, vb_h * s)
+        }
+        BackgroundSize::Contain => {
+            let s = (width / vb_w).min(height / vb_h);
+            (vb_w * s, vb_h * s)
+        }
+        BackgroundSize::Auto => (vb_w, vb_h),
+        BackgroundSize::Explicit(w, h) => (*w, *h),
+    };
 
-    content.push_str("q\n");
-    // Clip to the target rectangle
-    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
-    // Position at top-left, flip y-axis (SVG is top-down, PDF is bottom-up)
-    content.push_str(&format!("1 0 0 -1 {} {} cm\n", x, y + height));
-    // Scale to fill element box
-    content.push_str(&format!("{sx} 0 0 {sy} 0 0 cm\n"));
-    // Offset for viewBox origin
-    if let Some(ref vb) = tree.view_box {
-        if vb.min_x != 0.0 || vb.min_y != 0.0 {
-            content.push_str(&format!("1 0 0 1 {} {} cm\n", -vb.min_x, -vb.min_y));
+    if scaled_w <= 0.0 || scaled_h <= 0.0 {
+        return;
+    }
+
+    // Compute background-position offset (in the CSS coordinate system,
+    // origin at top-left of the element box).
+    let offset_x = if bg_pos.x_is_percent {
+        (width - scaled_w) * bg_pos.x
+    } else {
+        bg_pos.x
+    };
+    let offset_y = if bg_pos.y_is_percent {
+        (height - scaled_h) * bg_pos.y
+    } else {
+        bg_pos.y
+    };
+
+    // Determine tiling grid based on background-repeat.
+    // We compute the set of tile origin offsets (in CSS coords, top-left = 0,0).
+    let tiles_x: Vec<f32>;
+    let tiles_y: Vec<f32>;
+
+    match bg_repeat {
+        BackgroundRepeat::NoRepeat => {
+            tiles_x = vec![offset_x];
+            tiles_y = vec![offset_y];
+        }
+        BackgroundRepeat::Repeat => {
+            tiles_x = tile_offsets(offset_x, scaled_w, width);
+            tiles_y = tile_offsets(offset_y, scaled_h, height);
+        }
+        BackgroundRepeat::RepeatX => {
+            tiles_x = tile_offsets(offset_x, scaled_w, width);
+            tiles_y = vec![offset_y];
+        }
+        BackgroundRepeat::RepeatY => {
+            tiles_x = vec![offset_x];
+            tiles_y = tile_offsets(offset_y, scaled_h, height);
         }
     }
-    crate::render::svg_to_pdf::render_svg_tree(tree, content);
+
+    // Clip to the element box.
+    content.push_str("q\n");
+    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+
+    let sx = scaled_w / vb_w;
+    let sy = scaled_h / vb_h;
+
+    for &ty in &tiles_y {
+        for &tx in &tiles_x {
+            content.push_str("q\n");
+            // Position: PDF y-axis is bottom-up, SVG is top-down.
+            // `y` is the PDF bottom of the box, `y + height` is the PDF top.
+            // A CSS offset (tx, ty) from the top-left maps to PDF:
+            //   pdf_x = x + tx
+            //   pdf_y = (y + height) - ty   (top of box minus CSS-y offset)
+            // Then we flip y for SVG rendering.
+            let pdf_x = x + tx;
+            let pdf_top = y + height - ty;
+            content.push_str(&format!("1 0 0 -1 {pdf_x} {pdf_top} cm\n"));
+            content.push_str(&format!("{sx} 0 0 {sy} 0 0 cm\n"));
+            if let Some(ref vb) = tree.view_box {
+                if vb.min_x != 0.0 || vb.min_y != 0.0 {
+                    content.push_str(&format!("1 0 0 1 {} {} cm\n", -vb.min_x, -vb.min_y));
+                }
+            }
+            crate::render::svg_to_pdf::render_svg_tree(tree, content);
+            content.push_str("Q\n");
+        }
+    }
     content.push_str("Q\n");
+}
+
+/// Compute tile origin offsets that cover `[0, extent)` when starting from
+/// `origin` and repeating every `step`.  Returns offsets that overlap the
+/// visible range.
+fn tile_offsets(origin: f32, step: f32, extent: f32) -> Vec<f32> {
+    if step <= 0.0 {
+        return vec![origin];
+    }
+    let mut offsets = Vec::new();
+    // Walk backwards from origin to find the first tile that overlaps [0, extent).
+    let mut start = origin;
+    while start > 0.0 {
+        start -= step;
+    }
+    let mut pos = start;
+    while pos < extent {
+        offsets.push(pos);
+        pos += step;
+    }
+    if offsets.is_empty() {
+        offsets.push(origin);
+    }
+    offsets
 }
 
 /// Build an inline PDF Function dictionary string for a gradient's color stops.
@@ -3787,6 +3888,9 @@ mod tests {
                     background_gradient: None,
                     background_radial_gradient: None,
                     background_svg: None,
+                    background_size: BackgroundSize::Auto,
+                    background_position: BackgroundPosition::default(),
+                    background_repeat: BackgroundRepeat::Repeat,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,
@@ -3853,6 +3957,9 @@ mod tests {
                         background_gradient: None,
                         background_radial_gradient: None,
                         background_svg: None,
+                        background_size: BackgroundSize::Auto,
+                        background_position: BackgroundPosition::default(),
+                        background_repeat: BackgroundRepeat::Repeat,
                         border_radius: 0.0,
                         outline_width: 0.0,
                         outline_color: None,
@@ -4957,6 +5064,9 @@ mod tests {
                     background_gradient: None,
                     background_radial_gradient: None,
                     background_svg: None,
+                    background_size: BackgroundSize::Auto,
+                    background_position: BackgroundPosition::default(),
+                    background_repeat: BackgroundRepeat::Repeat,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,

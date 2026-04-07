@@ -5,11 +5,11 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle,
-    ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
-    GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    AlignItems, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, BorderSides,
+    BoxShadow, BoxSizing, Clear, ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap,
+    Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent, LinearGradient,
+    ListStylePosition, ListStyleType, Overflow, Position, RadialGradient, TextAlign, TextOverflow,
+    Transform, VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -366,6 +366,9 @@ pub enum LayoutElement {
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
+        background_size: BackgroundSize,
+        background_position: BackgroundPosition,
+        background_repeat: BackgroundRepeat,
         z_index: i32,
         /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
         heading_level: Option<u8>,
@@ -433,6 +436,9 @@ pub enum LayoutElement {
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
+        background_size: BackgroundSize,
+        background_position: BackgroundPosition,
+        background_repeat: BackgroundRepeat,
     },
     /// A progress bar or meter element.
     ProgressBar {
@@ -543,6 +549,9 @@ pub fn layout_with_rules_and_fonts(
             background_gradient: parent_style.background_gradient.clone(),
             background_radial_gradient: parent_style.background_radial_gradient.clone(),
             background_svg: parent_style.background_svg.clone(),
+            background_size: parent_style.background_size,
+            background_position: parent_style.background_position,
+            background_repeat: parent_style.background_repeat,
             z_index: -1,
             heading_level: None,
         });
@@ -638,6 +647,9 @@ fn flatten_nodes(
                             background_gradient: None,
                             background_radial_gradient: None,
                             background_svg: None,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
                             z_index: 0,
                             heading_level: None,
                         });
@@ -772,6 +784,9 @@ fn flatten_element(
             background_gradient: None,
             background_radial_gradient: None,
             background_svg: None,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
             z_index: 0,
             heading_level: None,
         });
@@ -918,6 +933,9 @@ fn flatten_element(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             background_svg: style.background_svg.clone(),
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
             z_index: style.z_index,
             heading_level: None,
         });
@@ -1030,6 +1048,9 @@ fn flatten_element(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             background_svg: style.background_svg.clone(),
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
             z_index: style.z_index,
             heading_level: None,
         });
@@ -1267,6 +1288,9 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 background_svg: style.background_svg.clone(),
+                background_size: style.background_size,
+                background_position: style.background_position,
+                background_repeat: style.background_repeat,
                 z_index: style.z_index,
                 heading_level: block_heading_level,
             });
@@ -1551,6 +1575,9 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 background_svg: style.background_svg.clone(),
+                background_size: style.background_size,
+                background_position: style.background_position,
+                background_repeat: style.background_repeat,
                 z_index: style.z_index,
                 heading_level: heading_level(el.tag),
             });
@@ -1649,6 +1676,9 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 background_svg: style.background_svg.clone(),
+                background_size: style.background_size,
+                background_position: style.background_position,
+                background_repeat: style.background_repeat,
                 z_index: style.z_index,
                 heading_level: None,
             });
@@ -1690,6 +1720,9 @@ fn flatten_element(
                 background_gradient: None,
                 background_radial_gradient: None,
                 background_svg: None,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
                 z_index: 0,
                 heading_level: None,
             });
@@ -1746,6 +1779,9 @@ fn flatten_element(
                     background_gradient: None,
                     background_radial_gradient: None,
                     background_svg: None,
+                    background_size: BackgroundSize::Auto,
+                    background_position: BackgroundPosition::default(),
+                    background_repeat: BackgroundRepeat::Repeat,
                     z_index: 0,
                     heading_level: None,
                 });
@@ -1977,6 +2013,9 @@ fn flatten_flex_container(
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
             background_svg: style.background_svg.clone(),
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
             z_index: child_style.z_index,
             heading_level: None,
         };
@@ -2150,6 +2189,9 @@ fn flatten_flex_container(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             background_svg: style.background_svg.clone(),
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
             z_index: 0,
             heading_level: None,
         });
@@ -2187,6 +2229,9 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             background_svg: None,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
             z_index: 0,
             heading_level: None,
         });
@@ -2342,6 +2387,21 @@ fn flatten_flex_container(
                     } else {
                         None
                     },
+                    background_size: if cross_offset == 0.0 {
+                        style.background_size
+                    } else {
+                        BackgroundSize::Auto
+                    },
+                    background_position: if cross_offset == 0.0 {
+                        style.background_position
+                    } else {
+                        BackgroundPosition::default()
+                    },
+                    background_repeat: if cross_offset == 0.0 {
+                        style.background_repeat
+                    } else {
+                        BackgroundRepeat::Repeat
+                    },
                 });
             }
             FlexDirection::Column => {
@@ -2449,6 +2509,9 @@ fn flatten_flex_container(
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
                                 background_svg: None,
+                                background_size: BackgroundSize::Auto,
+                                background_position: BackgroundPosition::default(),
+                                background_repeat: BackgroundRepeat::Repeat,
                                 z_index: 0,
                                 heading_level: None,
                             });
@@ -2503,6 +2566,9 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             background_svg: None,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
             z_index: 0,
             heading_level: None,
         });
