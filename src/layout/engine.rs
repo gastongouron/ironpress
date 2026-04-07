@@ -3896,42 +3896,48 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     pages
 }
 
-/// Try to load SVG content from a `src` attribute value.
+/// Load raw bytes from a `src` attribute value.
 ///
-/// Supports `data:image/svg+xml;base64,...` URIs, local `.svg` files, and remote
-/// SVG URLs.  Returns a parsed `SvgTree` on success, or `None` if the source is
-/// not SVG content.
-fn load_svg_from_src(src: &str) -> Option<crate::parser::svg::SvgTree> {
-    // Obtain the raw bytes from the source.
-    let raw = if let Some(rest) = src.strip_prefix("data:") {
+/// Supports `data:` URIs (base64 and percent-encoded), local file paths, and
+/// HTTP/HTTPS URLs (gated behind the `remote` feature).
+///
+/// For data URIs the MIME header is returned so callers can use it to skip
+/// unnecessary probing (e.g. skip SVG probe when the MIME is `image/jpeg`).
+fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
+    if let Some(rest) = src.strip_prefix("data:") {
         let (header, encoded) = rest.split_once(',')?;
-        // Quick reject: if the MIME type is present and clearly not SVG, skip.
         let header_lower = header.to_ascii_lowercase();
-        if !header_lower.is_empty()
-            && !header_lower.contains("svg")
-            && !header_lower.contains("xml")
-        {
-            return None;
-        }
-        if header_lower.contains("base64") {
+        let bytes = if header_lower.contains("base64") {
             base64_decode(encoded)?
         } else {
             // Plain-text or percent-encoded data URI — decode %XX sequences.
             percent_decode(encoded).into_bytes()
-        }
+        };
+        let mime = if header_lower.is_empty() {
+            None
+        } else {
+            Some(header_lower)
+        };
+        Some((bytes, mime))
     } else if src.starts_with("http://") || src.starts_with("https://") {
-        fetch_remote_url(src)?
+        Some((fetch_remote_url(src)?, None))
     } else {
-        std::fs::read(src).ok()?
-    };
+        Some((std::fs::read(src).ok()?, None))
+    }
+}
 
+/// Probe raw bytes for SVG content and parse into an `SvgTree`.
+///
+/// Uses a heuristic on the first 512 bytes (via `String::from_utf8_lossy` so
+/// that non-UTF-8 binary content is safely rejected) and then parses the full
+/// content through the HTML parser to extract the `<svg>` element.
+fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
     // Heuristic: check if the content looks like SVG (XML with an <svg element).
-    let prefix = if raw.len() > 512 { &raw[..512] } else { &raw };
+    let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
     let trimmed = text.trim_start();
     if !(trimmed.starts_with("<svg") || trimmed.starts_with("<?xml") || trimmed.starts_with("<!--"))
     {
-        // Not XML / SVG content.
         return None;
     }
     // For the comment case, do a deeper check.
@@ -3939,11 +3945,11 @@ fn load_svg_from_src(src: &str) -> Option<crate::parser::svg::SvgTree> {
         return None;
     }
 
-    // Parse the SVG string through the HTML parser to get a DOM, then extract
-    // the <svg> element and convert it to an SvgTree.
-    let svg_str = std::str::from_utf8(&raw).ok()?;
-    let nodes = crate::parser::html::parse_html(svg_str).ok()?;
-    // Find the first <svg> element in the parsed DOM.
+    // Parse the full SVG content — use lossy conversion so that stray non-UTF-8
+    // bytes don't cause the whole parse to fail.
+    let svg_str = String::from_utf8_lossy(raw);
+    let nodes = crate::parser::html::parse_html(&svg_str).ok()?;
+
     fn find_svg(nodes: &[crate::parser::dom::DomNode]) -> Option<&ElementNode> {
         for node in nodes {
             if let crate::parser::dom::DomNode::Element(el) = node {
@@ -3961,11 +3967,27 @@ fn load_svg_from_src(src: &str) -> Option<crate::parser::svg::SvgTree> {
     crate::parser::svg::parse_svg_from_element(svg_el)
 }
 
+/// Detect PNG/JPEG format from raw bytes and return decoded image data.
+fn load_image_bytes(raw: Vec<u8>) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
+    if png::is_png(&raw) {
+        let png_info = png::parse_png(&raw)?;
+        let metadata = PngMetadata {
+            channels: png_info.channels,
+            bit_depth: png_info.bit_depth,
+        };
+        Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
+    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
+        Some((raw, ImageFormat::Jpeg, None))
+    } else {
+        None
+    }
+}
+
 /// Load image data from an <img> element and return a LayoutElement.
 ///
-/// When the source contains SVG content (data URI, local file, or remote URL),
-/// the SVG is parsed and rendered as vector graphics (LayoutElement::Svg) instead
-/// of being treated as a raster image.
+/// Bytes are fetched exactly once from the source.  When the content is SVG it
+/// is parsed as vector graphics (`LayoutElement::Svg`); otherwise it falls back
+/// to raster PNG/JPEG (`LayoutElement::Image`).
 fn load_image_from_element(
     el: &ElementNode,
     available_width: f32,
@@ -3973,56 +3995,62 @@ fn load_image_from_element(
 ) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
 
+    // Load bytes once.
+    let (raw, mime) = load_src_bytes(src)?;
+
+    // For data URIs with a non-SVG MIME type, skip the SVG probe entirely.
+    let skip_svg = mime
+        .as_deref()
+        .map(|m| !m.is_empty() && !m.contains("svg") && !m.contains("xml"))
+        .unwrap_or(false);
+
     // Try SVG path first — render as vector graphics instead of raster.
-    if let Some(tree) = load_svg_from_src(src) {
-        // Determine dimensions from <img> attributes, falling back to the SVG's
-        // intrinsic width/height.
-        let attr_width = style
-            .width
-            .or_else(|| {
+    if !skip_svg {
+        if let Some(tree) = try_parse_svg_bytes(&raw) {
+            let attr_width = style.width.or_else(|| {
                 el.attributes
                     .get("width")
                     .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
                     .map(|px| px * 0.75)
             });
-        let attr_height = style
-            .height
-            .or_else(|| {
+            let attr_height = style.height.or_else(|| {
                 el.attributes
                     .get("height")
                     .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
                     .map(|px| px * 0.75)
             });
 
-        let (mut width, mut height) = match (attr_width, attr_height) {
-            (Some(w), Some(h)) => (w, h),
-            (Some(w), None) => {
-                let scale = w / tree.width;
-                (w, tree.height * scale)
-            }
-            (None, Some(h)) => {
-                let scale = h / tree.height;
-                (tree.width * scale, h)
-            }
-            (None, None) => (tree.width, tree.height),
-        };
+            let (mut width, mut height) = match (attr_width, attr_height) {
+                (Some(w), Some(h)) => (w, h),
+                (Some(w), None) => {
+                    let scale = w / tree.width;
+                    (w, tree.height * scale)
+                }
+                (None, Some(h)) => {
+                    let scale = h / tree.height;
+                    (tree.width * scale, h)
+                }
+                (None, None) => (tree.width, tree.height),
+            };
 
-        if width > available_width {
-            let scale = available_width / width;
-            width = available_width;
-            height *= scale;
+            if width > available_width {
+                let scale = available_width / width;
+                width = available_width;
+                height *= scale;
+            }
+
+            return Some(LayoutElement::Svg {
+                tree,
+                width,
+                height,
+                margin_top: style.margin.top,
+                margin_bottom: style.margin.bottom,
+            });
         }
-
-        return Some(LayoutElement::Svg {
-            tree,
-            width,
-            height,
-            margin_top: style.margin.top,
-            margin_bottom: style.margin.bottom,
-        });
     }
 
-    let (data, format, png_meta) = load_image_data(src)?;
+    // Fall back to raster image using the same bytes.
+    let (data, format, png_meta) = load_image_bytes(raw)?;
 
     // Determine dimensions from attributes
     let attr_width = el
@@ -4097,34 +4125,11 @@ fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
 
 /// Load image data from a src attribute (supports data: URIs, local files, and remote URLs).
 /// Returns (raw_bytes, format, optional_png_metadata).
+///
+/// This is a convenience wrapper around `load_src_bytes` + `load_image_bytes`.
 fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
-    let raw = if let Some(rest) = src.strip_prefix("data:") {
-        // Parse data URI: data:[<mediatype>][;base64],<data>
-        let (_header, encoded) = rest.split_once(',')?;
-        // Only support base64 for now
-        base64_decode(encoded)?
-    } else if src.starts_with("http://") || src.starts_with("https://") {
-        fetch_remote_url(src)?
-    } else {
-        // Treat as local file path
-        std::fs::read(src).ok()?
-    };
-
-    // Detect format from content
-    if png::is_png(&raw) {
-        let png_info = png::parse_png(&raw)?;
-        let metadata = PngMetadata {
-            channels: png_info.channels,
-            bit_depth: png_info.bit_depth,
-        };
-        // For PNG, we pass the IDAT data (already zlib-compressed) to PDF
-        Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
-    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
-        // JPEG: pass entire file as-is
-        Some((raw, ImageFormat::Jpeg, None))
-    } else {
-        None
-    }
+    let (raw, _mime) = load_src_bytes(src)?;
+    load_image_bytes(raw)
 }
 
 /// Simple base64 decoder (no external dependencies).
