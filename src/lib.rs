@@ -1838,6 +1838,29 @@ fn main() {
     }
 
     #[test]
+    fn svg_background_image_from_data_uri() {
+        let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23ccc'/%3E%3C/svg%3E"); background-size: cover; }
+</style></head><body>
+<h1>Background Test</h1>
+<p>This page should have an SVG pattern background.</p>
+</body></html>"#;
+        let pdf = HtmlConverter::new().sanitize(false).convert(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Background Test"));
+    }
+
+    #[test]
+    fn svg_background_image_base64() {
+        let html = r#"<html><head><style>
+body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1MCcgaGVpZ2h0PSc1MCc+PHJlY3Qgd2lkdGg9JzUwJyBoZWlnaHQ9JzUwJyBmaWxsPSdibHVlJy8+PC9zdmc+"); }
+</style></head><body><p>Base64 SVG BG</p></body></html>"#;
+        let pdf = HtmlConverter::new().sanitize(false).convert(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
     fn html_to_pdf_border_radius() {
         let html = r#"<div style="border: 1px solid black; border-radius: 10pt; background-color: yellow; padding: 10pt">Rounded corners</div>"#;
         let pdf = html_to_pdf(html).unwrap();

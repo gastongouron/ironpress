@@ -302,3 +302,55 @@ fn smoke_full_document() {
     assert!(pdf_has_text(&pdf, "Confidential"));
     assert!(pdf_page_count(&pdf) >= 1);
 }
+
+// === SVG background image ===
+
+#[test]
+fn smoke_svg_background_image_percent_encoded() {
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23ccc'/%3E%3C/svg%3E"); background-size: cover; }
+</style></head><body>
+<h1>Background Test</h1>
+<p>This page should have an SVG pattern background.</p>
+</body></html>"#;
+    let pdf = ironpress::HtmlConverter::new()
+        .sanitize(false)
+        .convert(html)
+        .unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Background Test"));
+    // The SVG should generate PDF drawing operators (rect and circle beziers)
+    let content = String::from_utf8_lossy(&pdf);
+    // "re" (rectangle) from the SVG rect element
+    assert!(content.contains(" re\n"));
+}
+
+#[test]
+fn smoke_svg_background_image_base64() {
+    // SVG: <svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><rect width='50' height='50' fill='blue'/></svg>
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1MCcgaGVpZ2h0PSc1MCc+PHJlY3Qgd2lkdGg9JzUwJyBoZWlnaHQ9JzUwJyBmaWxsPSdibHVlJy8+PC9zdmc+"); background-size: cover; }
+</style></head><body>
+<p>Base64 SVG background</p>
+</body></html>"#;
+    let pdf = ironpress::HtmlConverter::new()
+        .sanitize(false)
+        .convert(html)
+        .unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Base64 SVG background"));
+}
+
+#[test]
+fn smoke_svg_background_with_sanitizer() {
+    // Verify that the sanitizer preserves data: URIs in CSS
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='%23ddd'/%3E%3C/svg%3E"); }
+</style></head><body>
+<p>Sanitized SVG background</p>
+</body></html>"#;
+    // With sanitizer enabled (default)
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Sanitized SVG background"));
+}

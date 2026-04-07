@@ -426,6 +426,7 @@ pub struct ComputedStyle {
     pub vertical_align: VerticalAlign,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
+    pub background_svg: Option<crate::parser::svg::SvgTree>,
     pub text_overflow: TextOverflow,
     pub border_collapse: BorderCollapse,
     pub border_spacing: f32,
@@ -504,6 +505,7 @@ impl Default for ComputedStyle {
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_svg: None,
             text_overflow: TextOverflow::Clip,
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
@@ -586,6 +588,7 @@ pub fn compute_style_with_context(
         style.background_color = None;
         style.background_gradient = None;
         style.background_radial_gradient = None;
+        style.background_svg = None;
     }
 
     // Reset non-inherited properties for inline elements too
@@ -594,6 +597,7 @@ pub fn compute_style_with_context(
         style.background_color = None;
         style.background_gradient = None;
         style.background_radial_gradient = None;
+        style.background_svg = None;
     }
 
     // Border does not inherit in CSS — reset for all elements
@@ -983,6 +987,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
             style.background_radial_gradient = Some(rg);
+        }
+    }
+
+    // SVG background image (from data:image/svg+xml URI)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-svg") {
+        if let Some(tree) = crate::parser::svg::parse_svg_from_string(k) {
+            style.background_svg = Some(tree);
         }
     }
 

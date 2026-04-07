@@ -143,6 +143,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     transform,
                     background_gradient,
                     background_radial_gradient,
+                    background_svg,
                     border_radius,
                     outline_width,
                     outline_color,
@@ -373,6 +374,25 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
                         }
+                    }
+
+                    // Draw SVG background image if specified
+                    if let Some(svg_tree) = background_svg {
+                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
+                        let content_h = padding_top + text_height + padding_bottom;
+                        let total_h = match block_height {
+                            Some(h) => content_h.max(*h),
+                            None => content_h,
+                        };
+                        let bg_y = block_y - total_h;
+                        render_svg_background(
+                            &mut content,
+                            svg_tree,
+                            block_x,
+                            bg_y,
+                            render_width,
+                            total_h,
+                        );
                     }
 
                     // Draw border if specified
@@ -860,6 +880,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     box_shadow,
                     background_gradient,
                     background_radial_gradient,
+                    background_svg,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
@@ -961,6 +982,20 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
                         }
+                    }
+
+                    // Draw SVG background image for flex container
+                    if let Some(svg_tree) = background_svg {
+                        let bg_x = margin.left;
+                        let bg_y = row_y - full_height;
+                        render_svg_background(
+                            &mut content,
+                            svg_tree,
+                            bg_x,
+                            bg_y,
+                            *container_width,
+                            full_height,
+                        );
                     }
 
                     // Draw border
@@ -1727,6 +1762,56 @@ fn render_radial_gradient(
     content.push_str("q\n");
     content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
     content.push_str(&format!("/{name} sh\n"));
+    content.push_str("Q\n");
+}
+
+/// Render an SVG tree as a background behind content.
+///
+/// The SVG is scaled to cover the given rectangle (respecting aspect ratio
+/// for `background-size: cover` semantics) and clipped to the box.
+fn render_svg_background(
+    content: &mut String,
+    tree: &crate::parser::svg::SvgTree,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    if tree.width <= 0.0 || tree.height <= 0.0 {
+        return;
+    }
+
+    let (vb_w, vb_h) = if let Some(ref vb) = tree.view_box {
+        (vb.width, vb.height)
+    } else {
+        (tree.width, tree.height)
+    };
+    if vb_w <= 0.0 || vb_h <= 0.0 {
+        return;
+    }
+
+    // Render SVG background at natural size, positioned at top-left per CSS defaults
+    // (background-size: auto, background-position: 0% 0%, background-repeat: repeat).
+    // Currently stretches to fill the element box (no repeat).
+    // TODO: wire background_size, background_position, background_repeat from
+    // ComputedStyle through LayoutElement to support the full CSS spec.
+    let sx = width / vb_w;
+    let sy = height / vb_h;
+
+    content.push_str("q\n");
+    // Clip to the target rectangle
+    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+    // Position at top-left, flip y-axis (SVG is top-down, PDF is bottom-up)
+    content.push_str(&format!("1 0 0 -1 {} {} cm\n", x, y + height));
+    // Scale to fill element box
+    content.push_str(&format!("{sx} 0 0 {sy} 0 0 cm\n"));
+    // Offset for viewBox origin
+    if let Some(ref vb) = tree.view_box {
+        if vb.min_x != 0.0 || vb.min_y != 0.0 {
+            content.push_str(&format!("1 0 0 1 {} {} cm\n", -vb.min_x, -vb.min_y));
+        }
+    }
+    crate::render::svg_to_pdf::render_svg_tree(tree, content);
     content.push_str("Q\n");
 }
 
@@ -3701,6 +3786,7 @@ mod tests {
                     transform: None,
                     background_gradient: None,
                     background_radial_gradient: None,
+                    background_svg: None,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,
@@ -3766,6 +3852,7 @@ mod tests {
                         transform: None,
                         background_gradient: None,
                         background_radial_gradient: None,
+                        background_svg: None,
                         border_radius: 0.0,
                         outline_width: 0.0,
                         outline_color: None,
@@ -4869,6 +4956,7 @@ mod tests {
                     transform: None,
                     background_gradient: None,
                     background_radial_gradient: None,
+                    background_svg: None,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,

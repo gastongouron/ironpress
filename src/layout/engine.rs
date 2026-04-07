@@ -365,6 +365,7 @@ pub enum LayoutElement {
         vertical_align: VerticalAlign,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
+        background_svg: Option<crate::parser::svg::SvgTree>,
         z_index: i32,
         /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
         heading_level: Option<u8>,
@@ -431,6 +432,7 @@ pub enum LayoutElement {
         box_shadow: Option<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
+        background_svg: Option<crate::parser::svg::SvgTree>,
     },
     /// A progress bar or meter element.
     ProgressBar {
@@ -501,6 +503,51 @@ pub fn layout_with_rules_and_fonts(
 
     // First, flatten DOM into layout elements
     let mut elements = Vec::new();
+
+    // If the body/html has a background SVG (or gradient/color), emit a full-content-area
+    // background block at the very start so it renders behind all content.
+    let has_body_bg = parent_style.background_svg.is_some()
+        || parent_style.background_gradient.is_some()
+        || parent_style.background_radial_gradient.is_some();
+    if has_body_bg {
+        elements.push(LayoutElement::TextBlock {
+            lines: vec![],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: Some(available_width),
+            block_height: Some(content_height),
+            opacity: 1.0,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Absolute,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: parent_style.background_gradient.clone(),
+            background_radial_gradient: parent_style.background_radial_gradient.clone(),
+            background_svg: parent_style.background_svg.clone(),
+            z_index: -1,
+            heading_level: None,
+        });
+    }
+
     let ancestors: Vec<AncestorInfo> = Vec::new();
     flatten_nodes(
         nodes,
@@ -590,6 +637,7 @@ fn flatten_nodes(
                             vertical_align: VerticalAlign::Baseline,
                             background_gradient: None,
                             background_radial_gradient: None,
+                            background_svg: None,
                             z_index: 0,
                             heading_level: None,
                         });
@@ -723,6 +771,7 @@ fn flatten_element(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_svg: None,
             z_index: 0,
             heading_level: None,
         });
@@ -868,6 +917,7 @@ fn flatten_element(
             vertical_align: style.vertical_align,
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
+            background_svg: style.background_svg.clone(),
             z_index: style.z_index,
             heading_level: None,
         });
@@ -979,6 +1029,7 @@ fn flatten_element(
             vertical_align: style.vertical_align,
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
+            background_svg: style.background_svg.clone(),
             z_index: style.z_index,
             heading_level: None,
         });
@@ -1215,6 +1266,7 @@ fn flatten_element(
                 vertical_align: style.vertical_align,
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
+                background_svg: style.background_svg.clone(),
                 z_index: style.z_index,
                 heading_level: block_heading_level,
             });
@@ -1498,6 +1550,7 @@ fn flatten_element(
                 vertical_align: style.vertical_align,
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
+                background_svg: style.background_svg.clone(),
                 z_index: style.z_index,
                 heading_level: heading_level(el.tag),
             });
@@ -1595,6 +1648,7 @@ fn flatten_element(
                 vertical_align: VerticalAlign::Baseline,
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
+                background_svg: style.background_svg.clone(),
                 z_index: style.z_index,
                 heading_level: None,
             });
@@ -1635,6 +1689,7 @@ fn flatten_element(
                 vertical_align: VerticalAlign::Baseline,
                 background_gradient: None,
                 background_radial_gradient: None,
+                background_svg: None,
                 z_index: 0,
                 heading_level: None,
             });
@@ -1690,6 +1745,7 @@ fn flatten_element(
                     vertical_align: VerticalAlign::Baseline,
                     background_gradient: None,
                     background_radial_gradient: None,
+                    background_svg: None,
                     z_index: 0,
                     heading_level: None,
                 });
@@ -1920,6 +1976,7 @@ fn flatten_flex_container(
             vertical_align: child_style.vertical_align,
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
+            background_svg: style.background_svg.clone(),
             z_index: child_style.z_index,
             heading_level: None,
         };
@@ -2092,6 +2149,7 @@ fn flatten_flex_container(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
+            background_svg: style.background_svg.clone(),
             z_index: 0,
             heading_level: None,
         });
@@ -2128,6 +2186,7 @@ fn flatten_flex_container(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_svg: None,
             z_index: 0,
             heading_level: None,
         });
@@ -2278,6 +2337,11 @@ fn flatten_flex_container(
                     } else {
                         None
                     },
+                    background_svg: if cross_offset == 0.0 {
+                        style.background_svg.clone()
+                    } else {
+                        None
+                    },
                 });
             }
             FlexDirection::Column => {
@@ -2384,6 +2448,7 @@ fn flatten_flex_container(
                                 vertical_align: *tb_va,
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
+                                background_svg: None,
                                 z_index: 0,
                                 heading_level: None,
                             });
@@ -2437,6 +2502,7 @@ fn flatten_flex_container(
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_svg: None,
             z_index: 0,
             heading_level: None,
         });

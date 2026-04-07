@@ -91,6 +91,23 @@ pub enum PathCommand {
     ClosePath,
 }
 
+/// Parse an SVG tree from a raw SVG string (e.g. from a data URI).
+///
+/// The input should be the SVG markup (e.g. `<svg ...>...</svg>`).
+/// It is parsed through the HTML parser to obtain a DOM tree, then
+/// the root `<svg>` element is extracted and processed normally.
+pub fn parse_svg_from_string(svg_text: &str) -> Option<SvgTree> {
+    let nodes = crate::parser::html::parse_html(svg_text).ok()?;
+    for node in &nodes {
+        if let crate::parser::dom::DomNode::Element(el) = node {
+            if el.tag == crate::parser::dom::HtmlTag::Svg {
+                return parse_svg_from_element(el);
+            }
+        }
+    }
+    None
+}
+
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
     let width = el

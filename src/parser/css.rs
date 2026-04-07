@@ -111,11 +111,41 @@ impl StyleMap {
     }
 }
 
+/// Split a CSS declaration string on `;`, respecting quoted strings.
+///
+/// Semicolons inside `"..."` or `'...'` are not treated as delimiters.
+/// This prevents data URIs like `data:image/svg+xml;base64,...` inside
+/// `url()` values from being split prematurely.
+fn split_declarations(css: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let bytes = css.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
+            b';' if !in_single_quote && !in_double_quote => {
+                parts.push(&css[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if start < css.len() {
+        parts.push(&css[start..]);
+    }
+    parts
+}
+
 /// Parse an inline CSS style string (e.g. "color: red; font-size: 14px").
 pub fn parse_inline_style(style: &str) -> StyleMap {
     let mut map = StyleMap::new();
 
-    for declaration in style.split(';') {
+    for declaration in split_declarations(style) {
         let declaration = declaration.trim();
         if declaration.is_empty() {
             continue;
@@ -185,6 +215,12 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                     "background-radial-gradient",
                     CssValue::Keyword(val.trim().to_string()),
                 );
+            } else if (prop == "background" || prop == "background-image")
+                && extract_svg_data_uri(val.trim()).is_some()
+            {
+                if let Some(svg_text) = extract_svg_data_uri(val.trim()) {
+                    map.set("background-svg", CssValue::Keyword(svg_text));
+                }
             } else if let Some(css_val) = parse_value(&prop, val) {
                 map.set(&prop, css_val);
             }
@@ -1034,6 +1070,114 @@ fn extract_url_path(val: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Extract and decode an SVG from a CSS `url(data:image/svg+xml,...)` value.
+///
+/// Supports both percent-encoded and base64-encoded SVG data URIs.
+/// Returns the decoded SVG markup string, or `None` if the value is not an
+/// SVG data URI.
+fn extract_svg_data_uri(val: &str) -> Option<String> {
+    let lower = val.to_ascii_lowercase();
+    let start = lower.find("url(")?;
+    let after_url = &val[start + 4..];
+    let end = after_url.rfind(')')?;
+    let inner = after_url[..end].trim();
+    let inner = inner.trim_matches('"').trim_matches('\'').trim();
+
+    let inner_lower = inner.to_ascii_lowercase();
+    if !inner_lower.starts_with("data:image/svg+xml") {
+        return None;
+    }
+
+    let after_mime = &inner["data:image/svg+xml".len()..];
+
+    if let Some(b64_data) = after_mime.strip_prefix(";base64,") {
+        let decoded = base64_decode_svg(b64_data)?;
+        String::from_utf8(decoded).ok()
+    } else {
+        after_mime
+            .strip_prefix(',')
+            .map(percent_decode)
+    }
+}
+
+/// Decode a base64-encoded string into bytes.
+fn base64_decode_svg(input: &str) -> Option<Vec<u8>> {
+    const TABLE: [u8; 128] = {
+        let mut t = [255u8; 128];
+        let mut i = 0u8;
+        while i < 26 {
+            t[(b'A' + i) as usize] = i;
+            i += 1;
+        }
+        i = 0;
+        while i < 26 {
+            t[(b'a' + i) as usize] = 26 + i;
+            i += 1;
+        }
+        i = 0;
+        while i < 10 {
+            t[(b'0' + i) as usize] = 52 + i;
+            i += 1;
+        }
+        t[b'+' as usize] = 62;
+        t[b'/' as usize] = 63;
+        t
+    };
+
+    let bytes: Vec<u8> = input
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
+        .collect();
+    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
+    for chunk in bytes.chunks(4) {
+        let mut buf = [0u8; 4];
+        for (i, &b) in chunk.iter().enumerate() {
+            if b >= 128 || TABLE[b as usize] == 255 {
+                return None;
+            }
+            buf[i] = TABLE[b as usize];
+        }
+        out.push((buf[0] << 2) | (buf[1] >> 4));
+        if chunk.len() > 2 {
+            out.push((buf[1] << 4) | (buf[2] >> 2));
+        }
+        if chunk.len() > 3 {
+            out.push((buf[2] << 6) | buf[3]);
+        }
+    }
+    Some(out)
+}
+
+/// Decode percent-encoded text (e.g. `%3Csvg` -> `<svg`).
+fn percent_decode(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hi = hex_val(bytes[i + 1]);
+            let lo = hex_val(bytes[i + 2]);
+            if let (Some(h), Some(l)) = (hi, lo) {
+                result.push((h << 4 | l) as char);
+                i += 3;
+                continue;
+            }
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+    result
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(10 + b - b'a'),
+        b'A'..=b'F' => Some(10 + b - b'A'),
+        _ => None,
+    }
 }
 
 /// Parse `@import` rules from a CSS string.
@@ -3093,6 +3237,73 @@ mod tests {
     fn radial_gradient_in_background() {
         let style = parse_inline_style("background: radial-gradient(red, blue)");
         assert!(style.get("background-radial-gradient").is_some());
+    }
+
+    #[test]
+    fn svg_data_uri_percent_encoded_in_background() {
+        let style = parse_inline_style(
+            r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3C/svg%3E")"#,
+        );
+        assert!(style.get("background-svg").is_some());
+        if let Some(CssValue::Keyword(svg)) = style.get("background-svg") {
+            assert!(svg.contains("<svg"));
+            assert!(svg.contains("<rect"));
+        }
+    }
+
+    #[test]
+    fn svg_data_uri_base64_in_background() {
+        let b64 = "PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxyZWN0IHdpZHRoPScxMCcgaGVpZ2h0PScxMCcgZmlsbD0ncmVkJy8+PC9zdmc+";
+        let style = parse_inline_style(
+            &format!(r#"background: url("data:image/svg+xml;base64,{b64}")"#),
+        );
+        assert!(style.get("background-svg").is_some());
+        if let Some(CssValue::Keyword(svg)) = style.get("background-svg") {
+            assert!(svg.contains("<svg"));
+        }
+    }
+
+    #[test]
+    fn svg_data_uri_via_background_shorthand() {
+        let style = parse_inline_style(
+            r#"background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E")"#,
+        );
+        assert!(style.get("background-svg").is_some());
+    }
+
+    #[test]
+    fn non_svg_data_uri_not_matched() {
+        let style = parse_inline_style(
+            r#"background-image: url("data:image/png;base64,iVBOR")"#,
+        );
+        assert!(style.get("background-svg").is_none());
+    }
+
+    #[test]
+    fn extract_svg_data_uri_percent_decode() {
+        let val = r#"url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")"#;
+        let result = extract_svg_data_uri(val);
+        assert_eq!(result, Some("<svg></svg>".to_string()));
+    }
+
+    #[test]
+    fn extract_svg_data_uri_base64() {
+        let val = r#"url("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")"#;
+        let result = extract_svg_data_uri(val);
+        assert_eq!(result, Some("<svg></svg>".to_string()));
+    }
+
+    #[test]
+    fn extract_svg_data_uri_not_svg() {
+        let val = r#"url("data:image/png;base64,abc")"#;
+        assert!(extract_svg_data_uri(val).is_none());
+    }
+
+    #[test]
+    fn percent_decode_basic() {
+        assert_eq!(percent_decode("%3Csvg%3E"), "<svg>");
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("no-encoding"), "no-encoding");
     }
 
     #[test]
