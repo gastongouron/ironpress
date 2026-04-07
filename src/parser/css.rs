@@ -111,23 +111,29 @@ impl StyleMap {
     }
 }
 
-/// Split a CSS declaration string on `;`, respecting quoted strings.
+/// Split a CSS declaration string on `;`, respecting quoted strings and
+/// parenthesized function arguments.
 ///
-/// Semicolons inside `"..."` or `'...'` are not treated as delimiters.
-/// This prevents data URIs like `data:image/svg+xml;base64,...` inside
-/// `url()` values from being split prematurely.
+/// Semicolons inside `"..."`, `'...'`, or `url(...)` are not treated as
+/// delimiters. This prevents data URIs like `data:image/svg+xml;base64,...`
+/// from being split prematurely.
 fn split_declarations(css: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
     let bytes = css.as_bytes();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
+    let mut paren_depth = 0usize;
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
-            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
-            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
-            b';' if !in_single_quote && !in_double_quote => {
+            b'\'' if !in_double_quote && paren_depth > 0 => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote && paren_depth > 0 => in_double_quote = !in_double_quote,
+            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
+            b')' if !in_single_quote && !in_double_quote && paren_depth > 0 => {
+                paren_depth -= 1;
+            }
+            b';' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
                 parts.push(&css[start..i]);
                 start = i + 1;
             }
@@ -1279,14 +1285,15 @@ fn extract_svg_data_uri(val: &str) -> Option<String> {
     }
 
     let after_mime = &inner["data:image/svg+xml".len()..];
+    let comma = after_mime.find(',')?;
+    let params = &after_mime[..comma];
+    let data = &after_mime[comma + 1..];
 
-    if let Some(b64_data) = after_mime.strip_prefix(";base64,") {
-        let decoded = base64_decode_svg(b64_data)?;
+    if params.to_ascii_lowercase().contains(";base64") {
+        let decoded = base64_decode_svg(data)?;
         String::from_utf8(decoded).ok()
     } else {
-        after_mime
-            .strip_prefix(',')
-            .map(percent_decode)
+        Some(percent_decode(data))
     }
 }
 
@@ -1340,7 +1347,7 @@ fn base64_decode_svg(input: &str) -> Option<Vec<u8>> {
 
 /// Decode percent-encoded text (e.g. `%3Csvg` -> `<svg`).
 fn percent_decode(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
+    let mut out = Vec::with_capacity(input.len());
     let bytes = input.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
@@ -1348,15 +1355,15 @@ fn percent_decode(input: &str) -> String {
             let hi = hex_val(bytes[i + 1]);
             let lo = hex_val(bytes[i + 2]);
             if let (Some(h), Some(l)) = (hi, lo) {
-                result.push((h << 4 | l) as char);
+                out.push((h << 4) | l);
                 i += 3;
                 continue;
             }
         }
-        result.push(bytes[i] as char);
+        out.push(bytes[i]);
         i += 1;
     }
-    result
+    String::from_utf8(out).unwrap_or_default()
 }
 
 fn hex_val(b: u8) -> Option<u8> {
@@ -3482,6 +3489,13 @@ mod tests {
     }
 
     #[test]
+    fn extract_svg_data_uri_charset_parameter() {
+        let val = r#"url("data:image/svg+xml;charset=utf-8,%3Csvg%3E%3C/svg%3E")"#;
+        let result = extract_svg_data_uri(val);
+        assert_eq!(result, Some("<svg></svg>".to_string()));
+    }
+
+    #[test]
     fn extract_svg_data_uri_not_svg() {
         let val = r#"url("data:image/png;base64,abc")"#;
         assert!(extract_svg_data_uri(val).is_none());
@@ -3492,6 +3506,19 @@ mod tests {
         assert_eq!(percent_decode("%3Csvg%3E"), "<svg>");
         assert_eq!(percent_decode("hello%20world"), "hello world");
         assert_eq!(percent_decode("no-encoding"), "no-encoding");
+    }
+
+    #[test]
+    fn percent_decode_utf8() {
+        assert_eq!(percent_decode("%E2%82%AC"), "€");
+    }
+
+    #[test]
+    fn split_declarations_preserves_unquoted_data_uri() {
+        let style = r#"background-image: url(data:image/svg+xml;base64,PHN2Zy8+); color: red;"#;
+        let map = parse_inline_style(style);
+        assert!(map.get("background-svg").is_some());
+        assert!(map.get("color").is_some());
     }
 
     #[test]

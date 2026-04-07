@@ -782,6 +782,9 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
+        "background-image" | "background" | "background-svg" => {
+            style.background_svg = default.background_svg.clone()
+        }
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -862,6 +865,9 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
+        "background-image" | "background" | "background-svg" => {
+            style.background_svg = parent.background_svg.clone()
+        }
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -5707,6 +5713,17 @@ mod tests {
         };
         let s = compute_style(HtmlTag::Div, Some("background-position: inherit"), &parent);
         assert_eq!(s.background_position, parent.background_position);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_background_svg() {
+        let mut parent = ComputedStyle::default();
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+        assert!(parent.background_svg.is_some());
+        let s = compute_style(HtmlTag::Div, Some("background-image: inherit"), &parent);
+        assert!(s.background_svg.is_some());
     }
 
     #[test]
