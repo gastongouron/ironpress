@@ -2797,6 +2797,24 @@ fn flatten_table(
                     HtmlTag::Col => vec![child_el],
                     _ => continue,
                 };
+                if cols_to_scan.is_empty() && child_el.tag == HtmlTag::Colgroup {
+                    // <colgroup span="N"> without child <col> elements:
+                    // the colgroup's own span advances col_idx by N.
+                    let span = child_el
+                        .attributes
+                        .get("span")
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .unwrap_or(1)
+                        .clamp(1, 1000);
+                    let width_pct = parse_col_width_percent(child_el);
+                    for _ in 0..span {
+                        if col_idx < num_cols {
+                            explicit_col_widths[col_idx] = width_pct;
+                        }
+                        col_idx += 1;
+                    }
+                    continue;
+                }
                 for col_el in cols_to_scan {
                     let span = col_el
                         .attributes
@@ -2968,6 +2986,21 @@ fn flatten_table(
                     remaining / num_cols.max(1) as f32
                 }
                 .max(min_col_width);
+            }
+        }
+        // Clamp auto column total to remaining space to prevent overflow.
+        let auto_total: f32 = widths
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| explicit_col_widths[*i].is_none())
+            .map(|(_, w)| *w)
+            .sum();
+        if auto_total > remaining && auto_total > 0.0 {
+            let scale = remaining / auto_total;
+            for i in 0..num_cols {
+                if explicit_col_widths[i].is_none() {
+                    widths[i] *= scale;
+                }
             }
         }
         widths
