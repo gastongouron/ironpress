@@ -2033,6 +2033,7 @@ fn flatten_flex_container(
             &child_el.children,
             &child_style,
             &mut runs,
+            None,
             rules,
             &child_ancestors,
         );
@@ -3214,6 +3215,7 @@ fn flatten_table(
                     &cell_el.children,
                     &cell_style,
                     &mut runs,
+                    None,
                     rules,
                     &cell_selector_ctx.ancestors,
                 );
@@ -3286,27 +3288,49 @@ fn collect_flex_child_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
     runs: &mut Vec<TextRun>,
+    link_url: Option<&str>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
 ) {
+    let preserve_ws = matches!(
+        parent_style.white_space,
+        WhiteSpace::Pre | WhiteSpace::PreWrap
+    );
+
     for node in nodes {
         match node {
             DomNode::Text(text) => {
-                let trimmed = collapse_whitespace(text);
-                if !trimmed.is_empty() {
+                let processed = if preserve_ws {
+                    text.clone()
+                } else {
+                    collapse_whitespace(text)
+                };
+                if !processed.is_empty() {
                     runs.push(TextRun {
-                        text: trimmed,
+                        text: processed,
                         font_size: parent_style.font_size,
                         bold: parent_style.font_weight == FontWeight::Bold,
                         italic: parent_style.font_style == FontStyle::Italic,
                         underline: parent_style.text_decoration_underline,
                         line_through: parent_style.text_decoration_line_through,
                         color: parent_style.color.to_f32_rgb(),
-                        link_url: None,
+                        link_url: link_url.map(String::from),
                         font_family: parent_style.font_family.clone(),
-                        background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
-                        padding: (parent_style.padding.left, parent_style.padding.top),
-                        border_radius: 0.0,
+                        background_color: if preserve_ws {
+                            None
+                        } else {
+                            parent_style.background_color.map(|c| c.to_f32_rgb())
+                        },
+                        padding: if preserve_ws {
+                            (0.0, 0.0)
+                        } else {
+                            (parent_style.padding.left, parent_style.padding.top)
+                        },
+                        border_radius: if preserve_ws {
+                            0.0
+                        } else {
+                            parent_style.border_radius
+                        },
                     });
                 }
             }
@@ -3350,6 +3374,11 @@ fn collect_flex_child_text_runs(
                         border_radius: 0.0,
                     });
                 } else {
+                    let url = if el.tag == HtmlTag::A {
+                        el.attributes.get("href").map(|s| s.as_str()).or(link_url)
+                    } else {
+                        link_url
+                    };
                     // Build ancestor chain including current element for recursive calls
                     let mut child_ancestors = ancestors.to_vec();
                     child_ancestors.push(AncestorInfo {
@@ -3363,6 +3392,7 @@ fn collect_flex_child_text_runs(
                         &el.children,
                         &child_style,
                         runs,
+                        url,
                         rules,
                         &child_ancestors,
                     );
@@ -8397,6 +8427,48 @@ mod _removed {
             });
             assert!(has_link, "Expected link URL in text runs");
         }
+    }
+
+    #[test]
+    fn table_cell_block_content_preserves_link_and_whitespace() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td>
+                        <div><a href="https://example.com">Click here</a></div>
+                        <pre>  keep   spaces  </pre>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let row = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                Some(cells.clone())
+            } else {
+                None
+            }
+        });
+        let cells = row.expect("expected table row");
+        let text: String = cells[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter())
+            .map(|run| run.text.as_str())
+            .collect();
+        assert!(
+            cells[0]
+                .lines
+                .iter()
+                .flat_map(|line| line.runs.iter())
+                .any(|run| run.link_url.as_deref() == Some("https://example.com")),
+            "Expected link URL to survive nested block traversal"
+        );
+        assert!(
+            text.contains("  keep   spaces  "),
+            "Expected preformatted whitespace to survive nested block traversal: {text:?}"
+        );
     }
 
     #[test]
