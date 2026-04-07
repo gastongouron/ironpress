@@ -4,8 +4,8 @@ use crate::layout::engine::{
 };
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, Float, FontFamily,
-    LinearGradient, Position, RadialGradient, TextAlign,
+    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, Float,
+    FontFamily, LinearGradient, Position, RadialGradient, TextAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -148,6 +148,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_size,
                     background_position,
                     background_repeat,
+                    background_origin,
                     border_radius,
                     outline_width,
                     outline_color,
@@ -389,13 +390,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             None => content_h,
                         };
                         let bg_y = block_y - total_h;
+                        // Adjust reference box based on background-origin
+                        let (ref_x, ref_y, ref_w, ref_h) = match background_origin {
+                            BackgroundOrigin::BorderBox => (
+                                block_x - border.left.width,
+                                bg_y - border.bottom.width,
+                                render_width + border.left.width + border.right.width,
+                                total_h + border.top.width + border.bottom.width,
+                            ),
+                            BackgroundOrigin::ContentBox => (
+                                block_x + padding_left,
+                                bg_y + padding_bottom,
+                                (render_width - padding_left - padding_right).max(0.0),
+                                (total_h - padding_top - padding_bottom).max(0.0),
+                            ),
+                            BackgroundOrigin::PaddingBox => {
+                                (block_x, bg_y, render_width, total_h)
+                            }
+                        };
                         render_svg_background(
                             &mut content,
                             svg_tree,
-                            block_x,
-                            bg_y,
-                            render_width,
-                            total_h,
+                            ref_x,
+                            ref_y,
+                            ref_w,
+                            ref_h,
                             background_size,
                             background_position,
                             background_repeat,
@@ -881,7 +900,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     padding_top,
                     padding_bottom,
                     padding_left,
-                    padding_right: _,
+                    padding_right,
                     border,
                     border_radius,
                     box_shadow,
@@ -891,6 +910,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_size: flex_bg_size,
                     background_position: flex_bg_pos,
                     background_repeat: flex_bg_repeat,
+                    background_origin: flex_bg_origin,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
@@ -998,13 +1018,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     if let Some(svg_tree) = background_svg {
                         let bg_x = margin.left;
                         let bg_y = row_y - full_height;
+                        // Adjust reference box based on background-origin
+                        let (ref_x, ref_y, ref_w, ref_h) = match flex_bg_origin {
+                            BackgroundOrigin::BorderBox => (
+                                bg_x - border.left.width,
+                                bg_y - border.bottom.width,
+                                *container_width + border.left.width + border.right.width,
+                                full_height + border.top.width + border.bottom.width,
+                            ),
+                            BackgroundOrigin::ContentBox => (
+                                bg_x + padding_left,
+                                bg_y + padding_bottom,
+                                (*container_width - padding_left - padding_right).max(0.0),
+                                (full_height - padding_top - padding_bottom).max(0.0),
+                            ),
+                            BackgroundOrigin::PaddingBox => {
+                                (bg_x, bg_y, *container_width, full_height)
+                            }
+                        };
                         render_svg_background(
                             &mut content,
                             svg_tree,
-                            bg_x,
-                            bg_y,
-                            *container_width,
-                            full_height,
+                            ref_x,
+                            ref_y,
+                            ref_w,
+                            ref_h,
                             flex_bg_size,
                             flex_bg_pos,
                             flex_bg_repeat,
@@ -3891,6 +3929,7 @@ mod tests {
                     background_size: BackgroundSize::Auto,
                     background_position: BackgroundPosition::default(),
                     background_repeat: BackgroundRepeat::Repeat,
+                    background_origin: BackgroundOrigin::PaddingBox,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,
@@ -3960,6 +3999,7 @@ mod tests {
                         background_size: BackgroundSize::Auto,
                         background_position: BackgroundPosition::default(),
                         background_repeat: BackgroundRepeat::Repeat,
+                        background_origin: BackgroundOrigin::PaddingBox,
                         border_radius: 0.0,
                         outline_width: 0.0,
                         outline_color: None,
@@ -5067,6 +5107,7 @@ mod tests {
                     background_size: BackgroundSize::Auto,
                     background_position: BackgroundPosition::default(),
                     background_repeat: BackgroundRepeat::Repeat,
+                    background_origin: BackgroundOrigin::PaddingBox,
                     border_radius: 0.0,
                     outline_width: 0.0,
                     outline_color: None,

@@ -5,11 +5,12 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, BorderSides,
-    BoxShadow, BoxSizing, Clear, ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap,
-    Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent, LinearGradient,
-    ListStylePosition, ListStyleType, Overflow, Position, RadialGradient, TextAlign, TextOverflow,
-    Transform, VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
+    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle, ContentItem, Display,
+    FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight, GridTrack, JustifyContent,
+    LinearGradient, ListStylePosition, ListStyleType, Overflow, Position, RadialGradient,
+    TextAlign, TextOverflow, Transform, VerticalAlign, Visibility, WhiteSpace,
+    compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -369,6 +370,7 @@ pub enum LayoutElement {
         background_size: BackgroundSize,
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
+        background_origin: BackgroundOrigin,
         z_index: i32,
         /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
         heading_level: Option<u8>,
@@ -439,6 +441,7 @@ pub enum LayoutElement {
         background_size: BackgroundSize,
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
+        background_origin: BackgroundOrigin,
     },
     /// A progress bar or meter element.
     ProgressBar {
@@ -552,6 +555,7 @@ pub fn layout_with_rules_and_fonts(
             background_size: parent_style.background_size,
             background_position: parent_style.background_position,
             background_repeat: parent_style.background_repeat,
+            background_origin: parent_style.background_origin,
             z_index: -1,
             heading_level: None,
         });
@@ -650,6 +654,7 @@ fn flatten_nodes(
                             background_size: BackgroundSize::Auto,
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::PaddingBox,
                             z_index: 0,
                             heading_level: None,
                         });
@@ -787,6 +792,7 @@ fn flatten_element(
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
             heading_level: None,
         });
@@ -936,6 +942,7 @@ fn flatten_element(
             background_size: style.background_size,
             background_position: style.background_position,
             background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
             z_index: style.z_index,
             heading_level: None,
         });
@@ -1051,6 +1058,7 @@ fn flatten_element(
             background_size: style.background_size,
             background_position: style.background_position,
             background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
             z_index: style.z_index,
             heading_level: None,
         });
@@ -1291,6 +1299,7 @@ fn flatten_element(
                 background_size: style.background_size,
                 background_position: style.background_position,
                 background_repeat: style.background_repeat,
+                background_origin: style.background_origin,
                 z_index: style.z_index,
                 heading_level: block_heading_level,
             });
@@ -1578,6 +1587,7 @@ fn flatten_element(
                 background_size: style.background_size,
                 background_position: style.background_position,
                 background_repeat: style.background_repeat,
+                background_origin: style.background_origin,
                 z_index: style.z_index,
                 heading_level: heading_level(el.tag),
             });
@@ -1679,6 +1689,7 @@ fn flatten_element(
                 background_size: style.background_size,
                 background_position: style.background_position,
                 background_repeat: style.background_repeat,
+                background_origin: style.background_origin,
                 z_index: style.z_index,
                 heading_level: None,
             });
@@ -1723,6 +1734,7 @@ fn flatten_element(
                 background_size: BackgroundSize::Auto,
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::PaddingBox,
                 z_index: 0,
                 heading_level: None,
             });
@@ -1782,6 +1794,7 @@ fn flatten_element(
                     background_size: BackgroundSize::Auto,
                     background_position: BackgroundPosition::default(),
                     background_repeat: BackgroundRepeat::Repeat,
+                    background_origin: BackgroundOrigin::PaddingBox,
                     z_index: 0,
                     heading_level: None,
                 });
@@ -2016,6 +2029,7 @@ fn flatten_flex_container(
             background_size: style.background_size,
             background_position: style.background_position,
             background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
             z_index: child_style.z_index,
             heading_level: None,
         };
@@ -2192,6 +2206,7 @@ fn flatten_flex_container(
             background_size: style.background_size,
             background_position: style.background_position,
             background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
             z_index: 0,
             heading_level: None,
         });
@@ -2232,6 +2247,7 @@ fn flatten_flex_container(
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
             heading_level: None,
         });
@@ -2402,6 +2418,11 @@ fn flatten_flex_container(
                     } else {
                         BackgroundRepeat::Repeat
                     },
+                    background_origin: if cross_offset == 0.0 {
+                        style.background_origin
+                    } else {
+                        BackgroundOrigin::PaddingBox
+                    },
                 });
             }
             FlexDirection::Column => {
@@ -2465,6 +2486,7 @@ fn flatten_flex_container(
                             background_size: tb_bg_size,
                             background_position: tb_bg_pos,
                             background_repeat: tb_bg_repeat,
+                            background_origin: tb_bg_origin,
                             ..
                         } = elem
                         {
@@ -2516,6 +2538,7 @@ fn flatten_flex_container(
                                 background_size: *tb_bg_size,
                                 background_position: *tb_bg_pos,
                                 background_repeat: *tb_bg_repeat,
+                                background_origin: *tb_bg_origin,
                                 z_index: 0,
                                 heading_level: None,
                             });
@@ -2573,6 +2596,7 @@ fn flatten_flex_container(
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
             heading_level: None,
         });

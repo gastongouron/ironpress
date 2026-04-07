@@ -221,6 +221,8 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                 if let Some(svg_text) = extract_svg_data_uri(val.trim()) {
                     map.set("background-svg", CssValue::Keyword(svg_text));
                 }
+            } else if prop == "background" {
+                parse_background_shorthand(val.trim(), &mut map);
             } else if let Some(css_val) = parse_value(&prop, val) {
                 map.set(&prop, css_val);
             }
@@ -457,6 +459,11 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    // Background-origin — keyword
+    if property == "background-origin" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     // White-space — keyword
     if property == "white-space" {
         return Some(CssValue::Keyword(val.to_string()));
@@ -469,6 +476,187 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
 
     // Length values (font-size, margin, padding, width, height, top, left, etc.)
     parse_length(val)
+}
+
+/// Parse the CSS `background` shorthand and emit individual longhand properties.
+///
+/// Per CSS spec, the background shorthand accepts (in any order):
+///   `[color] [image] [position] [/ size] [repeat] [origin] [clip]`
+///
+/// This implementation is lenient: it scans tokens and extracts recognized
+/// values, ignoring unknown tokens.  Gradient and SVG data-URI images are
+/// handled by earlier branches in `parse_inline_style` and never reach here.
+fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
+    // First, try to parse as a simple color.
+    // If the *entire* value parses as a color, treat it as background-color only.
+    if let Some(color_val) = parse_color(val) {
+        map.set("background-color", color_val);
+        return;
+    }
+
+    // Tokenize, keeping `url(...)` as a single token.
+    let tokens = tokenize_background_value(val);
+
+    let origin_keywords = ["padding-box", "border-box", "content-box"];
+    let repeat_keywords = ["no-repeat", "repeat", "repeat-x", "repeat-y"];
+    let position_keywords = ["center", "top", "bottom", "left", "right"];
+
+    let mut found_color = false;
+    let mut found_image = false;
+    let mut found_repeat = false;
+    let mut found_origin = false;
+    let mut found_size = false;
+    // Track position tokens for combining "top left" etc.
+    let mut pos_parts: Vec<String> = Vec::new();
+
+    let mut i = 0;
+    while i < tokens.len() {
+        let tok = tokens[i].trim();
+        let lower = tok.to_ascii_lowercase();
+
+        // url(...) — image
+        if !found_image && lower.starts_with("url(") {
+            // Check if it's an SVG data URI
+            if let Some(svg_text) = extract_svg_data_uri(tok) {
+                map.set("background-svg", CssValue::Keyword(svg_text));
+            }
+            // Note: non-SVG URLs are stored but won't render (no raster bg support)
+            found_image = true;
+            i += 1;
+            continue;
+        }
+
+        // background-origin / background-clip
+        if !found_origin && origin_keywords.contains(&lower.as_str()) {
+            map.set("background-origin", CssValue::Keyword(lower.clone()));
+            found_origin = true;
+            i += 1;
+            continue;
+        }
+
+        // background-repeat
+        if !found_repeat && repeat_keywords.contains(&lower.as_str()) {
+            map.set("background-repeat", CssValue::Keyword(lower.clone()));
+            found_repeat = true;
+            i += 1;
+            continue;
+        }
+
+        // "/" followed by size — parse background-size
+        if lower == "/" {
+            i += 1;
+            if i < tokens.len() && !found_size {
+                let size_tok = tokens[i].trim();
+                // Collect potential second size token (e.g. "100px 200px")
+                let mut size_str = size_tok.to_string();
+                if i + 1 < tokens.len() {
+                    let next = tokens[i + 1].trim().to_ascii_lowercase();
+                    // If next token is also a size value (not a keyword), combine
+                    if !origin_keywords.contains(&next.as_str())
+                        && !repeat_keywords.contains(&next.as_str())
+                        && !position_keywords.contains(&next.as_str())
+                        && next != "/"
+                        && !next.starts_with("url(")
+                        && !next.starts_with('#')
+                        && parse_color(&next).is_none()
+                    {
+                        size_str.push(' ');
+                        size_str.push_str(tokens[i + 1].trim());
+                        i += 1;
+                    }
+                }
+                map.set(
+                    "background-size",
+                    CssValue::Keyword(size_str),
+                );
+                found_size = true;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Position keywords
+        if position_keywords.contains(&lower.as_str()) {
+            pos_parts.push(lower.clone());
+            i += 1;
+            continue;
+        }
+
+        // Color — try parsing as color
+        if !found_color {
+            if let Some(color_val) = parse_color(tok) {
+                map.set("background-color", color_val);
+                found_color = true;
+                i += 1;
+                continue;
+            }
+        }
+
+        // Length value that could be a position (e.g. "10px", "50%")
+        if parse_length(tok).is_some() {
+            pos_parts.push(lower.clone());
+            i += 1;
+            continue;
+        }
+
+        // Skip unrecognized tokens
+        i += 1;
+    }
+
+    // Combine position parts
+    if !pos_parts.is_empty() {
+        let pos_str = pos_parts.join(" ");
+        map.set("background-position", CssValue::Keyword(pos_str));
+    }
+}
+
+/// Tokenize a background shorthand value, keeping `url(...)` as single tokens.
+fn tokenize_background_value(val: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0u32;
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+
+    for ch in val.chars() {
+        match ch {
+            '\'' if !in_double_quote && paren_depth > 0 => {
+                in_single_quote = !in_single_quote;
+                current.push(ch);
+            }
+            '"' if !in_single_quote && paren_depth > 0 => {
+                in_double_quote = !in_double_quote;
+                current.push(ch);
+            }
+            '(' if !in_single_quote && !in_double_quote => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' if !in_single_quote && !in_double_quote && paren_depth > 0 => {
+                paren_depth -= 1;
+                current.push(ch);
+            }
+            ' ' | '\t' if paren_depth == 0 && !in_single_quote && !in_double_quote => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            '/' if paren_depth == 0 && !in_single_quote && !in_double_quote => {
+                // Emit '/' as its own token so we can detect position/size separator
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+                tokens.push("/".to_string());
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
 }
 
 /// Evaluate whether a media query matches the PDF output context.

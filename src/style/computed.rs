@@ -242,6 +242,14 @@ pub enum BorderCollapse {
     Separate,
     Collapse,
 }
+/// CSS background-origin property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundOrigin {
+    #[default]
+    PaddingBox,
+    BorderBox,
+    ContentBox,
+}
 /// CSS background-size property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BackgroundSize {
@@ -433,6 +441,7 @@ pub struct ComputedStyle {
     pub background_size: BackgroundSize,
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
+    pub background_origin: BackgroundOrigin,
     /// CSS z-index (0 = auto).
     pub z_index: i32,
     /// CSS custom properties inherited from ancestors.
@@ -512,6 +521,7 @@ impl Default for ComputedStyle {
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
+            background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
@@ -643,6 +653,7 @@ pub fn compute_style_with_context(
     style.background_size = BackgroundSize::Auto;
     style.background_repeat = BackgroundRepeat::Repeat;
     style.background_position = BackgroundPosition::default();
+    style.background_origin = BackgroundOrigin::PaddingBox;
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
@@ -770,6 +781,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-size" => style.background_size = default.background_size,
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
+        "background-origin" => style.background_origin = default.background_origin,
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -849,6 +861,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
+        "background-origin" => style.background_origin = parent.background_origin,
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -1490,6 +1503,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let Some(pos) = parse_background_position(k) {
             style.background_position = pos;
         }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
+        style.background_origin = match k.as_str() {
+            "border-box" => BackgroundOrigin::BorderBox,
+            "content-box" => BackgroundOrigin::ContentBox,
+            _ => BackgroundOrigin::PaddingBox,
+        };
     }
 
     // z-index
