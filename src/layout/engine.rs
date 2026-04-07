@@ -305,6 +305,8 @@ pub struct TextRun {
     pub padding: (f32, f32),
     /// Border radius for inline spans (e.g. badge with rounded corners).
     pub border_radius: f32,
+    /// Whether whitespace should be preserved exactly when wrapping.
+    pub preserve_whitespace: bool,
 }
 
 /// A laid-out line of text runs.
@@ -554,6 +556,7 @@ fn flatten_nodes(
                         background_color: None,
                         padding: (0.0, 0.0),
                         border_radius: 0.0,
+                        preserve_whitespace: false,
                     };
                     let lines =
                         wrap_text_runs(vec![run], available_width, parent_style.font_size, fonts);
@@ -688,6 +691,7 @@ fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                preserve_whitespace: false,
             }],
             height: style.font_size * style.line_height,
         };
@@ -826,6 +830,7 @@ fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                preserve_whitespace: false,
             }];
             let inner_w = ctrl_width - style.padding.left - style.padding.right;
             lines = wrap_text_runs(runs, inner_w, style.font_size, fonts);
@@ -936,6 +941,7 @@ fn flatten_element(
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         }];
         let lines = wrap_text_runs(runs, media_width, style.font_size, fonts);
 
@@ -1174,6 +1180,7 @@ fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                preserve_whitespace: false,
             });
         }
 
@@ -1398,6 +1405,7 @@ fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                preserve_whitespace: false,
             });
         }
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
@@ -1423,6 +1431,7 @@ fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                preserve_whitespace: false,
             });
         }
 
@@ -3038,9 +3047,10 @@ fn flatten_table(
             // table), plain `collect_text_runs` would skip them because it
             // only handles inline elements.  Use the flex-child variant
             // which recursively descends into block children.
-            let has_block_child = cell_el.children.iter().any(|c| {
-                matches!(c, DomNode::Element(e) if e.tag.is_block())
-            });
+            let has_block_child = cell_el
+                .children
+                .iter()
+                .any(|c| matches!(c, DomNode::Element(e) if e.tag.is_block()));
             if has_block_child {
                 collect_flex_child_text_runs(
                     &cell_el.children,
@@ -3162,6 +3172,7 @@ fn collect_flex_child_text_runs(
                         } else {
                             parent_style.border_radius
                         },
+                        preserve_whitespace: preserve_ws,
                     });
                 }
             }
@@ -3203,6 +3214,7 @@ fn collect_flex_child_text_runs(
                         background_color: None,
                         padding: (0.0, 0.0),
                         border_radius: 0.0,
+                        preserve_whitespace: false,
                     });
                 } else {
                     let url = if el.tag == HtmlTag::A {
@@ -3243,6 +3255,7 @@ fn collect_flex_child_text_runs(
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            preserve_whitespace: false,
                         });
                     }
                 }
@@ -3314,6 +3327,7 @@ fn collect_text_runs_inner(
                         background_color: bg,
                         padding: pad,
                         border_radius: br,
+                        preserve_whitespace: preserve_ws,
                     });
                 }
             }
@@ -3333,6 +3347,7 @@ fn collect_text_runs_inner(
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            preserve_whitespace: false,
                         });
                     } else {
                         let classes = el.class_list();
@@ -3450,23 +3465,27 @@ fn wrap_text_runs(
     // then split each segment by words.
     let mut styled_words: Vec<(String, TextRun)> = Vec::new();
     for run in &runs {
-        if run.text == "\n" {
+        if run.preserve_whitespace {
+            for token in tokenize_preserving_whitespace(&run.text) {
+                styled_words.push((token, run.clone()));
+            }
+        } else if run.text == "\n" {
             styled_words.push(("\n".to_string(), run.clone()));
-            continue;
-        }
-        let has_newlines = run.text.contains('\n');
-        if has_newlines {
-            for (seg_idx, segment) in run.text.split('\n').enumerate() {
-                if seg_idx > 0 {
-                    styled_words.push(("\n".to_string(), run.clone()));
+        } else {
+            let has_newlines = run.text.contains('\n');
+            if has_newlines {
+                for (seg_idx, segment) in run.text.split('\n').enumerate() {
+                    if seg_idx > 0 {
+                        styled_words.push(("\n".to_string(), run.clone()));
+                    }
+                    for word in segment.split_whitespace() {
+                        styled_words.push((word.to_string(), run.clone()));
+                    }
                 }
-                for word in segment.split_whitespace() {
+            } else {
+                for word in run.text.split_whitespace() {
                     styled_words.push((word.to_string(), run.clone()));
                 }
-            }
-        } else {
-            for word in run.text.split_whitespace() {
-                styled_words.push((word.to_string(), run.clone()));
             }
         }
     }
@@ -3487,8 +3506,28 @@ fn wrap_text_runs(
             continue;
         }
 
-        let word_width =
+        let token_width =
             estimate_word_width(&word, template.font_size, &template.font_family, fonts);
+
+        if template.preserve_whitespace {
+            if current_width > 0.0 && current_width + token_width > max_width {
+                lines.push(TextLine {
+                    runs: std::mem::take(&mut current_runs),
+                    height: line_height,
+                });
+                current_width = 0.0;
+                line_height = default_font_size * 1.4;
+            }
+            current_width += token_width;
+            line_height = line_height.max(template.font_size * 1.4);
+            current_runs.push(TextRun {
+                text: word,
+                ..template
+            });
+            continue;
+        }
+
+        let word_width = token_width;
         let space_width =
             estimate_word_width(" ", template.font_size, &template.font_family, fonts);
 
@@ -3513,7 +3552,7 @@ fn wrap_text_runs(
 
             if let Some((prefix, remainder)) = hyphenated {
                 // Add the hyphenated prefix (with hyphen) to the current line
-                let prefix_text = format!(" {prefix}-");
+                let prefix_text = format!("{prefix}-");
                 line_height = line_height.max(template.font_size * 1.4);
                 current_runs.push(TextRun {
                     text: prefix_text,
@@ -3561,6 +3600,44 @@ fn wrap_text_runs(
     }
 
     lines
+}
+
+/// Split text into tokens while preserving whitespace runs exactly.
+fn tokenize_preserving_whitespace(text: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut current_is_ws: Option<bool> = None;
+
+    for ch in text.chars() {
+        if ch == '\n' {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+            tokens.push("\n".to_string());
+            current_is_ws = None;
+            continue;
+        }
+
+        let is_ws = ch.is_whitespace();
+        match current_is_ws {
+            Some(kind) if kind == is_ws => current.push(ch),
+            Some(_) => {
+                tokens.push(std::mem::take(&mut current));
+                current.push(ch);
+                current_is_ws = Some(is_ws);
+            }
+            None => {
+                current.push(ch);
+                current_is_ws = Some(is_ws);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    tokens
 }
 
 /// Apply text-overflow: ellipsis by truncating lines and appending "...".
@@ -6883,6 +6960,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -6925,6 +7003,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         // Wide enough to fit everything
         let lines = wrap_text_runs(vec![run], 500.0, 12.0, &fonts);
@@ -6953,6 +7032,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            preserve_whitespace: false,
         };
         // Narrow enough that words may not fit, but each word is <= 3 chars
         // At 12pt, each char ~6pt. "Hi" = 12pt, "the" = 18pt, "end" = 18pt.
