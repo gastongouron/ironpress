@@ -36,6 +36,7 @@ For comparison, Chrome headless takes ~2,500 ms per page — **ironpress is 4,00
 - [CLI](#cli)
 - [API Reference](#api-reference)
 - [Markdown to PDF](#markdown-to-pdf)
+- [Math (LaTeX)](#math-latex)
 - [HTML Elements](#html-elements)
 - [CSS Support](#css-support)
 - [Images](#images)
@@ -186,7 +187,63 @@ Some **bold** and *italic* text with `inline code`.
 "#).unwrap();
 ```
 
-Full [CommonMark](https://spec.commonmark.org/) support including headings, emphasis, inline code, fenced code blocks, links, images, lists (nested), blockquotes, horizontal rules, and raw HTML passthrough.
+Full [CommonMark](https://spec.commonmark.org/) support including headings, emphasis, inline code, fenced code blocks, links, images, lists (nested), blockquotes, horizontal rules, and raw HTML passthrough. GFM extensions are enabled: tables, strikethrough (`~~deleted~~`), task lists, and footnotes.
+
+## Math (LaTeX)
+
+Publication-quality mathematical typesetting with LaTeX syntax, rendered directly to PDF using TeX layout rules.
+
+**Inline math** with `$...$`:
+
+```markdown
+The equation $E = mc^2$ is famous.
+```
+
+**Display math** with `$$...$$`:
+
+```markdown
+$$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+```
+
+```rust
+let pdf = ironpress::markdown_to_pdf(r#"
+# Gauss's Identity
+
+For all $n \geq 1$:
+
+$$\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$$
+
+The integral $\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$.
+"#).unwrap();
+```
+
+**Also works via HTML** with `data-math` attribute:
+
+```html
+<span class="math-inline" data-math="x^2">x^2</span>
+<div class="math-display" data-math="\frac{a}{b}">\frac{a}{b}</div>
+```
+
+### Supported LaTeX
+
+| Category | Examples |
+|----------|---------|
+| Scripts | `x^2`, `a_{ij}`, `x^{2}_{n}` |
+| Fractions | `\frac{a}{b}`, `\dfrac{}{}` |
+| Roots | `\sqrt{x}`, `\sqrt[3]{x}` |
+| Greek | `\alpha` ... `\omega`, `\Gamma` ... `\Omega` |
+| Operators | `\sum`, `\prod`, `\int`, `\oint`, `\bigcup`, `\bigcap` |
+| Functions | `\sin`, `\cos`, `\log`, `\lim`, `\exp`, `\det`, `\min`, `\max` |
+| Relations | `\leq`, `\geq`, `\neq`, `\approx`, `\equiv`, `\in`, `\subset` |
+| Arrows | `\to`, `\Rightarrow`, `\Leftrightarrow`, `\mapsto` |
+| Delimiters | `\left( \right)`, `\left[ \right]`, `\left\{ \right\}` |
+| Accents | `\hat{x}`, `\bar{x}`, `\vec{v}`, `\dot{x}`, `\tilde{x}` |
+| Spacing | `\,`, `\;`, `\quad`, `\qquad` |
+| Matrices | `\begin{pmatrix}a & b \\\\ c & d\end{pmatrix}` |
+| Text | `\text{...}`, `\mathrm{...}` |
+| Misc | `\infty`, `\partial`, `\nabla`, `\forall`, `\exists`, `\emptyset` |
+
+Layout follows TeX conventions: 4 style levels (display, text, script, scriptscript), Knuth's inter-atom spacing matrix, proper fraction bars, and baseline alignment for inline math.
 
 ## HTML Elements
 
