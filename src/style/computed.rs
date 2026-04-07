@@ -720,14 +720,6 @@ pub fn compute_pseudo_element_style(
         return None;
     }
 
-    // Check that the content property is declared (required for pseudo-elements).
-    let has_content = matched_declarations
-        .iter()
-        .any(|d| d.get("content").is_some());
-    if !has_content {
-        return None;
-    }
-
     // Start from parent style (inherits inherited properties)
     let mut style = parent_style.clone();
 
@@ -789,6 +781,11 @@ pub fn compute_pseudo_element_style(
     // `background-image: inherit` copies from the originating element.
     for declarations in &matched_declarations {
         apply_style_map(&mut style, declarations, parent_style);
+    }
+
+    // `content: none` and `content: normal` suppress pseudo-element generation.
+    if style.content.is_empty() {
+        return None;
     }
 
     Some(style)
@@ -6697,6 +6694,25 @@ mod tests {
         let parent = ComputedStyle::default();
         // No content property = no pseudo-element
         let rules = parse_stylesheet(".box::before { color: red; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_none_with_content_none() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let rules = parse_stylesheet(".box::before { content: none; color: red; }");
         let ctx = SelectorContext::default();
         let result = compute_pseudo_element_style(
             &parent,

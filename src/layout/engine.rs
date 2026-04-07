@@ -390,9 +390,6 @@ fn build_pseudo_inline_run(pseudo_style: &ComputedStyle, el: &ElementNode) -> Op
         &el.attributes,
         &CounterState::default(),
     );
-    if content_text.is_empty() {
-        return None;
-    }
     Some(TextRun {
         text: content_text,
         font_size: pseudo_style.font_size,
@@ -3714,6 +3711,13 @@ fn wrap_text_runs(
                 styled_words.push((word.to_string(), run.clone()));
             }
         }
+    }
+
+    if styled_words.is_empty() && !runs.is_empty() {
+        return vec![TextLine {
+            runs,
+            height: line_height,
+        }];
     }
 
     // Use a VecDeque so hyphenation remainders can be re-queued for processing.
