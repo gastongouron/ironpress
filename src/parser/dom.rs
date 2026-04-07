@@ -31,6 +31,8 @@ pub enum HtmlTag {
     Td,
     Th,
     Caption,
+    Colgroup,
+    Col,
     Ul,
     Ol,
     Li,
@@ -103,6 +105,8 @@ impl HtmlTag {
             "td" => Self::Td,
             "th" => Self::Th,
             "caption" => Self::Caption,
+            "colgroup" => Self::Colgroup,
+            "col" => Self::Col,
             "ul" => Self::Ul,
             "ol" => Self::Ol,
             "li" => Self::Li,
@@ -301,6 +305,8 @@ impl ElementNode {
             HtmlTag::Td => "td",
             HtmlTag::Th => "th",
             HtmlTag::Caption => "caption",
+            HtmlTag::Colgroup => "colgroup",
+            HtmlTag::Col => "col",
             HtmlTag::Ul => "ul",
             HtmlTag::Ol => "ol",
             HtmlTag::Li => "li",
@@ -380,6 +386,8 @@ mod tests {
         assert_eq!(HtmlTag::from_tag_name("tbody"), HtmlTag::Tbody);
         assert_eq!(HtmlTag::from_tag_name("tfoot"), HtmlTag::Tfoot);
         assert_eq!(HtmlTag::from_tag_name("caption"), HtmlTag::Caption);
+        assert_eq!(HtmlTag::from_tag_name("colgroup"), HtmlTag::Colgroup);
+        assert_eq!(HtmlTag::from_tag_name("col"), HtmlTag::Col);
         assert_eq!(HtmlTag::from_tag_name("dl"), HtmlTag::Dl);
         assert_eq!(HtmlTag::from_tag_name("dt"), HtmlTag::Dt);
         assert_eq!(HtmlTag::from_tag_name("dd"), HtmlTag::Dd);
@@ -487,6 +495,8 @@ mod tests {
             (HtmlTag::Td, "td"),
             (HtmlTag::Th, "th"),
             (HtmlTag::Caption, "caption"),
+            (HtmlTag::Colgroup, "colgroup"),
+            (HtmlTag::Col, "col"),
             (HtmlTag::Ul, "ul"),
             (HtmlTag::Ol, "ol"),
             (HtmlTag::Li, "li"),
