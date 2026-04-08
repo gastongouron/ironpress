@@ -255,6 +255,34 @@ fn smoke_inline_svg() {
     assert!(pdf_is_valid(&pdf));
 }
 
+#[test]
+fn smoke_inline_svg_text_inherits_current_color() {
+    let html = r#"
+        <div style="color: blue">
+            <svg width="160" height="40" viewBox="0 0 160 40">
+                <text x="8" y="24" fill="currentColor">Hello SVG</text>
+            </svg>
+        </div>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Hello SVG"));
+    assert!(pdf_has_text(&pdf, "0 0 1 rg"));
+}
+
+#[test]
+fn smoke_inline_svg_text_tspan_uses_font_attributes() {
+    let html = r#"
+        <svg width="220" height="40" viewBox="0 0 220 40">
+            <text x="8" y="24" font-family="Courier" font-weight="700" font-style="oblique">Hello <tspan>world</tspan>!</text>
+        </svg>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Hello world!"));
+    assert!(pdf_has_text(&pdf, "/Courier-BoldOblique"));
+}
+
 // === Complex document ===
 
 #[test]
