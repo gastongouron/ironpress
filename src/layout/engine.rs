@@ -2962,6 +2962,12 @@ fn flatten_table(
             &sizing_row_ctx,
         );
         let mut col_pos: usize = 0;
+        let cell_sibling_count = row
+            .children
+            .iter()
+            .filter(|child| matches!(child, DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th))
+            .count();
+        let mut cell_child_index = 0usize;
         for child in &row.children {
             if let DomNode::Element(cell_el) = child {
                 if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
@@ -2980,8 +2986,8 @@ fn flatten_table(
                     });
                     let cell_sizing_ctx = SelectorContext {
                         ancestors: cell_sizing_ancestors,
-                        child_index: col_pos,
-                        sibling_count: num_cols,
+                        child_index: cell_child_index,
+                        sibling_count: cell_sibling_count,
                         preceding_siblings: Vec::new(),
                     };
                     let cell_style = compute_style_with_context(
@@ -2996,13 +3002,27 @@ fn flatten_table(
                         &cell_sizing_ctx,
                     );
                     let mut runs = Vec::new();
-                    collect_text_runs(
+                    let recurse_descendants = cell_el.children.iter().any(
+                        |node| {
+                            matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
+                        },
+                    );
+                    let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
+                    text_ancestors.push(AncestorInfo {
+                        element: cell_el,
+                        child_index: cell_child_index,
+                        sibling_count: cell_sibling_count,
+                    });
+                    collect_text_runs_inner(
                         &cell_el.children,
                         &cell_style,
                         &mut runs,
                         None,
                         rules,
-                        &cell_sizing_ctx.ancestors,
+                        false,
+                        recurse_descendants,
+                        recurse_descendants,
+                        &text_ancestors,
                     );
                     // Estimate content width using estimate_word_width for accurate
                     // measurement. Use the maximum of (full text width, longest word
@@ -3046,6 +3066,7 @@ fn flatten_table(
                         }
                     }
                     col_pos += colspan;
+                    cell_child_index += 1;
                 }
             }
         }
@@ -3458,7 +3479,7 @@ fn collect_text_runs_inner(
                             false,
                             &child_ancestors,
                         );
-                        if recurse_blocks && el.tag.is_block() && !runs.is_empty() {
+                        if recurse_blocks && style.display != Display::Inline && !runs.is_empty() {
                             push_line_break_run(runs, &style);
                         }
                     }
