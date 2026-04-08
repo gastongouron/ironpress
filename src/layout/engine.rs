@@ -3124,6 +3124,12 @@ fn flatten_table(
             }
             None
         });
+        let cell_sibling_count = row
+            .children
+            .iter()
+            .filter(|child| matches!(child, DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th))
+            .count();
+        let mut cell_child_index = 0usize;
 
         // Process cells, skipping occupied positions and inserting phantom cells
         let mut next_cell = child_iter.next();
@@ -3186,8 +3192,8 @@ fn flatten_table(
             });
             let cell_selector_ctx = SelectorContext {
                 ancestors: cell_ancestors,
-                child_index: col_pos,
-                sibling_count: num_cols,
+                child_index: cell_child_index,
+                sibling_count: cell_sibling_count,
                 preceding_siblings: Vec::new(),
             };
             let cell_style = compute_style_with_context(
@@ -3218,10 +3224,15 @@ fn flatten_table(
             // table), plain `collect_text_runs` would skip them because it
             // only handles inline elements.  Use the flex-child variant
             // which recursively descends into block children.
-            let has_block_child = cell_el
-                .children
-                .iter()
-                .any(|c| matches!(c, DomNode::Element(e) if e.tag.is_block()));
+            let recurse_descendants = cell_el.children.iter().any(
+                |c| matches!(c, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br),
+            );
+            let mut text_ancestors = cell_selector_ctx.ancestors.clone();
+            text_ancestors.push(AncestorInfo {
+                element: cell_el,
+                child_index: cell_child_index,
+                sibling_count: cell_sibling_count,
+            });
             collect_text_runs_inner(
                 &cell_el.children,
                 &cell_style,
@@ -3229,8 +3240,8 @@ fn flatten_table(
                 None,
                 rules,
                 false,
-                has_block_child,
-                &cell_selector_ctx.ancestors,
+                recurse_descendants,
+                &text_ancestors,
             );
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
 
@@ -3263,6 +3274,7 @@ fn flatten_table(
             }
 
             col_pos += colspan;
+            cell_child_index += 1;
         }
 
         if !cells.is_empty() {
@@ -3319,8 +3331,12 @@ fn collect_text_runs_inner(
         parent_style.white_space,
         WhiteSpace::Pre | WhiteSpace::PreWrap
     );
+    let element_sibling_count = nodes
+        .iter()
+        .filter(|node| matches!(node, DomNode::Element(_)))
+        .count();
 
-    for node in nodes {
+    for (node_index, node) in nodes.iter().enumerate() {
         match node {
             DomNode::Text(text) => {
                 let processed = if preserve_ws {
@@ -3366,6 +3382,24 @@ fn collect_text_runs_inner(
             }
             DomNode::Element(el) => {
                 if recurse_blocks || el.tag.is_inline() || el.tag == HtmlTag::Br {
+                    let child_index = nodes[..node_index]
+                        .iter()
+                        .filter(|node| matches!(node, DomNode::Element(_)))
+                        .count();
+                    let preceding_siblings = nodes[..node_index]
+                        .iter()
+                        .filter_map(|node| match node {
+                            DomNode::Element(element) => Some((
+                                element.tag_name().to_string(),
+                                element
+                                    .class_list()
+                                    .into_iter()
+                                    .map(str::to_string)
+                                    .collect(),
+                            )),
+                            _ => None,
+                        })
+                        .collect();
                     if el.tag == HtmlTag::Br {
                         push_line_break_run(runs, parent_style);
                     } else if el.attributes.contains_key("data-math") {
@@ -3375,9 +3409,9 @@ fn collect_text_runs_inner(
                         let classes = el.class_list();
                         let selector_ctx = SelectorContext {
                             ancestors: ancestors.to_vec(),
-                            child_index: 0,
-                            sibling_count: nodes.len(),
-                            preceding_siblings: Vec::new(),
+                            child_index,
+                            sibling_count: element_sibling_count,
+                            preceding_siblings,
                         };
                         let style = compute_style_with_context(
                             el.tag,
@@ -3401,8 +3435,8 @@ fn collect_text_runs_inner(
                         let mut child_ancestors = ancestors.to_vec();
                         child_ancestors.push(AncestorInfo {
                             element: el,
-                            child_index: 0,
-                            sibling_count: nodes.len(),
+                            child_index,
+                            sibling_count: element_sibling_count,
                         });
                         collect_text_runs_inner(
                             &el.children,
