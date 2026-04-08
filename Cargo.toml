@@ -27,6 +27,7 @@ wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
 html5ever = "0.27"
+lightningcss = { version = "1.0.0-alpha.71", default-features = false }
 pulldown-cmark = "0.12"
 markup5ever_rcdom = "0.3"
 thiserror = "2"

@@ -5,11 +5,11 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle,
-    ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
-    GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    AlignItems, BorderCollapse, BorderSides, BorderSpacing, BoxShadow, BoxSizing, Clear,
+    ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
+    FontWeight, GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType,
+    Overflow, Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign,
+    Visibility, WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -249,11 +249,12 @@ enum ListContext {
 }
 
 /// A table cell ready for rendering.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct TableCell {
     pub lines: Vec<TextLine>,
     pub nested_rows: Vec<LayoutElement>,
+    pub content: Vec<TableCellContent>,
     pub bold: bool,
     pub background_color: Option<(f32, f32, f32)>,
     pub padding_top: f32,
@@ -270,10 +271,43 @@ pub struct TableCell {
     pub text_align: TextAlign,
 }
 
+#[derive(Debug, Clone)]
+enum TableCellContentDraft {
+    Text(Vec<TextRun>),
+    NestedRows(Vec<LayoutElement>),
+}
+
+/// Ordered content blocks within a table cell.
+#[derive(Debug, Clone)]
+pub enum TableCellContent {
+    Text(Vec<TextLine>),
+    NestedRows(Vec<LayoutElement>),
+}
+
+impl TableCellContent {
+    pub(crate) fn content_height(&self) -> f32 {
+        match self {
+            Self::Text(lines) => lines.iter().map(|line| line.height).sum(),
+            Self::NestedRows(rows) => rows.iter().map(estimate_element_height).sum(),
+        }
+    }
+}
+
 pub(crate) fn table_cell_content_height(cell: &TableCell) -> f32 {
-    let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-    let nested_h: f32 = cell.nested_rows.iter().map(estimate_element_height).sum();
-    cell.padding_top + text_h + nested_h + cell.padding_bottom
+    let content_h: f32 = if cell.content.is_empty() {
+        cell.lines.iter().map(|l| l.height).sum::<f32>()
+            + cell
+                .nested_rows
+                .iter()
+                .map(estimate_element_height)
+                .sum::<f32>()
+    } else {
+        cell.content
+            .iter()
+            .map(TableCellContent::content_height)
+            .sum()
+    };
+    cell.padding_top + content_h + cell.padding_bottom
 }
 
 /// A cell within a flex row, with its computed x-offset and width.
@@ -338,7 +372,7 @@ pub struct PngMetadata {
 }
 
 /// A layout element ready for rendering.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum LayoutElement {
     /// A block of text lines with optional background.
@@ -385,7 +419,7 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
         border_collapse: BorderCollapse,
-        border_spacing: f32,
+        border_spacing: BorderSpacing,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -510,6 +544,7 @@ pub fn layout_with_rules_and_fonts(
             crate::style::computed::apply_style_map(
                 &mut parent_style,
                 &rule.declarations,
+                &default_parent,
                 &default_parent,
             );
         }
@@ -1096,6 +1131,7 @@ fn flatten_element(
             ancestors,
             child_index,
             sibling_count,
+            preceding_siblings,
         );
         return;
     }
@@ -1106,6 +1142,7 @@ fn flatten_element(
         element: el,
         child_index,
         sibling_count,
+        preceding_siblings: Vec::new(),
     });
 
     // List handling — Ul/Ol pass context to Li children
@@ -2043,6 +2080,7 @@ fn flatten_flex_container(
             element: child_el,
             child_index: idx,
             sibling_count: child_count,
+            preceding_siblings: Vec::new(),
         });
         let mut runs = Vec::new();
         collect_text_runs_inner(
@@ -2691,57 +2729,97 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
         .collect()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct TableRowInfo<'a> {
     row: &'a ElementNode,
-    section_index: usize,
-    section_size: usize,
+    row_context: SelectorContextInfo,
     section_element: Option<&'a ElementNode>,
-    section_child_index: usize,
-    section_sibling_count: usize,
+    section_context: Option<SelectorContextInfo>,
 }
 
 impl<'a> TableRowInfo<'a> {
-    fn ancestors(self, table_ancestors: &[AncestorInfo<'a>]) -> Vec<AncestorInfo<'a>> {
+    fn ancestors(&self, table_ancestors: &[AncestorInfo<'a>]) -> Vec<AncestorInfo<'a>> {
         let mut ancestors = table_ancestors.to_vec();
         if let Some(section_el) = self.section_element {
+            let section_context = self.section_context.clone().expect("section context");
             ancestors.push(AncestorInfo {
                 element: section_el,
-                child_index: self.section_child_index,
-                sibling_count: self.section_sibling_count,
+                child_index: section_context.child_index,
+                sibling_count: section_context.sibling_count,
+                preceding_siblings: section_context.preceding_siblings,
             });
         }
         ancestors
     }
 
-    fn row_selector_ctx(self, table_ancestors: &[AncestorInfo<'a>]) -> SelectorContext<'a> {
+    fn row_selector_ctx(&self, table_ancestors: &[AncestorInfo<'a>]) -> SelectorContext<'a> {
+        let row_context = self.row_context.clone();
         SelectorContext {
             ancestors: self.ancestors(table_ancestors),
-            child_index: self.section_index,
-            sibling_count: self.section_size,
-            preceding_siblings: Vec::new(),
+            child_index: row_context.child_index,
+            sibling_count: row_context.sibling_count,
+            preceding_siblings: row_context.preceding_siblings,
         }
     }
 
     fn cell_selector_ctx(
-        self,
+        &self,
         table_ancestors: &[AncestorInfo<'a>],
-        child_index: usize,
-        sibling_count: usize,
+        cell_context: &SelectorContextInfo,
     ) -> SelectorContext<'a> {
         let mut ancestors = self.ancestors(table_ancestors);
+        let row_context = self.row_context.clone();
         ancestors.push(AncestorInfo {
             element: self.row,
-            child_index: self.section_index,
-            sibling_count: self.section_size,
+            child_index: row_context.child_index,
+            sibling_count: row_context.sibling_count,
+            preceding_siblings: row_context.preceding_siblings,
         });
         SelectorContext {
             ancestors,
-            child_index,
-            sibling_count,
-            preceding_siblings: Vec::new(),
+            child_index: cell_context.child_index,
+            sibling_count: cell_context.sibling_count,
+            preceding_siblings: cell_context.preceding_siblings.clone(),
         }
     }
+}
+
+#[derive(Clone)]
+struct SelectorContextInfo {
+    child_index: usize,
+    sibling_count: usize,
+    preceding_siblings: Vec<(String, Vec<String>)>,
+}
+
+fn element_selector_info(children: &[DomNode], target_index: usize) -> Option<SelectorContextInfo> {
+    let sibling_count = children
+        .iter()
+        .filter(|child| matches!(child, DomNode::Element(_)))
+        .count();
+    let mut child_index = 0usize;
+    let mut preceding_siblings = Vec::new();
+
+    for (index, child) in children.iter().enumerate() {
+        let DomNode::Element(el) = child else {
+            continue;
+        };
+
+        if index == target_index {
+            return Some(SelectorContextInfo {
+                child_index,
+                sibling_count,
+                preceding_siblings,
+            });
+        }
+
+        preceding_siblings.push((
+            el.tag_name().to_string(),
+            el.class_list().into_iter().map(str::to_string).collect(),
+        ));
+        child_index += 1;
+    }
+
+    None
 }
 
 fn parse_positive_usize_attr(attributes: &HashMap<String, String>, name: &str) -> usize {
@@ -2750,6 +2828,12 @@ fn parse_positive_usize_attr(attributes: &HashMap<String, String>, name: &str) -
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(1)
         .max(1)
+}
+
+fn table_cell_parent_style(row_style: &ComputedStyle, table_inner_width: f32) -> ComputedStyle {
+    let mut parent_style = row_style.clone();
+    parent_style.width = Some(table_inner_width.max(1.0));
+    parent_style
 }
 
 /// Lay out a CSS Grid container into GridRow layout elements.
@@ -2775,6 +2859,7 @@ fn flatten_grid_container(
         element: el,
         child_index: 0,
         sibling_count: 0,
+        preceding_siblings: Vec::new(),
     });
 
     // Collect element children (skip text nodes)
@@ -2842,6 +2927,7 @@ fn flatten_grid_container(
             cells.push(TableCell {
                 lines,
                 nested_rows: Vec::new(),
+                content: Vec::new(),
                 bold: child_style.font_weight == FontWeight::Bold,
                 background_color: bg,
                 padding_top: child_style.padding.top,
@@ -2860,6 +2946,7 @@ fn flatten_grid_container(
             cells.push(TableCell {
                 lines: Vec::new(),
                 nested_rows: Vec::new(),
+                content: Vec::new(),
                 bold: false,
                 background_color: None,
                 padding_top: 0.0,
@@ -2903,6 +2990,7 @@ fn flatten_table(
     ancestors: &[AncestorInfo],
     table_child_index: usize,
     table_sibling_count: usize,
+    preceding_siblings: &[(String, Vec<String>)],
 ) {
     let inner_width = available_width - style.margin.left - style.margin.right;
 
@@ -2912,6 +3000,7 @@ fn flatten_table(
         element: el,
         child_index: table_child_index,
         sibling_count: table_sibling_count,
+        preceding_siblings: preceding_siblings.to_vec(),
     });
 
     // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
@@ -2919,47 +3008,46 @@ fn flatten_table(
     // (thead, tbody, tfoot) as browsers do, not globally.
     // Also track the section element so descendant selectors can see it.
     let mut rows: Vec<TableRowInfo<'_>> = Vec::new();
-    let section_count = el
-        .children
-        .iter()
-        .filter(|c| matches!(c, DomNode::Element(_)))
-        .count();
     for (section_child_idx, child) in el.children.iter().enumerate() {
         if let DomNode::Element(child_el) = child {
             match child_el.tag {
                 HtmlTag::Tr => {
-                    // Direct <tr> child of <table> — standalone section
-                    rows.push(TableRowInfo {
-                        row: child_el,
-                        section_index: rows.len(),
-                        section_size: 1,
-                        section_element: None,
-                        section_child_index: section_child_idx,
-                        section_sibling_count: section_count,
-                    });
+                    if let Some(row_context) =
+                        element_selector_info(&el.children, section_child_idx)
+                    {
+                        rows.push(TableRowInfo {
+                            row: child_el,
+                            row_context,
+                            section_element: None,
+                            section_context: None,
+                        });
+                    }
                 }
                 HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
-                    let section_rows: Vec<&ElementNode> = child_el
-                        .children
-                        .iter()
-                        .filter_map(|gc| {
-                            if let DomNode::Element(g) = gc {
-                                if g.tag == HtmlTag::Tr {
-                                    return Some(g);
-                                }
-                            }
-                            None
-                        })
-                        .collect();
-                    let section_size = section_rows.len();
-                    for (i, gc) in section_rows.into_iter().enumerate() {
+                    let Some(section_context) =
+                        element_selector_info(&el.children, section_child_idx)
+                    else {
+                        continue;
+                    };
+
+                    for (row_child_idx, grandchild) in child_el.children.iter().enumerate() {
+                        let DomNode::Element(row_el) = grandchild else {
+                            continue;
+                        };
+                        if row_el.tag != HtmlTag::Tr {
+                            continue;
+                        }
+                        let Some(row_context) =
+                            element_selector_info(&child_el.children, row_child_idx)
+                        else {
+                            continue;
+                        };
+
                         rows.push(TableRowInfo {
-                            row: gc,
-                            section_index: i,
-                            section_size,
+                            row: row_el,
+                            row_context,
                             section_element: Some(child_el),
-                            section_child_index: section_child_idx,
-                            section_sibling_count: section_count,
+                            section_context: Some(section_context.clone()),
                         });
                     }
                 }
@@ -2992,6 +3080,13 @@ fn flatten_table(
         })
         .max()
         .unwrap_or(1);
+    let border_spacing = if style.border_collapse == BorderCollapse::Collapse {
+        BorderSpacing::default()
+    } else {
+        style.border_spacing
+    };
+    let column_area_width =
+        (inner_width - border_spacing.horizontal * (num_cols as f32 + 1.0)).max(0.0);
 
     // --- Auto-sizing pass: measure preferred content width for each column ---
     let min_col_width: f32 = 30.0;
@@ -3012,106 +3107,76 @@ fn flatten_table(
             &row.attributes,
             &sizing_row_ctx,
         );
+        let cell_parent_style = table_cell_parent_style(&row_style, inner_width);
         let mut col_pos: usize = 0;
-        let cell_sibling_count = row
-            .children
-            .iter()
-            .filter(|child| matches!(child, DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th))
-            .count();
-        let mut cell_child_index = 0usize;
-        for child in &row.children {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    let colspan = parse_positive_usize_attr(&cell_el.attributes, "colspan");
-                    let cell_classes = cell_el.class_list();
-                    let cell_sizing_ctx = row_info.cell_selector_ctx(
-                        &table_ancestors,
-                        cell_child_index,
-                        cell_sibling_count,
-                    );
-                    let cell_style = compute_style_with_context(
-                        cell_el.tag,
-                        cell_el.style_attr(),
-                        &row_style,
-                        rules,
-                        cell_el.tag_name(),
-                        &cell_classes,
-                        cell_el.id(),
-                        &cell_el.attributes,
-                        &cell_sizing_ctx,
-                    );
-                    let mut runs = Vec::new();
-                    let mut nested_rows = Vec::new();
-                    let recurse_descendants = cell_el.children.iter().any(|node| {
-                        matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
-                    });
-                    let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
-                    text_ancestors.push(AncestorInfo {
-                        element: cell_el,
-                        child_index: cell_child_index,
-                        sibling_count: cell_sibling_count,
-                    });
-                    collect_table_cell_content_inner(
-                        &cell_el.children,
-                        &cell_style,
-                        &mut runs,
-                        &mut nested_rows,
-                        None,
-                        rules,
-                        fonts,
-                        false,
-                        recurse_descendants,
-                        recurse_descendants,
-                        &text_ancestors,
-                        available_width.max(1.0),
-                    );
-                    // Estimate content width using estimate_word_width for accurate
-                    // measurement. Use the maximum of (full text width, longest word
-                    // width) to avoid hyphenation of short columns like "Unit Price".
-                    let content_width: f32 = runs
-                        .iter()
-                        .map(|run| {
-                            // Measure full text width using estimate_word_width
-                            let full_width = estimate_word_width(
-                                &run.text,
-                                run.font_size,
-                                &run.font_family,
-                                fonts,
-                            );
-                            // Also ensure the column is at least as wide as
-                            // the longest word to prevent hyphenation.
-                            let longest_word_width = run
-                                .text
-                                .split_whitespace()
-                                .map(|w| {
-                                    estimate_word_width(w, run.font_size, &run.font_family, fonts)
-                                })
-                                .fold(0.0f32, f32::max);
-                            full_width.max(longest_word_width)
-                        })
-                        .sum();
-                    let nested_width = nested_rows
-                        .iter()
-                        .map(table_row_content_width)
-                        .fold(0.0f32, f32::max);
-                    let total_preferred = content_width.max(nested_width)
-                        + cell_style.padding.left
-                        + cell_style.padding.right;
-                    if colspan == 1 {
-                        if let Some(width) = preferred_widths.get_mut(col_pos) {
-                            *width = width.max(total_preferred);
-                        }
-                    } else {
-                        let per_col = total_preferred / colspan as f32;
-                        for i in 0..colspan {
-                            if let Some(width) = preferred_widths.get_mut(col_pos + i) {
-                                *width = width.max(per_col);
-                            }
+        for (node_index, child) in row.children.iter().enumerate() {
+            let DomNode::Element(cell_el) = child else {
+                continue;
+            };
+            if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
+                let colspan = parse_positive_usize_attr(&cell_el.attributes, "colspan");
+                let cell_classes = cell_el.class_list();
+                let Some(cell_context) = element_selector_info(&row.children, node_index) else {
+                    continue;
+                };
+                let cell_sizing_ctx = row_info.cell_selector_ctx(&table_ancestors, &cell_context);
+                let cell_style = compute_style_with_context(
+                    cell_el.tag,
+                    cell_el.style_attr(),
+                    &cell_parent_style,
+                    rules,
+                    cell_el.tag_name(),
+                    &cell_classes,
+                    cell_el.id(),
+                    &cell_el.attributes,
+                    &cell_sizing_ctx,
+                );
+                let mut drafts = Vec::new();
+                let mut runs = Vec::new();
+                let recurse_descendants = cell_el.children.iter().any(|node| {
+                    matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
+                });
+                let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
+                text_ancestors.push(AncestorInfo {
+                    element: cell_el,
+                    child_index: cell_context.child_index,
+                    sibling_count: cell_context.sibling_count,
+                    preceding_siblings: cell_context.preceding_siblings.clone(),
+                });
+                collect_table_cell_content_inner(
+                    &cell_el.children,
+                    &cell_style,
+                    &mut drafts,
+                    &mut runs,
+                    None,
+                    rules,
+                    fonts,
+                    false,
+                    recurse_descendants,
+                    recurse_descendants,
+                    &text_ancestors,
+                    (cell_style.width.unwrap_or(available_width)
+                        - cell_style.padding.left
+                        - cell_style.padding.right)
+                        .max(1.0),
+                );
+                flush_table_cell_text_segment(&mut drafts, &mut runs);
+                let total_preferred = table_cell_drafts_preferred_width(&drafts, fonts)
+                    + cell_style.padding.left
+                    + cell_style.padding.right;
+                if colspan == 1 {
+                    if let Some(width) = preferred_widths.get_mut(col_pos) {
+                        *width = width.max(total_preferred);
+                    }
+                } else {
+                    let per_col = total_preferred / colspan as f32;
+                    for i in 0..colspan {
+                        if let Some(width) = preferred_widths.get_mut(col_pos + i) {
+                            *width = width.max(per_col);
                         }
                     }
-                    col_pos += colspan;
-                    cell_child_index += 1;
                 }
+                col_pos += colspan;
             }
         }
     }
@@ -3123,9 +3188,9 @@ fn flatten_table(
     }
 
     let total_preferred: f32 = preferred_widths.iter().sum();
-    let col_widths: Vec<f32> = if total_preferred <= inner_width {
+    let col_widths: Vec<f32> = if total_preferred <= column_area_width {
         // Distribute remaining space proportionally to each column's preferred width
-        let extra = inner_width - total_preferred;
+        let extra = column_area_width - total_preferred;
         if total_preferred > 0.0 && extra > 0.0 {
             preferred_widths
                 .iter()
@@ -3135,7 +3200,7 @@ fn flatten_table(
             preferred_widths
         }
     } else {
-        let scale = inner_width / total_preferred;
+        let scale = column_area_width / total_preferred;
         preferred_widths
             .iter()
             .map(|w| (w * scale).max(min_col_width))
@@ -3161,36 +3226,27 @@ fn flatten_table(
             &row.attributes,
             &row_selector_ctx,
         );
+        let cell_parent_style = table_cell_parent_style(&row_style, inner_width);
         let mut cells = Vec::new();
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
-        let mut child_iter = row.children.iter().filter_map(|child| match child {
-            DomNode::Element(cell_el)
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th =>
-            {
-                Some(cell_el)
-            }
-            _ => None,
-        });
-        let cell_sibling_count = row
-            .children
-            .iter()
-            .filter(|child| matches!(child, DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th))
-            .count();
-        let mut cell_child_index = 0usize;
-
-        // Process cells, skipping occupied positions and inserting phantom cells
-        let mut next_cell = child_iter.next();
-        while col_pos < num_cols {
-            let Some(&remaining) = occupied.get(col_pos) else {
-                break;
+        for (node_index, child) in row.children.iter().enumerate() {
+            let DomNode::Element(cell_el) = child else {
+                continue;
             };
-            if remaining > 0 {
-                // This position is occupied by a rowspan from a previous row.
-                // Insert a phantom cell (rowspan = 0) as a placeholder.
+            if !(cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th) {
+                continue;
+            }
+
+            while col_pos < num_cols {
+                let Some(&remaining) = occupied.get(col_pos) else {
+                    break;
+                };
+                if remaining == 0 {
+                    break;
+                }
                 let span_cols = {
-                    // Count how many consecutive occupied columns share this rowspan
                     let mut count = 1;
                     while occupied
                         .get(col_pos + count)
@@ -3204,6 +3260,7 @@ fn flatten_table(
                 cells.push(TableCell {
                     lines: Vec::new(),
                     nested_rows: Vec::new(),
+                    content: Vec::new(),
                     bold: false,
                     background_color: None,
                     padding_top: 0.0,
@@ -3211,7 +3268,7 @@ fn flatten_table(
                     padding_bottom: 0.0,
                     padding_left: 0.0,
                     colspan: span_cols,
-                    rowspan: 0, // phantom cell marker
+                    rowspan: 0,
                     border: LayoutBorder::default(),
                     text_align: TextAlign::Left,
                 });
@@ -3221,12 +3278,18 @@ fn flatten_table(
                     }
                 }
                 col_pos += span_cols;
-                continue;
             }
 
-            // Place the next real cell at this position
-            let Some(cell_el) = next_cell else { break };
-            next_cell = child_iter.next();
+            if col_pos >= num_cols {
+                break;
+            }
+
+            let Some(&remaining) = occupied.get(col_pos) else {
+                break;
+            };
+            if remaining > 0 {
+                continue;
+            }
 
             let colspan = cell_el
                 .attributes
@@ -3242,12 +3305,14 @@ fn flatten_table(
                 .max(1);
 
             let cell_classes = cell_el.class_list();
-            let cell_selector_ctx =
-                row_info.cell_selector_ctx(&table_ancestors, cell_child_index, cell_sibling_count);
+            let Some(cell_context) = element_selector_info(&row.children, node_index) else {
+                continue;
+            };
+            let cell_selector_ctx = row_info.cell_selector_ctx(&table_ancestors, &cell_context);
             let cell_style = compute_style_with_context(
                 cell_el.tag,
                 cell_el.style_attr(),
-                &row_style,
+                &cell_parent_style,
                 rules,
                 cell_el.tag_name(),
                 &cell_classes,
@@ -3261,22 +3326,23 @@ fn flatten_table(
                 .sum();
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
+            let mut drafts = Vec::new();
             let mut runs = Vec::new();
-            let mut nested_rows = Vec::new();
             let recurse_descendants = cell_el.children.iter().any(
                 |c| matches!(c, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br),
             );
             let mut text_ancestors = cell_selector_ctx.ancestors.clone();
             text_ancestors.push(AncestorInfo {
                 element: cell_el,
-                child_index: cell_child_index,
-                sibling_count: cell_sibling_count,
+                child_index: cell_context.child_index,
+                sibling_count: cell_context.sibling_count,
+                preceding_siblings: cell_context.preceding_siblings.clone(),
             });
             collect_table_cell_content_inner(
                 &cell_el.children,
                 &cell_style,
+                &mut drafts,
                 &mut runs,
-                &mut nested_rows,
                 None,
                 rules,
                 fonts,
@@ -3286,7 +3352,13 @@ fn flatten_table(
                 &text_ancestors,
                 cell_inner.max(1.0),
             );
-            let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
+            flush_table_cell_text_segment(&mut drafts, &mut runs);
+            let finalized = finalize_table_cell_content(
+                drafts,
+                cell_inner.max(1.0),
+                cell_style.font_size,
+                fonts,
+            );
 
             let bg = cell_style
                 .background_color
@@ -3294,8 +3366,9 @@ fn flatten_table(
                 .map(|c: crate::types::Color| c.to_f32_rgb());
 
             cells.push(TableCell {
-                lines,
-                nested_rows,
+                lines: finalized.lines,
+                nested_rows: finalized.nested_rows,
+                content: finalized.content,
                 bold: cell_style.font_weight == FontWeight::Bold,
                 background_color: bg,
                 padding_top: cell_style.padding.top,
@@ -3318,17 +3391,20 @@ fn flatten_table(
             }
 
             col_pos += colspan;
-            cell_child_index += 1;
         }
 
         if !cells.is_empty() {
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
-                margin_top: if is_first { style.margin.top } else { 0.0 },
+                margin_top: if is_first {
+                    style.margin.top + border_spacing.vertical
+                } else {
+                    border_spacing.vertical
+                },
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
-                border_spacing: style.border_spacing,
+                border_spacing,
             });
             is_first = false;
         }
@@ -3336,7 +3412,7 @@ fn flatten_table(
 
     // Add bottom margin after the last row
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
-        *margin_bottom = style.margin.bottom;
+        *margin_bottom = style.margin.bottom + border_spacing.vertical;
     }
 }
 
@@ -3488,6 +3564,7 @@ fn collect_text_runs_inner(
                             element: el,
                             child_index,
                             sibling_count: element_sibling_count,
+                            preceding_siblings: Vec::new(),
                         });
                         collect_text_runs_inner(
                             &el.children,
@@ -3514,8 +3591,8 @@ fn collect_text_runs_inner(
 fn collect_table_cell_content_inner(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
+    drafts: &mut Vec<TableCellContentDraft>,
     runs: &mut Vec<TextRun>,
-    nested_rows: &mut Vec<LayoutElement>,
     link_url: Option<&str>,
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
@@ -3582,7 +3659,7 @@ fn collect_table_cell_content_inner(
                     .iter()
                     .filter(|node| matches!(node, DomNode::Element(_)))
                     .count();
-                let preceding_siblings = nodes[..node_index]
+                let preceding_siblings: Vec<(String, Vec<String>)> = nodes[..node_index]
                     .iter()
                     .filter_map(|node| match node {
                         DomNode::Element(element) => Some((
@@ -3601,7 +3678,7 @@ fn collect_table_cell_content_inner(
                     ancestors: ancestors.to_vec(),
                     child_index,
                     sibling_count: element_sibling_count,
-                    preceding_siblings,
+                    preceding_siblings: preceding_siblings.clone(),
                 };
                 let style = compute_style_with_context(
                     el.tag,
@@ -3627,19 +3704,26 @@ fn collect_table_cell_content_inner(
                     element: el,
                     child_index,
                     sibling_count: element_sibling_count,
+                    preceding_siblings: preceding_siblings.clone(),
                 });
                 if el.tag == HtmlTag::Table {
+                    flush_table_cell_text_segment(drafts, runs);
+                    let mut nested_rows = Vec::new();
                     flatten_table(
                         el,
                         &style,
                         available_width,
-                        nested_rows,
+                        &mut nested_rows,
                         rules,
                         fonts,
                         &child_ancestors,
                         child_index,
                         element_sibling_count,
+                        &preceding_siblings,
                     );
+                    if !nested_rows.is_empty() {
+                        drafts.push(TableCellContentDraft::NestedRows(nested_rows));
+                    }
                 } else if recurse_blocks || el.tag.is_inline() || el.tag == HtmlTag::Br {
                     if el.tag == HtmlTag::Br {
                         push_line_break_run(runs, parent_style);
@@ -3647,8 +3731,8 @@ fn collect_table_cell_content_inner(
                         collect_table_cell_content_inner(
                             &el.children,
                             &style,
+                            drafts,
                             runs,
-                            nested_rows,
                             url,
                             rules,
                             fonts,
@@ -3691,6 +3775,87 @@ fn push_line_break_run(runs: &mut Vec<TextRun>, style: &ComputedStyle) {
             preserve_whitespace: false,
         },
     );
+}
+
+fn flush_table_cell_text_segment(drafts: &mut Vec<TableCellContentDraft>, runs: &mut Vec<TextRun>) {
+    if !runs.is_empty() {
+        drafts.push(TableCellContentDraft::Text(std::mem::take(runs)));
+    }
+}
+
+fn finalize_table_cell_text_segment(
+    runs: Vec<TextRun>,
+    width: f32,
+    font_size: f32,
+    fonts: &HashMap<String, TtfFont>,
+) -> Vec<TextLine> {
+    wrap_text_runs(runs, width, font_size, fonts)
+}
+
+fn table_cell_drafts_preferred_width(
+    drafts: &[TableCellContentDraft],
+    fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    drafts
+        .iter()
+        .map(|draft| match draft {
+            TableCellContentDraft::Text(runs) => table_cell_text_runs_preferred_width(runs, fonts),
+            TableCellContentDraft::NestedRows(rows) => {
+                rows.iter().map(table_row_content_width).fold(0.0, f32::max)
+            }
+        })
+        .fold(0.0, f32::max)
+}
+
+fn table_cell_text_runs_preferred_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+    runs.iter()
+        .map(|run| {
+            let full_width = estimate_word_width(&run.text, run.font_size, &run.font_family, fonts);
+            let longest_word_width = run
+                .text
+                .split_whitespace()
+                .map(|word| estimate_word_width(word, run.font_size, &run.font_family, fonts))
+                .fold(0.0, f32::max);
+            full_width.max(longest_word_width)
+        })
+        .sum()
+}
+
+struct FinalTableCellContent {
+    lines: Vec<TextLine>,
+    nested_rows: Vec<LayoutElement>,
+    content: Vec<TableCellContent>,
+}
+
+fn finalize_table_cell_content(
+    drafts: Vec<TableCellContentDraft>,
+    width: f32,
+    font_size: f32,
+    fonts: &HashMap<String, TtfFont>,
+) -> FinalTableCellContent {
+    let mut lines = Vec::new();
+    let mut nested_rows = Vec::new();
+    let mut content = Vec::new();
+
+    for draft in drafts {
+        match draft {
+            TableCellContentDraft::Text(runs) => {
+                let block_lines = finalize_table_cell_text_segment(runs, width, font_size, fonts);
+                lines.extend(block_lines.iter().cloned());
+                content.push(TableCellContent::Text(block_lines));
+            }
+            TableCellContentDraft::NestedRows(rows) => {
+                nested_rows.extend(rows.iter().cloned());
+                content.push(TableCellContent::NestedRows(rows));
+            }
+        }
+    }
+
+    FinalTableCellContent {
+        lines,
+        nested_rows,
+        content,
+    }
 }
 
 /// Estimate the width of a word given its font settings and available custom fonts.
@@ -4103,9 +4268,9 @@ fn table_row_content_width(element: &LayoutElement) -> f32 {
             let spacing = if *border_collapse == BorderCollapse::Collapse {
                 0.0
             } else {
-                *border_spacing
+                border_spacing.horizontal
             };
-            col_widths.iter().sum::<f32>() + spacing * col_widths.len().saturating_sub(1) as f32
+            col_widths.iter().sum::<f32>() + spacing * col_widths.len() as f32
         }
         _ => 0.0,
     }
@@ -4534,6 +4699,42 @@ mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
+
+    fn table_rows<'a>(pages: &'a [Page]) -> Vec<&'a [TableCell]> {
+        pages
+            .iter()
+            .flat_map(|page| page.elements.iter())
+            .filter_map(|(_, element)| match element {
+                LayoutElement::TableRow { cells, .. } => Some(cells.as_slice()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn cell_has_background(cell: &TableCell) -> bool {
+        cell.background_color.is_some()
+    }
+
+    fn table_cell_background_for_text(pages: &[Page], needle: &str) -> Option<(f32, f32, f32)> {
+        for page in pages {
+            for (_, element) in &page.elements {
+                let LayoutElement::TableRow { cells, .. } = element else {
+                    continue;
+                };
+                for cell in cells {
+                    let cell_text = cell
+                        .lines
+                        .iter()
+                        .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                        .collect::<String>();
+                    if cell_text.contains(needle) {
+                        return cell.background_color;
+                    }
+                }
+            }
+        }
+        None
+    }
 
     #[test]
     fn layout_simple_paragraph() {
@@ -5494,6 +5695,135 @@ mod tests {
             "Cell text 'Bottom' should be in PDF"
         );
         // No default cell borders — only CSS-specified borders produce strokes
+    }
+
+    #[test]
+    fn table_selector_context_uses_row_siblings() {
+        let css = "tbody tr + tr td { background-color: red; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <table>
+                <tbody>
+                    <tr><td>First</td></tr>
+                    <tr><td>Second</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let rows = table_rows(&pages);
+        assert_eq!(rows.len(), 2);
+        assert!(!cell_has_background(rows[0].first().expect("first cell")));
+        assert!(cell_has_background(rows[1].first().expect("second cell")));
+    }
+
+    #[test]
+    fn table_selector_context_uses_section_siblings() {
+        let css = "thead + tbody td { background-color: blue; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <table>
+                <thead><tr><td>Head</td></tr></thead>
+                <tbody><tr><td>Body</td></tr></tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let rows = table_rows(&pages);
+        assert_eq!(rows.len(), 2);
+        assert!(!cell_has_background(rows[0].first().expect("header cell")));
+        assert!(cell_has_background(rows[1].first().expect("body cell")));
+    }
+
+    #[test]
+    fn table_selector_context_uses_cell_siblings() {
+        let css = "td + td { background-color: green; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"<table><tr><td>One</td><td>Two</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let rows = table_rows(&pages);
+        assert_eq!(rows.len(), 1);
+        assert!(!cell_has_background(&rows[0][0]));
+        assert!(cell_has_background(&rows[0][1]));
+    }
+
+    #[test]
+    fn table_selector_context_ignores_rowspan_phantoms_for_nth_child() {
+        let css = "td:nth-child(2) { background-color: orange; }";
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <table>
+                <tbody>
+                    <tr><td rowspan="2">Span</td><td>Top</td></tr>
+                    <tr><td>Bottom</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        let rows = table_rows(&pages);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1].len(), 2);
+        assert_eq!(rows[1][0].rowspan, 0);
+        assert!(!cell_has_background(&rows[1][1]));
+        assert!(cell_has_background(&rows[0][1]));
+    }
+
+    #[test]
+    fn table_row_carries_two_axis_border_spacing() {
+        let html =
+            r#"<table style="border-spacing: 8px 16px"><tr><td>A</td><td>B</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let rows = table_rows(&pages);
+        assert_eq!(rows.len(), 1);
+        let table_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { border_spacing, .. } => Some(*border_spacing),
+                _ => None,
+            })
+            .expect("table row");
+        assert!((table_row.horizontal - 6.0).abs() < 0.1);
+        assert!((table_row.vertical - 12.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn table_border_spacing_reduces_available_column_width() {
+        let html = r#"<table style="border-spacing: 8pt"><tr><td>A</td><td>B</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::new(200.0, 800.0), Margin::uniform(0.0));
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        let total_width: f32 = col_widths.iter().sum();
+        assert!(
+            (total_width - 176.0).abs() < 0.5,
+            "expected 176pt of column width after subtracting outer gaps, got {total_width}"
+        );
+    }
+
+    #[test]
+    fn table_row_content_width_includes_outer_border_spacing() {
+        let row = LayoutElement::TableRow {
+            cells: Vec::new(),
+            col_widths: vec![40.0, 60.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: BorderCollapse::Separate,
+            border_spacing: BorderSpacing {
+                horizontal: 8.0,
+                vertical: 0.0,
+            },
+        };
+        assert!((table_row_content_width(&row) - 116.0).abs() < 0.001);
     }
 
     #[test]
@@ -6896,7 +7226,8 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let has_spacing = pages[0].elements.iter().any(|(_, el)| {
             if let LayoutElement::TableRow { border_spacing, .. } = el {
-                (*border_spacing - 6.0).abs() < 0.1
+                (border_spacing.horizontal - 6.0).abs() < 0.1
+                    && (border_spacing.vertical - 6.0).abs() < 0.1
             } else {
                 false
             }
@@ -7771,6 +8102,31 @@ mod tests {
     }
 
     #[test]
+    fn table_section_adjacent_selector_matches_rows() {
+        let rules = parse_stylesheet("thead + tbody td { background-color: red; }");
+        let html = r#"
+            <table>
+                <thead><tr><th>Head</th></tr></thead>
+                <tbody>
+                    <tr><td>Body 1</td></tr>
+                    <tr><td>Body 2</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(table_cell_background_for_text(&pages, "Head"), None);
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Body 1"),
+            Some((1.0, 0.0, 0.0))
+        );
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Body 2"),
+            Some((1.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
     fn layout_border_horizontal_width() {
         let border = LayoutBorder {
             top: LayoutBorderSide {
@@ -8606,6 +8962,44 @@ mod tests {
         assert!(
             nested_text.contains("Inner"),
             "expected nested table text to stay in nested layout: {nested_text:?}"
+        );
+    }
+
+    #[test]
+    fn table_cell_nested_table_uses_cell_width_hint() {
+        let html = r#"
+            <div style="width: 120pt">
+                <table>
+                    <tr>
+                        <td>
+                            Outer
+                            <table>
+                                <tr><td>Nested tables should wrap within the available cell width instead of using the page width as the measurement basis.</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let cells = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                Some(cells)
+            } else {
+                None
+            }
+        });
+        let cells = cells.expect("expected outer table row");
+        let nested_row = cells[0]
+            .nested_rows
+            .iter()
+            .find(|el| matches!(el, LayoutElement::TableRow { .. }))
+            .expect("expected nested table row");
+        let nested_width = table_row_content_width(nested_row);
+        assert!(
+            nested_width <= 140.0,
+            "expected nested table to respect the constrained cell width, got {nested_width}"
         );
     }
 }
