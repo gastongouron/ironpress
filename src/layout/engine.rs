@@ -269,22 +269,65 @@ fn resolve_pseudo_content(
     pseudo: PseudoElement,
     counter_state: &CounterState,
 ) -> Option<String> {
-    for rule in rules {
-        if rule.pseudo_element == Some(pseudo)
-            && selector_matches(&rule.selector, tag_name, classes, id)
+    rules.iter().find_map(|rule| {
+        if rule.pseudo_element != Some(pseudo)
+            || !selector_matches(&rule.selector, tag_name, classes, id)
         {
-            if let Some(CssValue::Keyword(k)) = rule.declarations.get("content") {
-                let items = crate::style::computed::parse_content_value_pub(k);
-                if !items.is_empty() {
-                    let text = resolve_content(&items, attributes, counter_state);
-                    if !text.is_empty() {
-                        return Some(text);
-                    }
-                }
-            }
+            return None;
+        }
+
+        let CssValue::Keyword(content) = rule.declarations.get("content")? else {
+            return None;
+        };
+        let items = crate::style::computed::parse_content_value_pub(content);
+        if items.is_empty() {
+            return None;
+        }
+        let text = resolve_content(&items, attributes, counter_state);
+        (!text.is_empty()).then_some(text)
+    })
+}
+
+fn pseudo_is_block_like(pseudo_style: &ComputedStyle) -> bool {
+    pseudo_style.display == Display::Block || pseudo_style.position == Position::Absolute
+}
+
+fn append_pseudo_inline_run(
+    runs: &mut Vec<TextRun>,
+    pseudo_style: Option<&ComputedStyle>,
+    el: &ElementNode,
+) {
+    if let Some(pseudo_style) = pseudo_style {
+        if !pseudo_is_block_like(pseudo_style) {
+            runs.push(build_pseudo_inline_run(pseudo_style, el));
         }
     }
-    None
+}
+
+fn push_block_pseudo(
+    output: &mut Vec<LayoutElement>,
+    pseudo_style: Option<&ComputedStyle>,
+    el: &ElementNode,
+    available_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+    containing_block_info: Option<ContainingBlock>,
+) {
+    if let Some(pseudo_style) = pseudo_style {
+        if pseudo_is_block_like(pseudo_style) {
+            let pseudo_cb = if pseudo_style.position == Position::Absolute {
+                containing_block_info
+            } else {
+                None
+            };
+            output.push(build_pseudo_block(
+                pseudo_style,
+                el,
+                available_width,
+                fonts,
+                pseudo_cb,
+            ));
+        }
+    }
 }
 
 /// Build a `LayoutElement::TextBlock` for a `::before` or `::after` pseudo-element
@@ -1712,37 +1755,23 @@ fn flatten_element(
         };
 
         // Emit block-level ::before pseudo-element.
-        let before_is_block = before_style
-            .as_ref()
-            .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
         let before_is_abs = before_style
             .as_ref()
             .is_some_and(|s| s.position == Position::Absolute);
-        let after_is_block = after_style
-            .as_ref()
-            .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
         let after_is_abs = after_style
             .as_ref()
             .is_some_and(|s| s.position == Position::Absolute);
         if let Some(ref ps) = before_style {
-            if before_is_block && !before_is_abs {
+            if pseudo_is_block_like(ps) && !before_is_abs {
                 output.push(build_pseudo_block(ps, el, inner_width, fonts, None));
             }
         }
 
         // Collect all inline content as text runs, with inline ::before/::after
         let mut runs = Vec::new();
-        if let Some(ref ps) = before_style {
-            if !before_is_block {
-                runs.push(build_pseudo_inline_run(ps, el));
-            }
-        }
+        append_pseudo_inline_run(&mut runs, before_style.as_ref(), el);
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
-        if let Some(ref ps) = after_style {
-            if !after_is_block {
-                runs.push(build_pseudo_inline_run(ps, el));
-            }
-        }
+        append_pseudo_inline_run(&mut runs, after_style.as_ref(), el);
 
         let had_inline_runs = !runs.is_empty();
         let mut cb_info = None;
@@ -1840,11 +1869,14 @@ fn flatten_element(
                 positioned_depth,
                 heading_level: heading_level(el.tag),
             });
-            if let Some(ref ps) = before_style {
-                if before_is_block && before_is_abs {
-                    output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
-                }
-            }
+            push_block_pseudo(
+                output,
+                before_style.as_ref(),
+                el,
+                inner_width,
+                fonts,
+                cb_info,
+            );
         }
 
         // Also process block children recursively, using inner_width
@@ -1955,11 +1987,14 @@ fn flatten_element(
                 positioned_depth,
                 heading_level: None,
             });
-            if let Some(ref ps) = before_style {
-                if before_is_block && before_is_abs {
-                    output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
-                }
-            }
+            push_block_pseudo(
+                output,
+                before_style.as_ref(),
+                el,
+                inner_width,
+                fonts,
+                cb_info,
+            );
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
             // height; we only pull back by (children_h + padding_bottom + border)
@@ -2066,11 +2101,14 @@ fn flatten_element(
             }
         } else {
             if no_inline_content {
-                if let Some(ref ps) = before_style {
-                    if before_is_block && before_is_abs {
-                        output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
-                    }
-                }
+                push_block_pseudo(
+                    output,
+                    before_style.as_ref(),
+                    el,
+                    inner_width,
+                    fonts,
+                    cb_info,
+                );
             }
             let mut child_el_idx = 0;
             for child in &el.children {
@@ -2097,16 +2135,14 @@ fn flatten_element(
         }
 
         // Emit block-level ::after pseudo-element (inside block path)
-        if let Some(ref ps) = after_style {
-            if after_is_block {
-                let pseudo_cb = if ps.position == Position::Absolute {
-                    cb_info
-                } else {
-                    None
-                };
-                output.push(build_pseudo_block(ps, el, inner_width, fonts, pseudo_cb));
-            }
-        }
+        push_block_pseudo(
+            output,
+            after_style.as_ref(),
+            el,
+            inner_width,
+            fonts,
+            cb_info,
+        );
     } else {
         // Inline element — process children with this style context
         flatten_nodes(
