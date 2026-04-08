@@ -14,6 +14,17 @@ fn pdf_has_text(pdf: &[u8], text: &str) -> bool {
     String::from_utf8_lossy(pdf).contains(text)
 }
 
+fn pdf_first_text_x(pdf: &[u8], text: &str) -> Option<f32> {
+    let pdf_str = String::from_utf8_lossy(pdf);
+    let needle = format!("({text}) Tj");
+    let text_pos = pdf_str.find(&needle)?;
+    let before = &pdf_str[..text_pos];
+    let td_end = before.rfind(" Td\n")?;
+    let td_start = before[..td_end].rfind('\n').map(|idx| idx + 1).unwrap_or(0);
+    let td_line = &before[td_start..td_end];
+    td_line.split_whitespace().next()?.parse::<f32>().ok()
+}
+
 fn pdf_page_count(pdf: &[u8]) -> usize {
     let s = String::from_utf8_lossy(pdf);
     // Extract /Count N from /Type /Pages
@@ -93,6 +104,27 @@ fn smoke_table() {
     let pdf = ironpress::html_to_pdf(html).unwrap();
     assert!(pdf_is_valid(&pdf));
     assert!(pdf_has_text(&pdf, "Alice"));
+}
+
+#[test]
+fn smoke_table_colgroup_span_without_child_cols() {
+    let html = r#"
+        <table>
+            <colgroup span="2" style="width: 25%;"></colgroup>
+            <tr><td>Left</td><td>Right</td></tr>
+        </table>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Left"));
+    assert!(pdf_has_text(&pdf, "Right"));
+    let left_x = pdf_first_text_x(&pdf, "Left").expect("expected Left text position");
+    let right_x = pdf_first_text_x(&pdf, "Right").expect("expected Right text position");
+    let gap = right_x - left_x;
+    assert!(
+        (80.0..150.0).contains(&gap),
+        "colgroup span width should keep the second column near 25% table width, got text gap {gap}"
+    );
 }
 
 // === Lists ===

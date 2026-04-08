@@ -88,6 +88,7 @@ pub enum CssValue {
 #[derive(Debug, Clone, Default)]
 pub struct StyleMap {
     pub properties: HashMap<String, CssValue>,
+    pub important: HashMap<String, bool>,
 }
 
 impl StyleMap {
@@ -96,17 +97,29 @@ impl StyleMap {
     }
 
     pub fn set(&mut self, key: &str, value: CssValue) {
+        self.set_with_importance(key, value, false);
+    }
+
+    pub fn set_with_importance(&mut self, key: &str, value: CssValue, is_important: bool) {
+        if self.is_important(key) && !is_important {
+            return;
+        }
         self.properties.insert(key.to_string(), value);
+        self.important.insert(key.to_string(), is_important);
     }
 
     pub fn get(&self, key: &str) -> Option<&CssValue> {
         self.properties.get(key)
     }
 
+    pub fn is_important(&self, key: &str) -> bool {
+        self.important.get(key).copied().unwrap_or(false)
+    }
+
     #[allow(dead_code)]
     pub fn merge(&mut self, other: &StyleMap) {
         for (k, v) in &other.properties {
-            self.properties.insert(k.clone(), v.clone());
+            self.set_with_importance(k, v.clone(), other.is_important(k));
         }
     }
 }
@@ -124,15 +137,19 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
         if let Some((prop, val)) = declaration.split_once(':') {
             let raw_prop = prop.trim();
             let val = val.trim();
+            let (val, is_important) = if let Some(stripped) = val.strip_suffix("!important") {
+                (stripped.trim_end(), true)
+            } else {
+                (val, false)
+            };
 
             // Handle CSS custom properties (--*)
             if raw_prop.starts_with("--") {
-                map.set(raw_prop, CssValue::Keyword(val.to_string()));
+                map.set_with_importance(raw_prop, CssValue::Keyword(val.to_string()), is_important);
                 continue;
             }
 
             let prop = raw_prop.to_ascii_lowercase();
-
             if (prop == "margin" || prop == "padding") && !prop.contains('-') {
                 let parts: Vec<&str> = val.split_whitespace().collect();
                 if parts.len() > 1 {
@@ -150,43 +167,62 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                     ] {
                         let key = format!("{prop}-{side}");
                         if token == "auto" {
-                            map.set(&key, CssValue::Keyword("auto".to_string()));
+                            map.set_with_importance(
+                                &key,
+                                CssValue::Keyword("auto".to_string()),
+                                is_important,
+                            );
                         } else if let Some(len) = parse_length(token) {
-                            map.set(&key, len);
+                            map.set_with_importance(&key, len, is_important);
                         }
                     }
                 } else if val.trim() == "auto" {
                     for side in &["top", "right", "bottom", "left"] {
-                        map.set(
+                        map.set_with_importance(
                             &format!("{prop}-{side}"),
                             CssValue::Keyword("auto".to_string()),
+                            is_important,
                         );
                     }
                 } else if let Some(CssValue::Length(v)) = parse_value(&prop, val) {
-                    map.set(&format!("{prop}-top"), CssValue::Length(v));
-                    map.set(&format!("{prop}-right"), CssValue::Length(v));
-                    map.set(&format!("{prop}-bottom"), CssValue::Length(v));
-                    map.set(&format!("{prop}-left"), CssValue::Length(v));
+                    map.set_with_importance(&format!("{prop}-top"), CssValue::Length(v), is_important);
+                    map.set_with_importance(
+                        &format!("{prop}-right"),
+                        CssValue::Length(v),
+                        is_important,
+                    );
+                    map.set_with_importance(
+                        &format!("{prop}-bottom"),
+                        CssValue::Length(v),
+                        is_important,
+                    );
+                    map.set_with_importance(
+                        &format!("{prop}-left"),
+                        CssValue::Length(v),
+                        is_important,
+                    );
                 }
             } else if (prop == "margin-left" || prop == "margin-right") && val.trim() == "auto" {
-                map.set(&prop, CssValue::Keyword("auto".to_string()));
+                map.set_with_importance(&prop, CssValue::Keyword("auto".to_string()), is_important);
             } else if (prop == "background" || prop == "background-image")
                 && val.trim_start().starts_with("linear-gradient(")
             {
                 // Store the full gradient function string for later parsing
-                map.set(
+                map.set_with_importance(
                     "background-gradient",
                     CssValue::Keyword(val.trim().to_string()),
+                    is_important,
                 );
             } else if (prop == "background" || prop == "background-image")
                 && val.trim_start().starts_with("radial-gradient(")
             {
-                map.set(
+                map.set_with_importance(
                     "background-radial-gradient",
                     CssValue::Keyword(val.trim().to_string()),
+                    is_important,
                 );
             } else if let Some(css_val) = parse_value(&prop, val) {
-                map.set(&prop, css_val);
+                map.set_with_importance(&prop, css_val, is_important);
             }
         }
     }
@@ -196,6 +232,7 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
 
 fn parse_value(property: &str, val: &str) -> Option<CssValue> {
     let val = val.trim();
+    let val = val.strip_suffix("!important").map(str::trim_end).unwrap_or(val);
 
     // Handle var() references for any property
     if let Some(var_val) = parse_var_function(val) {
@@ -302,6 +339,13 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
             return Some(CssValue::Keyword(val.to_string()));
         }
         return parse_length(val);
+    }
+
+    // Width/height accept the `auto` keyword in addition to explicit lengths.
+    if property == "width" || property == "height" {
+        if val.eq_ignore_ascii_case("auto") {
+            return Some(CssValue::Keyword("auto".to_string()));
+        }
     }
 
     // flex shorthand — e.g. "flex: 1", "flex: 1 0 auto", "flex: 0 1 200px"
@@ -4021,6 +4065,28 @@ mod tests {
                 assert_eq!(fallback.as_deref(), Some("red"));
             }
             other => panic!("Expected Var, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_inline_style_keeps_important_width_over_later_normal_width() {
+        let map = parse_inline_style("width: 40% !important; width: 10%");
+        assert!(map.is_important("width"));
+        match map.get("width") {
+            Some(CssValue::Percentage(v)) => assert!((*v - 40.0).abs() < 0.01),
+            other => panic!("Expected Percentage(40), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_stylesheet_preserves_width_importance() {
+        let rules = parse_stylesheet("col.left { width: 40% !important; width: 10%; }");
+        assert_eq!(rules.len(), 1);
+        let declarations = &rules[0].declarations;
+        assert!(declarations.is_important("width"));
+        match declarations.get("width") {
+            Some(CssValue::Percentage(v)) => assert!((*v - 40.0).abs() < 0.01),
+            other => panic!("Expected Percentage(40), got {:?}", other),
         }
     }
 
