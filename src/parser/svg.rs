@@ -415,7 +415,7 @@ fn parse_svg_node_with_viewport(
             let font_size = font_size_attr.as_deref().and_then(parse_absolute_length);
             let fill_specified = has_fill_specified(el);
             let fill_raw = parse_fill_raw(el);
-            let (font_family, font_bold, font_italic) = parse_text_font_attrs(el);
+            let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
             let content = collect_text_content(el);
             let style = parse_svg_style(el);
             Some(SvgNode::Text {
@@ -750,15 +750,6 @@ fn parse_svg_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opti
     }
 
     (family, bold, italic)
-}
-
-/// Parse per-element font-family, font-weight, and font-style from an element.
-///
-/// Checks both XML attributes (`font-family`, `font-weight`, `font-style`) and
-/// properties inside the `style` attribute.  Returns `(font_family, font_bold, font_italic)`,
-/// each `None` when no explicit value was found on the element.
-fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
-    parse_svg_font_attrs(el)
 }
 
 fn has_fill_specified(el: &ElementNode) -> bool {
