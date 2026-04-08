@@ -12,6 +12,7 @@ use crate::render::pdf::encode_pdf_text;
 pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     // SVG initial values: fill=black, stroke=none, stroke-width=1.
     let root_style = ResolvedStyle {
+        color: tree.text_ctx.color,
         fill: SvgPaint::Color((0.0, 0.0, 0.0)),
         stroke: SvgPaint::None,
         stroke_width: 1.0,
@@ -23,6 +24,7 @@ pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
 
 #[derive(Debug, Clone, Copy)]
 struct ResolvedStyle {
+    color: Option<(f32, f32, f32)>,
     fill: SvgPaint,
     stroke: SvgPaint,
     stroke_width: f32,
@@ -33,23 +35,25 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
         SvgPaint::Unspecified => parent.fill,
         other => other,
     };
+    let color = local.color.or(parent.color);
     let stroke = match local.stroke {
         SvgPaint::Unspecified => parent.stroke,
         other => other,
     };
     let stroke_width = local.stroke_width.unwrap_or(parent.stroke_width);
     ResolvedStyle {
+        color,
         fill,
         stroke,
         stroke_width,
     }
 }
 
-fn paint_to_rgb(paint: SvgPaint, text_ctx: &SvgTextContext) -> Option<(f32, f32, f32)> {
+fn paint_to_rgb(paint: SvgPaint, color: Option<(f32, f32, f32)>) -> Option<(f32, f32, f32)> {
     match paint {
         SvgPaint::None => None,
         SvgPaint::Color(c) => Some(c),
-        SvgPaint::CurrentColor => Some(text_ctx.color.unwrap_or((0.0, 0.0, 0.0))),
+        SvgPaint::CurrentColor => Some(color.unwrap_or((0.0, 0.0, 0.0))),
         SvgPaint::Unspecified => None,
     }
 }
@@ -86,15 +90,15 @@ fn render_node(
             ..
         } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, text_ctx, out);
+            apply_style(style, out);
             out.push_str(&format!("{x} {y} {width} {height} re\n"));
-            paint(style, text_ctx, out);
+            paint(style, out);
         }
         SvgNode::Circle { cx, cy, r, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, text_ctx, out);
+            apply_style(style, out);
             emit_circle(*cx, *cy, *r, out);
-            paint(style, text_ctx, out);
+            paint(style, out);
         }
         SvgNode::Ellipse {
             cx,
@@ -104,9 +108,9 @@ fn render_node(
             style,
         } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, text_ctx, out);
+            apply_style(style, out);
             emit_ellipse(*cx, *cy, *rx, *ry, out);
-            paint(style, text_ctx, out);
+            paint(style, out);
         }
         SvgNode::Line {
             x1,
@@ -116,27 +120,27 @@ fn render_node(
             style,
         } => {
             let style = resolve_style(inherited, style);
-            apply_stroke_style(style, text_ctx, out);
+            apply_stroke_style(style, out);
             out.push_str(&format!("{x1} {y1} m {x2} {y2} l\n"));
             paint_stroke_only(style, out);
         }
         SvgNode::Polyline { points, style } => {
             let style = resolve_style(inherited, style);
-            apply_stroke_style(style, text_ctx, out);
+            apply_stroke_style(style, out);
             emit_polyline(points, false, out);
             paint_stroke_only(style, out);
         }
         SvgNode::Polygon { points, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, text_ctx, out);
+            apply_style(style, out);
             emit_polyline(points, true, out);
-            paint(style, text_ctx, out);
+            paint(style, out);
         }
         SvgNode::Path { commands, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, text_ctx, out);
+            apply_style(style, out);
             emit_path(commands, out);
-            paint(style, text_ctx, out);
+            paint(style, out);
         }
         SvgNode::Text {
             x,
@@ -158,8 +162,8 @@ fn render_node(
                 .and_then(|raw| resolve_svg_font_size(raw, text_ctx.font_size))
                 .or(*font_size)
                 .unwrap_or(text_ctx.font_size);
-            let fill = paint_to_rgb(style.fill, text_ctx);
-            let stroke = paint_to_rgb(style.stroke, text_ctx);
+            let fill = paint_to_rgb(style.fill, style.color);
+            let stroke = paint_to_rgb(style.stroke, style.color);
             let has_stroke = has_visible_stroke(style);
             let stroke = stroke.filter(|_| has_stroke);
             // Use per-element font if specified, falling back to inherited CSS font
@@ -213,16 +217,16 @@ fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
     raw.parse::<f32>().ok().map(|px| px * 0.75)
 }
 
-fn apply_style(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
+fn apply_style(style: ResolvedStyle, out: &mut String) {
     // Fill color
-    if let Some((r, g, b)) = paint_to_rgb(style.fill, text_ctx) {
+    if let Some((r, g, b)) = paint_to_rgb(style.fill, style.color) {
         out.push_str(&format!("{r} {g} {b} rg\n"));
     }
-    apply_stroke_style(style, text_ctx, out);
+    apply_stroke_style(style, out);
 }
 
-fn apply_stroke_style(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
-    if let Some((r, g, b)) = paint_to_rgb(style.stroke, text_ctx) {
+fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
+    if let Some((r, g, b)) = paint_to_rgb(style.stroke, style.color) {
         out.push_str(&format!("{r} {g} {b} RG\n"));
     }
     if style.stroke_width > 0.0 {
@@ -230,8 +234,8 @@ fn apply_stroke_style(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut
     }
 }
 
-fn paint(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
-    let has_fill = paint_to_rgb(style.fill, text_ctx).is_some();
+fn paint(style: ResolvedStyle, out: &mut String) {
+    let has_fill = paint_to_rgb(style.fill, style.color).is_some();
     let has_stroke = has_visible_stroke(style);
     match (has_fill, has_stroke) {
         (true, true) => out.push_str("B\n"),   // fill + stroke
@@ -411,6 +415,7 @@ mod tests {
 
     fn style_fill(r: f32, g: f32, b: f32) -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::Color((r, g, b)),
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
@@ -420,6 +425,7 @@ mod tests {
 
     fn style_stroke(r: f32, g: f32, b: f32, w: f32) -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::None,
             stroke: SvgPaint::Color((r, g, b)),
             stroke_width: Some(w),
@@ -429,6 +435,7 @@ mod tests {
 
     fn style_fill_and_stroke() -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::Color((1.0, 0.0, 0.0)),
             stroke: SvgPaint::Color((0.0, 0.0, 1.0)),
             stroke_width: Some(2.0),
@@ -438,6 +445,7 @@ mod tests {
 
     fn style_none() -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::None,
             stroke: SvgPaint::None,
             stroke_width: None,
@@ -714,6 +722,7 @@ mod tests {
                 style: SvgStyle::default(),
             }],
             style: SvgStyle {
+                color: None,
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
                 ..SvgStyle::default()
             },
@@ -972,6 +981,7 @@ mod tests {
             rx: 0.0,
             ry: 0.0,
             style: SvgStyle {
+                color: None,
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
                 stroke: SvgPaint::Color((0.0, 0.0, 0.0)),
                 stroke_width: Some(0.0),
@@ -1041,6 +1051,7 @@ mod tests {
                 font_italic: None,
                 content: "Hello".to_string(),
                 style: SvgStyle {
+                    color: None,
                     fill: SvgPaint::None,
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
@@ -1085,6 +1096,7 @@ mod tests {
                 font_italic: None,
                 content: "Hello".to_string(),
                 style: SvgStyle {
+                    color: None,
                     fill: SvgPaint::None,
                     stroke: SvgPaint::Color((1.0, 0.0, 0.0)),
                     stroke_width: Some(1.5),
@@ -1167,6 +1179,7 @@ mod tests {
                 font_italic: None,
                 content: "Hello".to_string(),
                 style: SvgStyle {
+                    color: None,
                     fill: SvgPaint::Color((0.0, 0.0, 0.0)),
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
@@ -1206,6 +1219,7 @@ mod tests {
                 font_italic: None,
                 content: "Hello".to_string(),
                 style: SvgStyle {
+                    color: None,
                     fill: SvgPaint::Color((0.0, 0.0, 0.0)),
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
@@ -1242,6 +1256,7 @@ mod tests {
                 font_italic: None,
                 content: "Hello".to_string(),
                 style: SvgStyle {
+                    color: None,
                     fill: SvgPaint::CurrentColor,
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
@@ -1256,6 +1271,47 @@ mod tests {
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
         assert!(out.contains("0 0.5 1 rg\n"));
+    }
+
+    #[test]
+    fn text_fill_current_color_inherits_nested_svg_color() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Group {
+                transform: None,
+                style: SvgStyle {
+                    color: Some((1.0, 0.0, 0.0)),
+                    ..SvgStyle::default()
+                },
+                children: vec![SvgNode::Text {
+                    x: 10.0,
+                    y: 20.0,
+                    font_size: None,
+                    font_size_attr: None,
+                    fill_specified: true,
+                    fill_raw: Some("currentColor".to_string()),
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
+                    content: "Hello".to_string(),
+                    style: SvgStyle {
+                        fill: SvgPaint::CurrentColor,
+                        ..SvgStyle::default()
+                    },
+                }],
+            }],
+            text_ctx: SvgTextContext {
+                color: Some((0.0, 0.5, 1.0)),
+                ..SvgTextContext::default()
+            },
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("1 0 0 rg\n"));
     }
 
     #[test]

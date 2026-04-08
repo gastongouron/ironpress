@@ -161,6 +161,7 @@ impl Default for SvgPaint {
 
 #[derive(Debug, Clone)]
 pub struct SvgStyle {
+    pub color: Option<(f32, f32, f32)>,
     pub fill: SvgPaint,
     pub stroke: SvgPaint,
     /// `stroke-width` is inherited in SVG.
@@ -172,6 +173,7 @@ pub struct SvgStyle {
 impl Default for SvgStyle {
     fn default() -> Self {
         Self {
+            color: None,
             fill: SvgPaint::Unspecified,
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
@@ -411,7 +413,8 @@ fn parse_svg_node_with_viewport(
 }
 
 fn svg_style_is_default(style: &SvgStyle) -> bool {
-    matches!(style.fill, SvgPaint::Unspecified)
+    style.color.is_none()
+        && matches!(style.fill, SvgPaint::Unspecified)
         && matches!(style.stroke, SvgPaint::Unspecified)
         && style.stroke_width.is_none()
         && (style.opacity - 1.0).abs() < f32::EPSILON
@@ -549,7 +552,7 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
     }
 }
 
-/// Parse fill, stroke, stroke-width, opacity from element attributes.
+/// Parse color, fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
         let val = val.trim();
@@ -562,6 +565,19 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         parse_svg_color(val).map(SvgPaint::Color)
     }
 
+    fn parse_svg_color_property(val: &str) -> Option<Option<(f32, f32, f32)>> {
+        let val = val.trim();
+        if val.eq_ignore_ascii_case("inherit") {
+            return Some(None);
+        }
+        parse_svg_color(val).map(Some)
+    }
+
+    let mut color = el
+        .attributes
+        .get("color")
+        .and_then(|v| parse_svg_color_property(v))
+        .flatten();
     let mut fill = el
         .attributes
         .get("fill")
@@ -588,6 +604,11 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
             let part = part.trim();
             if let Some((prop, val)) = part.split_once(':') {
                 match prop.trim() {
+                    "color" => {
+                        if let Some(parsed) = parse_svg_color_property(val) {
+                            color = parsed;
+                        }
+                    }
                     "fill" => {
                         if let Some(paint) = parse_svg_paint(val) {
                             fill = paint;
@@ -613,6 +634,7 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     }
 
     SvgStyle {
+        color,
         fill,
         stroke,
         stroke_width,
@@ -2055,6 +2077,7 @@ mod tests {
     fn parse_style_defaults() {
         let el = make_el("rect", vec![]);
         let style = parse_svg_style(&el);
+        assert_eq!(style.color, None);
         assert_eq!(style.fill, SvgPaint::Unspecified);
         assert_eq!(style.stroke, SvgPaint::Unspecified);
         assert_eq!(style.stroke_width, None);
@@ -2084,6 +2107,20 @@ mod tests {
         let el = make_el("rect", vec![("fill", "none")]);
         let style = parse_svg_style(&el);
         assert_eq!(style.fill, SvgPaint::None);
+    }
+
+    #[test]
+    fn parse_style_color_inherited_property() {
+        let el = make_el("g", vec![("style", "color: red;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.color, Some((1.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn parse_style_invalid_color_does_not_override_attribute() {
+        let el = make_el("g", vec![("color", "red"), ("style", "color: ???;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.color, Some((1.0, 0.0, 0.0)));
     }
 
     #[test]
