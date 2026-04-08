@@ -559,6 +559,9 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         if val.eq_ignore_ascii_case("none") {
             return Some(SvgPaint::None);
         }
+        if val.eq_ignore_ascii_case("inherit") {
+            return Some(SvgPaint::Unspecified);
+        }
         if val.eq_ignore_ascii_case("currentColor") {
             return Some(SvgPaint::CurrentColor);
         }
