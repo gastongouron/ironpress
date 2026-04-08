@@ -783,9 +783,17 @@ fn flatten_element(
                 style.color.b as f32 / 255.0,
             )),
         };
-        if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx) {
+        if let Some(initial_tree) =
+            crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx.clone())
+        {
             let (svg_width, svg_height) =
-                resolve_svg_size(&tree, available_width, available_height);
+                resolve_svg_size(&initial_tree, available_width, available_height);
+            let tree = crate::parser::svg::parse_svg_from_element_with_ctx_and_viewport(
+                el,
+                text_ctx,
+                Some((svg_width, svg_height)),
+            )
+            .unwrap_or(initial_tree);
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,

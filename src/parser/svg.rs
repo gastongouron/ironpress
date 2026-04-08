@@ -196,23 +196,32 @@ pub enum PathCommand {
 
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
-    parse_svg_from_element_with_ctx(el, SvgTextContext::default())
+    parse_svg_from_element_with_ctx_and_viewport(el, SvgTextContext::default(), None)
 }
 
 pub fn parse_svg_from_element_with_ctx(
     el: &ElementNode,
     text_ctx: SvgTextContext,
 ) -> Option<SvgTree> {
+    parse_svg_from_element_with_ctx_and_viewport(el, text_ctx, None)
+}
+
+pub fn parse_svg_from_element_with_ctx_and_viewport(
+    el: &ElementNode,
+    text_ctx: SvgTextContext,
+    root_viewport_override: Option<(f32, f32)>,
+) -> Option<SvgTree> {
     let width_attr = el.attributes.get("width").cloned();
     let height_attr = el.attributes.get("height").cloned();
-    let width = width_attr
+    let parsed_width = width_attr
         .as_deref()
         .and_then(parse_absolute_length)
         .unwrap_or(300.0);
-    let height = height_attr
+    let parsed_height = height_attr
         .as_deref()
         .and_then(parse_absolute_length)
         .unwrap_or(150.0);
+    let (width, height) = root_viewport_override.unwrap_or((parsed_width, parsed_height));
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
     let mut children = Vec::new();
@@ -2448,6 +2457,39 @@ mod tests {
                 assert!(matches!(
                     transform,
                     Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 5.0, 0.0, 0.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_with_viewport_override_resolves_nested_percentages() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "50%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 20 10"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let outer = make_svg_el(
+            vec![("width", "100%"), ("height", "100%")],
+            vec![svg_inner],
+        );
+        let tree = parse_svg_from_element_with_ctx_and_viewport(
+            &outer,
+            SvgTextContext::default(),
+            Some((400.0, 200.0)),
+        )
+        .unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 10.0, 0.0, 0.0))
                 ));
             }
             other => panic!("expected nested svg group, got {other:?}"),
