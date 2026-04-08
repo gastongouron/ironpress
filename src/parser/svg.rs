@@ -1,6 +1,6 @@
 //! SVG parser — converts DOM SVG elements into an SvgTree for PDF rendering.
 
-use crate::parser::dom::ElementNode;
+use crate::parser::dom::{DomNode, ElementNode};
 
 /// A parsed SVG tree ready for rendering.
 #[derive(Debug, Clone)]
@@ -140,16 +140,8 @@ pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
         .and_then(parse_absolute_length)
         .unwrap_or(150.0);
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
-
-    let mut children = Vec::new();
     let root_viewport = Some((width, height));
-    for child in &el.children {
-        if let crate::parser::dom::DomNode::Element(child_el) = child {
-            if let Some(node) = parse_svg_node_with_viewport(child_el, root_viewport) {
-                children.push(node);
-            }
-        }
-    }
+    let mut children = parse_svg_children(el, root_viewport);
 
     let root_style = parse_svg_style(el);
     let root_transform = el
@@ -179,6 +171,16 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
     parse_svg_node_with_viewport(el, None)
 }
 
+fn parse_svg_children(el: &ElementNode, parent_viewport: Option<(f32, f32)>) -> Vec<SvgNode> {
+    el.children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(child_el) => parse_svg_node_with_viewport(child_el, parent_viewport),
+            _ => None,
+        })
+        .collect()
+}
+
 fn parse_svg_node_with_viewport(
     el: &ElementNode,
     parent_viewport: Option<(f32, f32)>,
@@ -191,14 +193,7 @@ fn parse_svg_node_with_viewport(
                 .get("transform")
                 .and_then(|v| parse_transform(v));
             let style = parse_svg_style(el);
-            let mut children = Vec::new();
-            for child in &el.children {
-                if let crate::parser::dom::DomNode::Element(child_el) = child {
-                    if let Some(node) = parse_svg_node_with_viewport(child_el, parent_viewport) {
-                        children.push(node);
-                    }
-                }
-            }
+            let children = parse_svg_children(el, parent_viewport);
             Some(SvgNode::Group {
                 transform,
                 children,
@@ -214,14 +209,7 @@ fn parse_svg_node_with_viewport(
                 nested_svg_viewport_transform(el, parent_viewport),
             );
             let style = parse_svg_style(el);
-            let mut children = Vec::new();
-            for child in &el.children {
-                if let crate::parser::dom::DomNode::Element(child_el) = child {
-                    if let Some(node) = parse_svg_node_with_viewport(child_el, child_viewport) {
-                        children.push(node);
-                    }
-                }
-            }
+            let children = parse_svg_children(el, child_viewport);
             Some(SvgNode::Group {
                 transform,
                 children,
@@ -345,11 +333,23 @@ fn resolve_nested_svg_viewport(
     el: &ElementNode,
     parent_viewport: Option<(f32, f32)>,
 ) -> Option<(f32, f32)> {
-    let (parent_width, parent_height) = parent_viewport?;
-    Some((
-        resolve_svg_viewport_length(el.attributes.get("width"), Some(parent_width), 300.0),
-        resolve_svg_viewport_length(el.attributes.get("height"), Some(parent_height), 150.0),
-    ))
+    parent_viewport.map(|viewport| resolve_svg_viewport_dimensions(el, Some(viewport)))
+}
+
+fn resolve_svg_viewport_dimensions(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> (f32, f32) {
+    match parent_viewport {
+        Some((parent_width, parent_height)) => (
+            resolve_svg_viewport_length(el.attributes.get("width"), Some(parent_width), 300.0),
+            resolve_svg_viewport_length(el.attributes.get("height"), Some(parent_height), 150.0),
+        ),
+        None => (
+            resolve_svg_viewport_length(el.attributes.get("width"), None, 300.0),
+            resolve_svg_viewport_length(el.attributes.get("height"), None, 150.0),
+        ),
+    }
 }
 
 fn resolve_svg_viewport_length(
@@ -383,25 +383,7 @@ fn nested_svg_viewport_transform(
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
     if let Some(vb) = view_box {
-        let (width, height) = parent_viewport
-            .map(|(parent_width, parent_height)| {
-                (
-                    resolve_svg_viewport_length(
-                        el.attributes.get("width"),
-                        Some(parent_width),
-                        300.0,
-                    ),
-                    resolve_svg_viewport_length(
-                        el.attributes.get("height"),
-                        Some(parent_height),
-                        150.0,
-                    ),
-                )
-            })
-            .unwrap_or((
-                resolve_svg_viewport_length(el.attributes.get("width"), None, 300.0),
-                resolve_svg_viewport_length(el.attributes.get("height"), None, 150.0),
-            ));
+        let (width, height) = resolve_svg_viewport_dimensions(el, parent_viewport);
         if vb.width > 0.0 && vb.height > 0.0 {
             let scale_x = width / vb.width;
             let scale_y = height / vb.height;
@@ -478,10 +460,7 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         parse_svg_color(val).map(SvgPaint::Color)
     }
 
-    let mut color = el
-        .attributes
-        .get("color")
-        .and_then(|v| parse_svg_color(v));
+    let mut color = el.attributes.get("color").and_then(|v| parse_svg_color(v));
     let mut fill = el
         .attributes
         .get("fill")
@@ -1984,7 +1963,9 @@ mod tests {
         let tree = parse_svg_from_element(&svg).unwrap();
         assert_eq!(tree.children.len(), 1);
         match &tree.children[0] {
-            SvgNode::Group { style, children, .. } => {
+            SvgNode::Group {
+                style, children, ..
+            } => {
                 assert_eq!(style.color, Some((0.2, 0.4, 0.6)));
                 assert_eq!(children.len(), 1);
             }

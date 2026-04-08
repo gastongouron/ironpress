@@ -4191,21 +4191,23 @@ fn inject_inherited_svg_color(
     tree: &mut crate::parser::svg::SvgTree,
     inherited_color: (f32, f32, f32),
 ) {
-    if let Some(crate::parser::svg::SvgNode::Group { style, .. }) = tree.children.first_mut() {
-        if style.color.is_none() {
-            style.color = Some(inherited_color);
-        }
-        return;
-    }
+    let inherit_color = |style: &mut crate::parser::svg::SvgStyle| {
+        style.color.get_or_insert(inherited_color);
+    };
 
-    tree.children = vec![crate::parser::svg::SvgNode::Group {
-        transform: None,
-        children: std::mem::take(&mut tree.children),
-        style: crate::parser::svg::SvgStyle {
-            color: Some(inherited_color),
-            ..crate::parser::svg::SvgStyle::default()
-        },
-    }];
+    match tree.children.as_mut_slice() {
+        [crate::parser::svg::SvgNode::Group { style, .. }] => inherit_color(style),
+        _ => {
+            tree.children = vec![crate::parser::svg::SvgNode::Group {
+                transform: None,
+                children: std::mem::take(&mut tree.children),
+                style: crate::parser::svg::SvgStyle {
+                    color: Some(inherited_color),
+                    ..crate::parser::svg::SvgStyle::default()
+                },
+            }];
+        }
+    }
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -4579,13 +4581,21 @@ mod tests {
             .elements
             .iter()
             .find_map(|(_, el)| match el {
-                LayoutElement::Svg { tree, width, height, .. } => Some((tree, *width, *height)),
+                LayoutElement::Svg {
+                    tree,
+                    width,
+                    height,
+                    ..
+                } => Some((tree, *width, *height)),
                 _ => None,
             })
             .expect("expected svg layout element");
         assert_eq!(svg.1, 200.0);
         assert_eq!(svg.2, 100.0);
-        assert!(svg.0.view_box.is_some(), "renderer should keep viewBox metadata");
+        assert!(
+            svg.0.view_box.is_some(),
+            "renderer should keep viewBox metadata"
+        );
     }
 
     #[test]
@@ -4603,7 +4613,9 @@ mod tests {
             .expect("expected svg layout element");
 
         match &tree.children[0] {
-            crate::parser::svg::SvgNode::Group { style, children, .. } => {
+            crate::parser::svg::SvgNode::Group {
+                style, children, ..
+            } => {
                 assert_eq!(style.color, Some((0.2, 0.4, 0.6)));
                 assert_eq!(children.len(), 1);
             }

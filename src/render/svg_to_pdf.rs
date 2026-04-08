@@ -27,6 +27,20 @@ struct ResolvedStyle {
     stroke_width: f32,
 }
 
+impl ResolvedStyle {
+    fn fill_rgb(self) -> Option<(f32, f32, f32)> {
+        paint_to_rgb(self.fill, self.color)
+    }
+
+    fn stroke_rgb(self) -> Option<(f32, f32, f32)> {
+        paint_to_rgb(self.stroke, self.color)
+    }
+
+    fn has_visible_stroke(self) -> bool {
+        self.stroke_rgb().is_some() && self.stroke_width > 0.0
+    }
+}
+
 fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
     let fill = match local.fill {
         SvgPaint::Unspecified => parent.fill,
@@ -140,7 +154,7 @@ fn paint_to_rgb(paint: SvgPaint, current_color: (f32, f32, f32)) -> Option<(f32,
 
 fn apply_style(style: ResolvedStyle, out: &mut String) {
     // Fill color
-    if let Some((r, g, b)) = paint_to_rgb(style.fill, style.color) {
+    if let Some((r, g, b)) = style.fill_rgb() {
         out.push_str(&format!("{r} {g} {b} rg\n"));
     }
     apply_stroke_style(style, out);
@@ -148,7 +162,7 @@ fn apply_style(style: ResolvedStyle, out: &mut String) {
 
 fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
     // Stroke color
-    if let Some((r, g, b)) = paint_to_rgb(style.stroke, style.color) {
+    if let Some((r, g, b)) = style.stroke_rgb() {
         out.push_str(&format!("{r} {g} {b} RG\n"));
     }
     if style.stroke_width > 0.0 {
@@ -157,8 +171,8 @@ fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
 }
 
 fn paint(style: ResolvedStyle, out: &mut String) {
-    let has_fill = paint_to_rgb(style.fill, style.color).is_some();
-    let has_stroke = paint_to_rgb(style.stroke, style.color).is_some() && style.stroke_width > 0.0;
+    let has_fill = style.fill_rgb().is_some();
+    let has_stroke = style.has_visible_stroke();
     match (has_fill, has_stroke) {
         (true, true) => out.push_str("B\n"),   // fill + stroke
         (true, false) => out.push_str("f\n"),  // fill only
@@ -168,7 +182,7 @@ fn paint(style: ResolvedStyle, out: &mut String) {
 }
 
 fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
-    let has_stroke = paint_to_rgb(style.stroke, style.color).is_some() && style.stroke_width > 0.0;
+    let has_stroke = style.has_visible_stroke();
     if has_stroke {
         out.push_str("S\n");
     } else {
