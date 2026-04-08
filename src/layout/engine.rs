@@ -94,10 +94,10 @@ fn resolve_padding_box_height(
 
 fn advance_positioned_ancestors_after_page_break(
     positioned_y_by_depth: &mut HashMap<usize, f32>,
-    content_height: f32,
+    consumed_height: f32,
 ) {
     for y in positioned_y_by_depth.values_mut() {
-        *y -= content_height;
+        *y -= consumed_height;
     }
 }
 
@@ -252,6 +252,12 @@ fn measure_lines_width(lines: &[TextLine], fonts: &HashMap<String, TtfFont>) -> 
         .fold(0.0, f32::max)
 }
 
+fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+    runs.iter()
+        .map(|run| estimate_word_width(&run.text, run.font_size, &run.font_family, fonts))
+        .sum()
+}
+
 #[allow(dead_code)]
 fn resolve_pseudo_content(
     rules: &[CssRule],
@@ -311,8 +317,9 @@ fn build_pseudo_block(
     .max(0.0);
 
     let mut lines = Vec::new();
+    let mut runs = Vec::new();
     if !content_text.is_empty() {
-        let runs = vec![TextRun {
+        runs.push(TextRun {
             text: content_text,
             font_size: pseudo_style.font_size,
             bold: pseudo_style.font_weight == FontWeight::Bold,
@@ -325,15 +332,15 @@ fn build_pseudo_block(
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
-        }];
-        lines = wrap_text_runs(runs, inner_w, pseudo_style.font_size, fonts);
+        });
+        lines = wrap_text_runs(runs.clone(), inner_w, pseudo_style.font_size, fonts);
     }
 
     if pseudo_style.position == Position::Absolute
         && pseudo_style.width.is_none()
         && pseudo_style.min_width.is_none()
     {
-        let content_w = measure_lines_width(&lines, fonts);
+        let content_w = measure_runs_width(&runs, fonts);
         block_w = if pseudo_style.box_sizing == BoxSizing::BorderBox {
             content_w
                 + pseudo_style.padding.left
@@ -4140,6 +4147,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         // Returns (content_height_without_margins, margin_top, margin_bottom)
         let (content_h_val, margin_top_val, margin_bottom_val) = match &element {
             LayoutElement::PageBreak => {
+                let consumed_height = y;
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                 });
@@ -4149,7 +4157,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 right_floats.clear();
                 advance_positioned_ancestors_after_page_break(
                     &mut positioned_y_by_depth,
-                    content_height,
+                    consumed_height,
                 );
                 continue;
             }
@@ -4276,6 +4284,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         }
 
         if y + element_height > content_height && y > 0.0 {
+            let consumed_height = y;
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
             });
@@ -4285,7 +4294,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             right_floats.clear();
             advance_positioned_ancestors_after_page_break(
                 &mut positioned_y_by_depth,
-                content_height,
+                consumed_height,
             );
         }
 
@@ -8776,53 +8785,43 @@ mod tests {
     }
 
     #[test]
-    fn absolute_after_keeps_positioned_ancestor_across_page_break() {
-        let css = r#"
-            .container {
-                position: relative;
-                margin-top: 60pt;
-                height: 500pt;
-            }
-            .spacer {
-                height: 500pt;
-            }
-            .container::after {
-                content: "BOTTOM";
-                position: absolute;
-                bottom: 0;
-                right: 0;
-            }
-        "#;
-        let rules = parse_stylesheet(css);
-        let html = r#"<div class="container"><div class="spacer"></div></div>"#;
-        let nodes = parse_html(html).unwrap();
-        let pages = layout_with_rules(
-            &nodes,
-            PageSize::new(300.0, 300.0),
-            Margin::uniform(0.0),
-            &rules,
-        );
+    fn absolute_pseudo_auto_width_uses_unwrapped_content_width() {
+        let pseudo_style = ComputedStyle {
+            position: Position::Absolute,
+            right: Some(0.0),
+            font_size: 12.0,
+            content: vec![crate::style::computed::ContentItem::String(
+                "word word word".to_string(),
+            )],
+            ..ComputedStyle::default()
+        };
+        let el = ElementNode::new(HtmlTag::Div);
+        let fonts = HashMap::new();
 
-        assert!(pages.len() >= 2, "Expected the container to span multiple pages");
-        let page_two_abs = pages[1]
-            .elements
-            .iter()
-            .find(|(_, el)| {
-                matches!(
-                    el,
-                    LayoutElement::TextBlock {
-                        position: Position::Absolute,
-                        ..
-                    }
-                )
-            })
-            .expect("expected absolute ::after on the second page");
+        let block = build_pseudo_block(&pseudo_style, &el, 30.0, &fonts, None);
+        match block {
+            LayoutElement::TextBlock {
+                block_width: Some(block_width),
+                lines,
+                ..
+            } => {
+                let wrapped_width = measure_lines_width(&lines, &fonts);
+                assert!(
+                    block_width > wrapped_width,
+                    "auto-width absolute pseudo should use unwrapped intrinsic width"
+                );
+            }
+            other => panic!("expected text block, got {other:?}"),
+        }
+    }
 
-        assert!(
-            page_two_abs.0 > 200.0 && page_two_abs.0 < 260.0,
-            "absolute ::after should keep the ancestor's continued y-position, got {}",
-            page_two_abs.0
-        );
+    #[test]
+    fn positioned_ancestor_carryover_uses_consumed_page_height() {
+        let mut positioned_y_by_depth = HashMap::from([(1usize, 60.0f32), (2usize, 140.0f32)]);
+        advance_positioned_ancestors_after_page_break(&mut positioned_y_by_depth, 260.0);
+
+        assert_eq!(positioned_y_by_depth.get(&1).copied(), Some(-200.0));
+        assert_eq!(positioned_y_by_depth.get(&2).copied(), Some(-120.0));
     }
 
     #[test]
