@@ -23,7 +23,7 @@ path = "src/bin/cli.rs"
 default = []
 async = ["tokio"]
 remote = ["ureq"]
-wasm = ["wasm-bindgen", "js-sys"]
+wasm = ["wasm-bindgen", "js-sys", "getrandom/wasm_js"]
 
 [dependencies]
 html5ever = "0.27"
@@ -35,6 +35,7 @@ tokio = { version = "1", features = ["fs", "rt"], optional = true }
 ureq = { version = "3", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
+getrandom = { version = "0.3", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
