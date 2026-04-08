@@ -75,6 +75,32 @@ impl LayoutBorder {
     }
 }
 
+fn resolve_padding_box_height(
+    content_height: f32,
+    specified_height: Option<f32>,
+    padding_top: f32,
+    padding_bottom: f32,
+    border_vertical: f32,
+    box_sizing: BoxSizing,
+) -> f32 {
+    let content_based_height = padding_top + content_height + padding_bottom;
+    let specified_padding_box_height = specified_height.map_or(0.0, |height| match box_sizing {
+        BoxSizing::BorderBox => (height - border_vertical).max(0.0),
+        BoxSizing::ContentBox => height + padding_top + padding_bottom,
+    });
+
+    content_based_height.max(specified_padding_box_height)
+}
+
+fn advance_positioned_ancestors_after_page_break(
+    positioned_y_by_depth: &mut HashMap<usize, f32>,
+    content_height: f32,
+) {
+    for y in positioned_y_by_depth.values_mut() {
+        *y -= content_height;
+    }
+}
+
 /// Counter state for CSS counters.
 #[derive(Debug, Default, Clone)]
 #[allow(dead_code)]
@@ -214,6 +240,18 @@ fn resolve_content(
     result
 }
 
+fn measure_lines_width(lines: &[TextLine], fonts: &HashMap<String, TtfFont>) -> f32 {
+    lines
+        .iter()
+        .map(|line| {
+            line.runs
+                .iter()
+                .map(|run| estimate_word_width(&run.text, run.font_size, &run.font_family, fonts))
+                .sum::<f32>()
+        })
+        .fold(0.0, f32::max)
+}
+
 #[allow(dead_code)]
 fn resolve_pseudo_content(
     rules: &[CssRule],
@@ -291,9 +329,28 @@ fn build_pseudo_block(
         lines = wrap_text_runs(runs, inner_w, pseudo_style.font_size, fonts);
     }
 
-    let bg = pseudo_style.background_color.map(|c| c.to_f32_rgb());
+    if pseudo_style.position == Position::Absolute
+        && pseudo_style.width.is_none()
+        && pseudo_style.min_width.is_none()
+    {
+        let content_w = measure_lines_width(&lines, fonts);
+        block_w = if pseudo_style.box_sizing == BoxSizing::BorderBox {
+            content_w
+                + pseudo_style.padding.left
+                + pseudo_style.padding.right
+                + pseudo_style.border.horizontal_width()
+        } else {
+            content_w + pseudo_style.padding.left + pseudo_style.padding.right
+        };
+    }
 
-    let explicit_width = if pseudo_style.width.is_some() || pseudo_style.min_width.is_some() {
+    let bg = pseudo_style.background_color.map(|c| c.to_f32_rgb());
+    let border = LayoutBorder::from_computed(&pseudo_style.border);
+
+    let explicit_width = if pseudo_style.position == Position::Absolute
+        || pseudo_style.width.is_some()
+        || pseudo_style.min_width.is_some()
+    {
         Some(block_w)
     } else {
         None
@@ -309,14 +366,20 @@ fn build_pseudo_block(
         }
         h
     };
+    let text_height: f32 = lines.iter().map(|l| l.height).sum();
+    let padding_box_height = resolve_padding_box_height(
+        text_height,
+        effective_height,
+        pseudo_style.padding.top,
+        pseudo_style.padding.bottom,
+        border.vertical_width(),
+        pseudo_style.box_sizing,
+    );
 
     // Resolve bottom/right into top/left when a containing block is present.
     // This allows pagination and rendering to only deal with top/left offsets.
     let (resolved_top, resolved_left) = if let Some(cb) = containing_block_info {
-        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-        let elem_h = effective_height.unwrap_or(
-            pseudo_style.padding.top + text_height + pseudo_style.padding.bottom,
-        );
+        let elem_h = padding_box_height;
         let elem_w = explicit_width.unwrap_or(block_w);
 
         let top = if pseudo_style.top.is_some() {
@@ -353,9 +416,9 @@ fn build_pseudo_block(
         padding_bottom: pseudo_style.padding.bottom,
         padding_left: pseudo_style.padding.left,
         padding_right: pseudo_style.padding.right,
-        border: LayoutBorder::from_computed(&pseudo_style.border),
+        border,
         block_width: explicit_width,
-        block_height: effective_height,
+        block_height: effective_height.map(|_| padding_box_height),
         opacity: pseudo_style.opacity,
         float: pseudo_style.float,
         clear: pseudo_style.clear,
@@ -379,6 +442,7 @@ fn build_pseudo_block(
         background_gradient: pseudo_style.background_gradient.clone(),
         background_radial_gradient: pseudo_style.background_radial_gradient.clone(),
         z_index: pseudo_style.z_index,
+        positioned_depth: 0,
         heading_level: None,
     }
 }
@@ -504,6 +568,8 @@ pub struct ContainingBlock {
     pub width: f32,
     /// Height of the containing block.
     pub height: f32,
+    /// Depth of the positioned ancestor in the layout stack.
+    pub depth: usize,
 }
 
 /// A layout element ready for rendering.
@@ -549,6 +615,8 @@ pub enum LayoutElement {
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         z_index: i32,
+        /// Depth of the nearest positioned ancestor for pagination.
+        positioned_depth: usize,
         /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
         heading_level: Option<u8>,
     },
@@ -693,6 +761,7 @@ pub fn layout_with_rules_and_fonts(
         None,
         rules,
         &ancestors,
+        0,
         custom_fonts,
     );
 
@@ -709,6 +778,7 @@ fn flatten_nodes(
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
+    positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
 ) {
     // Count element children for sibling context
@@ -777,6 +847,7 @@ fn flatten_nodes(
                             background_gradient: None,
                             background_radial_gradient: None,
                             z_index: 0,
+                            positioned_depth: 0,
                             heading_level: None,
                         });
                     }
@@ -791,6 +862,7 @@ fn flatten_nodes(
                     list_ctx,
                     rules,
                     ancestors,
+                    positioned_ancestor_depth,
                     element_index,
                     element_count,
                     &preceding_siblings,
@@ -830,6 +902,7 @@ fn flatten_element(
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
+    positioned_ancestor_depth: usize,
     child_index: usize,
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
@@ -853,6 +926,13 @@ fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+    let positioned_depth = if style.position == Position::Relative
+        || style.position == Position::Absolute
+    {
+        positioned_ancestor_depth + 1
+    } else {
+        positioned_ancestor_depth
+    };
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -913,6 +993,7 @@ fn flatten_element(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            positioned_depth: 0,
             heading_level: None,
         });
         return;
@@ -1061,6 +1142,7 @@ fn flatten_element(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             z_index: style.z_index,
+            positioned_depth: 0,
             heading_level: None,
         });
         return;
@@ -1175,6 +1257,7 @@ fn flatten_element(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             z_index: style.z_index,
+            positioned_depth: 0,
             heading_level: None,
         });
         return;
@@ -1299,6 +1382,7 @@ fn flatten_element(
                         Some(&ctx),
                         rules,
                         &child_ancestors,
+                        positioned_depth,
                         child_el_idx,
                         child_el_count,
                         &[],
@@ -1316,6 +1400,7 @@ fn flatten_element(
                         None,
                         rules,
                         &child_ancestors,
+                        positioned_depth,
                         child_el_idx,
                         child_el_count,
                         &[],
@@ -1414,6 +1499,7 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                positioned_depth: 0,
                 heading_level: block_heading_level,
             });
         }
@@ -1436,6 +1522,7 @@ fn flatten_element(
                         list_ctx,
                         rules,
                         &child_ancestors,
+                        positioned_depth,
                         child_el_idx,
                         child_el_count,
                         &[],
@@ -1450,6 +1537,7 @@ fn flatten_element(
                         None,
                         rules,
                         &child_ancestors,
+                        positioned_depth,
                         child_el_idx,
                         child_el_count,
                         &[],
@@ -1593,54 +1681,47 @@ fn flatten_element(
         };
         let inner_width = inner_width.max(0.0);
 
-        // Build containing block info for absolute pseudo-elements inside
-        // a positioned (relative/absolute) parent.
-        let cb_info = if style.position == Position::Relative
-            || style.position == Position::Absolute
-        {
-            // Containing block = padding box of the positioned ancestor.
-            let cb_width = if style.box_sizing == BoxSizing::BorderBox {
-                block_w - style.border.horizontal_width()
+        let positioned_container =
+            style.position == Position::Relative || style.position == Position::Absolute;
+        let make_containing_block = |padding_box_height: f32| {
+            if positioned_container {
+                let cb_width = if style.box_sizing == BoxSizing::BorderBox {
+                    block_w - style.border.horizontal_width()
+                } else {
+                    block_w + style.padding.left + style.padding.right
+                };
+                Some(ContainingBlock {
+                    x: style.left.unwrap_or(0.0)
+                        + auto_offset_left
+                        + style.border.left.width
+                        + style.padding.left,
+                    width: cb_width,
+                    height: padding_box_height,
+                    depth: positioned_depth,
+                })
             } else {
-                block_w + style.padding.left + style.padding.right
-            };
-            let cb_height = if style.box_sizing == BoxSizing::BorderBox {
-                effective_height.unwrap_or(0.0) - style.border.vertical_width()
-            } else {
-                effective_height.unwrap_or(0.0)
-                    + style.padding.top
-                    + style.padding.bottom
-            };
-            Some(ContainingBlock {
-                x: auto_offset_left,
-                width: cb_width,
-                height: cb_height,
-            })
-        } else {
-            None
+                None
+            }
         };
 
         // Emit block-level ::before pseudo-element.
-        // Absolute ::before with a containing block is deferred until after the
-        // parent wrapper so that pagination can resolve the y-position correctly.
         let before_is_block = before_style
             .as_ref()
             .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
         let before_is_abs = before_style
             .as_ref()
             .is_some_and(|s| s.position == Position::Absolute);
-        let mut deferred_before = if before_is_block && before_is_abs && cb_info.is_some() {
-            before_style.as_ref().map(|ps| {
-                build_pseudo_block(ps, el, inner_width, fonts, cb_info)
-            })
-        } else {
-            if let Some(ref ps) = before_style {
-                if before_is_block {
-                    output.push(build_pseudo_block(ps, el, inner_width, fonts, None));
-                }
+        let after_is_block = after_style
+            .as_ref()
+            .is_some_and(|s| s.display == Display::Block || s.position == Position::Absolute);
+        let after_is_abs = after_style
+            .as_ref()
+            .is_some_and(|s| s.position == Position::Absolute);
+        if let Some(ref ps) = before_style {
+            if before_is_block && !before_is_abs {
+                output.push(build_pseudo_block(ps, el, inner_width, fonts, None));
             }
-            None
-        };
+        }
 
         // Collect all inline content as text runs, with inline ::before/::after
         let mut runs = Vec::new();
@@ -1651,14 +1732,13 @@ fn flatten_element(
         }
         collect_text_runs(&el.children, &style, &mut runs, None, rules, ancestors);
         if let Some(ref ps) = after_style {
-            let after_is_block =
-                ps.display == Display::Block || ps.position == Position::Absolute;
             if !after_is_block {
                 runs.push(build_pseudo_inline_run(ps, el));
             }
         }
 
         let had_inline_runs = !runs.is_empty();
+        let mut cb_info = None;
         if !runs.is_empty() {
             // When white-space: nowrap, prevent wrapping by using a huge width
             let wrap_width = if style.white_space == WhiteSpace::NoWrap {
@@ -1691,12 +1771,28 @@ fn flatten_element(
             // Compute clip rect before moving lines
             let clip_rect = if style.overflow == Overflow::Hidden {
                 let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                let content_h = style.padding.top + text_height + style.padding.bottom;
-                let total_h = effective_height.map_or(content_h, |h| content_h.max(h));
+                let total_h = resolve_padding_box_height(
+                    text_height,
+                    effective_height,
+                    style.padding.top,
+                    style.padding.bottom,
+                    style.border.vertical_width(),
+                    style.box_sizing,
+                );
                 Some((0.0, 0.0, block_w, total_h))
             } else {
                 None
             };
+            let text_height: f32 = lines.iter().map(|l| l.height).sum();
+            let total_h = resolve_padding_box_height(
+                text_height,
+                effective_height,
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            );
+            cb_info = make_containing_block(total_h);
 
             output.push(LayoutElement::TextBlock {
                 lines,
@@ -1710,7 +1806,7 @@ fn flatten_element(
                 padding_right: style.padding.right,
                 border: LayoutBorder::from_computed(&style.border),
                 block_width: explicit_width,
-                block_height: effective_height,
+                block_height: effective_height.map(|_| total_h),
                 opacity: style.opacity,
                 float: style.float,
                 clear: style.clear,
@@ -1734,11 +1830,13 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                positioned_depth,
                 heading_level: heading_level(el.tag),
             });
-            // Emit deferred absolute ::before after the parent wrapper.
-            if let Some(elem) = deferred_before.take() {
-                output.push(elem);
+            if let Some(ref ps) = before_style {
+                if before_is_block && before_is_abs {
+                    output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
+                }
             }
         }
 
@@ -1761,9 +1859,10 @@ fn flatten_element(
             || style.border.has_any()
             || style.border_radius > 0.0
             || style.box_shadow.is_some();
+        let needs_wrapper = has_visual || (positioned_container && (before_is_abs || after_is_abs));
         let no_inline_content = !had_inline_runs;
 
-        if no_inline_content && has_visual {
+        if no_inline_content && needs_wrapper {
             // Pre-flatten children to measure total height
             let mut child_elements = Vec::new();
             let mut child_el_idx = 0;
@@ -1778,6 +1877,7 @@ fn flatten_element(
                             None,
                             rules,
                             &child_ancestors,
+                            positioned_depth,
                             child_el_idx,
                             child_el_count,
                             &[],
@@ -1789,8 +1889,15 @@ fn flatten_element(
             }
             // Measure children total height
             let children_h: f32 = child_elements.iter().map(estimate_element_height).sum();
-            let container_h = style.padding.top + children_h + style.padding.bottom;
-            let container_h = effective_height.map_or(container_h, |h| container_h.max(h));
+            let container_h = resolve_padding_box_height(
+                children_h,
+                effective_height,
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            );
+            cb_info = make_containing_block(container_h);
 
             let bg = style
                 .background_color
@@ -1838,11 +1945,13 @@ fn flatten_element(
                 background_gradient: style.background_gradient.clone(),
                 background_radial_gradient: style.background_radial_gradient.clone(),
                 z_index: style.z_index,
+                positioned_depth,
                 heading_level: None,
             });
-            // Emit deferred absolute ::before after the parent wrapper.
-            if let Some(elem) = deferred_before.take() {
-                output.push(elem);
+            if let Some(ref ps) = before_style {
+                if before_is_block && before_is_abs {
+                    output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
+                }
             }
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
@@ -1885,6 +1994,7 @@ fn flatten_element(
                 background_gradient: None,
                 background_radial_gradient: None,
                 z_index: 0,
+                positioned_depth: 0,
                 heading_level: None,
             });
             // Add the parent's left/right padding to children so they render
@@ -1943,13 +2053,17 @@ fn flatten_element(
                     background_gradient: None,
                     background_radial_gradient: None,
                     z_index: 0,
+                    positioned_depth: 0,
                     heading_level: None,
                 });
             }
         } else {
-            // Emit deferred absolute ::before if not yet emitted.
-            if let Some(elem) = deferred_before.take() {
-                output.push(elem);
+            if no_inline_content {
+                if let Some(ref ps) = before_style {
+                    if before_is_block && before_is_abs {
+                        output.push(build_pseudo_block(ps, el, inner_width, fonts, cb_info));
+                    }
+                }
             }
             let mut child_el_idx = 0;
             for child in &el.children {
@@ -1963,6 +2077,7 @@ fn flatten_element(
                             None,
                             rules,
                             &child_ancestors,
+                            positioned_depth,
                             child_el_idx,
                             child_el_count,
                             &[],
@@ -1976,8 +2091,6 @@ fn flatten_element(
 
         // Emit block-level ::after pseudo-element (inside block path)
         if let Some(ref ps) = after_style {
-            let after_is_block =
-                ps.display == Display::Block || ps.position == Position::Absolute;
             if after_is_block {
                 let pseudo_cb = if ps.position == Position::Absolute {
                     cb_info
@@ -1997,6 +2110,7 @@ fn flatten_element(
             None,
             rules,
             &child_ancestors,
+            positioned_depth,
             fonts,
         );
     }
@@ -2145,11 +2259,14 @@ fn flatten_flex_container(
         };
 
         let text_height: f32 = lines.iter().map(|l| l.height).sum();
-        let content_h = child_style.padding.top + text_height + child_style.padding.bottom;
-        let child_h = match child_style.height {
-            Some(h) => content_h.max(h),
-            None => content_h,
-        };
+        let child_h = resolve_padding_box_height(
+            text_height,
+            child_style.height,
+            child_style.padding.top,
+            child_style.padding.bottom,
+            child_style.border.vertical_width(),
+            child_style.box_sizing,
+        );
 
         let bg = child_style
             .background_color
@@ -2166,7 +2283,7 @@ fn flatten_flex_container(
             padding_right: child_style.padding.right,
             border: LayoutBorder::from_computed(&child_style.border),
             block_width: Some(child_w),
-            block_height: child_style.height,
+            block_height: child_style.height.map(|_| child_h),
             opacity: child_style.opacity,
             float: Float::None,
             clear: Clear::None,
@@ -2194,6 +2311,7 @@ fn flatten_flex_container(
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
             z_index: child_style.z_index,
+            positioned_depth: 0,
             heading_level: None,
         };
 
@@ -2369,6 +2487,7 @@ fn flatten_flex_container(
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             z_index: 0,
+            positioned_depth: 0,
             heading_level: None,
         });
         // Pull y back so children flow inside the container background
@@ -2408,6 +2527,7 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            positioned_depth: 0,
             heading_level: None,
         });
     }
@@ -2667,6 +2787,7 @@ fn flatten_flex_container(
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
                                 z_index: 0,
+                                positioned_depth: 0,
                                 heading_level: None,
                             });
                         }
@@ -2723,6 +2844,7 @@ fn flatten_flex_container(
             background_gradient: None,
             background_radial_gradient: None,
             z_index: 0,
+            positioned_depth: 0,
             heading_level: None,
         });
     }
@@ -3953,8 +4075,9 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     let mut right_floats: Vec<FloatRegion> = Vec::new();
     let mut prev_margin_bottom: f32 = 0.0;
 
-    // Track the y-position of the last positioned ancestor for absolute children.
-    let mut last_positioned_y: f32 = 0.0;
+    // Track the y-position of positioned ancestors by depth so absolute descendants
+    // resolve against the nearest positioned ancestor rather than the most recent one.
+    let mut positioned_y_by_depth: HashMap<usize, f32> = HashMap::new();
 
     for element in elements {
         // Extract float/clear/position info from TextBlock elements
@@ -3965,6 +4088,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             elem_offset_top,
             _elem_offset_bottom,
             elem_containing_block,
+            elem_positioned_depth,
         ) = match &element {
             LayoutElement::TextBlock {
                 float,
@@ -3973,6 +4097,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 offset_top,
                 offset_bottom,
                 containing_block,
+                positioned_depth,
                 ..
             } => (
                 *float,
@@ -3981,8 +4106,9 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 *offset_top,
                 *offset_bottom,
                 *containing_block,
+                *positioned_depth,
             ),
-            _ => (Float::None, Clear::None, Position::Static, 0.0, 0.0, None),
+            _ => (Float::None, Clear::None, Position::Static, 0.0, 0.0, None, 0),
         };
 
         // Handle clear: move y below active floats on the specified side
@@ -4021,6 +4147,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 prev_margin_bottom = 0.0;
                 left_floats.clear();
                 right_floats.clear();
+                advance_positioned_ancestors_after_page_break(
+                    &mut positioned_y_by_depth,
+                    content_height,
+                );
                 continue;
             }
             LayoutElement::HorizontalRule {
@@ -4129,11 +4259,18 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             let abs_y = if elem_containing_block.is_some() {
                 // Position relative to the containing block (nearest positioned ancestor).
                 // bottom/right offsets are pre-resolved into top/left in build_pseudo_block.
-                last_positioned_y + elem_offset_top
+                positioned_y_by_depth
+                    .get(&elem_containing_block.expect("checked above").depth)
+                    .copied()
+                    .unwrap_or(0.0)
+                    + elem_offset_top
             } else {
                 // No containing block — position relative to page (legacy behavior).
                 elem_offset_top
             };
+            if elem_positioned_depth > 0 {
+                positioned_y_by_depth.insert(elem_positioned_depth, abs_y);
+            }
             current_elements.push((abs_y, element));
             continue;
         }
@@ -4146,6 +4283,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             prev_margin_bottom = 0.0;
             left_floats.clear();
             right_floats.clear();
+            advance_positioned_ancestors_after_page_break(
+                &mut positioned_y_by_depth,
+                content_height,
+            );
         }
 
         // After potential page break, recompute effective margin_top
@@ -4185,8 +4326,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         };
 
         // Track positioned ancestor y for absolute children.
-        if elem_position == Position::Relative || elem_position == Position::Absolute {
-            last_positioned_y = effective_y;
+        if elem_positioned_depth > 0
+            && (elem_position == Position::Relative || elem_position == Position::Absolute)
+        {
+            positioned_y_by_depth.insert(elem_positioned_depth, effective_y);
         }
 
         current_elements.push((effective_y, element));
@@ -8595,6 +8738,91 @@ mod tests {
         } else {
             panic!("Expected TextBlock");
         }
+    }
+
+    #[test]
+    fn absolute_before_without_wrapper_still_emits() {
+        let css = r#"
+            .container::before {
+                content: "TOP";
+                position: absolute;
+                top: 12px;
+                left: 8px;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="container"><p>Block child</p></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .collect();
+        assert_eq!(abs_blocks.len(), 1, "Expected one absolute ::before block");
+        assert!(
+            (abs_blocks[0].0 - 9.0).abs() < 1.0,
+            "absolute ::before should use page-relative top offset"
+        );
+    }
+
+    #[test]
+    fn absolute_after_keeps_positioned_ancestor_across_page_break() {
+        let css = r#"
+            .container {
+                position: relative;
+                margin-top: 60pt;
+                height: 500pt;
+            }
+            .spacer {
+                height: 500pt;
+            }
+            .container::after {
+                content: "BOTTOM";
+                position: absolute;
+                bottom: 0;
+                right: 0;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="container"><div class="spacer"></div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(
+            &nodes,
+            PageSize::new(300.0, 300.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+
+        assert!(pages.len() >= 2, "Expected the container to span multiple pages");
+        let page_two_abs = pages[1]
+            .elements
+            .iter()
+            .find(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .expect("expected absolute ::after on the second page");
+
+        assert!(
+            page_two_abs.0 > 200.0 && page_two_abs.0 < 260.0,
+            "absolute ::after should keep the ancestor's continued y-position, got {}",
+            page_two_abs.0
+        );
     }
 
     #[test]
