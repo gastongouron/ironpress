@@ -3246,9 +3246,9 @@ fn main() {
 
     #[test]
     fn html_to_pdf_table_border_spacing() {
-        // Covers pdf.rs lines 472-473,476: border-spacing in separate mode
+        // Covers pdf.rs lines 472-473,476: two-axis border-spacing in separate mode
         let html = r#"<html><head><style>
-            table { border-collapse: separate; border-spacing: 5pt; }
+            table { border-collapse: separate; border-spacing: 5pt 10pt; }
             td { border: 1pt solid black; }
         </style></head><body>
         <table>

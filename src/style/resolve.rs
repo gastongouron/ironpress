@@ -8,6 +8,7 @@ use crate::parser::css::{CalcOp, CalcToken, CssValue};
 pub fn resolve_calc(
     tokens: &[CalcToken],
     parent_width: f32,
+    em_basis: f32,
     root_font_size: f32,
     page_width: f32,
     page_height: f32,
@@ -17,6 +18,7 @@ pub fn resolve_calc(
     for token in tokens {
         match token {
             CalcToken::Length(v) => values.push(*v),
+            CalcToken::Number(v) => values.push(*v * em_basis),
             CalcToken::Percent(v) => values.push(parent_width * v / 100.0),
             CalcToken::Rem(v) => values.push(*v * root_font_size),
             CalcToken::Vw(v) => values.push(page_width * v / 100.0),
@@ -62,18 +64,22 @@ pub fn resolve_calc(
     result
 }
 
-/// Resolve a CssValue to absolute length in points.
-pub fn resolve_length_value(
+fn resolve_length_value_common<F>(
     val: &CssValue,
     parent_width: f32,
+    em_basis: f32,
     root_font_size: f32,
     page_width: f32,
     page_height: f32,
     custom_properties: &HashMap<String, String>,
-) -> Option<f32> {
+    number_value: F,
+) -> Option<f32>
+where
+    F: Fn(f32) -> f32 + Copy,
+{
     match val {
         CssValue::Length(v) => Some(*v),
-        CssValue::Number(v) => Some(*v),
+        CssValue::Number(v) => Some(number_value(*v)),
         CssValue::Percentage(v) => Some(parent_width * v / 100.0),
         CssValue::Rem(v) => Some(*v * root_font_size),
         CssValue::Vw(v) => Some(page_width * v / 100.0),
@@ -81,6 +87,7 @@ pub fn resolve_length_value(
         CssValue::Calc(tokens) => Some(resolve_calc(
             tokens,
             parent_width,
+            em_basis,
             root_font_size,
             page_width,
             page_height,
@@ -91,32 +98,76 @@ pub fn resolve_length_value(
                 .cloned()
                 .or_else(|| fallback.clone())?;
             let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));
-            if let Some(inner) = parsed.get("_x") {
-                resolve_length_value(
-                    inner,
-                    parent_width,
-                    root_font_size,
-                    page_width,
-                    page_height,
-                    custom_properties,
-                )
-            } else {
-                None
-            }
+            let inner = parsed.get("_x")?;
+            resolve_length_value_common(
+                inner,
+                parent_width,
+                em_basis,
+                root_font_size,
+                page_width,
+                page_height,
+                custom_properties,
+                number_value,
+            )
         }
         _ => None,
     }
 }
 
-/// Try to resolve a CssValue to an absolute length using defaults.
-pub fn try_resolve_to_length(
+/// Resolve a CssValue to absolute length in points.
+pub fn resolve_length_value(
+    val: &CssValue,
+    parent_width: f32,
+    root_font_size: f32,
+    page_width: f32,
+    page_height: f32,
+    custom_properties: &HashMap<String, String>,
+) -> Option<f32> {
+    resolve_length_value_common(
+        val,
+        parent_width,
+        root_font_size,
+        root_font_size,
+        page_width,
+        page_height,
+        custom_properties,
+        |value| value,
+    )
+}
+
+/// Resolve a CssValue to absolute length using `font_size` as the `em` basis.
+pub fn resolve_relative_length_value(
+    val: &CssValue,
+    parent_width: f32,
+    font_size: f32,
+    root_font_size: f32,
+    page_width: f32,
+    page_height: f32,
+    custom_properties: &HashMap<String, String>,
+) -> Option<f32> {
+    resolve_length_value_common(
+        val,
+        parent_width,
+        font_size,
+        root_font_size,
+        page_width,
+        page_height,
+        custom_properties,
+        |value| value * font_size,
+    )
+}
+
+/// Try to resolve a CssValue to an absolute length using `font_size` as the `em` basis.
+pub fn try_resolve_to_length_with_font_size(
     val: &CssValue,
     custom_properties: &HashMap<String, String>,
     parent_width_hint: f32,
+    font_size: f32,
 ) -> Option<f32> {
-    resolve_length_value(
+    resolve_relative_length_value(
         val,
         parent_width_hint,
+        font_size,
         12.0,
         595.28,
         841.89,
@@ -177,7 +228,7 @@ mod tests {
             CalcToken::Op(CalcOp::Sub),
             CalcToken::Length(20.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 380.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 380.0).abs() < 0.01);
     }
 
     #[test]
@@ -187,7 +238,7 @@ mod tests {
             CalcToken::Op(CalcOp::Add),
             CalcToken::Length(7.5),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 207.5).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 207.5).abs() < 0.01);
     }
 
     #[test]
@@ -197,7 +248,7 @@ mod tests {
             CalcToken::Op(CalcOp::Mul),
             CalcToken::Length(3.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 30.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 30.0).abs() < 0.01);
     }
 
     #[test]
@@ -207,7 +258,7 @@ mod tests {
             CalcToken::Op(CalcOp::Div),
             CalcToken::Length(2.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 50.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 50.0).abs() < 0.01);
     }
 
     #[test]
@@ -219,7 +270,7 @@ mod tests {
             CalcToken::Op(CalcOp::Mul),
             CalcToken::Length(3.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 25.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 25.0).abs() < 0.01);
     }
 
     #[test]
@@ -229,7 +280,17 @@ mod tests {
             CalcToken::Op(CalcOp::Add),
             CalcToken::Length(5.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 29.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 29.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn resolve_calc_with_em_basis() {
+        let tokens = vec![
+            CalcToken::Number(2.0),
+            CalcToken::Op(CalcOp::Add),
+            CalcToken::Length(3.0),
+        ];
+        assert!((resolve_calc(&tokens, 400.0, 10.0, 12.0, 595.28, 841.89) - 23.0).abs() < 0.01);
     }
 
     #[test]
@@ -239,7 +300,7 @@ mod tests {
             CalcToken::Op(CalcOp::Sub),
             CalcToken::Length(20.0),
         ];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 575.28).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 575.28).abs() < 0.01);
     }
 
     #[test]
@@ -315,7 +376,7 @@ mod tests {
 
     #[test]
     fn resolve_calc_empty() {
-        assert_eq!(resolve_calc(&[], 400.0, 12.0, 595.28, 841.89), 0.0);
+        assert_eq!(resolve_calc(&[], 400.0, 12.0, 12.0, 595.28, 841.89), 0.0);
     }
 
     #[test]
@@ -325,14 +386,17 @@ mod tests {
             CalcToken::Op(CalcOp::Div),
             CalcToken::Length(0.0),
         ];
-        assert_eq!(resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89), 100.0);
+        assert_eq!(
+            resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89),
+            100.0
+        );
     }
 
     #[test]
     fn resolve_calc_from_parsed() {
         let map = crate::parser::css::parse_inline_style("width: calc(100% - 20pt)");
         if let Some(CssValue::Calc(tokens)) = map.get("width") {
-            assert!((resolve_calc(tokens, 400.0, 12.0, 595.28, 841.89) - 380.0).abs() < 0.01);
+            assert!((resolve_calc(tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 380.0).abs() < 0.01);
         } else {
             panic!("Expected Calc");
         }
@@ -347,7 +411,7 @@ mod tests {
             CalcToken::Op(CalcOp::Add),
             CalcToken::Length(10.0),
         ];
-        let result = resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89);
+        let result = resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89);
         // 50% of 841.89 = 420.945, plus 10 = 430.945
         assert!((result - 430.945).abs() < 0.01);
     }
@@ -358,7 +422,7 @@ mod tests {
     fn resolve_calc_trailing_op() {
         // More ops than value pairs: the trailing op is skipped
         let tokens = vec![CalcToken::Length(10.0), CalcToken::Op(CalcOp::Add)];
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 10.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 10.0).abs() < 0.01);
     }
 
     // --- Coverage: break in second pass (line 54) ---
@@ -373,7 +437,7 @@ mod tests {
             CalcToken::Op(CalcOp::Add),
         ];
         // 5 * 2 = 10, then trailing add is ignored
-        assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 10.0).abs() < 0.01);
+        assert!((resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89) - 10.0).abs() < 0.01);
     }
 
     // --- Coverage: CssValue::Number in resolve_length_value (line 76) ---

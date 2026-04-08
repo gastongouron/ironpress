@@ -5,11 +5,11 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle,
-    ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
-    GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    AlignItems, BorderCollapse, BorderSides, BorderSpacing, BoxShadow, BoxSizing, Clear,
+    ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
+    FontWeight, GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType,
+    Overflow, Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign,
+    Visibility, WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -376,7 +376,7 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
         border_collapse: BorderCollapse,
-        border_spacing: f32,
+        border_spacing: BorderSpacing,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -1055,6 +1055,7 @@ fn flatten_element(
             ancestors,
             child_index,
             sibling_count,
+            preceding_siblings,
         );
         return;
     }
@@ -1065,6 +1066,7 @@ fn flatten_element(
         element: el,
         child_index,
         sibling_count,
+        preceding_siblings: preceding_siblings.to_vec(),
     });
 
     // List handling — Ul/Ol pass context to Li children
@@ -1858,6 +1860,20 @@ fn flatten_flex_container(
             element: child_el,
             child_index: idx,
             sibling_count: child_count,
+            preceding_siblings: child_elements
+                .iter()
+                .take(idx)
+                .map(|sibling| {
+                    (
+                        sibling.raw_tag_name.clone(),
+                        sibling
+                            .class_list()
+                            .into_iter()
+                            .map(str::to_string)
+                            .collect(),
+                    )
+                })
+                .collect(),
         });
         let mut runs = Vec::new();
         collect_flex_child_text_runs(
@@ -2525,6 +2541,7 @@ fn flatten_grid_container(
         element: el,
         child_index: 0,
         sibling_count: 0,
+        preceding_siblings: Vec::new(),
     });
 
     // Collect element children (skip text nodes)
@@ -2644,7 +2661,8 @@ fn flatten_grid_container(
 ///
 /// Supported inline and stylesheet `width` declarations take precedence.
 /// Unsupported or malformed declarations are ignored so the `width` attribute
-/// can still act as a fallback. `width: auto` explicitly clears the width.
+/// can still act as a fallback. `width: auto` explicitly clears the width,
+/// while `width: revert` rolls back to a lower-priority source.
 #[derive(Clone)]
 struct ElementSelectorInfo<'a> {
     element: &'a ElementNode,
@@ -2653,10 +2671,56 @@ struct ElementSelectorInfo<'a> {
     preceding_siblings: Vec<(String, Vec<String>)>,
 }
 
+impl<'a> ElementSelectorInfo<'a> {
+    fn ancestor_info(&self) -> AncestorInfo<'a> {
+        AncestorInfo {
+            element: self.element,
+            child_index: self.child_index,
+            sibling_count: self.sibling_count,
+            preceding_siblings: self.preceding_siblings.clone(),
+        }
+    }
+
+    fn selector_context(&self, ancestors: &[AncestorInfo<'a>]) -> SelectorContext<'a> {
+        SelectorContext {
+            ancestors: ancestors.to_vec(),
+            child_index: self.child_index,
+            sibling_count: self.sibling_count,
+            preceding_siblings: self.preceding_siblings.clone(),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct TableRowInfo<'a> {
+    row: &'a ElementNode,
+    ancestor_infos: Vec<AncestorInfo<'a>>,
+    selector_info: ElementSelectorInfo<'a>,
+}
+
+impl<'a> TableRowInfo<'a> {
+    fn row_selector_ctx(&self) -> SelectorContext<'a> {
+        self.selector_info.selector_context(&self.ancestor_infos)
+    }
+
+    fn cell_selector_ctx(&self, cell_info: &ElementSelectorInfo<'a>) -> SelectorContext<'a> {
+        let mut ancestors = self.ancestor_infos.clone();
+        ancestors.push(self.selector_info.ancestor_info());
+        cell_info.selector_context(&ancestors)
+    }
+}
+
 #[derive(Clone, Copy)]
 struct DeclaredWidth {
     width: Option<f32>,
     important: bool,
+    revert: bool,
+}
+
+#[derive(Clone, Copy)]
+enum WidthValue {
+    Value(Option<f32>),
+    Revert,
 }
 
 fn element_selector_infos(children: &[DomNode]) -> Vec<ElementSelectorInfo<'_>> {
@@ -2694,12 +2758,7 @@ fn selector_context_from_info<'a>(
     ancestors: &[AncestorInfo<'a>],
     info: &ElementSelectorInfo<'a>,
 ) -> SelectorContext<'a> {
-    SelectorContext {
-        ancestors: ancestors.to_vec(),
-        child_index: info.child_index,
-        sibling_count: info.sibling_count,
-        preceding_siblings: info.preceding_siblings.clone(),
-    }
+    info.selector_context(ancestors)
 }
 
 fn resolve_col_width(
@@ -2708,6 +2767,9 @@ fn resolve_col_width(
     basis_width: f32,
 ) -> Option<f32> {
     if let Some(declared_width) = declared_width {
+        if declared_width.revert {
+            return None;
+        }
         return declared_width.width;
     }
     parse_col_attribute_width(col_el, basis_width)
@@ -2723,6 +2785,7 @@ fn parse_col_attribute_width(col_el: &ElementNode, basis_width: f32) -> Option<f
 fn parse_col_inline_width(
     col_el: &ElementNode,
     basis_width: f32,
+    font_size: f32,
     inherited_width: Option<f32>,
     custom_properties: &HashMap<String, String>,
 ) -> Option<DeclaredWidth> {
@@ -2733,25 +2796,31 @@ fn parse_col_inline_width(
             if let Some((prop, val)) = decl.split_once(':') {
                 if prop.trim().eq_ignore_ascii_case("width") {
                     let (val, is_important) = split_important(val);
-                    if let Some(width) =
-                        parse_inline_width_value(
-                            val.trim(),
-                            basis_width,
-                            inherited_width,
-                            custom_properties,
-                        )
-                    {
-                        if is_important {
-                            important_width = Some(DeclaredWidth {
-                                width,
-                                important: true,
-                            });
-                        } else {
-                            normal_width = Some(DeclaredWidth {
-                                width,
-                                important: false,
-                            });
-                        }
+                    let Some(width_value) = parse_inline_width_value(
+                        val.trim(),
+                        basis_width,
+                        font_size,
+                        inherited_width,
+                        custom_properties,
+                    ) else {
+                        continue;
+                    };
+                    let declared_width = match width_value {
+                        WidthValue::Value(width) => DeclaredWidth {
+                            width,
+                            important: is_important,
+                            revert: false,
+                        },
+                        WidthValue::Revert => DeclaredWidth {
+                            width: None,
+                            important: is_important,
+                            revert: true,
+                        },
+                    };
+                    if is_important {
+                        important_width = Some(declared_width);
+                    } else {
+                        normal_width = Some(declared_width);
                     }
                 }
             }
@@ -2773,18 +2842,26 @@ fn parse_percent_width(val: &str, basis_width: f32) -> Option<f32> {
 fn parse_inline_width_value(
     val: &str,
     basis_width: f32,
+    font_size: f32,
     inherited_width: Option<f32>,
     custom_properties: &HashMap<String, String>,
-) -> Option<Option<f32>> {
+) -> Option<WidthValue> {
     if val.eq_ignore_ascii_case("auto") {
-        return Some(None);
+        return Some(WidthValue::Value(None));
+    }
+    if matches!(val.to_ascii_lowercase().as_str(), "revert" | "revert-layer") {
+        return Some(WidthValue::Revert);
     }
     let style = crate::parser::css::parse_inline_style(&format!("width: {val};"));
-    style
-        .get("width")
-        .and_then(|value| {
-            parse_width_value(value, basis_width, inherited_width, custom_properties)
-        })
+    style.get("width").and_then(|value| {
+        parse_width_value(
+            value,
+            basis_width,
+            font_size,
+            inherited_width,
+            custom_properties,
+        )
+    })
 }
 
 fn split_important(val: &str) -> (&str, bool) {
@@ -2798,20 +2875,19 @@ fn split_important(val: &str) -> (&str, bool) {
 fn parse_width_value(
     value: &CssValue,
     basis_width: f32,
+    font_size: f32,
     inherited_width: Option<f32>,
     custom_properties: &HashMap<String, String>,
-) -> Option<Option<f32>> {
+) -> Option<WidthValue> {
     match value {
-        CssValue::Keyword(keyword)
-            if matches!(
-                keyword.as_str(),
-                "auto" | "initial" | "unset"
-            ) =>
-        {
-            Some(None)
+        CssValue::Keyword(keyword) if matches!(keyword.as_str(), "auto" | "initial" | "unset") => {
+            Some(WidthValue::Value(None))
+        }
+        CssValue::Keyword(keyword) if matches!(keyword.as_str(), "revert" | "revert-layer") => {
+            Some(WidthValue::Revert)
         }
         CssValue::Keyword(keyword) if keyword.eq_ignore_ascii_case("inherit") => {
-            Some(inherited_width)
+            Some(WidthValue::Value(inherited_width))
         }
         CssValue::Var(name, fallback) => {
             let raw = crate::style::resolve::resolve_var_to_string(
@@ -2820,19 +2896,23 @@ fn parse_width_value(
                 custom_properties,
             )?;
             let style = crate::parser::css::parse_inline_style(&format!("width: {raw};"));
-            style
-                .get("width")
-                .and_then(|resolved| {
-                    parse_width_value(
-                        resolved,
-                        basis_width,
-                        inherited_width,
-                        custom_properties,
-                    )
-                })
+            style.get("width").and_then(|resolved| {
+                parse_width_value(
+                    resolved,
+                    basis_width,
+                    font_size,
+                    inherited_width,
+                    custom_properties,
+                )
+            })
         }
-        _ => crate::style::resolve::try_resolve_to_length(value, custom_properties, basis_width)
-            .map(Some),
+        _ => crate::style::resolve::try_resolve_to_length_with_font_size(
+            value,
+            custom_properties,
+            basis_width,
+            font_size,
+        )
+        .map(|width| WidthValue::Value(Some(width))),
     }
 }
 
@@ -2841,6 +2921,7 @@ fn parse_col_rule_width(
     rules: &[CssRule],
     selector_ctx: &SelectorContext,
     basis_width: f32,
+    font_size: f32,
     inherited_width: Option<f32>,
     custom_properties: &HashMap<String, String>,
 ) -> Option<DeclaredWidth> {
@@ -2859,12 +2940,26 @@ fn parse_col_rule_width(
             &col_el.attributes,
             selector_ctx,
         ) {
-            if let Some(width) = rule.declarations.get("width").and_then(|value| {
-                parse_width_value(value, basis_width, inherited_width, custom_properties)
+            if let Some(width_value) = rule.declarations.get("width").and_then(|value| {
+                parse_width_value(
+                    value,
+                    basis_width,
+                    font_size,
+                    inherited_width,
+                    custom_properties,
+                )
             }) {
-                let declared_width = DeclaredWidth {
-                    width,
-                    important: rule.declarations.is_important("width"),
+                let declared_width = match width_value {
+                    WidthValue::Value(width) => DeclaredWidth {
+                        width,
+                        important: rule.declarations.is_important("width"),
+                        revert: false,
+                    },
+                    WidthValue::Revert => DeclaredWidth {
+                        width: None,
+                        important: rule.declarations.is_important("width"),
+                        revert: true,
+                    },
                 };
                 if declared_width.important {
                     important_width = Some(declared_width);
@@ -2883,6 +2978,7 @@ fn cascaded_col_width(
     rules: &[CssRule],
     selector_ctx: &SelectorContext,
     basis_width: f32,
+    font_size: f32,
     inherited_width: Option<f32>,
     custom_properties: &HashMap<String, String>,
 ) -> Option<DeclaredWidth> {
@@ -2890,6 +2986,7 @@ fn cascaded_col_width(
         parse_col_inline_width(
             col_el,
             basis_width,
+            font_size,
             inherited_width,
             custom_properties,
         ),
@@ -2898,6 +2995,7 @@ fn cascaded_col_width(
             rules,
             selector_ctx,
             basis_width,
+            font_size,
             inherited_width,
             custom_properties,
         ),
@@ -2910,9 +3008,9 @@ fn combine_declared_widths(
 ) -> Option<DeclaredWidth> {
     match (inline_width, rule_width) {
         (Some(inline_width), Some(rule_width)) => {
-            if inline_width.important {
+            if inline_width.important && !rule_width.important {
                 Some(inline_width)
-            } else if rule_width.important {
+            } else if rule_width.important && !inline_width.important {
                 Some(rule_width)
             } else {
                 Some(inline_width)
@@ -2957,6 +3055,7 @@ fn flatten_table(
     ancestors: &[AncestorInfo],
     table_child_index: usize,
     table_sibling_count: usize,
+    preceding_siblings: &[(String, Vec<String>)],
 ) {
     let inner_width = available_width - style.margin.left - style.margin.right;
 
@@ -2966,61 +3065,38 @@ fn flatten_table(
         element: el,
         child_index: table_child_index,
         sibling_count: table_sibling_count,
+        preceding_siblings: preceding_siblings.to_vec(),
     });
 
-    // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
-    // Track section-relative indices so nth-child counts within each section
-    // (thead, tbody, tfoot) as browsers do, not globally.
-    // Also track the section element so descendant selectors can see it.
-    let mut rows: Vec<&ElementNode> = Vec::new();
-    let mut row_section_indices: Vec<usize> = Vec::new();
-    let mut row_section_sizes: Vec<usize> = Vec::new();
-    let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
-    let mut row_section_child_indices: Vec<usize> = Vec::new();
-    let mut row_section_sibling_counts: Vec<usize> = Vec::new();
-    let section_count = el
-        .children
-        .iter()
-        .filter(|c| matches!(c, DomNode::Element(_)))
-        .count();
-    for (section_child_idx, child) in el.children.iter().enumerate() {
-        if let DomNode::Element(child_el) = child {
-            match child_el.tag {
-                HtmlTag::Tr => {
-                    // Direct <tr> child of <table> — standalone section
-                    let idx = rows.len();
-                    rows.push(child_el);
-                    row_section_indices.push(idx);
-                    row_section_sizes.push(1);
-                    row_section_elements.push(None);
-                    row_section_child_indices.push(section_child_idx);
-                    row_section_sibling_counts.push(section_count);
-                }
-                HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
-                    let section_rows: Vec<&ElementNode> = child_el
-                        .children
-                        .iter()
-                        .filter_map(|gc| {
-                            if let DomNode::Element(g) = gc {
-                                if g.tag == HtmlTag::Tr {
-                                    return Some(g);
-                                }
-                            }
-                            None
-                        })
-                        .collect();
-                    let section_size = section_rows.len();
-                    for (i, gc) in section_rows.into_iter().enumerate() {
-                        rows.push(gc);
-                        row_section_indices.push(i);
-                        row_section_sizes.push(section_size);
-                        row_section_elements.push(Some(child_el));
-                        row_section_child_indices.push(section_child_idx);
-                        row_section_sibling_counts.push(section_count);
+    let table_children = element_selector_infos(&el.children);
+
+    // Collect all <tr> elements (from direct children, thead, tbody, tfoot)
+    // together with their DOM-order selector context.
+    let mut rows: Vec<TableRowInfo<'_>> = Vec::new();
+    for table_child in &table_children {
+        let child_el = table_child.element;
+        match child_el.tag {
+            HtmlTag::Tr => {
+                rows.push(TableRowInfo {
+                    row: child_el,
+                    ancestor_infos: table_ancestors.clone(),
+                    selector_info: table_child.clone(),
+                });
+            }
+            HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
+                let mut section_ancestors = table_ancestors.clone();
+                section_ancestors.push(table_child.ancestor_info());
+                for row_info in element_selector_infos(&child_el.children) {
+                    if row_info.element.tag == HtmlTag::Tr {
+                        rows.push(TableRowInfo {
+                            row: row_info.element,
+                            ancestor_infos: section_ancestors.clone(),
+                            selector_info: row_info,
+                        });
                     }
                 }
-                _ => {}
             }
+            _ => {}
         }
     }
 
@@ -3031,8 +3107,10 @@ fn flatten_table(
     // Determine column count from the widest row, accounting for colspan
     let num_cols = rows
         .iter()
-        .map(|row| {
-            row.children
+        .map(|row_info| {
+            row_info
+                .row
+                .children
                 .iter()
                 .filter_map(|c| {
                     if let DomNode::Element(e) = c {
@@ -3052,14 +3130,22 @@ fn flatten_table(
         })
         .max()
         .unwrap_or(1);
+    let border_spacing = if style.border_collapse == BorderCollapse::Collapse {
+        BorderSpacing::default()
+    } else {
+        style.border_spacing
+    };
+    let table_width_basis = inner_width.max(0.0);
+    let column_area_width =
+        (table_width_basis - border_spacing.horizontal * (num_cols as f32 + 1.0)).max(0.0);
 
     // --- Extract explicit column widths from <colgroup>/<col> elements ---
     let mut explicit_col_widths: Vec<Option<f32>> = vec![None; num_cols];
     {
         let mut col_idx = 0usize;
         let mut table_width_parent = style.clone();
-        table_width_parent.width = Some(inner_width);
-        for table_child in element_selector_infos(&el.children) {
+        table_width_parent.width = Some(table_width_basis);
+        for table_child in &table_children {
             let child_el = table_child.element;
             let table_selector_ctx = selector_context_from_info(&table_ancestors, &table_child);
             match child_el.tag {
@@ -3081,30 +3167,25 @@ fn flatten_table(
                         child_el,
                         rules,
                         &table_selector_ctx,
-                        inner_width,
-                        Some(inner_width),
+                        table_width_basis,
+                        colgroup_style.font_size,
+                        Some(table_width_basis),
                         &colgroup_style.custom_properties,
                     );
-                    let colgroup_width = resolve_col_width(
-                        child_el,
-                        colgroup_declared_width,
-                        inner_width,
-                    );
+                    let colgroup_width =
+                        resolve_col_width(child_el, colgroup_declared_width, table_width_basis);
                     let mut col_ancestors = table_ancestors.clone();
-                    col_ancestors.push(AncestorInfo {
-                        element: child_el,
-                        child_index: table_child.child_index,
-                        sibling_count: table_child.sibling_count,
-                    });
+                    col_ancestors.push(table_child.ancestor_info());
                     let mut col_parent_style = colgroup_style.clone();
-                    col_parent_style.width = Some(inner_width);
+                    col_parent_style.width = Some(table_width_basis);
                     for col_child in element_selector_infos(&child_el.children) {
                         let col_el = col_child.element;
                         if col_el.tag != HtmlTag::Col {
                             continue;
                         }
                         saw_child_col = true;
-                        let col_selector_ctx = selector_context_from_info(&col_ancestors, &col_child);
+                        let col_selector_ctx =
+                            selector_context_from_info(&col_ancestors, &col_child);
                         let col_classes = col_el.class_list();
                         let col_style = compute_style_with_context(
                             col_el.tag,
@@ -3121,7 +3202,8 @@ fn flatten_table(
                             col_el,
                             rules,
                             &col_selector_ctx,
-                            inner_width,
+                            table_width_basis,
+                            col_style.font_size,
                             colgroup_width,
                             &col_style.custom_properties,
                         );
@@ -3131,7 +3213,7 @@ fn flatten_table(
                             parse_col_span(col_el),
                             match col_declared_width {
                                 Some(col_width) => col_width.width,
-                                None => parse_col_attribute_width(col_el, inner_width)
+                                None => parse_col_attribute_width(col_el, table_width_basis)
                                     .or(colgroup_width),
                             },
                         );
@@ -3164,15 +3246,16 @@ fn flatten_table(
                         child_el,
                         rules,
                         &table_selector_ctx,
-                        inner_width,
-                        Some(inner_width),
+                        table_width_basis,
+                        col_style.font_size,
+                        Some(table_width_basis),
                         &col_style.custom_properties,
                     );
                     assign_explicit_col_widths(
                         &mut explicit_col_widths,
                         &mut col_idx,
                         parse_col_span(child_el),
-                        resolve_col_width(child_el, col_declared_width, inner_width),
+                        resolve_col_width(child_el, col_declared_width, table_width_basis),
                     );
                 }
                 _ => continue,
@@ -3185,23 +3268,10 @@ fn flatten_table(
     let min_col_width: f32 = 30.0;
     let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
 
-    for (sizing_row_idx, row) in rows.iter().enumerate() {
+    for row_info in &rows {
+        let row = row_info.row;
         let row_classes = row.class_list();
-        // Build ancestors for the row: table + optional section element
-        let mut sizing_row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[sizing_row_idx] {
-            sizing_row_ancestors.push(AncestorInfo {
-                element: section_el,
-                child_index: row_section_child_indices[sizing_row_idx],
-                sibling_count: row_section_sibling_counts[sizing_row_idx],
-            });
-        }
-        let sizing_row_ctx = SelectorContext {
-            ancestors: sizing_row_ancestors,
-            child_index: row_section_indices[sizing_row_idx],
-            sibling_count: row_section_sizes[sizing_row_idx],
-            preceding_siblings: Vec::new(),
-        };
+        let sizing_row_ctx = row_info.row_selector_ctx();
         let row_style = compute_style_with_context(
             row.tag,
             row.style_attr(),
@@ -3214,91 +3284,76 @@ fn flatten_table(
             &sizing_row_ctx,
         );
         let mut col_pos: usize = 0;
-        for child in &row.children {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    let colspan = cell_el
-                        .attributes
-                        .get("colspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
-                    let cell_classes = cell_el.class_list();
-                    let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
-                    cell_sizing_ancestors.push(AncestorInfo {
-                        element: row,
-                        child_index: row_section_indices[sizing_row_idx],
-                        sibling_count: row_section_sizes[sizing_row_idx],
-                    });
-                    let cell_sizing_ctx = SelectorContext {
-                        ancestors: cell_sizing_ancestors,
-                        child_index: col_pos,
-                        sibling_count: num_cols,
-                        preceding_siblings: Vec::new(),
-                    };
-                    let cell_style = compute_style_with_context(
-                        cell_el.tag,
-                        cell_el.style_attr(),
-                        &row_style,
-                        rules,
-                        cell_el.tag_name(),
-                        &cell_classes,
-                        cell_el.id(),
-                        &cell_el.attributes,
-                        &cell_sizing_ctx,
-                    );
-                    let mut runs = Vec::new();
-                    collect_text_runs(
-                        &cell_el.children,
-                        &cell_style,
-                        &mut runs,
-                        None,
-                        rules,
-                        &cell_sizing_ctx.ancestors,
-                    );
-                    // Estimate content width using estimate_word_width for accurate
-                    // measurement. Use the maximum of (full text width, longest word
-                    // width) to avoid hyphenation of short columns like "Unit Price".
-                    let content_width: f32 = runs
-                        .iter()
-                        .map(|run| {
-                            // Measure full text width using estimate_word_width
-                            let full_width = estimate_word_width(
-                                &run.text,
-                                run.font_size,
-                                &run.font_family,
-                                fonts,
-                            );
-                            // Also ensure the column is at least as wide as
-                            // the longest word to prevent hyphenation.
-                            let longest_word_width = run
-                                .text
-                                .split_whitespace()
-                                .map(|w| {
-                                    estimate_word_width(w, run.font_size, &run.font_family, fonts)
-                                })
-                                .fold(0.0f32, f32::max);
-                            full_width.max(longest_word_width)
-                        })
-                        .sum();
-                    let total_preferred =
-                        content_width + cell_style.padding.left + cell_style.padding.right;
-                    if colspan == 1 {
-                        if col_pos < num_cols {
-                            preferred_widths[col_pos] =
-                                preferred_widths[col_pos].max(total_preferred);
-                        }
-                    } else {
-                        let per_col = total_preferred / colspan as f32;
-                        for i in 0..colspan {
-                            if col_pos + i < num_cols {
-                                preferred_widths[col_pos + i] =
-                                    preferred_widths[col_pos + i].max(per_col);
-                            }
+        let cell_infos = element_selector_infos(&row.children);
+        for cell_info in &cell_infos {
+            if col_pos >= num_cols {
+                break;
+            }
+            let cell_el = cell_info.element;
+            if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
+                let colspan = cell_el
+                    .attributes
+                    .get("colspan")
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(1)
+                    .max(1);
+                let cell_classes = cell_el.class_list();
+                let cell_sizing_ctx = row_info.cell_selector_ctx(cell_info);
+                let cell_style = compute_style_with_context(
+                    cell_el.tag,
+                    cell_el.style_attr(),
+                    &row_style,
+                    rules,
+                    cell_el.tag_name(),
+                    &cell_classes,
+                    cell_el.id(),
+                    &cell_el.attributes,
+                    &cell_sizing_ctx,
+                );
+                let mut runs = Vec::new();
+                collect_text_runs(
+                    &cell_el.children,
+                    &cell_style,
+                    &mut runs,
+                    None,
+                    rules,
+                    &cell_sizing_ctx.ancestors,
+                );
+                // Estimate content width using estimate_word_width for accurate
+                // measurement. Use the maximum of (full text width, longest word
+                // width) to avoid hyphenation of short columns like "Unit Price".
+                let content_width: f32 = runs
+                    .iter()
+                    .map(|run| {
+                        // Measure full text width using estimate_word_width
+                        let full_width =
+                            estimate_word_width(&run.text, run.font_size, &run.font_family, fonts);
+                        // Also ensure the column is at least as wide as
+                        // the longest word to prevent hyphenation.
+                        let longest_word_width = run
+                            .text
+                            .split_whitespace()
+                            .map(|w| estimate_word_width(w, run.font_size, &run.font_family, fonts))
+                            .fold(0.0f32, f32::max);
+                        full_width.max(longest_word_width)
+                    })
+                    .sum();
+                let total_preferred =
+                    content_width + cell_style.padding.left + cell_style.padding.right;
+                if colspan == 1 {
+                    if col_pos < num_cols {
+                        preferred_widths[col_pos] = preferred_widths[col_pos].max(total_preferred);
+                    }
+                } else {
+                    let per_col = total_preferred / colspan as f32;
+                    for i in 0..colspan {
+                        if col_pos + i < num_cols {
+                            preferred_widths[col_pos + i] =
+                                preferred_widths[col_pos + i].max(per_col);
                         }
                     }
-                    col_pos += colspan;
                 }
+                col_pos += colspan;
             }
         }
     }
@@ -3321,8 +3376,8 @@ fn flatten_table(
             .collect()
     } else {
         let total_preferred: f32 = preferred_widths.iter().sum();
-        if total_preferred <= inner_width {
-            let extra = inner_width - total_preferred;
+        if total_preferred <= column_area_width {
+            let extra = column_area_width - total_preferred;
             if total_preferred > 0.0 && extra > 0.0 {
                 preferred_widths
                     .iter()
@@ -3332,7 +3387,7 @@ fn flatten_table(
                 preferred_widths
             }
         } else {
-            let scale = inner_width / total_preferred;
+            let scale = column_area_width / total_preferred;
             preferred_widths
                 .iter()
                 .map(|w| (w * scale).max(min_col_width))
@@ -3344,27 +3399,10 @@ fn flatten_table(
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
-    for (row_idx, row) in rows.iter().enumerate() {
+    for row_info in &rows {
+        let row = row_info.row;
         let row_classes = row.class_list();
-        // Use section-relative index for nth-child matching (browsers count
-        // within thead/tbody/tfoot, not globally across all rows).
-        let section_idx = row_section_indices[row_idx];
-        let section_size = row_section_sizes[row_idx];
-        // Build ancestors for the row: table + optional section element
-        let mut row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[row_idx] {
-            row_ancestors.push(AncestorInfo {
-                element: section_el,
-                child_index: row_section_child_indices[row_idx],
-                sibling_count: row_section_sibling_counts[row_idx],
-            });
-        }
-        let row_selector_ctx = SelectorContext {
-            ancestors: row_ancestors,
-            child_index: section_idx,
-            sibling_count: section_size,
-            preceding_siblings: Vec::new(),
-        };
+        let row_selector_ctx = row_info.row_selector_ctx();
         let row_style = compute_style_with_context(
             row.tag,
             row.style_attr(),
@@ -3380,18 +3418,18 @@ fn flatten_table(
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
-        let mut child_iter = row.children.iter().filter_map(|child| {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    return Some(cell_el);
-                }
-            }
-            None
-        });
+        let cell_infos = element_selector_infos(&row.children);
 
         // Process cells, skipping occupied positions and inserting phantom cells
-        let mut next_cell = child_iter.next();
-        while col_pos < num_cols {
+        for cell_info in &cell_infos {
+            if col_pos >= num_cols {
+                break;
+            }
+            let cell_el = cell_info.element;
+            if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+                continue;
+            }
+
             if occupied[col_pos] > 0 {
                 // This position is occupied by a rowspan from a previous row.
                 // Insert a phantom cell (rowspan = 0) as a placeholder.
@@ -3421,12 +3459,10 @@ fn flatten_table(
                     occupied[col_pos + i] -= 1;
                 }
                 col_pos += span_cols;
-                continue;
+                if col_pos >= num_cols {
+                    break;
+                }
             }
-
-            // Place the next real cell at this position
-            let Some(cell_el) = next_cell else { break };
-            next_cell = child_iter.next();
 
             let colspan = cell_el
                 .attributes
@@ -3442,18 +3478,7 @@ fn flatten_table(
                 .max(1);
 
             let cell_classes = cell_el.class_list();
-            let mut cell_ancestors = row_selector_ctx.ancestors.clone();
-            cell_ancestors.push(AncestorInfo {
-                element: row,
-                child_index: section_idx,
-                sibling_count: section_size,
-            });
-            let cell_selector_ctx = SelectorContext {
-                ancestors: cell_ancestors,
-                child_index: col_pos,
-                sibling_count: num_cols,
-                preceding_siblings: Vec::new(),
-            };
+            let cell_selector_ctx = row_info.cell_selector_ctx(cell_info);
             let cell_style = compute_style_with_context(
                 cell_el.tag,
                 cell_el.style_attr(),
@@ -3509,16 +3534,23 @@ fn flatten_table(
             }
 
             col_pos += colspan;
+            if col_pos >= num_cols {
+                break;
+            }
         }
 
         if !cells.is_empty() {
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
-                margin_top: if is_first { style.margin.top } else { 0.0 },
+                margin_top: if is_first {
+                    style.margin.top + border_spacing.vertical
+                } else {
+                    border_spacing.vertical
+                },
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
-                border_spacing: style.border_spacing,
+                border_spacing,
             });
             is_first = false;
         }
@@ -3526,7 +3558,7 @@ fn flatten_table(
 
     // Add bottom margin after the last row
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
-        *margin_bottom = style.margin.bottom;
+        *margin_bottom = style.margin.bottom + border_spacing.vertical;
     }
 }
 
@@ -3607,6 +3639,7 @@ fn collect_flex_child_text_runs(
                         element: el,
                         child_index: 0,
                         sibling_count: nodes.len(),
+                        preceding_siblings: Vec::new(),
                     });
                     // Recurse into both inline and block children so flex items
                     // with nested block elements (h1, h2, p, div, …) produce text.
@@ -6828,19 +6861,141 @@ mod tests {
         assert!(has_separate, "Expected default border_collapse: Separate");
     }
 
+    fn table_cell_background_for_text(pages: &[Page], needle: &str) -> Option<(f32, f32, f32)> {
+        pages
+            .iter()
+            .flat_map(|page| page.elements.iter())
+            .find_map(|(_, el)| {
+                let LayoutElement::TableRow { cells, .. } = el else {
+                    return None;
+                };
+                cells.iter().find_map(|cell| {
+                    let cell_text = cell
+                        .lines
+                        .iter()
+                        .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                        .collect::<Vec<_>>()
+                        .join("");
+                    let matches_text = cell_text.contains(needle);
+                    if matches_text {
+                        cell.background_color
+                    } else {
+                        None
+                    }
+                })
+            })
+    }
+
     #[test]
     fn table_row_carries_border_spacing() {
-        let html = r#"<table style="border-spacing: 8px"><tr><td>A</td><td>B</td></tr></table>"#;
+        let html =
+            r#"<table style="border-spacing: 8px 12px"><tr><td>A</td><td>B</td></tr></table>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let has_spacing = pages[0].elements.iter().any(|(_, el)| {
             if let LayoutElement::TableRow { border_spacing, .. } = el {
-                (*border_spacing - 6.0).abs() < 0.1
+                (border_spacing.horizontal - 6.0).abs() < 0.1
+                    && (border_spacing.vertical - 9.0).abs() < 0.1
             } else {
                 false
             }
         });
-        assert!(has_spacing, "Expected border_spacing of 6pt (8px * 0.75)");
+        assert!(has_spacing, "Expected border_spacing of 6pt x 9pt");
+    }
+
+    #[test]
+    fn table_border_spacing_reduces_available_column_width() {
+        let html = r#"<table style="border-spacing: 8pt"><tr><td>A</td><td>B</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::new(200.0, 800.0), Margin::uniform(0.0));
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        let total_width: f32 = col_widths.iter().sum();
+        assert!(
+            (total_width - 176.0).abs() < 0.5,
+            "expected 176pt of column width after subtracting outer gaps, got {total_width}"
+        );
+    }
+
+    #[test]
+    fn table_selector_tbody_tr_adjacent_row_matches_dom_order() {
+        let rules = parse_stylesheet("tbody tr + tr td { background-color: red; }");
+        let html = r#"
+            <table>
+                <tbody>
+                    <tr><td>Row 1 A</td><td>Row 1 B</td></tr>
+                    <tr><td>Row 2 A</td><td>Row 2 B</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(table_cell_background_for_text(&pages, "Row 1 A"), None);
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Row 2 A"),
+            Some((1.0, 0.0, 0.0))
+        );
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Row 2 B"),
+            Some((1.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
+    fn table_selector_thead_plus_tbody_matches_tbody_cells() {
+        let rules = parse_stylesheet("thead + tbody td { background-color: green; }");
+        let html = r#"
+            <table>
+                <thead><tr><th>Head</th></tr></thead>
+                <tbody><tr><td>Body</td></tr></tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Body"),
+            Some((0.0, 0.5019608, 0.0))
+        );
+        assert_eq!(table_cell_background_for_text(&pages, "Head"), None);
+    }
+
+    #[test]
+    fn table_selector_td_adjacent_siblings_match_second_cell() {
+        let rules = parse_stylesheet("td + td { background-color: blue; }");
+        let html = r#"<table><tr><td>First</td><td>Second</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(table_cell_background_for_text(&pages, "First"), None);
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Second"),
+            Some((0.0, 0.0, 1.0))
+        );
+    }
+
+    #[test]
+    fn table_selector_td_nth_child_ignores_rowspan_placeholders() {
+        let rules = parse_stylesheet("td:nth-child(2) { background-color: yellow; }");
+        let html = r#"
+            <table>
+                <tbody>
+                    <tr><td rowspan="2">A</td><th>Header</th><th>Pad</th></tr>
+                    <tr><td>First actual</td><td>Target</td></tr>
+                </tbody>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+        assert_eq!(table_cell_background_for_text(&pages, "First actual"), None);
+        assert_eq!(
+            table_cell_background_for_text(&pages, "Target"),
+            Some((1.0, 1.0, 0.0))
+        );
     }
 
     #[test]
@@ -8435,6 +8590,123 @@ mod tests {
     }
 
     #[test]
+    fn table_colgroup_percentage_widths_use_table_width_basis() {
+        let widths_for = |html: &str| {
+            let nodes = parse_html(html).unwrap();
+            let pages = layout(&nodes, PageSize::A4, Margin::default());
+            pages[0]
+                .elements
+                .iter()
+                .find_map(|(_, el)| match el {
+                    LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                    _ => None,
+                })
+                .expect("expected table row")
+        };
+        let baseline = widths_for(
+            r#"<table>
+                <colgroup>
+                    <col span="1" style="width: 30%;">
+                    <col span="1" style="width: 70%;">
+                </colgroup>
+                <tr><th>Name</th><td>Contract_2026_Q1.pdf</td></tr>
+            </table>"#,
+        );
+        let spaced = widths_for(
+            r#"<table style="border-spacing: 10pt">
+                <colgroup>
+                    <col span="1" style="width: 30%;">
+                    <col span="1" style="width: 70%;">
+                </colgroup>
+                <tr><th>Name</th><td>Contract_2026_Q1.pdf</td></tr>
+            </table>"#,
+        );
+        assert_eq!(baseline.len(), 2);
+        assert_eq!(spaced.len(), 2);
+        assert!(
+            (spaced[0] - baseline[0]).abs() < 0.5,
+            "explicit percentage column width should keep the same table-width basis: baseline={baseline:?} spaced={spaced:?}"
+        );
+        assert!(
+            (spaced[1] - baseline[1]).abs() < 0.5,
+            "explicit percentage column width should keep the same table-width basis: baseline={baseline:?} spaced={spaced:?}"
+        );
+    }
+
+    #[test]
+    fn table_colgroup_calc_percent_width_uses_table_width_basis() {
+        let widths_for = |html: &str| {
+            let nodes = parse_html(html).unwrap();
+            let pages = layout(&nodes, PageSize::A4, Margin::default());
+            pages[0]
+                .elements
+                .iter()
+                .find_map(|(_, el)| match el {
+                    LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                    _ => None,
+                })
+                .expect("expected table row")
+        };
+        let baseline = widths_for(
+            r#"<table>
+                <colgroup>
+                    <col span="1" style="width: calc(30% + 10pt);">
+                    <col span="1">
+                </colgroup>
+                <tr><th>Name</th><td>Contract_2026_Q1.pdf</td></tr>
+            </table>"#,
+        );
+        let spaced = widths_for(
+            r#"<table style="border-spacing: 10pt">
+                <colgroup>
+                    <col span="1" style="width: calc(30% + 10pt);">
+                    <col span="1">
+                </colgroup>
+                <tr><th>Name</th><td>Contract_2026_Q1.pdf</td></tr>
+            </table>"#,
+        );
+        assert!(
+            (spaced[0] - baseline[0]).abs() < 0.5,
+            "calc(percent + length) column width should keep the same table-width basis: baseline={baseline:?} spaced={spaced:?}"
+        );
+    }
+
+    #[test]
+    fn table_col_width_revert_discards_author_and_attribute_sources() {
+        let html = r#"<html><head><style>
+            col.match { width: 40%; }
+            col.match { width: revert; }
+        </style></head><body>
+        <table>
+            <colgroup>
+                <col class="match" width="25%">
+                <col>
+            </colgroup>
+            <tr><td>A</td><td>B</td></tr>
+        </table>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        assert!(
+            (col_widths[0] - col_widths[1]).abs() < 0.5,
+            "revert should clear author and attribute column widths, got {col_widths:?}"
+        );
+    }
+
+    #[test]
     fn table_colgroup_width_attribute() {
         let html = r#"<table>
             <colgroup>
@@ -8662,7 +8934,8 @@ mod tests {
                 _ => None,
             })
             .expect("expected table row");
-        let expected = (PageSize::A4.width - Margin::default().left - Margin::default().right) * 0.25;
+        let expected =
+            (PageSize::A4.width - Margin::default().left - Margin::default().right) * 0.25;
         assert!((col_widths[0] - expected).abs() < 0.1);
         assert!((col_widths[1] - expected).abs() < 0.1);
     }
@@ -8931,7 +9204,8 @@ mod tests {
                 _ => None,
             })
             .expect("expected table row");
-        let expected = (PageSize::A4.width - Margin::default().left - Margin::default().right) * 0.25;
+        let expected =
+            (PageSize::A4.width - Margin::default().left - Margin::default().right) * 0.25;
         assert!((col_widths[0] - expected).abs() < 0.1);
         assert!((col_widths[1] - expected).abs() < 0.1);
     }
@@ -9066,6 +9340,39 @@ mod tests {
             })
             .expect("expected table row");
         assert!(col_widths[1] > col_widths[0], "got {:?}", col_widths);
+    }
+
+    #[test]
+    fn table_col_stylesheet_em_widths_use_computed_font_size() {
+        let html = r#"<html><head><style>
+            col.left { font-size: 40pt; width: 1em; }
+            col.right { font-size: 40pt; width: calc(1em + 30pt); }
+        </style></head><body>
+        <table>
+            <colgroup>
+                <col class="left">
+                <col class="right">
+            </colgroup>
+            <tr><td>A</td><td>B</td></tr>
+        </table>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        assert!((col_widths[0] - 40.0).abs() < 0.1, "got {:?}", col_widths);
+        assert!((col_widths[1] - 70.0).abs() < 0.1, "got {:?}", col_widths);
     }
 
     #[test]

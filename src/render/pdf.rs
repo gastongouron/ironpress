@@ -685,10 +685,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
-                    let spacing = if *border_collapse == BorderCollapse::Collapse {
+                    let spacing_x = if *border_collapse == BorderCollapse::Collapse {
                         0.0
                     } else {
-                        *border_spacing
+                        border_spacing.horizontal
+                    };
+                    let spacing_y = if *border_collapse == BorderCollapse::Collapse {
+                        0.0
+                    } else {
+                        border_spacing.vertical
                     };
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
@@ -704,35 +709,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             continue;
                         }
 
-                        let cell_x = margin.left
-                            + col_widths.iter().take(col_pos).sum::<f32>()
-                            + spacing * col_pos as f32;
-                        let cell_w: f32 = (0..cell.colspan)
-                            .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
-                            .sum::<f32>()
-                            + if cell.colspan > 1 {
-                                spacing * (cell.colspan - 1) as f32
-                            } else {
-                                0.0
-                            };
+                        let (cell_x, cell_w) = table_cell_geometry(
+                            col_widths,
+                            col_pos,
+                            cell.colspan,
+                            spacing_x,
+                            margin.left,
+                        );
 
                         // For cells with rowspan > 1, compute the total height
                         // spanning multiple rows.
                         let cell_height = if cell.rowspan > 1 {
-                            let mut total_h = row_height;
-                            for offset in 1..cell.rowspan {
-                                let future_idx = elem_idx + offset;
-                                if future_idx < page.elements.len() {
-                                    if let LayoutElement::TableRow {
-                                        cells: future_cells,
-                                        ..
-                                    } = &page.elements[future_idx].1
-                                    {
-                                        total_h += compute_row_height(future_cells);
-                                    }
-                                }
-                            }
-                            total_h
+                            table_rowspan_height(
+                                page,
+                                elem_idx,
+                                row_height,
+                                cell.rowspan,
+                                spacing_y,
+                            )
                         } else {
                             row_height
                         };
@@ -1405,6 +1399,47 @@ fn compute_row_height(cells: &[TableCell]) -> f32 {
             cell.padding_top + text_h + cell.padding_bottom
         })
         .fold(0.0f32, f32::max)
+}
+
+fn table_cell_geometry(
+    col_widths: &[f32],
+    col_pos: usize,
+    colspan: usize,
+    spacing_x: f32,
+    origin_x: f32,
+) -> (f32, f32) {
+    let cell_x = origin_x
+        + spacing_x
+        + col_widths.iter().take(col_pos).sum::<f32>()
+        + spacing_x * col_pos as f32;
+    let cell_w = col_widths.iter().skip(col_pos).take(colspan).sum::<f32>()
+        + spacing_x * colspan.saturating_sub(1) as f32;
+    (cell_x, cell_w)
+}
+
+fn table_rowspan_height(
+    page: &crate::layout::engine::Page,
+    elem_idx: usize,
+    first_row_height: f32,
+    rowspan: usize,
+    spacing_y: f32,
+) -> f32 {
+    let mut total_h = first_row_height;
+    for offset in 1..rowspan {
+        let future_idx = elem_idx + offset;
+        let Some((
+            _,
+            LayoutElement::TableRow {
+                cells: future_cells,
+                ..
+            },
+        )) = page.elements.get(future_idx)
+        else {
+            break;
+        };
+        total_h += spacing_y + compute_row_height(future_cells);
+    }
+    total_h
 }
 
 fn render_cell_text(
@@ -4601,6 +4636,72 @@ mod tests {
         assert!(pdf_str.contains("Spanning"), "Should render rowspan cell");
         assert!(pdf_str.contains("A"), "Should render first row cell");
         assert!(pdf_str.contains("B"), "Should render second row cell");
+    }
+
+    #[test]
+    fn table_cell_geometry_includes_outer_border_spacing() {
+        let (first_x, first_w) = table_cell_geometry(&[50.0, 60.0], 0, 1, 6.0, 10.0);
+        assert!((first_x - 16.0).abs() < 0.01);
+        assert!((first_w - 50.0).abs() < 0.01);
+
+        let (second_x, second_w) = table_cell_geometry(&[50.0, 60.0], 1, 1, 6.0, 10.0);
+        assert!((second_x - 72.0).abs() < 0.01);
+        assert!((second_w - 60.0).abs() < 0.01);
+
+        let (span_x, span_w) = table_cell_geometry(&[50.0, 60.0], 0, 2, 6.0, 10.0);
+        assert!((span_x - 16.0).abs() < 0.01);
+        assert!((span_w - 116.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn rowspan_height_includes_vertical_border_spacing() {
+        let row =
+            |text: &str, spacing: crate::style::computed::BorderSpacing| LayoutElement::TableRow {
+                cells: vec![TableCell {
+                    lines: vec![TextLine {
+                        runs: vec![TextRun {
+                            text: text.to_string(),
+                            font_size: 12.0,
+                            bold: false,
+                            italic: false,
+                            underline: false,
+                            line_through: false,
+                            color: (0.0, 0.0, 0.0),
+                            link_url: None,
+                            font_family: crate::style::computed::FontFamily::Helvetica,
+                            background_color: None,
+                            padding: (0.0, 0.0),
+                            border_radius: 0.0,
+                        }],
+                        height: 10.0,
+                    }],
+                    bold: false,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_right: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    colspan: 1,
+                    rowspan: 1,
+                    border: crate::layout::engine::LayoutBorder::default(),
+                    text_align: crate::style::computed::TextAlign::Left,
+                }],
+                col_widths: vec![40.0],
+                margin_top: 0.0,
+                margin_bottom: 0.0,
+                border_collapse: crate::style::computed::BorderCollapse::Separate,
+                border_spacing: spacing,
+            };
+        let spacing = crate::style::computed::BorderSpacing {
+            horizontal: 0.0,
+            vertical: 4.0,
+        };
+        let page = crate::layout::engine::Page {
+            elements: vec![(0.0, row("A", spacing)), (0.0, row("B", spacing))],
+        };
+
+        let height = table_rowspan_height(&page, 0, 10.0, 2, spacing.vertical);
+        assert!((height - 24.0).abs() < 0.01);
     }
 
     #[test]
