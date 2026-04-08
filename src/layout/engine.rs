@@ -2979,6 +2979,147 @@ fn flatten_grid_container(
     }
 }
 
+/// Parse an inline `style` attribute for a percentage `width` value.
+/// Returns `Some(Some(fraction))` if a valid percentage is found,
+/// `Some(None)` if `width: auto` is declared, `None` if no width in style.
+fn parse_col_inline_width(el: &ElementNode) -> Option<Option<f32>> {
+    let style_attr = el.attributes.get("style")?;
+    for decl in style_attr.split(';') {
+        let decl = decl.trim();
+        if let Some((prop, val)) = decl.split_once(':') {
+            let prop = prop.trim().to_ascii_lowercase();
+            if prop == "width" {
+                let val = val.trim();
+                if val == "auto" {
+                    return Some(None);
+                }
+                if let Some(pct) = val.strip_suffix('%') {
+                    if let Ok(v) = pct.trim().parse::<f32>() {
+                        return Some(Some(v / 100.0));
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Extract percentage width from a `<col>` element, checking inline style
+/// first, then the `width` attribute as fallback.
+fn col_percentage_width(el: &ElementNode) -> Option<f32> {
+    match parse_col_inline_width(el) {
+        Some(Some(pct)) => return Some(pct),
+        Some(None) => return None, // width: auto
+        None => {}
+    }
+    // Fallback: check width attribute
+    if let Some(val) = el.attributes.get("width") {
+        let val = val.trim();
+        if let Some(pct) = val.strip_suffix('%') {
+            if let Ok(v) = pct.trim().parse::<f32>() {
+                return Some(v / 100.0);
+            }
+        }
+    }
+    None
+}
+
+/// Walk `<colgroup>` and `<col>` children of a table element,
+/// assigning explicit percentage widths to the output slice.
+/// Returns `true` if any explicit width was found.
+fn assign_explicit_col_widths(table_el: &ElementNode, out: &mut [Option<f32>]) -> bool {
+    let mut col_idx = 0usize;
+    let mut found = false;
+
+    for child in &table_el.children {
+        let DomNode::Element(child_el) = child else {
+            continue;
+        };
+        match child_el.tag {
+            HtmlTag::Colgroup => {
+                // Check if colgroup itself has a width (applies to all spanned cols)
+                let group_width = col_percentage_width(child_el);
+
+                let has_col_children = child_el
+                    .children
+                    .iter()
+                    .any(|c| matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Col));
+
+                if has_col_children {
+                    for gc in &child_el.children {
+                        let DomNode::Element(col_el) = gc else {
+                            continue;
+                        };
+                        if col_el.tag != HtmlTag::Col {
+                            continue;
+                        }
+                        let span = col_el
+                            .attributes
+                            .get("span")
+                            .and_then(|s| s.parse::<usize>().ok())
+                            .unwrap_or(1)
+                            .clamp(1, 1000);
+                        let w = col_percentage_width(col_el).or(group_width);
+                        if let Some(pct) = w {
+                            found = true;
+                            for _ in 0..span {
+                                if let Some(slot) = out.get_mut(col_idx) {
+                                    *slot = Some(pct);
+                                }
+                                col_idx = col_idx.saturating_add(1);
+                            }
+                        } else {
+                            col_idx = col_idx.saturating_add(span);
+                        }
+                    }
+                } else {
+                    // Colgroup without <col> children: apply span directly
+                    let span = child_el
+                        .attributes
+                        .get("span")
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .unwrap_or(1)
+                        .clamp(1, 1000);
+                    if let Some(pct) = group_width {
+                        found = true;
+                        for _ in 0..span {
+                            if let Some(slot) = out.get_mut(col_idx) {
+                                *slot = Some(pct);
+                            }
+                            col_idx = col_idx.saturating_add(1);
+                        }
+                    } else {
+                        col_idx = col_idx.saturating_add(span);
+                    }
+                }
+            }
+            HtmlTag::Col => {
+                // Bare <col> without <colgroup> wrapper
+                let span = child_el
+                    .attributes
+                    .get("span")
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .unwrap_or(1)
+                    .clamp(1, 1000);
+                if let Some(pct) = col_percentage_width(child_el) {
+                    found = true;
+                    for _ in 0..span {
+                        if let Some(slot) = out.get_mut(col_idx) {
+                            *slot = Some(pct);
+                        }
+                        col_idx = col_idx.saturating_add(1);
+                    }
+                } else {
+                    col_idx = col_idx.saturating_add(span);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    found
+}
+
 #[allow(clippy::too_many_arguments)]
 fn flatten_table(
     el: &ElementNode,
@@ -3187,24 +3328,56 @@ fn flatten_table(
         }
     }
 
-    let total_preferred: f32 = preferred_widths.iter().sum();
-    let col_widths: Vec<f32> = if total_preferred <= column_area_width {
-        // Distribute remaining space proportionally to each column's preferred width
-        let extra = column_area_width - total_preferred;
-        if total_preferred > 0.0 && extra > 0.0 {
+    // --- Extract explicit column widths from <colgroup>/<col> elements ---
+    let mut explicit_col_widths: Vec<Option<f32>> = vec![None; num_cols];
+    let has_explicit_widths = assign_explicit_col_widths(el, &mut explicit_col_widths);
+
+    let col_widths: Vec<f32> = if has_explicit_widths {
+        // Use explicit percentage widths where specified, auto-size the rest
+        let mut widths = vec![0.0f32; num_cols];
+        let mut explicit_total = 0.0f32;
+        let mut auto_preferred_total = 0.0f32;
+        for i in 0..num_cols {
+            if let Some(pct) = explicit_col_widths[i] {
+                let w = (pct * column_area_width).max(min_col_width);
+                widths[i] = w;
+                explicit_total += w;
+            } else {
+                auto_preferred_total += preferred_widths[i].max(min_col_width);
+            }
+        }
+        let remaining = (column_area_width - explicit_total).max(0.0);
+        for i in 0..num_cols {
+            if explicit_col_widths[i].is_none() {
+                let pref = preferred_widths[i].max(min_col_width);
+                widths[i] = if auto_preferred_total > 0.0 {
+                    (pref / auto_preferred_total) * remaining
+                } else {
+                    remaining / num_cols.max(1) as f32
+                }
+                .max(min_col_width);
+            }
+        }
+        widths
+    } else {
+        let total_preferred: f32 = preferred_widths.iter().sum();
+        if total_preferred <= column_area_width {
+            let extra = column_area_width - total_preferred;
+            if total_preferred > 0.0 && extra > 0.0 {
+                preferred_widths
+                    .iter()
+                    .map(|w| w + (w / total_preferred) * extra)
+                    .collect()
+            } else {
+                preferred_widths
+            }
+        } else {
+            let scale = column_area_width / total_preferred;
             preferred_widths
                 .iter()
-                .map(|w| w + (w / total_preferred) * extra)
+                .map(|w| (w * scale).max(min_col_width))
                 .collect()
-        } else {
-            preferred_widths
         }
-    } else {
-        let scale = column_area_width / total_preferred;
-        preferred_widths
-            .iter()
-            .map(|w| (w * scale).max(min_col_width))
-            .collect()
     };
 
     // Build layout rows, tracking cells occupied by rowspan from previous rows.
@@ -9001,6 +9174,213 @@ mod tests {
             nested_width <= 140.0,
             "expected nested table to respect the constrained cell width, got {nested_width}"
         );
+    }
+
+    // --- colgroup/col percentage width tests ---
+
+    fn get_col_widths(html: &str) -> Vec<f32> {
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::TableRow { col_widths, .. } = el {
+                    Some(col_widths.clone())
+                } else {
+                    None
+                }
+            })
+            .expect("expected table row")
+    }
+
+    #[test]
+    fn table_colgroup_percentage_widths() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col style="width: 30%;">
+                    <col style="width: 70%;">
+                </colgroup>
+                <tr><th>Name</th><td>Value</td></tr>
+            </table>"#,
+        );
+        assert_eq!(widths.len(), 2);
+        let total: f32 = widths.iter().sum();
+        let ratio = widths[0] / total;
+        assert!(
+            (ratio - 0.30).abs() < 0.05,
+            "First column should be ~30%, got {:.1}%",
+            ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn table_colgroup_width_attribute_fallback() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col width="25%">
+                    <col width="75%">
+                </colgroup>
+                <tr><td>A</td><td>B</td></tr>
+            </table>"#,
+        );
+        let total: f32 = widths.iter().sum();
+        let ratio = widths[0] / total;
+        assert!(
+            (ratio - 0.25).abs() < 0.05,
+            "First column should be ~25%, got {:.1}%",
+            ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn table_colgroup_inline_style_overrides_attribute() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col width="50%" style="width: 30%;">
+                    <col width="50%" style="width: 70%;">
+                </colgroup>
+                <tr><td>A</td><td>B</td></tr>
+            </table>"#,
+        );
+        let total: f32 = widths.iter().sum();
+        let ratio = widths[0] / total;
+        assert!(
+            (ratio - 0.30).abs() < 0.05,
+            "Inline style should override width attribute: got {:.1}%",
+            ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn table_colgroup_width_auto_clears() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col width="30%" style="width: auto;">
+                    <col style="width: 50%;">
+                </colgroup>
+                <tr><td>A</td><td>B</td></tr>
+            </table>"#,
+        );
+        // First col has auto, second has 50%. Both should have some width.
+        assert_eq!(widths.len(), 2);
+        assert!(widths[0] > 0.0);
+        assert!(widths[1] > 0.0);
+    }
+
+    #[test]
+    fn table_colgroup_span_attribute() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col span="2" style="width: 20%;">
+                    <col style="width: 60%;">
+                </colgroup>
+                <tr><td>A</td><td>B</td><td>C</td></tr>
+            </table>"#,
+        );
+        assert_eq!(widths.len(), 3);
+        let total: f32 = widths.iter().sum();
+        let ratio_0 = widths[0] / total;
+        let ratio_2 = widths[2] / total;
+        assert!(
+            (ratio_0 - 0.20).abs() < 0.05,
+            "Spanned cols should be ~20%, got {:.1}%",
+            ratio_0 * 100.0
+        );
+        assert!(
+            (ratio_2 - 0.60).abs() < 0.05,
+            "Third col should be ~60%, got {:.1}%",
+            ratio_2 * 100.0
+        );
+    }
+
+    #[test]
+    fn table_bare_col_without_colgroup() {
+        let widths = get_col_widths(
+            r#"<table>
+                <col style="width: 40%;">
+                <col style="width: 60%;">
+                <tr><td>X</td><td>Y</td></tr>
+            </table>"#,
+        );
+        let total: f32 = widths.iter().sum();
+        let ratio = widths[0] / total;
+        assert!(
+            (ratio - 0.40).abs() < 0.05,
+            "Bare col should work: got {:.1}%",
+            ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn table_without_colgroup_unchanged() {
+        let widths = get_col_widths(
+            "<table><tr><td>Short</td><td>Much longer content here</td></tr></table>",
+        );
+        assert_eq!(widths.len(), 2);
+        assert!(
+            widths[1] > widths[0],
+            "Auto-sizing should give longer content more width"
+        );
+    }
+
+    #[test]
+    fn table_colgroup_mixed_explicit_and_auto() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col style="width: 50%;">
+                    <col>
+                </colgroup>
+                <tr><td>Fixed</td><td>Auto</td></tr>
+            </table>"#,
+        );
+        assert_eq!(widths.len(), 2);
+        assert!(widths[0] > 0.0);
+        assert!(widths[1] > 0.0);
+    }
+
+    #[test]
+    fn table_colgroup_malformed_width_ignored() {
+        // Malformed percentage should be ignored, falling back to auto
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup>
+                    <col style="width: banana;">
+                    <col style="width: 50%;">
+                </colgroup>
+                <tr><td>A</td><td>B</td></tr>
+            </table>"#,
+        );
+        assert_eq!(widths.len(), 2);
+        assert!(widths[0] > 0.0);
+        assert!(widths[1] > 0.0);
+    }
+
+    #[test]
+    fn table_colgroup_no_span_defaults_to_one() {
+        let widths = get_col_widths(
+            r#"<table>
+                <colgroup span="3" style="width: 33%;">
+                </colgroup>
+                <tr><td>A</td><td>B</td><td>C</td></tr>
+            </table>"#,
+        );
+        assert_eq!(widths.len(), 3);
+        // All three should be roughly equal
+        let total: f32 = widths.iter().sum();
+        for w in &widths {
+            assert!(
+                (w / total - 0.33).abs() < 0.05,
+                "Each col should be ~33%, got {:.1}%",
+                w / total * 100.0
+            );
+        }
     }
 }
 
