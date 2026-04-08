@@ -2093,7 +2093,7 @@ fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
 /// not UTF-8. Writing raw UTF-8 bytes causes multi-byte characters like em dash
 /// to appear as mojibake. This function maps Unicode code points to their
 /// WinAnsi byte equivalents.
-fn utf8_to_winansi(text: &str) -> Vec<u8> {
+pub(crate) fn utf8_to_winansi(text: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(text.len());
     for ch in text.chars() {
         let code = ch as u32;
@@ -2147,7 +2147,7 @@ fn utf8_to_winansi(text: &str) -> Vec<u8> {
 /// - All other bytes (0x00..=0x1F, 0x7F..=0xFF) are written as octal escapes `\NNN`
 ///
 /// The returned string is safe to embed in a PDF content stream as `(encoded) Tj`.
-fn encode_pdf_text(text: &str) -> String {
+pub(crate) fn encode_pdf_text(text: &str) -> String {
     let winansi = utf8_to_winansi(text);
     let mut result = String::with_capacity(winansi.len() * 2);
     for &b in &winansi {
