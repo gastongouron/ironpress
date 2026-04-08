@@ -253,6 +253,7 @@ enum ListContext {
 #[allow(dead_code)]
 pub struct TableCell {
     pub lines: Vec<TextLine>,
+    pub nested_rows: Vec<LayoutElement>,
     pub bold: bool,
     pub background_color: Option<(f32, f32, f32)>,
     pub padding_top: f32,
@@ -267,6 +268,12 @@ pub struct TableCell {
     pub border: LayoutBorder,
     /// Text alignment within the cell.
     pub text_align: TextAlign,
+}
+
+pub(crate) fn table_cell_content_height(cell: &TableCell) -> f32 {
+    let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+    let nested_h: f32 = cell.nested_rows.iter().map(estimate_element_height).sum();
+    cell.padding_top + text_h + nested_h + cell.padding_bottom
 }
 
 /// A cell within a flex row, with its computed x-offset and width.
@@ -2834,6 +2841,7 @@ fn flatten_grid_container(
 
             cells.push(TableCell {
                 lines,
+                nested_rows: Vec::new(),
                 bold: child_style.font_weight == FontWeight::Bold,
                 background_color: bg,
                 padding_top: child_style.padding.top,
@@ -2851,6 +2859,7 @@ fn flatten_grid_container(
         while cells.len() < num_cols {
             cells.push(TableCell {
                 lines: Vec::new(),
+                nested_rows: Vec::new(),
                 bold: false,
                 background_color: None,
                 padding_top: 0.0,
@@ -3032,27 +3041,29 @@ fn flatten_table(
                         &cell_sizing_ctx,
                     );
                     let mut runs = Vec::new();
-                    let recurse_descendants = cell_el.children.iter().any(
-                        |node| {
-                            matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
-                        },
-                    );
+                    let mut nested_rows = Vec::new();
+                    let recurse_descendants = cell_el.children.iter().any(|node| {
+                        matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
+                    });
                     let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
                     text_ancestors.push(AncestorInfo {
                         element: cell_el,
                         child_index: cell_child_index,
                         sibling_count: cell_sibling_count,
                     });
-                    collect_text_runs_inner(
+                    collect_table_cell_content_inner(
                         &cell_el.children,
                         &cell_style,
                         &mut runs,
+                        &mut nested_rows,
                         None,
                         rules,
+                        fonts,
                         false,
                         recurse_descendants,
                         recurse_descendants,
                         &text_ancestors,
+                        available_width.max(1.0),
                     );
                     // Estimate content width using estimate_word_width for accurate
                     // measurement. Use the maximum of (full text width, longest word
@@ -3079,8 +3090,13 @@ fn flatten_table(
                             full_width.max(longest_word_width)
                         })
                         .sum();
-                    let total_preferred =
-                        content_width + cell_style.padding.left + cell_style.padding.right;
+                    let nested_width = nested_rows
+                        .iter()
+                        .map(table_row_content_width)
+                        .fold(0.0f32, f32::max);
+                    let total_preferred = content_width.max(nested_width)
+                        + cell_style.padding.left
+                        + cell_style.padding.right;
                     if colspan == 1 {
                         if let Some(width) = preferred_widths.get_mut(col_pos) {
                             *width = width.max(total_preferred);
@@ -3187,6 +3203,7 @@ fn flatten_table(
                 };
                 cells.push(TableCell {
                     lines: Vec::new(),
+                    nested_rows: Vec::new(),
                     bold: false,
                     background_color: None,
                     padding_top: 0.0,
@@ -3245,10 +3262,7 @@ fn flatten_table(
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
             let mut runs = Vec::new();
-            // When a cell contains block-level children (e.g. a nested
-            // table), plain `collect_text_runs` would skip them because it
-            // only handles inline elements.  Use the flex-child variant
-            // which recursively descends into block children.
+            let mut nested_rows = Vec::new();
             let recurse_descendants = cell_el.children.iter().any(
                 |c| matches!(c, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br),
             );
@@ -3258,16 +3272,19 @@ fn flatten_table(
                 child_index: cell_child_index,
                 sibling_count: cell_sibling_count,
             });
-            collect_text_runs_inner(
+            collect_table_cell_content_inner(
                 &cell_el.children,
                 &cell_style,
                 &mut runs,
+                &mut nested_rows,
                 None,
                 rules,
+                fonts,
                 false,
                 recurse_descendants,
                 recurse_descendants,
                 &text_ancestors,
+                cell_inner.max(1.0),
             );
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
 
@@ -3278,6 +3295,7 @@ fn flatten_table(
 
             cells.push(TableCell {
                 lines,
+                nested_rows,
                 bold: cell_style.font_weight == FontWeight::Bold,
                 background_color: bg,
                 padding_top: cell_style.padding.top,
@@ -3481,6 +3499,164 @@ fn collect_text_runs_inner(
                             recurse_blocks,
                             false,
                             &child_ancestors,
+                        );
+                        if recurse_blocks && style.display != Display::Inline && !runs.is_empty() {
+                            push_line_break_run(runs, &style);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_table_cell_content_inner(
+    nodes: &[DomNode],
+    parent_style: &ComputedStyle,
+    runs: &mut Vec<TextRun>,
+    nested_rows: &mut Vec<LayoutElement>,
+    link_url: Option<&str>,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+    inline_parent: bool,
+    recurse_blocks: bool,
+    suppress_direct_text_padding: bool,
+    ancestors: &[AncestorInfo],
+    available_width: f32,
+) {
+    let preserve_ws = matches!(
+        parent_style.white_space,
+        WhiteSpace::Pre | WhiteSpace::PreWrap
+    );
+    let element_sibling_count = nodes
+        .iter()
+        .filter(|node| matches!(node, DomNode::Element(_)))
+        .count();
+
+    for (node_index, node) in nodes.iter().enumerate() {
+        match node {
+            DomNode::Text(text) => {
+                let processed = if preserve_ws {
+                    text.clone()
+                } else {
+                    collapse_whitespace(text)
+                };
+                if !processed.is_empty() {
+                    let (bg, pad, br) = if (inline_parent || recurse_blocks) && !preserve_ws {
+                        let pad = if suppress_direct_text_padding {
+                            (0.0, 0.0)
+                        } else {
+                            (parent_style.padding.left, parent_style.padding.top)
+                        };
+                        (
+                            parent_style.background_color.map(|c| c.to_f32_rgb()),
+                            pad,
+                            parent_style.border_radius,
+                        )
+                    } else {
+                        (None, (0.0, 0.0), 0.0)
+                    };
+                    push_text_run(
+                        runs,
+                        TextRun {
+                            text: processed,
+                            font_size: parent_style.font_size,
+                            bold: parent_style.font_weight == FontWeight::Bold,
+                            italic: parent_style.font_style == FontStyle::Italic,
+                            underline: parent_style.text_decoration_underline,
+                            line_through: parent_style.text_decoration_line_through,
+                            color: parent_style.color.to_f32_rgb(),
+                            link_url: link_url.map(String::from),
+                            font_family: parent_style.font_family.clone(),
+                            background_color: bg,
+                            padding: pad,
+                            border_radius: br,
+                            preserve_whitespace: preserve_ws,
+                        },
+                    );
+                }
+            }
+            DomNode::Element(el) => {
+                let child_index = nodes[..node_index]
+                    .iter()
+                    .filter(|node| matches!(node, DomNode::Element(_)))
+                    .count();
+                let preceding_siblings = nodes[..node_index]
+                    .iter()
+                    .filter_map(|node| match node {
+                        DomNode::Element(element) => Some((
+                            element.tag_name().to_string(),
+                            element
+                                .class_list()
+                                .into_iter()
+                                .map(str::to_string)
+                                .collect(),
+                        )),
+                        _ => None,
+                    })
+                    .collect();
+                let classes = el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index,
+                    sibling_count: element_sibling_count,
+                    preceding_siblings,
+                };
+                let style = compute_style_with_context(
+                    el.tag,
+                    el.style_attr(),
+                    parent_style,
+                    rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                );
+                if style.display == Display::None {
+                    continue;
+                }
+                let url = if el.tag == HtmlTag::A {
+                    el.attributes.get("href").map(|s| s.as_str()).or(link_url)
+                } else {
+                    link_url
+                };
+                let mut child_ancestors = ancestors.to_vec();
+                child_ancestors.push(AncestorInfo {
+                    element: el,
+                    child_index,
+                    sibling_count: element_sibling_count,
+                });
+                if el.tag == HtmlTag::Table {
+                    flatten_table(
+                        el,
+                        &style,
+                        available_width,
+                        nested_rows,
+                        rules,
+                        fonts,
+                        &child_ancestors,
+                        child_index,
+                        element_sibling_count,
+                    );
+                } else if recurse_blocks || el.tag.is_inline() || el.tag == HtmlTag::Br {
+                    if el.tag == HtmlTag::Br {
+                        push_line_break_run(runs, parent_style);
+                    } else {
+                        collect_table_cell_content_inner(
+                            &el.children,
+                            &style,
+                            runs,
+                            nested_rows,
+                            url,
+                            rules,
+                            fonts,
+                            el.tag.is_inline(),
+                            recurse_blocks,
+                            false,
+                            &child_ancestors,
+                            available_width,
                         );
                         if recurse_blocks && style.display != Display::Inline && !runs.is_empty() {
                             push_line_break_run(runs, &style);
@@ -3880,10 +4056,19 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
         } => {
             let row_h = cells
                 .iter()
-                .map(|c| {
-                    let th: f32 = c.lines.iter().map(|l| l.height).sum();
-                    c.padding_top + th + c.padding_bottom
-                })
+                .map(table_cell_content_height)
+                .fold(0.0f32, f32::max);
+            margin_top + row_h + margin_bottom
+        }
+        LayoutElement::GridRow {
+            cells,
+            margin_top,
+            margin_bottom,
+            ..
+        } => {
+            let row_h = cells
+                .iter()
+                .map(table_cell_content_height)
                 .fold(0.0f32, f32::max);
             margin_top + row_h + margin_bottom
         }
@@ -3903,6 +4088,25 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             margin_bottom,
             ..
         } => margin_top + height + margin_bottom,
+        _ => 0.0,
+    }
+}
+
+fn table_row_content_width(element: &LayoutElement) -> f32 {
+    match element {
+        LayoutElement::TableRow {
+            col_widths,
+            border_collapse,
+            border_spacing,
+            ..
+        } => {
+            let spacing = if *border_collapse == BorderCollapse::Collapse {
+                0.0
+            } else {
+                *border_spacing
+            };
+            col_widths.iter().sum::<f32>() + spacing * col_widths.len().saturating_sub(1) as f32
+        }
         _ => 0.0,
     }
 }
@@ -3980,10 +4184,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             } => {
                 let row_height = cells
                     .iter()
-                    .map(|cell| {
-                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-                        cell.padding_top + text_h + cell.padding_bottom
-                    })
+                    .map(table_cell_content_height)
                     .fold(0.0f32, f32::max);
                 (row_height, *margin_top, *margin_bottom)
             }
@@ -3995,10 +4196,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
             } => {
                 let row_height = cells
                     .iter()
-                    .map(|cell| {
-                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-                        cell.padding_top + text_h + cell.padding_bottom
-                    })
+                    .map(table_cell_content_height)
                     .fold(0.0f32, f32::max);
                 (row_height, *margin_top, *margin_bottom)
             }
@@ -8356,6 +8554,58 @@ mod tests {
             nested_run.padding,
             (6.0, 3.0),
             "nested block text should keep its own padding"
+        );
+    }
+
+    #[test]
+    fn table_cell_nested_table_is_preserved_as_nested_layout() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td>
+                        Outer
+                        <table>
+                            <tr><td>Inner</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let cells = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                Some(cells)
+            } else {
+                None
+            }
+        });
+        let cells = cells.expect("expected outer table row");
+        assert!(
+            !cells[0].nested_rows.is_empty(),
+            "expected nested table rows to be preserved"
+        );
+        let nested_text: String = cells[0]
+            .nested_rows
+            .iter()
+            .filter_map(|el| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(
+                        cells
+                            .iter()
+                            .flat_map(|cell| cell.lines.iter())
+                            .flat_map(|line| line.runs.iter())
+                            .map(|run| run.text.as_str())
+                            .collect::<String>(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(
+            nested_text.contains("Inner"),
+            "expected nested table text to stay in nested layout: {nested_text:?}"
         );
     }
 }

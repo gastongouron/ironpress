@@ -1,6 +1,7 @@
 use crate::error::IronpressError;
 use crate::layout::engine::{
     ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
+    table_cell_content_height,
 };
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -785,7 +786,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Render cell text at the first row's y position
-                        render_cell_text(
+                        render_cell_content(
                             &mut content,
                             cell,
                             cell_x,
@@ -824,7 +825,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Render cell text
-                        render_cell_text(
+                        render_cell_content(
                             &mut content,
                             cell,
                             cell_x,
@@ -1417,11 +1418,49 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 fn compute_row_height(cells: &[TableCell]) -> f32 {
     cells
         .iter()
-        .map(|cell| {
-            let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-            cell.padding_top + text_h + cell.padding_bottom
-        })
+        .map(table_cell_content_height)
         .fold(0.0f32, f32::max)
+}
+
+fn render_cell_content(
+    content: &mut String,
+    cell: &TableCell,
+    cell_x: f32,
+    row_y: f32,
+    col_width: f32,
+    row_height: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+) {
+    if !cell.nested_rows.is_empty() {
+        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+        render_cell_text(
+            content,
+            cell,
+            cell_x,
+            row_y - cell.padding_top,
+            col_width,
+            text_h,
+            custom_fonts,
+        );
+        render_nested_table_rows(
+            content,
+            &cell.nested_rows,
+            cell_x + cell.padding_left,
+            row_y - cell.padding_top - text_h - cell.padding_bottom,
+            custom_fonts,
+        );
+        return;
+    }
+
+    render_cell_text(
+        content,
+        cell,
+        cell_x,
+        row_y,
+        col_width,
+        row_height,
+        custom_fonts,
+    );
 }
 
 fn render_cell_text(
@@ -1528,6 +1567,140 @@ fn render_cell_text(
         }
         // Move past the rest of the line (descender + bottom half-leading)
         text_y -= line.height - half_leading - line_ascender;
+    }
+}
+
+fn table_row_total_height(row: &LayoutElement) -> f32 {
+    match row {
+        LayoutElement::TableRow {
+            cells,
+            margin_top,
+            margin_bottom,
+            ..
+        } => margin_top + compute_row_height(cells) + margin_bottom,
+        _ => 0.0,
+    }
+}
+
+fn render_nested_table_rows(
+    content: &mut String,
+    rows: &[LayoutElement],
+    origin_x: f32,
+    top_y: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+) {
+    let mut cursor_y = top_y;
+    for (row_idx, row) in rows.iter().enumerate() {
+        let LayoutElement::TableRow {
+            cells,
+            col_widths,
+            border_collapse,
+            border_spacing,
+            margin_top,
+            margin_bottom,
+        } = row
+        else {
+            continue;
+        };
+
+        cursor_y -= *margin_top;
+        let row_y = cursor_y;
+        let spacing = if *border_collapse == BorderCollapse::Collapse {
+            0.0
+        } else {
+            *border_spacing
+        };
+        let row_height = compute_row_height(cells);
+
+        let mut col_pos: usize = 0;
+        for cell in cells {
+            if cell.rowspan == 0 {
+                col_pos += cell.colspan;
+                continue;
+            }
+
+            let cell_x =
+                origin_x + col_widths.iter().take(col_pos).sum::<f32>() + spacing * col_pos as f32;
+            let cell_w: f32 = (0..cell.colspan)
+                .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
+                .sum::<f32>()
+                + if cell.colspan > 1 {
+                    spacing * (cell.colspan - 1) as f32
+                } else {
+                    0.0
+                };
+
+            let cell_height = if cell.rowspan > 1 {
+                let mut total_h = row_height;
+                for offset in 1..cell.rowspan {
+                    if let Some(future_row) = rows.get(row_idx + offset) {
+                        total_h += table_row_total_height(future_row);
+                    }
+                }
+                total_h
+            } else {
+                row_height
+            };
+
+            if let Some((r, g, b)) = cell.background_color {
+                content.push_str(&format!(
+                    "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                    x = cell_x,
+                    y = row_y - cell_height,
+                    w = cell_w,
+                    h = cell_height,
+                ));
+            }
+
+            if cell.border.has_any() {
+                let x1 = cell_x;
+                let x2 = cell_x + cell_w;
+                let y_top = row_y;
+                let y_bottom = row_y - cell_height;
+                if cell.border.top.width > 0.0 {
+                    let (r, g, b) = cell.border.top.color;
+                    content.push_str(&format!(
+                        "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
+                        cell.border.top.width
+                    ));
+                }
+                if cell.border.right.width > 0.0 {
+                    let (r, g, b) = cell.border.right.color;
+                    content.push_str(&format!(
+                        "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
+                        cell.border.right.width
+                    ));
+                }
+                if cell.border.bottom.width > 0.0 {
+                    let (r, g, b) = cell.border.bottom.color;
+                    content.push_str(&format!(
+                        "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
+                        cell.border.bottom.width
+                    ));
+                }
+                if cell.border.left.width > 0.0 {
+                    let (r, g, b) = cell.border.left.color;
+                    content.push_str(&format!(
+                        "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
+                        cell.border.left.width
+                    ));
+                }
+            }
+
+            render_cell_content(
+                content,
+                cell,
+                cell_x,
+                row_y,
+                cell_w,
+                row_height,
+                custom_fonts,
+            );
+
+            col_pos += cell.colspan;
+        }
+
+        cursor_y -= row_height + *margin_bottom;
     }
 }
 
@@ -3955,6 +4128,7 @@ mod tests {
                     height: 14.0,
                 },
             ],
+            nested_rows: Vec::new(),
             bold: false,
             colspan: 1,
             rowspan: 1,
@@ -4944,6 +5118,31 @@ mod tests {
     }
 
     #[test]
+    fn table_cell_nested_table_renders_inner_content() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td>
+                        Outer
+                        <table>
+                            <tr><td>Inner</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Outer"), "Should render outer cell text");
+        assert!(
+            pdf_str.contains("Inner"),
+            "Should render nested table cell text"
+        );
+    }
+
+    #[test]
     fn flexrow_container_gradient() {
         // Covers lines 742, 744, 753, 848-874: FlexRow linear gradient with border-radius
         let html = r#"<div style="display: flex; background: linear-gradient(to right, red, blue); border-radius: 5pt"><div>Gradient Flex</div></div>"#;
@@ -5041,6 +5240,7 @@ mod tests {
                 runs: vec![run],
                 height: 16.0,
             }],
+            nested_rows: Vec::new(),
             bold: false,
             colspan: 1,
             rowspan: 1,
