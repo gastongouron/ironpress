@@ -758,6 +758,7 @@ fn flatten_element(
             el,
             Some((svg_width, svg_height)),
         ) {
+            sync_svg_tree_to_layout_box(&mut tree, svg_width, svg_height);
             inject_inherited_svg_color(&mut tree, style.color.to_f32_rgb());
             output.push(LayoutElement::Svg {
                 tree,
@@ -4092,6 +4093,8 @@ fn load_image_from_element(
                     svg_el,
                     Some((width, height)),
                 ) {
+                    let mut tree = tree;
+                    sync_svg_tree_to_layout_box(&mut tree, width, height);
                     return Some(LayoutElement::Svg {
                         tree,
                         width,
@@ -4257,6 +4260,13 @@ fn resolve_svg_dimension(
 
     let value = crate::parser::svg::parse_length(raw)?;
     if value >= 0.0 { Some(value) } else { None }
+}
+
+fn sync_svg_tree_to_layout_box(tree: &mut crate::parser::svg::SvgTree, width: f32, height: f32) {
+    if tree.view_box.is_none() {
+        tree.width = width;
+        tree.height = height;
+    }
 }
 
 fn inject_inherited_svg_color(
@@ -5102,6 +5112,29 @@ mod tests {
             }
             other => panic!("Expected Svg layout element, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn layout_svg_image_without_viewbox_syncs_tree_to_layout_box() {
+        let html = r#"<img src="data:image/svg+xml,%3Csvg%20width%3D%22100%25%22%20height%3D%2250%25%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22/%3E%3C/svg%3E">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let (tree_width, tree_height, width, height) = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg {
+                    tree,
+                    width,
+                    height,
+                    ..
+                } => Some((tree.width, tree.height, *width, *height)),
+                _ => None,
+            })
+            .expect("expected svg layout element");
+
+        assert!((tree_width - width).abs() < 0.1);
+        assert!((tree_height - height).abs() < 0.1);
     }
 
     #[test]
