@@ -2684,6 +2684,67 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
         .collect()
 }
 
+#[derive(Clone, Copy)]
+struct TableRowInfo<'a> {
+    row: &'a ElementNode,
+    section_index: usize,
+    section_size: usize,
+    section_element: Option<&'a ElementNode>,
+    section_child_index: usize,
+    section_sibling_count: usize,
+}
+
+impl<'a> TableRowInfo<'a> {
+    fn ancestors(self, table_ancestors: &[AncestorInfo<'a>]) -> Vec<AncestorInfo<'a>> {
+        let mut ancestors = table_ancestors.to_vec();
+        if let Some(section_el) = self.section_element {
+            ancestors.push(AncestorInfo {
+                element: section_el,
+                child_index: self.section_child_index,
+                sibling_count: self.section_sibling_count,
+            });
+        }
+        ancestors
+    }
+
+    fn row_selector_ctx(self, table_ancestors: &[AncestorInfo<'a>]) -> SelectorContext<'a> {
+        SelectorContext {
+            ancestors: self.ancestors(table_ancestors),
+            child_index: self.section_index,
+            sibling_count: self.section_size,
+            preceding_siblings: Vec::new(),
+        }
+    }
+
+    fn cell_selector_ctx(
+        self,
+        table_ancestors: &[AncestorInfo<'a>],
+        child_index: usize,
+        sibling_count: usize,
+    ) -> SelectorContext<'a> {
+        let mut ancestors = self.ancestors(table_ancestors);
+        ancestors.push(AncestorInfo {
+            element: self.row,
+            child_index: self.section_index,
+            sibling_count: self.section_size,
+        });
+        SelectorContext {
+            ancestors,
+            child_index,
+            sibling_count,
+            preceding_siblings: Vec::new(),
+        }
+    }
+}
+
+fn parse_positive_usize_attr(attributes: &HashMap<String, String>, name: &str) -> usize {
+    attributes
+        .get(name)
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(1)
+        .max(1)
+}
+
 /// Lay out a CSS Grid container into GridRow layout elements.
 #[allow(clippy::too_many_arguments)]
 fn flatten_grid_container(
@@ -2848,12 +2909,7 @@ fn flatten_table(
     // Track section-relative indices so nth-child counts within each section
     // (thead, tbody, tfoot) as browsers do, not globally.
     // Also track the section element so descendant selectors can see it.
-    let mut rows: Vec<&ElementNode> = Vec::new();
-    let mut row_section_indices: Vec<usize> = Vec::new();
-    let mut row_section_sizes: Vec<usize> = Vec::new();
-    let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
-    let mut row_section_child_indices: Vec<usize> = Vec::new();
-    let mut row_section_sibling_counts: Vec<usize> = Vec::new();
+    let mut rows: Vec<TableRowInfo<'_>> = Vec::new();
     let section_count = el
         .children
         .iter()
@@ -2864,13 +2920,14 @@ fn flatten_table(
             match child_el.tag {
                 HtmlTag::Tr => {
                     // Direct <tr> child of <table> — standalone section
-                    let idx = rows.len();
-                    rows.push(child_el);
-                    row_section_indices.push(idx);
-                    row_section_sizes.push(1);
-                    row_section_elements.push(None);
-                    row_section_child_indices.push(section_child_idx);
-                    row_section_sibling_counts.push(section_count);
+                    rows.push(TableRowInfo {
+                        row: child_el,
+                        section_index: rows.len(),
+                        section_size: 1,
+                        section_element: None,
+                        section_child_index: section_child_idx,
+                        section_sibling_count: section_count,
+                    });
                 }
                 HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
                     let section_rows: Vec<&ElementNode> = child_el
@@ -2887,12 +2944,14 @@ fn flatten_table(
                         .collect();
                     let section_size = section_rows.len();
                     for (i, gc) in section_rows.into_iter().enumerate() {
-                        rows.push(gc);
-                        row_section_indices.push(i);
-                        row_section_sizes.push(section_size);
-                        row_section_elements.push(Some(child_el));
-                        row_section_child_indices.push(section_child_idx);
-                        row_section_sibling_counts.push(section_count);
+                        rows.push(TableRowInfo {
+                            row: gc,
+                            section_index: i,
+                            section_size,
+                            section_element: Some(child_el),
+                            section_child_index: section_child_idx,
+                            section_sibling_count: section_count,
+                        });
                     }
                 }
                 _ => {}
@@ -2908,17 +2967,13 @@ fn flatten_table(
     let num_cols = rows
         .iter()
         .map(|row| {
-            row.children
+            row.row
+                .children
                 .iter()
                 .filter_map(|c| {
                     if let DomNode::Element(e) = c {
                         if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th {
-                            let colspan = e
-                                .attributes
-                                .get("colspan")
-                                .and_then(|v| v.parse::<usize>().ok())
-                                .unwrap_or(1)
-                                .max(1);
+                            let colspan = parse_positive_usize_attr(&e.attributes, "colspan");
                             return Some(colspan);
                         }
                     }
@@ -2933,23 +2988,10 @@ fn flatten_table(
     let min_col_width: f32 = 30.0;
     let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
 
-    for (sizing_row_idx, row) in rows.iter().enumerate() {
+    for row_info in &rows {
+        let row = row_info.row;
         let row_classes = row.class_list();
-        // Build ancestors for the row: table + optional section element
-        let mut sizing_row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[sizing_row_idx] {
-            sizing_row_ancestors.push(AncestorInfo {
-                element: section_el,
-                child_index: row_section_child_indices[sizing_row_idx],
-                sibling_count: row_section_sibling_counts[sizing_row_idx],
-            });
-        }
-        let sizing_row_ctx = SelectorContext {
-            ancestors: sizing_row_ancestors,
-            child_index: row_section_indices[sizing_row_idx],
-            sibling_count: row_section_sizes[sizing_row_idx],
-            preceding_siblings: Vec::new(),
-        };
+        let sizing_row_ctx = row_info.row_selector_ctx(&table_ancestors);
         let row_style = compute_style_with_context(
             row.tag,
             row.style_attr(),
@@ -2971,25 +3013,13 @@ fn flatten_table(
         for child in &row.children {
             if let DomNode::Element(cell_el) = child {
                 if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    let colspan = cell_el
-                        .attributes
-                        .get("colspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
+                    let colspan = parse_positive_usize_attr(&cell_el.attributes, "colspan");
                     let cell_classes = cell_el.class_list();
-                    let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
-                    cell_sizing_ancestors.push(AncestorInfo {
-                        element: row,
-                        child_index: row_section_indices[sizing_row_idx],
-                        sibling_count: row_section_sizes[sizing_row_idx],
-                    });
-                    let cell_sizing_ctx = SelectorContext {
-                        ancestors: cell_sizing_ancestors,
-                        child_index: cell_child_index,
-                        sibling_count: cell_sibling_count,
-                        preceding_siblings: Vec::new(),
-                    };
+                    let cell_sizing_ctx = row_info.cell_selector_ctx(
+                        &table_ancestors,
+                        cell_child_index,
+                        cell_sibling_count,
+                    );
                     let cell_style = compute_style_with_context(
                         cell_el.tag,
                         cell_el.style_attr(),
@@ -3052,16 +3082,14 @@ fn flatten_table(
                     let total_preferred =
                         content_width + cell_style.padding.left + cell_style.padding.right;
                     if colspan == 1 {
-                        if col_pos < num_cols {
-                            preferred_widths[col_pos] =
-                                preferred_widths[col_pos].max(total_preferred);
+                        if let Some(width) = preferred_widths.get_mut(col_pos) {
+                            *width = width.max(total_preferred);
                         }
                     } else {
                         let per_col = total_preferred / colspan as f32;
                         for i in 0..colspan {
-                            if col_pos + i < num_cols {
-                                preferred_widths[col_pos + i] =
-                                    preferred_widths[col_pos + i].max(per_col);
+                            if let Some(width) = preferred_widths.get_mut(col_pos + i) {
+                                *width = width.max(per_col);
                             }
                         }
                     }
@@ -3102,27 +3130,10 @@ fn flatten_table(
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
-    for (row_idx, row) in rows.iter().enumerate() {
+    for row_info in &rows {
+        let row = row_info.row;
         let row_classes = row.class_list();
-        // Use section-relative index for nth-child matching (browsers count
-        // within thead/tbody/tfoot, not globally across all rows).
-        let section_idx = row_section_indices[row_idx];
-        let section_size = row_section_sizes[row_idx];
-        // Build ancestors for the row: table + optional section element
-        let mut row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[row_idx] {
-            row_ancestors.push(AncestorInfo {
-                element: section_el,
-                child_index: row_section_child_indices[row_idx],
-                sibling_count: row_section_sibling_counts[row_idx],
-            });
-        }
-        let row_selector_ctx = SelectorContext {
-            ancestors: row_ancestors,
-            child_index: section_idx,
-            sibling_count: section_size,
-            preceding_siblings: Vec::new(),
-        };
+        let row_selector_ctx = row_info.row_selector_ctx(&table_ancestors);
         let row_style = compute_style_with_context(
             row.tag,
             row.style_attr(),
@@ -3138,13 +3149,13 @@ fn flatten_table(
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
-        let mut child_iter = row.children.iter().filter_map(|child| {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    return Some(cell_el);
-                }
+        let mut child_iter = row.children.iter().filter_map(|child| match child {
+            DomNode::Element(cell_el)
+                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th =>
+            {
+                Some(cell_el)
             }
-            None
+            _ => None,
         });
         let cell_sibling_count = row
             .children
@@ -3156,14 +3167,20 @@ fn flatten_table(
         // Process cells, skipping occupied positions and inserting phantom cells
         let mut next_cell = child_iter.next();
         while col_pos < num_cols {
-            if occupied[col_pos] > 0 {
+            let Some(&remaining) = occupied.get(col_pos) else {
+                break;
+            };
+            if remaining > 0 {
                 // This position is occupied by a rowspan from a previous row.
                 // Insert a phantom cell (rowspan = 0) as a placeholder.
                 let span_cols = {
                     // Count how many consecutive occupied columns share this rowspan
-                    let remaining = occupied[col_pos];
                     let mut count = 1;
-                    while col_pos + count < num_cols && occupied[col_pos + count] == remaining {
+                    while occupied
+                        .get(col_pos + count)
+                        .copied()
+                        .is_some_and(|value| value == remaining)
+                    {
                         count += 1;
                     }
                     count
@@ -3182,7 +3199,9 @@ fn flatten_table(
                     text_align: TextAlign::Left,
                 });
                 for i in 0..span_cols {
-                    occupied[col_pos + i] -= 1;
+                    if let Some(slot) = occupied.get_mut(col_pos + i) {
+                        *slot -= 1;
+                    }
                 }
                 col_pos += span_cols;
                 continue;
@@ -3206,18 +3225,8 @@ fn flatten_table(
                 .max(1);
 
             let cell_classes = cell_el.class_list();
-            let mut cell_ancestors = row_selector_ctx.ancestors.clone();
-            cell_ancestors.push(AncestorInfo {
-                element: row,
-                child_index: section_idx,
-                sibling_count: section_size,
-            });
-            let cell_selector_ctx = SelectorContext {
-                ancestors: cell_ancestors,
-                child_index: cell_child_index,
-                sibling_count: cell_sibling_count,
-                preceding_siblings: Vec::new(),
-            };
+            let cell_selector_ctx =
+                row_info.cell_selector_ctx(&table_ancestors, cell_child_index, cell_sibling_count);
             let cell_style = compute_style_with_context(
                 cell_el.tag,
                 cell_el.style_attr(),
@@ -3231,13 +3240,7 @@ fn flatten_table(
             );
             // Compute effective width from auto-sized column widths
             let effective_width: f32 = (0..colspan)
-                .map(|i| {
-                    if col_pos + i < num_cols {
-                        col_widths[col_pos + i]
-                    } else {
-                        0.0
-                    }
-                })
+                .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
                 .sum();
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
@@ -3290,8 +3293,8 @@ fn flatten_table(
             // Mark subsequent rows as occupied if rowspan > 1
             if rowspan > 1 {
                 for i in 0..colspan {
-                    if col_pos + i < num_cols {
-                        occupied[col_pos + i] = rowspan - 1;
+                    if let Some(slot) = occupied.get_mut(col_pos + i) {
+                        *slot = rowspan - 1;
                     }
                 }
             }
@@ -5547,6 +5550,44 @@ mod tests {
             "Column with longer text ({}) should be wider than short text ({})",
             col_widths[1],
             col_widths[0]
+        );
+    }
+
+    #[test]
+    fn table_auto_sizing_uses_dom_selector_context_for_colspans() {
+        let html = r#"
+            <html><head><style>
+                tbody tr:first-child td:nth-child(2) { padding-left: 200pt; }
+                tbody tr:first-child td:nth-child(3) { padding-left: 0pt; }
+            </style></head><body>
+            <table>
+                <tbody>
+                    <tr><td colspan="2">A</td><td>B</td></tr>
+                    <tr><td>C</td><td>D</td><td>E</td></tr>
+                </tbody>
+            </table>
+            </body></html>
+        "#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let col_widths = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { col_widths, .. } = el {
+                Some(col_widths.clone())
+            } else {
+                None
+            }
+        });
+        let col_widths = col_widths.expect("expected table row");
+        assert_eq!(col_widths.len(), 3);
+        assert!(
+            col_widths[2] > col_widths[0] && col_widths[2] > col_widths[1],
+            "Third column should reflect the padded second cell in the first row: {:?}",
+            col_widths
         );
     }
 
