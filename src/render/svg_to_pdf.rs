@@ -118,13 +118,13 @@ fn render_node(
             let style = resolve_style(inherited, style);
             apply_stroke_style(style, text_ctx, out);
             out.push_str(&format!("{x1} {y1} m {x2} {y2} l\n"));
-            paint_stroke_only(style, text_ctx, out);
+            paint_stroke_only(style, out);
         }
         SvgNode::Polyline { points, style } => {
             let style = resolve_style(inherited, style);
             apply_stroke_style(style, text_ctx, out);
             emit_polyline(points, false, out);
-            paint_stroke_only(style, text_ctx, out);
+            paint_stroke_only(style, out);
         }
         SvgNode::Polygon { points, style } => {
             let style = resolve_style(inherited, style);
@@ -159,7 +159,9 @@ fn render_node(
                 .or(*font_size)
                 .unwrap_or(text_ctx.font_size);
             let fill = paint_to_rgb(style.fill, text_ctx);
-            let stroke = paint_to_rgb(style.stroke, text_ctx).filter(|_| style.stroke_width > 0.0);
+            let stroke = paint_to_rgb(style.stroke, text_ctx);
+            let has_stroke = has_visible_stroke(style);
+            let stroke = stroke.filter(|_| has_stroke);
             // Use per-element font if specified, falling back to inherited CSS font
             let font =
                 resolve_svg_text_font(font_family.as_deref(), *font_bold, *font_italic, text_ctx);
@@ -230,7 +232,7 @@ fn apply_stroke_style(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut
 
 fn paint(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
     let has_fill = paint_to_rgb(style.fill, text_ctx).is_some();
-    let has_stroke = paint_to_rgb(style.stroke, text_ctx).is_some() && style.stroke_width > 0.0;
+    let has_stroke = has_visible_stroke(style);
     match (has_fill, has_stroke) {
         (true, true) => out.push_str("B\n"),   // fill + stroke
         (true, false) => out.push_str("f\n"),  // fill only
@@ -239,13 +241,17 @@ fn paint(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
     }
 }
 
-fn paint_stroke_only(style: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
-    let has_stroke = paint_to_rgb(style.stroke, text_ctx).is_some() && style.stroke_width > 0.0;
+fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
+    let has_stroke = has_visible_stroke(style);
     if has_stroke {
         out.push_str("S\n");
     } else {
         out.push_str("n\n");
     }
+}
+
+fn has_visible_stroke(style: ResolvedStyle) -> bool {
+    !matches!(style.stroke, SvgPaint::None | SvgPaint::Unspecified) && style.stroke_width > 0.0
 }
 
 /// Resolve the PDF font name for an SVG `<text>` element.

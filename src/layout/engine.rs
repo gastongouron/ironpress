@@ -5,11 +5,11 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BorderSides, BoxShadow, BoxSizing, Clear, ComputedStyle,
-    ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle, FontWeight,
-    GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    AlignItems, BorderCollapse, BorderSide, BorderSides, BoxShadow, BoxSizing, Clear,
+    ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
+    FontWeight, GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType,
+    Overflow, Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign,
+    Visibility, WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -35,23 +35,15 @@ pub struct LayoutBorder {
 #[allow(dead_code)]
 impl LayoutBorder {
     pub fn from_computed(b: &BorderSides) -> Self {
+        let side = |side: &BorderSide| LayoutBorderSide {
+            width: side.width,
+            color: side.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+        };
         Self {
-            top: LayoutBorderSide {
-                width: b.top.width,
-                color: b.top.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            right: LayoutBorderSide {
-                width: b.right.width,
-                color: b.right.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            bottom: LayoutBorderSide {
-                width: b.bottom.width,
-                color: b.bottom.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            left: LayoutBorderSide {
-                width: b.left.width,
-                color: b.left.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
+            top: side(&b.top),
+            right: side(&b.right),
+            bottom: side(&b.bottom),
+            left: side(&b.left),
         }
     }
     pub fn has_any(&self) -> bool {
@@ -91,11 +83,10 @@ impl CounterState {
     fn apply_increments(&mut self, increments: &[(String, i32)]) {
         for (name, val) in increments {
             let stack = self.stacks.entry(name.clone()).or_default();
-            if stack.is_empty() {
-                stack.push(0);
-            }
             if let Some(top) = stack.last_mut() {
                 *top += val;
+            } else {
+                stack.push(*val);
             }
         }
     }
@@ -113,15 +104,16 @@ impl CounterState {
             .unwrap_or(0)
     }
     fn get_all(&self, name: &str, sep: &str) -> String {
-        self.stacks
-            .get(name)
-            .map(|s| {
-                s.iter()
-                    .map(|v| v.to_string())
+        self.stacks.get(name).map_or_else(
+            || "0".to_string(),
+            |stack| {
+                stack
+                    .iter()
+                    .map(i32::to_string)
                     .collect::<Vec<_>>()
                     .join(sep)
-            })
-            .unwrap_or_else(|| "0".to_string())
+            },
+        )
     }
 }
 
@@ -224,18 +216,24 @@ fn resolve_pseudo_content(
     counter_state: &CounterState,
 ) -> Option<String> {
     for rule in rules {
-        if rule.pseudo_element == Some(pseudo)
-            && selector_matches(&rule.selector, tag_name, classes, id)
+        if rule.pseudo_element != Some(pseudo)
+            || !selector_matches(&rule.selector, tag_name, classes, id)
         {
-            if let Some(CssValue::Keyword(k)) = rule.declarations.get("content") {
-                let items = crate::style::computed::parse_content_value_pub(k);
-                if !items.is_empty() {
-                    let text = resolve_content(&items, attributes, counter_state);
-                    if !text.is_empty() {
-                        return Some(text);
-                    }
-                }
-            }
+            continue;
+        }
+
+        let Some(CssValue::Keyword(k)) = rule.declarations.get("content") else {
+            continue;
+        };
+
+        let items = crate::style::computed::parse_content_value_pub(k);
+        if items.is_empty() {
+            continue;
+        }
+
+        let text = resolve_content(&items, attributes, counter_state);
+        if !text.is_empty() {
+            return Some(text);
         }
     }
     None
