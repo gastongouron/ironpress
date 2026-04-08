@@ -1,14 +1,85 @@
 //! SVG parser — converts DOM SVG elements into an SvgTree for PDF rendering.
 
-use crate::parser::dom::ElementNode;
+use crate::parser::dom::{DomNode, ElementNode};
+
+/// Split a style declaration string on `;`, respecting quoted strings and
+/// parenthesized function arguments.
+fn split_style_declarations(style: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let bytes = style.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut paren_depth = 0usize;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double_quote && paren_depth > 0 => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote && paren_depth > 0 => in_double_quote = !in_double_quote,
+            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
+            b')' if !in_single_quote && !in_double_quote && paren_depth > 0 => paren_depth -= 1,
+            b';' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+                parts.push(&style[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if start < style.len() {
+        parts.push(&style[start..]);
+    }
+    parts
+}
+
+fn style_property_value<'a>(el: &'a ElementNode, name: &str) -> Option<&'a str> {
+    let style_val = el.attributes.get("style")?;
+    let mut value = None;
+
+    for part in split_style_declarations(style_val) {
+        let part = part.trim();
+        if let Some((prop, val)) = part.split_once(':') {
+            if prop.trim() == name {
+                value = Some(val.trim());
+            }
+        }
+    }
+
+    value
+}
+
+/// Inherited CSS context for SVG text rendering.
+#[derive(Debug, Clone)]
+pub struct SvgTextContext {
+    pub font_family: String,
+    pub font_size: f32,
+    pub font_bold: bool,
+    pub font_italic: bool,
+    pub color: Option<(f32, f32, f32)>,
+}
+
+impl Default for SvgTextContext {
+    fn default() -> Self {
+        Self {
+            font_family: "Helvetica".to_string(),
+            font_size: 12.0,
+            font_bold: false,
+            font_italic: false,
+            color: None,
+        }
+    }
+}
 
 /// A parsed SVG tree ready for rendering.
 #[derive(Debug, Clone)]
 pub struct SvgTree {
     pub width: f32,
     pub height: f32,
+    pub width_attr: Option<String>,
+    pub height_attr: Option<String>,
     pub view_box: Option<ViewBox>,
     pub children: Vec<SvgNode>,
+    pub text_ctx: SvgTextContext,
 }
 
 #[derive(Debug, Clone)]
@@ -67,14 +138,68 @@ pub enum SvgNode {
         commands: Vec<PathCommand>,
         style: SvgStyle,
     },
+    Text {
+        x: f32,
+        y: f32,
+        font_size: Option<f32>,
+        font_size_attr: Option<String>,
+        /// True when the element explicitly set `fill` (including `none`).
+        fill_specified: bool,
+        fill_raw: Option<String>,
+        /// Per-element font-family override (resolved PDF name, e.g. "Helvetica-Bold").
+        font_family: Option<String>,
+        /// Per-element font-weight override (true = bold).
+        font_bold: Option<bool>,
+        /// Per-element font-style override (true = italic/oblique).
+        font_italic: Option<bool>,
+        content: String,
+        style: SvgStyle,
+    },
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum SvgPaint {
+    /// The property was not specified on this element (so it should inherit from its parent).
+    #[default]
+    Unspecified,
+    /// The property was explicitly set to `none`.
+    None,
+    /// `currentColor` keyword (resolves to the CSS `color` property).
+    CurrentColor,
+    /// An explicit sRGB color (0.0-1.0 per channel).
+    Color((f32, f32, f32)),
+}
+
+#[derive(Debug, Clone)]
 pub struct SvgStyle {
-    pub fill: Option<(f32, f32, f32)>,   // RGB 0.0-1.0, None = no fill
-    pub stroke: Option<(f32, f32, f32)>, // RGB 0.0-1.0, None = no stroke
-    pub stroke_width: f32,
+    pub color: Option<(f32, f32, f32)>,
+    pub fill: SvgPaint,
+    pub stroke: SvgPaint,
+    /// `stroke-width` is inherited in SVG.
+    pub stroke_width: Option<f32>,
+    /// Inherited SVG font-family, resolved to a PDF base family name.
+    pub font_family: Option<String>,
+    /// Inherited SVG font-weight.
+    pub font_bold: Option<bool>,
+    /// Inherited SVG font-style.
+    pub font_italic: Option<bool>,
+    // Opacity isn't wired through to PDF output yet; keep it simple until needed.
     pub opacity: f32,
+}
+
+impl Default for SvgStyle {
+    fn default() -> Self {
+        Self {
+            color: None,
+            fill: SvgPaint::Unspecified,
+            stroke: SvgPaint::Unspecified,
+            stroke_width: None,
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
+            opacity: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -93,53 +218,106 @@ pub enum PathCommand {
 
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
-    let width = el
-        .attributes
-        .get("width")
-        .and_then(|v| parse_length(v))
+    parse_svg_from_element_with_ctx_and_viewport(el, SvgTextContext::default(), None)
+}
+
+pub fn parse_svg_from_element_with_ctx(
+    el: &ElementNode,
+    text_ctx: SvgTextContext,
+) -> Option<SvgTree> {
+    parse_svg_from_element_with_ctx_and_viewport(el, text_ctx, None)
+}
+
+pub fn parse_svg_from_element_with_ctx_and_viewport(
+    el: &ElementNode,
+    text_ctx: SvgTextContext,
+    root_viewport_override: Option<(f32, f32)>,
+) -> Option<SvgTree> {
+    let width_attr = el.attributes.get("width").cloned();
+    let height_attr = el.attributes.get("height").cloned();
+    let parsed_width = width_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(300.0);
-    let height = el
-        .attributes
-        .get("height")
-        .and_then(|v| parse_length(v))
+    let parsed_height = height_attr
+        .as_deref()
+        .and_then(parse_absolute_length)
         .unwrap_or(150.0);
+    let (width, height) = root_viewport_override.unwrap_or((parsed_width, parsed_height));
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
-    let mut children = Vec::new();
-    for child in &el.children {
-        if let crate::parser::dom::DomNode::Element(child_el) = child {
-            if let Some(node) = parse_svg_node(child_el) {
-                children.push(node);
-            }
-        }
-    }
+    let root_style = parse_svg_style(el);
+    let root_transform = el
+        .attributes
+        .get("transform")
+        .and_then(|v| parse_transform(v));
+    let root_viewport = Some((width, height));
+    let children = parse_svg_children(&el.children, root_viewport);
+    let children = if root_transform.is_some() || !svg_style_is_default(&root_style) {
+        vec![SvgNode::Group {
+            transform: root_transform,
+            children,
+            style: root_style,
+        }]
+    } else {
+        children
+    };
 
     Some(SvgTree {
         width,
         height,
+        width_attr,
+        height_attr,
         view_box,
         children,
+        text_ctx,
     })
 }
 
 /// Parse a single SVG element node into an SvgNode.
 fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
+    parse_svg_node_with_viewport(el, None)
+}
+
+fn parse_svg_children(children: &[DomNode], viewport: Option<(f32, f32)>) -> Vec<SvgNode> {
+    children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(child_el) => parse_svg_node_with_viewport(child_el, viewport),
+            _ => None,
+        })
+        .collect()
+}
+
+fn parse_svg_node_with_viewport(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> Option<SvgNode> {
     let tag = el.raw_tag_name.as_str();
     match tag {
-        "g" | "svg" => {
+        "g" => {
             let transform = el
                 .attributes
                 .get("transform")
                 .and_then(|v| parse_transform(v));
             let style = parse_svg_style(el);
-            let mut children = Vec::new();
-            for child in &el.children {
-                if let crate::parser::dom::DomNode::Element(child_el) = child {
-                    if let Some(node) = parse_svg_node(child_el) {
-                        children.push(node);
-                    }
-                }
-            }
+            let children = parse_svg_children(&el.children, parent_viewport);
+            Some(SvgNode::Group {
+                transform,
+                children,
+                style,
+            })
+        }
+        "svg" => {
+            let child_viewport = resolve_nested_svg_viewport(el, parent_viewport);
+            let transform = compose_transform(
+                el.attributes
+                    .get("transform")
+                    .and_then(|v| parse_transform(v)),
+                nested_svg_viewport_transform(el, child_viewport),
+            );
+            let style = parse_svg_style(el);
+            let children = parse_svg_children(&el.children, child_viewport);
             Some(SvgNode::Group {
                 transform,
                 children,
@@ -226,7 +404,128 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             let style = parse_svg_style(el);
             Some(SvgNode::Path { commands, style })
         }
+        "text" => {
+            let (x, y) = resolve_text_position(el, parent_viewport);
+            let font_size_attr = parse_font_size_attr(el);
+            let font_size = font_size_attr.as_deref().and_then(parse_absolute_length);
+            let fill_specified = has_fill_specified(el);
+            let fill_raw = parse_fill_raw(el);
+            let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
+            let content = collect_text_content(el);
+            let style = parse_svg_style(el);
+            Some(SvgNode::Text {
+                x,
+                y,
+                font_size,
+                font_size_attr,
+                fill_specified,
+                fill_raw,
+                font_family,
+                font_bold,
+                font_italic,
+                content,
+                style,
+            })
+        }
         _ => None,
+    }
+}
+
+fn svg_style_is_default(style: &SvgStyle) -> bool {
+    style.color.is_none()
+        && matches!(style.fill, SvgPaint::Unspecified)
+        && matches!(style.stroke, SvgPaint::Unspecified)
+        && style.stroke_width.is_none()
+        && (style.opacity - 1.0).abs() < f32::EPSILON
+}
+
+fn compose_transform(
+    outer: Option<SvgTransform>,
+    inner: Option<SvgTransform>,
+) -> Option<SvgTransform> {
+    match (outer, inner) {
+        (
+            Some(SvgTransform::Matrix(a1, b1, c1, d1, e1, f1)),
+            Some(SvgTransform::Matrix(a2, b2, c2, d2, e2, f2)),
+        ) => Some(SvgTransform::Matrix(
+            a1 * a2 + c1 * b2,
+            b1 * a2 + d1 * b2,
+            a1 * c2 + c1 * d2,
+            b1 * c2 + d1 * d2,
+            a1 * e2 + c1 * f2 + e1,
+            b1 * e2 + d1 * f2 + f1,
+        )),
+        (Some(transform), None) | (None, Some(transform)) => Some(transform),
+        (None, None) => None,
+    }
+}
+
+fn resolve_nested_svg_viewport(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> Option<(f32, f32)> {
+    let (parent_width, parent_height) = parent_viewport?;
+    Some((
+        resolve_svg_viewport_length(el.attributes.get("width"), Some(parent_width), 300.0),
+        resolve_svg_viewport_length(el.attributes.get("height"), Some(parent_height), 150.0),
+    ))
+}
+
+fn resolve_svg_viewport_length(
+    attr: Option<&String>,
+    parent_extent: Option<f32>,
+    fallback: f32,
+) -> f32 {
+    match attr.map(String::as_str) {
+        Some(value) => {
+            let trimmed = value.trim();
+            if let Some(pct) = trimmed.strip_suffix('%') {
+                pct.trim()
+                    .parse::<f32>()
+                    .ok()
+                    .and_then(|pct| parent_extent.map(|extent| extent * pct / 100.0))
+                    .unwrap_or(fallback)
+            } else {
+                parse_absolute_length(trimmed).unwrap_or(fallback)
+            }
+        }
+        None => parent_extent.unwrap_or(fallback),
+    }
+}
+
+fn nested_svg_viewport_transform(
+    el: &ElementNode,
+    viewport: Option<(f32, f32)>,
+) -> Option<SvgTransform> {
+    let x = attr_f32(el, "x");
+    let y = attr_f32(el, "y");
+    let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
+
+    if let Some(vb) = view_box {
+        let (width, height) = viewport.unwrap_or_else(|| {
+            (
+                resolve_svg_viewport_length(el.attributes.get("width"), None, 300.0),
+                resolve_svg_viewport_length(el.attributes.get("height"), None, 150.0),
+            )
+        });
+        if vb.width > 0.0 && vb.height > 0.0 {
+            let scale_x = width / vb.width;
+            let scale_y = height / vb.height;
+            return Some(SvgTransform::Matrix(
+                scale_x,
+                0.0,
+                0.0,
+                scale_y,
+                x - vb.min_x * scale_x,
+                y - vb.min_y * scale_y,
+            ));
+        }
+    }
+
+    if x != 0.0 || y != 0.0 {
+        Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, x, y))
+    } else {
+        None
     }
 }
 
@@ -238,53 +537,269 @@ fn attr_f32(el: &ElementNode, name: &str) -> f32 {
         .unwrap_or(0.0)
 }
 
+fn resolve_text_position(el: &ElementNode, viewport: Option<(f32, f32)>) -> (f32, f32) {
+    let x = resolve_svg_text_coordinate(
+        el.attributes.get("x").map(String::as_str),
+        viewport.map(|(w, _)| w),
+    );
+    let y = resolve_svg_text_coordinate(
+        el.attributes.get("y").map(String::as_str),
+        viewport.map(|(_, h)| h),
+    );
+    (x, y)
+}
+
+fn resolve_svg_text_coordinate(value: Option<&str>, viewport: Option<f32>) -> f32 {
+    let Some(raw) = value else {
+        return 0.0;
+    };
+    let trimmed = raw.trim();
+    if let Some(pct) = trimmed.strip_suffix('%') {
+        let Ok(percent) = pct.trim().parse::<f32>() else {
+            return 0.0;
+        };
+        return viewport.unwrap_or(0.0) * percent / 100.0;
+    }
+    parse_length(trimmed).unwrap_or(0.0)
+}
+
 /// Parse a length value (strip px/em/etc suffix, parse number).
-fn parse_length(val: &str) -> Option<f32> {
+pub(crate) fn parse_length(val: &str) -> Option<f32> {
     let trimmed = val.trim();
     let num_str = trimmed.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%');
     num_str.trim().parse::<f32>().ok()
 }
 
-/// Parse a viewBox attribute: "min-x min-y width height".
-fn parse_viewbox(val: &str) -> Option<ViewBox> {
-    let parts: Vec<f32> = val
-        .split(|c: char| c == ',' || c.is_whitespace())
-        .filter(|s| !s.is_empty())
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    if parts.len() == 4 {
-        Some(ViewBox {
-            min_x: parts[0],
-            min_y: parts[1],
-            width: parts[2],
-            height: parts[3],
-        })
-    } else {
-        None
+fn parse_absolute_length(val: &str) -> Option<f32> {
+    let trimmed = val.trim();
+    if trimmed.ends_with('%') {
+        return None;
     }
+    parse_length(trimmed)
 }
 
-/// Parse fill, stroke, stroke-width, opacity from element attributes.
+/// Parse a viewBox attribute: "min-x min-y width height".
+fn parse_viewbox(val: &str) -> Option<ViewBox> {
+    let mut parts = val
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|s| !s.is_empty())
+        .filter_map(|s| s.parse().ok());
+    let view_box = ViewBox {
+        min_x: parts.next()?,
+        min_y: parts.next()?,
+        width: parts.next()?,
+        height: parts.next()?,
+    };
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(view_box)
+}
+
+/// Parse color, fill, stroke, stroke-width, font, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
-    let fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
-    let stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
-    let stroke_width = el
+    fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
+        let val = val.trim();
+        if val.eq_ignore_ascii_case("none") {
+            return Some(SvgPaint::None);
+        }
+        if val.eq_ignore_ascii_case("inherit") {
+            return Some(SvgPaint::Unspecified);
+        }
+        if val.eq_ignore_ascii_case("currentColor") {
+            return Some(SvgPaint::CurrentColor);
+        }
+        parse_svg_color(val).map(SvgPaint::Color)
+    }
+
+    fn parse_svg_color_property(val: &str) -> Option<Option<(f32, f32, f32)>> {
+        let val = val.trim();
+        if val.eq_ignore_ascii_case("inherit") {
+            return Some(None);
+        }
+        parse_svg_color(val).map(Some)
+    }
+
+    let mut color = el
+        .attributes
+        .get("color")
+        .and_then(|v| parse_svg_color_property(v))
+        .flatten();
+    if let Some(val) = style_property_value(el, "color") {
+        if let Some(parsed) = parse_svg_color_property(val) {
+            color = parsed;
+        }
+    }
+    let mut fill = el
+        .attributes
+        .get("fill")
+        .and_then(|v| parse_svg_paint(v))
+        .unwrap_or(SvgPaint::Unspecified);
+    if let Some(paint) = style_property_value(el, "fill").and_then(parse_svg_paint) {
+        fill = paint;
+    }
+    let mut stroke = el
+        .attributes
+        .get("stroke")
+        .and_then(|v| parse_svg_paint(v))
+        .unwrap_or(SvgPaint::Unspecified);
+    if let Some(paint) = style_property_value(el, "stroke").and_then(parse_svg_paint) {
+        stroke = paint;
+    }
+    let mut stroke_width = el
         .attributes
         .get("stroke-width")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1.0);
-    let opacity = el
+        .and_then(|v| v.trim().parse::<f32>().ok())
+        .filter(|v| *v >= 0.0);
+    if let Some(width) = style_property_value(el, "stroke-width")
+        .and_then(|v| v.parse::<f32>().ok())
+        .filter(|v| *v >= 0.0)
+    {
+        stroke_width = Some(width);
+    }
+    let mut opacity = el
         .attributes
         .get("opacity")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
+    if let Some(val) = style_property_value(el, "opacity") {
+        opacity = val.trim().parse().ok().unwrap_or(opacity);
+    }
+    let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
 
     SvgStyle {
+        color,
         fill,
         stroke,
         stroke_width,
+        font_family,
+        font_bold,
+        font_italic,
         opacity,
     }
+}
+
+/// Extract the raw `font-size` value from a `<text>` element.
+///
+/// Checks the `font-size` attribute first, then falls back to parsing
+/// `font-size:` from the inline `style` attribute.
+fn parse_font_size_attr(el: &ElementNode) -> Option<String> {
+    if let Some(val) = el.attributes.get("font-size") {
+        return Some(val.trim().to_string());
+    }
+    style_property_value(el, "font-size").map(|val| val.to_string())
+}
+
+fn parse_svg_font_family_value(val: &str) -> Option<String> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    let val = val.trim_matches(|c| c == '\'' || c == '"');
+    if val.is_empty() {
+        None
+    } else {
+        Some(resolve_svg_font_family(val))
+    }
+}
+
+fn parse_svg_font_weight_value(val: &str) -> Option<bool> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    Some(is_bold_value(val))
+}
+
+fn parse_svg_font_style_value(val: &str) -> Option<bool> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    Some(is_italic_value(val))
+}
+
+fn parse_svg_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
+    let mut family: Option<String> = None;
+    let mut bold: Option<bool> = None;
+    let mut italic: Option<bool> = None;
+
+    if let Some(val) = el.attributes.get("font-family") {
+        family = parse_svg_font_family_value(val);
+    }
+    if let Some(val) = el.attributes.get("font-weight") {
+        bold = parse_svg_font_weight_value(val);
+    }
+    if let Some(val) = el.attributes.get("font-style") {
+        italic = parse_svg_font_style_value(val);
+    }
+
+    if let Some(val) = style_property_value(el, "font-family") {
+        family = parse_svg_font_family_value(val);
+    }
+    if let Some(val) = style_property_value(el, "font-weight") {
+        bold = parse_svg_font_weight_value(val);
+    }
+    if let Some(val) = style_property_value(el, "font-style") {
+        italic = parse_svg_font_style_value(val);
+    }
+
+    (family, bold, italic)
+}
+
+fn has_fill_specified(el: &ElementNode) -> bool {
+    el.attributes.contains_key("fill") || style_property_value(el, "fill").is_some()
+}
+
+fn parse_fill_raw(el: &ElementNode) -> Option<String> {
+    if let Some(raw) = style_property_value(el, "fill") {
+        if !raw.is_empty() {
+            return Some(raw.to_string());
+        }
+    }
+    if let Some(val) = el.attributes.get("fill") {
+        return Some(val.trim().to_string());
+    }
+    None
+}
+
+/// Map a CSS font-family value to a PDF base-font family name.
+fn resolve_svg_font_family(css_family: &str) -> String {
+    let lower = css_family.to_ascii_lowercase();
+    if lower.contains("times") || lower == "serif" {
+        "Times-Roman".to_string()
+    } else if lower.contains("courier") || lower == "monospace" {
+        "Courier".to_string()
+    } else {
+        // Default to Helvetica for sans-serif / Arial / Helvetica / anything else
+        "Helvetica".to_string()
+    }
+}
+
+fn is_bold_value(val: &str) -> bool {
+    let lower = val.to_ascii_lowercase();
+    lower == "bold" || lower == "bolder" || lower.parse::<u32>().is_ok_and(|w| w >= 700)
+}
+
+fn is_italic_value(val: &str) -> bool {
+    let lower = val.to_ascii_lowercase();
+    lower == "italic" || lower == "oblique"
+}
+
+/// Collect all text content from a `<text>` element, including `<tspan>` children.
+fn collect_text_content(el: &ElementNode) -> String {
+    let mut text = String::new();
+    for child in &el.children {
+        match child {
+            crate::parser::dom::DomNode::Text(s) => text.push_str(s),
+            crate::parser::dom::DomNode::Element(child_el) => {
+                if child_el.raw_tag_name == "tspan" {
+                    text.push_str(&collect_text_content(child_el));
+                }
+            }
+        }
+    }
+    text
 }
 
 /// Parse common SVG colors: named, hex (#rgb / #rrggbb), rgb(r,g,b), or "none".
@@ -316,13 +831,14 @@ pub fn parse_svg_color(val: &str) -> Option<(f32, f32, f32)> {
 
     // rgb(r, g, b)
     if let Some(inner) = val.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
-        let parts: Vec<&str> = inner.split(',').collect();
-        if parts.len() == 3 {
-            let r = parts[0].trim().parse::<f32>().ok()?;
-            let g = parts[1].trim().parse::<f32>().ok()?;
-            let b = parts[2].trim().parse::<f32>().ok()?;
-            return Some((r / 255.0, g / 255.0, b / 255.0));
+        let mut parts = inner.split(',');
+        let r = parts.next()?.trim().parse::<f32>().ok()?;
+        let g = parts.next()?.trim().parse::<f32>().ok()?;
+        let b = parts.next()?.trim().parse::<f32>().ok()?;
+        if parts.next().is_some() {
+            return None;
         }
+        return Some((r / 255.0, g / 255.0, b / 255.0));
     }
 
     None
@@ -330,11 +846,19 @@ pub fn parse_svg_color(val: &str) -> Option<(f32, f32, f32)> {
 
 /// Parse a hex color string (without the #).
 fn parse_hex_color(hex: &str) -> Option<(f32, f32, f32)> {
+    fn hex_digit(c: char) -> Option<u8> {
+        c.to_digit(16).map(|d| d as u8)
+    }
+
     match hex.len() {
         3 => {
-            let r = u8::from_str_radix(&hex[0..1], 16).ok()?;
-            let g = u8::from_str_radix(&hex[1..2], 16).ok()?;
-            let b = u8::from_str_radix(&hex[2..3], 16).ok()?;
+            let mut chars = hex.chars();
+            let r = hex_digit(chars.next()?)?;
+            let g = hex_digit(chars.next()?)?;
+            let b = hex_digit(chars.next()?)?;
+            if chars.next().is_some() {
+                return None;
+            }
             Some((
                 (r * 17) as f32 / 255.0,
                 (g * 17) as f32 / 255.0,
@@ -342,9 +866,13 @@ fn parse_hex_color(hex: &str) -> Option<(f32, f32, f32)> {
             ))
         }
         6 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            let mut chars = hex.chars();
+            let r = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            let g = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            let b = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            if chars.next().is_some() {
+                return None;
+            }
             Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
         }
         _ => None,
@@ -368,16 +896,18 @@ pub fn parse_path_data(d: &str) -> Vec<PathCommand> {
         let token = &tokens[i];
 
         // Determine if this token is a command letter
-        let cmd_char = if token.len() == 1 && token.as_bytes()[0].is_ascii_alphabetic() {
-            let c = token.chars().next().unwrap();
-            i += 1;
-            c
-        } else {
-            // Implicit repeat of last command (L after M)
-            match last_cmd {
-                'M' => 'L',
-                'm' => 'l',
-                c => c,
+        let cmd_char = match token.as_bytes() {
+            [b] if b.is_ascii_alphabetic() => {
+                i += 1;
+                *b as char
+            }
+            _ => {
+                // Implicit repeat of last command (L after M)
+                match last_cmd {
+                    'M' => 'L',
+                    'm' => 'l',
+                    c => c,
+                }
             }
         };
 
@@ -824,6 +1354,54 @@ mod tests {
     fn parse_svg_color_none() {
         let color = parse_svg_color("none");
         assert_eq!(color, None);
+    }
+
+    #[test]
+    fn parse_svg_style_unparseable_style_fill_does_not_override_attribute() {
+        let el = make_el("rect", vec![("fill", "red"), ("style", "fill: ???;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn parse_svg_style_style_fill_none_overrides_attribute() {
+        let el = make_el("rect", vec![("fill", "red"), ("style", "fill: none;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::None);
+    }
+
+    #[test]
+    fn parse_svg_style_style_fill_inherit_overrides_attribute() {
+        let el = make_el("rect", vec![("fill", "red"), ("style", "fill: inherit;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::Unspecified);
+    }
+
+    #[test]
+    fn parse_svg_style_unparseable_style_stroke_does_not_override_attribute() {
+        let el = make_el(
+            "rect",
+            vec![("stroke", "blue"), ("style", "stroke: not-a-color;")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+    }
+
+    #[test]
+    fn parse_svg_style_style_stroke_inherit_overrides_attribute() {
+        let el = make_el(
+            "rect",
+            vec![("stroke", "blue"), ("style", "stroke: inherit;")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke, SvgPaint::Unspecified);
+    }
+
+    #[test]
+    fn parse_svg_paint_current_color_keyword() {
+        let el = make_el("rect", vec![("fill", "currentColor")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::CurrentColor);
     }
 
     #[test]
@@ -1532,7 +2110,7 @@ mod tests {
 
     #[test]
     fn parse_node_unknown_tag_returns_none() {
-        let el = make_el("text", vec![]);
+        let el = make_el("defs", vec![]);
         assert!(parse_svg_node(&el).is_none());
     }
 
@@ -1542,9 +2120,10 @@ mod tests {
     fn parse_style_defaults() {
         let el = make_el("rect", vec![]);
         let style = parse_svg_style(&el);
-        assert!(style.fill.is_none());
-        assert!(style.stroke.is_none());
-        assert_eq!(style.stroke_width, 1.0);
+        assert_eq!(style.color, None);
+        assert_eq!(style.fill, SvgPaint::Unspecified);
+        assert_eq!(style.stroke, SvgPaint::Unspecified);
+        assert_eq!(style.stroke_width, None);
         assert_eq!(style.opacity, 1.0);
     }
 
@@ -1560,9 +2139,9 @@ mod tests {
             ],
         );
         let style = parse_svg_style(&el);
-        assert_eq!(style.fill, Some((1.0, 0.0, 0.0)));
-        assert_eq!(style.stroke, Some((0.0, 0.0, 1.0)));
-        assert!((style.stroke_width - 2.5).abs() < 0.001);
+        assert_eq!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0)));
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+        assert_eq!(style.stroke_width, Some(2.5));
         assert!((style.opacity - 0.5).abs() < 0.001);
     }
 
@@ -1570,14 +2149,44 @@ mod tests {
     fn parse_style_fill_none() {
         let el = make_el("rect", vec![("fill", "none")]);
         let style = parse_svg_style(&el);
-        assert!(style.fill.is_none());
+        assert_eq!(style.fill, SvgPaint::None);
+    }
+
+    #[test]
+    fn parse_style_color_inherited_property() {
+        let el = make_el("g", vec![("style", "color: red;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.color, Some((1.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn parse_style_invalid_color_does_not_override_attribute() {
+        let el = make_el("g", vec![("color", "red"), ("style", "color: ???;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.color, Some((1.0, 0.0, 0.0)));
     }
 
     #[test]
     fn parse_style_stroke_none() {
         let el = make_el("rect", vec![("stroke", "none")]);
         let style = parse_svg_style(&el);
-        assert!(style.stroke.is_none());
+        assert_eq!(style.stroke, SvgPaint::None);
+    }
+
+    #[test]
+    fn parse_style_from_style_attribute() {
+        let el = make_el(
+            "rect",
+            vec![(
+                "style",
+                "fill: #00ff00; stroke: rgb(0,0,255); stroke-width: 3; opacity: 0.25;",
+            )],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::Color((0.0, 1.0, 0.0)));
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+        assert_eq!(style.stroke_width, Some(3.0));
+        assert!((style.opacity - 0.25).abs() < 0.001);
     }
 
     // ── parse_svg_from_element ─────────────────────────────────────────
@@ -1611,6 +2220,104 @@ mod tests {
     }
 
     #[test]
+    fn parse_svg_from_element_wraps_root_style_and_transform() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let svg = make_svg_el(
+            vec![("fill", "red"), ("transform", "translate(5, 6)")],
+            vec![rect],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert_eq!(tree.children.len(), 1);
+        match &tree.children[0] {
+            SvgNode::Group {
+                transform,
+                children,
+                style,
+            } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 5.0, 6.0))
+                ));
+                assert!(matches!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0))));
+                assert_eq!(children.len(), 1);
+            }
+            other => panic!("expected wrapped root group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_style_ignores_font_size_adjust_prefix() {
+        let text = make_el(
+            "text",
+            vec![("style", "font-size-adjust: 0.5; font-size: 20px")],
+        );
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text {
+                font_size_attr,
+                font_size,
+                ..
+            } => {
+                assert_eq!(font_size_attr.as_deref(), Some("20px"));
+                assert_eq!(*font_size, Some(20.0));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_style_ignores_fill_opacity_prefix() {
+        let text = make_el(
+            "text",
+            vec![("style", "fill-opacity: 0.5; fill: currentColor")],
+        );
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text {
+                fill_raw,
+                fill_specified,
+                ..
+            } => {
+                assert!(*fill_specified);
+                assert_eq!(fill_raw.as_deref(), Some("currentColor"));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_raw_fill_prefers_inline_style_over_attribute() {
+        let text = make_el(
+            "text",
+            vec![("fill", "none"), ("style", "fill: currentColor")],
+        );
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { fill_raw, .. } => {
+                assert_eq!(fill_raw.as_deref(), Some("currentColor"));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_percentage_coordinates_use_viewport() {
+        let text = make_el("text", vec![("x", "50%"), ("y", "25%")]);
+        let svg = make_svg_el(vec![("width", "200"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { x, y, .. } => {
+                assert_eq!(*x, 100.0);
+                assert_eq!(*y, 25.0);
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn parse_svg_from_element_text_children_ignored() {
         let mut svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![]);
         svg.children.push(DomNode::Text("some text".to_string()));
@@ -1620,8 +2327,8 @@ mod tests {
 
     #[test]
     fn parse_svg_from_element_unknown_child_skipped() {
-        let text_el = make_el("text", vec![]);
-        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text_el]);
+        let defs_el = make_el("defs", vec![]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs_el]);
         let tree = parse_svg_from_element(&svg).unwrap();
         assert!(tree.children.is_empty());
     }
@@ -1773,6 +2480,87 @@ mod tests {
                 assert_eq!(children.len(), 1);
             }
             _ => panic!("Expected Group for inner svg"),
+        }
+    }
+
+    #[test]
+    fn parse_node_nested_svg_applies_viewport_transform() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("x", "10"),
+                ("y", "20"),
+                ("width", "100"),
+                ("height", "50"),
+                ("viewBox", "0 0 10 5"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 10.0, 10.0, 20.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_node_nested_svg_percent_viewport_uses_parent_size() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "100%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 20 10"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let outer = make_svg_el(vec![("width", "200"), ("height", "100")], vec![svg_inner]);
+        let tree = parse_svg_from_element(&outer).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 5.0, 0.0, 0.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_with_viewport_override_resolves_nested_percentages() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "50%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 20 10"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let outer = make_svg_el(vec![("width", "100%"), ("height", "100%")], vec![svg_inner]);
+        let tree = parse_svg_from_element_with_ctx_and_viewport(
+            &outer,
+            SvgTextContext::default(),
+            Some((400.0, 200.0)),
+        )
+        .unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 10.0, 0.0, 0.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
         }
     }
 
