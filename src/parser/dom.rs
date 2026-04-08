@@ -69,6 +69,8 @@ pub enum HtmlTag {
     Audio,
     Progress,
     Meter,
+    Colgroup,
+    Col,
     Unknown,
 }
 
@@ -141,6 +143,8 @@ impl HtmlTag {
             "audio" => Self::Audio,
             "progress" => Self::Progress,
             "meter" => Self::Meter,
+            "colgroup" => Self::Colgroup,
+            "col" => Self::Col,
             _ => Self::Unknown,
         }
     }
@@ -339,6 +343,8 @@ impl ElementNode {
             HtmlTag::Audio => "audio",
             HtmlTag::Progress => "progress",
             HtmlTag::Meter => "meter",
+            HtmlTag::Colgroup => "colgroup",
+            HtmlTag::Col => "col",
             HtmlTag::Unknown => "unknown",
         }
     }
