@@ -1795,30 +1795,8 @@ fn render_nested_table_rows(
     }
 }
 
-fn font_name_for_run(run: &TextRun) -> &str {
-    match (&run.font_family, run.bold, run.italic) {
-        // Helvetica (sans-serif)
-        (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
-        (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
-        (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
-        (FontFamily::Helvetica, false, false) => "Helvetica",
-        // Times Roman (serif)
-        (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
-        (FontFamily::TimesRoman, true, false) => "Times-Bold",
-        (FontFamily::TimesRoman, false, true) => "Times-Italic",
-        (FontFamily::TimesRoman, false, false) => "Times-Roman",
-        // Courier (monospace)
-        (FontFamily::Courier, true, true) => "Courier-BoldOblique",
-        (FontFamily::Courier, true, false) => "Courier-Bold",
-        (FontFamily::Courier, false, true) => "Courier-Oblique",
-        (FontFamily::Courier, false, false) => "Courier",
-        // Custom fonts — fall back to Helvetica variant for rendering name;
-        // the actual font reference is handled separately by the renderer.
-        (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
-        (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
-        (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
-        (FontFamily::Custom(_), false, false) => "Helvetica",
-    }
+fn font_name_for_run(run: &TextRun) -> &'static str {
+    crate::fonts::pdf_font_name(&run.font_family, run.bold, run.italic)
 }
 
 fn estimate_run_width(run: &TextRun) -> f32 {

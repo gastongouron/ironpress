@@ -827,54 +827,24 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
+        let bold = style.font_weight == FontWeight::Bold;
+        let italic = style.font_style == FontStyle::Italic;
         let text_ctx = crate::parser::svg::SvgTextContext {
-            font_family: match (
-                &style.font_family,
-                style.font_weight == FontWeight::Bold,
-                style.font_style == FontStyle::Italic,
-            ) {
-                (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
-                (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
-                (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
-                (FontFamily::Helvetica, false, false) => "Helvetica",
-                (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
-                (FontFamily::TimesRoman, true, false) => "Times-Bold",
-                (FontFamily::TimesRoman, false, true) => "Times-Italic",
-                (FontFamily::TimesRoman, false, false) => "Times-Roman",
-                (FontFamily::Courier, true, true) => "Courier-BoldOblique",
-                (FontFamily::Courier, true, false) => "Courier-Bold",
-                (FontFamily::Courier, false, true) => "Courier-Oblique",
-                (FontFamily::Courier, false, false) => "Courier",
-                (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
-                (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
-                (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
-                (FontFamily::Custom(_), false, false) => "Helvetica",
-            }
-            .to_string(),
+            font_family: crate::fonts::pdf_font_name(&style.font_family, bold, italic).to_string(),
             font_size: style.font_size,
-            font_bold: style.font_weight == FontWeight::Bold,
-            font_italic: style.font_style == FontStyle::Italic,
-            color: Some((
-                style.color.r as f32 / 255.0,
-                style.color.g as f32 / 255.0,
-                style.color.b as f32 / 255.0,
-            )),
+            font_bold: bold,
+            font_italic: italic,
+            color: Some(style.color.to_f32_rgb()),
         };
-        if let Some(initial_tree) =
-            crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx.clone())
-        {
+        if let Some(mut tree) = crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx) {
             let (svg_width, svg_height) = resolve_svg_size(
-                &initial_tree,
+                &tree,
                 available_width,
                 available_height,
                 available_height_is_definite,
             );
-            let tree = crate::parser::svg::parse_svg_from_element_with_ctx_and_viewport(
-                el,
-                text_ctx,
-                Some((svg_width, svg_height)),
-            )
-            .unwrap_or(initial_tree);
+            tree.width = svg_width;
+            tree.height = svg_height;
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,
@@ -4862,6 +4832,12 @@ fn load_image_from_element(
     style: &ComputedStyle,
 ) -> Option<LayoutElement> {
     let src = el.attributes.get("src")?;
+
+    // Try SVG data URI first: data:image/svg+xml[;base64],<data>
+    if let Some(svg_el) = try_load_svg_data_uri(src, available_width, style) {
+        return Some(svg_el);
+    }
+
     let (data, format, png_meta) = load_image_data(src)?;
 
     // Determine dimensions from attributes
@@ -4899,6 +4875,87 @@ fn load_image_from_element(
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
     })
+}
+
+/// Try to load an SVG from a data URI. Returns a `LayoutElement::Svg` if the
+/// src is `data:image/svg+xml[;base64],<data>`, otherwise `None`.
+fn try_load_svg_data_uri(
+    src: &str,
+    available_width: f32,
+    style: &ComputedStyle,
+) -> Option<LayoutElement> {
+    let rest = src.strip_prefix("data:image/svg+xml")?;
+
+    let svg_text = if let Some(b64_data) = rest.strip_prefix(";base64,") {
+        let bytes = base64_decode(b64_data)?;
+        String::from_utf8(bytes).ok()?
+    } else if let Some(plain_data) = rest.strip_prefix(',') {
+        percent_decode(plain_data)
+    } else {
+        return None;
+    };
+
+    // Parse the SVG string as HTML to get a DOM, then extract the SVG element
+    let nodes = crate::parser::html::parse_html(&svg_text).ok()?;
+    let svg_el = nodes.iter().find_map(|n| {
+        if let DomNode::Element(el) = n {
+            if el.tag == HtmlTag::Svg {
+                return Some(el);
+            }
+        }
+        None
+    })?;
+
+    let bold = style.font_weight == FontWeight::Bold;
+    let italic = style.font_style == FontStyle::Italic;
+    let text_ctx = crate::parser::svg::SvgTextContext {
+        font_family: crate::fonts::pdf_font_name(&style.font_family, bold, italic).to_string(),
+        font_size: style.font_size,
+        font_bold: bold,
+        font_italic: italic,
+        color: Some(style.color.to_f32_rgb()),
+    };
+
+    let mut tree = crate::parser::svg::parse_svg_from_element_with_ctx(svg_el, text_ctx)?;
+    let svg_width = tree.width.min(available_width);
+    let svg_height = tree.height;
+    tree.width = svg_width;
+    tree.height = svg_height;
+
+    Some(LayoutElement::Svg {
+        tree,
+        width: svg_width,
+        height: svg_height,
+        margin_top: style.margin.top,
+        margin_bottom: style.margin.bottom,
+    })
+}
+
+/// Simple percent-decode for SVG data URIs.
+fn percent_decode(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input.bytes();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            let hi = chars.next().and_then(hex_digit);
+            let lo = chars.next().and_then(hex_digit);
+            if let (Some(h), Some(l)) = (hi, lo) {
+                result.push((h << 4 | l) as char);
+            }
+        } else {
+            result.push(b as char);
+        }
+    }
+    result
+}
+
+fn hex_digit(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -9605,6 +9662,100 @@ mod tests {
                 w / total * 100.0
             );
         }
+    }
+
+    // --- SVG data URI tests ---
+
+    #[test]
+    fn percent_decode_basic() {
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("%3Csvg%3E"), "<svg>");
+        // Invalid % sequences: bytes after % are consumed but dropped if not valid hex
+        let _ = percent_decode("no%zz"); // should not panic
+    }
+
+    #[test]
+    fn hex_digit_valid() {
+        assert_eq!(hex_digit(b'0'), Some(0));
+        assert_eq!(hex_digit(b'9'), Some(9));
+        assert_eq!(hex_digit(b'a'), Some(10));
+        assert_eq!(hex_digit(b'f'), Some(15));
+        assert_eq!(hex_digit(b'A'), Some(10));
+        assert_eq!(hex_digit(b'F'), Some(15));
+        assert_eq!(hex_digit(b'g'), None);
+    }
+
+    #[test]
+    fn svg_data_uri_base64_produces_svg_element() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="red"/></svg>"#;
+        let b64 = base64_encode_test(svg.as_bytes());
+        let html = format!(r#"<img src="data:image/svg+xml;base64,{b64}">"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages.is_empty());
+        let has_svg = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Svg { .. }));
+        assert!(has_svg, "Expected SVG element from data URI");
+    }
+
+    #[test]
+    fn svg_data_uri_plain_produces_svg_element() {
+        let html = r#"<img src="data:image/svg+xml,%3Csvg%20width%3D%2250%22%20height%3D%2250%22%3E%3Crect%20width%3D%2250%22%20height%3D%2250%22%20fill%3D%22blue%22%2F%3E%3C%2Fsvg%3E">"#;
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let has_svg = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Svg { .. }));
+        assert!(
+            has_svg,
+            "Expected SVG element from percent-encoded data URI"
+        );
+    }
+
+    #[test]
+    fn non_svg_data_uri_still_works() {
+        // A non-SVG data URI should not produce an SVG element
+        let html = r#"<img src="data:image/png;base64,iVBORw0KGgo=">"#;
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        // Should not panic; may or may not produce an image depending on validity
+        let _ = pages;
+    }
+
+    #[test]
+    fn svg_data_uri_invalid_base64_no_panic() {
+        let html = r#"<img src="data:image/svg+xml;base64,not-valid-base64!!!">"#;
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let _ = pages;
+    }
+
+    /// Minimal base64 encoder for tests.
+    fn base64_encode_test(data: &[u8]) -> String {
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut result = String::new();
+        for chunk in data.chunks(3) {
+            let b0 = chunk[0] as u32;
+            let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+            let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+            let n = (b0 << 16) | (b1 << 8) | b2;
+            result.push(CHARS[(n >> 18 & 63) as usize] as char);
+            result.push(CHARS[(n >> 12 & 63) as usize] as char);
+            if chunk.len() > 1 {
+                result.push(CHARS[(n >> 6 & 63) as usize] as char);
+            } else {
+                result.push('=');
+            }
+            if chunk.len() > 2 {
+                result.push(CHARS[(n & 63) as usize] as char);
+            } else {
+                result.push('=');
+            }
+        }
+        result
     }
 }
 
