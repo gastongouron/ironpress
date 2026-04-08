@@ -5841,6 +5841,40 @@ mod tests {
     }
 
     #[test]
+    fn background_shorthand_resets_omitted_longhands_from_previous_rule() {
+        let parent = ComputedStyle::default();
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                "background-repeat: no-repeat; background-position: center; background-origin: content-box; background-size: cover; background-color: red",
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA")"#,
+            ),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert!(style.background_color.is_none());
+    }
+
+    #[test]
     fn inherit_keyword_restores_list_style_type() {
         let mut parent = ComputedStyle::default();
         parent.list_style_type = ListStyleType::Square;

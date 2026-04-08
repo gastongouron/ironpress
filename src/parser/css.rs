@@ -214,6 +214,11 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
             } else if prop == "background" {
                 let trimmed = val.trim();
                 clear_background_shorthand_keys(&mut map);
+                if trimmed.starts_with("linear-gradient(")
+                    || trimmed.starts_with("radial-gradient(")
+                {
+                    apply_background_shorthand_defaults(&mut map);
+                }
                 parse_background_shorthand(trimmed, &mut map);
                 if trimmed.starts_with("linear-gradient(") {
                     // Store the full gradient function string for later parsing.
@@ -280,6 +285,29 @@ fn clear_background_shorthand_keys(map: &mut StyleMap) {
         "background-origin",
     ] {
         map.remove(key);
+    }
+}
+
+fn apply_background_shorthand_defaults(map: &mut StyleMap) {
+    // CSS shorthand semantics reset omitted subproperties to their initial values.
+    map.set("background-color", CssValue::Keyword("initial".to_string()));
+    map.set("background-image", CssValue::Keyword("none".to_string()));
+    map.set("background-size", CssValue::Keyword("auto".to_string()));
+    map.set("background-repeat", CssValue::Keyword("repeat".to_string()));
+    map.set(
+        "background-position",
+        CssValue::Keyword("0% 0%".to_string()),
+    );
+    map.set(
+        "background-origin",
+        CssValue::Keyword("padding-box".to_string()),
+    );
+}
+
+fn ensure_background_shorthand_defaults(map: &mut StyleMap, defaults_applied: &mut bool) {
+    if !*defaults_applied {
+        apply_background_shorthand_defaults(map);
+        *defaults_applied = true;
     }
 }
 
@@ -542,9 +570,12 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
 /// values, ignoring unknown tokens.  Gradient and SVG data-URI images are
 /// handled by earlier branches in `parse_inline_style` and never reach here.
 fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
+    let mut defaults_applied = false;
+
     // First, try to parse as a simple color.
     // If the *entire* value parses as a color, treat it as background-color only.
     if let Some(color_val) = parse_color(val) {
+        ensure_background_shorthand_defaults(map, &mut defaults_applied);
         map.set("background-color", color_val);
         return;
     }
@@ -573,8 +604,10 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         if !found_image && lower.starts_with("url(") {
             // Check if it's an SVG data URI
             if let Some(svg_text) = extract_svg_data_uri(tok) {
+                ensure_background_shorthand_defaults(map, &mut defaults_applied);
                 map.set("background-svg", CssValue::Keyword(svg_text));
             } else {
+                ensure_background_shorthand_defaults(map, &mut defaults_applied);
                 map.set(
                     "background-image",
                     CssValue::Keyword(tok.trim().to_string()),
@@ -587,6 +620,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         }
 
         if !found_image && lower == "none" {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
             map.set("background-image", CssValue::Keyword("none".to_string()));
             found_image = true;
             i += 1;
@@ -595,6 +629,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
 
         // background-origin / background-clip
         if !found_origin && origin_keywords.contains(&lower.as_str()) {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
             map.set("background-origin", CssValue::Keyword(lower.clone()));
             found_origin = true;
             i += 1;
@@ -603,6 +638,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
 
         // background-repeat
         if !found_repeat && repeat_keywords.contains(&lower.as_str()) {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
             map.set("background-repeat", CssValue::Keyword(lower.clone()));
             found_repeat = true;
             i += 1;
@@ -613,6 +649,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         if lower == "/" {
             i += 1;
             if i < tokens.len() && !found_size {
+                ensure_background_shorthand_defaults(map, &mut defaults_applied);
                 let size_tok = tokens[i].trim();
                 // Collect potential second size token (e.g. "100px 200px")
                 let mut size_str = size_tok.to_string();
@@ -649,6 +686,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         // Color — try parsing as color
         if !found_color {
             if let Some(color_val) = parse_color(tok) {
+                ensure_background_shorthand_defaults(map, &mut defaults_applied);
                 map.set("background-color", color_val);
                 found_color = true;
                 i += 1;
@@ -658,6 +696,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
 
         // Length value that could be a position (e.g. "10px", "50%")
         if parse_length(tok).is_some() {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
             pos_parts.push(lower.clone());
             i += 1;
             continue;
@@ -3585,8 +3624,14 @@ mod tests {
         let style = parse_inline_style(
             r#"background-color: red; background-repeat: no-repeat; background: none"#,
         );
-        assert!(style.get("background-color").is_none());
-        assert!(style.get("background-repeat").is_none());
+        assert!(matches!(
+            style.get("background-color"),
+            Some(CssValue::Keyword(value)) if value == "initial"
+        ));
+        assert!(matches!(
+            style.get("background-repeat"),
+            Some(CssValue::Keyword(value)) if value == "repeat"
+        ));
         assert!(matches!(
             style.get("background-image"),
             Some(CssValue::Keyword(value)) if value == "none"
