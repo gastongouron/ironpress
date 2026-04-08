@@ -5304,6 +5304,122 @@ mod tests {
     }
 
     #[test]
+    fn table_cell_nested_table_with_borders() {
+        let html = r#"
+            <table style="border-collapse: separate; border-spacing: 2pt">
+                <tr>
+                    <td style="border: 1pt solid black; padding: 4pt">
+                        <table style="border: 1pt solid red">
+                            <tr><td>Nested with border</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Nested with border"));
+    }
+
+    #[test]
+    fn table_cell_nested_table_with_rowspan() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td rowspan="2">Spanning</td>
+                    <td>
+                        <table><tr><td>Inner A</td></tr></table>
+                    </td>
+                </tr>
+                <tr><td>Row 2</td></tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Spanning"));
+        assert!(pdf_str.contains("Inner A"));
+    }
+
+    #[test]
+    fn table_cell_mixed_text_and_nested_table() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td>
+                        Before text
+                        <table><tr><td>Nested</td></tr></table>
+                        After text
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("Before"));
+        assert!(pdf_str.contains("Nested"));
+    }
+
+    #[test]
+    fn table_cell_nested_with_background() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td style="background-color: #eee">
+                        <table><tr><td style="background-color: #ddd">BG Cell</td></tr></table>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("BG Cell"));
+    }
+
+    #[test]
+    fn table_cell_deeply_nested() {
+        let html = r#"
+            <table><tr><td>
+                <table><tr><td>
+                    <table><tr><td>Deep</td></tr></table>
+                </td></tr></table>
+            </td></tr></table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        assert!(String::from_utf8_lossy(&pdf).contains("Deep"));
+    }
+
+    #[test]
+    fn table_cell_nested_colspan() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td colspan="2">
+                        <table>
+                            <tr><td>A</td><td>B</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("A"));
+        assert!(pdf_str.contains("B"));
+    }
+
+    #[test]
     fn flexrow_container_gradient() {
         // Covers lines 742, 744, 753, 848-874: FlexRow linear gradient with border-radius
         let html = r#"<div style="display: flex; background: linear-gradient(to right, red, blue); border-radius: 5pt"><div>Gradient Flex</div></div>"#;

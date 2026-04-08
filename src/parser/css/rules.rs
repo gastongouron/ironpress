@@ -140,6 +140,50 @@ mod tests {
     }
 
     #[test]
+    fn extract_pseudo_element_bare_pseudo() {
+        let (base, pe) = extract_pseudo_element("::before");
+        assert_eq!(base, "*");
+        assert_eq!(pe, Some(PseudoElement::Before));
+    }
+
+    #[test]
+    fn parse_stylesheet_comma_selectors() {
+        let rules = parse_stylesheet("h1, h2, h3 { font-weight: bold }");
+        assert_eq!(rules.len(), 3);
+        assert_eq!(rules[0].selector, "h1");
+        assert_eq!(rules[1].selector, "h2");
+        assert_eq!(rules[2].selector, "h3");
+    }
+
+    #[test]
+    fn parse_stylesheet_with_context_none() {
+        use super::super::MediaContext;
+        use super::parse_stylesheet_with_context;
+        let rules = parse_stylesheet_with_context("p { color: red }", None);
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn parse_stylesheet_with_context_some() {
+        use super::super::MediaContext;
+        use super::parse_stylesheet_with_context;
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let rules = parse_stylesheet_with_context("p { color: red }", Some(ctx));
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn parse_stylesheet_malformed_css() {
+        // Missing closing brace should not panic
+        let rules = parse_stylesheet("p { color: red");
+        // May or may not produce a rule, but should not panic
+        let _ = rules;
+    }
+
+    #[test]
     fn parse_stylesheet_keeps_pseudo_rules_with_embedded_braces_and_comments() {
         let rules = parse_stylesheet(
             r#"
