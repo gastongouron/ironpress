@@ -257,7 +257,12 @@ pub enum BackgroundSize {
     Auto,
     Cover,
     Contain,
-    Explicit(f32, f32),
+    Explicit {
+        width: f32,
+        height: Option<f32>,
+        width_is_percent: bool,
+        height_is_percent: bool,
+    },
 }
 /// CSS background-repeat property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -1813,26 +1818,36 @@ fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
 
 fn parse_background_size_explicit(val: &str) -> Option<BackgroundSize> {
     let parts: Vec<&str> = val.split_whitespace().collect();
-    let pd = |s: &str| -> Option<f32> {
+    let parse_dimension = |s: &str| -> Option<(f32, bool)> {
         if let Some(n) = s.strip_suffix("px") {
-            n.parse::<f32>().ok().map(|v| v * 0.75)
+            n.parse::<f32>().ok().map(|v| (v * 0.75, false))
         } else if let Some(n) = s.strip_suffix("pt") {
-            n.parse::<f32>().ok()
+            n.parse::<f32>().ok().map(|v| (v, false))
         } else if let Some(n) = s.strip_suffix('%') {
-            n.parse::<f32>().ok()
+            n.parse::<f32>().ok().map(|v| (v, true))
         } else {
-            s.parse::<f32>().ok()
+            s.parse::<f32>().ok().map(|v| (v, false))
         }
     };
     match parts.len() {
         1 => {
-            let w = pd(parts[0])?;
-            Some(BackgroundSize::Explicit(w, w))
+            let (width, width_is_percent) = parse_dimension(parts[0])?;
+            Some(BackgroundSize::Explicit {
+                width,
+                height: None,
+                width_is_percent,
+                height_is_percent: false,
+            })
         }
         2 => {
-            let w = pd(parts[0])?;
-            let h = pd(parts[1])?;
-            Some(BackgroundSize::Explicit(w, h))
+            let (width, width_is_percent) = parse_dimension(parts[0])?;
+            let (height, height_is_percent) = parse_dimension(parts[1])?;
+            Some(BackgroundSize::Explicit {
+                width,
+                height: Some(height),
+                width_is_percent,
+                height_is_percent,
+            })
         }
         _ => None,
     }
@@ -5252,9 +5267,17 @@ mod tests {
     fn background_size_explicit_parsed() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
-        if let BackgroundSize::Explicit(w, h) = s.background_size {
-            assert!((w - 75.0).abs() < 0.001); // 100px = 75pt
-            assert!((h - 150.0).abs() < 0.001); // 200px = 150pt
+        if let BackgroundSize::Explicit {
+            width,
+            height,
+            width_is_percent,
+            height_is_percent,
+        } = s.background_size
+        {
+            assert!(!width_is_percent);
+            assert!(!height_is_percent);
+            assert!((width - 75.0).abs() < 0.001); // 100px = 75pt
+            assert!((height.unwrap_or_default() - 150.0).abs() < 0.001); // 200px = 150pt
         } else {
             panic!(
                 "Expected BackgroundSize::Explicit, got {:?}",
@@ -6118,35 +6141,75 @@ mod tests {
     fn background_size_explicit_px() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 75.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 75.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_pt() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 50pt"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 50.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_percent() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 50%"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 50.0,
+                height: None,
+                width_is_percent: true,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_bare_number() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 42"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(42.0, 42.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 42.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_two_values() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 150.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 75.0,
+                height: Some(150.0),
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]

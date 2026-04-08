@@ -404,9 +404,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 (render_width - padding_left - padding_right).max(0.0),
                                 (total_h - padding_top - padding_bottom).max(0.0),
                             ),
-                            BackgroundOrigin::PaddingBox => {
-                                (block_x, bg_y, render_width, total_h)
-                            }
+                            BackgroundOrigin::PaddingBox => (block_x, bg_y, render_width, total_h),
                         };
                         render_svg_background(
                             &mut content,
@@ -415,6 +413,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ref_y,
                             ref_w,
                             ref_h,
+                            block_x - border.left.width,
+                            bg_y - border.bottom.width,
+                            render_width + border.left.width + border.right.width,
+                            total_h + border.top.width + border.bottom.width,
+                            *border_radius,
                             background_size,
                             background_position,
                             background_repeat,
@@ -1043,6 +1046,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ref_y,
                             ref_w,
                             ref_h,
+                            bg_x - border.left.width,
+                            bg_y - border.bottom.width,
+                            *container_width + border.left.width + border.right.width,
+                            full_height + border.top.width + border.bottom.width,
+                            *border_radius,
                             flex_bg_size,
                             flex_bg_pos,
                             flex_bg_repeat,
@@ -1826,6 +1834,11 @@ fn render_svg_background(
     y: f32,
     width: f32,
     height: f32,
+    clip_x: f32,
+    clip_y: f32,
+    clip_width: f32,
+    clip_height: f32,
+    border_radius: f32,
     bg_size: &BackgroundSize,
     bg_pos: &BackgroundPosition,
     bg_repeat: &BackgroundRepeat,
@@ -1843,6 +1856,14 @@ fn render_svg_background(
         return;
     }
 
+    let resolve_axis = |value: f32, is_percent: bool, extent: f32| {
+        if is_percent {
+            extent * (value / 100.0)
+        } else {
+            value
+        }
+    };
+
     // Compute the rendered size of one SVG tile based on background-size.
     let (scaled_w, scaled_h) = match bg_size {
         BackgroundSize::Cover => {
@@ -1854,7 +1875,18 @@ fn render_svg_background(
             (vb_w * s, vb_h * s)
         }
         BackgroundSize::Auto => (vb_w, vb_h),
-        BackgroundSize::Explicit(w, h) => (*w, *h),
+        BackgroundSize::Explicit {
+            width: explicit_width,
+            height: explicit_height,
+            width_is_percent,
+            height_is_percent,
+        } => {
+            let scaled_w = resolve_axis(*explicit_width, *width_is_percent, width);
+            let scaled_h = explicit_height
+                .map(|value| resolve_axis(value, *height_is_percent, height))
+                .unwrap_or_else(|| scaled_w * vb_h / vb_w);
+            (scaled_w, scaled_h)
+        }
     };
 
     if scaled_w <= 0.0 || scaled_h <= 0.0 {
@@ -1900,7 +1932,20 @@ fn render_svg_background(
 
     // Clip to the element box.
     content.push_str("q\n");
-    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+    if border_radius > 0.0 {
+        content.push_str(&rounded_rect_path(
+            clip_x,
+            clip_y,
+            clip_width,
+            clip_height,
+            border_radius,
+        ));
+        content.push_str("W n\n");
+    } else {
+        content.push_str(&format!(
+            "{clip_x} {clip_y} {clip_width} {clip_height} re W n\n"
+        ));
+    }
 
     let sx = scaled_w / vb_w;
     let sy = scaled_h / vb_h;
@@ -3938,6 +3983,7 @@ mod tests {
                     word_spacing: 0.0,
                     vertical_align: crate::style::computed::VerticalAlign::Baseline,
                     z_index: 0,
+                    repeat_on_each_page: false,
                     heading_level: None,
                 },
             )],
@@ -4008,6 +4054,7 @@ mod tests {
                         word_spacing: 0.0,
                         vertical_align: crate::style::computed::VerticalAlign::Baseline,
                         z_index: 0,
+                        repeat_on_each_page: false,
                         heading_level: None,
                     },
                 ),
@@ -4405,6 +4452,156 @@ mod tests {
         assert!(
             pdf_str.contains("W n"),
             "Should have clip operator for border-radius"
+        );
+    }
+
+    #[test]
+    fn svg_background_clipped_to_border_radius() {
+        let html = r#"<div style="width: 200pt; height: 80pt; border-radius: 12pt; background: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3Crect width=%221%22 height=%221%22 fill=%22red%22/%3E%3C/svg%3E') no-repeat"></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains(" c\n"),
+            "Rounded clip should use Bezier curves"
+        );
+        assert!(pdf_str.contains("W n"), "SVG background should be clipped");
+    }
+
+    #[test]
+    fn svg_background_percent_size_uses_positioning_area() {
+        let tree = crate::parser::svg::SvgTree {
+            width: 1.0,
+            height: 1.0,
+            view_box: None,
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 1.0,
+                height: 1.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle {
+                    fill: Some((1.0, 0.0, 0.0)),
+                    ..Default::default()
+                },
+            }],
+        };
+        let mut content = String::new();
+        render_svg_background(
+            &mut content,
+            &tree,
+            0.0,
+            0.0,
+            200.0,
+            100.0,
+            0.0,
+            0.0,
+            200.0,
+            100.0,
+            0.0,
+            &BackgroundSize::Explicit {
+                width: 50.0,
+                height: Some(25.0),
+                width_is_percent: true,
+                height_is_percent: true,
+            },
+            &BackgroundPosition::default(),
+            &BackgroundRepeat::NoRepeat,
+        );
+        assert!(
+            content.contains("100 0 0 25 0 0 cm"),
+            "Expected SVG tile scale to resolve against the 200pt by 100pt positioning area"
+        );
+    }
+
+    #[test]
+    fn svg_background_single_percent_size_preserves_aspect_ratio() {
+        let tree = crate::parser::svg::SvgTree {
+            width: 2.0,
+            height: 1.0,
+            view_box: None,
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 2.0,
+                height: 1.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle {
+                    fill: Some((1.0, 0.0, 0.0)),
+                    ..Default::default()
+                },
+            }],
+        };
+        let mut content = String::new();
+        render_svg_background(
+            &mut content,
+            &tree,
+            0.0,
+            0.0,
+            200.0,
+            100.0,
+            0.0,
+            0.0,
+            200.0,
+            100.0,
+            0.0,
+            &BackgroundSize::Explicit {
+                width: 50.0,
+                height: None,
+                width_is_percent: true,
+                height_is_percent: false,
+            },
+            &BackgroundPosition::default(),
+            &BackgroundRepeat::NoRepeat,
+        );
+        assert!(
+            content.contains("50 0 0 50 0 0 cm"),
+            "Single-value background-size should preserve intrinsic aspect ratio"
+        );
+    }
+
+    #[test]
+    fn svg_background_uses_outer_clip_box() {
+        let tree = crate::parser::svg::SvgTree {
+            width: 1.0,
+            height: 1.0,
+            view_box: None,
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 1.0,
+                height: 1.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle {
+                    fill: Some((1.0, 0.0, 0.0)),
+                    ..Default::default()
+                },
+            }],
+        };
+        let mut content = String::new();
+        render_svg_background(
+            &mut content,
+            &tree,
+            20.0,
+            10.0,
+            160.0,
+            80.0,
+            0.0,
+            0.0,
+            200.0,
+            100.0,
+            0.0,
+            &BackgroundSize::Auto,
+            &BackgroundPosition::default(),
+            &BackgroundRepeat::NoRepeat,
+        );
+        assert!(
+            content.contains("0 0 200 100 re W n"),
+            "Clip box should stay on the outer element box, not shrink to the origin box"
         );
     }
 
@@ -5116,6 +5313,7 @@ mod tests {
                     word_spacing: 0.0,
                     vertical_align: crate::style::computed::VerticalAlign::Baseline,
                     z_index: 0,
+                    repeat_on_each_page: false,
                     heading_level: None,
                 },
             )],

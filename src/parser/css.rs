@@ -206,29 +206,41 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                 }
             } else if (prop == "margin-left" || prop == "margin-right") && val.trim() == "auto" {
                 map.set(&prop, CssValue::Keyword("auto".to_string()));
-            } else if (prop == "background" || prop == "background-image")
-                && val.trim_start().starts_with("linear-gradient(")
+            } else if prop == "background" {
+                let trimmed = val.trim();
+                parse_background_shorthand(trimmed, &mut map);
+                if trimmed.starts_with("linear-gradient(") {
+                    // Store the full gradient function string for later parsing.
+                    map.set(
+                        "background-gradient",
+                        CssValue::Keyword(trimmed.to_string()),
+                    );
+                } else if trimmed.starts_with("radial-gradient(") {
+                    map.set(
+                        "background-radial-gradient",
+                        CssValue::Keyword(trimmed.to_string()),
+                    );
+                } else if let Some(svg_text) = extract_svg_data_uri(trimmed) {
+                    map.set("background-svg", CssValue::Keyword(svg_text));
+                }
+            } else if prop == "background-image" && val.trim_start().starts_with("linear-gradient(")
             {
-                // Store the full gradient function string for later parsing
                 map.set(
                     "background-gradient",
                     CssValue::Keyword(val.trim().to_string()),
                 );
-            } else if (prop == "background" || prop == "background-image")
-                && val.trim_start().starts_with("radial-gradient(")
+            } else if prop == "background-image" && val.trim_start().starts_with("radial-gradient(")
             {
                 map.set(
                     "background-radial-gradient",
                     CssValue::Keyword(val.trim().to_string()),
                 );
-            } else if (prop == "background" || prop == "background-image")
-                && extract_svg_data_uri(val.trim()).is_some()
-            {
+            } else if prop == "background-image" {
                 if let Some(svg_text) = extract_svg_data_uri(val.trim()) {
                     map.set("background-svg", CssValue::Keyword(svg_text));
+                } else if let Some(css_val) = parse_value(&prop, val) {
+                    map.set(&prop, css_val);
                 }
-            } else if prop == "background" {
-                parse_background_shorthand(val.trim(), &mut map);
             } else if let Some(css_val) = parse_value(&prop, val) {
                 map.set(&prop, css_val);
             }
@@ -571,10 +583,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
                         i += 1;
                     }
                 }
-                map.set(
-                    "background-size",
-                    CssValue::Keyword(size_str),
-                );
+                map.set("background-size", CssValue::Keyword(size_str));
                 found_size = true;
             }
             i += 1;
@@ -3449,9 +3458,9 @@ mod tests {
     #[test]
     fn svg_data_uri_base64_in_background() {
         let b64 = "PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxyZWN0IHdpZHRoPScxMCcgaGVpZ2h0PScxMCcgZmlsbD0ncmVkJy8+PC9zdmc+";
-        let style = parse_inline_style(
-            &format!(r#"background: url("data:image/svg+xml;base64,{b64}")"#),
-        );
+        let style = parse_inline_style(&format!(
+            r#"background: url("data:image/svg+xml;base64,{b64}")"#
+        ));
         assert!(style.get("background-svg").is_some());
         if let Some(CssValue::Keyword(svg)) = style.get("background-svg") {
             assert!(svg.contains("<svg"));
@@ -3467,10 +3476,28 @@ mod tests {
     }
 
     #[test]
-    fn non_svg_data_uri_not_matched() {
+    fn svg_background_shorthand_preserves_following_tokens() {
         let style = parse_inline_style(
-            r#"background-image: url("data:image/png;base64,iVBOR")"#,
+            r#"background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E") no-repeat center / 50% 25%"#,
         );
+        assert!(style.get("background-svg").is_some());
+        assert!(matches!(
+            style.get("background-repeat"),
+            Some(CssValue::Keyword(value)) if value == "no-repeat"
+        ));
+        assert!(matches!(
+            style.get("background-position"),
+            Some(CssValue::Keyword(value)) if value == "center"
+        ));
+        assert!(matches!(
+            style.get("background-size"),
+            Some(CssValue::Keyword(value)) if value == "50% 25%"
+        ));
+    }
+
+    #[test]
+    fn non_svg_data_uri_not_matched() {
+        let style = parse_inline_style(r#"background-image: url("data:image/png;base64,iVBOR")"#);
         assert!(style.get("background-svg").is_none());
     }
 

@@ -372,6 +372,7 @@ pub enum LayoutElement {
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
         z_index: i32,
+        repeat_on_each_page: bool,
         /// Heading level (1-6) if this block is an h1-h6, used for PDF bookmarks.
         heading_level: Option<u8>,
     },
@@ -557,6 +558,7 @@ pub fn layout_with_rules_and_fonts(
             background_repeat: parent_style.background_repeat,
             background_origin: parent_style.background_origin,
             z_index: -1,
+            repeat_on_each_page: true,
             heading_level: None,
         });
     }
@@ -656,6 +658,7 @@ fn flatten_nodes(
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::PaddingBox,
                             z_index: 0,
+                            repeat_on_each_page: false,
                             heading_level: None,
                         });
                     }
@@ -794,6 +797,7 @@ fn flatten_element(
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
+            repeat_on_each_page: false,
             heading_level: None,
         });
         return;
@@ -944,6 +948,7 @@ fn flatten_element(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             z_index: style.z_index,
+            repeat_on_each_page: false,
             heading_level: None,
         });
         return;
@@ -1060,6 +1065,7 @@ fn flatten_element(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             z_index: style.z_index,
+            repeat_on_each_page: false,
             heading_level: None,
         });
         return;
@@ -1301,6 +1307,7 @@ fn flatten_element(
                 background_repeat: style.background_repeat,
                 background_origin: style.background_origin,
                 z_index: style.z_index,
+                repeat_on_each_page: false,
                 heading_level: block_heading_level,
             });
         }
@@ -1589,6 +1596,7 @@ fn flatten_element(
                 background_repeat: style.background_repeat,
                 background_origin: style.background_origin,
                 z_index: style.z_index,
+                repeat_on_each_page: false,
                 heading_level: heading_level(el.tag),
             });
         }
@@ -1691,6 +1699,7 @@ fn flatten_element(
                 background_repeat: style.background_repeat,
                 background_origin: style.background_origin,
                 z_index: style.z_index,
+                repeat_on_each_page: false,
                 heading_level: None,
             });
             // Pull y back so children flow inside the wrapper, starting
@@ -1736,6 +1745,7 @@ fn flatten_element(
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::PaddingBox,
                 z_index: 0,
+                repeat_on_each_page: false,
                 heading_level: None,
             });
             // Add the parent's left/right padding to children so they render
@@ -1796,6 +1806,7 @@ fn flatten_element(
                     background_repeat: BackgroundRepeat::Repeat,
                     background_origin: BackgroundOrigin::PaddingBox,
                     z_index: 0,
+                    repeat_on_each_page: false,
                     heading_level: None,
                 });
             }
@@ -2031,6 +2042,7 @@ fn flatten_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             z_index: child_style.z_index,
+            repeat_on_each_page: false,
             heading_level: None,
         };
 
@@ -2208,6 +2220,7 @@ fn flatten_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             z_index: 0,
+            repeat_on_each_page: false,
             heading_level: None,
         });
         // Pull y back so children flow inside the container background
@@ -2249,6 +2262,7 @@ fn flatten_flex_container(
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
+            repeat_on_each_page: false,
             heading_level: None,
         });
     }
@@ -2540,6 +2554,7 @@ fn flatten_flex_container(
                                 background_repeat: *tb_bg_repeat,
                                 background_origin: *tb_bg_origin,
                                 z_index: 0,
+                                repeat_on_each_page: false,
                                 heading_level: None,
                             });
                         }
@@ -2598,6 +2613,7 @@ fn flatten_flex_container(
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
+            repeat_on_each_page: false,
             heading_level: None,
         });
     }
@@ -3821,8 +3837,8 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     let mut right_floats: Vec<FloatRegion> = Vec::new();
     let mut prev_margin_bottom: f32 = 0.0;
 
-    // Collect absolute background elements (z_index < 0) so they can be
-    // duplicated onto every page during pagination.
+    // Collect synthetic full-page background elements that should be repeated
+    // across every page during pagination.
     let mut absolute_backgrounds: Vec<(f32, LayoutElement)> = Vec::new();
 
     for element in elements {
@@ -3984,13 +4000,14 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
             let abs_y = elem_offset_top;
-            // Track absolute background elements (z_index < 0) for duplication
-            // across all pages.
-            let is_bg = match &element {
-                LayoutElement::TextBlock { z_index, .. } => *z_index < 0,
+            let repeats_on_each_page = match &element {
+                LayoutElement::TextBlock {
+                    repeat_on_each_page,
+                    ..
+                } => *repeat_on_each_page,
                 _ => false,
             };
-            if is_bg {
+            if repeats_on_each_page {
                 absolute_backgrounds.push((abs_y, element.clone()));
             }
             current_elements.push((abs_y, element));
@@ -6462,6 +6479,102 @@ mod tests {
             .iter()
             .any(|(_, el)| matches!(el, LayoutElement::TextBlock { z_index: 5, .. }));
         assert!(found, "Expected element with z_index=5");
+    }
+
+    #[test]
+    fn paginate_repeats_only_synthetic_page_background() {
+        let make_block =
+            |position, z_index, repeat_on_each_page, height| LayoutElement::TextBlock {
+                lines: Vec::new(),
+                margin_top: 0.0,
+                margin_bottom: 0.0,
+                text_align: TextAlign::Left,
+                background_color: None,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border: LayoutBorder::default(),
+                block_width: Some(100.0),
+                block_height: Some(height),
+                opacity: 1.0,
+                float: Float::None,
+                clear: Clear::None,
+                position,
+                offset_top: 0.0,
+                offset_left: 0.0,
+                box_shadow: None,
+                visible: true,
+                clip_rect: None,
+                transform: None,
+                border_radius: 0.0,
+                outline_width: 0.0,
+                outline_color: None,
+                text_indent: 0.0,
+                letter_spacing: 0.0,
+                word_spacing: 0.0,
+                vertical_align: VerticalAlign::Baseline,
+                background_gradient: None,
+                background_radial_gradient: None,
+                background_svg: None,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::PaddingBox,
+                z_index,
+                repeat_on_each_page,
+                heading_level: None,
+            };
+
+        let pages = paginate(
+            vec![
+                make_block(Position::Absolute, -1, true, 40.0),
+                make_block(Position::Absolute, -1, false, 40.0),
+                make_block(Position::Static, 0, false, 30.0),
+                make_block(Position::Static, 0, false, 30.0),
+            ],
+            40.0,
+        );
+
+        assert_eq!(pages.len(), 2);
+        let repeated_per_page: Vec<_> = pages
+            .iter()
+            .map(|page| {
+                page.elements
+                    .iter()
+                    .filter(|(_, element)| {
+                        matches!(
+                            element,
+                            LayoutElement::TextBlock {
+                                repeat_on_each_page: true,
+                                ..
+                            }
+                        )
+                    })
+                    .count()
+            })
+            .collect();
+        assert_eq!(repeated_per_page, vec![1, 1]);
+
+        let non_repeating_per_page: Vec<_> = pages
+            .iter()
+            .map(|page| {
+                page.elements
+                    .iter()
+                    .filter(|(_, element)| {
+                        matches!(
+                            element,
+                            LayoutElement::TextBlock {
+                                position: Position::Absolute,
+                                repeat_on_each_page: false,
+                                ..
+                            }
+                        )
+                    })
+                    .count()
+            })
+            .collect();
+        assert_eq!(non_repeating_per_page, vec![1, 0]);
     }
 
     #[test]
