@@ -1,30 +1,62 @@
 //! SVG tree to PDF content stream renderer.
 
-use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTransform, SvgTree};
+use crate::parser::svg::{PathCommand, SvgNode, SvgPaint, SvgStyle, SvgTransform, SvgTree};
 
 /// Render an SVG tree to PDF content stream operators.
 ///
 /// The caller must wrap this in a `q ... Q` block and set up the coordinate
 /// transform (position on page + y-axis flip).
 pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
+    // SVG initial values: fill=black, stroke=none, stroke-width=1.
+    let root_style = ResolvedStyle {
+        fill: SvgPaint::Color((0.0, 0.0, 0.0)),
+        stroke: SvgPaint::None,
+        stroke_width: 1.0,
+    };
     for node in &tree.children {
-        render_node(node, out);
+        render_node(node, root_style, out);
     }
 }
 
-fn render_node(node: &SvgNode, out: &mut String) {
+#[derive(Debug, Clone, Copy)]
+struct ResolvedStyle {
+    fill: SvgPaint,
+    stroke: SvgPaint,
+    stroke_width: f32,
+}
+
+fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
+    let fill = match local.fill {
+        SvgPaint::Unspecified => parent.fill,
+        other => other,
+    };
+    let stroke = match local.stroke {
+        SvgPaint::Unspecified => parent.stroke,
+        other => other,
+    };
+    let stroke_width = local.stroke_width.unwrap_or(parent.stroke_width);
+    ResolvedStyle {
+        fill,
+        stroke,
+        stroke_width,
+    }
+}
+
+fn render_node(node: &SvgNode, inherited: ResolvedStyle, out: &mut String) {
     match node {
         SvgNode::Group {
             transform,
             children,
+            style,
             ..
         } => {
+            let inherited = resolve_style(inherited, style);
             out.push_str("q\n");
             if let Some(SvgTransform::Matrix(a, b, c, d, e, f)) = transform {
                 out.push_str(&format!("{a} {b} {c} {d} {e} {f} cm\n"));
             }
             for child in children {
-                render_node(child, out);
+                render_node(child, inherited, out);
             }
             out.push_str("Q\n");
         }
@@ -36,11 +68,13 @@ fn render_node(node: &SvgNode, out: &mut String) {
             style,
             ..
         } => {
+            let style = resolve_style(inherited, style);
             apply_style(style, out);
             out.push_str(&format!("{x} {y} {width} {height} re\n"));
             paint(style, out);
         }
         SvgNode::Circle { cx, cy, r, style } => {
+            let style = resolve_style(inherited, style);
             apply_style(style, out);
             // Approximate circle with 4 cubic bezier curves
             emit_circle(*cx, *cy, *r, out);
@@ -53,6 +87,7 @@ fn render_node(node: &SvgNode, out: &mut String) {
             ry,
             style,
         } => {
+            let style = resolve_style(inherited, style);
             apply_style(style, out);
             emit_ellipse(*cx, *cy, *rx, *ry, out);
             paint(style, out);
@@ -64,20 +99,25 @@ fn render_node(node: &SvgNode, out: &mut String) {
             y2,
             style,
         } => {
-            apply_style(style, out);
-            out.push_str(&format!("{x1} {y1} m {x2} {y2} l S\n"));
+            let style = resolve_style(inherited, style);
+            apply_stroke_style(style, out);
+            out.push_str(&format!("{x1} {y1} m {x2} {y2} l\n"));
+            paint_stroke_only(style, out);
         }
         SvgNode::Polyline { points, style } => {
-            apply_style(style, out);
+            let style = resolve_style(inherited, style);
+            apply_stroke_style(style, out);
             emit_polyline(points, false, out);
-            out.push_str("S\n"); // stroke only for polyline
+            paint_stroke_only(style, out);
         }
         SvgNode::Polygon { points, style } => {
+            let style = resolve_style(inherited, style);
             apply_style(style, out);
             emit_polyline(points, true, out);
             paint(style, out);
         }
         SvgNode::Path { commands, style } => {
+            let style = resolve_style(inherited, style);
             apply_style(style, out);
             emit_path(commands, out);
             paint(style, out);
@@ -85,29 +125,50 @@ fn render_node(node: &SvgNode, out: &mut String) {
     }
 }
 
-fn apply_style(style: &SvgStyle, out: &mut String) {
+fn paint_to_rgb(paint: SvgPaint) -> Option<(f32, f32, f32)> {
+    match paint {
+        SvgPaint::None => None,
+        SvgPaint::Color(c) => Some(c),
+        SvgPaint::CurrentColor => Some((0.0, 0.0, 0.0)),
+        SvgPaint::Unspecified => None,
+    }
+}
+
+fn apply_style(style: ResolvedStyle, out: &mut String) {
     // Fill color
-    if let Some((r, g, b)) = style.fill {
+    if let Some((r, g, b)) = paint_to_rgb(style.fill) {
         out.push_str(&format!("{r} {g} {b} rg\n"));
     }
+    apply_stroke_style(style, out);
+}
+
+fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
     // Stroke color
-    if let Some((r, g, b)) = style.stroke {
+    if let Some((r, g, b)) = paint_to_rgb(style.stroke) {
         out.push_str(&format!("{r} {g} {b} RG\n"));
     }
-    // Stroke width
     if style.stroke_width > 0.0 {
         out.push_str(&format!("{} w\n", style.stroke_width));
     }
 }
 
-fn paint(style: &SvgStyle, out: &mut String) {
-    let has_fill = style.fill.is_some();
-    let has_stroke = style.stroke.is_some() && style.stroke_width > 0.0;
+fn paint(style: ResolvedStyle, out: &mut String) {
+    let has_fill = paint_to_rgb(style.fill).is_some();
+    let has_stroke = paint_to_rgb(style.stroke).is_some() && style.stroke_width > 0.0;
     match (has_fill, has_stroke) {
         (true, true) => out.push_str("B\n"),   // fill + stroke
         (true, false) => out.push_str("f\n"),  // fill only
         (false, true) => out.push_str("S\n"),  // stroke only
         (false, false) => out.push_str("n\n"), // no paint
+    }
+}
+
+fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
+    let has_stroke = paint_to_rgb(style.stroke).is_some() && style.stroke_width > 0.0;
+    if has_stroke {
+        out.push_str("S\n");
+    } else {
+        out.push_str("n\n");
     }
 }
 
@@ -199,40 +260,40 @@ fn emit_path(commands: &[PathCommand], out: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::svg::{PathCommand, SvgNode, SvgStyle, SvgTransform, SvgTree};
+    use crate::parser::svg::{PathCommand, SvgNode, SvgPaint, SvgStyle, SvgTransform, SvgTree};
 
     fn style_fill(r: f32, g: f32, b: f32) -> SvgStyle {
         SvgStyle {
-            fill: Some((r, g, b)),
-            stroke: None,
-            stroke_width: 0.0,
+            fill: SvgPaint::Color((r, g, b)),
+            stroke: SvgPaint::Unspecified,
+            stroke_width: None,
             opacity: 1.0,
         }
     }
 
     fn style_stroke(r: f32, g: f32, b: f32, w: f32) -> SvgStyle {
         SvgStyle {
-            fill: None,
-            stroke: Some((r, g, b)),
-            stroke_width: w,
+            fill: SvgPaint::None,
+            stroke: SvgPaint::Color((r, g, b)),
+            stroke_width: Some(w),
             opacity: 1.0,
         }
     }
 
     fn style_fill_and_stroke() -> SvgStyle {
         SvgStyle {
-            fill: Some((1.0, 0.0, 0.0)),
-            stroke: Some((0.0, 0.0, 1.0)),
-            stroke_width: 2.0,
+            fill: SvgPaint::Color((1.0, 0.0, 0.0)),
+            stroke: SvgPaint::Color((0.0, 0.0, 1.0)),
+            stroke_width: Some(2.0),
             opacity: 1.0,
         }
     }
 
     fn style_none() -> SvgStyle {
         SvgStyle {
-            fill: None,
-            stroke: None,
-            stroke_width: 0.0,
+            fill: SvgPaint::None,
+            stroke: SvgPaint::None,
+            stroke_width: None,
             opacity: 1.0,
         }
     }
@@ -407,14 +468,14 @@ mod tests {
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
         assert!(
-            out.contains("0 0 m 100 100 l S\n"),
+            out.contains("0 0 m 100 100 l\nS\n"),
             "should emit line with stroke"
         );
     }
 
     #[test]
     fn render_line_with_fill_style() {
-        // Lines use apply_style but always stroke via the inline S operator
+        // Fill does not apply to <line>; without a stroke, the line is not painted.
         let tree = tree_with(vec![SvgNode::Line {
             x1: 5.0,
             y1: 10.0,
@@ -424,8 +485,24 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(out.contains("1 1 0 rg\n"), "should apply fill style");
-        assert!(out.contains("5 10 m 50 60 l S\n"), "should emit line");
+        assert!(!out.contains(" rg\n"), "should not set fill color for <line>");
+        assert!(out.contains("5 10 m 50 60 l\n"), "should emit line path");
+        assert!(out.contains("n\n"), "should not stroke without a stroke paint");
+    }
+
+    #[test]
+    fn render_line_without_stroke_is_not_painted() {
+        let tree = tree_with(vec![SvgNode::Line {
+            x1: 0.0,
+            y1: 0.0,
+            x2: 10.0,
+            y2: 10.0,
+            style: SvgStyle::default(),
+        }]);
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("n\n"));
+        assert!(!out.contains("S\n"));
     }
 
     // ---- Polyline tests ----
@@ -455,6 +532,42 @@ mod tests {
         render_svg_tree(&tree, &mut out);
         // Should still emit S even with no points
         assert!(out.contains("S\n"));
+    }
+
+    #[test]
+    fn render_polyline_without_stroke_is_not_painted() {
+        let tree = tree_with(vec![SvgNode::Polyline {
+            points: vec![(0.0, 0.0), (10.0, 10.0)],
+            style: SvgStyle::default(),
+        }]);
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("n\n"));
+        assert!(!out.contains("S\n"));
+    }
+
+    #[test]
+    fn group_fill_is_inherited_by_children() {
+        let tree = tree_with(vec![SvgNode::Group {
+            transform: None,
+            children: vec![SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: SvgStyle::default(),
+            }],
+            style: SvgStyle {
+                fill: SvgPaint::Color((1.0, 0.0, 0.0)),
+                ..SvgStyle::default()
+            },
+        }]);
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(out.contains("1 0 0 rg\n"), "child should inherit group fill");
+        assert!(out.contains("f\n"), "rect should be filled");
     }
 
     // ---- Polygon tests ----
@@ -702,9 +815,9 @@ mod tests {
             rx: 0.0,
             ry: 0.0,
             style: SvgStyle {
-                fill: Some((1.0, 0.0, 0.0)),
-                stroke: Some((0.0, 0.0, 0.0)),
-                stroke_width: 0.0,
+                fill: SvgPaint::Color((1.0, 0.0, 0.0)),
+                stroke: SvgPaint::Color((0.0, 0.0, 0.0)),
+                stroke_width: Some(0.0),
                 opacity: 1.0,
             },
         }]);

@@ -4168,7 +4168,7 @@ fn resolve_svg_size(
     }
 
     if tree.width_attr.is_none() && tree.height_attr.is_none() {
-        return (width.min(available_width), height);
+        return (width, height);
     }
 
     let _ = allow_percent_height;
@@ -4419,6 +4419,23 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (300.0, 150.0)
+        );
+    }
+
+    #[test]
+    fn svg_size_intrinsic_is_not_clamped_to_available_width() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 200.0, 400.0, false, false),
             (300.0, 150.0)
         );
     }

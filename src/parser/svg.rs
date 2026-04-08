@@ -71,12 +71,45 @@ pub enum SvgNode {
     },
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SvgPaint {
+    /// The property was not specified on this element (so it should inherit from its parent).
+    Unspecified,
+    /// The property was explicitly set to `none`.
+    None,
+    /// `currentColor` keyword (resolves to the CSS `color` property; defaults to black when
+    /// unknown/unavailable in our renderer).
+    CurrentColor,
+    /// An explicit sRGB color (0.0-1.0 per channel).
+    Color((f32, f32, f32)),
+}
+
+impl Default for SvgPaint {
+    fn default() -> Self {
+        Self::Unspecified
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SvgStyle {
-    pub fill: Option<(f32, f32, f32)>,   // RGB 0.0-1.0, None = no fill
-    pub stroke: Option<(f32, f32, f32)>, // RGB 0.0-1.0, None = no stroke
-    pub stroke_width: f32,
+    pub fill: SvgPaint,
+    pub stroke: SvgPaint,
+    /// `stroke-width` is an inherited property in SVG; keep it optional so a child element can
+    /// inherit a group `<g>` value when it doesn't specify its own.
+    pub stroke_width: Option<f32>,
+    // Opacity isn't wired through to PDF output yet; keep it simple until needed.
     pub opacity: f32,
+}
+
+impl Default for SvgStyle {
+    fn default() -> Self {
+        Self {
+            fill: SvgPaint::Unspecified,
+            stroke: SvgPaint::Unspecified,
+            stroke_width: None,
+            opacity: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -278,13 +311,32 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
 
 /// Parse fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
-    let mut fill = el.attributes.get("fill").and_then(|v| parse_svg_color(v));
-    let mut stroke = el.attributes.get("stroke").and_then(|v| parse_svg_color(v));
+    fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
+        let val = val.trim();
+        if val.eq_ignore_ascii_case("none") {
+            return Some(SvgPaint::None);
+        }
+        if val.eq_ignore_ascii_case("currentColor") {
+            return Some(SvgPaint::CurrentColor);
+        }
+        parse_svg_color(val).map(SvgPaint::Color)
+    }
+
+    let mut fill = el
+        .attributes
+        .get("fill")
+        .and_then(|v| parse_svg_paint(v))
+        .unwrap_or(SvgPaint::Unspecified);
+    let mut stroke = el
+        .attributes
+        .get("stroke")
+        .and_then(|v| parse_svg_paint(v))
+        .unwrap_or(SvgPaint::Unspecified);
     let mut stroke_width = el
         .attributes
         .get("stroke-width")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1.0);
+        .and_then(|v| v.trim().parse::<f32>().ok())
+        .filter(|v| *v >= 0.0);
     let mut opacity = el
         .attributes
         .get("opacity")
@@ -296,10 +348,24 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
             let part = part.trim();
             if let Some((prop, val)) = part.split_once(':') {
                 match prop.trim() {
-                    "fill" => fill = parse_svg_color(val.trim()),
-                    "stroke" => stroke = parse_svg_color(val.trim()),
+                    // Only override when the declaration is valid; invalid CSS declarations are
+                    // ignored (so they don't wipe a valid presentation attribute).
+                    "fill" => {
+                        if let Some(paint) = parse_svg_paint(val) {
+                            fill = paint;
+                        }
+                    }
+                    "stroke" => {
+                        if let Some(paint) = parse_svg_paint(val) {
+                            stroke = paint;
+                        }
+                    }
                     "stroke-width" => {
-                        stroke_width = val.trim().parse().ok().unwrap_or(stroke_width)
+                        if let Ok(v) = val.trim().parse::<f32>() {
+                            if v >= 0.0 {
+                                stroke_width = Some(v);
+                            }
+                        }
                     }
                     "opacity" => opacity = val.trim().parse().ok().unwrap_or(opacity),
                     _ => {}
@@ -853,6 +919,40 @@ mod tests {
     fn parse_svg_color_none() {
         let color = parse_svg_color("none");
         assert_eq!(color, None);
+    }
+
+    #[test]
+    fn parse_svg_style_unparseable_style_fill_does_not_override_attribute() {
+        let el = make_el(
+            "rect",
+            vec![("fill", "red"), ("style", "fill: bogus;")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn parse_svg_style_style_fill_none_overrides_attribute() {
+        let el = make_el("rect", vec![("fill", "red"), ("style", "fill: none")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::None);
+    }
+
+    #[test]
+    fn parse_svg_style_unparseable_style_stroke_does_not_override_attribute() {
+        let el = make_el(
+            "rect",
+            vec![("stroke", "blue"), ("style", "stroke: ???;")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+    }
+
+    #[test]
+    fn parse_svg_paint_current_color_keyword() {
+        let el = make_el("rect", vec![("fill", "currentColor")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::CurrentColor);
     }
 
     #[test]
@@ -1571,9 +1671,9 @@ mod tests {
     fn parse_style_defaults() {
         let el = make_el("rect", vec![]);
         let style = parse_svg_style(&el);
-        assert!(style.fill.is_none());
-        assert!(style.stroke.is_none());
-        assert_eq!(style.stroke_width, 1.0);
+        assert_eq!(style.fill, SvgPaint::Unspecified);
+        assert_eq!(style.stroke, SvgPaint::Unspecified);
+        assert_eq!(style.stroke_width, None);
         assert_eq!(style.opacity, 1.0);
     }
 
@@ -1589,9 +1689,9 @@ mod tests {
             ],
         );
         let style = parse_svg_style(&el);
-        assert_eq!(style.fill, Some((1.0, 0.0, 0.0)));
-        assert_eq!(style.stroke, Some((0.0, 0.0, 1.0)));
-        assert!((style.stroke_width - 2.5).abs() < 0.001);
+        assert_eq!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0)));
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+        assert_eq!(style.stroke_width, Some(2.5));
         assert!((style.opacity - 0.5).abs() < 0.001);
     }
 
@@ -1599,14 +1699,14 @@ mod tests {
     fn parse_style_fill_none() {
         let el = make_el("rect", vec![("fill", "none")]);
         let style = parse_svg_style(&el);
-        assert!(style.fill.is_none());
+        assert_eq!(style.fill, SvgPaint::None);
     }
 
     #[test]
     fn parse_style_stroke_none() {
         let el = make_el("rect", vec![("stroke", "none")]);
         let style = parse_svg_style(&el);
-        assert!(style.stroke.is_none());
+        assert_eq!(style.stroke, SvgPaint::None);
     }
 
     #[test]
@@ -1619,9 +1719,9 @@ mod tests {
             )],
         );
         let style = parse_svg_style(&el);
-        assert_eq!(style.fill, Some((0.0, 1.0, 0.0)));
-        assert_eq!(style.stroke, Some((0.0, 0.0, 1.0)));
-        assert!((style.stroke_width - 3.0).abs() < 0.001);
+        assert_eq!(style.fill, SvgPaint::Color((0.0, 1.0, 0.0)));
+        assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+        assert_eq!(style.stroke_width, Some(3.0));
         assert!((style.opacity - 0.25).abs() < 0.001);
     }
 
