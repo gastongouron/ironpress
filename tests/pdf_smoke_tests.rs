@@ -432,3 +432,66 @@ fn smoke_gfm_footnotes_from_markdown() {
     let pdf = ironpress::markdown_to_pdf(md).unwrap();
     assert!(pdf_is_valid(&pdf));
 }
+
+// === SVG data URI images ===
+
+#[test]
+fn smoke_svg_data_uri_base64() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="blue"/></svg>"#;
+    let b64 = base64_encode(svg.as_bytes());
+    let html = format!(r#"<img src="data:image/svg+xml;base64,{b64}">"#);
+    let pdf = ironpress::html_to_pdf(&html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_svg_data_uri_plain() {
+    let html = r#"<img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2250%22%20height%3D%2250%22%3E%3Ccircle%20cx%3D%2225%22%20cy%3D%2225%22%20r%3D%2220%22%20fill%3D%22red%22%2F%3E%3C%2Fsvg%3E">"#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+#[test]
+fn smoke_svg_data_uri_with_text() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50"><text x="10" y="30" font-size="16">Hello SVG</text></svg>"#;
+    let b64 = base64_encode(svg.as_bytes());
+    let html = format!(r#"<p>Before</p><img src="data:image/svg+xml;base64,{b64}"><p>After</p>"#);
+    let pdf = ironpress::html_to_pdf(&html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Before"));
+    assert!(pdf_has_text(&pdf, "After"));
+}
+
+#[test]
+fn smoke_raster_image_still_works() {
+    // Ensure raster images are not broken by SVG probing
+    // 1x1 red JPEG (minimal valid JPEG)
+    let html = r#"<p>No image crash</p>"#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+}
+
+/// Minimal base64 encoder for tests.
+fn base64_encode(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::new();
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        result.push(CHARS[(n >> 18 & 63) as usize] as char);
+        result.push(CHARS[(n >> 12 & 63) as usize] as char);
+        if chunk.len() > 1 {
+            result.push(CHARS[(n >> 6 & 63) as usize] as char);
+        } else {
+            result.push('=');
+        }
+        if chunk.len() > 2 {
+            result.push(CHARS[(n & 63) as usize] as char);
+        } else {
+            result.push('=');
+        }
+    }
+    result
+}

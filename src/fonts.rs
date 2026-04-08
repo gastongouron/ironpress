@@ -257,6 +257,31 @@ pub(crate) fn str_width(s: &str, font_size: f32, font_family: &FontFamily, bold:
         .sum()
 }
 
+/// Return the standard PDF font name for a given font family, weight, and style.
+///
+/// This is the single source of truth for mapping CSS font properties to PDF
+/// base-14 font names. Used by the PDF renderer and the SVG text pipeline.
+pub(crate) fn pdf_font_name(font_family: &FontFamily, bold: bool, italic: bool) -> &'static str {
+    match (font_family, bold, italic) {
+        (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
+        (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
+        (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
+        (FontFamily::Helvetica, false, false) => "Helvetica",
+        (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
+        (FontFamily::TimesRoman, true, false) => "Times-Bold",
+        (FontFamily::TimesRoman, false, true) => "Times-Italic",
+        (FontFamily::TimesRoman, false, false) => "Times-Roman",
+        (FontFamily::Courier, true, true) => "Courier-BoldOblique",
+        (FontFamily::Courier, true, false) => "Courier-Bold",
+        (FontFamily::Courier, false, true) => "Courier-Oblique",
+        (FontFamily::Courier, false, false) => "Courier",
+        (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
+        (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
+        (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
+        (FontFamily::Custom(_), false, false) => "Helvetica",
+    }
+}
+
 /// Look up the Helvetica (or Helvetica-Bold) AFM width for a character.
 fn helvetica_char_afm(ch: char, bold: bool) -> u16 {
     let code = ch as u32;
@@ -359,6 +384,67 @@ mod tests {
         assert!(
             bold > regular,
             "Bold 'b' ({bold}) should be wider than regular 'b' ({regular})"
+        );
+    }
+
+    #[test]
+    fn pdf_font_name_helvetica_variants() {
+        assert_eq!(
+            pdf_font_name(&FontFamily::Helvetica, false, false),
+            "Helvetica"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::Helvetica, true, false),
+            "Helvetica-Bold"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::Helvetica, false, true),
+            "Helvetica-Oblique"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::Helvetica, true, true),
+            "Helvetica-BoldOblique"
+        );
+    }
+
+    #[test]
+    fn pdf_font_name_times_variants() {
+        assert_eq!(
+            pdf_font_name(&FontFamily::TimesRoman, false, false),
+            "Times-Roman"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::TimesRoman, true, false),
+            "Times-Bold"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::TimesRoman, false, true),
+            "Times-Italic"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::TimesRoman, true, true),
+            "Times-BoldItalic"
+        );
+    }
+
+    #[test]
+    fn pdf_font_name_courier_variants() {
+        assert_eq!(pdf_font_name(&FontFamily::Courier, false, false), "Courier");
+        assert_eq!(
+            pdf_font_name(&FontFamily::Courier, true, true),
+            "Courier-BoldOblique"
+        );
+    }
+
+    #[test]
+    fn pdf_font_name_custom_falls_back_to_helvetica() {
+        assert_eq!(
+            pdf_font_name(&FontFamily::Custom("MyFont".into()), false, false),
+            "Helvetica"
+        );
+        assert_eq!(
+            pdf_font_name(&FontFamily::Custom("MyFont".into()), true, true),
+            "Helvetica-BoldOblique"
         );
     }
 }
