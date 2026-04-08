@@ -32,6 +32,22 @@ fn split_style_declarations(style: &str) -> Vec<&str> {
     parts
 }
 
+fn style_property_value<'a>(el: &'a ElementNode, name: &str) -> Option<&'a str> {
+    let style_val = el.attributes.get("style")?;
+    let mut value = None;
+
+    for part in split_style_declarations(style_val) {
+        let part = part.trim();
+        if let Some((prop, val)) = part.split_once(':') {
+            if prop.trim() == name {
+                value = Some(val.trim());
+            }
+        }
+    }
+
+    value
+}
+
 /// Inherited CSS context for SVG text rendering.
 #[derive(Debug, Clone)]
 pub struct SvgTextContext {
@@ -535,21 +551,20 @@ fn parse_absolute_length(val: &str) -> Option<f32> {
 
 /// Parse a viewBox attribute: "min-x min-y width height".
 fn parse_viewbox(val: &str) -> Option<ViewBox> {
-    let parts: Vec<f32> = val
+    let mut parts = val
         .split(|c: char| c == ',' || c.is_whitespace())
         .filter(|s| !s.is_empty())
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    if parts.len() == 4 {
-        Some(ViewBox {
-            min_x: parts[0],
-            min_y: parts[1],
-            width: parts[2],
-            height: parts[3],
-        })
-    } else {
-        None
+        .filter_map(|s| s.parse().ok());
+    let view_box = ViewBox {
+        min_x: parts.next()?,
+        min_y: parts.next()?,
+        width: parts.next()?,
+        height: parts.next()?,
+    };
+    if parts.next().is_some() {
+        return None;
     }
+    Some(view_box)
 }
 
 /// Parse color, fill, stroke, stroke-width, opacity from element attributes.
@@ -581,59 +596,45 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         .get("color")
         .and_then(|v| parse_svg_color_property(v))
         .flatten();
+    if let Some(val) = style_property_value(el, "color") {
+        if let Some(parsed) = parse_svg_color_property(val) {
+            color = parsed;
+        }
+    }
     let mut fill = el
         .attributes
         .get("fill")
         .and_then(|v| parse_svg_paint(v))
         .unwrap_or(SvgPaint::Unspecified);
+    if let Some(paint) = style_property_value(el, "fill").and_then(parse_svg_paint) {
+        fill = paint;
+    }
     let mut stroke = el
         .attributes
         .get("stroke")
         .and_then(|v| parse_svg_paint(v))
         .unwrap_or(SvgPaint::Unspecified);
+    if let Some(paint) = style_property_value(el, "stroke").and_then(parse_svg_paint) {
+        stroke = paint;
+    }
     let mut stroke_width = el
         .attributes
         .get("stroke-width")
         .and_then(|v| v.trim().parse::<f32>().ok())
         .filter(|v| *v >= 0.0);
+    if let Some(width) = style_property_value(el, "stroke-width")
+        .and_then(|v| v.parse::<f32>().ok())
+        .filter(|v| *v >= 0.0)
+    {
+        stroke_width = Some(width);
+    }
     let mut opacity = el
         .attributes
         .get("opacity")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1.0);
-
-    if let Some(style_val) = el.attributes.get("style") {
-        for part in split_style_declarations(style_val) {
-            let part = part.trim();
-            if let Some((prop, val)) = part.split_once(':') {
-                match prop.trim() {
-                    "color" => {
-                        if let Some(parsed) = parse_svg_color_property(val) {
-                            color = parsed;
-                        }
-                    }
-                    "fill" => {
-                        if let Some(paint) = parse_svg_paint(val) {
-                            fill = paint;
-                        }
-                    }
-                    "stroke" => {
-                        if let Some(paint) = parse_svg_paint(val) {
-                            stroke = paint;
-                        }
-                    }
-                    "stroke-width" => {
-                        if let Ok(v) = val.trim().parse::<f32>() {
-                            if v >= 0.0 {
-                                stroke_width = Some(v);
-                            }
-                        }
-                    }
-                    "opacity" => opacity = val.trim().parse().ok().unwrap_or(opacity),
-                    _ => {}
-                }
-            }
-        }
+    if let Some(val) = style_property_value(el, "opacity") {
+        opacity = val.trim().parse().ok().unwrap_or(opacity);
     }
 
     SvgStyle {
@@ -653,18 +654,7 @@ fn parse_font_size_attr(el: &ElementNode) -> Option<String> {
     if let Some(val) = el.attributes.get("font-size") {
         return Some(val.trim().to_string());
     }
-    // 2) Inline style: style="font-size:20px"
-    if let Some(style_val) = el.attributes.get("style") {
-        for part in split_style_declarations(style_val) {
-            let part = part.trim();
-            if let Some((prop, val)) = part.split_once(':') {
-                if prop.trim() == "font-size" {
-                    return Some(val.trim().to_string());
-                }
-            }
-        }
-    }
-    None
+    style_property_value(el, "font-size").map(|val| val.to_string())
 }
 
 /// Parse per-element font-family, font-weight, and font-style from a `<text>` element.
@@ -692,24 +682,17 @@ fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opt
     }
 
     // 2) Inline `style` attribute (overrides XML attributes when present)
-    if let Some(style_val) = el.attributes.get("style") {
-        for part in split_style_declarations(style_val) {
-            let part = part.trim();
-            if let Some((prop, val)) = part.split_once(':') {
-                let prop = prop.trim();
-                let val = val.trim();
-                if prop == "font-family" {
-                    let val = val.trim_matches(|c| c == '\'' || c == '"');
-                    if !val.is_empty() {
-                        family = Some(val.to_string());
-                    }
-                } else if prop == "font-weight" {
-                    bold = Some(is_bold_value(val));
-                } else if prop == "font-style" {
-                    italic = Some(is_italic_value(val));
-                }
-            }
+    if let Some(val) = style_property_value(el, "font-family") {
+        let val = val.trim_matches(|c| c == '\'' || c == '"');
+        if !val.is_empty() {
+            family = Some(val.to_string());
         }
+    }
+    if let Some(val) = style_property_value(el, "font-weight") {
+        bold = Some(is_bold_value(val));
+    }
+    if let Some(val) = style_property_value(el, "font-style") {
+        italic = Some(is_italic_value(val));
     }
 
     // Resolve family to a PDF base name (sans bold/italic suffix -- that's applied at render time)
@@ -719,34 +702,13 @@ fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opt
 }
 
 fn has_fill_specified(el: &ElementNode) -> bool {
-    if el.attributes.contains_key("fill") {
-        return true;
-    }
-    if let Some(style_val) = el.attributes.get("style") {
-        for part in split_style_declarations(style_val) {
-            let part = part.trim();
-            if let Some((prop, _val)) = part.split_once(':') {
-                if prop.trim() == "fill" {
-                    return true;
-                }
-            }
-        }
-    }
-    false
+    el.attributes.contains_key("fill") || style_property_value(el, "fill").is_some()
 }
 
 fn parse_fill_raw(el: &ElementNode) -> Option<String> {
-    if let Some(style_val) = el.attributes.get("style") {
-        for part in split_style_declarations(style_val) {
-            let part = part.trim();
-            if let Some((prop, val)) = part.split_once(':') {
-                if prop.trim() == "fill" {
-                    let raw = val.trim();
-                    if !raw.is_empty() {
-                        return Some(raw.to_string());
-                    }
-                }
-            }
+    if let Some(raw) = style_property_value(el, "fill") {
+        if !raw.is_empty() {
+            return Some(raw.to_string());
         }
     }
     if let Some(val) = el.attributes.get("fill") {
@@ -823,13 +785,14 @@ pub fn parse_svg_color(val: &str) -> Option<(f32, f32, f32)> {
 
     // rgb(r, g, b)
     if let Some(inner) = val.strip_prefix("rgb(").and_then(|s| s.strip_suffix(')')) {
-        let parts: Vec<&str> = inner.split(',').collect();
-        if parts.len() == 3 {
-            let r = parts[0].trim().parse::<f32>().ok()?;
-            let g = parts[1].trim().parse::<f32>().ok()?;
-            let b = parts[2].trim().parse::<f32>().ok()?;
-            return Some((r / 255.0, g / 255.0, b / 255.0));
+        let mut parts = inner.split(',');
+        let r = parts.next()?.trim().parse::<f32>().ok()?;
+        let g = parts.next()?.trim().parse::<f32>().ok()?;
+        let b = parts.next()?.trim().parse::<f32>().ok()?;
+        if parts.next().is_some() {
+            return None;
         }
+        return Some((r / 255.0, g / 255.0, b / 255.0));
     }
 
     None
@@ -837,11 +800,19 @@ pub fn parse_svg_color(val: &str) -> Option<(f32, f32, f32)> {
 
 /// Parse a hex color string (without the #).
 fn parse_hex_color(hex: &str) -> Option<(f32, f32, f32)> {
+    fn hex_digit(c: char) -> Option<u8> {
+        c.to_digit(16).map(|d| d as u8)
+    }
+
     match hex.len() {
         3 => {
-            let r = u8::from_str_radix(&hex[0..1], 16).ok()?;
-            let g = u8::from_str_radix(&hex[1..2], 16).ok()?;
-            let b = u8::from_str_radix(&hex[2..3], 16).ok()?;
+            let mut chars = hex.chars();
+            let r = hex_digit(chars.next()?)?;
+            let g = hex_digit(chars.next()?)?;
+            let b = hex_digit(chars.next()?)?;
+            if chars.next().is_some() {
+                return None;
+            }
             Some((
                 (r * 17) as f32 / 255.0,
                 (g * 17) as f32 / 255.0,
@@ -849,9 +820,13 @@ fn parse_hex_color(hex: &str) -> Option<(f32, f32, f32)> {
             ))
         }
         6 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            let mut chars = hex.chars();
+            let r = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            let g = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            let b = (hex_digit(chars.next()?)? << 4) | hex_digit(chars.next()?)?;
+            if chars.next().is_some() {
+                return None;
+            }
             Some((r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0))
         }
         _ => None,
@@ -875,7 +850,12 @@ pub fn parse_path_data(d: &str) -> Vec<PathCommand> {
         let token = &tokens[i];
 
         // Determine if this token is a command letter
-        let cmd_char = if token.len() == 1 && token.as_bytes()[0].is_ascii_alphabetic() {
+        let cmd_char = if token.len() == 1
+            && token
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic())
+        {
             let c = token.chars().next().unwrap();
             i += 1;
             c
@@ -1348,6 +1328,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_svg_style_style_fill_inherit_overrides_attribute() {
+        let el = make_el("rect", vec![("fill", "red"), ("style", "fill: inherit;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.fill, SvgPaint::Unspecified);
+    }
+
+    #[test]
     fn parse_svg_style_unparseable_style_stroke_does_not_override_attribute() {
         let el = make_el(
             "rect",
@@ -1355,6 +1342,16 @@ mod tests {
         );
         let style = parse_svg_style(&el);
         assert_eq!(style.stroke, SvgPaint::Color((0.0, 0.0, 1.0)));
+    }
+
+    #[test]
+    fn parse_svg_style_style_stroke_inherit_overrides_attribute() {
+        let el = make_el(
+            "rect",
+            vec![("stroke", "blue"), ("style", "stroke: inherit;")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke, SvgPaint::Unspecified);
     }
 
     #[test]
