@@ -3552,7 +3552,11 @@ fn wrap_text_runs(
 
             if let Some((prefix, remainder)) = hyphenated {
                 // Add the hyphenated prefix (with hyphen) to the current line
-                let prefix_text = format!("{prefix}-");
+                let prefix_text = if current_width > 0.0 {
+                    format!(" {prefix}-")
+                } else {
+                    format!("{prefix}-")
+                };
                 line_height = line_height.max(template.font_size * 1.4);
                 current_runs.push(TextRun {
                     text: prefix_text,
@@ -6983,6 +6987,10 @@ mod tests {
         assert!(
             first_line_text.ends_with('-'),
             "first line should end with hyphen, got: {first_line_text:?}"
+        );
+        assert!(
+            first_line_text.starts_with("Hi "),
+            "hyphenated continuation should keep its separating space, got: {first_line_text:?}"
         );
     }
 
