@@ -9,6 +9,7 @@ use crate::parser::svg::{PathCommand, SvgNode, SvgPaint, SvgStyle, SvgTransform,
 pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     // SVG initial values: fill=black, stroke=none, stroke-width=1.
     let root_style = ResolvedStyle {
+        color: (0.0, 0.0, 0.0),
         fill: SvgPaint::Color((0.0, 0.0, 0.0)),
         stroke: SvgPaint::None,
         stroke_width: 1.0,
@@ -20,6 +21,7 @@ pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
 
 #[derive(Debug, Clone, Copy)]
 struct ResolvedStyle {
+    color: (f32, f32, f32),
     fill: SvgPaint,
     stroke: SvgPaint,
     stroke_width: f32,
@@ -35,7 +37,9 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
         other => other,
     };
     let stroke_width = local.stroke_width.unwrap_or(parent.stroke_width);
+    let color = local.color.unwrap_or(parent.color);
     ResolvedStyle {
+        color,
         fill,
         stroke,
         stroke_width,
@@ -125,18 +129,18 @@ fn render_node(node: &SvgNode, inherited: ResolvedStyle, out: &mut String) {
     }
 }
 
-fn paint_to_rgb(paint: SvgPaint) -> Option<(f32, f32, f32)> {
+fn paint_to_rgb(paint: SvgPaint, current_color: (f32, f32, f32)) -> Option<(f32, f32, f32)> {
     match paint {
         SvgPaint::None => None,
         SvgPaint::Color(c) => Some(c),
-        SvgPaint::CurrentColor => Some((0.0, 0.0, 0.0)),
+        SvgPaint::CurrentColor => Some(current_color),
         SvgPaint::Unspecified => None,
     }
 }
 
 fn apply_style(style: ResolvedStyle, out: &mut String) {
     // Fill color
-    if let Some((r, g, b)) = paint_to_rgb(style.fill) {
+    if let Some((r, g, b)) = paint_to_rgb(style.fill, style.color) {
         out.push_str(&format!("{r} {g} {b} rg\n"));
     }
     apply_stroke_style(style, out);
@@ -144,7 +148,7 @@ fn apply_style(style: ResolvedStyle, out: &mut String) {
 
 fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
     // Stroke color
-    if let Some((r, g, b)) = paint_to_rgb(style.stroke) {
+    if let Some((r, g, b)) = paint_to_rgb(style.stroke, style.color) {
         out.push_str(&format!("{r} {g} {b} RG\n"));
     }
     if style.stroke_width > 0.0 {
@@ -153,8 +157,8 @@ fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
 }
 
 fn paint(style: ResolvedStyle, out: &mut String) {
-    let has_fill = paint_to_rgb(style.fill).is_some();
-    let has_stroke = paint_to_rgb(style.stroke).is_some() && style.stroke_width > 0.0;
+    let has_fill = paint_to_rgb(style.fill, style.color).is_some();
+    let has_stroke = paint_to_rgb(style.stroke, style.color).is_some() && style.stroke_width > 0.0;
     match (has_fill, has_stroke) {
         (true, true) => out.push_str("B\n"),   // fill + stroke
         (true, false) => out.push_str("f\n"),  // fill only
@@ -164,7 +168,7 @@ fn paint(style: ResolvedStyle, out: &mut String) {
 }
 
 fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
-    let has_stroke = paint_to_rgb(style.stroke).is_some() && style.stroke_width > 0.0;
+    let has_stroke = paint_to_rgb(style.stroke, style.color).is_some() && style.stroke_width > 0.0;
     if has_stroke {
         out.push_str("S\n");
     } else {
@@ -264,6 +268,7 @@ mod tests {
 
     fn style_fill(r: f32, g: f32, b: f32) -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::Color((r, g, b)),
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
@@ -273,6 +278,7 @@ mod tests {
 
     fn style_stroke(r: f32, g: f32, b: f32, w: f32) -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::None,
             stroke: SvgPaint::Color((r, g, b)),
             stroke_width: Some(w),
@@ -282,6 +288,7 @@ mod tests {
 
     fn style_fill_and_stroke() -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::Color((1.0, 0.0, 0.0)),
             stroke: SvgPaint::Color((0.0, 0.0, 1.0)),
             stroke_width: Some(2.0),
@@ -291,6 +298,7 @@ mod tests {
 
     fn style_none() -> SvgStyle {
         SvgStyle {
+            color: None,
             fill: SvgPaint::None,
             stroke: SvgPaint::None,
             stroke_width: None,
@@ -566,6 +574,7 @@ mod tests {
                 style: SvgStyle::default(),
             }],
             style: SvgStyle {
+                color: None,
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
                 ..SvgStyle::default()
             },
@@ -575,6 +584,39 @@ mod tests {
         assert!(
             out.contains("1 0 0 rg\n"),
             "child should inherit group fill"
+        );
+        assert!(out.contains("f\n"), "rect should be filled");
+    }
+
+    #[test]
+    fn current_color_uses_inherited_svg_color() {
+        let tree = tree_with(vec![SvgNode::Group {
+            transform: None,
+            children: vec![SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: SvgStyle {
+                    color: None,
+                    fill: SvgPaint::CurrentColor,
+                    stroke: SvgPaint::Unspecified,
+                    stroke_width: None,
+                    opacity: 1.0,
+                },
+            }],
+            style: SvgStyle {
+                color: Some((0.2, 0.4, 0.6)),
+                ..SvgStyle::default()
+            },
+        }]);
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("0.2 0.4 0.6 rg\n"),
+            "currentColor should resolve to inherited color"
         );
         assert!(out.contains("f\n"), "rect should be filled");
     }
@@ -824,6 +866,7 @@ mod tests {
             rx: 0.0,
             ry: 0.0,
             style: SvgStyle {
+                color: None,
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
                 stroke: SvgPaint::Color((0.0, 0.0, 0.0)),
                 stroke_width: Some(0.0),

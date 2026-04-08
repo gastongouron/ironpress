@@ -77,8 +77,7 @@ pub enum SvgPaint {
     Unspecified,
     /// The property was explicitly set to `none`.
     None,
-    /// `currentColor` keyword (resolves to the CSS `color` property; defaults to black when
-    /// unknown/unavailable in our renderer).
+    /// `currentColor` keyword (resolves to the inherited CSS `color` property).
     CurrentColor,
     /// An explicit sRGB color (0.0-1.0 per channel).
     Color((f32, f32, f32)),
@@ -92,6 +91,7 @@ impl Default for SvgPaint {
 
 #[derive(Debug, Clone)]
 pub struct SvgStyle {
+    pub color: Option<(f32, f32, f32)>,
     pub fill: SvgPaint,
     pub stroke: SvgPaint,
     /// `stroke-width` is an inherited property in SVG; keep it optional so a child element can
@@ -104,6 +104,7 @@ pub struct SvgStyle {
 impl Default for SvgStyle {
     fn default() -> Self {
         Self {
+            color: None,
             fill: SvgPaint::Unspecified,
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
@@ -312,7 +313,8 @@ fn parse_svg_node_with_viewport(
 }
 
 fn svg_style_is_default(style: &SvgStyle) -> bool {
-    matches!(style.fill, SvgPaint::Unspecified)
+    style.color.is_none()
+        && matches!(style.fill, SvgPaint::Unspecified)
         && matches!(style.stroke, SvgPaint::Unspecified)
         && style.stroke_width.is_none()
         && (style.opacity - 1.0).abs() < f32::EPSILON
@@ -463,7 +465,7 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
     }
 }
 
-/// Parse fill, stroke, stroke-width, opacity from element attributes.
+/// Parse color, fill, stroke, stroke-width, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
         let val = val.trim();
@@ -476,6 +478,10 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         parse_svg_color(val).map(SvgPaint::Color)
     }
 
+    let mut color = el
+        .attributes
+        .get("color")
+        .and_then(|v| parse_svg_color(v));
     let mut fill = el
         .attributes
         .get("fill")
@@ -514,6 +520,11 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
                             stroke = paint;
                         }
                     }
+                    "color" => {
+                        if let Some(parsed) = parse_svg_color(val) {
+                            color = Some(parsed);
+                        }
+                    }
                     "stroke-width" => {
                         if let Ok(v) = val.trim().parse::<f32>() {
                             if v >= 0.0 {
@@ -529,6 +540,7 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     }
 
     SvgStyle {
+        color,
         fill,
         stroke,
         stroke_width,
@@ -1101,6 +1113,16 @@ mod tests {
         let el = make_el("rect", vec![("fill", "currentColor")]);
         let style = parse_svg_style(&el);
         assert_eq!(style.fill, SvgPaint::CurrentColor);
+    }
+
+    #[test]
+    fn parse_svg_style_color_property() {
+        let el = make_el(
+            "rect",
+            vec![("color", "#123456"), ("style", "color: rgb(255, 0, 0);")],
+        );
+        let style = parse_svg_style(&el);
+        assert_eq!(style.color, Some((1.0, 0.0, 0.0)));
     }
 
     #[test]
@@ -1933,6 +1955,37 @@ mod tests {
                     Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 5.0, 6.0))
                 ));
                 assert!(matches!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0))));
+                assert_eq!(children.len(), 1);
+            }
+            other => panic!("expected wrapped root group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_from_element_preserves_root_viewbox() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let svg = make_svg_el(
+            vec![
+                ("width", "200"),
+                ("height", "100"),
+                ("viewBox", "0 0 20 10"),
+            ],
+            vec![rect],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert!(tree.view_box.is_some());
+        assert_eq!(tree.children.len(), 1);
+    }
+
+    #[test]
+    fn parse_svg_from_element_wraps_root_color_only() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let svg = make_svg_el(vec![("color", "#336699")], vec![rect]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert_eq!(tree.children.len(), 1);
+        match &tree.children[0] {
+            SvgNode::Group { style, children, .. } => {
+                assert_eq!(style.color, Some((0.2, 0.4, 0.6)));
                 assert_eq!(children.len(), 1);
             }
             other => panic!("expected wrapped root group, got {other:?}"),

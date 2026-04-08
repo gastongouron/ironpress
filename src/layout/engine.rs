@@ -4069,7 +4069,6 @@ fn load_image_from_element(
                 width = available_width;
                 height *= scale;
             }
-
             return Some(LayoutElement::Svg {
                 tree,
                 width,
@@ -4136,73 +4135,55 @@ fn resolve_svg_size(
         150.0
     };
     let intrinsic_ratio = if let Some(vb) = &tree.view_box {
-        if vb.width > 0.0 {
-            vb.height / vb.width
+        if vb.width > 0.0 && vb.height > 0.0 {
+            Some(vb.height / vb.width)
+        } else if intrinsic_width > 0.0 {
+            Some(intrinsic_height / intrinsic_width)
         } else {
-            intrinsic_height / intrinsic_width.max(1.0)
+            None
         }
     } else {
-        intrinsic_height / intrinsic_width.max(1.0)
+        Some(if intrinsic_width > 0.0 {
+            intrinsic_height / intrinsic_width
+        } else {
+            1.0
+        })
     };
 
-    let width = resolve_svg_dimension(
-        tree.width_attr.as_deref(),
-        intrinsic_width,
-        available_width,
-        allow_percent_width,
-    );
-    let height = resolve_svg_dimension(
-        tree.height_attr.as_deref(),
-        intrinsic_height,
-        available_height,
-        allow_percent_height,
-    );
-
-    if matches!(
-        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
-        (Some(w_attr), None) if allow_percent_width && w_attr.trim_end().ends_with('%')
-    ) {
-        return (width, width * intrinsic_ratio);
+    let width_raw = tree.width_attr.as_deref();
+    let height_raw = tree.height_attr.as_deref();
+    let width = resolve_svg_dimension(width_raw, available_width, allow_percent_width);
+    let height = resolve_svg_dimension(height_raw, available_height, allow_percent_height);
+    match (width, height, intrinsic_ratio) {
+        (Some(w), Some(h), _) => (w, h),
+        (Some(w), None, Some(ratio)) => (w, w * ratio),
+        (None, Some(h), Some(ratio)) => (h / ratio.max(f32::EPSILON), h),
+        _ => (intrinsic_width, intrinsic_height),
     }
-
-    if matches!(
-        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
-        (None, Some(h_attr)) if allow_percent_height && h_attr.trim_end().ends_with('%')
-    ) {
-        return (height / intrinsic_ratio.max(f32::EPSILON), height);
-    }
-
-    if tree.width_attr.is_none() && tree.height_attr.is_none() {
-        return (width, height);
-    }
-
-    let _ = allow_percent_height;
-    (width, height)
 }
 
 fn resolve_svg_dimension(
     raw: Option<&str>,
-    fallback: f32,
     available_space: f32,
     allow_percent: bool,
-) -> f32 {
+) -> Option<f32> {
     let Some(raw) = raw else {
-        return fallback;
+        return None;
     };
     let raw = raw.trim();
     if let Some(pct) = raw.strip_suffix('%') {
         if allow_percent {
             if let Ok(value) = pct.trim().parse::<f32>() {
                 if value >= 0.0 {
-                    return available_space * (value / 100.0);
+                    return Some(available_space * (value / 100.0));
                 }
             }
         }
-        return fallback;
+        return None;
     }
 
-    let value = crate::parser::svg::parse_length(raw).unwrap_or(fallback);
-    if value >= 0.0 { value } else { fallback }
+    let value = crate::parser::svg::parse_length(raw)?;
+    if value >= 0.0 { Some(value) } else { None }
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -4343,7 +4324,7 @@ mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
-    use crate::parser::svg::SvgTree;
+    use crate::parser::svg::{SvgTree, ViewBox};
 
     #[test]
     fn layout_simple_paragraph() {
@@ -4429,6 +4410,94 @@ mod tests {
     }
 
     #[test]
+    fn svg_size_absolute_width_only_preserves_aspect_ratio() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: Some("120".to_string()),
+            height_attr: None,
+            view_box: Some(ViewBox {
+                min_x: 0.0,
+                min_y: 0.0,
+                width: 20.0,
+                height: 10.0,
+            }),
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (120.0, 60.0)
+        );
+    }
+
+    #[test]
+    fn svg_size_absolute_height_only_preserves_aspect_ratio() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: None,
+            height_attr: Some("60".to_string()),
+            view_box: Some(ViewBox {
+                min_x: 0.0,
+                min_y: 0.0,
+                width: 20.0,
+                height: 10.0,
+            }),
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (120.0, 60.0)
+        );
+    }
+
+    #[test]
+    fn svg_size_absolute_width_ignores_disallowed_percent_height() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: Some("120".to_string()),
+            height_attr: Some("50%".to_string()),
+            view_box: Some(ViewBox {
+                min_x: 0.0,
+                min_y: 0.0,
+                width: 20.0,
+                height: 10.0,
+            }),
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (120.0, 60.0)
+        );
+    }
+
+    #[test]
+    fn svg_size_absolute_height_ignores_disallowed_percent_width() {
+        let tree = SvgTree {
+            width: 300.0,
+            height: 150.0,
+            width_attr: Some("50%".to_string()),
+            height_attr: Some("60".to_string()),
+            view_box: Some(ViewBox {
+                min_x: 0.0,
+                min_y: 0.0,
+                width: 20.0,
+                height: 10.0,
+            }),
+            children: vec![],
+        };
+
+        assert_eq!(
+            resolve_svg_size(&tree, 400.0, 400.0, false, false),
+            (120.0, 60.0)
+        );
+    }
+
+    #[test]
     fn svg_size_intrinsic_is_not_clamped_to_available_width() {
         let tree = SvgTree {
             width: 300.0,
@@ -4477,6 +4546,24 @@ mod tests {
             .expect("expected nested svg element");
         assert!((svg.0 - 100.0).abs() < 0.1);
         assert!((svg.1 - 100.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn layout_svg_element_preserves_viewbox_for_renderer() {
+        let html = r#"<svg width="200" height="100" viewBox="0 0 20 10"><rect width="10" height="10"/></svg>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let svg = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg { tree, width, height, .. } => Some((tree, *width, *height)),
+                _ => None,
+            })
+            .expect("expected svg layout element");
+        assert_eq!(svg.1, 200.0);
+        assert_eq!(svg.2, 100.0);
+        assert!(svg.0.view_box.is_some(), "renderer should keep viewBox metadata");
     }
 
     #[test]
