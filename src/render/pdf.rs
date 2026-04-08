@@ -705,17 +705,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             continue;
                         }
 
-                        let cell_x = margin.left
-                            + col_widths.iter().take(col_pos).sum::<f32>()
-                            + spacing * col_pos as f32;
-                        let cell_w: f32 = (0..cell.colspan)
-                            .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
-                            .sum::<f32>()
-                            + if cell.colspan > 1 {
-                                spacing * (cell.colspan - 1) as f32
-                            } else {
-                                0.0
-                            };
+                        let (cell_x, cell_w) = table_cell_geometry(
+                            col_widths,
+                            col_pos,
+                            cell.colspan,
+                            spacing,
+                            margin.left,
+                        );
 
                         // For cells with rowspan > 1, compute the total height
                         // spanning multiple rows.
@@ -1422,6 +1418,19 @@ fn compute_row_height(cells: &[TableCell]) -> f32 {
         .fold(0.0f32, f32::max)
 }
 
+fn table_cell_geometry(
+    col_widths: &[f32],
+    col_pos: usize,
+    colspan: usize,
+    spacing: f32,
+    origin_x: f32,
+) -> (f32, f32) {
+    let cell_x = origin_x + col_widths.iter().take(col_pos).sum::<f32>() + spacing * col_pos as f32;
+    let cell_w = col_widths.iter().skip(col_pos).take(colspan).sum::<f32>()
+        + spacing * colspan.saturating_sub(1) as f32;
+    (cell_x, cell_w)
+}
+
 fn render_cell_content(
     content: &mut String,
     cell: &TableCell,
@@ -1619,16 +1628,8 @@ fn render_nested_table_rows(
                 continue;
             }
 
-            let cell_x =
-                origin_x + col_widths.iter().take(col_pos).sum::<f32>() + spacing * col_pos as f32;
-            let cell_w: f32 = (0..cell.colspan)
-                .map(|i| col_widths.get(col_pos + i).copied().unwrap_or(0.0))
-                .sum::<f32>()
-                + if cell.colspan > 1 {
-                    spacing * (cell.colspan - 1) as f32
-                } else {
-                    0.0
-                };
+            let (cell_x, cell_w) =
+                table_cell_geometry(col_widths, col_pos, cell.colspan, spacing, origin_x);
 
             let cell_height = if cell.rowspan > 1 {
                 let mut total_h = row_height;
