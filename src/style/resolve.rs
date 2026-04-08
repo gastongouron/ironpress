@@ -65,6 +65,7 @@ pub fn resolve_calc(
 }
 
 /// Resolve a CssValue to absolute length in points.
+#[allow(dead_code)]
 pub fn resolve_length_value(
     val: &CssValue,
     parent_width: f32,
@@ -158,6 +159,7 @@ pub fn resolve_relative_length_value(
 }
 
 /// Try to resolve a CssValue to an absolute length using defaults.
+#[allow(dead_code)]
 pub fn try_resolve_to_length(
     val: &CssValue,
     custom_properties: &HashMap<String, String>,

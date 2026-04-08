@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+#[cfg(test)]
 use crate::parser::dom::ElementNode;
 
-use super::{AncestorInfo, SelectorContext};
+#[cfg(test)]
+use super::AncestorInfo;
+use super::SelectorContext;
 
 #[derive(Clone, Copy)]
 enum Combinator {
@@ -74,7 +77,7 @@ fn compound_selector_matches(
                         .preceding_siblings
                         .iter()
                         .enumerate()
-                        .last()
+                        .next_back()
                         .is_some_and(|(sibling_index, (sibling_tag, sibling_classes))| {
                             let sibling_ctx = sibling_selector_context(ctx, sibling_index);
                             let sibling_class_refs: Vec<&str> =
@@ -432,6 +435,7 @@ fn single_attribute_matches(expr: &str, attributes: &HashMap<String, String>) ->
     attributes.contains_key(expr.trim())
 }
 
+#[cfg(test)]
 pub(crate) fn ancestor_info(element: &ElementNode) -> AncestorInfo<'_> {
     AncestorInfo {
         element,

@@ -70,6 +70,7 @@ pub(crate) fn preprocess_media_queries(css: &str) -> String {
     preprocess_media_queries_with_context(css, None)
 }
 
+#[allow(clippy::while_let_on_iterator)]
 pub(crate) fn preprocess_media_queries_with_context(
     css: &str,
     ctx: Option<MediaContext>,
@@ -129,7 +130,7 @@ pub(crate) fn extract_braced_content(chars: &mut std::iter::Peekable<std::str::C
     let mut depth = 1;
     let mut content = String::new();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars.by_ref() {
         match ch {
             '{' => {
                 depth += 1;

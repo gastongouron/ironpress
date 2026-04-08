@@ -972,6 +972,7 @@ fn resolve_font_size_property(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_border_spacing_component(
     map: &StyleMap,
     primary_key: &str,

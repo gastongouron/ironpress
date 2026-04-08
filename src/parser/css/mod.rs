@@ -28,7 +28,9 @@ pub(crate) use page::{
     parse_page_declarations, parse_page_length, parse_page_size,
 };
 pub use page::{parse_font_face_rules, parse_page_rules};
-pub use rules::{parse_stylesheet, parse_stylesheet_with_context};
+#[cfg(test)]
+pub(crate) use rules::parse_stylesheet;
+pub(crate) use rules::parse_stylesheet_with_context;
 pub use selectors::{selector_matches, selector_matches_with_context};
 pub(crate) use values::{is_css_wide_keyword, parse_length};
 #[cfg(test)]

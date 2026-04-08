@@ -1553,6 +1553,7 @@ fn render_cell_text(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_text_lines(
     content: &mut String,
     lines: &[TextLine],

@@ -307,6 +307,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
     parse_length(val)
 }
 
+#[cfg(test)]
 pub(crate) fn parse_border_spacing_component(val: &str, index: usize) -> Option<CssValue> {
     split_spacing_components(val)
         .and_then(|parts| parts.get(index).copied())
