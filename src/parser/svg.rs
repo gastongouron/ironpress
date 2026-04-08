@@ -216,12 +216,26 @@ pub fn parse_svg_from_element_with_ctx(
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
 
     let mut children = Vec::new();
+    let root_viewport = Some((width, height));
     for child in &el.children {
         if let crate::parser::dom::DomNode::Element(child_el) = child {
-            if let Some(node) = parse_svg_node(child_el) {
+            if let Some(node) = parse_svg_node_with_viewport(child_el, root_viewport) {
                 children.push(node);
             }
         }
+    }
+
+    let root_style = parse_svg_style(el);
+    let root_transform = el
+        .attributes
+        .get("transform")
+        .and_then(|v| parse_transform(v));
+    if root_transform.is_some() || !svg_style_is_default(&root_style) {
+        children = vec![SvgNode::Group {
+            transform: root_transform,
+            children,
+            style: root_style,
+        }];
     }
 
     Some(SvgTree {
@@ -237,9 +251,16 @@ pub fn parse_svg_from_element_with_ctx(
 
 /// Parse a single SVG element node into an SvgNode.
 fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
+    parse_svg_node_with_viewport(el, None)
+}
+
+fn parse_svg_node_with_viewport(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> Option<SvgNode> {
     let tag = el.raw_tag_name.as_str();
     match tag {
-        "g" | "svg" => {
+        "g" => {
             let transform = el
                 .attributes
                 .get("transform")
@@ -248,7 +269,30 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             let mut children = Vec::new();
             for child in &el.children {
                 if let crate::parser::dom::DomNode::Element(child_el) = child {
-                    if let Some(node) = parse_svg_node(child_el) {
+                    if let Some(node) = parse_svg_node_with_viewport(child_el, parent_viewport) {
+                        children.push(node);
+                    }
+                }
+            }
+            Some(SvgNode::Group {
+                transform,
+                children,
+                style,
+            })
+        }
+        "svg" => {
+            let child_viewport = resolve_nested_svg_viewport(el, parent_viewport);
+            let transform = compose_transform(
+                el.attributes
+                    .get("transform")
+                    .and_then(|v| parse_transform(v)),
+                nested_svg_viewport_transform(el, parent_viewport),
+            );
+            let style = parse_svg_style(el);
+            let mut children = Vec::new();
+            for child in &el.children {
+                if let crate::parser::dom::DomNode::Element(child_el) = child {
+                    if let Some(node) = parse_svg_node_with_viewport(child_el, child_viewport) {
                         children.push(node);
                     }
                 }
@@ -343,9 +387,7 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             let x = attr_f32(el, "x");
             let y = attr_f32(el, "y");
             let font_size_attr = parse_font_size_attr(el);
-            let font_size = font_size_attr
-                .as_deref()
-                .and_then(parse_absolute_length);
+            let font_size = font_size_attr.as_deref().and_then(parse_absolute_length);
             let fill_specified = has_fill_specified(el);
             let fill_raw = parse_fill_raw(el);
             let (font_family, font_bold, font_italic) = parse_text_font_attrs(el);
@@ -366,6 +408,116 @@ fn parse_svg_node(el: &ElementNode) -> Option<SvgNode> {
             })
         }
         _ => None,
+    }
+}
+
+fn svg_style_is_default(style: &SvgStyle) -> bool {
+    matches!(style.fill, SvgPaint::Unspecified)
+        && matches!(style.stroke, SvgPaint::Unspecified)
+        && style.stroke_width.is_none()
+        && (style.opacity - 1.0).abs() < f32::EPSILON
+}
+
+fn compose_transform(
+    outer: Option<SvgTransform>,
+    inner: Option<SvgTransform>,
+) -> Option<SvgTransform> {
+    match (outer, inner) {
+        (
+            Some(SvgTransform::Matrix(a1, b1, c1, d1, e1, f1)),
+            Some(SvgTransform::Matrix(a2, b2, c2, d2, e2, f2)),
+        ) => Some(SvgTransform::Matrix(
+            a1 * a2 + c1 * b2,
+            b1 * a2 + d1 * b2,
+            a1 * c2 + c1 * d2,
+            b1 * c2 + d1 * d2,
+            a1 * e2 + c1 * f2 + e1,
+            b1 * e2 + d1 * f2 + f1,
+        )),
+        (Some(transform), None) | (None, Some(transform)) => Some(transform),
+        (None, None) => None,
+    }
+}
+
+fn resolve_nested_svg_viewport(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> Option<(f32, f32)> {
+    let (parent_width, parent_height) = parent_viewport?;
+    Some((
+        resolve_svg_viewport_length(el.attributes.get("width"), Some(parent_width), 300.0),
+        resolve_svg_viewport_length(el.attributes.get("height"), Some(parent_height), 150.0),
+    ))
+}
+
+fn resolve_svg_viewport_length(
+    attr: Option<&String>,
+    parent_extent: Option<f32>,
+    fallback: f32,
+) -> f32 {
+    match attr.map(String::as_str) {
+        Some(value) => {
+            let trimmed = value.trim();
+            if let Some(pct) = trimmed.strip_suffix('%') {
+                pct.trim()
+                    .parse::<f32>()
+                    .ok()
+                    .and_then(|pct| parent_extent.map(|extent| extent * pct / 100.0))
+                    .unwrap_or(fallback)
+            } else {
+                parse_absolute_length(trimmed).unwrap_or(fallback)
+            }
+        }
+        None => parent_extent.unwrap_or(fallback),
+    }
+}
+
+fn nested_svg_viewport_transform(
+    el: &ElementNode,
+    parent_viewport: Option<(f32, f32)>,
+) -> Option<SvgTransform> {
+    let x = attr_f32(el, "x");
+    let y = attr_f32(el, "y");
+    let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
+
+    if let Some(vb) = view_box {
+        let (width, height) = parent_viewport
+            .map(|(parent_width, parent_height)| {
+                (
+                    resolve_svg_viewport_length(
+                        el.attributes.get("width"),
+                        Some(parent_width),
+                        300.0,
+                    ),
+                    resolve_svg_viewport_length(
+                        el.attributes.get("height"),
+                        Some(parent_height),
+                        150.0,
+                    ),
+                )
+            })
+            .unwrap_or((
+                resolve_svg_viewport_length(el.attributes.get("width"), None, 300.0),
+                resolve_svg_viewport_length(el.attributes.get("height"), None, 150.0),
+            ));
+        if vb.width > 0.0 && vb.height > 0.0 {
+            let scale_x = width / vb.width;
+            let scale_y = height / vb.height;
+            return Some(SvgTransform::Matrix(
+                scale_x,
+                0.0,
+                0.0,
+                scale_y,
+                x - vb.min_x * scale_x,
+                y - vb.min_y * scale_y,
+            ));
+        }
+    }
+
+    if x != 0.0 || y != 0.0 {
+        Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, x, y))
+    } else {
+        None
     }
 }
 
@@ -2002,13 +2154,36 @@ mod tests {
     }
 
     #[test]
+    fn parse_svg_from_element_wraps_root_style_and_transform() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let svg = make_svg_el(
+            vec![("fill", "red"), ("transform", "translate(5, 6)")],
+            vec![rect],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert_eq!(tree.children.len(), 1);
+        match &tree.children[0] {
+            SvgNode::Group {
+                transform,
+                children,
+                style,
+            } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 5.0, 6.0))
+                ));
+                assert!(matches!(style.fill, SvgPaint::Color((1.0, 0.0, 0.0))));
+                assert_eq!(children.len(), 1);
+            }
+            other => panic!("expected wrapped root group, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn parse_text_style_ignores_font_size_adjust_prefix() {
         let text = make_el(
             "text",
-            vec![(
-                "style",
-                "font-size-adjust: 0.5; font-size: 20px",
-            )],
+            vec![("style", "font-size-adjust: 0.5; font-size: 20px")],
         );
         let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
         let tree = parse_svg_from_element(&svg).unwrap();
@@ -2029,10 +2204,7 @@ mod tests {
     fn parse_text_style_ignores_fill_opacity_prefix() {
         let text = make_el(
             "text",
-            vec![(
-                "style",
-                "fill-opacity: 0.5; fill: currentColor",
-            )],
+            vec![("style", "fill-opacity: 0.5; fill: currentColor")],
         );
         let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
         let tree = parse_svg_from_element(&svg).unwrap();
@@ -2228,6 +2400,57 @@ mod tests {
                 assert_eq!(children.len(), 1);
             }
             _ => panic!("Expected Group for inner svg"),
+        }
+    }
+
+    #[test]
+    fn parse_node_nested_svg_applies_viewport_transform() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("x", "10"),
+                ("y", "20"),
+                ("width", "100"),
+                ("height", "50"),
+                ("viewBox", "0 0 10 5"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 10.0, 10.0, 20.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_node_nested_svg_percent_viewport_uses_parent_size() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "100%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 20 10"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let outer = make_svg_el(vec![("width", "200"), ("height", "100")], vec![svg_inner]);
+        let tree = parse_svg_from_element(&outer).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 5.0, 0.0, 0.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
         }
     }
 

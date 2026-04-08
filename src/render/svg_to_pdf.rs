@@ -54,7 +54,12 @@ fn paint_to_rgb(paint: SvgPaint, text_ctx: &SvgTextContext) -> Option<(f32, f32,
     }
 }
 
-fn render_node(node: &SvgNode, inherited: ResolvedStyle, text_ctx: &SvgTextContext, out: &mut String) {
+fn render_node(
+    node: &SvgNode,
+    inherited: ResolvedStyle,
+    text_ctx: &SvgTextContext,
+    out: &mut String,
+) {
     match node {
         SvgNode::Group {
             transform,
@@ -154,24 +159,26 @@ fn render_node(node: &SvgNode, inherited: ResolvedStyle, text_ctx: &SvgTextConte
                 .or(*font_size)
                 .unwrap_or(text_ctx.font_size);
             let fill = paint_to_rgb(style.fill, text_ctx);
+            let stroke = paint_to_rgb(style.stroke, text_ctx).filter(|_| style.stroke_width > 0.0);
             // Use per-element font if specified, falling back to inherited CSS font
-            let font = resolve_svg_text_font(
-                font_family.as_deref(),
-                *font_bold,
-                *font_italic,
-                text_ctx,
-            );
+            let font =
+                resolve_svg_text_font(font_family.as_deref(), *font_bold, *font_italic, text_ctx);
+            let text_render_mode = match (fill.is_some(), stroke.is_some()) {
+                (true, true) => 2,
+                (true, false) => 0,
+                (false, true) => 1,
+                (false, false) => 3,
+            };
 
             out.push_str("BT\n");
             out.push_str(&format!("/{font} {size} Tf\n"));
-            if fill.is_some() {
-                out.push_str("0 Tr\n");
-            } else {
-                // PDF "invisible" text rendering mode; keeps layout operators but disables painting.
-                out.push_str("3 Tr\n");
-            }
+            out.push_str(&format!("{text_render_mode} Tr\n"));
             if let Some((r, g, b)) = fill {
                 out.push_str(&format!("{r} {g} {b} rg\n"));
+            }
+            if let Some((r, g, b)) = stroke {
+                out.push_str(&format!("{r} {g} {b} RG\n"));
+                out.push_str(&format!("{} w\n", style.stroke_width));
             }
             // The parent SVG content stream has a y-flip (scale 1,-1) to convert
             // SVG coordinates to PDF coordinates. Text must counter this flip via
@@ -388,7 +395,6 @@ fn emit_path(commands: &[PathCommand], out: &mut String) {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -621,9 +627,15 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(!out.contains(" rg\n"), "should not set fill color for <line>");
+        assert!(
+            !out.contains(" rg\n"),
+            "should not set fill color for <line>"
+        );
         assert!(out.contains("5 10 m 50 60 l\n"), "should emit line path");
-        assert!(out.contains("n\n"), "should not stroke without a stroke paint");
+        assert!(
+            out.contains("n\n"),
+            "should not stroke without a stroke paint"
+        );
     }
 
     #[test]
@@ -702,7 +714,10 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(out.contains("1 0 0 rg\n"), "child should inherit group fill");
+        assert!(
+            out.contains("1 0 0 rg\n"),
+            "child should inherit group fill"
+        );
         assert!(out.contains("f\n"), "rect should be filled");
     }
 
@@ -1033,12 +1048,63 @@ mod tests {
         };
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(out.contains("3 Tr\n"), "fill:none should disable text painting");
+        assert!(
+            out.contains("3 Tr\n"),
+            "fill:none should disable text painting"
+        );
         assert!(
             !out.contains(" rg\n"),
             "explicit fill:none should not fall back to inherited text color"
         );
         assert!(out.contains("(Hello) Tj\n"));
+    }
+
+    #[test]
+    fn text_fill_none_with_stroke_renders_stroked_glyphs() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Text {
+                x: 10.0,
+                y: 20.0,
+                font_size: None,
+                font_size_attr: None,
+                fill_specified: true,
+                fill_raw: Some("none".to_string()),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
+                content: "Hello".to_string(),
+                style: SvgStyle {
+                    fill: SvgPaint::None,
+                    stroke: SvgPaint::Color((1.0, 0.0, 0.0)),
+                    stroke_width: Some(1.5),
+                    opacity: 1.0,
+                },
+            }],
+            text_ctx: SvgTextContext::default(),
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("1 Tr\n"),
+            "stroke-only text should use stroke render mode"
+        );
+        assert!(
+            out.contains("1 0 0 RG\n"),
+            "stroke-only text should set the stroke color"
+        );
+        assert!(
+            out.contains("1.5 w\n"),
+            "stroke-only text should set the stroke width"
+        );
+        assert!(
+            !out.contains("3 Tr\n"),
+            "stroke-only text must not be invisible"
+        );
     }
 
     #[test]

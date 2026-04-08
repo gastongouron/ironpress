@@ -751,7 +751,11 @@ fn flatten_element(
 
     if el.tag == HtmlTag::Svg {
         let text_ctx = crate::parser::svg::SvgTextContext {
-            font_family: match (&style.font_family, style.font_weight == FontWeight::Bold, style.font_style == FontStyle::Italic) {
+            font_family: match (
+                &style.font_family,
+                style.font_weight == FontWeight::Bold,
+                style.font_style == FontStyle::Italic,
+            ) {
                 (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
                 (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
                 (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
@@ -768,14 +772,20 @@ fn flatten_element(
                 (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
                 (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
                 (FontFamily::Custom(_), false, false) => "Helvetica",
-            }.to_string(),
+            }
+            .to_string(),
             font_size: style.font_size,
             font_bold: style.font_weight == FontWeight::Bold,
             font_italic: style.font_style == FontStyle::Italic,
-            color: Some((style.color.r as f32 / 255.0, style.color.g as f32 / 255.0, style.color.b as f32 / 255.0)),
+            color: Some((
+                style.color.r as f32 / 255.0,
+                style.color.g as f32 / 255.0,
+                style.color.b as f32 / 255.0,
+            )),
         };
         if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx) {
-            let (svg_width, svg_height) = resolve_svg_size(&tree, available_width, available_height);
+            let (svg_width, svg_height) =
+                resolve_svg_size(&tree, available_width, available_height);
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,
@@ -1777,7 +1787,11 @@ fn resolve_svg_size(
     available_height: f32,
 ) -> (f32, f32) {
     let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
-    let intrinsic_height = if tree.height > 0.0 { tree.height } else { 150.0 };
+    let intrinsic_height = if tree.height > 0.0 {
+        tree.height
+    } else {
+        150.0
+    };
     let intrinsic_ratio = if let Some(vb) = &tree.view_box {
         if vb.width > 0.0 {
             vb.height / vb.width
