@@ -182,6 +182,12 @@ pub struct SvgStyle {
     pub stroke: SvgPaint,
     /// `stroke-width` is inherited in SVG.
     pub stroke_width: Option<f32>,
+    /// Inherited SVG font-family, resolved to a PDF base family name.
+    pub font_family: Option<String>,
+    /// Inherited SVG font-weight.
+    pub font_bold: Option<bool>,
+    /// Inherited SVG font-style.
+    pub font_italic: Option<bool>,
     // Opacity isn't wired through to PDF output yet; keep it simple until needed.
     pub opacity: f32,
 }
@@ -193,6 +199,9 @@ impl Default for SvgStyle {
             fill: SvgPaint::Unspecified,
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
             opacity: 1.0,
         }
     }
@@ -401,8 +410,7 @@ fn parse_svg_node_with_viewport(
             Some(SvgNode::Path { commands, style })
         }
         "text" => {
-            let x = attr_f32(el, "x");
-            let y = attr_f32(el, "y");
+            let (x, y) = resolve_text_position(el, parent_viewport);
             let font_size_attr = parse_font_size_attr(el);
             let font_size = font_size_attr.as_deref().and_then(parse_absolute_length);
             let fill_specified = has_fill_specified(el);
@@ -534,6 +542,32 @@ fn attr_f32(el: &ElementNode, name: &str) -> f32 {
         .unwrap_or(0.0)
 }
 
+fn resolve_text_position(el: &ElementNode, viewport: Option<(f32, f32)>) -> (f32, f32) {
+    let x = resolve_svg_text_coordinate(
+        el.attributes.get("x").map(String::as_str),
+        viewport.map(|(w, _)| w),
+    );
+    let y = resolve_svg_text_coordinate(
+        el.attributes.get("y").map(String::as_str),
+        viewport.map(|(_, h)| h),
+    );
+    (x, y)
+}
+
+fn resolve_svg_text_coordinate(value: Option<&str>, viewport: Option<f32>) -> f32 {
+    let Some(raw) = value else {
+        return 0.0;
+    };
+    let trimmed = raw.trim();
+    if let Some(pct) = trimmed.strip_suffix('%') {
+        let Ok(percent) = pct.trim().parse::<f32>() else {
+            return 0.0;
+        };
+        return viewport.unwrap_or(0.0) * percent / 100.0;
+    }
+    parse_length(trimmed).unwrap_or(0.0)
+}
+
 /// Parse a length value (strip px/em/etc suffix, parse number).
 pub(crate) fn parse_length(val: &str) -> Option<f32> {
     let trimmed = val.trim();
@@ -567,7 +601,7 @@ fn parse_viewbox(val: &str) -> Option<ViewBox> {
     Some(view_box)
 }
 
-/// Parse color, fill, stroke, stroke-width, opacity from element attributes.
+/// Parse color, fill, stroke, stroke-width, font, opacity from element attributes.
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
         let val = val.trim();
@@ -636,12 +670,16 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     if let Some(val) = style_property_value(el, "opacity") {
         opacity = val.trim().parse().ok().unwrap_or(opacity);
     }
+    let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
 
     SvgStyle {
         color,
         fill,
         stroke,
         stroke_width,
+        font_family,
+        font_bold,
+        font_italic,
         opacity,
     }
 }
@@ -657,48 +695,70 @@ fn parse_font_size_attr(el: &ElementNode) -> Option<String> {
     style_property_value(el, "font-size").map(|val| val.to_string())
 }
 
-/// Parse per-element font-family, font-weight, and font-style from a `<text>` element.
+fn parse_svg_font_family_value(val: &str) -> Option<String> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    let val = val.trim_matches(|c| c == '\'' || c == '"');
+    if val.is_empty() {
+        None
+    } else {
+        Some(resolve_svg_font_family(val))
+    }
+}
+
+fn parse_svg_font_weight_value(val: &str) -> Option<bool> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    Some(is_bold_value(val))
+}
+
+fn parse_svg_font_style_value(val: &str) -> Option<bool> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") {
+        return None;
+    }
+    Some(is_italic_value(val))
+}
+
+fn parse_svg_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
+    let mut family: Option<String> = None;
+    let mut bold: Option<bool> = None;
+    let mut italic: Option<bool> = None;
+
+    if let Some(val) = el.attributes.get("font-family") {
+        family = parse_svg_font_family_value(val);
+    }
+    if let Some(val) = el.attributes.get("font-weight") {
+        bold = parse_svg_font_weight_value(val);
+    }
+    if let Some(val) = el.attributes.get("font-style") {
+        italic = parse_svg_font_style_value(val);
+    }
+
+    if let Some(val) = style_property_value(el, "font-family") {
+        family = parse_svg_font_family_value(val);
+    }
+    if let Some(val) = style_property_value(el, "font-weight") {
+        bold = parse_svg_font_weight_value(val);
+    }
+    if let Some(val) = style_property_value(el, "font-style") {
+        italic = parse_svg_font_style_value(val);
+    }
+
+    (family, bold, italic)
+}
+
+/// Parse per-element font-family, font-weight, and font-style from an element.
 ///
 /// Checks both XML attributes (`font-family`, `font-weight`, `font-style`) and
 /// properties inside the `style` attribute.  Returns `(font_family, font_bold, font_italic)`,
 /// each `None` when no explicit value was found on the element.
 fn parse_text_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
-    let mut family: Option<String> = None;
-    let mut bold: Option<bool> = None;
-    let mut italic: Option<bool> = None;
-
-    // 1) Direct XML attributes
-    if let Some(val) = el.attributes.get("font-family") {
-        let val = val.trim().trim_matches(|c| c == '\'' || c == '"');
-        if !val.is_empty() {
-            family = Some(val.to_string());
-        }
-    }
-    if let Some(val) = el.attributes.get("font-weight") {
-        bold = Some(is_bold_value(val.trim()));
-    }
-    if let Some(val) = el.attributes.get("font-style") {
-        italic = Some(is_italic_value(val.trim()));
-    }
-
-    // 2) Inline `style` attribute (overrides XML attributes when present)
-    if let Some(val) = style_property_value(el, "font-family") {
-        let val = val.trim_matches(|c| c == '\'' || c == '"');
-        if !val.is_empty() {
-            family = Some(val.to_string());
-        }
-    }
-    if let Some(val) = style_property_value(el, "font-weight") {
-        bold = Some(is_bold_value(val));
-    }
-    if let Some(val) = style_property_value(el, "font-style") {
-        italic = Some(is_italic_value(val));
-    }
-
-    // Resolve family to a PDF base name (sans bold/italic suffix -- that's applied at render time)
-    let family = family.map(|f| resolve_svg_font_family(&f));
-
-    (family, bold, italic)
+    parse_svg_font_attrs(el)
 }
 
 fn has_fill_specified(el: &ElementNode) -> bool {
@@ -2255,6 +2315,20 @@ mod tests {
         match &tree.children[0] {
             SvgNode::Text { fill_raw, .. } => {
                 assert_eq!(fill_raw.as_deref(), Some("currentColor"));
+            }
+            other => panic!("expected text node, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_text_percentage_coordinates_use_viewport() {
+        let text = make_el("text", vec![("x", "50%"), ("y", "25%")]);
+        let svg = make_svg_el(vec![("width", "200"), ("height", "100")], vec![text]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { x, y, .. } => {
+                assert_eq!(*x, 100.0);
+                assert_eq!(*y, 25.0);
             }
             other => panic!("expected text node, got {other:?}"),
         }

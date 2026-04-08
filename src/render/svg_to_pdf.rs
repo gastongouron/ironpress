@@ -16,18 +16,24 @@ pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
         fill: SvgPaint::Color((0.0, 0.0, 0.0)),
         stroke: SvgPaint::None,
         stroke_width: 1.0,
+        font_family: None,
+        font_bold: None,
+        font_italic: None,
     };
     for node in &tree.children {
-        render_node(node, root_style, &tree.text_ctx, out);
+        render_node(node, root_style.clone(), &tree.text_ctx, out);
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct ResolvedStyle {
     color: Option<(f32, f32, f32)>,
     fill: SvgPaint,
     stroke: SvgPaint,
     stroke_width: f32,
+    font_family: Option<String>,
+    font_bold: Option<bool>,
+    font_italic: Option<bool>,
 }
 
 fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
@@ -46,6 +52,9 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
         fill,
         stroke,
         stroke_width,
+        font_family: local.font_family.clone().or(parent.font_family),
+        font_bold: local.font_bold.or(parent.font_bold),
+        font_italic: local.font_italic.or(parent.font_italic),
     }
 }
 
@@ -77,7 +86,7 @@ fn render_node(
                 out.push_str(&format!("{a} {b} {c} {d} {e} {f} cm\n"));
             }
             for child in children {
-                render_node(child, inherited, text_ctx, out);
+                render_node(child, inherited.clone(), text_ctx, out);
             }
             out.push_str("Q\n");
         }
@@ -90,15 +99,15 @@ fn render_node(
             ..
         } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, out);
+            apply_style(&style, out);
             out.push_str(&format!("{x} {y} {width} {height} re\n"));
-            paint(style, out);
+            paint(&style, out);
         }
         SvgNode::Circle { cx, cy, r, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, out);
+            apply_style(&style, out);
             emit_circle(*cx, *cy, *r, out);
-            paint(style, out);
+            paint(&style, out);
         }
         SvgNode::Ellipse {
             cx,
@@ -108,9 +117,9 @@ fn render_node(
             style,
         } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, out);
+            apply_style(&style, out);
             emit_ellipse(*cx, *cy, *rx, *ry, out);
-            paint(style, out);
+            paint(&style, out);
         }
         SvgNode::Line {
             x1,
@@ -120,27 +129,27 @@ fn render_node(
             style,
         } => {
             let style = resolve_style(inherited, style);
-            apply_stroke_style(style, out);
+            apply_stroke_style(&style, out);
             out.push_str(&format!("{x1} {y1} m {x2} {y2} l\n"));
-            paint_stroke_only(style, out);
+            paint_stroke_only(&style, out);
         }
         SvgNode::Polyline { points, style } => {
             let style = resolve_style(inherited, style);
-            apply_stroke_style(style, out);
+            apply_stroke_style(&style, out);
             emit_polyline(points, false, out);
-            paint_stroke_only(style, out);
+            paint_stroke_only(&style, out);
         }
         SvgNode::Polygon { points, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, out);
+            apply_style(&style, out);
             emit_polyline(points, true, out);
-            paint(style, out);
+            paint(&style, out);
         }
         SvgNode::Path { commands, style } => {
             let style = resolve_style(inherited, style);
-            apply_style(style, out);
+            apply_style(&style, out);
             emit_path(commands, out);
-            paint(style, out);
+            paint(&style, out);
         }
         SvgNode::Text {
             x,
@@ -164,11 +173,17 @@ fn render_node(
                 .unwrap_or(text_ctx.font_size);
             let fill = paint_to_rgb(style.fill, style.color);
             let stroke = paint_to_rgb(style.stroke, style.color);
-            let has_stroke = has_visible_stroke(style);
+            let has_stroke = has_visible_stroke(&style);
             let stroke = stroke.filter(|_| has_stroke);
-            // Use per-element font if specified, falling back to inherited CSS font
-            let font =
-                resolve_svg_text_font(font_family.as_deref(), *font_bold, *font_italic, text_ctx);
+            let font = resolve_svg_text_font(
+                style.font_family.as_deref(),
+                style.font_bold,
+                style.font_italic,
+                font_family.as_deref(),
+                *font_bold,
+                *font_italic,
+                text_ctx,
+            );
             let text_render_mode = match (fill.is_some(), stroke.is_some()) {
                 (true, true) => 2,
                 (true, false) => 0,
@@ -217,7 +232,7 @@ fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
     raw.parse::<f32>().ok().map(|px| px * 0.75)
 }
 
-fn apply_style(style: ResolvedStyle, out: &mut String) {
+fn apply_style(style: &ResolvedStyle, out: &mut String) {
     // Fill color
     if let Some((r, g, b)) = paint_to_rgb(style.fill, style.color) {
         out.push_str(&format!("{r} {g} {b} rg\n"));
@@ -225,7 +240,7 @@ fn apply_style(style: ResolvedStyle, out: &mut String) {
     apply_stroke_style(style, out);
 }
 
-fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
+fn apply_stroke_style(style: &ResolvedStyle, out: &mut String) {
     if let Some((r, g, b)) = paint_to_rgb(style.stroke, style.color) {
         out.push_str(&format!("{r} {g} {b} RG\n"));
     }
@@ -234,7 +249,7 @@ fn apply_stroke_style(style: ResolvedStyle, out: &mut String) {
     }
 }
 
-fn paint(style: ResolvedStyle, out: &mut String) {
+fn paint(style: &ResolvedStyle, out: &mut String) {
     let has_fill = paint_to_rgb(style.fill, style.color).is_some();
     let has_stroke = has_visible_stroke(style);
     match (has_fill, has_stroke) {
@@ -245,7 +260,7 @@ fn paint(style: ResolvedStyle, out: &mut String) {
     }
 }
 
-fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
+fn paint_stroke_only(style: &ResolvedStyle, out: &mut String) {
     let has_stroke = has_visible_stroke(style);
     if has_stroke {
         out.push_str("S\n");
@@ -254,30 +269,40 @@ fn paint_stroke_only(style: ResolvedStyle, out: &mut String) {
     }
 }
 
-fn has_visible_stroke(style: ResolvedStyle) -> bool {
+fn has_visible_stroke(style: &ResolvedStyle) -> bool {
     !matches!(style.stroke, SvgPaint::None | SvgPaint::Unspecified) && style.stroke_width > 0.0
 }
 
 /// Resolve the PDF font name for an SVG `<text>` element.
 ///
-/// If the element has a per-element `font_family` override, combine it with
-/// bold/italic flags (falling back to the context flags when the element
-/// doesn't specify them).  Otherwise use the context font as-is.
+/// Precedence is:
+/// 1. per-element `<text>` font attributes
+/// 2. inherited SVG style from ancestor groups / the text element itself
+/// 3. the outer HTML/SVG text context
 fn resolve_svg_text_font(
+    inherited_font_family: Option<&str>,
+    inherited_font_bold: Option<bool>,
+    inherited_font_italic: Option<bool>,
     font_family: Option<&str>,
     font_bold: Option<bool>,
     font_italic: Option<bool>,
     text_ctx: &SvgTextContext,
 ) -> String {
-    if let Some(base) = font_family {
-        let bold = font_bold.unwrap_or(text_ctx.font_bold);
-        let italic = font_italic.unwrap_or(text_ctx.font_italic);
+    let bold = font_bold
+        .or(inherited_font_bold)
+        .unwrap_or(text_ctx.font_bold);
+    let italic = font_italic
+        .or(inherited_font_italic)
+        .unwrap_or(text_ctx.font_italic);
+
+    if let Some(base) = font_family.or(inherited_font_family) {
         pdf_font_name(base, bold, italic).to_string()
-    } else if font_bold.is_some() || font_italic.is_some() {
-        // No family override but bold/italic overrides -- derive from context family base name
+    } else if font_bold.is_some()
+        || font_italic.is_some()
+        || inherited_font_bold.is_some()
+        || inherited_font_italic.is_some()
+    {
         let base = base_family_from_pdf_name(&text_ctx.font_family);
-        let bold = font_bold.unwrap_or(text_ctx.font_bold);
-        let italic = font_italic.unwrap_or(text_ctx.font_italic);
         pdf_font_name(base, bold, italic).to_string()
     } else {
         text_ctx.font_family.clone()
@@ -419,6 +444,9 @@ mod tests {
             fill: SvgPaint::Color((r, g, b)),
             stroke: SvgPaint::Unspecified,
             stroke_width: None,
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
             opacity: 1.0,
         }
     }
@@ -429,6 +457,9 @@ mod tests {
             fill: SvgPaint::None,
             stroke: SvgPaint::Color((r, g, b)),
             stroke_width: Some(w),
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
             opacity: 1.0,
         }
     }
@@ -439,6 +470,9 @@ mod tests {
             fill: SvgPaint::Color((1.0, 0.0, 0.0)),
             stroke: SvgPaint::Color((0.0, 0.0, 1.0)),
             stroke_width: Some(2.0),
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
             opacity: 1.0,
         }
     }
@@ -449,6 +483,9 @@ mod tests {
             fill: SvgPaint::None,
             stroke: SvgPaint::None,
             stroke_width: None,
+            font_family: None,
+            font_bold: None,
+            font_italic: None,
             opacity: 1.0,
         }
     }
@@ -724,6 +761,11 @@ mod tests {
             style: SvgStyle {
                 color: None,
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
+                stroke: SvgPaint::Unspecified,
+                stroke_width: None,
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
                 ..SvgStyle::default()
             },
         }]);
@@ -985,6 +1027,9 @@ mod tests {
                 fill: SvgPaint::Color((1.0, 0.0, 0.0)),
                 stroke: SvgPaint::Color((0.0, 0.0, 0.0)),
                 stroke_width: Some(0.0),
+                font_family: None,
+                font_bold: None,
+                font_italic: None,
                 opacity: 1.0,
             },
         }]);
@@ -1055,6 +1100,9 @@ mod tests {
                     fill: SvgPaint::None,
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
                     opacity: 1.0,
                 },
             }],
@@ -1100,6 +1148,9 @@ mod tests {
                     fill: SvgPaint::None,
                     stroke: SvgPaint::Color((1.0, 0.0, 0.0)),
                     stroke_width: Some(1.5),
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
                     opacity: 1.0,
                 },
             }],
@@ -1183,6 +1234,9 @@ mod tests {
                     fill: SvgPaint::Color((0.0, 0.0, 0.0)),
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
                     opacity: 1.0,
                 },
             }],
@@ -1223,6 +1277,9 @@ mod tests {
                     fill: SvgPaint::Color((0.0, 0.0, 0.0)),
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
                     opacity: 1.0,
                 },
             }],
@@ -1233,6 +1290,49 @@ mod tests {
         assert!(
             out.contains("/Helvetica 9 Tf\n"),
             "unitless SVG font-size should resolve like px"
+        );
+    }
+
+    #[test]
+    fn text_inherits_group_font_family_and_style() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 100.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![SvgNode::Group {
+                transform: None,
+                style: SvgStyle {
+                    font_family: Some("Courier".to_string()),
+                    font_bold: Some(true),
+                    font_italic: Some(true),
+                    ..SvgStyle::default()
+                },
+                children: vec![SvgNode::Text {
+                    x: 10.0,
+                    y: 20.0,
+                    font_size: None,
+                    font_size_attr: None,
+                    fill_specified: true,
+                    fill_raw: Some("currentColor".to_string()),
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
+                    content: "Hello".to_string(),
+                    style: SvgStyle {
+                        fill: SvgPaint::CurrentColor,
+                        ..SvgStyle::default()
+                    },
+                }],
+            }],
+            text_ctx: SvgTextContext::default(),
+        };
+        let mut out = String::new();
+        render_svg_tree(&tree, &mut out);
+        assert!(
+            out.contains("/Courier-BoldOblique 12 Tf\n"),
+            "group font inheritance should reach SVG text rendering"
         );
     }
 
@@ -1260,6 +1360,9 @@ mod tests {
                     fill: SvgPaint::CurrentColor,
                     stroke: SvgPaint::Unspecified,
                     stroke_width: None,
+                    font_family: None,
+                    font_bold: None,
+                    font_italic: None,
                     opacity: 1.0,
                 },
             }],
