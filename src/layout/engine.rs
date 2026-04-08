@@ -752,7 +752,8 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
-        if let Some(tree) = crate::parser::svg::parse_svg_from_element(el) {
+        if let Some(mut tree) = crate::parser::svg::parse_svg_from_element(el) {
+            inject_inherited_svg_color(&mut tree, style.color.to_f32_rgb());
             let (svg_width, svg_height) =
                 resolve_svg_size(&tree, available_width, available_height, true, true);
             output.push(LayoutElement::Svg {
@@ -3949,7 +3950,7 @@ fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
     // Heuristic: check if the content looks like SVG (XML with an <svg element).
     let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
-    let trimmed = text.trim_start();
+    let trimmed = text.trim_start_matches('\u{FEFF}').trim_start();
     let trimmed_lower = trimmed.to_ascii_lowercase();
     if !(trimmed.starts_with("<svg")
         || trimmed.starts_with("<?xml")
@@ -4184,6 +4185,27 @@ fn resolve_svg_dimension(
 
     let value = crate::parser::svg::parse_length(raw)?;
     if value >= 0.0 { Some(value) } else { None }
+}
+
+fn inject_inherited_svg_color(
+    tree: &mut crate::parser::svg::SvgTree,
+    inherited_color: (f32, f32, f32),
+) {
+    if let Some(crate::parser::svg::SvgNode::Group { style, .. }) = tree.children.first_mut() {
+        if style.color.is_none() {
+            style.color = Some(inherited_color);
+        }
+        return;
+    }
+
+    tree.children = vec![crate::parser::svg::SvgNode::Group {
+        transform: None,
+        children: std::mem::take(&mut tree.children),
+        style: crate::parser::svg::SvgStyle {
+            color: Some(inherited_color),
+            ..crate::parser::svg::SvgStyle::default()
+        },
+    }];
 }
 
 /// Maximum size for remote resources (10 MB).
@@ -4567,6 +4589,29 @@ mod tests {
     }
 
     #[test]
+    fn inline_svg_inherits_document_color_for_current_color() {
+        let html = r#"<div style="color: #336699"><svg width="20" height="10"><rect width="10" height="10" fill="currentColor"/></svg></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let tree = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg { tree, .. } => Some(tree),
+                _ => None,
+            })
+            .expect("expected svg layout element");
+
+        match &tree.children[0] {
+            crate::parser::svg::SvgNode::Group { style, children, .. } => {
+                assert_eq!(style.color, Some((0.2, 0.4, 0.6)));
+                assert_eq!(children.len(), 1);
+            }
+            other => panic!("expected root group wrapper, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn page_break_after() {
         let html = r#"<div style="page-break-after: always"><p>Page 1</p></div><p>Page 2</p>"#;
         let nodes = parse_html(html).unwrap();
@@ -4939,6 +4984,14 @@ mod tests {
             }
             other => panic!("Expected Svg layout element, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn try_parse_svg_bytes_accepts_utf8_bom_prefix() {
+        let raw = b"\xEF\xBB\xBF<svg width=\"20\" height=\"10\"></svg>";
+        let tree = try_parse_svg_bytes(raw).expect("expected BOM-prefixed SVG to parse");
+        assert_eq!(tree.width, 20.0);
+        assert_eq!(tree.height, 10.0);
     }
 
     #[test]
