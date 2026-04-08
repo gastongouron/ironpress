@@ -5,11 +5,11 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BorderCollapse, BorderSides, BorderSpacing, BoxShadow, BoxSizing, Clear,
-    ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily, FontStyle,
-    FontWeight, GridTrack, JustifyContent, LinearGradient, ListStylePosition, ListStyleType,
-    Overflow, Position, RadialGradient, TextAlign, TextOverflow, Transform, VerticalAlign,
-    Visibility, WhiteSpace, compute_style_with_context,
+    AlignItems, BorderCollapse, BorderSide, BorderSides, BorderSpacing, BoxShadow, BoxSizing,
+    Clear, ComputedStyle, ContentItem, Display, FlexDirection, FlexWrap, Float, FontFamily,
+    FontStyle, FontWeight, GridTrack, JustifyContent, LinearGradient, ListStylePosition,
+    ListStyleType, Overflow, Position, RadialGradient, TextAlign, TextOverflow, Transform,
+    VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -35,23 +35,15 @@ pub struct LayoutBorder {
 #[allow(dead_code)]
 impl LayoutBorder {
     pub fn from_computed(b: &BorderSides) -> Self {
+        let side = |side: &BorderSide| LayoutBorderSide {
+            width: side.width,
+            color: side.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+        };
         Self {
-            top: LayoutBorderSide {
-                width: b.top.width,
-                color: b.top.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            right: LayoutBorderSide {
-                width: b.right.width,
-                color: b.right.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            bottom: LayoutBorderSide {
-                width: b.bottom.width,
-                color: b.bottom.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
-            left: LayoutBorderSide {
-                width: b.left.width,
-                color: b.left.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
-            },
+            top: side(&b.top),
+            right: side(&b.right),
+            bottom: side(&b.bottom),
+            left: side(&b.left),
         }
     }
     pub fn has_any(&self) -> bool {
@@ -91,11 +83,10 @@ impl CounterState {
     fn apply_increments(&mut self, increments: &[(String, i32)]) {
         for (name, val) in increments {
             let stack = self.stacks.entry(name.clone()).or_default();
-            if stack.is_empty() {
-                stack.push(0);
-            }
             if let Some(top) = stack.last_mut() {
                 *top += val;
+            } else {
+                stack.push(*val);
             }
         }
     }
@@ -113,15 +104,16 @@ impl CounterState {
             .unwrap_or(0)
     }
     fn get_all(&self, name: &str, sep: &str) -> String {
-        self.stacks
-            .get(name)
-            .map(|s| {
-                s.iter()
-                    .map(|v| v.to_string())
+        self.stacks.get(name).map_or_else(
+            || "0".to_string(),
+            |stack| {
+                stack
+                    .iter()
+                    .map(i32::to_string)
                     .collect::<Vec<_>>()
                     .join(sep)
-            })
-            .unwrap_or_else(|| "0".to_string())
+            },
+        )
     }
 }
 
@@ -224,18 +216,24 @@ fn resolve_pseudo_content(
     counter_state: &CounterState,
 ) -> Option<String> {
     for rule in rules {
-        if rule.pseudo_element == Some(pseudo)
-            && selector_matches(&rule.selector, tag_name, classes, id)
+        if rule.pseudo_element != Some(pseudo)
+            || !selector_matches(&rule.selector, tag_name, classes, id)
         {
-            if let Some(CssValue::Keyword(k)) = rule.declarations.get("content") {
-                let items = crate::style::computed::parse_content_value_pub(k);
-                if !items.is_empty() {
-                    let text = resolve_content(&items, attributes, counter_state);
-                    if !text.is_empty() {
-                        return Some(text);
-                    }
-                }
-            }
+            continue;
+        }
+
+        let Some(CssValue::Keyword(k)) = rule.declarations.get("content") else {
+            continue;
+        };
+
+        let items = crate::style::computed::parse_content_value_pub(k);
+        if items.is_empty() {
+            continue;
+        }
+
+        let text = resolve_content(&items, attributes, counter_state);
+        if !text.is_empty() {
+            return Some(text);
         }
     }
     None
@@ -559,6 +557,8 @@ pub fn layout_with_rules_and_fonts(
         nodes,
         &parent_style,
         available_width,
+        content_height,
+        false,
         &mut elements,
         None,
         rules,
@@ -575,6 +575,8 @@ fn flatten_nodes(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
     available_width: f32,
+    available_height: f32,
+    available_height_is_definite: bool,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -655,6 +657,8 @@ fn flatten_nodes(
                     el,
                     parent_style,
                     available_width,
+                    available_height,
+                    available_height_is_definite,
                     output,
                     list_ctx,
                     rules,
@@ -694,6 +698,8 @@ fn flatten_element(
     el: &ElementNode,
     parent_style: &ComputedStyle,
     available_width: f32,
+    available_height: f32,
+    available_height_is_definite: bool,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -721,6 +727,8 @@ fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+    let available_height = style.height.unwrap_or(available_height);
+    let available_height_is_definite = style.height.is_some() || available_height_is_definite;
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -819,9 +827,54 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
-        if let Some(tree) = crate::parser::svg::parse_svg_from_element(el) {
-            let svg_width = tree.width.min(available_width);
-            let svg_height = tree.height;
+        let text_ctx = crate::parser::svg::SvgTextContext {
+            font_family: match (
+                &style.font_family,
+                style.font_weight == FontWeight::Bold,
+                style.font_style == FontStyle::Italic,
+            ) {
+                (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
+                (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
+                (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
+                (FontFamily::Helvetica, false, false) => "Helvetica",
+                (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
+                (FontFamily::TimesRoman, true, false) => "Times-Bold",
+                (FontFamily::TimesRoman, false, true) => "Times-Italic",
+                (FontFamily::TimesRoman, false, false) => "Times-Roman",
+                (FontFamily::Courier, true, true) => "Courier-BoldOblique",
+                (FontFamily::Courier, true, false) => "Courier-Bold",
+                (FontFamily::Courier, false, true) => "Courier-Oblique",
+                (FontFamily::Courier, false, false) => "Courier",
+                (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
+                (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
+                (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
+                (FontFamily::Custom(_), false, false) => "Helvetica",
+            }
+            .to_string(),
+            font_size: style.font_size,
+            font_bold: style.font_weight == FontWeight::Bold,
+            font_italic: style.font_style == FontStyle::Italic,
+            color: Some((
+                style.color.r as f32 / 255.0,
+                style.color.g as f32 / 255.0,
+                style.color.b as f32 / 255.0,
+            )),
+        };
+        if let Some(initial_tree) =
+            crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx.clone())
+        {
+            let (svg_width, svg_height) = resolve_svg_size(
+                &initial_tree,
+                available_width,
+                available_height,
+                available_height_is_definite,
+            );
+            let tree = crate::parser::svg::parse_svg_from_element_with_ctx_and_viewport(
+                el,
+                text_ctx,
+                Some((svg_width, svg_height)),
+            )
+            .unwrap_or(initial_tree);
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,
@@ -1178,6 +1231,8 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
+                        available_height_is_definite,
                         output,
                         Some(&ctx),
                         rules,
@@ -1195,6 +1250,8 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
+                        available_height_is_definite,
                         output,
                         None,
                         rules,
@@ -1313,6 +1370,8 @@ fn flatten_element(
                         child_el,
                         &style,
                         inner_width,
+                        available_height,
+                        available_height_is_definite,
                         output,
                         list_ctx,
                         rules,
@@ -1327,6 +1386,8 @@ fn flatten_element(
                         child_el,
                         &style,
                         available_width,
+                        available_height,
+                        available_height_is_definite,
                         output,
                         None,
                         rules,
@@ -1757,6 +1818,8 @@ fn flatten_element(
                             child_el,
                             &style,
                             inner_width,
+                            available_height,
+                            available_height_is_definite,
                             &mut child_elements,
                             None,
                             rules,
@@ -1925,6 +1988,8 @@ fn flatten_element(
                             child_el,
                             &style,
                             inner_width,
+                            available_height,
+                            available_height_is_definite,
                             output,
                             None,
                             rules,
@@ -1945,6 +2010,8 @@ fn flatten_element(
             &el.children,
             &style,
             available_width,
+            available_height,
+            available_height_is_definite,
             output,
             None,
             rules,
@@ -1956,6 +2023,100 @@ fn flatten_element(
     if style.page_break_after {
         output.push(LayoutElement::PageBreak);
     }
+}
+
+fn resolve_svg_size(
+    tree: &crate::parser::svg::SvgTree,
+    available_width: f32,
+    available_height: f32,
+    available_height_is_definite: bool,
+) -> (f32, f32) {
+    let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
+    let intrinsic_height = if tree.height > 0.0 {
+        tree.height
+    } else {
+        150.0
+    };
+    let intrinsic_ratio = if let Some(vb) = &tree.view_box {
+        if vb.width > 0.0 {
+            vb.height / vb.width
+        } else {
+            intrinsic_height / intrinsic_width.max(1.0)
+        }
+    } else {
+        intrinsic_height / intrinsic_width.max(1.0)
+    };
+
+    let mut width = resolve_svg_dimension(
+        tree.width_attr.as_deref(),
+        intrinsic_width,
+        available_width,
+        true,
+    );
+    let mut height = resolve_svg_dimension(
+        tree.height_attr.as_deref(),
+        intrinsic_height,
+        available_height,
+        available_height_is_definite,
+    );
+    let height_is_auto = match tree.height_attr.as_deref() {
+        None => true,
+        Some(raw) if raw.trim_end().ends_with('%') && !available_height_is_definite => true,
+        _ => false,
+    };
+
+    if matches!(
+        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
+        (Some(w_attr), None) if w_attr.trim_end().ends_with('%')
+    ) {
+        height = width * intrinsic_ratio;
+    }
+
+    if matches!(
+        (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
+        (None, Some(h_attr)) if h_attr.trim_end().ends_with('%')
+    ) {
+        width = height / intrinsic_ratio.max(f32::EPSILON);
+    }
+
+    if width > available_width {
+        let scale = if width > 0.0 {
+            available_width / width
+        } else {
+            1.0
+        };
+        width = available_width;
+        if height_is_auto {
+            height *= scale;
+        }
+    }
+
+    (width, height)
+}
+
+fn resolve_svg_dimension(
+    raw: Option<&str>,
+    fallback: f32,
+    available_width: f32,
+    allow_percent: bool,
+) -> f32 {
+    let Some(raw) = raw else {
+        return fallback;
+    };
+    let raw = raw.trim();
+    if let Some(pct) = raw.strip_suffix('%') {
+        if allow_percent {
+            if let Ok(value) = pct.trim().parse::<f32>() {
+                if value >= 0.0 {
+                    return available_width * (value / 100.0);
+                }
+            }
+        }
+        return fallback;
+    }
+
+    let value = crate::parser::svg::parse_length(raw).unwrap_or(fallback);
+    if value >= 0.0 { value } else { fallback }
 }
 
 /// Lay out children of a `display: flex` container.
@@ -4798,7 +4959,7 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
         };
         // For PNG, we pass the IDAT data (already zlib-compressed) to PDF
         Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
-    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
+    } else if raw.starts_with(&[0xFF, 0xD8]) {
         // JPEG: pass entire file as-is
         Some((raw, ImageFormat::Jpeg, None))
     } else {
@@ -4872,6 +5033,7 @@ mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
+    use crate::parser::svg::SvgTree;
 
     fn table_rows<'a>(pages: &'a [Page]) -> Vec<&'a [TableCell]> {
         pages
@@ -4973,6 +5135,68 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
+    }
+
+    #[test]
+    fn svg_size_percent_height_resolves_against_available_height() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 60.0,
+            width_attr: Some("100".to_string()),
+            height_attr: Some("50%".to_string()),
+            view_box: None,
+            children: vec![],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+        };
+
+        assert_eq!(resolve_svg_size(&tree, 400.0, 400.0, true), (100.0, 200.0));
+    }
+
+    #[test]
+    fn root_svg_percent_height_does_not_use_page_height_fallback() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 150.0,
+            width_attr: Some("100".to_string()),
+            height_attr: Some("50%".to_string()),
+            view_box: None,
+            children: vec![],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+        };
+
+        assert_eq!(resolve_svg_size(&tree, 400.0, 400.0, false), (100.0, 150.0));
+    }
+
+    #[test]
+    fn svg_width_is_clamped_to_available_width() {
+        let tree = SvgTree {
+            width: 500.0,
+            height: 150.0,
+            width_attr: Some("500".to_string()),
+            height_attr: None,
+            view_box: None,
+            children: vec![],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+        };
+
+        assert_eq!(resolve_svg_size(&tree, 320.0, 400.0, true), (320.0, 96.0));
+    }
+
+    #[test]
+    fn nested_svg_percent_height_uses_parent_height() {
+        let html = r#"<div style="height: 200pt"><svg width="100" height="50%"></svg></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let svg = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg { width, height, .. } => Some((*width, *height)),
+                _ => None,
+            })
+            .expect("expected nested svg element");
+        assert!((svg.0 - 100.0).abs() < 0.1);
+        assert!((svg.1 - 100.0).abs() < 0.1);
     }
 
     #[test]
