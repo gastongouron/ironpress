@@ -214,6 +214,11 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
             } else if prop == "background" {
                 let trimmed = val.trim();
                 clear_background_shorthand_keys(&mut map);
+                let lower = trimmed.to_ascii_lowercase();
+                if matches!(lower.as_str(), "inherit" | "initial" | "unset") {
+                    map.set("background", CssValue::Keyword(lower));
+                    continue;
+                }
                 if trimmed.starts_with("linear-gradient(")
                     || trimmed.starts_with("radial-gradient(")
                 {
@@ -278,6 +283,7 @@ fn clear_background_image_keys(map: &mut StyleMap) {
 fn clear_background_shorthand_keys(map: &mut StyleMap) {
     clear_background_image_keys(map);
     for key in [
+        "background",
         "background-color",
         "background-size",
         "background-repeat",
@@ -3617,6 +3623,17 @@ mod tests {
             style.get("background-image"),
             Some(CssValue::Keyword(value)) if value == "none"
         ));
+    }
+
+    #[test]
+    fn background_special_keyword_is_preserved_in_style_map() {
+        let style = parse_inline_style("background: inherit");
+        assert!(matches!(
+            style.get("background"),
+            Some(CssValue::Keyword(value)) if value == "inherit"
+        ));
+        assert!(style.get("background-color").is_none());
+        assert!(style.get("background-image").is_none());
     }
 
     #[test]

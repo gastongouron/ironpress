@@ -5875,6 +5875,91 @@ mod tests {
     }
 
     #[test]
+    fn later_background_initial_rule_resets_previous_background_state() {
+        let parent = ComputedStyle::default();
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style("background: initial"),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert!(style.background_color.is_none());
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+    }
+
+    #[test]
+    fn later_background_inherit_rule_restores_parent_background_state() {
+        let mut parent = ComputedStyle::default();
+        parent.background_color = Some(Color::rgb(10, 20, 30));
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+        parent.background_size = BackgroundSize::Cover;
+        parent.background_position = BackgroundPosition {
+            x: 0.25,
+            y: 0.75,
+            x_is_percent: true,
+            y_is_percent: true,
+        };
+        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style("background: inherit"),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            parent.background_color.map(|c| (c.r, c.g, c.b, c.a))
+        );
+        assert_eq!(style.background_repeat, parent.background_repeat);
+        assert_eq!(style.background_size, parent.background_size);
+        assert_eq!(style.background_position, parent.background_position);
+        assert_eq!(style.background_origin, parent.background_origin);
+        assert!(style.background_svg.is_some());
+    }
+
+    #[test]
     fn inherit_keyword_restores_list_style_type() {
         let mut parent = ComputedStyle::default();
         parent.list_style_type = ListStyleType::Square;
