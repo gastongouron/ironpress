@@ -399,4 +399,70 @@ mod tests {
         );
         assert!(base.get("color").is_some());
     }
+
+    #[test]
+    fn inline_custom_property() {
+        let map = parse_inline_style("--my-color: red");
+        assert!(matches!(
+            map.get("--my-color"),
+            Some(CssValue::Keyword(v)) if v == "red"
+        ));
+    }
+
+    #[test]
+    fn inline_margin_auto() {
+        let map = parse_inline_style("margin: auto");
+        assert!(matches!(
+            map.get("margin-left"),
+            Some(CssValue::Keyword(v)) if v == "auto"
+        ));
+        assert!(matches!(
+            map.get("margin-right"),
+            Some(CssValue::Keyword(v)) if v == "auto"
+        ));
+    }
+
+    #[test]
+    fn inline_margin_individual_auto() {
+        let map = parse_inline_style("margin-left: auto; margin-right: auto");
+        assert!(matches!(
+            map.get("margin-left"),
+            Some(CssValue::Keyword(v)) if v == "auto"
+        ));
+    }
+
+    #[test]
+    fn inline_border_spacing() {
+        let map = parse_inline_style("border-spacing: 5pt 10pt");
+        assert!(map.get("border-spacing-horizontal").is_some());
+        assert!(map.get("border-spacing-vertical").is_some());
+    }
+
+    #[test]
+    fn inline_box_shorthand_3_values() {
+        // 3-value margin: top right bottom (left = right)
+        let map = parse_inline_style("margin: 10pt 20pt 30pt");
+        assert!(map.get("margin-top").is_some());
+        assert!(map.get("margin-right").is_some());
+        assert!(map.get("margin-bottom").is_some());
+        assert!(map.get("margin-left").is_some());
+    }
+
+    #[test]
+    fn inline_important_flag() {
+        let map = parse_inline_style("color: red !important");
+        assert!(map.get("color").is_some());
+    }
+
+    #[test]
+    fn inline_empty_string() {
+        let map = parse_inline_style("");
+        assert!(map.properties.is_empty());
+    }
+
+    #[test]
+    fn inline_malformed_no_colon() {
+        let map = parse_inline_style("not-a-declaration");
+        assert!(map.properties.is_empty());
+    }
 }

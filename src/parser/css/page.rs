@@ -262,11 +262,168 @@ pub(crate) fn parse_page_length(val: &str) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_page_size;
+    use super::*;
 
     #[test]
     fn parse_page_size_accepts_bare_orientation_keywords() {
         assert_eq!(parse_page_size("portrait"), Some((595.28, 841.89)));
         assert_eq!(parse_page_size("landscape"), Some((841.89, 595.28)));
+    }
+
+    #[test]
+    fn parse_page_size_named_formats() {
+        assert!(parse_page_size("a4").is_some());
+        assert!(parse_page_size("a3").is_some());
+        assert!(parse_page_size("a5").is_some());
+        assert!(parse_page_size("letter").is_some());
+        assert!(parse_page_size("legal").is_some());
+        assert!(parse_page_size("b5").is_some());
+    }
+
+    #[test]
+    fn parse_page_size_custom_dimensions() {
+        let (w, h) = parse_page_size("200mm 300mm").unwrap();
+        assert!((w - 200.0 * 2.83465).abs() < 0.1);
+        assert!((h - 300.0 * 2.83465).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_page_size_named_with_landscape() {
+        let (w, h) = parse_page_size("a4 landscape").unwrap();
+        assert!(w > h); // landscape: width > height
+    }
+
+    #[test]
+    fn parse_page_size_invalid() {
+        assert!(parse_page_size("bogus").is_none());
+        assert!(parse_page_size("").is_none());
+    }
+
+    #[test]
+    fn parse_page_length_units() {
+        assert!((parse_page_length("10mm").unwrap() - 28.3465).abs() < 0.01);
+        assert!((parse_page_length("1cm").unwrap() - 28.3465).abs() < 0.01);
+        assert!((parse_page_length("1in").unwrap() - 72.0).abs() < 0.01);
+        assert!((parse_page_length("72pt").unwrap() - 72.0).abs() < 0.01);
+        assert!((parse_page_length("96px").unwrap() - 72.0).abs() < 0.01);
+        assert!((parse_page_length("100").unwrap() - 100.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_page_length_invalid() {
+        assert!(parse_page_length("abc").is_none());
+    }
+
+    #[test]
+    fn parse_page_declarations_margin_1() {
+        let rule = parse_page_declarations("margin: 72pt").unwrap();
+        assert_eq!(rule.margin_top, Some(72.0));
+        assert_eq!(rule.margin_right, Some(72.0));
+        assert_eq!(rule.margin_bottom, Some(72.0));
+        assert_eq!(rule.margin_left, Some(72.0));
+    }
+
+    #[test]
+    fn parse_page_declarations_margin_2() {
+        let rule = parse_page_declarations("margin: 36pt 72pt").unwrap();
+        assert_eq!(rule.margin_top, Some(36.0));
+        assert_eq!(rule.margin_bottom, Some(36.0));
+        assert_eq!(rule.margin_right, Some(72.0));
+        assert_eq!(rule.margin_left, Some(72.0));
+    }
+
+    #[test]
+    fn parse_page_declarations_margin_4() {
+        let rule = parse_page_declarations("margin: 10pt 20pt 30pt 40pt").unwrap();
+        assert_eq!(rule.margin_top, Some(10.0));
+        assert_eq!(rule.margin_right, Some(20.0));
+        assert_eq!(rule.margin_bottom, Some(30.0));
+        assert_eq!(rule.margin_left, Some(40.0));
+    }
+
+    #[test]
+    fn parse_page_declarations_individual_margins() {
+        let rule = parse_page_declarations(
+            "margin-top: 10pt; margin-right: 20pt; margin-bottom: 30pt; margin-left: 40pt",
+        )
+        .unwrap();
+        assert_eq!(rule.margin_top, Some(10.0));
+        assert_eq!(rule.margin_right, Some(20.0));
+        assert_eq!(rule.margin_bottom, Some(30.0));
+        assert_eq!(rule.margin_left, Some(40.0));
+    }
+
+    #[test]
+    fn parse_page_declarations_size() {
+        let rule = parse_page_declarations("size: a4").unwrap();
+        assert!(rule.width.is_some());
+        assert!(rule.height.is_some());
+    }
+
+    #[test]
+    fn parse_page_declarations_empty() {
+        assert!(parse_page_declarations("").is_none());
+        assert!(parse_page_declarations("  ;  ;  ").is_none());
+    }
+
+    #[test]
+    fn parse_page_declarations_margin_3_ignored() {
+        // 3-value margin is not supported, should not set margins
+        assert!(parse_page_declarations("margin: 10pt 20pt 30pt").is_none());
+    }
+
+    #[test]
+    fn extract_font_face_rules_basic() {
+        let rules = extract_font_face_rules(
+            r#"@font-face { font-family: "MyFont"; src: url("font.ttf"); }"#,
+        );
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].font_family, "MyFont");
+        assert_eq!(rules[0].src_path, "font.ttf");
+    }
+
+    #[test]
+    fn extract_font_face_rules_multiple() {
+        let css = r#"
+            @font-face { font-family: "A"; src: url("a.ttf"); }
+            @font-face { font-family: "B"; src: url("b.ttf"); }
+        "#;
+        assert_eq!(extract_font_face_rules(css).len(), 2);
+    }
+
+    #[test]
+    fn parse_font_face_declarations_missing_family() {
+        assert!(parse_font_face_declarations("src: url(\"f.ttf\")").is_none());
+    }
+
+    #[test]
+    fn parse_font_face_declarations_missing_src() {
+        assert!(parse_font_face_declarations("font-family: \"F\"").is_none());
+    }
+
+    #[test]
+    fn extract_page_rules_basic() {
+        let rules = extract_page_rules("@page { size: a4; margin: 1in }");
+        assert_eq!(rules.len(), 1);
+        assert!(rules[0].width.is_some());
+        assert_eq!(rules[0].margin_top, Some(72.0));
+    }
+
+    #[test]
+    fn extract_page_rules_malformed() {
+        assert!(extract_page_rules("@page { bogus }").is_empty());
+        assert!(extract_page_rules("@page no-brace").is_empty());
+    }
+
+    #[test]
+    fn parse_page_rules_integration() {
+        let rules = parse_page_rules("body {} @page { size: letter; margin: 1in }");
+        assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn parse_font_face_rules_integration() {
+        let rules = parse_font_face_rules(r#"@font-face { font-family: "X"; src: url("x.ttf"); }"#);
+        assert_eq!(rules.len(), 1);
     }
 }
