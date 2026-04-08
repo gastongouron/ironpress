@@ -2706,10 +2706,12 @@ fn assign_explicit_col_widths(
     span: usize,
     width_pct: Option<f32>,
 ) {
-    for slot in explicit_col_widths.iter_mut().skip(*col_idx).take(span) {
-        *slot = width_pct;
+    let start = *col_idx;
+    let end = start.saturating_add(span).min(explicit_col_widths.len());
+    if let Some(slots) = explicit_col_widths.get_mut(start..end) {
+        slots.fill(width_pct);
     }
-    *col_idx = col_idx.saturating_add(span);
+    *col_idx = end;
 }
 
 #[allow(clippy::too_many_arguments)]
