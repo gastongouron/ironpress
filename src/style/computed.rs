@@ -1952,9 +1952,12 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
     }
     let inner = val.strip_prefix("blur(")?.strip_suffix(')')?;
     let inner = inner.trim();
-    let is_unitless = inner.parse::<f32>().is_ok();
+    if let Ok(value) = inner.parse::<f32>() {
+        return (value == 0.0).then_some(0.0);
+    }
+
     match crate::parser::css::parse_length(inner) {
-        Some(CssValue::Length(v)) if v >= 0.0 && (!is_unitless || v == 0.0) => Some(v),
+        Some(CssValue::Length(value)) if value >= 0.0 => Some(value),
         _ => None,
     }
 }

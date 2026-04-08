@@ -3964,14 +3964,7 @@ fn load_image_data_blurred(
     blur_sigma: f32,
 ) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
     // Get the raw file bytes (before any PNG IDAT extraction).
-    let raw = if let Some(rest) = src.strip_prefix("data:") {
-        let (_header, encoded) = rest.split_once(',')?;
-        base64_decode(encoded)?
-    } else if src.starts_with("http://") || src.starts_with("https://") {
-        fetch_remote_url(src)?
-    } else {
-        std::fs::read(src).ok()?
-    };
+    let raw = load_image_source_bytes(src)?;
 
     // Decode the image into a DynamicImage.
     // For PNG: use the `png` crate directly with CRC checking disabled (some
@@ -4079,20 +4072,23 @@ fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
     }
 }
 
+fn load_image_source_bytes(src: &str) -> Option<Vec<u8>> {
+    if let Some(rest) = src.strip_prefix("data:") {
+        let (_header, encoded) = rest.split_once(',')?;
+        return base64_decode(encoded);
+    }
+
+    if src.starts_with("http://") || src.starts_with("https://") {
+        return fetch_remote_url(src);
+    }
+
+    std::fs::read(src).ok()
+}
+
 /// Load image data from a src attribute (supports data: URIs, local files, and remote URLs).
 /// Returns (raw_bytes, format, optional_png_metadata).
 fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadata>)> {
-    let raw = if let Some(rest) = src.strip_prefix("data:") {
-        // Parse data URI: data:[<mediatype>][;base64],<data>
-        let (_header, encoded) = rest.split_once(',')?;
-        // Only support base64 for now
-        base64_decode(encoded)?
-    } else if src.starts_with("http://") || src.starts_with("https://") {
-        fetch_remote_url(src)?
-    } else {
-        // Treat as local file path
-        std::fs::read(src).ok()?
-    };
+    let raw = load_image_source_bytes(src)?;
 
     // Detect format from content
     if png::is_png(&raw) {
@@ -8108,12 +8104,15 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert!(!pages.is_empty());
-        let has_jpeg_image = pages[0]
-            .elements
-            .iter()
-            .any(|(_, el)| {
-                matches!(el, LayoutElement::Image { format: ImageFormat::Jpeg, .. })
-            });
+        let has_jpeg_image = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::Image {
+                    format: ImageFormat::Jpeg,
+                    ..
+                }
+            )
+        });
         assert!(
             has_jpeg_image,
             "Blurred PNG image should be re-encoded as JPEG in layout"
