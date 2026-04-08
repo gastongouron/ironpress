@@ -12,12 +12,32 @@ pub fn resolve_calc(
     page_width: f32,
     page_height: f32,
 ) -> f32 {
+    resolve_calc_with_font_size(
+        tokens,
+        parent_width,
+        root_font_size,
+        root_font_size,
+        page_width,
+        page_height,
+    )
+}
+
+/// Resolve a calc() expression with a separate font-size basis for `em`.
+pub fn resolve_calc_with_font_size(
+    tokens: &[CalcToken],
+    percentage_basis: f32,
+    font_size: f32,
+    root_font_size: f32,
+    page_width: f32,
+    page_height: f32,
+) -> f32 {
     let mut values: Vec<f32> = Vec::new();
     let mut ops: Vec<CalcOp> = Vec::new();
     for token in tokens {
         match token {
             CalcToken::Length(v) => values.push(*v),
-            CalcToken::Percent(v) => values.push(parent_width * v / 100.0),
+            CalcToken::Em(v) => values.push(*v * font_size),
+            CalcToken::Percent(v) => values.push(percentage_basis * v / 100.0),
             CalcToken::Rem(v) => values.push(*v * root_font_size),
             CalcToken::Vw(v) => values.push(page_width * v / 100.0),
             CalcToken::Vh(v) => values.push(page_height * v / 100.0),
@@ -71,16 +91,38 @@ pub fn resolve_length_value(
     page_height: f32,
     custom_properties: &HashMap<String, String>,
 ) -> Option<f32> {
+    resolve_length_value_with_context(
+        val,
+        parent_width,
+        1.0,
+        root_font_size,
+        page_width,
+        page_height,
+        custom_properties,
+    )
+}
+
+/// Resolve a CssValue to absolute length with a separate `em` basis.
+pub fn resolve_length_value_with_context(
+    val: &CssValue,
+    percentage_basis: f32,
+    font_size: f32,
+    root_font_size: f32,
+    page_width: f32,
+    page_height: f32,
+    custom_properties: &HashMap<String, String>,
+) -> Option<f32> {
     match val {
         CssValue::Length(v) => Some(*v),
-        CssValue::Number(v) => Some(*v),
-        CssValue::Percentage(v) => Some(parent_width * v / 100.0),
+        CssValue::Number(v) => Some(*v * font_size),
+        CssValue::Percentage(v) => Some(percentage_basis * v / 100.0),
         CssValue::Rem(v) => Some(*v * root_font_size),
         CssValue::Vw(v) => Some(page_width * v / 100.0),
         CssValue::Vh(v) => Some(page_height * v / 100.0),
-        CssValue::Calc(tokens) => Some(resolve_calc(
+        CssValue::Calc(tokens) => Some(resolve_calc_with_font_size(
             tokens,
-            parent_width,
+            percentage_basis,
+            font_size,
             root_font_size,
             page_width,
             page_height,
@@ -92,9 +134,10 @@ pub fn resolve_length_value(
                 .or_else(|| fallback.clone())?;
             let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));
             if let Some(inner) = parsed.get("_x") {
-                resolve_length_value(
+                resolve_length_value_with_context(
                     inner,
-                    parent_width,
+                    percentage_basis,
+                    font_size,
                     root_font_size,
                     page_width,
                     page_height,
@@ -109,14 +152,34 @@ pub fn resolve_length_value(
 }
 
 /// Try to resolve a CssValue to an absolute length using defaults.
+#[allow(dead_code)]
 pub fn try_resolve_to_length(
     val: &CssValue,
     custom_properties: &HashMap<String, String>,
     parent_width_hint: f32,
 ) -> Option<f32> {
-    resolve_length_value(
+    resolve_length_value_with_context(
         val,
         parent_width_hint,
+        1.0,
+        12.0,
+        595.28,
+        841.89,
+        custom_properties,
+    )
+}
+
+/// Try to resolve a CssValue to an absolute length with a specific `em` basis.
+pub fn try_resolve_to_length_with_font_size(
+    val: &CssValue,
+    custom_properties: &HashMap<String, String>,
+    parent_width_hint: f32,
+    font_size: f32,
+) -> Option<f32> {
+    resolve_length_value_with_context(
+        val,
+        parent_width_hint,
+        font_size,
         12.0,
         595.28,
         841.89,
@@ -240,6 +303,17 @@ mod tests {
             CalcToken::Length(20.0),
         ];
         assert!((resolve_calc(&tokens, 400.0, 12.0, 595.28, 841.89) - 575.28).abs() < 0.01);
+    }
+
+    #[test]
+    fn resolve_calc_with_em_uses_font_size_basis() {
+        let tokens = vec![
+            CalcToken::Em(1.0),
+            CalcToken::Op(CalcOp::Add),
+            CalcToken::Length(2.0),
+        ];
+        let result = resolve_calc_with_font_size(&tokens, 400.0, 20.0, 12.0, 595.28, 841.89);
+        assert!((result - 22.0).abs() < 0.01);
     }
 
     #[test]

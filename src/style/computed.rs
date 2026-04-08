@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::parser::css::{
-    CssRule, CssValue, SelectorContext, StyleMap, selector_matches_with_context,
+    CssRule, CssValue, SelectorContext, StyleMap, parse_length, selector_matches_with_context,
 };
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
@@ -431,6 +431,7 @@ pub struct ComputedStyle {
     pub text_overflow: TextOverflow,
     pub border_collapse: BorderCollapse,
     pub border_spacing: f32,
+    pub border_spacing_y: f32,
     pub background_size: BackgroundSize,
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
@@ -511,6 +512,7 @@ impl Default for ComputedStyle {
             text_overflow: TextOverflow::Clip,
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
+            border_spacing_y: 0.0,
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
@@ -811,6 +813,8 @@ fn is_inherited_property(property: &str) -> bool {
             | "white-space"
             | "border-collapse"
             | "border-spacing"
+            | "border-spacing-horizontal"
+            | "border-spacing-vertical"
             | "list-style-type"
             | "list-style-position"
     )
@@ -883,7 +887,12 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
         "border-collapse" => style.border_collapse = default.border_collapse,
-        "border-spacing" => style.border_spacing = default.border_spacing,
+        "border-spacing" => {
+            style.border_spacing = default.border_spacing;
+            style.border_spacing_y = default.border_spacing_y;
+        }
+        "border-spacing-horizontal" => style.border_spacing = default.border_spacing,
+        "border-spacing-vertical" => style.border_spacing_y = default.border_spacing_y,
         "background-size" => style.background_size = default.background_size,
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
@@ -964,7 +973,12 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "border-collapse" => style.border_collapse = parent.border_collapse,
-        "border-spacing" => style.border_spacing = parent.border_spacing,
+        "border-spacing" => {
+            style.border_spacing = parent.border_spacing;
+            style.border_spacing_y = parent.border_spacing_y;
+        }
+        "border-spacing-horizontal" => style.border_spacing = parent.border_spacing,
+        "border-spacing-vertical" => style.border_spacing_y = parent.border_spacing_y,
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
@@ -999,9 +1013,177 @@ fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
     })
 }
 
+#[derive(Clone, Copy)]
+enum BorderSpacingAxis {
+    Horizontal,
+    Vertical,
+}
+
+fn resolve_length_with_font_size(
+    value: &CssValue,
+    style: &ComputedStyle,
+    percentage_basis: f32,
+    font_size: f32,
+) -> Option<f32> {
+    match value {
+        CssValue::Length(v) => Some(*v),
+        CssValue::Number(v) => Some(*v * font_size),
+        CssValue::Percentage(_)
+        | CssValue::Rem(_)
+        | CssValue::Vw(_)
+        | CssValue::Vh(_)
+        | CssValue::Calc(_)
+        | CssValue::Var(_, _) => crate::style::resolve::try_resolve_to_length_with_font_size(
+            value,
+            &style.custom_properties,
+            percentage_basis,
+            font_size,
+        ),
+        _ => None,
+    }
+}
+
+fn resolve_border_spacing_length(
+    value: &CssValue,
+    style: &ComputedStyle,
+    parent: &ComputedStyle,
+) -> Option<f32> {
+    if border_spacing_uses_percentage(value, &style.custom_properties) {
+        return None;
+    }
+
+    resolve_length_with_font_size(
+        value,
+        style,
+        parent.width.unwrap_or(595.28),
+        style.font_size,
+    )
+}
+
+fn border_spacing_uses_percentage(
+    value: &CssValue,
+    custom_properties: &HashMap<String, String>,
+) -> bool {
+    match value {
+        CssValue::Percentage(_) => true,
+        CssValue::Calc(tokens) => tokens
+            .iter()
+            .any(|token| matches!(token, crate::parser::css::CalcToken::Percent(_))),
+        CssValue::Var(name, fallback) => {
+            let raw = custom_properties
+                .get(name.as_str())
+                .cloned()
+                .or_else(|| fallback.clone());
+            let Some(raw) = raw else {
+                return false;
+            };
+            parse_length(&raw)
+                .is_some_and(|inner| border_spacing_uses_percentage(&inner, custom_properties))
+        }
+        _ => false,
+    }
+}
+
+fn apply_border_spacing_component(
+    style: &mut ComputedStyle,
+    parent: &ComputedStyle,
+    value: &CssValue,
+    is_important: bool,
+    axis_important: &mut bool,
+    axis: BorderSpacingAxis,
+) {
+    if !is_important && *axis_important {
+        return;
+    }
+
+    let resolved = match value {
+        CssValue::Keyword(k) => match k.to_ascii_lowercase().as_str() {
+            "inherit" | "unset" => Some(match axis {
+                BorderSpacingAxis::Horizontal => parent.border_spacing,
+                BorderSpacingAxis::Vertical => parent.border_spacing_y,
+            }),
+            "initial" | "revert" | "revert-layer" => Some(0.0),
+            _ => None,
+        },
+        _ => resolve_border_spacing_length(value, style, parent),
+    };
+
+    let Some(resolved) = resolved else {
+        return;
+    };
+
+    match axis {
+        BorderSpacingAxis::Horizontal => style.border_spacing = resolved,
+        BorderSpacingAxis::Vertical => style.border_spacing_y = resolved,
+    }
+    *axis_important = is_important;
+}
+
+fn apply_border_spacing_declarations(
+    style: &mut ComputedStyle,
+    map: &StyleMap,
+    parent: &ComputedStyle,
+) {
+    let mut horizontal_important = false;
+    let mut vertical_important = false;
+
+    for (prop, val, is_important) in &map.declarations {
+        match prop.as_str() {
+            "border-spacing" => {
+                apply_border_spacing_component(
+                    style,
+                    parent,
+                    val,
+                    *is_important,
+                    &mut horizontal_important,
+                    BorderSpacingAxis::Horizontal,
+                );
+                apply_border_spacing_component(
+                    style,
+                    parent,
+                    val,
+                    *is_important,
+                    &mut vertical_important,
+                    BorderSpacingAxis::Vertical,
+                );
+            }
+            "border-spacing-horizontal" => apply_border_spacing_component(
+                style,
+                parent,
+                val,
+                *is_important,
+                &mut horizontal_important,
+                BorderSpacingAxis::Horizontal,
+            ),
+            "border-spacing-vertical" => apply_border_spacing_component(
+                style,
+                parent,
+                val,
+                *is_important,
+                &mut vertical_important,
+                BorderSpacingAxis::Vertical,
+            ),
+            _ => {}
+        }
+    }
+}
+
 pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedStyle) {
+    // Custom properties must be available before resolving any `var(...)`
+    // values, including table border-spacing declarations.
+    for (prop, val) in &map.properties {
+        if prop.starts_with("--") {
+            if let CssValue::Keyword(raw) = val {
+                style.custom_properties.insert(prop.clone(), raw.clone());
+            }
+        }
+    }
+
     // Handle inherit, initial, unset keywords before normal property application
     for (prop, val) in &map.properties {
+        if prop.starts_with("border-spacing") {
+            continue;
+        }
         if let CssValue::Keyword(k) = val {
             let lower = k.to_ascii_lowercase();
             match lower.as_str() {
@@ -1314,49 +1496,6 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
-    if let Some(CssValue::Length(v)) = get_non_special(map, "width") {
-        style.width = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "width") {
-        // em value — multiply by current font-size
-        style.width = Some(*v * style.font_size);
-    }
-
-    if let Some(CssValue::Length(v)) = get_non_special(map, "height") {
-        style.height = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "height") {
-        style.height = Some(*v * style.font_size);
-    }
-
-    if let Some(CssValue::Length(v)) = get_non_special(map, "max-width") {
-        style.max_width = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "max-width") {
-        style.max_width = Some(*v * style.font_size);
-    }
-
-    if let Some(CssValue::Length(v)) = get_non_special(map, "min-width") {
-        style.min_width = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "min-width") {
-        style.min_width = Some(*v * style.font_size);
-    }
-
-    if let Some(CssValue::Length(v)) = get_non_special(map, "min-height") {
-        style.min_height = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "min-height") {
-        style.min_height = Some(*v * style.font_size);
-    }
-
-    if let Some(CssValue::Length(v)) = get_non_special(map, "max-height") {
-        style.max_height = Some(*v);
-    }
-    if let Some(CssValue::Number(v)) = get_non_special(map, "max-height") {
-        style.max_height = Some(*v * style.font_size);
-    }
-
     // margin-left: auto / margin-right: auto
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "margin-left") {
         if k == "auto" {
@@ -1592,9 +1731,6 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => BorderCollapse::Separate,
         };
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing") {
-        style.border_spacing = *v;
-    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-size") {
         style.background_size = match k.as_str() {
             "cover" => BackgroundSize::Cover,
@@ -1622,16 +1758,24 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.z_index = *v as i32;
     }
 
-    // Collect custom properties (--*) into style.custom_properties
-    for (prop, val) in &map.properties {
-        if prop.starts_with("--") {
-            if let CssValue::Keyword(raw) = val {
-                style.custom_properties.insert(prop.clone(), raw.clone());
+    // Resolve font-size from new value types
+    if let Some(val) = get_non_special(map, "font-size") {
+        match val {
+            CssValue::Length(v) => style.font_size = *v,
+            CssValue::Number(v) => style.font_size = *v * parent.font_size,
+            _ => {
+                if let Some(resolved) =
+                    resolve_length_with_font_size(val, style, parent.font_size, parent.font_size)
+                {
+                    style.font_size = resolved;
+                }
             }
         }
     }
 
-    // Resolve new value types (Percentage, Rem, Vw, Vh, Calc, Var) for length properties
+    apply_border_spacing_declarations(style, map, parent);
+
+    // Resolve length-like properties with the element's computed font size.
     type LengthSetter = fn(&mut ComputedStyle, f32);
     let length_props: &[(&str, LengthSetter)] = &[
         ("width", |s, v| s.width = Some(v)),
@@ -1665,49 +1809,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         ("text-indent", |s, v| s.text_indent = v),
         ("letter-spacing", |s, v| s.letter_spacing = v),
         ("word-spacing", |s, v| s.word_spacing = v),
-        ("border-spacing", |s, v| s.border_spacing = v),
     ];
     for &(prop_name, setter) in length_props {
-        if let Some(val) = get_non_special(map, prop_name) {
-            match val {
-                CssValue::Percentage(_)
-                | CssValue::Rem(_)
-                | CssValue::Vw(_)
-                | CssValue::Vh(_)
-                | CssValue::Calc(_)
-                | CssValue::Var(_, _) => {
-                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length(
-                        val,
-                        &style.custom_properties,
-                        parent.width.unwrap_or(595.28),
-                    ) {
-                        setter(style, resolved);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Resolve font-size from new value types
-    if let Some(val) = get_non_special(map, "font-size") {
-        match val {
-            CssValue::Percentage(v) => {
-                style.font_size = parent.font_size * v / 100.0;
-            }
-            CssValue::Rem(v) => {
-                style.font_size = v * 12.0; // root font size default
-            }
-            CssValue::Var(_, _) => {
-                if let Some(resolved) = crate::style::resolve::try_resolve_to_length(
-                    val,
-                    &style.custom_properties,
-                    parent.width.unwrap_or(595.28),
-                ) {
-                    style.font_size = resolved;
-                }
-            }
-            _ => {}
+        if let Some(val) = get_non_special(map, prop_name)
+            && let Some(resolved) = resolve_length_with_font_size(
+                val,
+                style,
+                parent.width.unwrap_or(595.28),
+                style.font_size,
+            )
+        {
+            setter(style, resolved);
         }
     }
 
@@ -5302,6 +5414,7 @@ mod tests {
     fn border_spacing_default_is_zero() {
         let s = ComputedStyle::default();
         assert!((s.border_spacing - 0.0).abs() < 0.001);
+        assert!((s.border_spacing_y - 0.0).abs() < 0.001);
     }
 
     #[test]
@@ -5309,6 +5422,62 @@ mod tests {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Table, Some("border-spacing: 10px"), &parent);
         assert!((s.border_spacing - 7.5).abs() < 0.001); // 10px = 7.5pt
+        assert!((s.border_spacing_y - 7.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_two_values_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-spacing: 10px 20px"), &parent);
+        assert!((s.border_spacing - 7.5).abs() < 0.001);
+        assert!((s.border_spacing_y - 15.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_vertical_initial_overrides_shorthand() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: 10px 20px; border-spacing-vertical: initial"),
+            &parent,
+        );
+        assert!((s.border_spacing - 7.5).abs() < 0.001);
+        assert!((s.border_spacing_y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_horizontal_initial_overrides_shorthand() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: 10px 20px; border-spacing-horizontal: initial"),
+            &parent,
+        );
+        assert!((s.border_spacing - 0.0).abs() < 0.001);
+        assert!((s.border_spacing_y - 15.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_keyword_order_is_respected() {
+        let mut parent = ComputedStyle::default();
+        parent.border_spacing = 4.0;
+        parent.border_spacing_y = 8.0;
+
+        let shorthand_then_longhand = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: inherit; border-spacing-horizontal: initial"),
+            &parent,
+        );
+        assert!((shorthand_then_longhand.border_spacing - 0.0).abs() < 0.001);
+        assert!((shorthand_then_longhand.border_spacing_y - 8.0).abs() < 0.001);
+
+        let longhand_then_shorthand = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing-horizontal: initial; border-spacing: inherit"),
+            &parent,
+        );
+        assert!((longhand_then_shorthand.border_spacing - 4.0).abs() < 0.001);
+        assert!((longhand_then_shorthand.border_spacing_y - 8.0).abs() < 0.001);
     }
 
     #[test]
@@ -5320,6 +5489,47 @@ mod tests {
         );
         let child = compute_style(HtmlTag::Td, None, &parent);
         assert!((child.border_spacing - 3.75).abs() < 0.001); // 5px = 3.75pt
+        assert!((child.border_spacing_y - 3.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_revert_resets_to_initial() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: 7px"),
+            &ComputedStyle::default(),
+        );
+        let s = compute_style(HtmlTag::Table, Some("border-spacing: revert"), &parent);
+        assert!((s.border_spacing - 0.0).abs() < 0.001);
+        assert!((s.border_spacing_y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_rejects_percentages_and_percentage_calcs() {
+        let parent = ComputedStyle::default();
+        let percent = compute_style(HtmlTag::Table, Some("border-spacing: 10%"), &parent);
+        assert!((percent.border_spacing - 0.0).abs() < 0.001);
+        assert!((percent.border_spacing_y - 0.0).abs() < 0.001);
+
+        let calc = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: calc(10% - 2pt)"),
+            &parent,
+        );
+        assert!((calc.border_spacing - 0.0).abs() < 0.001);
+        assert!((calc.border_spacing_y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_rejects_percentage_var_fallbacks() {
+        let mut parent = ComputedStyle::default();
+        parent
+            .custom_properties
+            .insert("--gap".to_string(), "10%".to_string());
+
+        let resolved = compute_style(HtmlTag::Table, Some("border-spacing: var(--gap)"), &parent);
+        assert!((resolved.border_spacing - 0.0).abs() < 0.001);
+        assert!((resolved.border_spacing_y - 0.0).abs() < 0.001);
     }
 
     #[test]
@@ -5694,8 +5904,10 @@ mod tests {
     fn initial_keyword_resets_border_spacing() {
         let mut parent = ComputedStyle::default();
         parent.border_spacing = 10.0;
+        parent.border_spacing_y = 20.0;
         let s = compute_style(HtmlTag::Div, Some("border-spacing: initial"), &parent);
         assert!((s.border_spacing - 0.0).abs() < 0.1);
+        assert!((s.border_spacing_y - 0.0).abs() < 0.1);
     }
 
     #[test]
@@ -5776,8 +5988,10 @@ mod tests {
     fn inherit_keyword_restores_border_spacing_from_parent() {
         let mut parent = ComputedStyle::default();
         parent.border_spacing = 5.0;
+        parent.border_spacing_y = 8.0;
         let s = compute_style(HtmlTag::Div, Some("border-spacing: inherit"), &parent);
         assert!((s.border_spacing - 5.0).abs() < 0.1);
+        assert!((s.border_spacing_y - 8.0).abs() < 0.1);
     }
 
     #[test]
@@ -5942,6 +6156,42 @@ mod tests {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("border-spacing: 1rem"), &parent);
         assert!((s.border_spacing - 12.0).abs() < 0.1);
+        assert!((s.border_spacing_y - 12.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn border_spacing_from_em_uses_current_font_size() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20pt; border-spacing: 1em"),
+            &parent,
+        );
+        assert!((s.border_spacing - 20.0).abs() < 0.1);
+        assert!((s.border_spacing_y - 20.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn border_spacing_calc_em_uses_current_font_size() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20pt; border-spacing: calc(1em + 2pt)"),
+            &parent,
+        );
+        assert!((s.border_spacing - 22.0).abs() < 0.1);
+        assert!((s.border_spacing_y - 22.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn width_calc_em_uses_current_font_size() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20pt; width: calc(1em + 2pt)"),
+            &parent,
+        );
+        assert!((s.width.expect("width") - 22.0).abs() < 0.1);
     }
 
     // --- Coverage: font-size from Var (lines 1363-1369) ---

@@ -1,6 +1,7 @@
 use crate::error::IronpressError;
 use crate::layout::engine::{
     ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
+    table_row_spacing_y,
 };
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -664,14 +665,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     col_widths,
                     border_collapse,
                     border_spacing,
+                    border_spacing_y,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
-                    let spacing = if *border_collapse == BorderCollapse::Collapse {
-                        0.0
-                    } else {
-                        *border_spacing
-                    };
+                    let spacing = table_row_spacing_y(*border_collapse, *border_spacing);
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
                     let row_height = compute_row_height(cells);
@@ -701,20 +699,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // For cells with rowspan > 1, compute the total height
                         // spanning multiple rows.
                         let cell_height = if cell.rowspan > 1 {
-                            let mut total_h = row_height;
-                            for offset in 1..cell.rowspan {
-                                let future_idx = elem_idx + offset;
-                                if future_idx < page.elements.len() {
-                                    if let LayoutElement::TableRow {
-                                        cells: future_cells,
-                                        ..
-                                    } = &page.elements[future_idx].1
-                                    {
-                                        total_h += compute_row_height(future_cells);
-                                    }
-                                }
-                            }
-                            total_h
+                            compute_rowspan_height(
+                                page,
+                                elem_idx,
+                                row_height,
+                                table_row_spacing_y(*border_collapse, *border_spacing_y),
+                                cell.rowspan,
+                            )
                         } else {
                             row_height
                         };
@@ -1387,6 +1378,36 @@ fn compute_row_height(cells: &[TableCell]) -> f32 {
             cell.padding_top + text_h + cell.padding_bottom
         })
         .fold(0.0f32, f32::max)
+}
+
+fn compute_rowspan_height(
+    page: &Page,
+    row_index: usize,
+    first_row_height: f32,
+    first_row_spacing_y: f32,
+    rowspan: usize,
+) -> f32 {
+    let mut total_height = first_row_height;
+    let mut gap_after_row = first_row_spacing_y;
+
+    for offset in 1..rowspan {
+        let Some((
+            _,
+            LayoutElement::TableRow {
+                cells,
+                border_collapse,
+                border_spacing_y,
+                ..
+            },
+        )) = page.elements.get(row_index + offset)
+        else {
+            break;
+        };
+        total_height += gap_after_row + compute_row_height(cells);
+        gap_after_row = table_row_spacing_y(*border_collapse, *border_spacing_y);
+    }
+
+    total_height
 }
 
 fn render_cell_text(
@@ -4545,6 +4566,135 @@ mod tests {
         assert!(pdf_str.contains("Spanning"), "Should render rowspan cell");
         assert!(pdf_str.contains("A"), "Should render first row cell");
         assert!(pdf_str.contains("B"), "Should render second row cell");
+    }
+
+    #[test]
+    fn rowspan_height_includes_vertical_border_spacing() {
+        let row_cell = |rowspan| TableCell {
+            lines: vec![test_text_line(vec![test_text_run("cell")])],
+            bold: false,
+            background_color: None,
+            padding_top: 2.0,
+            padding_right: 0.0,
+            padding_bottom: 2.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+        };
+
+        let page = Page {
+            elements: vec![
+                (
+                    0.0,
+                    LayoutElement::TableRow {
+                        cells: vec![row_cell(2)],
+                        col_widths: vec![40.0],
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        border_collapse: BorderCollapse::Separate,
+                        border_spacing: 0.0,
+                        border_spacing_y: 6.0,
+                    },
+                ),
+                (
+                    0.0,
+                    LayoutElement::TableRow {
+                        cells: vec![row_cell(1)],
+                        col_widths: vec![40.0],
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        border_collapse: BorderCollapse::Separate,
+                        border_spacing: 0.0,
+                        border_spacing_y: 6.0,
+                    },
+                ),
+            ],
+        };
+
+        let first_row_height = compute_row_height(match &page.elements[0].1 {
+            LayoutElement::TableRow { cells, .. } => cells,
+            _ => unreachable!(),
+        });
+        let second_row_height = compute_row_height(match &page.elements[1].1 {
+            LayoutElement::TableRow { cells, .. } => cells,
+            _ => unreachable!(),
+        });
+
+        assert!(
+            (compute_rowspan_height(&page, 0, first_row_height, 6.0, 2)
+                - (first_row_height + 6.0 + second_row_height))
+                .abs()
+                < 0.001
+        );
+    }
+
+    #[test]
+    fn rowspan_height_ignores_vertical_border_spacing_when_collapsed() {
+        let row_cell = |rowspan| TableCell {
+            lines: vec![test_text_line(vec![test_text_run("cell")])],
+            bold: false,
+            background_color: None,
+            padding_top: 2.0,
+            padding_right: 0.0,
+            padding_bottom: 2.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+        };
+
+        let page = Page {
+            elements: vec![
+                (
+                    0.0,
+                    LayoutElement::TableRow {
+                        cells: vec![row_cell(2)],
+                        col_widths: vec![40.0],
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        border_collapse: BorderCollapse::Collapse,
+                        border_spacing: 0.0,
+                        border_spacing_y: 6.0,
+                    },
+                ),
+                (
+                    0.0,
+                    LayoutElement::TableRow {
+                        cells: vec![row_cell(1)],
+                        col_widths: vec![40.0],
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        border_collapse: BorderCollapse::Collapse,
+                        border_spacing: 0.0,
+                        border_spacing_y: 6.0,
+                    },
+                ),
+            ],
+        };
+
+        let first_row_height = compute_row_height(match &page.elements[0].1 {
+            LayoutElement::TableRow { cells, .. } => cells,
+            _ => unreachable!(),
+        });
+        let second_row_height = compute_row_height(match &page.elements[1].1 {
+            LayoutElement::TableRow { cells, .. } => cells,
+            _ => unreachable!(),
+        });
+
+        assert!(
+            (compute_rowspan_height(
+                &page,
+                0,
+                first_row_height,
+                table_row_spacing_y(BorderCollapse::Collapse, 6.0),
+                2
+            ) - (first_row_height + second_row_height))
+                .abs()
+                < 0.001
+        );
     }
 
     #[test]

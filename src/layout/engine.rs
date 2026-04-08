@@ -92,6 +92,46 @@ fn resolve_padding_box_height(
     content_based_height.max(specified_padding_box_height)
 }
 
+fn build_positioned_containing_block(
+    style: &ComputedStyle,
+    block_width: f32,
+    block_height: f32,
+    positioned_depth: usize,
+) -> Option<ContainingBlock> {
+    if style.position == Position::Relative || style.position == Position::Absolute {
+        Some(ContainingBlock {
+            x: style.left.unwrap_or(0.0) + style.border.left.width + style.padding.left,
+            width: if style.box_sizing == BoxSizing::BorderBox {
+                (block_width - style.border.horizontal_width()).max(0.0)
+            } else {
+                block_width + style.padding.left + style.padding.right
+            },
+            height: block_height,
+            depth: positioned_depth,
+        })
+    } else {
+        None
+    }
+}
+
+pub(crate) fn table_row_spacing_y(border_collapse: BorderCollapse, border_spacing_y: f32) -> f32 {
+    if border_collapse == BorderCollapse::Collapse {
+        0.0
+    } else {
+        border_spacing_y
+    }
+}
+
+pub(crate) fn table_row_content_height(cells: &[TableCell]) -> f32 {
+    cells
+        .iter()
+        .map(|cell| {
+            let text_h: f32 = cell.lines.iter().map(|line| line.height).sum();
+            cell.padding_top + text_h + cell.padding_bottom
+        })
+        .fold(0.0f32, f32::max)
+}
+
 fn advance_positioned_ancestors_after_page_break(
     positioned_y_by_depth: &mut HashMap<usize, f32>,
     consumed_height: f32,
@@ -302,6 +342,68 @@ fn append_pseudo_inline_run(
             runs.push(build_pseudo_inline_run(pseudo_style, el));
         }
     }
+}
+
+fn append_flattened_block_pseudo_lines(
+    lines: &mut Vec<TextLine>,
+    pseudo_style: Option<&ComputedStyle>,
+    el: &ElementNode,
+    wrap_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    let Some(pseudo_style) = pseudo_style.filter(|pseudo| pseudo_is_block_like(pseudo)) else {
+        return;
+    };
+    let run = build_pseudo_inline_run(pseudo_style, el);
+    if run.text.is_empty() {
+        lines.push(TextLine {
+            runs: vec![run],
+            height: pseudo_style
+                .height
+                .unwrap_or(pseudo_style.font_size * pseudo_style.line_height),
+        });
+    } else {
+        lines.extend(wrap_text_runs(
+            vec![run],
+            wrap_width.max(1.0),
+            pseudo_style.font_size,
+            fonts,
+        ));
+    }
+}
+
+fn text_lines_height(lines: &[TextLine]) -> f32 {
+    lines.iter().map(|line| line.height).sum()
+}
+
+fn collect_flattened_child_lines(
+    el: &ElementNode,
+    child_style: &ComputedStyle,
+    before_pseudo_style: Option<&ComputedStyle>,
+    after_pseudo_style: Option<&ComputedStyle>,
+    wrap_width: f32,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    fonts: &HashMap<String, TtfFont>,
+) -> Vec<TextLine> {
+    let mut lines = Vec::new();
+    append_flattened_block_pseudo_lines(&mut lines, before_pseudo_style, el, wrap_width, fonts);
+
+    let mut runs = Vec::new();
+    append_pseudo_inline_run(&mut runs, before_pseudo_style, el);
+    collect_text_runs(&el.children, child_style, &mut runs, None, rules, ancestors);
+    append_pseudo_inline_run(&mut runs, after_pseudo_style, el);
+    if !runs.is_empty() {
+        lines.extend(wrap_text_runs(
+            runs,
+            wrap_width.max(1.0),
+            child_style.font_size,
+            fonts,
+        ));
+    }
+
+    append_flattened_block_pseudo_lines(&mut lines, after_pseudo_style, el, wrap_width, fonts);
+    lines
 }
 
 fn push_block_pseudo(
@@ -679,6 +781,7 @@ pub enum LayoutElement {
         margin_bottom: f32,
         border_collapse: BorderCollapse,
         border_spacing: f32,
+        border_spacing_y: f32,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -1383,6 +1486,7 @@ fn flatten_element(
             ancestors,
             child_index,
             sibling_count,
+            preceding_siblings,
         );
         return;
     }
@@ -1393,6 +1497,7 @@ fn flatten_element(
         element: el,
         child_index,
         sibling_count,
+        preceding_siblings: Vec::new(),
     });
 
     // List handling — Ul/Ol pass context to Li children
@@ -1600,15 +1705,42 @@ fn flatten_element(
         return;
     }
 
+    // Compute ::before and ::after pseudo-element styles once so block, flex,
+    // and other layout branches can all reuse the same resolved pseudos.
+    let cls: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+    let before_style = compute_pseudo_element_style(
+        &style,
+        rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::Before,
+    );
+    let after_style = compute_pseudo_element_style(
+        &style,
+        rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::After,
+    );
+
     // Flex container handling
     if style.display == Display::Flex {
         flatten_flex_container(
             el,
             &style,
+            before_style.as_ref(),
+            after_style.as_ref(),
             available_width,
             output,
             rules,
             &child_ancestors,
+            positioned_depth,
             fonts,
         );
 
@@ -1625,8 +1757,11 @@ fn flatten_element(
             &style,
             available_width,
             output,
+            before_style.as_ref(),
+            after_style.as_ref(),
             rules,
             &child_ancestors,
+            positioned_depth,
             fonts,
         );
 
@@ -1649,8 +1784,11 @@ fn flatten_element(
                 &col_style,
                 available_width,
                 output,
+                before_style.as_ref(),
+                after_style.as_ref(),
                 rules,
                 &child_ancestors,
+                positioned_depth,
                 fonts,
             );
 
@@ -1660,29 +1798,6 @@ fn flatten_element(
             return;
         }
     }
-
-    // Compute ::before and ::after pseudo-element styles
-    let cls: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
-    let before_style = compute_pseudo_element_style(
-        &style,
-        rules,
-        el.tag_name(),
-        &cls,
-        el.id(),
-        &el.attributes,
-        &selector_ctx,
-        PseudoElement::Before,
-    );
-    let after_style = compute_pseudo_element_style(
-        &style,
-        rules,
-        el.tag_name(),
-        &cls,
-        el.id(),
-        &el.attributes,
-        &selector_ctx,
-        PseudoElement::After,
-    );
 
     if style.display == Display::Block {
         // Compute effective block width considering CSS width/max-width/min-width
@@ -2144,18 +2259,125 @@ fn flatten_element(
             cb_info,
         );
     } else {
-        // Inline element — process children with this style context
-        flatten_nodes(
-            &el.children,
-            &style,
-            available_width,
-            output,
-            None,
-            rules,
-            &child_ancestors,
-            positioned_depth,
-            fonts,
-        );
+        if before_style.is_some() || after_style.is_some() {
+            let inline_output_start = output.len();
+            let before_abs_style = before_style
+                .as_ref()
+                .filter(|pseudo| pseudo.position == Position::Absolute);
+            let after_abs_style = after_style
+                .as_ref()
+                .filter(|pseudo| pseudo.position == Position::Absolute);
+            let before_block_style = before_style.as_ref().filter(|pseudo| {
+                pseudo.display == Display::Block && pseudo.position != Position::Absolute
+            });
+            let after_block_style = after_style.as_ref().filter(|pseudo| {
+                pseudo.display == Display::Block && pseudo.position != Position::Absolute
+            });
+            let mut runs = Vec::new();
+            push_block_pseudo(output, before_block_style, el, available_width, fonts, None);
+            append_pseudo_inline_run(&mut runs, before_style.as_ref(), el);
+            collect_text_runs(
+                &el.children,
+                &style,
+                &mut runs,
+                None,
+                rules,
+                &child_ancestors,
+            );
+            append_pseudo_inline_run(&mut runs, after_style.as_ref(), el);
+
+            let mut inline_lines = Vec::new();
+            if !runs.is_empty() {
+                let wrap_width = if style.white_space == WhiteSpace::NoWrap {
+                    f32::MAX
+                } else {
+                    available_width
+                };
+                inline_lines = wrap_text_runs(runs, wrap_width, style.font_size, fonts);
+                output.push(LayoutElement::TextBlock {
+                    lines: inline_lines.clone(),
+                    margin_top: style.margin.top,
+                    margin_bottom: style.margin.bottom,
+                    text_align: style.text_align,
+                    background_color: style.background_color.map(|c| c.to_f32_rgb()),
+                    padding_top: style.padding.top,
+                    padding_bottom: style.padding.bottom,
+                    padding_left: style.padding.left,
+                    padding_right: style.padding.right,
+                    border: LayoutBorder::from_computed(&style.border),
+                    block_width: None,
+                    block_height: None,
+                    opacity: style.opacity,
+                    float: style.float,
+                    clear: style.clear,
+                    position: style.position,
+                    offset_top: style.top.unwrap_or(0.0),
+                    offset_left: style.left.unwrap_or(0.0),
+                    offset_bottom: 0.0,
+                    offset_right: 0.0,
+                    containing_block: None,
+                    box_shadow: style.box_shadow,
+                    visible: style.visibility == Visibility::Visible,
+                    clip_rect: None,
+                    transform: style.transform,
+                    border_radius: style.border_radius,
+                    outline_width: style.outline_width,
+                    outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+                    text_indent: style.text_indent,
+                    letter_spacing: style.letter_spacing,
+                    word_spacing: style.word_spacing,
+                    vertical_align: style.vertical_align,
+                    background_gradient: style.background_gradient.clone(),
+                    background_radial_gradient: style.background_radial_gradient.clone(),
+                    z_index: style.z_index,
+                    positioned_depth,
+                    heading_level: None,
+                });
+            }
+            let inline_pseudo_height = resolve_padding_box_height(
+                text_lines_height(&inline_lines),
+                style.height,
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            );
+            let inline_pseudo_cb = build_positioned_containing_block(
+                &style,
+                available_width,
+                inline_pseudo_height,
+                positioned_depth,
+            );
+            if let Some(pseudo_style) = before_abs_style {
+                output.insert(
+                    inline_output_start,
+                    build_pseudo_block(pseudo_style, el, available_width, fonts, inline_pseudo_cb),
+                );
+            }
+            if let Some(pseudo_style) = after_abs_style {
+                output.push(build_pseudo_block(
+                    pseudo_style,
+                    el,
+                    available_width,
+                    fonts,
+                    inline_pseudo_cb,
+                ));
+            }
+            push_block_pseudo(output, after_block_style, el, available_width, fonts, None);
+        } else {
+            // Inline element — process children with this style context
+            flatten_nodes(
+                &el.children,
+                &style,
+                available_width,
+                output,
+                None,
+                rules,
+                &child_ancestors,
+                positioned_depth,
+                fonts,
+            );
+        }
     }
 
     if style.page_break_after {
@@ -2173,10 +2395,13 @@ fn flatten_element(
 fn flatten_flex_container(
     el: &ElementNode,
     style: &ComputedStyle,
+    before_style: Option<&ComputedStyle>,
+    after_style: Option<&ComputedStyle>,
     available_width: f32,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
+    positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
 ) {
     let mut block_w = available_width;
@@ -2189,21 +2414,20 @@ fn flatten_flex_container(
 
     let inner_width = block_w - style.padding.left - style.padding.right;
 
-    // Collect child elements and lay each one out into a temporary buffer
-    let child_elements: Vec<&ElementNode> = el
-        .children
-        .iter()
-        .filter_map(|c| {
-            if let DomNode::Element(e) = c {
-                Some(e)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let child_count = child_elements.len();
-    if child_count == 0 {
+    // Collect child elements and keep their preceding siblings so `+` / `~`
+    // combinators work inside flex containers.
+    let child_elements = element_children_with_preceding_siblings(&el.children);
+    let dom_child_count = child_elements.len();
+    let before_absolute_style = before_style.filter(|pseudo| pseudo.position == Position::Absolute);
+    let after_absolute_style = after_style.filter(|pseudo| pseudo.position == Position::Absolute);
+    let mut flex_item_count = dom_child_count;
+    if before_style.is_some_and(|pseudo| pseudo.position != Position::Absolute) {
+        flex_item_count += 1;
+    }
+    if after_style.is_some_and(|pseudo| pseudo.position != Position::Absolute) {
+        flex_item_count += 1;
+    }
+    if flex_item_count == 0 && before_absolute_style.is_none() && after_absolute_style.is_none() {
         return;
     }
 
@@ -2217,25 +2441,156 @@ fn flatten_flex_container(
         height: f32,
     }
 
+    fn push_flex_text_item(
+        items: &mut Vec<FlexItem>,
+        item_style: &ComputedStyle,
+        content_text: String,
+        el: &ElementNode,
+        width_for_percentages: f32,
+        flex_item_count: usize,
+        fonts: &HashMap<String, TtfFont>,
+    ) {
+        let child_w = item_style
+            .flex_basis
+            .or(item_style.width)
+            .unwrap_or_else(|| {
+                if item_style.flex_grow > 0.0 {
+                    0.0
+                } else {
+                    width_for_percentages / flex_item_count as f32
+                }
+            });
+
+        let child_inner_w = if item_style.box_sizing == BoxSizing::BorderBox {
+            child_w
+                - item_style.padding.left
+                - item_style.padding.right
+                - item_style.border.horizontal_width()
+        } else {
+            child_w - item_style.padding.left - item_style.padding.right
+        }
+        .max(0.0);
+
+        let mut runs = Vec::new();
+        if !content_text.is_empty() {
+            let mut run = build_pseudo_inline_run(item_style, el);
+            run.text = content_text;
+            runs.push(run);
+        }
+
+        let lines = if runs.is_empty() {
+            Vec::new()
+        } else {
+            wrap_text_runs(runs, child_inner_w.max(1.0), item_style.font_size, fonts)
+        };
+        let text_height: f32 = lines.iter().map(|l| l.height).sum();
+        let child_h = resolve_padding_box_height(
+            text_height,
+            item_style.height,
+            item_style.padding.top,
+            item_style.padding.bottom,
+            item_style.border.vertical_width(),
+            item_style.box_sizing,
+        );
+        let elem = LayoutElement::TextBlock {
+            lines,
+            margin_top: item_style.margin.top,
+            margin_bottom: item_style.margin.bottom,
+            text_align: item_style.text_align,
+            background_color: item_style
+                .background_color
+                .map(|c: crate::types::Color| c.to_f32_rgb()),
+            padding_top: item_style.padding.top,
+            padding_bottom: item_style.padding.bottom,
+            padding_left: item_style.padding.left,
+            padding_right: item_style.padding.right,
+            border: LayoutBorder::from_computed(&item_style.border),
+            block_width: Some(child_w),
+            block_height: item_style.height.map(|_| child_h),
+            opacity: item_style.opacity,
+            float: Float::None,
+            clear: Clear::None,
+            position: item_style.position,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            box_shadow: item_style.box_shadow,
+            visible: item_style.visibility == Visibility::Visible,
+            clip_rect: if item_style.overflow == Overflow::Hidden {
+                Some((0.0, 0.0, child_w, child_h))
+            } else {
+                None
+            },
+            transform: item_style.transform,
+            border_radius: item_style.border_radius,
+            outline_width: item_style.outline_width,
+            outline_color: item_style.outline_color.map(|c| c.to_f32_rgb()),
+            text_indent: item_style.text_indent,
+            letter_spacing: item_style.letter_spacing,
+            word_spacing: item_style.word_spacing,
+            vertical_align: item_style.vertical_align,
+            background_gradient: item_style.background_gradient.clone(),
+            background_radial_gradient: item_style.background_radial_gradient.clone(),
+            z_index: item_style.z_index,
+            positioned_depth: 0,
+            heading_level: None,
+        };
+        items.push(FlexItem {
+            elements: vec![elem],
+            width: child_w,
+            base_width: child_w,
+            flex_grow: item_style.flex_grow,
+            flex_shrink: item_style.flex_shrink,
+            height: child_h + item_style.margin.top + item_style.margin.bottom,
+        });
+    }
+
     let mut items: Vec<FlexItem> = Vec::new();
 
     // For percentage width resolution, children need the actual container width
     // as the parent reference (not the CSS width which may be None).
     // Subtract total gap space so that percentage widths + gaps fit within the container.
-    let total_gaps = style.gap * (child_count.saturating_sub(1)) as f32;
+    let total_gaps = style.gap * (flex_item_count.saturating_sub(1)) as f32;
     let width_for_percentages = (inner_width - total_gaps).max(0.0);
     let mut parent_for_children = style.clone();
     if parent_for_children.width.is_none() {
         parent_for_children.width = Some(width_for_percentages);
     }
+    let mut container_cb = build_positioned_containing_block(
+        style,
+        block_w,
+        style.height.unwrap_or(0.0),
+        positioned_ancestor_depth,
+    );
 
-    for (idx, child_el) in child_elements.iter().enumerate() {
+    if let Some(pseudo_style) = before_style {
+        if pseudo_style.position != Position::Absolute {
+            let content_text = resolve_content(
+                &pseudo_style.content,
+                &el.attributes,
+                &CounterState::default(),
+            );
+            push_flex_text_item(
+                &mut items,
+                pseudo_style,
+                content_text,
+                el,
+                width_for_percentages,
+                flex_item_count,
+                fonts,
+            );
+        }
+    }
+
+    for (idx, (child_el, preceding_siblings)) in child_elements.iter().enumerate() {
         let classes = child_el.class_list();
         let selector_ctx = SelectorContext {
             ancestors: ancestors.to_vec(),
             child_index: idx,
-            sibling_count: child_count,
-            preceding_siblings: Vec::new(),
+            sibling_count: dom_child_count,
+            preceding_siblings: preceding_siblings.clone(),
         };
         let child_style = compute_style_with_context(
             child_el.tag,
@@ -2263,7 +2618,7 @@ fn flatten_flex_container(
                 if child_style.flex_grow > 0.0 {
                     0.0
                 } else {
-                    width_for_percentages / child_count as f32
+                    width_for_percentages / flex_item_count as f32
                 }
             });
 
@@ -2284,9 +2639,39 @@ fn flatten_flex_container(
         child_ancestors.push(AncestorInfo {
             element: child_el,
             child_index: idx,
-            sibling_count: child_count,
+            sibling_count: dom_child_count,
+            preceding_siblings: preceding_siblings.clone(),
         });
+        let before_pseudo_style = compute_pseudo_element_style(
+            &child_style,
+            rules,
+            child_el.tag_name(),
+            &classes,
+            child_el.id(),
+            &child_el.attributes,
+            &selector_ctx,
+            PseudoElement::Before,
+        );
+        let after_pseudo_style = compute_pseudo_element_style(
+            &child_style,
+            rules,
+            child_el.tag_name(),
+            &classes,
+            child_el.id(),
+            &child_el.attributes,
+            &selector_ctx,
+            PseudoElement::After,
+        );
+        let mut lines = Vec::new();
+        append_flattened_block_pseudo_lines(
+            &mut lines,
+            before_pseudo_style.as_ref(),
+            child_el,
+            child_inner_w.max(1.0),
+            fonts,
+        );
         let mut runs = Vec::new();
+        append_pseudo_inline_run(&mut runs, before_pseudo_style.as_ref(), child_el);
         collect_flex_child_text_runs(
             &child_el.children,
             &child_style,
@@ -2294,14 +2679,24 @@ fn flatten_flex_container(
             rules,
             &child_ancestors,
         );
+        append_pseudo_inline_run(&mut runs, after_pseudo_style.as_ref(), child_el);
+        if !runs.is_empty() {
+            lines.extend(wrap_text_runs(
+                runs,
+                child_inner_w.max(1.0),
+                child_style.font_size,
+                fonts,
+            ));
+        }
+        append_flattened_block_pseudo_lines(
+            &mut lines,
+            after_pseudo_style.as_ref(),
+            child_el,
+            child_inner_w.max(1.0),
+            fonts,
+        );
 
-        let lines = if !runs.is_empty() {
-            wrap_text_runs(runs, child_inner_w.max(1.0), child_style.font_size, fonts)
-        } else {
-            Vec::new()
-        };
-
-        let text_height: f32 = lines.iter().map(|l| l.height).sum();
+        let text_height = text_lines_height(&lines);
         let child_h = resolve_padding_box_height(
             text_height,
             child_style.height,
@@ -2368,7 +2763,26 @@ fn flatten_flex_container(
         });
     }
 
-    if items.is_empty() {
+    if let Some(pseudo_style) = after_style {
+        if pseudo_style.position != Position::Absolute {
+            let content_text = resolve_content(
+                &pseudo_style.content,
+                &el.attributes,
+                &CounterState::default(),
+            );
+            push_flex_text_item(
+                &mut items,
+                pseudo_style,
+                content_text,
+                el,
+                width_for_percentages,
+                flex_item_count,
+                fonts,
+            );
+        }
+    }
+
+    if items.is_empty() && before_absolute_style.is_none() && after_absolute_style.is_none() {
         return;
     }
 
@@ -2472,11 +2886,28 @@ fn flatten_flex_container(
         FlexDirection::Column => total_main,
     };
 
-    let container_h = style.padding.top + container_height + style.padding.bottom;
-    let container_h = match style.height {
-        Some(h) => container_h.max(h),
-        None => container_h,
-    };
+    let container_h = resolve_padding_box_height(
+        container_height,
+        style.height,
+        style.padding.top,
+        style.padding.bottom,
+        style.border.vertical_width(),
+        style.box_sizing,
+    );
+
+    if let Some(cb) = container_cb.as_mut() {
+        cb.height = container_h;
+    }
+
+    if let Some(pseudo_style) = before_absolute_style {
+        output.push(build_pseudo_block(
+            pseudo_style,
+            el,
+            inner_width,
+            fonts,
+            container_cb,
+        ));
+    }
 
     let bg = style
         .background_color
@@ -2844,6 +3275,16 @@ fn flatten_flex_container(
         cross_offset += line.cross_size + gap;
     }
 
+    if let Some(pseudo_style) = after_absolute_style {
+        output.push(build_pseudo_block(
+            pseudo_style,
+            el,
+            inner_width,
+            fonts,
+            container_cb,
+        ));
+    }
+
     // Emit trailing margin (include bottom padding when bg spacer shifted y back)
     let trailing = if emitted_column_bg {
         style.padding.bottom + style.margin.bottom
@@ -2959,98 +3400,225 @@ fn flatten_grid_container(
     style: &ComputedStyle,
     available_width: f32,
     output: &mut Vec<LayoutElement>,
+    before_style: Option<&ComputedStyle>,
+    after_style: Option<&ComputedStyle>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
+    positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
 ) {
-    let inner_width = available_width - style.padding.left - style.padding.right;
+    let mut block_w = available_width;
+    if let Some(w) = style.width {
+        block_w = w.min(available_width);
+    }
+    if let Some(mw) = style.max_width {
+        block_w = block_w.min(mw);
+    }
+    if let Some(mw) = style.min_width {
+        block_w = block_w.max(mw);
+    }
+
+    let inner_width = (block_w - style.padding.left - style.padding.right).max(0.0);
     let gap = style.grid_gap;
 
     let col_widths = resolve_grid_columns(&style.grid_template_columns, inner_width, gap);
     let num_cols = col_widths.len();
+    let mut container_cb =
+        build_positioned_containing_block(style, block_w, 0.0, positioned_ancestor_depth);
 
     // Build ancestors list for children of this element
-    let mut child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
-    child_ancestors.push(AncestorInfo {
-        element: el,
-        child_index: 0,
-        sibling_count: 0,
-    });
+    let child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
 
-    // Collect element children (skip text nodes)
-    let children: Vec<&ElementNode> = el
-        .children
-        .iter()
-        .filter_map(|child| {
-            if let DomNode::Element(child_el) = child {
-                Some(child_el)
-            } else {
-                None
-            }
-        })
-        .collect();
-
+    // Collect element children and their preceding siblings so sibling
+    // combinators continue to work inside grid containers.
+    let children = element_children_with_preceding_siblings(&el.children);
     let child_count = children.len();
+
+    enum GridChild<'a> {
+        Element {
+            el: &'a ElementNode,
+            preceding_siblings: Vec<(String, Vec<String>)>,
+            dom_index: usize,
+        },
+        Pseudo {
+            style: &'a ComputedStyle,
+            content_text: String,
+        },
+    }
+
+    let mut flow_children = Vec::new();
+    if let Some(pseudo_style) = before_style.filter(|pseudo| pseudo.position != Position::Absolute)
+    {
+        flow_children.push(GridChild::Pseudo {
+            style: pseudo_style,
+            content_text: resolve_content(
+                &pseudo_style.content,
+                &el.attributes,
+                &CounterState::default(),
+            ),
+        });
+    }
+    for (dom_index, (child_el, preceding_siblings)) in children.iter().enumerate() {
+        flow_children.push(GridChild::Element {
+            el: child_el,
+            preceding_siblings: preceding_siblings.clone(),
+            dom_index,
+        });
+    }
+    if let Some(pseudo_style) = after_style.filter(|pseudo| pseudo.position != Position::Absolute) {
+        flow_children.push(GridChild::Pseudo {
+            style: pseudo_style,
+            content_text: resolve_content(
+                &pseudo_style.content,
+                &el.attributes,
+                &CounterState::default(),
+            ),
+        });
+    }
+
+    if flow_children.is_empty() && before_style.is_none() && after_style.is_none() {
+        return;
+    }
 
     // Lay out children into grid cells, row by row
     let mut child_idx = 0;
     let mut is_first_row = true;
+    let mut container_content_height = 0.0;
 
-    while child_idx < children.len() {
-        let row_end = (child_idx + num_cols).min(children.len());
+    let grid_output_start = output.len();
+    while child_idx < flow_children.len() {
+        let row_end = (child_idx + num_cols).min(flow_children.len());
         let mut cells = Vec::new();
 
-        for (col, child_el) in children[child_idx..row_end].iter().enumerate() {
-            let classes = child_el.class_list();
-            let selector_ctx = SelectorContext {
-                ancestors: child_ancestors.clone(),
-                child_index: child_idx + col,
-                sibling_count: child_count,
-                preceding_siblings: Vec::new(),
-            };
-            let child_style = compute_style_with_context(
-                child_el.tag,
-                child_el.style_attr(),
-                style,
-                rules,
-                child_el.tag_name(),
-                &classes,
-                child_el.id(),
-                &child_el.attributes,
-                &selector_ctx,
-            );
-
+        for (col, child) in flow_children[child_idx..row_end].iter().enumerate() {
             let cell_width = col_widths[col];
-            let cell_inner =
-                (cell_width - child_style.padding.left - child_style.padding.right).max(1.0);
+            let (
+                lines,
+                bold,
+                background_color,
+                padding_top,
+                padding_right,
+                padding_bottom,
+                padding_left,
+                border,
+                text_align,
+            ) = match child {
+                GridChild::Pseudo {
+                    style: pseudo_style,
+                    content_text,
+                } => {
+                    let mut runs = Vec::new();
+                    if !content_text.is_empty() {
+                        let mut run = build_pseudo_inline_run(pseudo_style, el);
+                        run.text = content_text.clone();
+                        runs.push(run);
+                    }
+                    let cell_inner =
+                        (cell_width - pseudo_style.padding.left - pseudo_style.padding.right)
+                            .max(1.0);
+                    let lines = if runs.is_empty() {
+                        Vec::new()
+                    } else {
+                        wrap_text_runs(runs, cell_inner, pseudo_style.font_size, fonts)
+                    };
+                    (
+                        lines,
+                        pseudo_style.font_weight == FontWeight::Bold,
+                        pseudo_style.background_color.map(|c| c.to_f32_rgb()),
+                        pseudo_style.padding.top,
+                        pseudo_style.padding.right,
+                        pseudo_style.padding.bottom,
+                        pseudo_style.padding.left,
+                        LayoutBorder::from_computed(&pseudo_style.border),
+                        pseudo_style.text_align,
+                    )
+                }
+                GridChild::Element {
+                    el: child_el,
+                    preceding_siblings,
+                    dom_index,
+                } => {
+                    let classes = child_el.class_list();
+                    let selector_ctx = SelectorContext {
+                        ancestors: child_ancestors.clone(),
+                        child_index: *dom_index,
+                        sibling_count: child_count,
+                        preceding_siblings: preceding_siblings.clone(),
+                    };
+                    let child_style = compute_style_with_context(
+                        child_el.tag,
+                        child_el.style_attr(),
+                        style,
+                        rules,
+                        child_el.tag_name(),
+                        &classes,
+                        child_el.id(),
+                        &child_el.attributes,
+                        &selector_ctx,
+                    );
 
-            let mut runs = Vec::new();
-            collect_text_runs(
-                &child_el.children,
-                &child_style,
-                &mut runs,
-                None,
-                rules,
-                &child_ancestors,
-            );
-            let lines = wrap_text_runs(runs, cell_inner, child_style.font_size, fonts);
+                    let cell_inner =
+                        (cell_width - child_style.padding.left - child_style.padding.right)
+                            .max(1.0);
 
-            let bg = child_style
-                .background_color
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                    let before_pseudo_style = compute_pseudo_element_style(
+                        &child_style,
+                        rules,
+                        child_el.tag_name(),
+                        &classes,
+                        child_el.id(),
+                        &child_el.attributes,
+                        &selector_ctx,
+                        PseudoElement::Before,
+                    );
+                    let after_pseudo_style = compute_pseudo_element_style(
+                        &child_style,
+                        rules,
+                        child_el.tag_name(),
+                        &classes,
+                        child_el.id(),
+                        &child_el.attributes,
+                        &selector_ctx,
+                        PseudoElement::After,
+                    );
+
+                    let lines = collect_flattened_child_lines(
+                        child_el,
+                        &child_style,
+                        before_pseudo_style.as_ref(),
+                        after_pseudo_style.as_ref(),
+                        cell_inner,
+                        rules,
+                        &child_ancestors,
+                        fonts,
+                    );
+
+                    (
+                        lines,
+                        child_style.font_weight == FontWeight::Bold,
+                        child_style.background_color.map(|c| c.to_f32_rgb()),
+                        child_style.padding.top,
+                        child_style.padding.right,
+                        child_style.padding.bottom,
+                        child_style.padding.left,
+                        LayoutBorder::from_computed(&child_style.border),
+                        child_style.text_align,
+                    )
+                }
+            };
 
             cells.push(TableCell {
                 lines,
-                bold: child_style.font_weight == FontWeight::Bold,
-                background_color: bg,
-                padding_top: child_style.padding.top,
-                padding_right: child_style.padding.right,
-                padding_bottom: child_style.padding.bottom,
-                padding_left: child_style.padding.left,
+                bold,
+                background_color,
+                padding_top,
+                padding_right,
+                padding_bottom,
+                padding_left,
                 colspan: 1,
                 rowspan: 1,
-                border: LayoutBorder::from_computed(&child_style.border),
-                text_align: child_style.text_align,
+                border,
+                text_align,
             });
         }
 
@@ -3071,7 +3639,12 @@ fn flatten_grid_container(
             });
         }
 
+        let row_height = table_row_content_height(&cells);
         let margin_top = if is_first_row { style.margin.top } else { gap };
+        container_content_height += row_height;
+        if row_end < flow_children.len() {
+            container_content_height += gap;
+        }
 
         output.push(LayoutElement::GridRow {
             cells,
@@ -3084,10 +3657,94 @@ fn flatten_grid_container(
         child_idx = row_end;
     }
 
+    if let Some(cb) = container_cb.as_mut() {
+        cb.height = resolve_padding_box_height(
+            container_content_height,
+            style.height,
+            style.padding.top,
+            style.padding.bottom,
+            style.border.vertical_width(),
+            style.box_sizing,
+        );
+    }
+
+    if let Some(pseudo_style) = before_style.filter(|pseudo| pseudo.position == Position::Absolute)
+    {
+        output.insert(
+            grid_output_start,
+            build_pseudo_block(pseudo_style, el, inner_width, fonts, container_cb),
+        );
+    }
+
+    if let Some(pseudo_style) = after_style.filter(|pseudo| pseudo.position == Position::Absolute) {
+        output.push(build_pseudo_block(
+            pseudo_style,
+            el,
+            inner_width,
+            fonts,
+            container_cb,
+        ));
+    }
+
     // Add bottom margin after the last row
-    if let Some(LayoutElement::GridRow { margin_bottom, .. }) = output.last_mut() {
+    if let Some(LayoutElement::GridRow { margin_bottom, .. }) = output
+        .iter_mut()
+        .rev()
+        .find(|el| matches!(el, LayoutElement::GridRow { .. }))
+    {
         *margin_bottom = style.margin.bottom;
     }
+}
+
+#[derive(Clone)]
+struct TableRowContext<'a> {
+    row: &'a ElementNode,
+    row_child_index: usize,
+    row_sibling_count: usize,
+    row_preceding_siblings: Vec<(String, Vec<String>)>,
+    section_element: Option<&'a ElementNode>,
+    section_child_index: usize,
+    section_sibling_count: usize,
+    section_preceding_siblings: Vec<(String, Vec<String>)>,
+}
+
+fn element_children_with_preceding_siblings(
+    children: &[DomNode],
+) -> Vec<(&ElementNode, Vec<(String, Vec<String>)>)> {
+    let mut result = Vec::new();
+    let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
+
+    for child in children {
+        if let DomNode::Element(el) = child {
+            result.push((el, preceding_siblings.clone()));
+            preceding_siblings.push((
+                el.tag_name().to_string(),
+                el.class_list()
+                    .iter()
+                    .map(|class| class.to_string())
+                    .collect(),
+            ));
+        }
+    }
+
+    result
+}
+
+fn collect_table_section_rows<'a>(
+    section_el: &'a ElementNode,
+) -> Vec<(&'a ElementNode, usize, usize, Vec<(String, Vec<String>)>)> {
+    let section_children = element_children_with_preceding_siblings(&section_el.children);
+    let section_child_count = section_children.len();
+    section_children
+        .iter()
+        .enumerate()
+        .filter_map(|(row_idx, (row_el, row_preceding))| {
+            if row_el.tag != HtmlTag::Tr {
+                return None;
+            }
+            Some((*row_el, row_idx, section_child_count, row_preceding.clone()))
+        })
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3101,8 +3758,14 @@ fn flatten_table(
     ancestors: &[AncestorInfo],
     table_child_index: usize,
     table_sibling_count: usize,
+    table_preceding_siblings: &[(String, Vec<String>)],
 ) {
     let inner_width = available_width - style.margin.left - style.margin.right;
+    let table_spacing_y = if style.border_collapse == BorderCollapse::Collapse {
+        0.0
+    } else {
+        style.border_spacing_y
+    };
 
     // Build ancestor chain: everything above + the table element itself.
     let mut table_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
@@ -3110,61 +3773,44 @@ fn flatten_table(
         element: el,
         child_index: table_child_index,
         sibling_count: table_sibling_count,
+        preceding_siblings: table_preceding_siblings.to_vec(),
     });
 
-    // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
-    // Track section-relative indices so nth-child counts within each section
-    // (thead, tbody, tfoot) as browsers do, not globally.
-    // Also track the section element so descendant selectors can see it.
-    let mut rows: Vec<&ElementNode> = Vec::new();
-    let mut row_section_indices: Vec<usize> = Vec::new();
-    let mut row_section_sizes: Vec<usize> = Vec::new();
-    let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
-    let mut row_section_child_indices: Vec<usize> = Vec::new();
-    let mut row_section_sibling_counts: Vec<usize> = Vec::new();
-    let section_count = el
-        .children
-        .iter()
-        .filter(|c| matches!(c, DomNode::Element(_)))
-        .count();
-    for (section_child_idx, child) in el.children.iter().enumerate() {
-        if let DomNode::Element(child_el) = child {
-            match child_el.tag {
-                HtmlTag::Tr => {
-                    // Direct <tr> child of <table> — standalone section
-                    let idx = rows.len();
-                    rows.push(child_el);
-                    row_section_indices.push(idx);
-                    row_section_sizes.push(1);
-                    row_section_elements.push(None);
-                    row_section_child_indices.push(section_child_idx);
-                    row_section_sibling_counts.push(section_count);
+    // Collect only real <tr> rows, but preserve each row's actual element-child
+    // index within its section so selectors like `:first-child` still see the
+    // surrounding non-row elements.
+    let table_children = element_children_with_preceding_siblings(&el.children);
+    let table_child_count = table_children.len();
+    let mut rows: Vec<TableRowContext> = Vec::new();
+    for (table_child_idx, (child_el, table_preceding)) in table_children.iter().enumerate() {
+        match child_el.tag {
+            HtmlTag::Tr => rows.push(TableRowContext {
+                row: child_el,
+                row_child_index: table_child_idx,
+                row_sibling_count: table_child_count,
+                row_preceding_siblings: table_preceding.clone(),
+                section_element: None,
+                section_child_index: 0,
+                section_sibling_count: 0,
+                section_preceding_siblings: Vec::new(),
+            }),
+            HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
+                for (row_el, row_idx, section_child_count, row_preceding) in
+                    collect_table_section_rows(child_el)
+                {
+                    rows.push(TableRowContext {
+                        row: row_el,
+                        row_child_index: row_idx,
+                        row_sibling_count: section_child_count,
+                        row_preceding_siblings: row_preceding,
+                        section_element: Some(child_el),
+                        section_child_index: table_child_idx,
+                        section_sibling_count: table_child_count,
+                        section_preceding_siblings: table_preceding.clone(),
+                    });
                 }
-                HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
-                    let section_rows: Vec<&ElementNode> = child_el
-                        .children
-                        .iter()
-                        .filter_map(|gc| {
-                            if let DomNode::Element(g) = gc {
-                                if g.tag == HtmlTag::Tr {
-                                    return Some(g);
-                                }
-                            }
-                            None
-                        })
-                        .collect();
-                    let section_size = section_rows.len();
-                    for (i, gc) in section_rows.into_iter().enumerate() {
-                        rows.push(gc);
-                        row_section_indices.push(i);
-                        row_section_sizes.push(section_size);
-                        row_section_elements.push(Some(child_el));
-                        row_section_child_indices.push(section_child_idx);
-                        row_section_sibling_counts.push(section_count);
-                    }
-                }
-                _ => {}
             }
+            _ => {}
         }
     }
 
@@ -3176,7 +3822,8 @@ fn flatten_table(
     let num_cols = rows
         .iter()
         .map(|row| {
-            row.children
+            row.row
+                .children
                 .iter()
                 .filter_map(|c| {
                     if let DomNode::Element(e) = c {
@@ -3201,22 +3848,24 @@ fn flatten_table(
     let min_col_width: f32 = 30.0;
     let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
 
-    for (sizing_row_idx, row) in rows.iter().enumerate() {
+    for row_ctx in &rows {
+        let row = row_ctx.row;
         let row_classes = row.class_list();
-        // Build ancestors for the row: table + optional section element
+        // Build ancestors for the row: table + optional section element.
         let mut sizing_row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[sizing_row_idx] {
+        if let Some(section_el) = row_ctx.section_element {
             sizing_row_ancestors.push(AncestorInfo {
                 element: section_el,
-                child_index: row_section_child_indices[sizing_row_idx],
-                sibling_count: row_section_sibling_counts[sizing_row_idx],
+                child_index: row_ctx.section_child_index,
+                sibling_count: row_ctx.section_sibling_count,
+                preceding_siblings: row_ctx.section_preceding_siblings.clone(),
             });
         }
         let sizing_row_ctx = SelectorContext {
             ancestors: sizing_row_ancestors,
-            child_index: row_section_indices[sizing_row_idx],
-            sibling_count: row_section_sizes[sizing_row_idx],
-            preceding_siblings: Vec::new(),
+            child_index: row_ctx.row_child_index,
+            sibling_count: row_ctx.row_sibling_count,
+            preceding_siblings: row_ctx.row_preceding_siblings.clone(),
         };
         let row_style = compute_style_with_context(
             row.tag,
@@ -3230,91 +3879,96 @@ fn flatten_table(
             &sizing_row_ctx,
         );
         let mut col_pos: usize = 0;
-        for child in &row.children {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    let colspan = cell_el
-                        .attributes
-                        .get("colspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
-                    let cell_classes = cell_el.class_list();
-                    let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
-                    cell_sizing_ancestors.push(AncestorInfo {
-                        element: row,
-                        child_index: row_section_indices[sizing_row_idx],
-                        sibling_count: row_section_sizes[sizing_row_idx],
-                    });
-                    let cell_sizing_ctx = SelectorContext {
-                        ancestors: cell_sizing_ancestors,
-                        child_index: col_pos,
-                        sibling_count: num_cols,
-                        preceding_siblings: Vec::new(),
-                    };
-                    let cell_style = compute_style_with_context(
-                        cell_el.tag,
-                        cell_el.style_attr(),
-                        &row_style,
-                        rules,
-                        cell_el.tag_name(),
-                        &cell_classes,
-                        cell_el.id(),
-                        &cell_el.attributes,
-                        &cell_sizing_ctx,
-                    );
-                    let mut runs = Vec::new();
-                    collect_text_runs(
-                        &cell_el.children,
-                        &cell_style,
-                        &mut runs,
-                        None,
-                        rules,
-                        &cell_sizing_ctx.ancestors,
-                    );
-                    // Estimate content width using estimate_word_width for accurate
-                    // measurement. Use the maximum of (full text width, longest word
-                    // width) to avoid hyphenation of short columns like "Unit Price".
-                    let content_width: f32 = runs
+        let cell_children = element_children_with_preceding_siblings(&row.children);
+        for (cell_index, (cell_el, _cell_preceding)) in cell_children.iter().enumerate() {
+            if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
+                let colspan = cell_el
+                    .attributes
+                    .get("colspan")
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(1)
+                    .max(1);
+                let cell_classes = cell_el.class_list();
+                let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
+                cell_sizing_ancestors.push(AncestorInfo {
+                    element: row,
+                    child_index: row_ctx.row_child_index,
+                    sibling_count: row_ctx.row_sibling_count,
+                    preceding_siblings: row_ctx.row_preceding_siblings.clone(),
+                });
+                let cell_sizing_ctx = SelectorContext {
+                    ancestors: cell_sizing_ancestors,
+                    child_index: cell_index,
+                    sibling_count: cell_children.len(),
+                    preceding_siblings: cell_children[..cell_index]
                         .iter()
-                        .map(|run| {
-                            // Measure full text width using estimate_word_width
-                            let full_width = estimate_word_width(
-                                &run.text,
-                                run.font_size,
-                                &run.font_family,
-                                fonts,
-                            );
-                            // Also ensure the column is at least as wide as
-                            // the longest word to prevent hyphenation.
-                            let longest_word_width = run
-                                .text
-                                .split_whitespace()
-                                .map(|w| {
-                                    estimate_word_width(w, run.font_size, &run.font_family, fonts)
-                                })
-                                .fold(0.0f32, f32::max);
-                            full_width.max(longest_word_width)
+                        .map(|(sibling_el, _)| {
+                            (
+                                sibling_el.tag_name().to_string(),
+                                sibling_el
+                                    .class_list()
+                                    .iter()
+                                    .map(|class| class.to_string())
+                                    .collect(),
+                            )
                         })
-                        .sum();
-                    let total_preferred =
-                        content_width + cell_style.padding.left + cell_style.padding.right;
-                    if colspan == 1 {
-                        if col_pos < num_cols {
-                            preferred_widths[col_pos] =
-                                preferred_widths[col_pos].max(total_preferred);
-                        }
-                    } else {
-                        let per_col = total_preferred / colspan as f32;
-                        for i in 0..colspan {
-                            if col_pos + i < num_cols {
-                                preferred_widths[col_pos + i] =
-                                    preferred_widths[col_pos + i].max(per_col);
-                            }
+                        .collect(),
+                };
+                let cell_style = compute_style_with_context(
+                    cell_el.tag,
+                    cell_el.style_attr(),
+                    &row_style,
+                    rules,
+                    cell_el.tag_name(),
+                    &cell_classes,
+                    cell_el.id(),
+                    &cell_el.attributes,
+                    &cell_sizing_ctx,
+                );
+                let mut runs = Vec::new();
+                collect_text_runs(
+                    &cell_el.children,
+                    &cell_style,
+                    &mut runs,
+                    None,
+                    rules,
+                    &cell_sizing_ctx.ancestors,
+                );
+                // Estimate content width using estimate_word_width for accurate
+                // measurement. Use the maximum of (full text width, longest word
+                // width) to avoid hyphenation of short columns like "Unit Price".
+                let content_width: f32 = runs
+                    .iter()
+                    .map(|run| {
+                        // Measure full text width using estimate_word_width
+                        let full_width =
+                            estimate_word_width(&run.text, run.font_size, &run.font_family, fonts);
+                        // Also ensure the column is at least as wide as
+                        // the longest word to prevent hyphenation.
+                        let longest_word_width = run
+                            .text
+                            .split_whitespace()
+                            .map(|w| estimate_word_width(w, run.font_size, &run.font_family, fonts))
+                            .fold(0.0f32, f32::max);
+                        full_width.max(longest_word_width)
+                    })
+                    .sum();
+                let total_preferred =
+                    content_width + cell_style.padding.left + cell_style.padding.right;
+                if colspan == 1 {
+                    if col_pos < num_cols {
+                        preferred_widths[col_pos] = preferred_widths[col_pos].max(total_preferred);
+                    }
+                } else {
+                    let per_col = total_preferred / colspan as f32;
+                    for i in 0..colspan {
+                        if col_pos + i < num_cols {
+                            preferred_widths[col_pos + i] =
+                                preferred_widths[col_pos + i].max(per_col);
                         }
                     }
-                    col_pos += colspan;
                 }
+                col_pos += colspan;
             }
         }
     }
@@ -3349,26 +4003,24 @@ fn flatten_table(
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut is_first = true;
-    for (row_idx, row) in rows.iter().enumerate() {
+    for row_ctx in &rows {
+        let row = row_ctx.row;
         let row_classes = row.class_list();
-        // Use section-relative index for nth-child matching (browsers count
-        // within thead/tbody/tfoot, not globally across all rows).
-        let section_idx = row_section_indices[row_idx];
-        let section_size = row_section_sizes[row_idx];
-        // Build ancestors for the row: table + optional section element
+        // Build ancestors for the row: table + optional section element.
         let mut row_ancestors = table_ancestors.clone();
-        if let Some(section_el) = row_section_elements[row_idx] {
+        if let Some(section_el) = row_ctx.section_element {
             row_ancestors.push(AncestorInfo {
                 element: section_el,
-                child_index: row_section_child_indices[row_idx],
-                sibling_count: row_section_sibling_counts[row_idx],
+                child_index: row_ctx.section_child_index,
+                sibling_count: row_ctx.section_sibling_count,
+                preceding_siblings: row_ctx.section_preceding_siblings.clone(),
             });
         }
         let row_selector_ctx = SelectorContext {
             ancestors: row_ancestors,
-            child_index: section_idx,
-            sibling_count: section_size,
-            preceding_siblings: Vec::new(),
+            child_index: row_ctx.row_child_index,
+            sibling_count: row_ctx.row_sibling_count,
+            preceding_siblings: row_ctx.row_preceding_siblings.clone(),
         };
         let row_style = compute_style_with_context(
             row.tag,
@@ -3385,16 +4037,12 @@ fn flatten_table(
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
-        let mut child_iter = row.children.iter().filter_map(|child| {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    return Some(cell_el);
-                }
-            }
-            None
-        });
-
-        // Process cells, skipping occupied positions and inserting phantom cells
+        let cell_children = element_children_with_preceding_siblings(&row.children);
+        let cell_element_count = cell_children.len();
+        let mut child_iter = cell_children
+            .iter()
+            .enumerate()
+            .filter(|(_, (cell_el, _))| cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th);
         let mut next_cell = child_iter.next();
         while col_pos < num_cols {
             if occupied[col_pos] > 0 {
@@ -3430,7 +4078,11 @@ fn flatten_table(
             }
 
             // Place the next real cell at this position
-            let Some(cell_el) = next_cell else { break };
+            let Some((cell_index, cell_info)) = next_cell else {
+                break;
+            };
+            let cell_el = cell_info.0;
+            let cell_preceding_siblings = &cell_info.1;
             next_cell = child_iter.next();
 
             let colspan = cell_el
@@ -3450,14 +4102,15 @@ fn flatten_table(
             let mut cell_ancestors = row_selector_ctx.ancestors.clone();
             cell_ancestors.push(AncestorInfo {
                 element: row,
-                child_index: section_idx,
-                sibling_count: section_size,
+                child_index: row_ctx.row_child_index,
+                sibling_count: row_ctx.row_sibling_count,
+                preceding_siblings: row_ctx.row_preceding_siblings.clone(),
             });
             let cell_selector_ctx = SelectorContext {
                 ancestors: cell_ancestors,
-                child_index: col_pos,
-                sibling_count: num_cols,
-                preceding_siblings: Vec::new(),
+                child_index: cell_index,
+                sibling_count: cell_element_count,
+                preceding_siblings: cell_preceding_siblings.clone(),
             };
             let cell_style = compute_style_with_context(
                 cell_el.tag,
@@ -3528,10 +4181,18 @@ fn flatten_table(
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
-                margin_top: if is_first { style.margin.top } else { 0.0 },
+                margin_top: if is_first {
+                    style.margin.top + table_spacing_y
+                } else {
+                    0.0
+                },
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
                 border_spacing: style.border_spacing,
+                border_spacing_y: table_row_spacing_y(
+                    style.border_collapse,
+                    style.border_spacing_y,
+                ),
             });
             is_first = false;
         }
@@ -3553,6 +4214,13 @@ fn collect_flex_child_text_runs(
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
 ) {
+    let element_count = nodes
+        .iter()
+        .filter(|node| matches!(node, DomNode::Element(_)))
+        .count();
+    let mut element_index = 0usize;
+    let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
+
     for node in nodes {
         match node {
             DomNode::Text(text) => {
@@ -3578,9 +4246,9 @@ fn collect_flex_child_text_runs(
                 let classes = el.class_list();
                 let selector_ctx = SelectorContext {
                     ancestors: ancestors.to_vec(),
-                    child_index: 0,
-                    sibling_count: nodes.len(),
-                    preceding_siblings: Vec::new(),
+                    child_index: element_index,
+                    sibling_count: element_count,
+                    preceding_siblings: preceding_siblings.clone(),
                 };
                 let child_style = compute_style_with_context(
                     el.tag,
@@ -3594,11 +4262,38 @@ fn collect_flex_child_text_runs(
                     &selector_ctx,
                 );
 
+                let before_style = compute_pseudo_element_style(
+                    &child_style,
+                    rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                    PseudoElement::Before,
+                );
+                let after_style = compute_pseudo_element_style(
+                    &child_style,
+                    rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                    PseudoElement::After,
+                );
+
                 if child_style.display == Display::None {
+                    preceding_siblings.push((
+                        el.tag_name().to_string(),
+                        classes.iter().map(|s| s.to_string()).collect(),
+                    ));
+                    element_index += 1;
                     continue;
                 }
 
                 if el.tag == HtmlTag::Br {
+                    append_pseudo_inline_run(runs, before_style.as_ref(), el);
                     runs.push(TextRun {
                         text: "\n".to_string(),
                         font_size: parent_style.font_size,
@@ -3613,16 +4308,17 @@ fn collect_flex_child_text_runs(
                         padding: (0.0, 0.0),
                         border_radius: 0.0,
                     });
+                    append_pseudo_inline_run(runs, after_style.as_ref(), el);
                 } else {
-                    // Build ancestor chain including current element for recursive calls
                     let mut child_ancestors = ancestors.to_vec();
                     child_ancestors.push(AncestorInfo {
                         element: el,
-                        child_index: 0,
-                        sibling_count: nodes.len(),
+                        child_index: element_index,
+                        sibling_count: element_count,
+                        preceding_siblings: preceding_siblings.clone(),
                     });
-                    // Recurse into both inline and block children so flex items
-                    // with nested block elements (h1, h2, p, div, …) produce text.
+
+                    append_pseudo_inline_run(runs, before_style.as_ref(), el);
                     collect_flex_child_text_runs(
                         &el.children,
                         &child_style,
@@ -3630,8 +4326,8 @@ fn collect_flex_child_text_runs(
                         rules,
                         &child_ancestors,
                     );
-                    // Insert a line break after block-level elements so they don't
-                    // merge with following content on the same line.
+                    append_pseudo_inline_run(runs, after_style.as_ref(), el);
+
                     if el.tag.is_block() && !runs.is_empty() {
                         runs.push(TextRun {
                             text: "\n".to_string(),
@@ -3649,6 +4345,12 @@ fn collect_flex_child_text_runs(
                         });
                     }
                 }
+
+                preceding_siblings.push((
+                    el.tag_name().to_string(),
+                    classes.iter().map(|s| s.to_string()).collect(),
+                ));
+                element_index += 1;
             }
         }
     }
@@ -3679,6 +4381,12 @@ fn collect_text_runs_inner(
         parent_style.white_space,
         WhiteSpace::Pre | WhiteSpace::PreWrap
     );
+    let element_count = nodes
+        .iter()
+        .filter(|node| matches!(node, DomNode::Element(_)))
+        .count();
+    let mut element_index = 0usize;
+    let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
 
     for node in nodes {
         match node {
@@ -3741,9 +4449,9 @@ fn collect_text_runs_inner(
                         let classes = el.class_list();
                         let selector_ctx = SelectorContext {
                             ancestors: ancestors.to_vec(),
-                            child_index: 0,
-                            sibling_count: nodes.len(),
-                            preceding_siblings: Vec::new(),
+                            child_index: element_index,
+                            sibling_count: element_count,
+                            preceding_siblings: preceding_siblings.clone(),
                         };
                         let style = compute_style_with_context(
                             el.tag,
@@ -3756,11 +4464,39 @@ fn collect_text_runs_inner(
                             &el.attributes,
                             &selector_ctx,
                         );
+                        let before_style = compute_pseudo_element_style(
+                            &style,
+                            rules,
+                            el.tag_name(),
+                            &classes,
+                            el.id(),
+                            &el.attributes,
+                            &selector_ctx,
+                            PseudoElement::Before,
+                        );
+                        let after_style = compute_pseudo_element_style(
+                            &style,
+                            rules,
+                            el.tag_name(),
+                            &classes,
+                            el.id(),
+                            &el.attributes,
+                            &selector_ctx,
+                            PseudoElement::After,
+                        );
                         let url = if el.tag == HtmlTag::A {
                             el.attributes.get("href").map(|s| s.as_str()).or(link_url)
                         } else {
                             link_url
                         };
+                        append_pseudo_inline_run(runs, before_style.as_ref(), el);
+                        let mut child_ancestors = ancestors.to_vec();
+                        child_ancestors.push(AncestorInfo {
+                            element: el,
+                            child_index: element_index,
+                            sibling_count: element_count,
+                            preceding_siblings: preceding_siblings.clone(),
+                        });
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -3768,11 +4504,20 @@ fn collect_text_runs_inner(
                             url,
                             rules,
                             true,
-                            ancestors,
+                            &child_ancestors,
                         );
+                        append_pseudo_inline_run(runs, after_style.as_ref(), el);
                     }
                 }
             }
+        }
+
+        if let DomNode::Element(el) = node {
+            preceding_siblings.push((
+                el.tag_name().to_string(),
+                el.class_list().iter().map(|s| s.to_string()).collect(),
+            ));
+            element_index += 1;
         }
     }
 }
@@ -4077,16 +4822,15 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             cells,
             margin_top,
             margin_bottom,
+            border_collapse,
+            border_spacing_y,
             ..
         } => {
-            let row_h = cells
-                .iter()
-                .map(|c| {
-                    let th: f32 = c.lines.iter().map(|l| l.height).sum();
-                    c.padding_top + th + c.padding_bottom
-                })
-                .fold(0.0f32, f32::max);
-            margin_top + row_h + margin_bottom
+            let row_h = table_row_content_height(cells);
+            margin_top
+                + row_h
+                + table_row_spacing_y(*border_collapse, *border_spacing_y)
+                + margin_bottom
         }
         LayoutElement::Image {
             height,
@@ -4213,16 +4957,16 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 cells,
                 margin_top,
                 margin_bottom,
+                border_collapse,
+                border_spacing_y,
                 ..
             } => {
-                let row_height = cells
-                    .iter()
-                    .map(|cell| {
-                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-                        cell.padding_top + text_h + cell.padding_bottom
-                    })
-                    .fold(0.0f32, f32::max);
-                (row_height, *margin_top, *margin_bottom)
+                let row_height = table_row_content_height(cells);
+                (
+                    row_height + table_row_spacing_y(*border_collapse, *border_spacing_y),
+                    *margin_top,
+                    *margin_bottom,
+                )
             }
             LayoutElement::GridRow {
                 cells,
@@ -4588,6 +5332,7 @@ fn collapse_whitespace(text: &str) -> String {
 mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
+    use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
     use crate::parser::html::{parse_html, parse_html_with_styles};
 
     fn page_text_runs(page: &Page) -> Vec<&TextRun> {
@@ -6941,6 +7686,66 @@ mod tests {
     }
 
     #[test]
+    fn table_row_collapsed_border_spacing_y_is_zero() {
+        let html = r#"<table style="border-collapse: collapse; border-spacing: 8px 24px"><tr><td>A</td></tr></table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow {
+                    border_collapse,
+                    border_spacing,
+                    border_spacing_y,
+                    ..
+                } => Some((*border_collapse, *border_spacing, *border_spacing_y)),
+                _ => None,
+            })
+            .expect("Expected TableRow");
+        assert_eq!(row.0, BorderCollapse::Collapse);
+        assert!(
+            (row.1 - 6.0).abs() < 0.1,
+            "horizontal spacing should remain"
+        );
+        assert!(
+            (row.2 - 0.0).abs() < 0.1,
+            "collapsed vertical spacing should be zero"
+        );
+    }
+
+    #[test]
+    fn table_row_pagination_ignores_collapsed_vertical_spacing() {
+        let separate_html = r#"
+            <table style="border-collapse: separate; border-spacing: 0 40pt">
+                <tr><td style="padding-top: 20pt; padding-bottom: 20pt"></td></tr>
+                <tr><td style="padding-top: 20pt; padding-bottom: 20pt"></td></tr>
+            </table>
+        "#;
+        let collapse_html = r#"
+            <table style="border-collapse: collapse; border-spacing: 0 40pt">
+                <tr><td style="padding-top: 20pt; padding-bottom: 20pt"></td></tr>
+                <tr><td style="padding-top: 20pt; padding-bottom: 20pt"></td></tr>
+            </table>
+        "#;
+        let page_size = PageSize::new(200.0, 120.0);
+        let margin = Margin::uniform(10.0);
+
+        let separate_pages = layout(&parse_html(separate_html).unwrap(), page_size, margin);
+        let collapse_pages = layout(&parse_html(collapse_html).unwrap(), page_size, margin);
+
+        assert!(
+            separate_pages.len() >= 2,
+            "Separated rows should overflow onto a second page when vertical spacing is present"
+        );
+        assert_eq!(
+            collapse_pages.len(),
+            1,
+            "Collapsed rows should fit on one page without vertical spacing"
+        );
+    }
+
+    #[test]
     fn text_overflow_ellipsis_truncates() {
         // text-overflow: ellipsis is stored on the style; layout does not yet
         // perform the actual truncation with "..." so we just verify the
@@ -8181,6 +8986,49 @@ mod tests {
     }
 
     #[test]
+    fn flex_container_keeps_before_and_after_content() {
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 240pt; }
+            .container::before { content: "BEFORE "; }
+            .container::after { content: " AFTER"; }
+        </style></head><body>
+        <div class="container">
+            <div>Main</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let cells = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        let row_text: Vec<String> = cells
+            .iter()
+            .map(|cell| {
+                cell.lines
+                    .iter()
+                    .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                    .collect()
+            })
+            .collect();
+        assert!(row_text.iter().any(|text| text.contains("BEFORE")));
+        assert!(row_text.iter().any(|text| text.contains("Main")));
+        assert!(row_text.iter().any(|text| text.contains("AFTER")));
+    }
+
+    #[test]
     fn flex_basis_overrides_width() {
         let html = r#"<html><head><style>
             .container { display: flex; width: 400pt; }
@@ -8494,6 +9342,116 @@ mod tests {
             .collect();
         let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
         assert!(!pages.is_empty());
+    }
+
+    #[test]
+    fn table_section_ignores_non_tr_children_but_keeps_selector_context() {
+        let mut tbody = ElementNode::new(HtmlTag::Tbody);
+        let extra = ElementNode::new(HtmlTag::Div);
+        let mut row = ElementNode::new(HtmlTag::Tr);
+        let mut cell = ElementNode::new(HtmlTag::Td);
+        cell.children.push(DomNode::Text("First row".to_string()));
+        row.children.push(DomNode::Element(cell));
+        tbody.children.push(DomNode::Element(extra));
+        tbody.children.push(DomNode::Element(row));
+
+        let rows = collect_table_section_rows(&tbody);
+        assert_eq!(rows.len(), 1, "only the real tr should become a row");
+        let (row_el, row_idx, sibling_count, preceding_siblings) = &rows[0];
+        assert_eq!(row_el.tag, HtmlTag::Tr);
+        assert_eq!(*row_idx, 1, "tr should keep its true element-child index");
+        assert_eq!(
+            *sibling_count, 2,
+            "row selector context should still count non-tr element children"
+        );
+        assert_eq!(preceding_siblings.len(), 1);
+        assert_eq!(preceding_siblings[0].0, "div");
+    }
+
+    #[test]
+    fn table_row_layout_ignores_non_cell_element_children() {
+        let mut table = ElementNode::new(HtmlTag::Table);
+        let mut row = ElementNode::new(HtmlTag::Tr);
+        let mut extra = ElementNode::new(HtmlTag::Div);
+        extra.children.push(DomNode::Text("Ignore me".to_string()));
+        let mut first = ElementNode::new(HtmlTag::Td);
+        first.children.push(DomNode::Text("A".to_string()));
+        let mut second = ElementNode::new(HtmlTag::Td);
+        second.children.push(DomNode::Text("B".to_string()));
+        row.children.push(DomNode::Element(extra));
+        row.children.push(DomNode::Element(first));
+        row.children.push(DomNode::Element(second));
+        table.children.push(DomNode::Element(row));
+
+        let pages = layout(&[DomNode::Element(table)], PageSize::A4, Margin::default());
+        let row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected table row");
+        assert_eq!(
+            row.len(),
+            2,
+            "only td/th children should become table cells"
+        );
+        let texts: Vec<String> = row
+            .iter()
+            .map(|cell| {
+                cell.lines
+                    .iter()
+                    .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                    .collect()
+            })
+            .collect();
+        assert_eq!(texts, vec!["A".to_string(), "B".to_string()]);
+    }
+
+    #[test]
+    fn table_row_cell_selector_context_keeps_true_element_indices() {
+        let css = "tr td:nth-child(2) { background-color: red }";
+        let rules = parse_stylesheet(css);
+
+        let mut table = ElementNode::new(HtmlTag::Table);
+        let mut row = ElementNode::new(HtmlTag::Tr);
+        let extra = ElementNode::new(HtmlTag::Div);
+        let mut first = ElementNode::new(HtmlTag::Td);
+        first.children.push(DomNode::Text("A".to_string()));
+        let mut second = ElementNode::new(HtmlTag::Td);
+        second.children.push(DomNode::Text("B".to_string()));
+        row.children.push(DomNode::Element(extra));
+        row.children.push(DomNode::Element(first));
+        row.children.push(DomNode::Element(second));
+        table.children.push(DomNode::Element(row));
+
+        let pages = layout_with_rules(
+            &[DomNode::Element(table)],
+            PageSize::A4,
+            Margin::default(),
+            &rules,
+        );
+        let row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::TableRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected table row");
+
+        assert_eq!(
+            row.first().and_then(|cell| cell.background_color),
+            Some((1.0, 0.0, 0.0)),
+            "the first td should match nth-child(2) because the div counts as the first element child"
+        );
     }
 
     // ---- Pseudo-element (::before / ::after) tests ----
@@ -8822,6 +9780,87 @@ mod tests {
     }
 
     #[test]
+    fn inline_absolute_pseudo_uses_inline_containing_block() {
+        let css = r#"
+            .host {
+                position: relative;
+            }
+            .host::before {
+                content: "ABS";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 20pt;
+                height: 10pt;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<span class="host">Text</span>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_block = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TextBlock {
+                    position: Position::Absolute,
+                    containing_block,
+                    ..
+                } => Some(containing_block.expect("expected containing block")),
+                _ => None,
+            })
+            .expect("expected an inline absolute pseudo");
+        assert_eq!(abs_block.depth, 1);
+        assert!(abs_block.width > 0.0);
+        assert!(abs_block.height > 0.0);
+    }
+
+    #[test]
+    fn inline_absolute_pseudo_uses_wrapped_inline_height() {
+        let css = r#"
+            .host {
+                position: relative;
+            }
+            .host::after {
+                content: "ABS";
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                width: 10pt;
+                height: 10pt;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<span class="host">wrap wrap wrap wrap wrap wrap wrap wrap</span>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(
+            &nodes,
+            PageSize::new(80.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+
+        let abs_block = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TextBlock {
+                    position: Position::Absolute,
+                    containing_block,
+                    ..
+                } => Some(containing_block.expect("expected containing block")),
+                _ => None,
+            })
+            .expect("expected an inline absolute pseudo");
+        assert!(
+            abs_block.height > 20.0,
+            "wrapped inline content should produce a taller containing block, got {}",
+            abs_block.height
+        );
+    }
+
+    #[test]
     fn absolute_pseudo_auto_width_uses_unwrapped_content_width() {
         let pseudo_style = ComputedStyle {
             position: Position::Absolute,
@@ -9020,6 +10059,596 @@ mod tests {
         assert!(
             block_count >= 1,
             "Empty content with display:block should still generate a block element"
+        );
+    }
+
+    #[test]
+    fn flex_absolute_pseudo_with_empty_content_is_emitted() {
+        let css = r#"
+            .flex {
+                display: flex;
+                position: relative;
+            }
+            .flex::before {
+                content: '';
+                position: absolute;
+                top: 10px;
+                left: 12px;
+                width: 20px;
+                height: 18px;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="flex"><div>Item</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_blocks: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .collect();
+        assert_eq!(
+            abs_blocks.len(),
+            1,
+            "Expected the empty absolute flex pseudo to be emitted"
+        );
+    }
+
+    #[test]
+    fn flex_block_pseudos_stay_in_item_flow() {
+        let css = r#"
+            .flex {
+                display: flex;
+                width: 240pt;
+            }
+            .flex::before {
+                content: "BEFORE";
+                display: block;
+            }
+            .flex::after {
+                content: "AFTER";
+                display: block;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="flex"><div>Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let cells = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        assert_eq!(cells.len(), 3, "before, item, after should stay in flow");
+        let cell_texts: Vec<String> = cells
+            .iter()
+            .map(|cell| {
+                cell.lines
+                    .iter()
+                    .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                    .collect()
+            })
+            .collect();
+        assert!(cell_texts[0].contains("BEFORE"));
+        assert!(cell_texts[1].contains("Main"));
+        assert!(cell_texts[2].contains("AFTER"));
+    }
+
+    #[test]
+    fn grid_container_pseudo_is_emitted() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .grid::before {
+                content: 'GRID';
+                display: block;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>Cell</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(rows.len(), 2, "pseudo should participate in grid flow");
+        let first_row_text: String = rows[0][0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+            .collect();
+        assert!(
+            first_row_text.contains("GRID"),
+            "Expected the grid container pseudo to appear in the first grid cell"
+        );
+    }
+
+    #[test]
+    fn grid_block_pseudos_stay_in_cell_flow() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .grid::before {
+                content: "BEFORE";
+                display: block;
+            }
+            .grid::after {
+                content: "AFTER";
+                display: block;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let rows: Vec<_> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(rows.len(), 3, "before, item, after should stay in flow");
+        let row_texts: Vec<String> = rows
+            .iter()
+            .map(|cells| {
+                cells[0]
+                    .lines
+                    .iter()
+                    .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+                    .collect()
+            })
+            .collect();
+        assert!(row_texts[0].contains("BEFORE"));
+        assert!(row_texts[1].contains("Main"));
+        assert!(row_texts[2].contains("AFTER"));
+    }
+
+    #[test]
+    fn flex_absolute_before_uses_container_depth() {
+        let css = r#"
+            .outer {
+                position: relative;
+                margin-top: 64pt;
+                background-color: #f4f4f4;
+            }
+            .flex {
+                display: flex;
+                position: relative;
+                width: 200pt;
+                margin-top: 24pt;
+            }
+            .flex::before {
+                content: "ABS";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 40pt;
+                height: 20pt;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="outer"><div class="flex"><div>Main</div></div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_block = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TextBlock {
+                    position: Position::Absolute,
+                    containing_block,
+                    ..
+                } => Some(containing_block.expect("expected containing block")),
+                _ => None,
+            })
+            .expect("expected an absolute flex pseudo");
+
+        assert_eq!(
+            abs_block.depth, 2,
+            "absolute flex pseudo should use the flex container's positioned depth"
+        );
+    }
+
+    #[test]
+    fn grid_absolute_before_resolves_against_padding_box() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                position: relative;
+                width: 200pt;
+                height: 150pt;
+                margin-top: 100pt;
+                padding: 12pt;
+            }
+            .grid::before {
+                content: "ABS";
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                width: 40pt;
+                height: 20pt;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let abs_block = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TextBlock {
+                    position: Position::Absolute,
+                    containing_block,
+                    offset_top,
+                    offset_left,
+                    ..
+                } => Some((
+                    containing_block.expect("expected containing block"),
+                    *offset_top,
+                    *offset_left,
+                )),
+                _ => None,
+            })
+            .expect("expected an absolute grid pseudo");
+
+        assert!(
+            (abs_block.0.width - 224.0).abs() < 1.0,
+            "containing block width should use the grid padding box, got {}",
+            abs_block.0.width
+        );
+        assert!(
+            (abs_block.0.height - 174.0).abs() < 1.0,
+            "containing block height should ignore container margins, got {}",
+            abs_block.0.height
+        );
+        assert!(
+            (abs_block.1 - 154.0).abs() < 1.0,
+            "absolute pseudo should resolve bottom against the padding box, got offset_top={}",
+            abs_block.1
+        );
+        assert!(
+            (abs_block.2 - 184.0).abs() < 1.0,
+            "absolute pseudo should resolve right against the padding box, got offset_left={}",
+            abs_block.2
+        );
+    }
+
+    #[test]
+    fn flex_nested_descendant_pseudo_content_survives() {
+        let css = r#"
+            .flex { display: flex; }
+            .flex span::before { content: '*'; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="flex"><div><span>Item</span></div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let flex_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        let cell_text: String = flex_row
+            .first()
+            .into_iter()
+            .flat_map(|cell| cell.lines.iter())
+            .flat_map(|line| line.runs.iter())
+            .map(|run| run.text.as_str())
+            .collect();
+        assert!(
+            cell_text.contains('*') && cell_text.contains("Item"),
+            "Expected the nested flex pseudo to be included in the cell text"
+        );
+    }
+
+    #[test]
+    fn flex_child_block_and_absolute_pseudos_preserve_content() {
+        let css = r#"
+            .flex { display: flex; }
+            .item { position: relative; }
+            .item::before { content: "BEFORE"; display: block; }
+            .item::after { content: "AFTER"; position: absolute; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="flex"><div class="item">Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let flex_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        let cell_text: String = flex_row[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+            .collect();
+        assert!(cell_text.contains("BEFORE"));
+        assert!(cell_text.contains("Main"));
+        assert!(cell_text.contains("AFTER"));
+    }
+
+    #[test]
+    fn flex_child_empty_block_pseudo_preserves_line_box() {
+        let css = r#"
+            .flex { display: flex; }
+            .item::before { content: ""; display: block; height: 18pt; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="flex"><div class="item">Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let flex_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        assert!(flex_row[0].lines.len() >= 2);
+        assert!(flex_row[0].lines[0].height >= 18.0);
+    }
+
+    #[test]
+    fn grid_nested_descendant_pseudo_content_survives() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .grid span::before { content: '*'; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div><span>Item</span></div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let grid_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a grid row");
+        let cell_text: String = grid_row
+            .first()
+            .into_iter()
+            .flat_map(|cell| cell.lines.iter())
+            .flat_map(|line| line.runs.iter())
+            .map(|run| run.text.as_str())
+            .collect();
+        assert!(
+            cell_text.contains('*') && cell_text.contains("Item"),
+            "Expected the nested grid pseudo to be included in the cell text"
+        );
+    }
+
+    #[test]
+    fn grid_child_block_and_absolute_pseudos_preserve_content() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .item { position: relative; }
+            .item::before { content: "BEFORE"; display: block; }
+            .item::after { content: "AFTER"; position: absolute; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div class="item">Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let grid_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a grid row");
+        let cell_text: String = grid_row[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter().map(|run| run.text.as_str()))
+            .collect();
+        assert!(cell_text.contains("BEFORE"));
+        assert!(cell_text.contains("Main"));
+        assert!(cell_text.contains("AFTER"));
+    }
+
+    #[test]
+    fn grid_descendant_selector_uses_real_ancestor_indices() {
+        let css = r#"
+            .grid:first-child span { color: red; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <div>Sibling</div>
+            <div class="grid" style="display:grid; grid-template-columns: 1fr;">
+                <div><span>Item</span></div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let grid_row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a grid row");
+        let run = grid_row[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter())
+            .find(|run| run.text.contains("Item"))
+            .expect("expected grid text run");
+        assert_ne!(run.color, (1.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn grid_absolute_before_preserves_paint_order() {
+        let css = r#"
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                position: relative;
+            }
+            .grid::before {
+                content: "ABS";
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"<div class="grid"><div>Main</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let before_index = pages[0]
+            .elements
+            .iter()
+            .position(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .expect("expected absolute grid ::before");
+        let row_index = pages[0]
+            .elements
+            .iter()
+            .position(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
+            .expect("expected grid row");
+        assert!(before_index < row_index);
+    }
+
+    #[test]
+    fn flex_and_grid_sibling_combinators_use_preceding_siblings() {
+        let flex_css = r#"
+            .flex { display: flex; }
+            .flex > div + div { background-color: #ff0000; }
+        "#;
+        let grid_css = r#"
+            .grid { display: grid; grid-template-columns: 1fr 1fr; }
+            .grid > div + div { background-color: #ff0000; }
+        "#;
+
+        let flex_rules = parse_stylesheet(flex_css);
+        let flex_nodes = parse_html(r#"<div class="flex"><div>A</div><div>B</div></div>"#).unwrap();
+        let flex_pages =
+            layout_with_rules(&flex_nodes, PageSize::A4, Margin::default(), &flex_rules);
+        let flex_row = flex_pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::FlexRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a flex row");
+        assert_eq!(
+            flex_row.get(1).and_then(|cell| cell.background_color),
+            Some((1.0, 0.0, 0.0)),
+            "Expected the second flex item to match div + div"
+        );
+
+        let grid_rules = parse_stylesheet(grid_css);
+        let grid_nodes = parse_html(r#"<div class="grid"><div>A</div><div>B</div></div>"#).unwrap();
+        let grid_pages =
+            layout_with_rules(&grid_nodes, PageSize::A4, Margin::default(), &grid_rules);
+        let grid_row = grid_pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| {
+                if let LayoutElement::GridRow { cells, .. } = el {
+                    Some(cells)
+                } else {
+                    None
+                }
+            })
+            .expect("expected a grid row");
+        assert_eq!(
+            grid_row.get(1).and_then(|cell| cell.background_color),
+            Some((1.0, 0.0, 0.0)),
+            "Expected the second grid item to match div + div"
         );
     }
 }
