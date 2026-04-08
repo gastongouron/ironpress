@@ -4036,8 +4036,7 @@ fn load_image_from_element(
     // For data URIs with a non-SVG MIME type, skip the SVG probe entirely.
     let skip_svg = mime
         .as_deref()
-        .map(|m| !m.is_empty() && !m.contains("svg") && !m.contains("xml"))
-        .unwrap_or(false);
+        .is_some_and(|m| !m.is_empty() && !m.contains("svg") && !m.contains("xml"));
 
     // Try SVG path first — render as vector graphics instead of raster.
     if !skip_svg {
@@ -4051,20 +4050,14 @@ fn load_image_from_element(
                     false,
                     false,
                 );
-                let html_attr_width = style.width.or_else(|| {
-                    el.attributes
-                        .get("width")
-                        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-                        .map(|px| px * 0.75)
-                });
-                let html_attr_height = style.height.or_else(|| {
-                    el.attributes
-                        .get("height")
-                        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-                        .map(|px| px * 0.75)
-                });
+                let html_attr_width = style
+                    .width
+                    .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
+                let html_attr_height = style
+                    .height
+                    .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
-                let (mut width, mut height) = match (html_attr_width, html_attr_height) {
+                let (width, height) = match (html_attr_width, html_attr_height) {
                     (Some(w), Some(h)) => (w, h),
                     (Some(w), None) => {
                         if intrinsic.0 > 0.0 {
@@ -4083,11 +4076,13 @@ fn load_image_from_element(
                     (None, None) => intrinsic,
                 };
 
-                if width > available_width {
-                    let scale = available_width / width;
-                    width = available_width;
-                    height *= scale;
-                }
+                let (width, height) = constrain_replaced_image_size(
+                    width,
+                    height,
+                    available_width,
+                    style.max_width,
+                    style.max_height,
+                );
 
                 if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
                     svg_el,
@@ -4111,30 +4106,23 @@ fn load_image_from_element(
     let (data, format, png_meta) = load_image_bytes(raw)?;
 
     // Determine dimensions from attributes
-    let attr_width = el
-        .attributes
-        .get("width")
-        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-        .map(|px| px * 0.75);
-    let attr_height = el
-        .attributes
-        .get("height")
-        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-        .map(|px| px * 0.75);
+    let attr_width = parse_html_image_dimension(el.attributes.get("width"));
+    let attr_height = parse_html_image_dimension(el.attributes.get("height"));
 
-    let (mut width, mut height) = match (attr_width, attr_height) {
+    let (width, height) = match (attr_width, attr_height) {
         (Some(w), Some(h)) => (w, h),
         (Some(w), None) => (w, w), // fallback: square
         (None, Some(h)) => (h, h),
         (None, None) => (available_width.min(200.0), 150.0),
     };
 
-    // Scale to fit within available width
-    if width > available_width {
-        let scale = available_width / width;
-        width = available_width;
-        height *= scale;
-    }
+    let (width, height) = constrain_replaced_image_size(
+        width,
+        height,
+        available_width,
+        style.max_width,
+        style.max_height,
+    );
 
     Some(LayoutElement::Image {
         data,
@@ -4145,6 +4133,44 @@ fn load_image_from_element(
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
     })
+}
+
+fn constrain_replaced_image_size(
+    width: f32,
+    height: f32,
+    available_width: f32,
+    max_width: Option<f32>,
+    max_height: Option<f32>,
+) -> (f32, f32) {
+    if width <= 0.0 || height <= 0.0 {
+        return (width.max(0.0), height.max(0.0));
+    }
+
+    let mut scale: f32 = 1.0;
+
+    if available_width.is_finite() && available_width > 0.0 {
+        scale = scale.min(available_width / width);
+    }
+
+    if let Some(limit) = max_width.filter(|limit| limit.is_finite() && *limit > 0.0) {
+        scale = scale.min(limit / width);
+    }
+
+    if let Some(limit) = max_height.filter(|limit| limit.is_finite() && *limit > 0.0) {
+        scale = scale.min(limit / height);
+    }
+
+    if scale < 1.0 {
+        (width * scale, height * scale)
+    } else {
+        (width, height)
+    }
+}
+
+fn parse_html_image_dimension(raw: Option<&String>) -> Option<f32> {
+    let raw = raw?.trim();
+    let raw = raw.strip_suffix("px").unwrap_or(raw);
+    raw.parse::<f32>().ok().map(|px| px * 0.75)
 }
 
 /// Resolve the rendered size of an SVG from its intrinsic dimensions and raw
@@ -5109,6 +5135,36 @@ mod tests {
             LayoutElement::Svg { width, height, .. } => {
                 assert!((*width - 300.0).abs() < 0.1);
                 assert!((*height - 150.0).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn layout_svg_image_respects_max_width() {
+        let html = r#"<img style="max-width: 75pt" src="data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%2250%22%3E%3C/svg%3E">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 75.0).abs() < 0.1);
+                assert!((*height - 37.5).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn layout_svg_image_respects_max_height() {
+        let html = r#"<img style="max-height: 20pt" src="data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%2250%22%3E%3C/svg%3E">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 40.0).abs() < 0.1);
+                assert!((*height - 20.0).abs() < 0.1);
             }
             other => panic!("Expected Svg layout element, got {other:?}"),
         }
