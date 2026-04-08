@@ -1839,49 +1839,39 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         if rest.is_empty() {
             break;
         }
-        if rest.starts_with('"') || rest.starts_with('\'') {
-            let quote = rest.as_bytes()[0] as char;
-            if let Some(end) = rest[1..].find(quote) {
-                items.push(ContentItem::String(rest[1..1 + end].to_string()));
-                rest = &rest[2 + end..];
+        if let Some(body) = rest.strip_prefix('"') {
+            if let Some(end) = body.find('"') {
+                items.push(ContentItem::String(body[..end].to_string()));
+                rest = &body[end + 1..];
             } else {
-                items.push(ContentItem::String(rest[1..].to_string()));
+                items.push(ContentItem::String(body.to_string()));
                 break;
             }
-        } else if rest.starts_with("attr(") {
-            if let Some(end) = rest.find(')') {
-                let name = rest[5..end].trim().to_string();
-                items.push(ContentItem::Attr(name));
-                rest = &rest[end + 1..];
+        } else if let Some(body) = rest.strip_prefix('\'') {
+            if let Some(end) = body.find('\'') {
+                items.push(ContentItem::String(body[..end].to_string()));
+                rest = &body[end + 1..];
             } else {
+                items.push(ContentItem::String(body.to_string()));
                 break;
             }
-        } else if rest.starts_with("counters(") {
-            if let Some(end) = rest.find(')') {
-                let inner = &rest[9..end];
-                let parts: Vec<&str> = inner.splitn(2, ',').collect();
-                let name = parts[0].trim().to_string();
-                let sep = if parts.len() > 1 {
-                    parts[1]
-                        .trim()
-                        .trim_matches(|c: char| c == '"' || c == '\'')
-                        .to_string()
-                } else {
-                    ".".to_string()
-                };
-                items.push(ContentItem::Counters(name, sep));
-                rest = &rest[end + 1..];
-            } else {
-                break;
-            }
-        } else if rest.starts_with("counter(") {
-            if let Some(end) = rest.find(')') {
-                let name = rest[8..end].trim().to_string();
-                items.push(ContentItem::Counter(name));
-                rest = &rest[end + 1..];
-            } else {
-                break;
-            }
+        } else if let Some((name, tail)) = parse_content_function(rest, "attr(") {
+            items.push(ContentItem::Attr(name.trim().to_string()));
+            rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function(rest, "counters(") {
+            let (name, sep) = inner
+                .split_once(',')
+                .map_or((inner.trim(), "."), |(name, sep)| {
+                    (
+                        name.trim(),
+                        sep.trim().trim_matches(|c: char| c == '"' || c == '\''),
+                    )
+                });
+            items.push(ContentItem::Counters(name.to_string(), sep.to_string()));
+            rest = tail;
+        } else if let Some((name, tail)) = parse_content_function(rest, "counter(") {
+            items.push(ContentItem::Counter(name.trim().to_string()));
+            rest = tail;
         } else if let Some(space) = rest.find(char::is_whitespace) {
             rest = &rest[space..];
         } else {
@@ -1889,6 +1879,10 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         }
     }
     items
+}
+
+fn parse_content_function<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
+    rest.strip_prefix(prefix)?.split_once(')')
 }
 
 fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
