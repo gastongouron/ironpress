@@ -13,6 +13,7 @@ use crate::style::computed::{
     compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
+use crate::util::decode_base64;
 use std::collections::HashMap;
 
 /// A single border side for layout rendering.
@@ -293,6 +294,50 @@ pub struct FlexCell {
     pub background_origin: BackgroundOrigin,
 }
 
+#[derive(Debug, Clone)]
+struct BackgroundFields {
+    gradient: Option<LinearGradient>,
+    radial_gradient: Option<RadialGradient>,
+    svg: Option<crate::parser::svg::SvgTree>,
+    size: BackgroundSize,
+    position: BackgroundPosition,
+    repeat: BackgroundRepeat,
+    origin: BackgroundOrigin,
+}
+
+impl BackgroundFields {
+    fn from_style(style: &ComputedStyle) -> Self {
+        Self {
+            gradient: style.background_gradient.clone(),
+            radial_gradient: style.background_radial_gradient.clone(),
+            svg: style.background_svg.clone(),
+            size: style.background_size,
+            position: style.background_position,
+            repeat: style.background_repeat,
+            origin: style.background_origin,
+        }
+    }
+
+    fn none() -> Self {
+        Self {
+            gradient: None,
+            radial_gradient: None,
+            svg: None,
+            size: BackgroundSize::Auto,
+            position: BackgroundPosition::default(),
+            repeat: BackgroundRepeat::Repeat,
+            origin: BackgroundOrigin::PaddingBox,
+        }
+    }
+}
+
+fn has_background_paint(style: &ComputedStyle) -> bool {
+    style.background_color.is_some()
+        || style.background_gradient.is_some()
+        || style.background_radial_gradient.is_some()
+        || style.background_svg.is_some()
+}
+
 /// A styled text run (a piece of text with uniform style).
 #[derive(Debug, Clone)]
 pub struct TextRun {
@@ -521,10 +566,17 @@ pub fn layout_with_rules_and_fonts(
 
     // If the body/html has a background SVG (or gradient/color), emit a full-content-area
     // background block at the very start so it renders behind all content.
-    let has_body_bg = parent_style.background_svg.is_some()
-        || parent_style.background_gradient.is_some()
-        || parent_style.background_radial_gradient.is_some();
+    let has_body_bg = has_background_paint(&parent_style);
     if has_body_bg {
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::from_style(&parent_style);
         elements.push(LayoutElement::TextBlock {
             lines: vec![],
             margin_top: 0.0,
@@ -555,13 +607,13 @@ pub fn layout_with_rules_and_fonts(
             letter_spacing: 0.0,
             word_spacing: 0.0,
             vertical_align: VerticalAlign::Baseline,
-            background_gradient: parent_style.background_gradient.clone(),
-            background_radial_gradient: parent_style.background_radial_gradient.clone(),
-            background_svg: parent_style.background_svg.clone(),
-            background_size: parent_style.background_size,
-            background_position: parent_style.background_position,
-            background_repeat: parent_style.background_repeat,
-            background_origin: parent_style.background_origin,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: -1,
             repeat_on_each_page: true,
             heading_level: None,
@@ -747,6 +799,15 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Br {
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::none();
         let line = TextLine {
             runs: vec![TextRun {
                 text: String::new(),
@@ -794,13 +855,13 @@ fn flatten_element(
             letter_spacing: 0.0,
             word_spacing: 0.0,
             vertical_align: VerticalAlign::Baseline,
-            background_gradient: None,
-            background_radial_gradient: None,
-            background_svg: None,
-            background_size: BackgroundSize::Auto,
-            background_position: BackgroundPosition::default(),
-            background_repeat: BackgroundRepeat::Repeat,
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: 0,
             repeat_on_each_page: false,
             heading_level: None,
@@ -914,6 +975,15 @@ fn flatten_element(
             .background_color
             .map(|c| c.to_f32_rgb())
             .unwrap_or((1.0, 1.0, 1.0));
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::from_style(&style);
 
         output.push(LayoutElement::TextBlock {
             lines,
@@ -945,13 +1015,13 @@ fn flatten_element(
             letter_spacing: style.letter_spacing,
             word_spacing: style.word_spacing,
             vertical_align: style.vertical_align,
-            background_gradient: style.background_gradient.clone(),
-            background_radial_gradient: style.background_radial_gradient.clone(),
-            background_svg: style.background_svg.clone(),
-            background_size: style.background_size,
-            background_position: style.background_position,
-            background_repeat: style.background_repeat,
-            background_origin: style.background_origin,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: style.z_index,
             repeat_on_each_page: false,
             heading_level: None,
@@ -1007,6 +1077,15 @@ fn flatten_element(
         } else {
             (0.3, 0.3, 0.3)
         };
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::from_style(&style);
 
         let runs = vec![TextRun {
             text: label,
@@ -1062,13 +1141,13 @@ fn flatten_element(
             letter_spacing: style.letter_spacing,
             word_spacing: style.word_spacing,
             vertical_align: style.vertical_align,
-            background_gradient: style.background_gradient.clone(),
-            background_radial_gradient: style.background_radial_gradient.clone(),
-            background_svg: style.background_svg.clone(),
-            background_size: style.background_size,
-            background_position: style.background_position,
-            background_repeat: style.background_repeat,
-            background_origin: style.background_origin,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: style.z_index,
             repeat_on_each_page: false,
             heading_level: None,
@@ -1274,6 +1353,15 @@ fn flatten_element(
 
         if !runs.is_empty() {
             let lines = wrap_text_runs(runs, inner_width, style.font_size, fonts);
+            let BackgroundFields {
+                gradient: background_gradient,
+                radial_gradient: background_radial_gradient,
+                svg: background_svg,
+                size: background_size,
+                position: background_position,
+                repeat: background_repeat,
+                origin: background_origin,
+            } = BackgroundFields::from_style(&style);
             output.push(LayoutElement::TextBlock {
                 lines,
                 margin_top: style.margin.top,
@@ -1304,13 +1392,13 @@ fn flatten_element(
                 letter_spacing: style.letter_spacing,
                 word_spacing: style.word_spacing,
                 vertical_align: style.vertical_align,
-                background_gradient: style.background_gradient.clone(),
-                background_radial_gradient: style.background_radial_gradient.clone(),
-                background_svg: style.background_svg.clone(),
-                background_size: style.background_size,
-                background_position: style.background_position,
-                background_repeat: style.background_repeat,
-                background_origin: style.background_origin,
+                background_gradient,
+                background_radial_gradient,
+                background_svg,
+                background_size,
+                background_position,
+                background_repeat,
+                background_origin,
                 z_index: style.z_index,
                 repeat_on_each_page: false,
                 heading_level: block_heading_level,
@@ -1562,6 +1650,15 @@ fn flatten_element(
             } else {
                 None
             };
+            let BackgroundFields {
+                gradient: background_gradient,
+                radial_gradient: background_radial_gradient,
+                svg: background_svg,
+                size: background_size,
+                position: background_position,
+                repeat: background_repeat,
+                origin: background_origin,
+            } = BackgroundFields::from_style(&style);
 
             output.push(LayoutElement::TextBlock {
                 lines,
@@ -1593,13 +1690,13 @@ fn flatten_element(
                 letter_spacing: style.letter_spacing,
                 word_spacing: style.word_spacing,
                 vertical_align: style.vertical_align,
-                background_gradient: style.background_gradient.clone(),
-                background_radial_gradient: style.background_radial_gradient.clone(),
-                background_svg: style.background_svg.clone(),
-                background_size: style.background_size,
-                background_position: style.background_position,
-                background_repeat: style.background_repeat,
-                background_origin: style.background_origin,
+                background_gradient,
+                background_radial_gradient,
+                background_svg,
+                background_size,
+                background_position,
+                background_repeat,
+                background_origin,
                 z_index: style.z_index,
                 repeat_on_each_page: false,
                 heading_level: heading_level(el.tag),
@@ -1619,9 +1716,7 @@ fn flatten_element(
         // are rendered.  Children are then pulled back inside via a negative-margin
         // spacer (same technique as flex column containers).
         // NB: check before runs is moved into wrap_text_runs above.
-        let has_visual = style.background_color.is_some()
-            || style.background_gradient.is_some()
-            || style.background_radial_gradient.is_some()
+        let has_visual = has_background_paint(&style)
             || style.border.has_any()
             || style.border_radius > 0.0
             || style.box_shadow.is_some();
@@ -2170,19 +2265,28 @@ fn flatten_flex_container(
         Some(h) => container_h.max(h),
         None => container_h,
     };
-
     let bg = style
         .background_color
-        .map(|c: crate::types::Color| c.to_f32_rgb());
+        .map(|color: crate::types::Color| color.to_f32_rgb());
+
     // For column direction, emit container background separately
     let emitted_column_bg = direction == FlexDirection::Column
-        && (bg.is_some() || style.border.has_any() || style.box_shadow.is_some());
+        && (has_background_paint(&style) || style.border.has_any() || style.box_shadow.is_some());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
         // It advances y by its full height in paginate.  We then emit a
         // negative-margin spacer to pull y back so children flow *inside*
         // the background rather than after it.
         let bg_flow_height = container_h + style.border.vertical_width();
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::from_style(&style);
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
             margin_top: style.margin.top,
@@ -2217,18 +2321,27 @@ fn flatten_flex_container(
             letter_spacing: 0.0,
             word_spacing: 0.0,
             vertical_align: VerticalAlign::Baseline,
-            background_gradient: style.background_gradient.clone(),
-            background_radial_gradient: style.background_radial_gradient.clone(),
-            background_svg: style.background_svg.clone(),
-            background_size: style.background_size,
-            background_position: style.background_position,
-            background_repeat: style.background_repeat,
-            background_origin: style.background_origin,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: 0,
             repeat_on_each_page: false,
             heading_level: None,
         });
         // Pull y back so children flow inside the container background
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            svg: background_svg,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+        } = BackgroundFields::none();
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
             margin_top: -bg_flow_height,
@@ -2259,13 +2372,13 @@ fn flatten_flex_container(
             letter_spacing: 0.0,
             word_spacing: 0.0,
             vertical_align: VerticalAlign::Baseline,
-            background_gradient: None,
-            background_radial_gradient: None,
-            background_svg: None,
-            background_size: BackgroundSize::Auto,
-            background_position: BackgroundPosition::default(),
-            background_repeat: BackgroundRepeat::Repeat,
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_gradient,
+            background_radial_gradient,
+            background_svg,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
             z_index: 0,
             repeat_on_each_page: false,
             heading_level: None,
@@ -4200,7 +4313,7 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
         // Parse data URI: data:[<mediatype>][;base64],<data>
         let (_header, encoded) = rest.split_once(',')?;
         // Only support base64 for now
-        base64_decode(encoded)?
+        decode_base64(encoded)?
     } else if src.starts_with("http://") || src.starts_with("https://") {
         fetch_remote_url(src)?
     } else {
@@ -4223,50 +4336,6 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
     } else {
         None
     }
-}
-
-/// Simple base64 decoder (no external dependencies).
-fn base64_decode(input: &str) -> Option<Vec<u8>> {
-    let table = |c: u8| -> Option<u8> {
-        match c {
-            b'A'..=b'Z' => Some(c - b'A'),
-            b'a'..=b'z' => Some(c - b'a' + 26),
-            b'0'..=b'9' => Some(c - b'0' + 52),
-            b'+' => Some(62),
-            b'/' => Some(63),
-            _ => None,
-        }
-    };
-
-    // Strip whitespace
-    let bytes: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
-    let mut result = Vec::with_capacity(bytes.len() * 3 / 4);
-    let mut i = 0;
-
-    while i < bytes.len() {
-        let remaining = bytes.len() - i;
-        if remaining < 2 {
-            break;
-        }
-
-        let a = table(bytes[i])?;
-        let b = table(bytes[i + 1])?;
-        result.push((a << 2) | (b >> 4));
-
-        if i + 2 < bytes.len() && bytes[i + 2] != b'=' {
-            let c = table(bytes[i + 2])?;
-            result.push((b << 4) | (c >> 2));
-
-            if i + 3 < bytes.len() && bytes[i + 3] != b'=' {
-                let d = table(bytes[i + 3])?;
-                result.push((c << 6) | d);
-            }
-        }
-
-        i += 4;
-    }
-
-    Some(result)
 }
 
 fn collapse_whitespace(text: &str) -> String {
@@ -4683,13 +4752,13 @@ mod tests {
     #[test]
     fn base64_decode_basic() {
         // "Hello" in base64 is "SGVsbG8="
-        let decoded = super::base64_decode("SGVsbG8=").unwrap();
+        let decoded = decode_base64("SGVsbG8=").unwrap();
         assert_eq!(decoded, b"Hello");
     }
 
     #[test]
     fn base64_decode_with_whitespace() {
-        let decoded = super::base64_decode("SGVs\nbG8=").unwrap();
+        let decoded = decode_base64("SGVs\nbG8=").unwrap();
         assert_eq!(decoded, b"Hello");
     }
 
@@ -4810,7 +4879,7 @@ mod tests {
     fn base64_decode_roundtrip() {
         let data = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
         let encoded = simple_base64_encode(data);
-        let decoded = base64_decode(&encoded).unwrap();
+        let decoded = decode_base64(&encoded).unwrap();
         assert_eq!(decoded, data);
     }
 
@@ -6667,15 +6736,16 @@ mod tests {
             heading_level: None,
         };
 
-        let pages = paginate(
-            vec![make_block(-1, true), make_block(-2, false)],
-            200.0,
-        );
+        let pages = paginate(vec![make_block(-1, true), make_block(-2, false)], 200.0);
 
         match &pages[0].elements[0].1 {
             LayoutElement::TextBlock {
-                repeat_on_each_page, ..
-            } => assert!(*repeat_on_each_page, "synthetic background should render first"),
+                repeat_on_each_page,
+                ..
+            } => assert!(
+                *repeat_on_each_page,
+                "synthetic background should render first"
+            ),
             other => panic!("expected text block, got {other:?}"),
         }
     }
@@ -7169,21 +7239,21 @@ mod tests {
     #[test]
     fn base64_decode_valid() {
         // Covers lines 2562,2574: base64 decode
-        let decoded = base64_decode("SGVsbG8=").unwrap();
+        let decoded = decode_base64("SGVsbG8=").unwrap();
         assert_eq!(&decoded, b"Hello");
     }
 
     #[test]
     fn base64_decode_invalid_char() {
         // Covers line 2562: base64 decode with invalid char
-        let result = base64_decode("!!!!");
+        let result = decode_base64("!!!!");
         assert!(result.is_none());
     }
 
     #[test]
     fn base64_decode_short_input() {
         // Covers line 2574: base64 decode with very short input (breaks early)
-        let result = base64_decode("A");
+        let result = decode_base64("A");
         assert!(result.is_some());
         assert!(result.unwrap().is_empty());
     }
@@ -7444,8 +7514,7 @@ mod tests {
 
     #[test]
     fn flex_row_child_preserves_svg_background() {
-        let child_style =
-            r#"background-image: url(data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='%23f00'/%3E%3C/svg%3E); width: 60pt;"#;
+        let child_style = r#"background-image: url(data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='%23f00'/%3E%3C/svg%3E); width: 60pt;"#;
         let parsed = crate::parser::css::parse_inline_style(child_style);
         assert!(
             parsed.get("background-svg").is_some(),
@@ -7460,9 +7529,8 @@ mod tests {
             computed.background_svg.is_some(),
             "expected computed style to retain SVG background"
         );
-        let html = format!(
-            r#"<div style="display: flex;"><div style="{child_style}">A</div></div>"#
-        );
+        let html =
+            format!(r#"<div style="display: flex;"><div style="{child_style}">A</div></div>"#);
         let pages = layout(&parse_html(&html).unwrap(), PageSize::A4, Margin::default());
         let has_cell_svg_background = pages.iter().any(|page| {
             page.elements.iter().any(|(_, el)| match el {

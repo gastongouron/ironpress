@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::parser::dom::ElementNode;
 use crate::types::Color;
+use crate::util::decode_base64;
 
 /// Context for evaluating CSS media queries against the target page.
 #[derive(Debug, Clone, Copy)]
@@ -1347,59 +1348,11 @@ fn extract_svg_data_uri(val: &str) -> Option<String> {
     let data = &after_mime[comma + 1..];
 
     if params.to_ascii_lowercase().contains(";base64") {
-        let decoded = base64_decode_svg(data)?;
+        let decoded = decode_base64(data)?;
         String::from_utf8(decoded).ok()
     } else {
         Some(percent_decode(data))
     }
-}
-
-/// Decode a base64-encoded string into bytes.
-fn base64_decode_svg(input: &str) -> Option<Vec<u8>> {
-    const TABLE: [u8; 128] = {
-        let mut t = [255u8; 128];
-        let mut i = 0u8;
-        while i < 26 {
-            t[(b'A' + i) as usize] = i;
-            i += 1;
-        }
-        i = 0;
-        while i < 26 {
-            t[(b'a' + i) as usize] = 26 + i;
-            i += 1;
-        }
-        i = 0;
-        while i < 10 {
-            t[(b'0' + i) as usize] = 52 + i;
-            i += 1;
-        }
-        t[b'+' as usize] = 62;
-        t[b'/' as usize] = 63;
-        t
-    };
-
-    let bytes: Vec<u8> = input
-        .bytes()
-        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
-        .collect();
-    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
-    for chunk in bytes.chunks(4) {
-        let mut buf = [0u8; 4];
-        for (i, &b) in chunk.iter().enumerate() {
-            if b >= 128 || TABLE[b as usize] == 255 {
-                return None;
-            }
-            buf[i] = TABLE[b as usize];
-        }
-        out.push((buf[0] << 2) | (buf[1] >> 4));
-        if chunk.len() > 2 {
-            out.push((buf[1] << 4) | (buf[2] >> 2));
-        }
-        if chunk.len() > 3 {
-            out.push((buf[2] << 6) | buf[3]);
-        }
-    }
-    Some(out)
 }
 
 /// Decode percent-encoded text (e.g. `%3Csvg` -> `<svg`).
@@ -3629,8 +3582,9 @@ mod tests {
 
     #[test]
     fn later_background_none_clears_prior_color_and_repeat() {
-        let style =
-            parse_inline_style(r#"background-color: red; background-repeat: no-repeat; background: none"#);
+        let style = parse_inline_style(
+            r#"background-color: red; background-repeat: no-repeat; background: none"#,
+        );
         assert!(style.get("background-color").is_none());
         assert!(style.get("background-repeat").is_none());
         assert!(matches!(

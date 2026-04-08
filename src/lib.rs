@@ -78,6 +78,7 @@ pub(crate) mod security;
 pub(crate) mod style;
 /// Public types: page size, margins, and colors.
 pub mod types;
+pub(crate) mod util;
 
 /// Fetch bytes from a remote URL (requires the `remote` feature).
 /// Returns `None` when the feature is disabled or the request fails.

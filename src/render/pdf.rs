@@ -1745,7 +1745,9 @@ fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
             false
         };
         if can_merge {
-            merged.last_mut().unwrap().text.push_str(&run.text);
+            if let Some(previous) = merged.last_mut() {
+                previous.text.push_str(&run.text);
+            }
         } else {
             merged.push(run.clone());
         }
@@ -1856,9 +1858,6 @@ fn render_radial_gradient(
     content.push_str("Q\n");
 }
 
-/// Render an SVG tree as a background behind content.
-///
-/// Supports CSS `background-size`, `background-position`, and `background-repeat`.
 fn render_svg_background(
     content: &mut String,
     tree: &crate::parser::svg::SvgTree,

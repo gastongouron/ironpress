@@ -540,6 +540,34 @@ impl Default for ComputedStyle {
     }
 }
 
+impl ComputedStyle {
+    fn clear_background_images(&mut self) {
+        self.background_gradient = None;
+        self.background_radial_gradient = None;
+        self.background_svg = None;
+    }
+
+    fn reset_background(&mut self) {
+        self.background_color = None;
+        self.clear_background_images();
+        self.background_size = BackgroundSize::Auto;
+        self.background_repeat = BackgroundRepeat::Repeat;
+        self.background_position = BackgroundPosition::default();
+        self.background_origin = BackgroundOrigin::PaddingBox;
+    }
+
+    fn inherit_background(&mut self, source: &ComputedStyle) {
+        self.background_color = source.background_color;
+        self.background_gradient = source.background_gradient.clone();
+        self.background_radial_gradient = source.background_radial_gradient.clone();
+        self.background_svg = source.background_svg.clone();
+        self.background_size = source.background_size;
+        self.background_repeat = source.background_repeat;
+        self.background_position = source.background_position;
+        self.background_origin = source.background_origin;
+    }
+}
+
 /// Compute the style for a node given its tag, inline styles, and parent style.
 #[cfg(test)]
 pub fn compute_style(
@@ -601,18 +629,14 @@ pub fn compute_style_with_context(
         style.margin = EdgeSizes::default();
         style.padding = EdgeSizes::default();
         style.background_color = None;
-        style.background_gradient = None;
-        style.background_radial_gradient = None;
-        style.background_svg = None;
+        style.clear_background_images();
     }
 
     // Reset non-inherited properties for inline elements too
     // (background-color does not inherit in CSS)
     if !tag.is_block() {
         style.background_color = None;
-        style.background_gradient = None;
-        style.background_radial_gradient = None;
-        style.background_svg = None;
+        style.clear_background_images();
     }
 
     // Border does not inherit in CSS — reset for all elements
@@ -720,16 +744,6 @@ fn is_inherited_property(property: &str) -> bool {
 /// Reset a property to its initial (default) value on the given style.
 fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
     let default = ComputedStyle::default();
-    let reset_background = |style: &mut ComputedStyle, source: &ComputedStyle| {
-        style.background_color = source.background_color;
-        style.background_gradient = source.background_gradient.clone();
-        style.background_radial_gradient = source.background_radial_gradient.clone();
-        style.background_svg = source.background_svg.clone();
-        style.background_size = source.background_size;
-        style.background_repeat = source.background_repeat;
-        style.background_position = source.background_position;
-        style.background_origin = source.background_origin;
-    };
     match property {
         "color" => style.color = default.color,
         "font-size" => style.font_size = default.font_size,
@@ -797,7 +811,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
-        "background-image" | "background" | "background-svg" => reset_background(style, &default),
+        "background-image" | "background" | "background-svg" => style.reset_background(),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -811,16 +825,6 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
 
 /// Restore a property to the parent's value (inherit behavior).
 fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &ComputedStyle) {
-    let restore_background = |style: &mut ComputedStyle, source: &ComputedStyle| {
-        style.background_color = source.background_color;
-        style.background_gradient = source.background_gradient.clone();
-        style.background_radial_gradient = source.background_radial_gradient.clone();
-        style.background_svg = source.background_svg.clone();
-        style.background_size = source.background_size;
-        style.background_repeat = source.background_repeat;
-        style.background_position = source.background_position;
-        style.background_origin = source.background_origin;
-    };
     match property {
         "color" => style.color = parent.color,
         "font-size" => style.font_size = parent.font_size,
@@ -888,9 +892,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
-        "background-image" | "background" | "background-svg" => {
-            restore_background(style, parent)
-        }
+        "background-image" | "background" | "background-svg" => style.inherit_background(parent),
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -1019,35 +1021,30 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if get_non_special(map, "background-image").is_some() {
-        style.background_gradient = None;
-        style.background_radial_gradient = None;
-        style.background_svg = None;
+        style.clear_background_images();
     }
 
     // Linear gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-gradient") {
         if let Some(lg) = parse_linear_gradient(k) {
+            style.clear_background_images();
             style.background_gradient = Some(lg);
-            style.background_radial_gradient = None;
-            style.background_svg = None;
         }
     }
 
     // Radial gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
+            style.clear_background_images();
             style.background_radial_gradient = Some(rg);
-            style.background_gradient = None;
-            style.background_svg = None;
         }
     }
 
     // SVG background image (from data:image/svg+xml URI)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-svg") {
         if let Some(tree) = crate::parser::svg::parse_svg_from_string(k) {
+            style.clear_background_images();
             style.background_svg = Some(tree);
-            style.background_gradient = None;
-            style.background_radial_gradient = None;
         }
     }
 
