@@ -4101,8 +4101,12 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
     // with higher z_index are moved later so they render on top.
     for page in &mut pages {
         page.elements.sort_by_key(|(_, el)| match el {
-            LayoutElement::TextBlock { z_index, .. } => *z_index,
-            _ => 0,
+            LayoutElement::TextBlock {
+                repeat_on_each_page: true,
+                ..
+            } => (i32::MIN, 0),
+            LayoutElement::TextBlock { z_index, .. } => (0, *z_index),
+            _ => (0, 0),
         });
     }
 
@@ -6616,6 +6620,63 @@ mod tests {
                 z_indices[0] <= z_indices[1],
                 "Elements should be sorted by z_index"
             );
+        }
+    }
+
+    #[test]
+    fn synthetic_page_background_sorts_before_more_negative_layers() {
+        let make_block = |z_index, repeat_on_each_page| LayoutElement::TextBlock {
+            lines: Vec::new(),
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: Some(100.0),
+            block_height: Some(40.0),
+            opacity: 1.0,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Absolute,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::PaddingBox,
+            z_index,
+            repeat_on_each_page,
+            heading_level: None,
+        };
+
+        let pages = paginate(
+            vec![make_block(-1, true), make_block(-2, false)],
+            200.0,
+        );
+
+        match &pages[0].elements[0].1 {
+            LayoutElement::TextBlock {
+                repeat_on_each_page, ..
+            } => assert!(*repeat_on_each_page, "synthetic background should render first"),
+            other => panic!("expected text block, got {other:?}"),
         }
     }
 

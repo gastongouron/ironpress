@@ -720,6 +720,16 @@ fn is_inherited_property(property: &str) -> bool {
 /// Reset a property to its initial (default) value on the given style.
 fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
     let default = ComputedStyle::default();
+    let reset_background = |style: &mut ComputedStyle, source: &ComputedStyle| {
+        style.background_color = source.background_color;
+        style.background_gradient = source.background_gradient.clone();
+        style.background_radial_gradient = source.background_radial_gradient.clone();
+        style.background_svg = source.background_svg.clone();
+        style.background_size = source.background_size;
+        style.background_repeat = source.background_repeat;
+        style.background_position = source.background_position;
+        style.background_origin = source.background_origin;
+    };
     match property {
         "color" => style.color = default.color,
         "font-size" => style.font_size = default.font_size,
@@ -787,9 +797,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
-        "background-image" | "background" | "background-svg" => {
-            style.background_svg = default.background_svg.clone()
-        }
+        "background-image" | "background" | "background-svg" => reset_background(style, &default),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -803,6 +811,16 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
 
 /// Restore a property to the parent's value (inherit behavior).
 fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &ComputedStyle) {
+    let restore_background = |style: &mut ComputedStyle, source: &ComputedStyle| {
+        style.background_color = source.background_color;
+        style.background_gradient = source.background_gradient.clone();
+        style.background_radial_gradient = source.background_radial_gradient.clone();
+        style.background_svg = source.background_svg.clone();
+        style.background_size = source.background_size;
+        style.background_repeat = source.background_repeat;
+        style.background_position = source.background_position;
+        style.background_origin = source.background_origin;
+    };
     match property {
         "color" => style.color = parent.color,
         "font-size" => style.font_size = parent.font_size,
@@ -871,7 +889,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
         "background-image" | "background" | "background-svg" => {
-            style.background_svg = parent.background_svg.clone()
+            restore_background(style, parent)
         }
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
@@ -5804,6 +5822,25 @@ mod tests {
         assert!(style.background_svg.is_none());
         assert!(style.background_gradient.is_none());
         assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_initial_resets_all_background_state() {
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E") no-repeat center / cover; background: initial"#,
+            ),
+            &ComputedStyle::default(),
+        );
+        assert!(style.background_color.is_none());
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
     }
 
     #[test]
