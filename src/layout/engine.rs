@@ -2046,6 +2046,7 @@ fn flatten_flex_container(
             rules,
             false,
             true,
+            false,
             &child_ancestors,
         );
 
@@ -3241,6 +3242,7 @@ fn flatten_table(
                 rules,
                 false,
                 recurse_descendants,
+                recurse_descendants,
                 &text_ancestors,
             );
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
@@ -3312,6 +3314,7 @@ fn collect_text_runs(
         rules,
         false,
         false,
+        false,
         ancestors,
     )
 }
@@ -3325,6 +3328,7 @@ fn collect_text_runs_inner(
     rules: &[CssRule],
     inline_parent: bool,
     recurse_blocks: bool,
+    suppress_direct_text_padding: bool,
     ancestors: &[AncestorInfo],
 ) {
     let preserve_ws = matches!(
@@ -3352,9 +3356,14 @@ fn collect_text_runs_inner(
                     // In preformatted blocks (<pre>), skip inline backgrounds
                     // to avoid overlapping rects that hide subsequent lines.
                     let (bg, pad, br) = if (inline_parent || recurse_blocks) && !preserve_ws {
+                        let pad = if suppress_direct_text_padding {
+                            (0.0, 0.0)
+                        } else {
+                            (parent_style.padding.left, parent_style.padding.top)
+                        };
                         (
                             parent_style.background_color.map(|c| c.to_f32_rgb()),
-                            (parent_style.padding.left, parent_style.padding.top),
+                            pad,
                             parent_style.border_radius,
                         )
                     } else {
@@ -3446,6 +3455,7 @@ fn collect_text_runs_inner(
                             rules,
                             el.tag.is_inline(),
                             recurse_blocks,
+                            false,
                             &child_ancestors,
                         );
                         if recurse_blocks && el.tag.is_block() && !runs.is_empty() {
@@ -8236,6 +8246,54 @@ mod tests {
         assert!(
             text.contains("  keep   spaces  "),
             "Expected preformatted whitespace to survive nested block traversal: {text:?}"
+        );
+    }
+
+    #[test]
+    fn table_cell_mixed_recursion_keeps_nested_block_padding_but_not_cell_padding() {
+        let html = r#"
+            <table>
+                <tr>
+                    <td style="padding: 18pt 12pt; text-align: right;">
+                        Direct text
+                        <div style="padding-left: 6pt; padding-top: 3pt; background-color: #eee;">
+                            Nested block
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let cells = pages[0].elements.iter().find_map(|(_, el)| {
+            if let LayoutElement::TableRow { cells, .. } = el {
+                Some(cells)
+            } else {
+                None
+            }
+        });
+        let cells = cells.expect("expected table row");
+        let direct_run = cells[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter())
+            .find(|run| run.text.contains("Direct"))
+            .expect("expected direct cell text run");
+        assert_eq!(
+            direct_run.padding,
+            (0.0, 0.0),
+            "direct cell text should not inherit table-cell padding"
+        );
+        let nested_run = cells[0]
+            .lines
+            .iter()
+            .flat_map(|line| line.runs.iter())
+            .find(|run| run.text.contains("Nested"))
+            .expect("expected nested block text run");
+        assert_eq!(
+            nested_run.padding,
+            (6.0, 3.0),
+            "nested block text should keep its own padding"
         );
     }
 }
