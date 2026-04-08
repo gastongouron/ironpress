@@ -505,6 +505,7 @@ pub fn layout_with_rules_and_fonts(
         &parent_style,
         available_width,
         content_height,
+        false,
         &mut elements,
         None,
         rules,
@@ -522,6 +523,7 @@ fn flatten_nodes(
     parent_style: &ComputedStyle,
     available_width: f32,
     available_height: f32,
+    available_height_is_definite: bool,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -602,6 +604,7 @@ fn flatten_nodes(
                     parent_style,
                     available_width,
                     available_height,
+                    available_height_is_definite,
                     output,
                     list_ctx,
                     rules,
@@ -642,6 +645,7 @@ fn flatten_element(
     parent_style: &ComputedStyle,
     available_width: f32,
     available_height: f32,
+    available_height_is_definite: bool,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -670,6 +674,7 @@ fn flatten_element(
         &selector_ctx,
     );
     let available_height = style.height.unwrap_or(available_height);
+    let available_height_is_definite = style.height.is_some() || available_height_is_definite;
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -784,8 +789,12 @@ fn flatten_element(
         if let Some(initial_tree) =
             crate::parser::svg::parse_svg_from_element_with_ctx(el, text_ctx.clone())
         {
-            let (svg_width, svg_height) =
-                resolve_svg_size(&initial_tree, available_width, available_height);
+            let (svg_width, svg_height) = resolve_svg_size(
+                &initial_tree,
+                available_width,
+                available_height,
+                available_height_is_definite,
+            );
             let tree = crate::parser::svg::parse_svg_from_element_with_ctx_and_viewport(
                 el,
                 text_ctx,
@@ -1145,6 +1154,7 @@ fn flatten_element(
                         &style,
                         inner_width,
                         available_height,
+                        available_height_is_definite,
                         output,
                         Some(&ctx),
                         rules,
@@ -1163,6 +1173,7 @@ fn flatten_element(
                         &style,
                         inner_width,
                         available_height,
+                        available_height_is_definite,
                         output,
                         None,
                         rules,
@@ -1281,6 +1292,7 @@ fn flatten_element(
                         &style,
                         inner_width,
                         available_height,
+                        available_height_is_definite,
                         output,
                         list_ctx,
                         rules,
@@ -1296,6 +1308,7 @@ fn flatten_element(
                         &style,
                         available_width,
                         available_height,
+                        available_height_is_definite,
                         output,
                         None,
                         rules,
@@ -1584,6 +1597,7 @@ fn flatten_element(
                             &style,
                             inner_width,
                             available_height,
+                            available_height_is_definite,
                             &mut child_elements,
                             None,
                             rules,
@@ -1753,6 +1767,7 @@ fn flatten_element(
                             &style,
                             inner_width,
                             available_height,
+                            available_height_is_definite,
                             output,
                             None,
                             rules,
@@ -1774,6 +1789,7 @@ fn flatten_element(
             &style,
             available_width,
             available_height,
+            available_height_is_definite,
             output,
             None,
             rules,
@@ -1791,6 +1807,7 @@ fn resolve_svg_size(
     tree: &crate::parser::svg::SvgTree,
     available_width: f32,
     available_height: f32,
+    available_height_is_definite: bool,
 ) -> (f32, f32) {
     let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
     let intrinsic_height = if tree.height > 0.0 {
@@ -1808,35 +1825,48 @@ fn resolve_svg_size(
         intrinsic_height / intrinsic_width.max(1.0)
     };
 
-    let width = resolve_svg_dimension(
+    let mut width = resolve_svg_dimension(
         tree.width_attr.as_deref(),
         intrinsic_width,
         available_width,
         true,
     );
-    let height = resolve_svg_dimension(
+    let mut height = resolve_svg_dimension(
         tree.height_attr.as_deref(),
         intrinsic_height,
         available_height,
-        true,
+        available_height_is_definite,
     );
+    let height_is_auto = match tree.height_attr.as_deref() {
+        None => true,
+        Some(raw) if raw.trim_end().ends_with('%') && !available_height_is_definite => true,
+        _ => false,
+    };
 
     if matches!(
         (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
         (Some(w_attr), None) if w_attr.trim_end().ends_with('%')
     ) {
-        return (width, width * intrinsic_ratio);
+        height = width * intrinsic_ratio;
     }
 
     if matches!(
         (tree.width_attr.as_deref(), tree.height_attr.as_deref()),
         (None, Some(h_attr)) if h_attr.trim_end().ends_with('%')
     ) {
-        return (height / intrinsic_ratio.max(f32::EPSILON), height);
+        width = height / intrinsic_ratio.max(f32::EPSILON);
     }
 
-    if tree.width_attr.is_none() && tree.height_attr.is_none() {
-        return (width.min(available_width), height);
+    if width > available_width {
+        let scale = if width > 0.0 {
+            available_width / width
+        } else {
+            1.0
+        };
+        width = available_width;
+        if height_is_auto {
+            height *= scale;
+        }
     }
 
     (width, height)
@@ -4285,7 +4315,37 @@ mod tests {
             text_ctx: crate::parser::svg::SvgTextContext::default(),
         };
 
-        assert_eq!(resolve_svg_size(&tree, 400.0, 400.0), (100.0, 200.0));
+        assert_eq!(resolve_svg_size(&tree, 400.0, 400.0, true), (100.0, 200.0));
+    }
+
+    #[test]
+    fn root_svg_percent_height_does_not_use_page_height_fallback() {
+        let tree = SvgTree {
+            width: 100.0,
+            height: 150.0,
+            width_attr: Some("100".to_string()),
+            height_attr: Some("50%".to_string()),
+            view_box: None,
+            children: vec![],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+        };
+
+        assert_eq!(resolve_svg_size(&tree, 400.0, 400.0, false), (100.0, 150.0));
+    }
+
+    #[test]
+    fn svg_width_is_clamped_to_available_width() {
+        let tree = SvgTree {
+            width: 500.0,
+            height: 150.0,
+            width_attr: Some("500".to_string()),
+            height_attr: None,
+            view_box: None,
+            children: vec![],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+        };
+
+        assert_eq!(resolve_svg_size(&tree, 320.0, 400.0, true), (320.0, 96.0));
     }
 
     #[test]
