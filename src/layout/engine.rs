@@ -2038,12 +2038,14 @@ fn flatten_flex_container(
             sibling_count: child_count,
         });
         let mut runs = Vec::new();
-        collect_flex_child_text_runs(
+        collect_text_runs_inner(
             &child_el.children,
             &child_style,
             &mut runs,
             None,
             rules,
+            false,
+            true,
             &child_ancestors,
         );
 
@@ -3220,25 +3222,16 @@ fn flatten_table(
                 .children
                 .iter()
                 .any(|c| matches!(c, DomNode::Element(e) if e.tag.is_block()));
-            if has_block_child {
-                collect_flex_child_text_runs(
-                    &cell_el.children,
-                    &cell_style,
-                    &mut runs,
-                    None,
-                    rules,
-                    &cell_selector_ctx.ancestors,
-                );
-            } else {
-                collect_text_runs(
-                    &cell_el.children,
-                    &cell_style,
-                    &mut runs,
-                    None,
-                    rules,
-                    &cell_selector_ctx.ancestors,
-                );
-            }
+            collect_text_runs_inner(
+                &cell_el.children,
+                &cell_style,
+                &mut runs,
+                None,
+                rules,
+                false,
+                has_block_child,
+                &cell_selector_ctx.ancestors,
+            );
             let lines = wrap_text_runs(runs, cell_inner.max(1.0), cell_style.font_size, fonts);
 
             let bg = cell_style
@@ -3291,148 +3284,6 @@ fn flatten_table(
     }
 }
 
-/// Collect text runs from flex child content, recursively descending into
-/// block-level children so that nested `<h1>`, `<p>`, etc. are captured.
-#[allow(clippy::only_used_in_recursion)]
-fn collect_flex_child_text_runs(
-    nodes: &[DomNode],
-    parent_style: &ComputedStyle,
-    runs: &mut Vec<TextRun>,
-    link_url: Option<&str>,
-    rules: &[CssRule],
-    ancestors: &[AncestorInfo],
-) {
-    let preserve_ws = matches!(
-        parent_style.white_space,
-        WhiteSpace::Pre | WhiteSpace::PreWrap
-    );
-
-    for node in nodes {
-        match node {
-            DomNode::Text(text) => {
-                let processed = if preserve_ws {
-                    text.clone()
-                } else {
-                    collapse_whitespace(text)
-                };
-                if !processed.is_empty() {
-                    runs.push(TextRun {
-                        text: processed,
-                        font_size: parent_style.font_size,
-                        bold: parent_style.font_weight == FontWeight::Bold,
-                        italic: parent_style.font_style == FontStyle::Italic,
-                        underline: parent_style.text_decoration_underline,
-                        line_through: parent_style.text_decoration_line_through,
-                        color: parent_style.color.to_f32_rgb(),
-                        link_url: link_url.map(String::from),
-                        font_family: parent_style.font_family.clone(),
-                        background_color: if preserve_ws {
-                            None
-                        } else {
-                            parent_style.background_color.map(|c| c.to_f32_rgb())
-                        },
-                        padding: if preserve_ws {
-                            (0.0, 0.0)
-                        } else {
-                            (parent_style.padding.left, parent_style.padding.top)
-                        },
-                        border_radius: if preserve_ws {
-                            0.0
-                        } else {
-                            parent_style.border_radius
-                        },
-                        preserve_whitespace: preserve_ws,
-                    });
-                }
-            }
-            DomNode::Element(el) => {
-                let classes = el.class_list();
-                let selector_ctx = SelectorContext {
-                    ancestors: ancestors.to_vec(),
-                    child_index: 0,
-                    sibling_count: nodes.len(),
-                    preceding_siblings: Vec::new(),
-                };
-                let child_style = compute_style_with_context(
-                    el.tag,
-                    el.style_attr(),
-                    parent_style,
-                    rules,
-                    el.tag_name(),
-                    &classes,
-                    el.id(),
-                    &el.attributes,
-                    &selector_ctx,
-                );
-
-                if child_style.display == Display::None {
-                    continue;
-                }
-
-                if el.tag == HtmlTag::Br {
-                    runs.push(TextRun {
-                        text: "\n".to_string(),
-                        font_size: parent_style.font_size,
-                        bold: false,
-                        italic: false,
-                        underline: false,
-                        line_through: false,
-                        color: (0.0, 0.0, 0.0),
-                        link_url: None,
-                        font_family: parent_style.font_family.clone(),
-                        background_color: None,
-                        padding: (0.0, 0.0),
-                        border_radius: 0.0,
-                        preserve_whitespace: false,
-                    });
-                } else {
-                    let url = if el.tag == HtmlTag::A {
-                        el.attributes.get("href").map(|s| s.as_str()).or(link_url)
-                    } else {
-                        link_url
-                    };
-                    // Build ancestor chain including current element for recursive calls
-                    let mut child_ancestors = ancestors.to_vec();
-                    child_ancestors.push(AncestorInfo {
-                        element: el,
-                        child_index: 0,
-                        sibling_count: nodes.len(),
-                    });
-                    // Recurse into both inline and block children so flex items
-                    // with nested block elements (h1, h2, p, div, …) produce text.
-                    collect_flex_child_text_runs(
-                        &el.children,
-                        &child_style,
-                        runs,
-                        url,
-                        rules,
-                        &child_ancestors,
-                    );
-                    // Insert a line break after block-level elements so they don't
-                    // merge with following content on the same line.
-                    if el.tag.is_block() && !runs.is_empty() {
-                        runs.push(TextRun {
-                            text: "\n".to_string(),
-                            font_size: child_style.font_size,
-                            bold: false,
-                            italic: false,
-                            underline: false,
-                            line_through: false,
-                            color: child_style.color.to_f32_rgb(),
-                            link_url: None,
-                            font_family: child_style.font_family.clone(),
-                            background_color: None,
-                            padding: (0.0, 0.0),
-                            border_radius: 0.0,
-                            preserve_whitespace: false,
-                        });
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn collect_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
@@ -3441,7 +3292,16 @@ fn collect_text_runs(
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
 ) {
-    collect_text_runs_inner(nodes, parent_style, runs, link_url, rules, false, ancestors)
+    collect_text_runs_inner(
+        nodes,
+        parent_style,
+        runs,
+        link_url,
+        rules,
+        false,
+        false,
+        ancestors,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3452,6 +3312,7 @@ fn collect_text_runs_inner(
     link_url: Option<&str>,
     rules: &[CssRule],
     inline_parent: bool,
+    recurse_blocks: bool,
     ancestors: &[AncestorInfo],
 ) {
     let preserve_ws = matches!(
@@ -3474,7 +3335,7 @@ fn collect_text_runs_inner(
                     // backgrounds are drawn by the TextBlock itself.
                     // In preformatted blocks (<pre>), skip inline backgrounds
                     // to avoid overlapping rects that hide subsequent lines.
-                    let (bg, pad, br) = if inline_parent && !preserve_ws {
+                    let (bg, pad, br) = if (inline_parent || recurse_blocks) && !preserve_ws {
                         (
                             parent_style.background_color.map(|c| c.to_f32_rgb()),
                             (parent_style.padding.left, parent_style.padding.top),
@@ -3483,41 +3344,30 @@ fn collect_text_runs_inner(
                     } else {
                         (None, (0.0, 0.0), 0.0)
                     };
-                    runs.push(TextRun {
-                        text: processed,
-                        font_size: parent_style.font_size,
-                        bold: parent_style.font_weight == FontWeight::Bold,
-                        italic: parent_style.font_style == FontStyle::Italic,
-                        underline: parent_style.text_decoration_underline,
-                        line_through: parent_style.text_decoration_line_through,
-                        color: parent_style.color.to_f32_rgb(),
-                        link_url: link_url.map(String::from),
-                        font_family: parent_style.font_family.clone(),
-                        background_color: bg,
-                        padding: pad,
-                        border_radius: br,
-                        preserve_whitespace: preserve_ws,
-                    });
+                    push_text_run(
+                        runs,
+                        TextRun {
+                            text: processed,
+                            font_size: parent_style.font_size,
+                            bold: parent_style.font_weight == FontWeight::Bold,
+                            italic: parent_style.font_style == FontStyle::Italic,
+                            underline: parent_style.text_decoration_underline,
+                            line_through: parent_style.text_decoration_line_through,
+                            color: parent_style.color.to_f32_rgb(),
+                            link_url: link_url.map(String::from),
+                            font_family: parent_style.font_family.clone(),
+                            background_color: bg,
+                            padding: pad,
+                            border_radius: br,
+                            preserve_whitespace: preserve_ws,
+                        },
+                    );
                 }
             }
             DomNode::Element(el) => {
-                if el.tag.is_inline() || el.tag == HtmlTag::Br {
+                if recurse_blocks || el.tag.is_inline() || el.tag == HtmlTag::Br {
                     if el.tag == HtmlTag::Br {
-                        runs.push(TextRun {
-                            text: "\n".to_string(),
-                            font_size: parent_style.font_size,
-                            bold: false,
-                            italic: false,
-                            underline: false,
-                            line_through: false,
-                            color: (0.0, 0.0, 0.0),
-                            link_url: None,
-                            font_family: parent_style.font_family.clone(),
-                            background_color: None,
-                            padding: (0.0, 0.0),
-                            border_radius: 0.0,
-                            preserve_whitespace: false,
-                        });
+                        push_line_break_run(runs, parent_style);
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
                         // by flatten_element, not as inline text runs.
@@ -3540,25 +3390,63 @@ fn collect_text_runs_inner(
                             &el.attributes,
                             &selector_ctx,
                         );
+                        if style.display == Display::None {
+                            continue;
+                        }
                         let url = if el.tag == HtmlTag::A {
                             el.attributes.get("href").map(|s| s.as_str()).or(link_url)
                         } else {
                             link_url
                         };
+                        let mut child_ancestors = ancestors.to_vec();
+                        child_ancestors.push(AncestorInfo {
+                            element: el,
+                            child_index: 0,
+                            sibling_count: nodes.len(),
+                        });
                         collect_text_runs_inner(
                             &el.children,
                             &style,
                             runs,
                             url,
                             rules,
-                            true,
-                            ancestors,
+                            el.tag.is_inline(),
+                            recurse_blocks,
+                            &child_ancestors,
                         );
+                        if recurse_blocks && el.tag.is_block() && !runs.is_empty() {
+                            push_line_break_run(runs, &style);
+                        }
                     }
                 }
             }
         }
     }
+}
+
+fn push_text_run(runs: &mut Vec<TextRun>, run: TextRun) {
+    runs.push(run);
+}
+
+fn push_line_break_run(runs: &mut Vec<TextRun>, style: &ComputedStyle) {
+    push_text_run(
+        runs,
+        TextRun {
+            text: "\n".to_string(),
+            font_size: style.font_size,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: style.font_family.clone(),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+            preserve_whitespace: false,
+        },
+    );
 }
 
 /// Estimate the width of a word given its font settings and available custom fonts.
