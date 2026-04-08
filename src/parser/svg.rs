@@ -901,21 +901,18 @@ pub fn parse_path_data(d: &str) -> Vec<PathCommand> {
         let token = &tokens[i];
 
         // Determine if this token is a command letter
-        let cmd_char = if token.len() == 1
-            && token
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_ascii_alphabetic())
-        {
-            let c = token.chars().next().unwrap();
-            i += 1;
-            c
-        } else {
-            // Implicit repeat of last command (L after M)
-            match last_cmd {
-                'M' => 'L',
-                'm' => 'l',
-                c => c,
+        let cmd_char = match token.as_bytes() {
+            [b] if b.is_ascii_alphabetic() => {
+                i += 1;
+                *b as char
+            }
+            _ => {
+                // Implicit repeat of last command (L after M)
+                match last_cmd {
+                    'M' => 'L',
+                    'm' => 'l',
+                    c => c,
+                }
             }
         };
 

@@ -4161,7 +4161,7 @@ fn load_image_data(src: &str) -> Option<(Vec<u8>, ImageFormat, Option<PngMetadat
         };
         // For PNG, we pass the IDAT data (already zlib-compressed) to PDF
         Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
-    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
+    } else if raw.starts_with(&[0xFF, 0xD8]) {
         // JPEG: pass entire file as-is
         Some((raw, ImageFormat::Jpeg, None))
     } else {
