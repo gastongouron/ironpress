@@ -1,6 +1,5 @@
 use crate::parser::css::{
-    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, parse_inline_style,
-    selector_matches,
+    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, selector_matches,
 };
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
@@ -2684,9 +2683,7 @@ fn parse_inline_width_value(val: &str) -> Option<Option<f32>> {
     if let Some(pct) = parse_percent_width(val) {
         return Some(Some(pct));
     }
-
-    let parsed = parse_inline_style(&format!("width: {val}"));
-    parsed.get("width").map(|_| None)
+    crate::parser::css::parse_length(val).map(|_| None)
 }
 
 fn strip_important(val: &str) -> &str {
@@ -3154,15 +3151,7 @@ fn flatten_table(
                 &cell_selector_ctx,
             );
             // Compute effective width from auto-sized column widths
-            let effective_width: f32 = (0..colspan)
-                .map(|i| {
-                    if col_pos + i < num_cols {
-                        col_widths[col_pos + i]
-                    } else {
-                        0.0
-                    }
-                })
-                .sum();
+            let effective_width: f32 = col_widths.iter().skip(col_pos).take(colspan).copied().sum();
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
 
             let mut runs = Vec::new();
