@@ -103,6 +103,10 @@ impl StyleMap {
         self.properties.get(key)
     }
 
+    pub fn remove(&mut self, key: &str) {
+        self.properties.remove(key);
+    }
+
     #[allow(dead_code)]
     pub fn merge(&mut self, other: &StyleMap) {
         for (k, v) in &other.properties {
@@ -127,8 +131,8 @@ fn split_declarations(css: &str) -> Vec<&str> {
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
-            b'\'' if !in_double_quote && paren_depth > 0 => in_single_quote = !in_single_quote,
-            b'"' if !in_single_quote && paren_depth > 0 => in_double_quote = !in_double_quote,
+            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
             b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
             b')' if !in_single_quote && !in_double_quote && paren_depth > 0 => {
                 paren_depth -= 1;
@@ -208,6 +212,7 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                 map.set(&prop, CssValue::Keyword("auto".to_string()));
             } else if prop == "background" {
                 let trimmed = val.trim();
+                clear_background_shorthand_keys(&mut map);
                 parse_background_shorthand(trimmed, &mut map);
                 if trimmed.starts_with("linear-gradient(") {
                     // Store the full gradient function string for later parsing.
@@ -225,17 +230,20 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                 }
             } else if prop == "background-image" && val.trim_start().starts_with("linear-gradient(")
             {
+                clear_background_image_keys(&mut map);
                 map.set(
                     "background-gradient",
                     CssValue::Keyword(val.trim().to_string()),
                 );
             } else if prop == "background-image" && val.trim_start().starts_with("radial-gradient(")
             {
+                clear_background_image_keys(&mut map);
                 map.set(
                     "background-radial-gradient",
                     CssValue::Keyword(val.trim().to_string()),
                 );
             } else if prop == "background-image" {
+                clear_background_image_keys(&mut map);
                 if let Some(svg_text) = extract_svg_data_uri(val.trim()) {
                     map.set("background-svg", CssValue::Keyword(svg_text));
                 } else if let Some(css_val) = parse_value(&prop, val) {
@@ -248,6 +256,30 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
     }
 
     map
+}
+
+fn clear_background_image_keys(map: &mut StyleMap) {
+    for key in [
+        "background-image",
+        "background-svg",
+        "background-gradient",
+        "background-radial-gradient",
+    ] {
+        map.remove(key);
+    }
+}
+
+fn clear_background_shorthand_keys(map: &mut StyleMap) {
+    clear_background_image_keys(map);
+    for key in [
+        "background-color",
+        "background-size",
+        "background-repeat",
+        "background-position",
+        "background-origin",
+    ] {
+        map.remove(key);
+    }
 }
 
 fn parse_value(property: &str, val: &str) -> Option<CssValue> {
@@ -482,6 +514,10 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    if property == "background-image" {
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     // White-space — keyword
     if property == "white-space" {
         return Some(CssValue::Keyword(val.to_string()));
@@ -537,8 +573,20 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
             // Check if it's an SVG data URI
             if let Some(svg_text) = extract_svg_data_uri(tok) {
                 map.set("background-svg", CssValue::Keyword(svg_text));
+            } else {
+                map.set(
+                    "background-image",
+                    CssValue::Keyword(tok.trim().to_string()),
+                );
             }
             // Note: non-SVG URLs are stored but won't render (no raster bg support)
+            found_image = true;
+            i += 1;
+            continue;
+        }
+
+        if !found_image && lower == "none" {
+            map.set("background-image", CssValue::Keyword("none".to_string()));
             found_image = true;
             i += 1;
             continue;
@@ -3546,6 +3594,49 @@ mod tests {
         let map = parse_inline_style(style);
         assert!(map.get("background-svg").is_some());
         assert!(map.get("color").is_some());
+    }
+
+    #[test]
+    fn split_declarations_preserves_top_level_quoted_semicolon() {
+        let style = r#"content: "a;b"; color: red;"#;
+        let decls = split_declarations(style);
+        assert_eq!(decls, vec![r#"content: "a;b""#, " color: red"]);
+    }
+
+    #[test]
+    fn later_background_image_none_clears_prior_svg() {
+        let style = parse_inline_style(
+            r#"background-image: url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E"); background-image: none"#,
+        );
+        assert!(style.get("background-svg").is_none());
+        assert!(matches!(
+            style.get("background-image"),
+            Some(CssValue::Keyword(value)) if value == "none"
+        ));
+    }
+
+    #[test]
+    fn later_background_none_clears_prior_svg() {
+        let style = parse_inline_style(
+            r#"background-image: url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E"); background: none"#,
+        );
+        assert!(style.get("background-svg").is_none());
+        assert!(matches!(
+            style.get("background-image"),
+            Some(CssValue::Keyword(value)) if value == "none"
+        ));
+    }
+
+    #[test]
+    fn later_background_none_clears_prior_color_and_repeat() {
+        let style =
+            parse_inline_style(r#"background-color: red; background-repeat: no-repeat; background: none"#);
+        assert!(style.get("background-color").is_none());
+        assert!(style.get("background-repeat").is_none());
+        assert!(matches!(
+            style.get("background-image"),
+            Some(CssValue::Keyword(value)) if value == "none"
+        ));
     }
 
     #[test]

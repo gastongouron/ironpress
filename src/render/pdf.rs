@@ -1214,6 +1214,38 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
                         }
 
+                        if let Some(svg_tree) = &cell.background_svg {
+                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_y = text_area_top - row_height;
+                            let (ref_x, ref_y, ref_w, ref_h) = match cell.background_origin {
+                                BackgroundOrigin::ContentBox => (
+                                    bg_x + cell.padding_left,
+                                    bg_y + cell.padding_bottom,
+                                    (cell.width - cell.padding_left - cell.padding_right).max(0.0),
+                                    (row_height - cell.padding_top - cell.padding_bottom).max(0.0),
+                                ),
+                                BackgroundOrigin::BorderBox | BackgroundOrigin::PaddingBox => {
+                                    (bg_x, bg_y, cell.width, *row_height)
+                                }
+                            };
+                            render_svg_background(
+                                &mut content,
+                                svg_tree,
+                                ref_x,
+                                ref_y,
+                                ref_w,
+                                ref_h,
+                                bg_x,
+                                bg_y,
+                                cell.width,
+                                *row_height,
+                                cell.border_radius,
+                                &cell.background_size,
+                                &cell.background_position,
+                                &cell.background_repeat,
+                            );
+                        }
+
                         // Render cell text
                         let mut text_y = text_area_top - cell.padding_top;
                         for line in &cell.lines {

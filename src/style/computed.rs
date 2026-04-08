@@ -1000,10 +1000,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.background_color = Some(*c);
     }
 
+    if get_non_special(map, "background-image").is_some() {
+        style.background_gradient = None;
+        style.background_radial_gradient = None;
+        style.background_svg = None;
+    }
+
     // Linear gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-gradient") {
         if let Some(lg) = parse_linear_gradient(k) {
             style.background_gradient = Some(lg);
+            style.background_radial_gradient = None;
+            style.background_svg = None;
         }
     }
 
@@ -1011,6 +1019,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
             style.background_radial_gradient = Some(rg);
+            style.background_gradient = None;
+            style.background_svg = None;
         }
     }
 
@@ -1018,6 +1028,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-svg") {
         if let Some(tree) = crate::parser::svg::parse_svg_from_string(k) {
             style.background_svg = Some(tree);
+            style.background_gradient = None;
+            style.background_radial_gradient = None;
         }
     }
 
@@ -5747,6 +5759,51 @@ mod tests {
         assert!(parent.background_svg.is_some());
         let s = compute_style(HtmlTag::Div, Some("background-image: inherit"), &parent);
         assert!(s.background_svg.is_some());
+    }
+
+    #[test]
+    fn background_image_none_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background-image: none"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_none_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background: none"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_url_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background-image: url("data:image/png;base64,AAAA")"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
     }
 
     #[test]

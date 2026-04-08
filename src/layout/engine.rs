@@ -286,6 +286,11 @@ pub struct FlexCell {
     pub border_radius: f32,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
+    pub background_svg: Option<crate::parser::svg::SvgTree>,
+    pub background_size: BackgroundSize,
+    pub background_position: BackgroundPosition,
+    pub background_repeat: BackgroundRepeat,
+    pub background_origin: BackgroundOrigin,
 }
 
 /// A styled text run (a piece of text with uniform style).
@@ -2036,11 +2041,11 @@ fn flatten_flex_container(
             vertical_align: child_style.vertical_align,
             background_gradient: child_style.background_gradient.clone(),
             background_radial_gradient: child_style.background_radial_gradient.clone(),
-            background_svg: style.background_svg.clone(),
-            background_size: style.background_size,
-            background_position: style.background_position,
-            background_repeat: style.background_repeat,
-            background_origin: style.background_origin,
+            background_svg: child_style.background_svg.clone(),
+            background_size: child_style.background_size,
+            background_position: child_style.background_position,
+            background_repeat: child_style.background_repeat,
+            background_origin: child_style.background_origin,
             z_index: child_style.z_index,
             repeat_on_each_page: false,
             heading_level: None,
@@ -2358,6 +2363,11 @@ fn flatten_flex_container(
                         border_radius: tb_br,
                         background_gradient: tb_grad,
                         background_radial_gradient: tb_rgrad,
+                        background_svg: tb_bg_svg,
+                        background_size: tb_bg_size,
+                        background_position: tb_bg_pos,
+                        background_repeat: tb_bg_repeat,
+                        background_origin: tb_bg_origin,
                         ..
                     }) = item.elements.first()
                     {
@@ -2374,6 +2384,11 @@ fn flatten_flex_container(
                             border_radius: *tb_br,
                             background_gradient: tb_grad.clone(),
                             background_radial_gradient: tb_rgrad.clone(),
+                            background_svg: tb_bg_svg.clone(),
+                            background_size: *tb_bg_size,
+                            background_position: *tb_bg_pos,
+                            background_repeat: *tb_bg_repeat,
+                            background_origin: *tb_bg_origin,
                         });
                     }
 
@@ -7363,6 +7378,42 @@ mod tests {
         assert!(
             found_bg,
             "PAID badge text run should have background_color set"
+        );
+    }
+
+    #[test]
+    fn flex_row_child_preserves_svg_background() {
+        let child_style =
+            r#"background-image: url(data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='%23f00'/%3E%3C/svg%3E); width: 60pt;"#;
+        let parsed = crate::parser::css::parse_inline_style(child_style);
+        assert!(
+            parsed.get("background-svg").is_some(),
+            "expected inline style parser to capture SVG background"
+        );
+        let computed = crate::style::computed::compute_style(
+            HtmlTag::Div,
+            Some(child_style),
+            &ComputedStyle::default(),
+        );
+        assert!(
+            computed.background_svg.is_some(),
+            "expected computed style to retain SVG background"
+        );
+        let html = format!(
+            r#"<div style="display: flex;"><div style="{child_style}">A</div></div>"#
+        );
+        let pages = layout(&parse_html(&html).unwrap(), PageSize::A4, Margin::default());
+        let has_cell_svg_background = pages.iter().any(|page| {
+            page.elements.iter().any(|(_, el)| match el {
+                LayoutElement::FlexRow { cells, .. } => {
+                    cells.iter().any(|cell| cell.background_svg.is_some())
+                }
+                _ => false,
+            })
+        });
+        assert!(
+            has_cell_svg_background,
+            "expected flex row cell to retain SVG background data"
         );
     }
 
