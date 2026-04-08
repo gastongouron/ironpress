@@ -2231,6 +2231,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn parse_node_nested_svg_composes_transform_with_viewport() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("x", "10"),
+                ("y", "20"),
+                ("width", "100"),
+                ("height", "50"),
+                ("viewBox", "0 0 10 5"),
+                ("transform", "translate(3, 4)"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 10.0, 13.0, 24.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
     // ── Polygon without points ─────────────────────────────────────────
 
     #[test]

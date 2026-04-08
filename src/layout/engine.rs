@@ -3947,9 +3947,8 @@ fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
 
 /// Probe raw bytes for SVG content and parse into an `SvgTree`.
 ///
-/// Uses a heuristic on the first 512 bytes (via `String::from_utf8_lossy` so
-/// that non-UTF-8 binary content is safely rejected) and then parses the full
-/// content through the HTML parser to extract the `<svg>` element.
+/// The first real element in the document must be `<svg>` after skipping an
+/// optional BOM, XML declaration, comments, and doctype.
 fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
     try_parse_svg_bytes_with_viewport(raw, None)
 }
@@ -3958,43 +3957,125 @@ fn try_parse_svg_bytes_with_viewport(
     raw: &[u8],
     root_viewport: Option<(f32, f32)>,
 ) -> Option<crate::parser::svg::SvgTree> {
-    // Heuristic: check if the content looks like SVG (XML with an <svg element).
-    let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
-    let text = String::from_utf8_lossy(prefix);
-    let trimmed = text.trim_start_matches('\u{FEFF}').trim_start();
-    let trimmed_lower = trimmed.to_ascii_lowercase();
-    if !(trimmed.starts_with("<svg")
-        || trimmed.starts_with("<?xml")
-        || trimmed.starts_with("<!--")
-        || trimmed_lower.starts_with("<!doctype"))
-    {
+    let svg_str = String::from_utf8_lossy(raw);
+    if !svg_document_has_root_element(&svg_str) {
         return None;
-    }
-    // For the comment case, search the full content (comments may exceed the
-    // 512-byte prefix before the <svg> tag appears).
-    if trimmed.starts_with("<!--") {
-        let full_text = String::from_utf8_lossy(raw);
-        if !full_text.contains("<svg") {
-            return None;
-        }
     }
 
     // Parse the full SVG content — use lossy conversion so that stray non-UTF-8
     // bytes don't cause the whole parse to fail.
-    let svg_str = String::from_utf8_lossy(raw);
     let nodes = crate::parser::html::parse_html(&svg_str).ok()?;
-    let svg_el = find_svg_element(&nodes)?;
+    let svg_el = find_root_svg_element(&nodes)?;
     crate::parser::svg::parse_svg_from_element_with_viewport(svg_el, root_viewport)
 }
 
-fn find_svg_element<'a>(nodes: &'a [crate::parser::dom::DomNode]) -> Option<&'a ElementNode> {
+fn svg_document_has_root_element(raw: &str) -> bool {
+    let mut rest = raw.trim_start_matches('\u{FEFF}').trim_start();
+
+    loop {
+        if let Some(after_decl) = rest.strip_prefix("<?") {
+            let Some(end) = after_decl.find("?>") else {
+                return false;
+            };
+            rest = after_decl[end + 2..].trim_start();
+            continue;
+        }
+        if let Some(after_comment) = rest.strip_prefix("<!--") {
+            let Some(end) = after_comment.find("-->") else {
+                return false;
+            };
+            rest = after_comment[end + 3..].trim_start();
+            continue;
+        }
+        let rest_lower = rest.to_ascii_lowercase();
+        if rest_lower.starts_with("<!doctype") {
+            let Some(end) = find_doctype_end(rest) else {
+                return false;
+            };
+            rest = rest[end + 1..].trim_start();
+            continue;
+        }
+        return rest_lower.starts_with("<svg");
+    }
+}
+
+fn find_doctype_end(raw: &str) -> Option<usize> {
+    #[derive(Clone, Copy)]
+    enum DoctypeState {
+        Normal,
+        Quoted(char),
+        Comment,
+        Conditional(usize),
+    }
+
+    let mut bracket_depth = 0usize;
+    let mut state = DoctypeState::Normal;
+    let mut chars = raw.char_indices().peekable();
+
+    while let Some((idx, ch)) = chars.next() {
+        match state {
+            DoctypeState::Quoted(quote) => {
+                if ch == quote {
+                    state = DoctypeState::Normal;
+                }
+            }
+            DoctypeState::Comment => {
+                if raw[idx..].starts_with("-->") {
+                    state = DoctypeState::Normal;
+                    chars.next();
+                    chars.next();
+                }
+            }
+            DoctypeState::Conditional(depth) => {
+                if raw[idx..].starts_with("<![") {
+                    state = DoctypeState::Conditional(depth + 1);
+                    chars.next();
+                    chars.next();
+                } else if raw[idx..].starts_with("]]>") {
+                    let next_depth = depth.saturating_sub(1);
+                    state = if next_depth == 0 {
+                        DoctypeState::Normal
+                    } else {
+                        DoctypeState::Conditional(next_depth)
+                    };
+                    chars.next();
+                    chars.next();
+                }
+            }
+            DoctypeState::Normal => {
+                if raw[idx..].starts_with("<!--") {
+                    state = DoctypeState::Comment;
+                    chars.next();
+                    chars.next();
+                    chars.next();
+                    continue;
+                }
+                if raw[idx..].starts_with("<![") {
+                    state = DoctypeState::Conditional(1);
+                    chars.next();
+                    chars.next();
+                    continue;
+                }
+
+                match ch {
+                    '"' | '\'' => state = DoctypeState::Quoted(ch),
+                    '[' => bracket_depth += 1,
+                    ']' => bracket_depth = bracket_depth.saturating_sub(1),
+                    '>' if bracket_depth == 0 => return Some(idx),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn find_root_svg_element<'a>(nodes: &'a [crate::parser::dom::DomNode]) -> Option<&'a ElementNode> {
     for node in nodes {
         if let crate::parser::dom::DomNode::Element(el) = node {
             if el.tag == HtmlTag::Svg {
                 return Some(el);
-            }
-            if let Some(found) = find_svg_element(&el.children) {
-                return Some(found);
             }
         }
     }
@@ -4040,65 +4121,53 @@ fn load_image_from_element(
 
     // Try SVG path first — render as vector graphics instead of raster.
     if !skip_svg {
-        let svg_str = String::from_utf8_lossy(&raw);
-        if let Ok(nodes) = crate::parser::html::parse_html(&svg_str) {
-            if let Some(svg_el) = find_svg_element(&nodes) {
-                let intrinsic = resolve_svg_element_size(
-                    svg_el,
-                    available_width,
-                    available_height,
-                    false,
-                    false,
-                );
-                let html_attr_width = style
-                    .width
-                    .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
-                let html_attr_height = style
-                    .height
-                    .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
+        if let Some(intrinsic_tree) = try_parse_svg_bytes(&raw) {
+            let intrinsic =
+                resolve_svg_size(&intrinsic_tree, available_width, available_height, false, false);
+            let html_attr_width = style
+                .width
+                .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
+            let html_attr_height = style
+                .height
+                .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
-                let (width, height) = match (html_attr_width, html_attr_height) {
-                    (Some(w), Some(h)) => (w, h),
-                    (Some(w), None) => {
-                        if intrinsic.0 > 0.0 {
-                            (w, intrinsic.1 * (w / intrinsic.0))
-                        } else {
-                            (w, intrinsic.1)
-                        }
+            let (width, height) = match (html_attr_width, html_attr_height) {
+                (Some(w), Some(h)) => (w, h),
+                (Some(w), None) => {
+                    if intrinsic.0 > 0.0 {
+                        (w, intrinsic.1 * (w / intrinsic.0))
+                    } else {
+                        (w, intrinsic.1)
                     }
-                    (None, Some(h)) => {
-                        if intrinsic.1 > 0.0 {
-                            (intrinsic.0 * (h / intrinsic.1), h)
-                        } else {
-                            (intrinsic.0, h)
-                        }
-                    }
-                    (None, None) => intrinsic,
-                };
-
-                let (width, height) = constrain_replaced_image_size(
-                    width,
-                    height,
-                    available_width,
-                    style.max_width,
-                    style.max_height,
-                );
-
-                if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
-                    svg_el,
-                    Some((width, height)),
-                ) {
-                    let mut tree = tree;
-                    sync_svg_tree_to_layout_box(&mut tree, width, height);
-                    return Some(LayoutElement::Svg {
-                        tree,
-                        width,
-                        height,
-                        margin_top: style.margin.top,
-                        margin_bottom: style.margin.bottom,
-                    });
                 }
-            }
+                (None, Some(h)) => {
+                    if intrinsic.1 > 0.0 {
+                        (intrinsic.0 * (h / intrinsic.1), h)
+                    } else {
+                        (intrinsic.0, h)
+                    }
+                }
+                (None, None) => intrinsic,
+            };
+
+            let (width, height) = constrain_replaced_image_size(
+                width,
+                height,
+                available_width,
+                style.max_width,
+                style.max_height,
+            );
+
+            let mut tree = try_parse_svg_bytes_with_viewport(&raw, Some((width, height)))
+                .unwrap_or(intrinsic_tree);
+            sync_svg_tree_to_layout_box(&mut tree, width, height);
+            return Some(LayoutElement::Svg {
+                tree,
+                width,
+                height,
+                margin_top: style.margin.top,
+                margin_bottom: style.margin.bottom,
+            });
         }
     }
 
@@ -5141,6 +5210,105 @@ mod tests {
     }
 
     #[test]
+    fn layout_svg_image_from_local_file_uses_vector_path() {
+        let path = write_temp_fixture(
+            "svg",
+            r#"<svg width="40" height="20" viewBox="0 0 40 20"><rect width="40" height="20" fill="red"/></svg>"#,
+        );
+        let html = format!(r#"<img width="80" src="{}">"#, path.display());
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        std::fs::remove_file(&path).ok();
+        assert_eq!(pages.len(), 1);
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 60.0).abs() < 0.1);
+                assert!((*height - 30.0).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn layout_html_file_with_nested_svg_is_not_treated_as_image() {
+        let path = write_temp_fixture(
+            "html",
+            r#"<html><body><svg width="40" height="20"><rect width="40" height="20"/></svg></body></html>"#,
+        );
+        let html = format!(r#"<img width="80" src="{}">"#, path.display());
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        std::fs::remove_file(&path).ok();
+        let has_replaced_image = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Svg { .. } | LayoutElement::Image { .. }));
+        assert!(
+            !has_replaced_image,
+            "non-image HTML files should not be accepted as <img> sources"
+        );
+    }
+
+    #[test]
+    fn layout_doctype_html_with_body_svg_is_not_treated_as_image() {
+        let path = write_temp_fixture(
+            "html",
+            r#"<!DOCTYPE html><html><body><svg width="40" height="20"><rect width="40" height="20"/></svg></body></html>"#,
+        );
+        let html = format!(r#"<img width="80" src="{}">"#, path.display());
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        std::fs::remove_file(&path).ok();
+        let has_replaced_image = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Svg { .. } | LayoutElement::Image { .. }));
+        assert!(
+            !has_replaced_image,
+            "HTML doctypes should not make nested body SVG content probe as an image resource"
+        );
+    }
+
+    #[test]
+    fn layout_svg_doctype_with_internal_subset_uses_vector_path() {
+        let path = write_temp_fixture(
+            "svg",
+            r#"<!DOCTYPE svg [
+                <!ENTITY fill "red">
+            ]>
+            <svg width="40" height="20" viewBox="0 0 40 20">
+                <rect width="40" height="20" fill="red"/>
+            </svg>"#,
+        );
+        let html = format!(r#"<img width="80" src="{}">"#, path.display());
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        std::fs::remove_file(&path).ok();
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 60.0).abs() < 0.1);
+                assert!((*height - 30.0).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn layout_svg_image_width_only_preserves_viewbox_aspect_ratio() {
+        let html = r#"<img width="200" src="data:image/svg+xml,%3Csvg%20width%3D%22120%22%20height%3D%2260%22%20viewBox%3D%220%200%20120%2060%22%3E%3Crect%20width%3D%22120%22%20height%3D%2260%22/%3E%3C/svg%3E">"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        match &pages[0].elements[0].1 {
+            LayoutElement::Svg { width, height, .. } => {
+                assert!((*width - 150.0).abs() < 0.1);
+                assert!((*height - 75.0).abs() < 0.1);
+            }
+            other => panic!("Expected Svg layout element, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn layout_svg_image_respects_max_width() {
         let html = r#"<img style="max-width: 75pt" src="data:image/svg+xml,%3Csvg%20width%3D%22100%22%20height%3D%2250%22%3E%3C/svg%3E">"#;
         let nodes = parse_html(html).unwrap();
@@ -5329,6 +5497,19 @@ mod tests {
             !has_image,
             "img without src should not produce Image element"
         );
+    }
+
+    fn write_temp_fixture(ext: &str, contents: &str) -> std::path::PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock should be after the Unix epoch")
+            .as_nanos();
+        let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("ironpress-svg-{}-{unique}-{seq}.{ext}", std::process::id()));
+        std::fs::write(&path, contents).expect("temporary fixture should be writable");
+        path
     }
 
     fn build_test_png_bytes() -> Vec<u8> {

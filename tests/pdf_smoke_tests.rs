@@ -119,6 +119,22 @@ fn smoke_image_png() {
     assert!(pdf_has_text(&pdf, "/Subtype /Image"));
 }
 
+#[test]
+fn smoke_image_svg_data_uri_renders_as_vector() {
+    let html = r#"<img width="80" src="data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2220%22%20viewBox%3D%220%200%2040%2020%22%3E%3Crect%20width%3D%2240%22%20height%3D%2220%22%20fill%3D%22red%22/%3E%3C/svg%3E">"#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    let pdf_str = String::from_utf8_lossy(&pdf);
+    assert!(pdf_is_valid(&pdf));
+    assert!(
+        !pdf_str.contains("/Subtype /Image"),
+        "SVG <img> should render as vector content, not an image XObject"
+    );
+    assert!(
+        pdf_str.contains(" re\n"),
+        "SVG rectangle should emit a PDF rectangle operator"
+    );
+}
+
 // === CSS features ===
 
 #[test]
