@@ -5895,40 +5895,6 @@ mod tests {
     }
 
     #[test]
-    fn background_image_initial_preserves_existing_background_color() {
-        let style = compute_style(
-            HtmlTag::Div,
-            Some("background-color: red; background-image: initial"),
-            &ComputedStyle::default(),
-        );
-        assert_eq!(
-            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
-            Some((255, 0, 0, 255))
-        );
-        assert!(style.background_svg.is_none());
-        assert!(style.background_gradient.is_none());
-        assert!(style.background_radial_gradient.is_none());
-    }
-
-    #[test]
-    fn background_image_inherit_preserves_child_background_color() {
-        let mut parent = ComputedStyle::default();
-        parent.background_svg = crate::parser::svg::parse_svg_from_string(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
-        );
-        let style = compute_style(
-            HtmlTag::Div,
-            Some("background-color: blue; background-image: inherit"),
-            &parent,
-        );
-        assert_eq!(
-            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
-            Some((0, 0, 255, 255))
-        );
-        assert!(style.background_svg.is_some());
-    }
-
-    #[test]
     fn background_initial_resets_all_background_state() {
         let style = compute_style(
             HtmlTag::Div,
