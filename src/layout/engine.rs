@@ -1,5 +1,6 @@
 use crate::parser::css::{
-    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, selector_matches,
+    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, parse_inline_style,
+    selector_matches,
 };
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
@@ -2640,22 +2641,14 @@ fn flatten_grid_container(
     }
 }
 
-/// Parse a percentage width from a `<col>` element.
-fn parse_col_width_percent(col_el: &ElementNode) -> Option<f32> {
-    if let Some(style_str) = col_el.style_attr() {
-        let mut saw_inline_width = false;
-        let mut last_inline_width = None;
-        for decl in style_str.split(';').map(str::trim) {
-            if let Some((prop, val)) = decl.split_once(':') {
-                if prop.trim().eq_ignore_ascii_case("width") {
-                    saw_inline_width = true;
-                    last_inline_width = parse_percent_width(val);
-                }
-            }
-        }
-        if saw_inline_width {
-            return last_inline_width;
-        }
+/// Parse a width for a `<col>` / `<colgroup>` element.
+///
+/// Valid inline `width` declarations take precedence. Malformed inline
+/// declarations are ignored so the `width` attribute can still act as a
+/// fallback. `width: auto` explicitly clears the width.
+fn parse_col_width(col_el: &ElementNode) -> Option<f32> {
+    if let Some(inline_width) = parse_col_inline_width(col_el) {
+        return inline_width;
     }
     col_el
         .attributes
@@ -2663,9 +2656,43 @@ fn parse_col_width_percent(col_el: &ElementNode) -> Option<f32> {
         .and_then(|val| parse_percent_width(val))
 }
 
+fn parse_col_inline_width(col_el: &ElementNode) -> Option<Option<f32>> {
+    if let Some(style_str) = col_el.style_attr() {
+        let mut last_inline_width = None;
+        for decl in style_str.split(';').map(str::trim) {
+            if let Some((prop, val)) = decl.split_once(':') {
+                if prop.trim().eq_ignore_ascii_case("width") {
+                    let val = strip_important(val).trim();
+                    last_inline_width = parse_inline_width_value(val).or(last_inline_width);
+                }
+            }
+        }
+        return last_inline_width;
+    }
+    None
+}
+
 fn parse_percent_width(val: &str) -> Option<f32> {
     let pct_str = val.trim().strip_suffix('%')?;
     pct_str.trim().parse::<f32>().ok().map(|pct| pct / 100.0)
+}
+
+fn parse_inline_width_value(val: &str) -> Option<Option<f32>> {
+    if val.eq_ignore_ascii_case("auto") {
+        return Some(None);
+    }
+    if let Some(pct) = parse_percent_width(val) {
+        return Some(Some(pct));
+    }
+
+    let parsed = parse_inline_style(&format!("width: {val}"));
+    parsed.get("width").map(|_| None)
+}
+
+fn strip_important(val: &str) -> &str {
+    val.strip_suffix("!important")
+        .map(str::trim_end)
+        .unwrap_or(val)
 }
 
 fn parse_col_span(el: &ElementNode) -> usize {
@@ -2801,40 +2828,41 @@ fn flatten_table(
         let mut col_idx = 0usize;
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
-                let cols_to_scan: Vec<&ElementNode> = match child_el.tag {
-                    HtmlTag::Colgroup => child_el
-                        .children
-                        .iter()
-                        .filter_map(|gc| {
-                            if let DomNode::Element(g) = gc {
-                                if g.tag == HtmlTag::Col {
-                                    return Some(g);
-                                }
-                            }
-                            None
-                        })
-                        .collect(),
-                    HtmlTag::Col => vec![child_el],
+                match child_el.tag {
+                    HtmlTag::Colgroup => {
+                        let mut saw_child_col = false;
+                        for col_el in child_el.children.iter().filter_map(|gc| match gc {
+                            DomNode::Element(g) if g.tag == HtmlTag::Col => Some(g),
+                            _ => None,
+                        }) {
+                            saw_child_col = true;
+                            assign_explicit_col_widths(
+                                &mut explicit_col_widths,
+                                &mut col_idx,
+                                parse_col_span(col_el),
+                                parse_col_width(col_el),
+                            );
+                        }
+                        if !saw_child_col {
+                            // <colgroup span="N"> without child <col> elements:
+                            // the colgroup's own span advances col_idx by N.
+                            assign_explicit_col_widths(
+                                &mut explicit_col_widths,
+                                &mut col_idx,
+                                parse_col_span(child_el),
+                                parse_col_width(child_el),
+                            );
+                        }
+                    }
+                    HtmlTag::Col => {
+                        assign_explicit_col_widths(
+                            &mut explicit_col_widths,
+                            &mut col_idx,
+                            parse_col_span(child_el),
+                            parse_col_width(child_el),
+                        );
+                    }
                     _ => continue,
-                };
-                if cols_to_scan.is_empty() && child_el.tag == HtmlTag::Colgroup {
-                    // <colgroup span="N"> without child <col> elements:
-                    // the colgroup's own span advances col_idx by N.
-                    assign_explicit_col_widths(
-                        &mut explicit_col_widths,
-                        &mut col_idx,
-                        parse_col_span(child_el),
-                        parse_col_width_percent(child_el),
-                    );
-                    continue;
-                }
-                for col_el in cols_to_scan {
-                    assign_explicit_col_widths(
-                        &mut explicit_col_widths,
-                        &mut col_idx,
-                        parse_col_span(col_el),
-                        parse_col_width_percent(col_el),
-                    );
                 }
             }
         }
@@ -2970,16 +2998,15 @@ fn flatten_table(
     }
 
     let col_widths: Vec<f32> = if has_explicit_widths {
-        let mut widths = vec![0.0f32; num_cols];
-        for i in 0..num_cols {
-            if let Some(pct) = explicit_col_widths[i] {
-                let w = (pct * inner_width).max(min_col_width);
-                widths[i] = w;
-            } else {
-                widths[i] = preferred_widths[i].max(min_col_width);
-            }
-        }
-        widths
+        preferred_widths
+            .iter()
+            .zip(explicit_col_widths.iter())
+            .map(|(preferred, explicit)| {
+                explicit
+                    .map(|pct| (pct * inner_width).max(min_col_width))
+                    .unwrap_or_else(|| preferred.max(min_col_width))
+            })
+            .collect()
     } else {
         let total_preferred: f32 = preferred_widths.iter().sum();
         if total_preferred <= inner_width {
@@ -8187,6 +8214,64 @@ mod tests {
         assert!(
             col_widths[1] > col_widths[0],
             "Inline width should override width attribute; got {:?}",
+            col_widths
+        );
+    }
+
+    #[test]
+    fn table_colgroup_malformed_inline_width_is_ignored() {
+        let html = r#"<table>
+            <colgroup>
+                <col style="width: 10%; width: not-a-width" width="25%">
+                <col style="width: not-a-width" width="90%">
+            </colgroup>
+            <tr><td>A</td><td>B</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        let total: f32 = col_widths.iter().sum();
+        let ratio = col_widths[0] / total;
+        assert!(
+            (ratio - 0.10).abs() < 0.05,
+            "Malformed inline width should be ignored, got {:.1}% ({:?})",
+            ratio * 100.0,
+            col_widths
+        );
+    }
+
+    #[test]
+    fn table_colgroup_all_invalid_inline_widths_fall_back_to_width_attribute() {
+        let html = r#"<table>
+            <colgroup>
+                <col style="width: not-a-width" width="80%">
+                <col width="20%">
+            </colgroup>
+            <tr><td>A</td><td>B</td></tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let col_widths = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::TableRow { col_widths, .. } => Some(col_widths.clone()),
+                _ => None,
+            })
+            .expect("expected table row");
+        let total: f32 = col_widths.iter().sum();
+        let ratio = col_widths[0] / total;
+        assert!(
+            (ratio - 0.80).abs() < 0.05,
+            "All-invalid inline widths should fall back to width attributes, got {:.1}% ({:?})",
+            ratio * 100.0,
             col_widths
         );
     }
