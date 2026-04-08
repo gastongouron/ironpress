@@ -129,6 +129,13 @@ pub enum PathCommand {
 
 /// Entry point: parse an `<svg>` ElementNode into an SvgTree.
 pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
+    parse_svg_from_element_with_viewport(el, None)
+}
+
+pub(crate) fn parse_svg_from_element_with_viewport(
+    el: &ElementNode,
+    root_viewport: Option<(f32, f32)>,
+) -> Option<SvgTree> {
     let width_attr = el.attributes.get("width").cloned();
     let height_attr = el.attributes.get("height").cloned();
     let width = width_attr
@@ -140,8 +147,7 @@ pub fn parse_svg_from_element(el: &ElementNode) -> Option<SvgTree> {
         .and_then(parse_absolute_length)
         .unwrap_or(150.0);
     let view_box = el.attributes.get("viewBox").and_then(|v| parse_viewbox(v));
-    let root_viewport = Some((width, height));
-    let mut children = parse_svg_children(el, root_viewport);
+    let mut children = parse_svg_children(el, root_viewport.or(Some((width, height))));
 
     let root_style = parse_svg_style(el);
     let root_transform = el
@@ -420,7 +426,7 @@ pub(crate) fn parse_length(val: &str) -> Option<f32> {
     num_str.trim().parse::<f32>().ok()
 }
 
-fn parse_absolute_length(val: &str) -> Option<f32> {
+pub(crate) fn parse_absolute_length(val: &str) -> Option<f32> {
     let trimmed = val.trim();
     if trimmed.ends_with('%') {
         return None;
@@ -429,7 +435,7 @@ fn parse_absolute_length(val: &str) -> Option<f32> {
 }
 
 /// Parse a viewBox attribute: "min-x min-y width height".
-fn parse_viewbox(val: &str) -> Option<ViewBox> {
+pub(crate) fn parse_viewbox(val: &str) -> Option<ViewBox> {
     let parts: Vec<f32> = val
         .split(|c: char| c == ',' || c.is_whitespace())
         .filter(|s| !s.is_empty())
@@ -2184,6 +2190,39 @@ mod tests {
                 assert!(matches!(
                     transform,
                     Some(SvgTransform::Matrix(10.0, 0.0, 0.0, 5.0, 0.0, 0.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_node_nested_svg_percent_viewport_uses_explicit_root_size() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "50%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 10 10"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let mut outer = make_el(
+            "svg",
+            vec![
+                ("width", "100%"),
+                ("height", "50%"),
+                ("viewBox", "0 0 20 10"),
+            ],
+        );
+        outer.children.push(DomNode::Element(svg_inner));
+        let tree = parse_svg_from_element_with_viewport(&outer, Some((400.0, 100.0))).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(20.0, 0.0, 0.0, 5.0, 0.0, 0.0))
                 ));
             }
             other => panic!("expected nested svg group, got {other:?}"),

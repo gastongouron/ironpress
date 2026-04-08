@@ -752,10 +752,13 @@ fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
-        if let Some(mut tree) = crate::parser::svg::parse_svg_from_element(el) {
+        let (svg_width, svg_height) =
+            resolve_svg_element_size(el, available_width, available_height, true, true);
+        if let Some(mut tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
+            el,
+            Some((svg_width, svg_height)),
+        ) {
             inject_inherited_svg_color(&mut tree, style.color.to_f32_rgb());
-            let (svg_width, svg_height) =
-                resolve_svg_size(&tree, available_width, available_height, true, true);
             output.push(LayoutElement::Svg {
                 tree,
                 width: svg_width,
@@ -3947,6 +3950,13 @@ fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
 /// that non-UTF-8 binary content is safely rejected) and then parses the full
 /// content through the HTML parser to extract the `<svg>` element.
 fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
+    try_parse_svg_bytes_with_viewport(raw, None)
+}
+
+fn try_parse_svg_bytes_with_viewport(
+    raw: &[u8],
+    root_viewport: Option<(f32, f32)>,
+) -> Option<crate::parser::svg::SvgTree> {
     // Heuristic: check if the content looks like SVG (XML with an <svg element).
     let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
@@ -3972,22 +3982,22 @@ fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
     // bytes don't cause the whole parse to fail.
     let svg_str = String::from_utf8_lossy(raw);
     let nodes = crate::parser::html::parse_html(&svg_str).ok()?;
+    let svg_el = find_svg_element(&nodes)?;
+    crate::parser::svg::parse_svg_from_element_with_viewport(svg_el, root_viewport)
+}
 
-    fn find_svg(nodes: &[crate::parser::dom::DomNode]) -> Option<&ElementNode> {
-        for node in nodes {
-            if let crate::parser::dom::DomNode::Element(el) = node {
-                if el.tag == HtmlTag::Svg {
-                    return Some(el);
-                }
-                if let Some(found) = find_svg(&el.children) {
-                    return Some(found);
-                }
+fn find_svg_element<'a>(nodes: &'a [crate::parser::dom::DomNode]) -> Option<&'a ElementNode> {
+    for node in nodes {
+        if let crate::parser::dom::DomNode::Element(el) = node {
+            if el.tag == HtmlTag::Svg {
+                return Some(el);
+            }
+            if let Some(found) = find_svg_element(&el.children) {
+                return Some(found);
             }
         }
-        None
     }
-    let svg_el = find_svg(&nodes)?;
-    crate::parser::svg::parse_svg_from_element(svg_el)
+    None
 }
 
 /// Detect PNG/JPEG format from raw bytes and return decoded image data.
@@ -4030,53 +4040,67 @@ fn load_image_from_element(
 
     // Try SVG path first — render as vector graphics instead of raster.
     if !skip_svg {
-        if let Some(tree) = try_parse_svg_bytes(&raw) {
-            let intrinsic =
-                resolve_svg_size(&tree, available_width, available_height, false, false);
-            let html_attr_width = style.width.or_else(|| {
-                el.attributes
-                    .get("width")
-                    .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-                    .map(|px| px * 0.75)
-            });
-            let html_attr_height = style.height.or_else(|| {
-                el.attributes
-                    .get("height")
-                    .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
-                    .map(|px| px * 0.75)
-            });
+        let svg_str = String::from_utf8_lossy(&raw);
+        if let Ok(nodes) = crate::parser::html::parse_html(&svg_str) {
+            if let Some(svg_el) = find_svg_element(&nodes) {
+                let intrinsic = resolve_svg_element_size(
+                    svg_el,
+                    available_width,
+                    available_height,
+                    false,
+                    false,
+                );
+                let html_attr_width = style.width.or_else(|| {
+                    el.attributes
+                        .get("width")
+                        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+                        .map(|px| px * 0.75)
+                });
+                let html_attr_height = style.height.or_else(|| {
+                    el.attributes
+                        .get("height")
+                        .and_then(|s| s.trim_end_matches("px").parse::<f32>().ok())
+                        .map(|px| px * 0.75)
+                });
 
-            let (mut width, mut height) = match (html_attr_width, html_attr_height) {
-                (Some(w), Some(h)) => (w, h),
-                (Some(w), None) => {
-                    if intrinsic.0 > 0.0 {
-                        (w, intrinsic.1 * (w / intrinsic.0))
-                    } else {
-                        (w, intrinsic.1)
+                let (mut width, mut height) = match (html_attr_width, html_attr_height) {
+                    (Some(w), Some(h)) => (w, h),
+                    (Some(w), None) => {
+                        if intrinsic.0 > 0.0 {
+                            (w, intrinsic.1 * (w / intrinsic.0))
+                        } else {
+                            (w, intrinsic.1)
+                        }
                     }
-                }
-                (None, Some(h)) => {
-                    if intrinsic.1 > 0.0 {
-                        (intrinsic.0 * (h / intrinsic.1), h)
-                    } else {
-                        (intrinsic.0, h)
+                    (None, Some(h)) => {
+                        if intrinsic.1 > 0.0 {
+                            (intrinsic.0 * (h / intrinsic.1), h)
+                        } else {
+                            (intrinsic.0, h)
+                        }
                     }
-                }
-                (None, None) => intrinsic,
-            };
+                    (None, None) => intrinsic,
+                };
 
-            if width > available_width {
-                let scale = available_width / width;
-                width = available_width;
-                height *= scale;
+                if width > available_width {
+                    let scale = available_width / width;
+                    width = available_width;
+                    height *= scale;
+                }
+
+                if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
+                    svg_el,
+                    Some((width, height)),
+                ) {
+                    return Some(LayoutElement::Svg {
+                        tree,
+                        width,
+                        height,
+                        margin_top: style.margin.top,
+                        margin_bottom: style.margin.bottom,
+                    });
+                }
             }
-            return Some(LayoutElement::Svg {
-                tree,
-                width,
-                height,
-                margin_top: style.margin.top,
-                margin_bottom: style.margin.bottom,
-            });
         }
     }
 
@@ -4129,13 +4153,63 @@ fn resolve_svg_size(
     allow_percent_width: bool,
     allow_percent_height: bool,
 ) -> (f32, f32) {
-    let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
-    let intrinsic_height = if tree.height > 0.0 {
-        tree.height
-    } else {
-        150.0
-    };
-    let intrinsic_ratio = if let Some(vb) = &tree.view_box {
+    resolve_svg_size_raw(
+        tree.width_attr.as_deref(),
+        tree.height_attr.as_deref(),
+        tree.view_box.as_ref(),
+        tree.width,
+        tree.height,
+        available_width,
+        available_height,
+        allow_percent_width,
+        allow_percent_height,
+    )
+}
+
+fn resolve_svg_element_size(
+    el: &ElementNode,
+    available_width: f32,
+    available_height: f32,
+    allow_percent_width: bool,
+    allow_percent_height: bool,
+) -> (f32, f32) {
+    let width_raw = el.attributes.get("width").map(String::as_str);
+    let height_raw = el.attributes.get("height").map(String::as_str);
+    let view_box = el
+        .attributes
+        .get("viewBox")
+        .and_then(|v| crate::parser::svg::parse_viewbox(v));
+    let intrinsic_width = width_raw
+        .and_then(crate::parser::svg::parse_absolute_length)
+        .unwrap_or(300.0);
+    let intrinsic_height = height_raw
+        .and_then(crate::parser::svg::parse_absolute_length)
+        .unwrap_or(150.0);
+    resolve_svg_size_raw(
+        width_raw,
+        height_raw,
+        view_box.as_ref(),
+        intrinsic_width,
+        intrinsic_height,
+        available_width,
+        available_height,
+        allow_percent_width,
+        allow_percent_height,
+    )
+}
+
+fn resolve_svg_size_raw(
+    width_raw: Option<&str>,
+    height_raw: Option<&str>,
+    view_box: Option<&crate::parser::svg::ViewBox>,
+    intrinsic_width: f32,
+    intrinsic_height: f32,
+    available_width: f32,
+    available_height: f32,
+    allow_percent_width: bool,
+    allow_percent_height: bool,
+) -> (f32, f32) {
+    let intrinsic_ratio = if let Some(vb) = view_box {
         if vb.width > 0.0 && vb.height > 0.0 {
             Some(vb.height / vb.width)
         } else if intrinsic_width > 0.0 {
@@ -4151,8 +4225,6 @@ fn resolve_svg_size(
         })
     };
 
-    let width_raw = tree.width_attr.as_deref();
-    let height_raw = tree.height_attr.as_deref();
     let width = resolve_svg_dimension(width_raw, available_width, allow_percent_width);
     let height = resolve_svg_dimension(height_raw, available_height, allow_percent_height);
     match (width, height, intrinsic_ratio) {
@@ -4570,6 +4642,40 @@ mod tests {
             .expect("expected nested svg element");
         assert!((svg.0 - 100.0).abs() < 0.1);
         assert!((svg.1 - 100.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn nested_svg_percent_viewport_uses_resolved_root_size() {
+        let html = r#"
+            <div style="width: 400pt; height: 200pt">
+                <svg width="100%" height="50%" viewBox="0 0 20 10">
+                    <svg width="50%" height="50%" viewBox="0 0 10 10">
+                        <rect width="10" height="10"/>
+                    </svg>
+                </svg>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let svg = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, el)| match el {
+                LayoutElement::Svg { tree, .. } => Some(tree),
+                _ => None,
+            })
+            .expect("expected nested svg element");
+        match &svg.children[0] {
+            crate::parser::svg::SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(crate::parser::svg::SvgTransform::Matrix(
+                        20.0, 0.0, 0.0, 5.0, 0.0, 0.0
+                    ))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
     }
 
     #[test]

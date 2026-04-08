@@ -1282,6 +1282,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 -vb.min_y * sy
                             ));
                         }
+                    } else if tree.width > 0.0 && tree.height > 0.0 {
+                        let sx = width / tree.width;
+                        let sy = height / tree.height;
+                        content.push_str(&format!("{sx} 0 0 {sy} 0 0 cm\n"));
                     }
 
                     crate::render::svg_to_pdf::render_svg_tree(tree, &mut content);
@@ -2467,6 +2471,44 @@ mod tests {
         let content = String::from_utf8_lossy(&pdf);
         // Should have multiple page objects
         assert!(content.matches("/Type /Page").count() >= 2);
+    }
+
+    #[test]
+    fn render_svg_without_viewbox_scales_to_layout_box() {
+        let tree = crate::parser::svg::SvgTree {
+            width: 120.0,
+            height: 60.0,
+            width_attr: None,
+            height_attr: None,
+            view_box: None,
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle::default(),
+            }],
+        };
+        let pages = vec![Page {
+            elements: vec![(
+                0.0,
+                LayoutElement::Svg {
+                    tree,
+                    width: 240.0,
+                    height: 120.0,
+                    margin_top: 0.0,
+                    margin_bottom: 0.0,
+                },
+            )],
+        }];
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("2 0 0 2 0 0 cm"),
+            "expected outer scale for SVG without a viewBox"
+        );
     }
 
     #[test]
