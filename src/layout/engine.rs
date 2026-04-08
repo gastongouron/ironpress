@@ -4030,7 +4030,8 @@ fn load_image_from_element(
     // Try SVG path first — render as vector graphics instead of raster.
     if !skip_svg {
         if let Some(tree) = try_parse_svg_bytes(&raw) {
-            let intrinsic = resolve_svg_size(&tree, available_width, available_height, false, false);
+            let intrinsic =
+                resolve_svg_size(&tree, available_width, available_height, false, false);
             let html_attr_width = style.width.or_else(|| {
                 el.attributes
                     .get("width")
@@ -4129,7 +4130,11 @@ fn resolve_svg_size(
     allow_percent_height: bool,
 ) -> (f32, f32) {
     let intrinsic_width = if tree.width > 0.0 { tree.width } else { 300.0 };
-    let intrinsic_height = if tree.height > 0.0 { tree.height } else { 150.0 };
+    let intrinsic_height = if tree.height > 0.0 {
+        tree.height
+    } else {
+        150.0
+    };
     let intrinsic_ratio = if let Some(vb) = &tree.view_box {
         if vb.width > 0.0 {
             vb.height / vb.width

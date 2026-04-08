@@ -485,9 +485,15 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(!out.contains(" rg\n"), "should not set fill color for <line>");
+        assert!(
+            !out.contains(" rg\n"),
+            "should not set fill color for <line>"
+        );
         assert!(out.contains("5 10 m 50 60 l\n"), "should emit line path");
-        assert!(out.contains("n\n"), "should not stroke without a stroke paint");
+        assert!(
+            out.contains("n\n"),
+            "should not stroke without a stroke paint"
+        );
     }
 
     #[test]
@@ -566,7 +572,10 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        assert!(out.contains("1 0 0 rg\n"), "child should inherit group fill");
+        assert!(
+            out.contains("1 0 0 rg\n"),
+            "child should inherit group fill"
+        );
         assert!(out.contains("f\n"), "rect should be filled");
     }
 
