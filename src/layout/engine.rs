@@ -4010,7 +4010,7 @@ fn load_image_bytes(raw: Vec<u8>) -> Option<(Vec<u8>, ImageFormat, Option<PngMet
             bit_depth: png_info.bit_depth,
         };
         Some((png_info.idat_data, ImageFormat::Png, Some(metadata)))
-    } else if raw.len() >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
+    } else if raw.starts_with(&[0xFF, 0xD8]) {
         Some((raw, ImageFormat::Jpeg, None))
     } else {
         None
