@@ -556,11 +556,15 @@ impl ComputedStyle {
         self.background_origin = BackgroundOrigin::PaddingBox;
     }
 
-    fn inherit_background(&mut self, source: &ComputedStyle) {
-        self.background_color = source.background_color;
+    fn inherit_background_image(&mut self, source: &ComputedStyle) {
         self.background_gradient = source.background_gradient.clone();
         self.background_radial_gradient = source.background_radial_gradient.clone();
         self.background_svg = source.background_svg.clone();
+    }
+
+    fn inherit_background(&mut self, source: &ComputedStyle) {
+        self.background_color = source.background_color;
+        self.inherit_background_image(source);
         self.background_size = source.background_size;
         self.background_repeat = source.background_repeat;
         self.background_position = source.background_position;
@@ -811,7 +815,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
-        "background-image" | "background" | "background-svg" => style.reset_background(),
+        "background-image" | "background-svg" => style.clear_background_images(),
+        "background" => style.reset_background(),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -892,7 +897,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
-        "background-image" | "background" | "background-svg" => style.inherit_background(parent),
+        "background-image" | "background-svg" => style.inherit_background_image(parent),
+        "background" => style.inherit_background(parent),
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -5777,6 +5783,73 @@ mod tests {
     }
 
     #[test]
+    fn background_image_initial_clears_only_image_layers() {
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-color: red; background-repeat: no-repeat; background-size: cover; background-position: center; background-origin: content-box; background-image: initial"#,
+            ),
+            &ComputedStyle::default(),
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((255, 0, 0, 255))
+        );
+        assert_eq!(style.background_repeat, BackgroundRepeat::NoRepeat);
+        assert_eq!(style.background_size, BackgroundSize::Cover);
+        assert_eq!(
+            style.background_position,
+            BackgroundPosition {
+                x: 0.5,
+                y: 0.5,
+                x_is_percent: true,
+                y_is_percent: true,
+            }
+        );
+        assert_eq!(style.background_origin, BackgroundOrigin::ContentBox);
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_inherit_restores_only_image_layers() {
+        let mut parent = ComputedStyle::default();
+        parent.background_color = Some(Color::rgb(10, 20, 30));
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+        parent.background_size = BackgroundSize::Cover;
+        parent.background_position = BackgroundPosition {
+            x: 0.25,
+            y: 0.75,
+            x_is_percent: true,
+            y_is_percent: true,
+        };
+        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("background-color: red; background-repeat: repeat-x; background-image: inherit"),
+            &parent,
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((255, 0, 0, 255))
+        );
+        assert_eq!(style.background_repeat, BackgroundRepeat::RepeatX);
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert!(style.background_svg.is_some());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
     fn background_image_none_clears_existing_svg_background() {
         let parent = ComputedStyle::default();
         let style = compute_style(
@@ -5819,6 +5892,40 @@ mod tests {
         assert!(style.background_svg.is_none());
         assert!(style.background_gradient.is_none());
         assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_initial_preserves_existing_background_color() {
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("background-color: red; background-image: initial"),
+            &ComputedStyle::default(),
+        );
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((255, 0, 0, 255))
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_inherit_preserves_child_background_color() {
+        let mut parent = ComputedStyle::default();
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("background-color: blue; background-image: inherit"),
+            &parent,
+        );
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((0, 0, 255, 255))
+        );
+        assert!(style.background_svg.is_some());
     }
 
     #[test]

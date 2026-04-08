@@ -213,31 +213,16 @@ pub fn parse_inline_style(style: &str) -> StyleMap {
                 map.set(&prop, CssValue::Keyword("auto".to_string()));
             } else if prop == "background" {
                 let trimmed = val.trim();
-                clear_background_shorthand_keys(&mut map);
                 let lower = trimmed.to_ascii_lowercase();
                 if matches!(lower.as_str(), "inherit" | "initial" | "unset") {
+                    clear_background_shorthand_keys(&mut map);
                     map.set("background", CssValue::Keyword(lower));
                     continue;
                 }
-                if trimmed.starts_with("linear-gradient(")
-                    || trimmed.starts_with("radial-gradient(")
-                {
-                    apply_background_shorthand_defaults(&mut map);
-                }
-                parse_background_shorthand(trimmed, &mut map);
-                if trimmed.starts_with("linear-gradient(") {
-                    // Store the full gradient function string for later parsing.
-                    map.set(
-                        "background-gradient",
-                        CssValue::Keyword(trimmed.to_string()),
-                    );
-                } else if trimmed.starts_with("radial-gradient(") {
-                    map.set(
-                        "background-radial-gradient",
-                        CssValue::Keyword(trimmed.to_string()),
-                    );
-                } else if let Some(svg_text) = extract_svg_data_uri(trimmed) {
-                    map.set("background-svg", CssValue::Keyword(svg_text));
+                let mut parsed = StyleMap::new();
+                if parse_background_shorthand(trimmed, &mut parsed) {
+                    clear_background_shorthand_keys(&mut map);
+                    map.merge(&parsed);
                 }
             } else if prop == "background-image" && val.trim_start().starts_with("linear-gradient(")
             {
@@ -573,9 +558,9 @@ fn parse_value(property: &str, val: &str) -> Option<CssValue> {
 ///   `[color] [image] [position] [/ size] [repeat] [origin] [clip]`
 ///
 /// This implementation is lenient: it scans tokens and extracts recognized
-/// values, ignoring unknown tokens.  Gradient and SVG data-URI images are
-/// handled by earlier branches in `parse_inline_style` and never reach here.
-fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
+/// values, ignoring unknown tokens.  Unrecognized shorthand values are left
+/// untouched so earlier declarations in the same block are preserved.
+fn parse_background_shorthand(val: &str, map: &mut StyleMap) -> bool {
     let mut defaults_applied = false;
 
     // First, try to parse as a simple color.
@@ -583,7 +568,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
     if let Some(color_val) = parse_color(val) {
         ensure_background_shorthand_defaults(map, &mut defaults_applied);
         map.set("background-color", color_val);
-        return;
+        return true;
     }
 
     // Tokenize, keeping `url(...)` as a single token.
@@ -605,6 +590,25 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
     while i < tokens.len() {
         let tok = tokens[i].trim();
         let lower = tok.to_ascii_lowercase();
+
+        if !found_image && lower.starts_with("linear-gradient(") {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
+            map.set("background-gradient", CssValue::Keyword(tok.to_string()));
+            found_image = true;
+            i += 1;
+            continue;
+        }
+
+        if !found_image && lower.starts_with("radial-gradient(") {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied);
+            map.set(
+                "background-radial-gradient",
+                CssValue::Keyword(tok.to_string()),
+            );
+            found_image = true;
+            i += 1;
+            continue;
+        }
 
         // url(...) — image
         if !found_image && lower.starts_with("url(") {
@@ -659,8 +663,8 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
                 let size_tok = tokens[i].trim();
                 // Collect potential second size token (e.g. "100px 200px")
                 let mut size_str = size_tok.to_string();
-                if i + 1 < tokens.len() {
-                    let next = tokens[i + 1].trim().to_ascii_lowercase();
+                if let Some(next_tok) = tokens.get(i + 1) {
+                    let next = next_tok.trim().to_ascii_lowercase();
                     // If next token is also a size value (not a keyword), combine
                     if !origin_keywords.contains(&next.as_str())
                         && !repeat_keywords.contains(&next.as_str())
@@ -671,7 +675,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
                         && parse_color(&next).is_none()
                     {
                         size_str.push(' ');
-                        size_str.push_str(tokens[i + 1].trim());
+                        size_str.push_str(next_tok.trim());
                         i += 1;
                     }
                 }
@@ -701,7 +705,10 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         }
 
         // Length value that could be a position (e.g. "10px", "50%")
-        if parse_length(tok).is_some() {
+        if matches!(
+            parse_length(tok),
+            Some(CssValue::Length(_) | CssValue::Percentage(_) | CssValue::Calc(_))
+        ) {
             ensure_background_shorthand_defaults(map, &mut defaults_applied);
             pos_parts.push(lower.clone());
             i += 1;
@@ -717,6 +724,8 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap) {
         let pos_str = pos_parts.join(" ");
         map.set("background-position", CssValue::Keyword(pos_str));
     }
+
+    defaults_applied
 }
 
 /// Tokenize a background shorthand value, keeping `url(...)` as single tokens.
@@ -3634,6 +3643,22 @@ mod tests {
         ));
         assert!(style.get("background-color").is_none());
         assert!(style.get("background-image").is_none());
+    }
+
+    #[test]
+    fn background_invalid_shorthand_preserves_previous_background_values() {
+        let style = parse_inline_style(
+            "background-color: red; background-repeat: no-repeat; background: var(--bg)",
+        );
+        assert!(matches!(
+            style.get("background-color"),
+            Some(CssValue::Color(value)) if (value.r, value.g, value.b, value.a) == (255, 0, 0, 255)
+        ));
+        assert!(matches!(
+            style.get("background-repeat"),
+            Some(CssValue::Keyword(value)) if value == "no-repeat"
+        ));
+        assert!(style.get("background").is_none());
     }
 
     #[test]
