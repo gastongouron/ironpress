@@ -240,6 +240,7 @@ fn resolve_content(
     result
 }
 
+#[cfg(test)]
 fn measure_lines_width(lines: &[TextLine], fonts: &HashMap<String, TtfFont>) -> f32 {
     lines
         .iter()
@@ -933,13 +934,12 @@ fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
-    let positioned_depth = if style.position == Position::Relative
-        || style.position == Position::Absolute
-    {
-        positioned_ancestor_depth + 1
-    } else {
-        positioned_ancestor_depth
-    };
+    let positioned_depth =
+        if style.position == Position::Relative || style.position == Position::Absolute {
+            positioned_ancestor_depth + 1
+        } else {
+            positioned_ancestor_depth
+        };
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -4115,7 +4115,15 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 *containing_block,
                 *positioned_depth,
             ),
-            _ => (Float::None, Clear::None, Position::Static, 0.0, 0.0, None, 0),
+            _ => (
+                Float::None,
+                Clear::None,
+                Position::Static,
+                0.0,
+                0.0,
+                None,
+                0,
+            ),
         };
 
         // Handle clear: move y below active floats on the specified side
@@ -4264,14 +4272,10 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
 
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
-            let abs_y = if elem_containing_block.is_some() {
+            let abs_y = if let Some(cb) = elem_containing_block {
                 // Position relative to the containing block (nearest positioned ancestor).
                 // bottom/right offsets are pre-resolved into top/left in build_pseudo_block.
-                positioned_y_by_depth
-                    .get(&elem_containing_block.expect("checked above").depth)
-                    .copied()
-                    .unwrap_or(0.0)
-                    + elem_offset_top
+                positioned_y_by_depth.get(&cb.depth).copied().unwrap_or(0.0) + elem_offset_top
             } else {
                 // No containing block — position relative to page (legacy behavior).
                 elem_offset_top
@@ -4549,6 +4553,25 @@ mod tests {
     use super::*;
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
+
+    fn page_text_runs(page: &Page) -> Vec<&TextRun> {
+        let mut runs = Vec::new();
+        for (_, element) in &page.elements {
+            if let LayoutElement::TextBlock { lines, .. } = element {
+                for line in lines {
+                    runs.extend(line.runs.iter());
+                }
+            }
+        }
+        runs
+    }
+
+    fn page_text(page: &Page) -> String {
+        page_text_runs(page)
+            .into_iter()
+            .map(|run| run.text.as_str())
+            .collect()
+    }
 
     #[test]
     fn layout_simple_paragraph() {
@@ -8446,18 +8469,7 @@ mod tests {
         let html = r#"<div class="box">Main</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let all_text: String = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => lines
-                    .iter()
-                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
-                    .collect::<Vec<_>>(),
-                _ => Vec::new(),
-            })
-            .collect::<Vec<_>>()
-            .join("");
+        let all_text = page_text(&pages[0]);
         assert!(
             all_text.contains("BEFORE"),
             "Expected ::before text 'BEFORE' in output, got: {all_text}"
@@ -8475,18 +8487,7 @@ mod tests {
         let html = r#"<div class="box">Main</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let all_text: String = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => lines
-                    .iter()
-                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
-                    .collect::<Vec<_>>(),
-                _ => Vec::new(),
-            })
-            .collect::<Vec<_>>()
-            .join("");
+        let all_text = page_text(&pages[0]);
         assert!(
             all_text.contains("AFTER"),
             "Expected ::after text 'AFTER' in output, got: {all_text}"
@@ -8503,16 +8504,7 @@ mod tests {
         let html = r#"<div class="box">M</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let runs: Vec<_> = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => {
-                    lines.iter().flat_map(|l| l.runs.clone()).collect::<Vec<_>>()
-                }
-                _ => Vec::new(),
-            })
-            .collect();
+        let runs = page_text_runs(&pages[0]);
         let before_run = runs.iter().find(|r| r.text == "B");
         assert!(
             before_run.is_some(),
@@ -8647,12 +8639,15 @@ mod tests {
         //   width  = 225 + 15 + 15 = 255pt
         //   height = 150 + 15 + 15 = 180pt
         // Offsets: top: 10px = 7.5pt, left: 10px = 7.5pt
-        if let (_, LayoutElement::TextBlock {
-            containing_block,
-            offset_left,
-            offset_top,
-            ..
-        }) = &abs_blocks[0]
+        if let (
+            _,
+            LayoutElement::TextBlock {
+                containing_block,
+                offset_left,
+                offset_top,
+                ..
+            },
+        ) = &abs_blocks[0]
         {
             let cb = containing_block.expect("::before should have containing_block");
             assert!(
@@ -8680,12 +8675,15 @@ mod tests {
         }
 
         // Check ::after has containing block info and bottom/right offsets.
-        if let (_, LayoutElement::TextBlock {
-            containing_block,
-            offset_bottom,
-            offset_right,
-            ..
-        }) = &abs_blocks[1]
+        if let (
+            _,
+            LayoutElement::TextBlock {
+                containing_block,
+                offset_bottom,
+                offset_right,
+                ..
+            },
+        ) = &abs_blocks[1]
         {
             let cb = containing_block.expect("::after should have containing_block");
             assert!(
@@ -8726,12 +8724,15 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
 
-        if let (y, LayoutElement::TextBlock {
-            containing_block,
-            offset_top,
-            offset_left,
-            ..
-        }) = &pages[0].elements[0]
+        if let (
+            y,
+            LayoutElement::TextBlock {
+                containing_block,
+                offset_top,
+                offset_left,
+                ..
+            },
+        ) = &pages[0].elements[0]
         {
             assert!(containing_block.is_none(), "No containing block expected");
             assert!(
@@ -8857,19 +8858,16 @@ mod tests {
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
 
         // Find the container wrapper (position: relative, with a background)
-        let container_elem = pages[0]
-            .elements
-            .iter()
-            .find(|(_, el)| {
-                matches!(
-                    el,
-                    LayoutElement::TextBlock {
-                        position: Position::Relative,
-                        background_color: Some(_),
-                        ..
-                    }
-                )
-            });
+        let container_elem = pages[0].elements.iter().find(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    position: Position::Relative,
+                    background_color: Some(_),
+                    ..
+                }
+            )
+        });
         let container_y = container_elem.map(|(y, _)| *y).unwrap_or(0.0);
 
         // The spacer has height: 100pt, so the container is below it.
@@ -8917,18 +8915,7 @@ mod tests {
         let html = r#"<div class="box">Main</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let all_text: String = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => lines
-                    .iter()
-                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
-                    .collect::<Vec<_>>(),
-                _ => Vec::new(),
-            })
-            .collect::<Vec<_>>()
-            .join("");
+        let all_text = page_text(&pages[0]);
         assert_eq!(
             all_text.trim(),
             "Main",
@@ -8943,16 +8930,7 @@ mod tests {
         let html = r#"<div class="box">Main</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let runs: Vec<_> = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => {
-                    lines.iter().flat_map(|l| l.runs.clone()).collect::<Vec<_>>()
-                }
-                _ => Vec::new(),
-            })
-            .collect();
+        let runs = page_text_runs(&pages[0]);
         let main_run = runs.iter().find(|r| r.text.contains("Main"));
         assert!(main_run.is_some(), "Expected main content run");
         let main_run = main_run.unwrap();
@@ -8969,18 +8947,7 @@ mod tests {
         let html = r#"<div class="box">Main</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let all_text: String = pages[0]
-            .elements
-            .iter()
-            .flat_map(|(_, el)| match el {
-                LayoutElement::TextBlock { lines, .. } => lines
-                    .iter()
-                    .flat_map(|l| l.runs.iter().map(|r| r.text.clone()))
-                    .collect::<Vec<_>>(),
-                _ => Vec::new(),
-            })
-            .collect::<Vec<_>>()
-            .join("");
+        let all_text = page_text(&pages[0]);
         assert!(
             all_text.contains("OLD"),
             "Single-colon :before should generate content, got: {all_text}"

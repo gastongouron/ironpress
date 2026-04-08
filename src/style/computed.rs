@@ -968,7 +968,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
-        "background-image" | "background" | "background-gradient" | "background-radial-gradient" => {
+        "background-image"
+        | "background"
+        | "background-gradient"
+        | "background-radial-gradient" => {
             style.background_gradient = parent.background_gradient.clone();
             style.background_radial_gradient = parent.background_radial_gradient.clone();
         }
@@ -6670,7 +6673,8 @@ mod tests {
     fn pseudo_element_style_applies_own_declarations() {
         use crate::parser::css::{PseudoElement, parse_stylesheet};
         let parent = ComputedStyle::default();
-        let rules = parse_stylesheet(".box::after { content: 'Y'; font-weight: bold; display: block; }");
+        let rules =
+            parse_stylesheet(".box::after { content: 'Y'; font-weight: bold; display: block; }");
         let ctx = SelectorContext::default();
         let result = compute_pseudo_element_style(
             &parent,
@@ -6759,15 +6763,8 @@ mod tests {
         let parent = ComputedStyle::default();
         // This rule targets ::before, not the element itself
         let rules = parse_stylesheet(".box::before { content: 'X'; font-weight: bold; }");
-        let style = compute_style_with_rules(
-            HtmlTag::Div,
-            None,
-            &parent,
-            &rules,
-            "div",
-            &["box"],
-            None,
-        );
+        let style =
+            compute_style_with_rules(HtmlTag::Div, None, &parent, &rules, "div", &["box"], None);
         // The element should NOT get font-weight: bold from the ::before rule
         assert_eq!(style.font_weight, FontWeight::Normal);
     }

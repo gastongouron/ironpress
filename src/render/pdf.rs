@@ -180,14 +180,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Compute block_x with float/position offsets
                     let block_x = match position {
                         Position::Absolute => {
-                            if let Some(cb) = containing_block {
-                                // Position relative to the containing block.
-                                // bottom/right offsets are pre-resolved into top/left
-                                // at layout time, so we only use offset_left here.
+                            // Position relative to the containing block.
+                            // bottom/right offsets are pre-resolved into top/left
+                            // at layout time, so we only use offset_left here.
+                            containing_block.map_or(margin.left + offset_left, |cb| {
                                 margin.left + cb.x + offset_left
-                            } else {
-                                margin.left + offset_left
-                            }
+                            })
                         }
                         Position::Relative => margin.left + offset_left,
                         Position::Static => match float {
@@ -203,6 +201,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Use explicit block_width if set, otherwise available_width
                     let render_width = block_width.unwrap_or(available_width);
+                    let total_h = text_block_total_height(
+                        lines,
+                        *padding_top,
+                        *padding_bottom,
+                        *block_height,
+                    );
+                    let block_bottom = block_y - total_h;
 
                     // Apply transform if set (wrap in q/Q)
                     let needs_transform = transform.is_some();
@@ -257,15 +262,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw box-shadow if specified (rendered as offset filled rect behind element)
                     if let Some(shadow) = box_shadow {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
                         let (sr, sg, sb) = shadow.color.to_f32_rgb();
                         let shadow_x = block_x + shadow.offset_x;
-                        let shadow_y = block_y - total_h + shadow.offset_y;
+                        let shadow_y = block_bottom + shadow.offset_y;
                         content.push_str(&format!("{sr} {sg} {sb} rg\n"));
                         if *border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
@@ -289,13 +288,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw background if specified
                     if let Some((r, g, b)) = background_color {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
-                        let bg_y = block_y - total_h;
+                        let bg_y = block_bottom;
                         content.push_str(&format!("{r} {g} {b} rg\n"));
                         if *border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
@@ -319,13 +312,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw linear gradient if specified
                     if let Some(gradient) = background_gradient {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
-                        let bg_y = block_y - total_h;
+                        let bg_y = block_bottom;
                         // Clip to rounded rect if border-radius is set
                         if *border_radius > 0.0 {
                             content.push_str("q\n");
@@ -355,13 +342,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw radial gradient if specified
                     if let Some(gradient) = background_radial_gradient {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
-                        let bg_y = block_y - total_h;
+                        let bg_y = block_bottom;
                         if *border_radius > 0.0 {
                             content.push_str("q\n");
                             content.push_str(&rounded_rect_path(
@@ -390,13 +371,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw border if specified
                     if border.has_any() {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
-                        let border_y = block_y - total_h;
+                        let border_y = block_bottom;
                         // Check if all sides are uniform (same width & color)
                         let uniform = border.top.width == border.right.width
                             && border.top.width == border.bottom.width
@@ -485,15 +460,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw outline if specified (outside the element box)
                     if *outline_width > 0.0 {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
                         let offset = *outline_width / 2.0;
                         let outline_x = block_x - offset;
-                        let outline_y = block_y - total_h - offset;
+                        let outline_y = block_bottom - offset;
                         let outline_w = render_width + *outline_width;
                         let outline_h = total_h + *outline_width;
                         let (or, og, ob) = outline_color.unwrap_or((0.0, 0.0, 0.0));
@@ -1605,6 +1574,17 @@ fn line_text_content(line: &TextLine) -> String {
     line.runs.iter().map(|r| r.text.as_str()).collect()
 }
 
+fn text_block_total_height(
+    lines: &[TextLine],
+    padding_top: f32,
+    padding_bottom: f32,
+    block_height: Option<f32>,
+) -> f32 {
+    let text_height: f32 = lines.iter().map(|l| l.height).sum();
+    let content_h = padding_top + text_height + padding_bottom;
+    block_height.map_or(content_h, |h| content_h.max(h))
+}
+
 /// Merge consecutive text runs that share the same visual properties (font,
 /// size, bold, italic, color, underline, line-through, link) into a single
 /// run.  This produces cleaner PDF output and ensures that spaces between
@@ -2380,6 +2360,77 @@ mod tests {
     use super::*;
     use crate::layout::engine::{LayoutBorder, layout};
     use crate::parser::html::parse_html;
+
+    fn test_text_run(text: impl Into<String>) -> TextRun {
+        TextRun {
+            text: text.into(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        }
+    }
+
+    fn test_text_line(runs: Vec<TextRun>) -> TextLine {
+        TextLine { runs, height: 14.0 }
+    }
+
+    fn test_text_block(lines: Vec<TextLine>) -> LayoutElement {
+        LayoutElement::TextBlock {
+            lines,
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: None,
+            block_height: None,
+            opacity: 1.0,
+            float: Float::None,
+            clear: crate::style::computed::Clear::None,
+            position: Position::Static,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            background_gradient: None,
+            background_radial_gradient: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: crate::style::computed::VerticalAlign::Baseline,
+            z_index: 0,
+            positioned_depth: 0,
+            heading_level: None,
+        }
+    }
+
+    fn test_text_block_from_runs(runs: Vec<TextRun>) -> LayoutElement {
+        test_text_block(vec![test_text_line(runs)])
+    }
+
+    fn test_page(elements: Vec<(f32, LayoutElement)>) -> Page {
+        Page { elements }
+    }
 
     #[test]
     fn render_simple_pdf() {
@@ -3654,82 +3705,10 @@ mod tests {
     #[test]
     fn text_block_empty_run_skipped() {
         // Covers line 401: empty text run within a text block line is skipped
-        use crate::layout::engine::LayoutElement;
-        let empty_run = TextRun {
-            text: String::new(),
-            font_size: 12.0,
-            bold: false,
-            italic: false,
-            underline: false,
-            line_through: false,
-            color: (0.0, 0.0, 0.0),
-            font_family: FontFamily::Helvetica,
-            link_url: None,
-            background_color: None,
-            padding: (0.0, 0.0),
-            border_radius: 0.0,
-        };
-        let real_run = TextRun {
-            text: "Data".to_string(),
-            font_size: 12.0,
-            bold: false,
-            italic: false,
-            underline: false,
-            line_through: false,
-            color: (0.0, 0.0, 0.0),
-            font_family: FontFamily::Helvetica,
-            link_url: None,
-            background_color: None,
-            padding: (0.0, 0.0),
-            border_radius: 0.0,
-        };
-        let page = Page {
-            elements: vec![(
-                0.0,
-                LayoutElement::TextBlock {
-                    lines: vec![TextLine {
-                        runs: vec![empty_run, real_run],
-                        height: 14.0,
-                    }],
-                    margin_top: 0.0,
-                    margin_bottom: 0.0,
-                    text_align: TextAlign::Left,
-                    background_color: None,
-                    padding_top: 0.0,
-                    padding_bottom: 0.0,
-                    padding_left: 0.0,
-                    padding_right: 0.0,
-                    border: LayoutBorder::default(),
-                    block_width: None,
-                    block_height: None,
-                    opacity: 1.0,
-                    float: Float::None,
-                    clear: crate::style::computed::Clear::None,
-                    position: Position::Static,
-                    offset_top: 0.0,
-                    offset_left: 0.0,
-                    offset_bottom: 0.0,
-                    offset_right: 0.0,
-                    containing_block: None,
-                    box_shadow: None,
-                    visible: true,
-                    clip_rect: None,
-                    transform: None,
-                    background_gradient: None,
-                    background_radial_gradient: None,
-                    border_radius: 0.0,
-                    outline_width: 0.0,
-                    outline_color: None,
-                    text_indent: 0.0,
-                    letter_spacing: 0.0,
-                    word_spacing: 0.0,
-                    vertical_align: crate::style::computed::VerticalAlign::Baseline,
-                    z_index: 0,
-                    positioned_depth: 0,
-                    heading_level: None,
-                },
-            )],
-        };
+        let page = test_page(vec![(
+            0.0,
+            test_text_block_from_runs(vec![test_text_run(""), test_text_run("Data")]),
+        )]);
         let pdf = render_pdf(&[page], PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(content.contains("Data"));
@@ -3738,69 +3717,13 @@ mod tests {
     #[test]
     fn page_break_element_renders() {
         // Covers line 677: PageBreak empty match arm
-        let page = Page {
-            elements: vec![
-                (
-                    0.0,
-                    LayoutElement::TextBlock {
-                        lines: vec![TextLine {
-                            runs: vec![TextRun {
-                                text: "Before".to_string(),
-                                font_size: 12.0,
-                                bold: false,
-                                italic: false,
-                                underline: false,
-                                line_through: false,
-                                color: (0.0, 0.0, 0.0),
-                                font_family: FontFamily::Helvetica,
-                                link_url: None,
-                                background_color: None,
-                                padding: (0.0, 0.0),
-                                border_radius: 0.0,
-                            }],
-                            height: 14.0,
-                        }],
-                        margin_top: 0.0,
-                        margin_bottom: 0.0,
-                        text_align: TextAlign::Left,
-                        background_color: None,
-                        padding_top: 0.0,
-                        padding_bottom: 0.0,
-                        padding_left: 0.0,
-                        padding_right: 0.0,
-                        border: LayoutBorder::default(),
-                        block_width: None,
-                        block_height: None,
-                        opacity: 1.0,
-                        float: Float::None,
-                        clear: crate::style::computed::Clear::None,
-                        position: Position::Static,
-                        offset_top: 0.0,
-                        offset_left: 0.0,
-                        offset_bottom: 0.0,
-                        offset_right: 0.0,
-                        containing_block: None,
-                        box_shadow: None,
-                        visible: true,
-                        clip_rect: None,
-                        transform: None,
-                        background_gradient: None,
-                        background_radial_gradient: None,
-                        border_radius: 0.0,
-                        outline_width: 0.0,
-                        outline_color: None,
-                        text_indent: 0.0,
-                        letter_spacing: 0.0,
-                        word_spacing: 0.0,
-                        vertical_align: crate::style::computed::VerticalAlign::Baseline,
-                        z_index: 0,
-                        positioned_depth: 0,
-                        heading_level: None,
-                    },
-                ),
-                (20.0, LayoutElement::PageBreak),
-            ],
-        };
+        let page = test_page(vec![
+            (
+                0.0,
+                test_text_block_from_runs(vec![test_text_run("Before")]),
+            ),
+            (20.0, LayoutElement::PageBreak),
+        ]);
         let pdf = render_pdf(&[page], PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(content.contains("Before"));
@@ -4845,67 +4768,9 @@ mod tests {
         let mut fonts = HashMap::new();
         fonts.insert("TestFont".to_string(), ttf);
 
-        let run = TextRun {
-            text: "Custom".to_string(),
-            font_size: 12.0,
-            bold: false,
-            italic: false,
-            underline: false,
-            line_through: false,
-            color: (0.0, 0.0, 0.0),
-            font_family: FontFamily::Custom("TestFont".to_string()),
-            link_url: None,
-            background_color: None,
-            padding: (0.0, 0.0),
-            border_radius: 0.0,
-        };
-        let page = Page {
-            elements: vec![(
-                0.0,
-                LayoutElement::TextBlock {
-                    lines: vec![TextLine {
-                        runs: vec![run],
-                        height: 14.0,
-                    }],
-                    margin_top: 0.0,
-                    margin_bottom: 0.0,
-                    text_align: TextAlign::Left,
-                    background_color: None,
-                    padding_top: 0.0,
-                    padding_bottom: 0.0,
-                    padding_left: 0.0,
-                    padding_right: 0.0,
-                    border: LayoutBorder::default(),
-                    block_width: None,
-                    block_height: None,
-                    opacity: 1.0,
-                    float: Float::None,
-                    clear: crate::style::computed::Clear::None,
-                    position: Position::Static,
-                    offset_top: 0.0,
-                    offset_left: 0.0,
-                    offset_bottom: 0.0,
-                    offset_right: 0.0,
-                    containing_block: None,
-                    box_shadow: None,
-                    visible: true,
-                    clip_rect: None,
-                    transform: None,
-                    background_gradient: None,
-                    background_radial_gradient: None,
-                    border_radius: 0.0,
-                    outline_width: 0.0,
-                    outline_color: None,
-                    text_indent: 0.0,
-                    letter_spacing: 0.0,
-                    word_spacing: 0.0,
-                    vertical_align: crate::style::computed::VerticalAlign::Baseline,
-                    z_index: 0,
-                    positioned_depth: 0,
-                    heading_level: None,
-                },
-            )],
-        };
+        let mut run = test_text_run("Custom");
+        run.font_family = FontFamily::Custom("TestFont".to_string());
+        let page = test_page(vec![(0.0, test_text_block_from_runs(vec![run]))]);
         let pdf = render_pdf_with_fonts(&[page], PageSize::A4, Margin::default(), &fonts).unwrap();
         let pdf_str = String::from_utf8_lossy(&pdf);
         assert!(
