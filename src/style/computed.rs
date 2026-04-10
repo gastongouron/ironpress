@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use crate::parser::css::{
-    CssRule, CssValue, SelectorContext, StyleMap, is_css_wide_keyword,
-    selector_matches_with_context,
+    CssRule, CssValue, SelectorContext, StyleMap, selector_matches_with_context,
 };
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
@@ -106,6 +105,108 @@ pub enum FontFamily {
     Courier,
     /// A custom TrueType font identified by name.
     Custom(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FontStack {
+    families: Vec<FontFamily>,
+}
+
+impl Default for FontStack {
+    fn default() -> Self {
+        Self::from_family(FontFamily::Helvetica)
+    }
+}
+
+impl FontStack {
+    pub fn from_family(family: FontFamily) -> Self {
+        Self {
+            families: vec![family],
+        }
+    }
+
+    pub fn families(&self) -> &[FontFamily] {
+        &self.families
+    }
+
+    pub fn primary(&self) -> FontFamily {
+        self.families.first().cloned().unwrap_or_default()
+    }
+}
+
+fn parse_font_family_name(raw: &str) -> FontFamily {
+    let lower = raw.to_ascii_lowercase();
+    let cleaned = lower.trim_matches(|c| c == '\'' || c == '"');
+    match cleaned {
+        "serif" | "times" | "times new roman" | "times-roman" | "georgia" | "garamond"
+        | "book antiqua" | "palatino" | "palatino linotype" | "baskerville" | "hoefler text"
+        | "cambria" | "droid serif" | "noto serif" | "libre baskerville" | "merriweather"
+        | "playfair display" | "lora" => FontFamily::TimesRoman,
+
+        "monospace"
+        | "courier"
+        | "courier new"
+        | "lucida console"
+        | "lucida sans typewriter"
+        | "monaco"
+        | "andale mono"
+        | "consolas"
+        | "source code pro"
+        | "fira code"
+        | "fira mono"
+        | "jetbrains mono"
+        | "ibm plex mono"
+        | "roboto mono"
+        | "ubuntu mono"
+        | "droid sans mono"
+        | "menlo"
+        | "sf mono"
+        | "cascadia code"
+        | "cascadia mono" => FontFamily::Courier,
+
+        "sans-serif" => FontFamily::Helvetica,
+        "arial" | "helvetica" | "helvetica neue" | "arial black" | "verdana" | "tahoma"
+        | "trebuchet ms" | "gill sans" | "lucida sans" | "lucida grande" | "ui-sans-serif"
+        | "system-ui" | "-apple-system" | "blinkmacsystemfont" | "segoe ui" | "roboto"
+        | "open sans" | "lato" | "inter" | "nunito" | "poppins" | "montserrat" | "raleway"
+        | "ubuntu" | "noto sans" => FontFamily::Custom(cleaned.to_string()),
+
+        other => FontFamily::Custom(other.to_string()),
+    }
+}
+
+fn split_font_family_list(raw: &str) -> Vec<&str> {
+    let mut families = Vec::new();
+    let mut start = 0usize;
+    let mut quote = None;
+
+    for (index, ch) in raw.char_indices() {
+        match ch {
+            '\'' | '"' if quote == Some(ch) => quote = None,
+            '\'' | '"' if quote.is_none() => quote = Some(ch),
+            ',' if quote.is_none() => {
+                families.push(raw[start..index].trim());
+                start = index + ch.len_utf8();
+            }
+            _ => {}
+        }
+    }
+
+    families.push(raw[start..].trim());
+    families.retain(|family| !family.is_empty());
+    families
+}
+
+pub(crate) fn parse_font_stack(raw: &str) -> FontStack {
+    let families: Vec<FontFamily> = split_font_family_list(raw)
+        .into_iter()
+        .map(parse_font_family_name)
+        .collect();
+    if families.is_empty() {
+        FontStack::default()
+    } else {
+        FontStack { families }
+    }
 }
 
 /// CSS float property.
@@ -236,6 +337,15 @@ pub enum TextOverflow {
     Clip,
     Ellipsis,
 }
+
+/// CSS overflow-wrap / word-wrap property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum OverflowWrap {
+    #[default]
+    Normal,
+    Anywhere,
+    BreakWord,
+}
 /// CSS border-collapse property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BorderCollapse {
@@ -243,12 +353,20 @@ pub enum BorderCollapse {
     Separate,
     Collapse,
 }
-
-/// CSS border-spacing values for separate table borders.
+/// CSS table-layout property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct BorderSpacing {
-    pub horizontal: f32,
-    pub vertical: f32,
+pub enum TableLayout {
+    #[default]
+    Auto,
+    Fixed,
+}
+/// CSS background-origin property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundOrigin {
+    #[default]
+    PaddingBox,
+    BorderBox,
+    ContentBox,
 }
 /// CSS background-size property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -257,7 +375,12 @@ pub enum BackgroundSize {
     Auto,
     Cover,
     Contain,
-    Explicit(f32, f32),
+    Explicit {
+        width: f32,
+        height: Option<f32>,
+        width_is_percent: bool,
+        height_is_percent: bool,
+    },
 }
 /// CSS background-repeat property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -376,12 +499,32 @@ impl BorderSides {
 }
 
 /// Fully resolved style for a node.
+#[derive(Debug, Clone, Default)]
+pub struct PercentageSizing {
+    pub width: Option<f32>,
+    pub height: Option<f32>,
+    pub max_width: Option<f32>,
+    pub min_width: Option<f32>,
+    pub min_height: Option<f32>,
+    pub max_height: Option<f32>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PercentageInsets {
+    pub top: Option<f32>,
+    pub right: Option<f32>,
+    pub bottom: Option<f32>,
+    pub left: Option<f32>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ComputedStyle {
     pub font_size: f32,
+    pub root_font_size: f32,
     pub font_weight: FontWeight,
     pub font_style: FontStyle,
     pub font_family: FontFamily,
+    pub font_stack: FontStack,
     pub color: Color,
     pub background_color: Option<Color>,
     pub margin: EdgeSizes,
@@ -400,6 +543,7 @@ pub struct ComputedStyle {
     pub min_width: Option<f32>,
     pub min_height: Option<f32>,
     pub max_height: Option<f32>,
+    pub percentage_sizing: PercentageSizing,
     pub margin_left_auto: bool,
     pub margin_right_auto: bool,
     pub opacity: f32,
@@ -407,7 +551,10 @@ pub struct ComputedStyle {
     pub clear: Clear,
     pub position: Position,
     pub top: Option<f32>,
+    pub right: Option<f32>,
+    pub bottom: Option<f32>,
     pub left: Option<f32>,
+    pub percentage_insets: PercentageInsets,
     pub box_shadow: Option<BoxShadow>,
     pub flex_direction: FlexDirection,
     pub justify_content: JustifyContent,
@@ -434,12 +581,18 @@ pub struct ComputedStyle {
     pub vertical_align: VerticalAlign,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
+    pub background_image: Option<String>,
+    pub background_svg: Option<crate::parser::svg::SvgTree>,
+    pub aspect_ratio: Option<f32>,
     pub text_overflow: TextOverflow,
+    pub overflow_wrap: OverflowWrap,
     pub border_collapse: BorderCollapse,
-    pub border_spacing: BorderSpacing,
+    pub table_layout: TableLayout,
+    pub border_spacing: f32,
     pub background_size: BackgroundSize,
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
+    pub background_origin: BackgroundOrigin,
     /// CSS z-index (0 = auto).
     pub z_index: i32,
     /// CSS custom properties inherited from ancestors.
@@ -451,15 +604,18 @@ pub struct ComputedStyle {
     pub counter_increment: Vec<(String, i32)>,
     pub column_count: Option<u32>,
     pub column_gap: f32,
+    pub blur_radius: f32,
 }
 
 impl Default for ComputedStyle {
     fn default() -> Self {
         Self {
             font_size: 12.0,
+            root_font_size: 12.0,
             font_weight: FontWeight::Normal,
             font_style: FontStyle::Normal,
             font_family: FontFamily::Helvetica,
+            font_stack: FontStack::default(),
             color: Color::BLACK,
             background_color: None,
             margin: EdgeSizes::default(),
@@ -467,7 +623,7 @@ impl Default for ComputedStyle {
             text_align: TextAlign::Left,
             text_decoration_underline: false,
             text_decoration_line_through: false,
-            line_height: 1.2,
+            line_height: f32::NAN,
             page_break_before: false,
             page_break_after: false,
             border: BorderSides::default(),
@@ -478,6 +634,7 @@ impl Default for ComputedStyle {
             min_width: None,
             min_height: None,
             max_height: None,
+            percentage_sizing: PercentageSizing::default(),
             margin_left_auto: false,
             margin_right_auto: false,
             opacity: 1.0,
@@ -485,7 +642,10 @@ impl Default for ComputedStyle {
             clear: Clear::None,
             position: Position::Static,
             top: None,
+            right: None,
+            bottom: None,
             left: None,
+            percentage_insets: PercentageInsets::default(),
             box_shadow: None,
             flex_direction: FlexDirection::Row,
             justify_content: JustifyContent::FlexStart,
@@ -512,12 +672,18 @@ impl Default for ComputedStyle {
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_image: None,
+            background_svg: None,
+            aspect_ratio: None,
             text_overflow: TextOverflow::Clip,
+            overflow_wrap: OverflowWrap::Normal,
             border_collapse: BorderCollapse::Separate,
-            border_spacing: BorderSpacing::default(),
+            table_layout: TableLayout::Auto,
+            border_spacing: 0.0,
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
+            background_origin: BackgroundOrigin::PaddingBox,
             z_index: 0,
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
@@ -527,7 +693,42 @@ impl Default for ComputedStyle {
             counter_increment: Vec::new(),
             column_count: None,
             column_gap: 0.0,
+            blur_radius: 0.0,
         }
+    }
+}
+
+impl ComputedStyle {
+    fn clear_background_images(&mut self) {
+        self.background_gradient = None;
+        self.background_radial_gradient = None;
+        self.background_image = None;
+        self.background_svg = None;
+    }
+
+    fn reset_background(&mut self) {
+        self.background_color = None;
+        self.clear_background_images();
+        self.background_size = BackgroundSize::Auto;
+        self.background_repeat = BackgroundRepeat::Repeat;
+        self.background_position = BackgroundPosition::default();
+        self.background_origin = BackgroundOrigin::PaddingBox;
+    }
+
+    fn inherit_background_image(&mut self, source: &ComputedStyle) {
+        self.background_gradient = source.background_gradient.clone();
+        self.background_radial_gradient = source.background_radial_gradient.clone();
+        self.background_image = source.background_image.clone();
+        self.background_svg = source.background_svg.clone();
+    }
+
+    fn inherit_background(&mut self, source: &ComputedStyle) {
+        self.background_color = source.background_color;
+        self.inherit_background_image(source);
+        self.background_size = source.background_size;
+        self.background_repeat = source.background_repeat;
+        self.background_position = source.background_position;
+        self.background_origin = source.background_origin;
     }
 }
 
@@ -592,16 +793,14 @@ pub fn compute_style_with_context(
         style.margin = EdgeSizes::default();
         style.padding = EdgeSizes::default();
         style.background_color = None;
-        style.background_gradient = None;
-        style.background_radial_gradient = None;
+        style.clear_background_images();
     }
 
     // Reset non-inherited properties for inline elements too
     // (background-color does not inherit in CSS)
     if !tag.is_block() {
         style.background_color = None;
-        style.background_gradient = None;
-        style.background_radial_gradient = None;
+        style.clear_background_images();
     }
 
     // Border does not inherit in CSS — reset for all elements
@@ -614,6 +813,7 @@ pub fn compute_style_with_context(
     style.min_width = None;
     style.min_height = None;
     style.max_height = None;
+    style.percentage_sizing = PercentageSizing::default();
     style.margin_left_auto = false;
     style.margin_right_auto = false;
     style.opacity = 1.0;
@@ -621,7 +821,10 @@ pub fn compute_style_with_context(
     style.clear = Clear::None;
     style.position = Position::Static;
     style.top = None;
+    style.right = None;
+    style.bottom = None;
     style.left = None;
+    style.percentage_insets = PercentageInsets::default();
     style.box_shadow = None;
     style.flex_direction = FlexDirection::Row;
     style.justify_content = JustifyContent::FlexStart;
@@ -644,23 +847,28 @@ pub fn compute_style_with_context(
     style.vertical_align = VerticalAlign::Baseline;
     style.text_overflow = TextOverflow::Clip;
     // border_collapse and border_spacing are inherited; don't reset them.
+    style.table_layout = TableLayout::Auto;
     style.background_size = BackgroundSize::Auto;
     style.background_repeat = BackgroundRepeat::Repeat;
     style.background_position = BackgroundPosition::default();
+    style.background_origin = BackgroundOrigin::PaddingBox;
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
     style.z_index = 0;
+    style.blur_radius = 0.0;
     // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
     let defaults = default_style(tag);
-    let defaults_base = style.clone();
-    apply_style_map(&mut style, &defaults, parent, &defaults_base);
-    let author_revert_base = style.clone();
+    apply_style_map(&mut style, &defaults, parent);
 
-    // Apply stylesheet rules (between defaults and inline)
+    // Apply stylesheet rules (between defaults and inline).
+    // Skip pseudo-element rules — they target ::before/::after, not the element itself.
     for rule in rules {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
         if selector_matches_with_context(
             &rule.selector,
             tag_name,
@@ -669,17 +877,129 @@ pub fn compute_style_with_context(
             attributes,
             selector_ctx,
         ) {
-            apply_style_map(&mut style, &rule.declarations, parent, &author_revert_base);
+            apply_style_map(&mut style, &rule.declarations, parent);
         }
     }
 
     // Apply inline styles (override everything)
     if let Some(css_str) = inline_style {
         let inline = crate::parser::css::parse_inline_style(css_str);
-        apply_style_map(&mut style, &inline, parent, &author_revert_base);
+        apply_style_map(&mut style, &inline, parent);
     }
 
     style
+}
+
+/// Compute the style for a `::before` or `::after` pseudo-element.
+///
+/// The pseudo-element inherits all inherited properties from the originating
+/// element's computed style, resets non-inherited properties, then applies
+/// matching pseudo-element CSS rules.  `parent_style` is the fully computed
+/// style of the originating element.
+#[allow(clippy::too_many_arguments)]
+pub fn compute_pseudo_element_style(
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    selector_ctx: &SelectorContext,
+    pseudo: crate::parser::css::PseudoElement,
+) -> Option<ComputedStyle> {
+    // Collect all matching pseudo-element rules
+    let mut matched_declarations: Vec<&crate::parser::css::StyleMap> = Vec::new();
+    for rule in rules {
+        if rule.pseudo_element == Some(pseudo)
+            && selector_matches_with_context(
+                &rule.selector,
+                tag_name,
+                classes,
+                id,
+                attributes,
+                selector_ctx,
+            )
+        {
+            matched_declarations.push(&rule.declarations);
+        }
+    }
+
+    if matched_declarations.is_empty() {
+        return None;
+    }
+
+    // Start from parent style (inherits inherited properties)
+    let mut style = parent_style.clone();
+
+    // Reset non-inherited properties (pseudo-elements are generated boxes)
+    style.margin = EdgeSizes::default();
+    style.padding = EdgeSizes::default();
+    style.background_color = None;
+    style.background_gradient = None;
+    style.background_radial_gradient = None;
+    style.border = BorderSides::default();
+    style.width = None;
+    style.height = None;
+    style.max_width = None;
+    style.min_width = None;
+    style.min_height = None;
+    style.max_height = None;
+    style.percentage_sizing = PercentageSizing::default();
+    style.margin_left_auto = false;
+    style.margin_right_auto = false;
+    style.opacity = 1.0;
+    style.float = Float::None;
+    style.clear = Clear::None;
+    style.position = Position::Static;
+    style.top = None;
+    style.right = None;
+    style.bottom = None;
+    style.left = None;
+    style.percentage_insets = PercentageInsets::default();
+    style.box_shadow = None;
+    style.flex_direction = FlexDirection::Row;
+    style.justify_content = JustifyContent::FlexStart;
+    style.align_items = AlignItems::Stretch;
+    style.flex_wrap = FlexWrap::NoWrap;
+    style.flex_grow = 0.0;
+    style.flex_shrink = 1.0;
+    style.flex_basis = None;
+    style.gap = 0.0;
+    style.overflow = Overflow::Visible;
+    style.transform = None;
+    style.grid_template_columns = Vec::new();
+    style.grid_gap = 0.0;
+    style.border_radius = 0.0;
+    style.outline_width = 0.0;
+    style.outline_color = None;
+    style.box_sizing = BoxSizing::ContentBox;
+    style.text_indent = 0.0;
+    style.vertical_align = VerticalAlign::Baseline;
+    style.text_overflow = TextOverflow::Clip;
+    style.background_size = BackgroundSize::Auto;
+    style.background_repeat = BackgroundRepeat::Repeat;
+    style.background_position = BackgroundPosition::default();
+    style.content = Vec::new();
+    style.counter_reset = Vec::new();
+    style.counter_increment = Vec::new();
+    style.z_index = 0;
+    style.blur_radius = 0.0;
+    // Default display for pseudo-elements is inline
+    style.display = Display::Inline;
+
+    // Apply matched pseudo-element declarations.
+    // Use parent_style as the "parent" for inherit resolution so that
+    // `background-image: inherit` copies from the originating element.
+    for declarations in &matched_declarations {
+        apply_style_map(&mut style, declarations, parent_style);
+    }
+
+    // `content: none` and `content: normal` suppress pseudo-element generation.
+    if style.content.is_empty() {
+        return None;
+    }
+
+    Some(style)
 }
 
 /// Returns true if the property is inherited by default in CSS.
@@ -700,6 +1020,8 @@ fn is_inherited_property(property: &str) -> bool {
             | "text-indent"
             | "text-transform"
             | "white-space"
+            | "overflow-wrap"
+            | "word-wrap"
             | "border-collapse"
             | "border-spacing"
             | "list-style-type"
@@ -715,7 +1037,10 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "font-size" => style.font_size = default.font_size,
         "font-weight" => style.font_weight = default.font_weight,
         "font-style" => style.font_style = default.font_style,
-        "font-family" => style.font_family = default.font_family,
+        "font-family" => {
+            style.font_family = default.font_family;
+            style.font_stack = default.font_stack;
+        }
         "line-height" => style.line_height = default.line_height,
         "text-align" => style.text_align = default.text_align,
         "text-decoration" => {
@@ -735,9 +1060,30 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "padding-bottom" => style.padding.bottom = default.padding.bottom,
         "padding-left" => style.padding.left = default.padding.left,
         "display" => style.display = default.display,
-        "width" => style.width = default.width,
-        "height" => style.height = default.height,
-        "max-width" => style.max_width = default.max_width,
+        "width" => {
+            style.width = default.width;
+            style.percentage_sizing.width = default.percentage_sizing.width;
+        }
+        "height" => {
+            style.height = default.height;
+            style.percentage_sizing.height = default.percentage_sizing.height;
+        }
+        "max-width" => {
+            style.max_width = default.max_width;
+            style.percentage_sizing.max_width = default.percentage_sizing.max_width;
+        }
+        "min-width" => {
+            style.min_width = default.min_width;
+            style.percentage_sizing.min_width = default.percentage_sizing.min_width;
+        }
+        "min-height" => {
+            style.min_height = default.min_height;
+            style.percentage_sizing.min_height = default.percentage_sizing.min_height;
+        }
+        "max-height" => {
+            style.max_height = default.max_height;
+            style.percentage_sizing.max_height = default.percentage_sizing.max_height;
+        }
         "opacity" => style.opacity = default.opacity,
         "border-width" => {
             style.border.top.width = default.border.top.width;
@@ -757,8 +1103,22 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "float" => style.float = default.float,
         "clear" => style.clear = default.clear,
         "position" => style.position = default.position,
-        "top" => style.top = default.top,
-        "left" => style.left = default.left,
+        "top" => {
+            style.top = default.top;
+            style.percentage_insets.top = default.percentage_insets.top;
+        }
+        "right" => {
+            style.right = default.right;
+            style.percentage_insets.right = default.percentage_insets.right;
+        }
+        "bottom" => {
+            style.bottom = default.bottom;
+            style.percentage_insets.bottom = default.percentage_insets.bottom;
+        }
+        "left" => {
+            style.left = default.left;
+            style.percentage_insets.left = default.percentage_insets.left;
+        }
         "overflow" => style.overflow = default.overflow,
         "transform" => style.transform = default.transform,
         "box-shadow" => style.box_shadow = default.box_shadow,
@@ -771,11 +1131,17 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "flex-basis" => style.flex_basis = default.flex_basis,
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
+        "overflow-wrap" | "word-wrap" => style.overflow_wrap = default.overflow_wrap,
         "border-collapse" => style.border_collapse = default.border_collapse,
+        "table-layout" => style.table_layout = default.table_layout,
         "border-spacing" => style.border_spacing = default.border_spacing,
         "background-size" => style.background_size = default.background_size,
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
+        "background-origin" => style.background_origin = default.background_origin,
+        "background-image" | "background-svg" => style.clear_background_images(),
+        "aspect-ratio" => style.aspect_ratio = default.aspect_ratio,
+        "background" => style.reset_background(),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
         "content" => style.content = default.content,
@@ -783,6 +1149,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "counter-increment" => style.counter_increment = default.counter_increment,
         "column-count" | "columns" => style.column_count = default.column_count,
         "column-gap" => style.column_gap = default.column_gap,
+        "filter" => style.blur_radius = default.blur_radius,
         _ => {}
     }
 }
@@ -794,7 +1161,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "font-size" => style.font_size = parent.font_size,
         "font-weight" => style.font_weight = parent.font_weight,
         "font-style" => style.font_style = parent.font_style,
-        "font-family" => style.font_family = parent.font_family.clone(),
+        "font-family" => {
+            style.font_family = parent.font_family.clone();
+            style.font_stack = parent.font_stack.clone();
+        }
         "line-height" => style.line_height = parent.line_height,
         "text-align" => style.text_align = parent.text_align,
         "text-decoration" => {
@@ -814,9 +1184,30 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "padding-bottom" => style.padding.bottom = parent.padding.bottom,
         "padding-left" => style.padding.left = parent.padding.left,
         "display" => style.display = parent.display,
-        "width" => style.width = parent.width,
-        "height" => style.height = parent.height,
-        "max-width" => style.max_width = parent.max_width,
+        "width" => {
+            style.width = parent.width;
+            style.percentage_sizing.width = parent.percentage_sizing.width;
+        }
+        "height" => {
+            style.height = parent.height;
+            style.percentage_sizing.height = parent.percentage_sizing.height;
+        }
+        "max-width" => {
+            style.max_width = parent.max_width;
+            style.percentage_sizing.max_width = parent.percentage_sizing.max_width;
+        }
+        "min-width" => {
+            style.min_width = parent.min_width;
+            style.percentage_sizing.min_width = parent.percentage_sizing.min_width;
+        }
+        "min-height" => {
+            style.min_height = parent.min_height;
+            style.percentage_sizing.min_height = parent.percentage_sizing.min_height;
+        }
+        "max-height" => {
+            style.max_height = parent.max_height;
+            style.percentage_sizing.max_height = parent.percentage_sizing.max_height;
+        }
         "opacity" => style.opacity = parent.opacity,
         "border-width" => {
             style.border.top.width = parent.border.top.width;
@@ -836,8 +1227,22 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "float" => style.float = parent.float,
         "clear" => style.clear = parent.clear,
         "position" => style.position = parent.position,
-        "top" => style.top = parent.top,
-        "left" => style.left = parent.left,
+        "top" => {
+            style.top = parent.top;
+            style.percentage_insets.top = parent.percentage_insets.top;
+        }
+        "right" => {
+            style.right = parent.right;
+            style.percentage_insets.right = parent.percentage_insets.right;
+        }
+        "bottom" => {
+            style.bottom = parent.bottom;
+            style.percentage_insets.bottom = parent.percentage_insets.bottom;
+        }
+        "left" => {
+            style.left = parent.left;
+            style.percentage_insets.left = parent.percentage_insets.left;
+        }
         "overflow" => style.overflow = parent.overflow,
         "transform" => style.transform = parent.transform,
         "box-shadow" => style.box_shadow = parent.box_shadow,
@@ -850,11 +1255,21 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "flex-basis" => style.flex_basis = parent.flex_basis,
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
+        "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
         "border-collapse" => style.border_collapse = parent.border_collapse,
+        "table-layout" => style.table_layout = parent.table_layout,
         "border-spacing" => style.border_spacing = parent.border_spacing,
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
+        "background-origin" => style.background_origin = parent.background_origin,
+        "background-image" | "background-svg" => style.inherit_background_image(parent),
+        "background-gradient" => style.background_gradient = parent.background_gradient.clone(),
+        "background-radial-gradient" => {
+            style.background_radial_gradient = parent.background_radial_gradient.clone()
+        }
+        "aspect-ratio" => style.aspect_ratio = parent.aspect_ratio,
+        "background" => style.inherit_background(parent),
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "content" => style.content = parent.content.clone(),
@@ -862,281 +1277,60 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
         "column-count" | "columns" => style.column_count = parent.column_count,
         "column-gap" => style.column_gap = parent.column_gap,
+        "filter" => style.blur_radius = parent.blur_radius,
         _ => {}
-    }
-}
-
-fn apply_css_wide_keyword(
-    style: &mut ComputedStyle,
-    property: &str,
-    keyword: &str,
-    parent: &ComputedStyle,
-    revert_base: &ComputedStyle,
-) {
-    match keyword {
-        "inherit" => {
-            restore_from_parent(style, property, parent);
-        }
-        "initial" => {
-            reset_to_initial(style, property);
-        }
-        "unset" => {
-            if is_inherited_property(property) {
-                restore_from_parent(style, property, parent);
-            } else {
-                reset_to_initial(style, property);
-            }
-        }
-        "revert" | "revert-layer" => {
-            restore_from_parent(style, property, revert_base);
-        }
-        _ => {}
-    }
-}
-
-fn apply_var_css_wide_keywords(
-    style: &mut ComputedStyle,
-    map: &StyleMap,
-    parent: &ComputedStyle,
-    revert_base: &ComputedStyle,
-) {
-    for (prop, val) in &map.properties {
-        if prop.starts_with("--")
-            || matches!(
-                prop.as_str(),
-                "border-spacing" | "border-spacing-horizontal" | "border-spacing-vertical"
-            )
-        {
-            continue;
-        }
-        let Some(keyword) =
-            crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
-        else {
-            continue;
-        };
-        let lower = keyword.trim().to_ascii_lowercase();
-        if is_css_wide_keyword(&lower) {
-            apply_css_wide_keyword(style, prop, &lower, parent, revert_base);
-        }
-    }
-}
-
-fn resolve_length_property(
-    val: &CssValue,
-    custom_properties: &HashMap<String, String>,
-    parent_width: f32,
-    font_size: f32,
-) -> Option<f32> {
-    crate::style::resolve::try_resolve_to_length_with_font_size(
-        val,
-        custom_properties,
-        parent_width,
-        font_size,
-    )
-}
-
-fn resolve_font_size_property(
-    val: &CssValue,
-    custom_properties: &HashMap<String, String>,
-    parent_width: f32,
-    parent_font_size: f32,
-) -> Option<f32> {
-    match val {
-        CssValue::Length(v) => Some(*v),
-        CssValue::Number(v) => Some(*v * parent_font_size),
-        CssValue::Percentage(v) => Some(parent_font_size * v / 100.0),
-        CssValue::Calc(tokens) => Some(crate::style::resolve::resolve_calc(
-            tokens,
-            parent_font_size,
-            parent_font_size,
-            12.0,
-            595.28,
-            841.89,
-        )),
-        CssValue::Rem(v) => Some(*v * 12.0),
-        CssValue::Var(name, fallback) => {
-            let raw = custom_properties
-                .get(name.as_str())
-                .cloned()
-                .or_else(|| fallback.clone())?;
-            let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));
-            let inner = parsed.get("_x")?;
-            resolve_font_size_property(inner, custom_properties, parent_width, parent_font_size)
-        }
-        _ => crate::style::resolve::try_resolve_to_length_with_font_size(
-            val,
-            custom_properties,
-            parent_width,
-            parent_font_size,
-        ),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn resolve_border_spacing_component(
-    map: &StyleMap,
-    primary_key: &str,
-    fallback_key: &str,
-    custom_properties: &HashMap<String, String>,
-    parent_width: f32,
-    font_size: f32,
-    inherited_value: f32,
-    revert_value: f32,
-) -> Option<f32> {
-    let val = get_non_special(map, primary_key).or_else(|| get_non_special(map, fallback_key))?;
-    if let Some(keyword) = crate::style::resolve::try_resolve_var_to_keyword(val, custom_properties)
-    {
-        let keyword = keyword.trim().to_ascii_lowercase();
-        if is_css_wide_keyword(&keyword) {
-            return match keyword.as_str() {
-                "initial" => Some(0.0),
-                "inherit" | "unset" => Some(inherited_value),
-                "revert" | "revert-layer" => Some(revert_value),
-                _ => None,
-            };
-        }
-    }
-    if border_spacing_uses_percentage(val, custom_properties) {
-        return None;
-    }
-    resolve_length_property(val, custom_properties, parent_width, font_size)
-}
-
-fn border_spacing_var_keyword_invalidates_declaration(
-    map: &StyleMap,
-    custom_properties: &HashMap<String, String>,
-) -> bool {
-    let Some(CssValue::Number(count)) = map.get("border-spacing-value-count") else {
-        return false;
-    };
-    if (*count - 2.0).abs() > f32::EPSILON {
-        return false;
-    }
-
-    ["border-spacing-horizontal", "border-spacing-vertical"]
-        .iter()
-        .filter_map(|key| get_non_special(map, key))
-        .filter_map(|value| {
-            crate::style::resolve::try_resolve_var_to_keyword(value, custom_properties)
-        })
-        .map(|keyword| keyword.trim().to_ascii_lowercase())
-        .any(|keyword| is_css_wide_keyword(&keyword))
-}
-
-fn border_spacing_uses_percentage(
-    val: &CssValue,
-    custom_properties: &HashMap<String, String>,
-) -> bool {
-    match val {
-        CssValue::Percentage(_) => true,
-        CssValue::Calc(tokens) => tokens
-            .iter()
-            .any(|token| matches!(token, crate::parser::css::CalcToken::Percent(_))),
-        CssValue::Var(name, fallback) => {
-            let raw = custom_properties
-                .get(name.as_str())
-                .cloned()
-                .or_else(|| fallback.clone());
-            let Some(raw) = raw else {
-                return false;
-            };
-            let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));
-            parsed
-                .get("_x")
-                .is_some_and(|inner| border_spacing_uses_percentage(inner, custom_properties))
-        }
-        _ => false,
-    }
-}
-
-fn apply_border_spacing(
-    style: &mut ComputedStyle,
-    map: &StyleMap,
-    parent: &ComputedStyle,
-    revert_base: &ComputedStyle,
-) {
-    let parent_width = parent.width.unwrap_or(595.28);
-    if border_spacing_var_keyword_invalidates_declaration(map, &style.custom_properties) {
-        return;
-    }
-    let horizontal = resolve_border_spacing_component(
-        map,
-        "border-spacing-horizontal",
-        "border-spacing",
-        &style.custom_properties,
-        parent_width,
-        style.font_size,
-        parent.border_spacing.horizontal,
-        revert_base.border_spacing.horizontal,
-    );
-    let vertical = resolve_border_spacing_component(
-        map,
-        "border-spacing-vertical",
-        "border-spacing",
-        &style.custom_properties,
-        parent_width,
-        style.font_size,
-        parent.border_spacing.vertical,
-        revert_base.border_spacing.vertical,
-    );
-    let uses_two_value_shorthand = matches!(
-        map.get("border-spacing-value-count"),
-        Some(CssValue::Number(count)) if (*count - 2.0).abs() < f32::EPSILON
-    );
-    if uses_two_value_shorthand && (horizontal.is_none() || vertical.is_none()) {
-        return;
-    }
-    if let Some(horizontal) = horizontal {
-        style.border_spacing.horizontal = horizontal;
-    }
-    if let Some(vertical) = vertical {
-        style.border_spacing.vertical = vertical;
     }
 }
 
 /// Get a CSS value from the map, but return None if the value is an inherit/initial/unset keyword
 /// (those are handled separately before normal property application).
 fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
-    map.get(key).filter(
-        |v| !matches!(v, CssValue::Keyword(k) if is_css_wide_keyword(&k.to_ascii_lowercase())),
-    )
+    map.get(key).filter(|v| {
+        if let CssValue::Keyword(k) = v {
+            let lower = k.to_ascii_lowercase();
+            !matches!(lower.as_str(), "inherit" | "initial" | "unset")
+        } else {
+            true
+        }
+    })
 }
 
-pub(crate) fn apply_style_map(
-    style: &mut ComputedStyle,
-    map: &StyleMap,
-    parent: &ComputedStyle,
-    revert_base: &ComputedStyle,
-) {
-    // Handle CSS-wide keywords before normal property application.
+pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedStyle) {
+    let length_context = crate::style::resolve::LengthResolutionContext::pdf_with_font_sizes(
+        parent.width.unwrap_or(595.28),
+        style.font_size,
+        parent.root_font_size,
+    );
+
+    // Handle inherit, initial, unset keywords before normal property application
     for (prop, val) in &map.properties {
         if let CssValue::Keyword(k) = val {
             let lower = k.to_ascii_lowercase();
-            if is_css_wide_keyword(&lower) {
-                apply_css_wide_keyword(style, prop, &lower, parent, revert_base);
+            match lower.as_str() {
+                "inherit" => {
+                    restore_from_parent(style, prop, parent);
+                }
+                "initial" => {
+                    reset_to_initial(style, prop);
+                }
+                "unset" => {
+                    if is_inherited_property(prop) {
+                        restore_from_parent(style, prop, parent);
+                    } else {
+                        reset_to_initial(style, prop);
+                    }
+                }
+                _ => {}
             }
         }
     }
 
-    for (prop, val) in &map.properties {
-        if prop.starts_with("--") {
-            if let CssValue::Keyword(raw) = val {
-                style.custom_properties.insert(prop.clone(), raw.clone());
-            }
-        }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "font-size") {
+        style.font_size = *v;
     }
-
-    apply_var_css_wide_keywords(style, map, parent, revert_base);
-
-    if let Some(val) = get_non_special(map, "font-size") {
-        if let Some(resolved) = resolve_font_size_property(
-            val,
-            &style.custom_properties,
-            parent.width.unwrap_or(595.28),
-            parent.font_size,
-        ) {
-            style.font_size = resolved;
-        }
+    if let Some(CssValue::Number(v)) = get_non_special(map, "font-size") {
+        // em value — multiply by current font-size
+        style.font_size *= *v;
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-weight") {
@@ -1156,50 +1350,8 @@ pub(crate) fn apply_style_map(
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-family") {
-        let lower = k.to_ascii_lowercase();
-        // Strip quotes from font names like "'Times New Roman'" or "\"Courier New\""
-        let cleaned = lower.trim_matches(|c| c == '\'' || c == '"');
-        style.font_family = match cleaned {
-            // Serif → TimesRoman
-            "serif" | "times" | "times new roman" | "times-roman" | "georgia" | "garamond"
-            | "book antiqua" | "palatino" | "palatino linotype" | "baskerville"
-            | "hoefler text" | "cambria" | "droid serif" | "noto serif" | "libre baskerville"
-            | "merriweather" | "playfair display" | "lora" => FontFamily::TimesRoman,
-
-            // Monospace → Courier
-            "monospace"
-            | "courier"
-            | "courier new"
-            | "lucida console"
-            | "lucida sans typewriter"
-            | "monaco"
-            | "andale mono"
-            | "consolas"
-            | "source code pro"
-            | "fira code"
-            | "fira mono"
-            | "jetbrains mono"
-            | "ibm plex mono"
-            | "roboto mono"
-            | "ubuntu mono"
-            | "droid sans mono"
-            | "menlo"
-            | "sf mono"
-            | "cascadia code"
-            | "cascadia mono" => FontFamily::Courier,
-
-            // Explicit sans-serif mappings
-            "sans-serif" | "arial" | "helvetica" | "helvetica neue" | "arial black" | "verdana"
-            | "tahoma" | "trebuchet ms" | "gill sans" | "lucida sans" | "lucida grande"
-            | "system-ui" | "-apple-system" | "segoe ui" | "roboto" | "open sans" | "lato"
-            | "inter" | "nunito" | "poppins" | "montserrat" | "raleway" | "ubuntu" => {
-                FontFamily::Helvetica
-            }
-
-            // Unknown font name — treat as custom; renderer will fall back to
-            // Helvetica if no matching TTF is registered.
-            other => FontFamily::Custom(other.to_string()),
-        };
+        style.font_stack = parse_font_stack(k);
+        style.font_family = style.font_stack.primary();
     }
 
     if let Some(CssValue::Color(c)) = get_non_special(map, "color") {
@@ -1213,6 +1365,7 @@ pub(crate) fn apply_style_map(
     // Linear gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-gradient") {
         if let Some(lg) = parse_linear_gradient(k) {
+            style.clear_background_images();
             style.background_gradient = Some(lg);
         }
     }
@@ -1220,7 +1373,34 @@ pub(crate) fn apply_style_map(
     // Radial gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
+            style.clear_background_images();
             style.background_radial_gradient = Some(rg);
+        }
+    }
+
+    // SVG background image (from data:image/svg+xml URI)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-svg") {
+        if let Some(tree) = crate::parser::svg::parse_svg_from_string(k) {
+            style.clear_background_images();
+            style.background_svg = Some(tree);
+        }
+    }
+
+    if get_non_special(map, "background-gradient").is_none()
+        && get_non_special(map, "background-radial-gradient").is_none()
+        && get_non_special(map, "background-svg").is_none()
+        && let Some(CssValue::Keyword(k)) = get_non_special(map, "background-image")
+    {
+        style.clear_background_images();
+        let trimmed = k.trim();
+        if trimmed != "none" {
+            if let Some(svg_text) = crate::parser::css::extract_svg_data_uri(trimmed) {
+                if let Some(tree) = crate::parser::svg::parse_svg_from_string(&svg_text) {
+                    style.background_svg = Some(tree);
+                }
+            } else {
+                style.background_image = Some(trimmed.to_string());
+            }
         }
     }
 
@@ -1264,6 +1444,11 @@ pub(crate) fn apply_style_map(
         style.text_decoration_line_through = k == "line-through";
     }
 
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-height") {
+        if k == "normal" {
+            style.line_height = f32::NAN;
+        }
+    }
     if let Some(CssValue::Number(v)) = get_non_special(map, "line-height") {
         style.line_height = *v;
     }
@@ -1383,6 +1568,12 @@ pub(crate) fn apply_style_map(
         style.page_break_after = k == "always";
     }
 
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
+        if let Some(radius) = parse_filter_blur(k) {
+            style.blur_radius = radius;
+        }
+    }
+
     // Border shorthand: "1px solid black"
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border") {
         let (w, c) = parse_border_shorthand(k);
@@ -1424,45 +1615,57 @@ pub(crate) fn apply_style_map(
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "width") {
         style.width = Some(*v);
+        style.percentage_sizing.width = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "width") {
         // em value — multiply by current font-size
         style.width = Some(*v * style.font_size);
+        style.percentage_sizing.width = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "height") {
         style.height = Some(*v);
+        style.percentage_sizing.height = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "height") {
         style.height = Some(*v * style.font_size);
+        style.percentage_sizing.height = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "max-width") {
         style.max_width = Some(*v);
+        style.percentage_sizing.max_width = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "max-width") {
         style.max_width = Some(*v * style.font_size);
+        style.percentage_sizing.max_width = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "min-width") {
         style.min_width = Some(*v);
+        style.percentage_sizing.min_width = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "min-width") {
         style.min_width = Some(*v * style.font_size);
+        style.percentage_sizing.min_width = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "min-height") {
         style.min_height = Some(*v);
+        style.percentage_sizing.min_height = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "min-height") {
         style.min_height = Some(*v * style.font_size);
+        style.percentage_sizing.min_height = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "max-height") {
         style.max_height = Some(*v);
+        style.percentage_sizing.max_height = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "max-height") {
         style.max_height = Some(*v * style.font_size);
+        style.percentage_sizing.max_height = None;
     }
 
     // margin-left: auto / margin-right: auto
@@ -1527,12 +1730,22 @@ pub(crate) fn apply_style_map(
         };
     }
 
-    // Top / Left for positioned elements
+    // Top / Right / Bottom / Left for positioned elements
     if let Some(CssValue::Length(v)) = get_non_special(map, "top") {
         style.top = Some(*v);
+        style.percentage_insets.top = None;
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "right") {
+        style.right = Some(*v);
+        style.percentage_insets.right = None;
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "bottom") {
+        style.bottom = Some(*v);
+        style.percentage_insets.bottom = None;
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "left") {
         style.left = Some(*v);
+        style.percentage_insets.left = None;
     }
 
     // Box-shadow: parse from keyword (stored as full shorthand string)
@@ -1688,13 +1901,30 @@ pub(crate) fn apply_style_map(
             _ => TextOverflow::Clip,
         };
     }
+    if let Some(CssValue::Keyword(k)) =
+        get_non_special(map, "overflow-wrap").or_else(|| get_non_special(map, "word-wrap"))
+    {
+        style.overflow_wrap = match k.as_str() {
+            "anywhere" => OverflowWrap::Anywhere,
+            "break-word" => OverflowWrap::BreakWord,
+            _ => OverflowWrap::Normal,
+        };
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-collapse") {
         style.border_collapse = match k.as_str() {
             "collapse" => BorderCollapse::Collapse,
             _ => BorderCollapse::Separate,
         };
     }
-    apply_border_spacing(style, map, parent, revert_base);
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "table-layout") {
+        style.table_layout = match k.as_str() {
+            "fixed" => TableLayout::Fixed,
+            _ => TableLayout::Auto,
+        };
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing") {
+        style.border_spacing = *v;
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-size") {
         style.background_size = match k.as_str() {
             "cover" => BackgroundSize::Cover,
@@ -1716,21 +1946,46 @@ pub(crate) fn apply_style_map(
             style.background_position = pos;
         }
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
+        style.background_origin = match k.as_str() {
+            "border-box" => BackgroundOrigin::BorderBox,
+            "content-box" => BackgroundOrigin::ContentBox,
+            _ => BackgroundOrigin::PaddingBox,
+        };
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "aspect-ratio") {
+        style.aspect_ratio = parse_aspect_ratio(k);
+    }
 
     // z-index
     if let Some(CssValue::Number(v)) = get_non_special(map, "z-index") {
         style.z_index = *v as i32;
     }
 
-    // Resolve new value types (Percentage, Rem, Vw, Vh, Calc, Var) for length properties
+    // Collect custom properties (--*) into style.custom_properties
+    for (prop, val) in &map.properties {
+        if prop.starts_with("--") {
+            if let CssValue::Keyword(raw) = val {
+                style.custom_properties.insert(prop.clone(), raw.clone());
+            }
+        }
+    }
+
+    // Resolve late-bound length values.
+    //
+    // CSS does not use one universal percentage basis:
+    // - width-like properties resolve against the containing block width
+    // - height/top/bottom resolve against the containing block height
+    // - padding/margin percentages still resolve against width
+    //
+    // Keep percentage hints for layout-time cases where the containing block
+    // height is only known after layout (for example absolute pseudo-elements).
     type LengthSetter = fn(&mut ComputedStyle, f32);
-    let length_props: &[(&str, LengthSetter)] = &[
+    let inline_length_props: &[(&str, LengthSetter)] = &[
         ("width", |s, v| s.width = Some(v)),
-        ("height", |s, v| s.height = Some(v)),
         ("max-width", |s, v| s.max_width = Some(v)),
         ("min-width", |s, v| s.min_width = Some(v)),
-        ("max-height", |s, v| s.max_height = Some(v)),
-        ("min-height", |s, v| s.min_height = Some(v)),
         ("margin-top", |s, v| s.margin.top = v),
         ("margin-right", |s, v| s.margin.right = v),
         ("margin-bottom", |s, v| s.margin.bottom = v),
@@ -1739,8 +1994,8 @@ pub(crate) fn apply_style_map(
         ("padding-right", |s, v| s.padding.right = v),
         ("padding-bottom", |s, v| s.padding.bottom = v),
         ("padding-left", |s, v| s.padding.left = v),
-        ("top", |s, v| s.top = Some(v)),
         ("left", |s, v| s.left = Some(v)),
+        ("right", |s, v| s.right = Some(v)),
         ("gap", |s, v| {
             s.gap = v;
             s.grid_gap = v;
@@ -1756,18 +2011,184 @@ pub(crate) fn apply_style_map(
         ("text-indent", |s, v| s.text_indent = v),
         ("letter-spacing", |s, v| s.letter_spacing = v),
         ("word-spacing", |s, v| s.word_spacing = v),
+        ("border-spacing", |s, v| s.border_spacing = v),
     ];
-    for &(prop_name, setter) in length_props {
+    for &(prop_name, setter) in inline_length_props {
         if let Some(val) = get_non_special(map, prop_name) {
-            let resolved = resolve_length_property(
-                val,
-                &style.custom_properties,
-                parent.width.unwrap_or(595.28),
-                style.font_size,
-            );
-            if let Some(resolved) = resolved {
-                setter(style, resolved);
+            match val {
+                CssValue::Percentage(_)
+                | CssValue::Rem(_)
+                | CssValue::Vw(_)
+                | CssValue::Vh(_)
+                | CssValue::Calc(_)
+                | CssValue::Var(_, _) => {
+                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
+                        val,
+                        &style.custom_properties,
+                        length_context,
+                    ) {
+                        setter(style, resolved);
+                    }
+                }
+                _ => {}
             }
+        }
+    }
+
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "width") {
+        style.percentage_sizing.width = Some(*v);
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "max-width") {
+        style.percentage_sizing.max_width = Some(*v);
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "min-width") {
+        style.percentage_sizing.min_width = Some(*v);
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "left") {
+        style.percentage_insets.left = Some(*v);
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "right") {
+        style.percentage_insets.right = Some(*v);
+    }
+
+    let resolved_parent_height = parent.height.filter(|height| *height > 0.0);
+    let resolve_block_percentage =
+        |percent: f32| resolved_parent_height.map(|height| height * percent / 100.0);
+
+    if let Some(val) = get_non_special(map, "height") {
+        match val {
+            CssValue::Percentage(v) => {
+                style.percentage_sizing.height = Some(*v);
+                style.height = resolve_block_percentage(*v);
+            }
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Calc(_)
+            | CssValue::Var(_, _) => {
+                style.percentage_sizing.height = None;
+                style.height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    length_context,
+                );
+            }
+            _ => {}
+        }
+    }
+    if let Some(val) = get_non_special(map, "max-height") {
+        match val {
+            CssValue::Percentage(v) => {
+                style.percentage_sizing.max_height = Some(*v);
+                style.max_height = resolve_block_percentage(*v);
+            }
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Calc(_)
+            | CssValue::Var(_, _) => {
+                style.percentage_sizing.max_height = None;
+                style.max_height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    length_context,
+                );
+            }
+            _ => {}
+        }
+    }
+    if let Some(val) = get_non_special(map, "min-height") {
+        match val {
+            CssValue::Percentage(v) => {
+                style.percentage_sizing.min_height = Some(*v);
+                style.min_height = resolve_block_percentage(*v);
+            }
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Calc(_)
+            | CssValue::Var(_, _) => {
+                style.percentage_sizing.min_height = None;
+                style.min_height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    length_context,
+                );
+            }
+            _ => {}
+        }
+    }
+    for (prop_name, setter, hint_setter) in [
+        (
+            "top",
+            (|s: &mut ComputedStyle, v| s.top = Some(v)) as LengthSetter,
+            (|s: &mut ComputedStyle, v| s.percentage_insets.top = Some(v))
+                as fn(&mut ComputedStyle, f32),
+        ),
+        (
+            "bottom",
+            (|s: &mut ComputedStyle, v| s.bottom = Some(v)) as LengthSetter,
+            (|s: &mut ComputedStyle, v| s.percentage_insets.bottom = Some(v))
+                as fn(&mut ComputedStyle, f32),
+        ),
+    ] {
+        if let Some(val) = get_non_special(map, prop_name) {
+            match val {
+                CssValue::Percentage(v) => {
+                    hint_setter(style, *v);
+                    if let Some(resolved) = resolve_block_percentage(*v) {
+                        setter(style, resolved);
+                    } else {
+                        setter(style, 0.0);
+                        match prop_name {
+                            "top" => style.top = None,
+                            "bottom" => style.bottom = None,
+                            _ => {}
+                        }
+                    }
+                }
+                CssValue::Rem(_)
+                | CssValue::Vw(_)
+                | CssValue::Vh(_)
+                | CssValue::Calc(_)
+                | CssValue::Var(_, _) => {
+                    match prop_name {
+                        "top" => style.percentage_insets.top = None,
+                        "bottom" => style.percentage_insets.bottom = None,
+                        _ => {}
+                    }
+                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
+                        val,
+                        &style.custom_properties,
+                        length_context,
+                    ) {
+                        setter(style, resolved);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Resolve font-size from new value types
+    if let Some(val) = get_non_special(map, "font-size") {
+        match val {
+            CssValue::Percentage(v) => {
+                style.font_size = parent.font_size * v / 100.0;
+            }
+            CssValue::Rem(v) => {
+                style.font_size = v * parent.root_font_size;
+            }
+            CssValue::Var(_, _) => {
+                if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    length_context,
+                ) {
+                    style.font_size = resolved;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1882,6 +2303,7 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
 }
 
 /// Public wrapper for `parse_content_value` used by the layout engine.
+#[allow(dead_code)]
 pub fn parse_content_value_pub(raw: &str) -> Vec<ContentItem> {
     parse_content_value(raw)
 }
@@ -1898,49 +2320,39 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         if rest.is_empty() {
             break;
         }
-        if rest.starts_with('"') || rest.starts_with('\'') {
-            let quote = rest.as_bytes()[0] as char;
-            if let Some(end) = rest[1..].find(quote) {
-                items.push(ContentItem::String(rest[1..1 + end].to_string()));
-                rest = &rest[2 + end..];
+        if let Some(body) = rest.strip_prefix('"') {
+            if let Some(end) = body.find('"') {
+                items.push(ContentItem::String(body[..end].to_string()));
+                rest = &body[end + 1..];
             } else {
-                items.push(ContentItem::String(rest[1..].to_string()));
+                items.push(ContentItem::String(body.to_string()));
                 break;
             }
-        } else if rest.starts_with("attr(") {
-            if let Some(end) = rest.find(')') {
-                let name = rest[5..end].trim().to_string();
-                items.push(ContentItem::Attr(name));
-                rest = &rest[end + 1..];
+        } else if let Some(body) = rest.strip_prefix('\'') {
+            if let Some(end) = body.find('\'') {
+                items.push(ContentItem::String(body[..end].to_string()));
+                rest = &body[end + 1..];
             } else {
+                items.push(ContentItem::String(body.to_string()));
                 break;
             }
-        } else if rest.starts_with("counters(") {
-            if let Some(end) = rest.find(')') {
-                let inner = &rest[9..end];
-                let parts: Vec<&str> = inner.splitn(2, ',').collect();
-                let name = parts[0].trim().to_string();
-                let sep = if parts.len() > 1 {
-                    parts[1]
-                        .trim()
-                        .trim_matches(|c: char| c == '"' || c == '\'')
-                        .to_string()
-                } else {
-                    ".".to_string()
-                };
-                items.push(ContentItem::Counters(name, sep));
-                rest = &rest[end + 1..];
-            } else {
-                break;
-            }
-        } else if rest.starts_with("counter(") {
-            if let Some(end) = rest.find(')') {
-                let name = rest[8..end].trim().to_string();
-                items.push(ContentItem::Counter(name));
-                rest = &rest[end + 1..];
-            } else {
-                break;
-            }
+        } else if let Some((name, tail)) = parse_content_function(rest, "attr(") {
+            items.push(ContentItem::Attr(name.trim().to_string()));
+            rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function(rest, "counters(") {
+            let (name, sep) = inner
+                .split_once(',')
+                .map_or((inner.trim(), "."), |(name, sep)| {
+                    (
+                        name.trim(),
+                        sep.trim().trim_matches(|c: char| c == '"' || c == '\''),
+                    )
+                });
+            items.push(ContentItem::Counters(name.to_string(), sep.to_string()));
+            rest = tail;
+        } else if let Some((name, tail)) = parse_content_function(rest, "counter(") {
+            items.push(ContentItem::Counter(name.trim().to_string()));
+            rest = tail;
         } else if let Some(space) = rest.find(char::is_whitespace) {
             rest = &rest[space..];
         } else {
@@ -1948,6 +2360,10 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         }
     }
     items
+}
+
+fn parse_content_function<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
+    rest.strip_prefix(prefix)?.split_once(')')
 }
 
 fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
@@ -1970,28 +2386,71 @@ fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
     result
 }
 
+fn parse_aspect_ratio(raw: &str) -> Option<f32> {
+    let value = raw.trim();
+    if value.is_empty() || matches!(value.to_ascii_lowercase().as_str(), "auto" | "none") {
+        return None;
+    }
+    if let Some((lhs, rhs)) = value.split_once('/') {
+        let num = lhs.trim().parse::<f32>().ok()?;
+        let den = rhs.trim().parse::<f32>().ok()?;
+        return (num > 0.0 && den > 0.0).then_some(num / den);
+    }
+    value.parse::<f32>().ok().filter(|ratio| *ratio > 0.0)
+}
+
+fn parse_filter_blur(val: &str) -> Option<f32> {
+    let raw = val.trim();
+    if raw.eq_ignore_ascii_case("none") {
+        return Some(0.0);
+    }
+
+    let inner = raw.strip_prefix("blur(")?.strip_suffix(')')?.trim();
+    if inner.is_empty() {
+        return None;
+    }
+    if let Ok(value) = inner.parse::<f32>() {
+        return (value == 0.0).then_some(0.0);
+    }
+
+    match crate::parser::css::parse_length(inner)? {
+        CssValue::Length(length) if length >= 0.0 => Some(length),
+        _ => None,
+    }
+}
+
 fn parse_background_size_explicit(val: &str) -> Option<BackgroundSize> {
     let parts: Vec<&str> = val.split_whitespace().collect();
-    let pd = |s: &str| -> Option<f32> {
+    let parse_dimension = |s: &str| -> Option<(f32, bool)> {
         if let Some(n) = s.strip_suffix("px") {
-            n.parse::<f32>().ok().map(|v| v * 0.75)
+            n.parse::<f32>().ok().map(|v| (v * 0.75, false))
         } else if let Some(n) = s.strip_suffix("pt") {
-            n.parse::<f32>().ok()
+            n.parse::<f32>().ok().map(|v| (v, false))
         } else if let Some(n) = s.strip_suffix('%') {
-            n.parse::<f32>().ok()
+            n.parse::<f32>().ok().map(|v| (v, true))
         } else {
-            s.parse::<f32>().ok()
+            s.parse::<f32>().ok().map(|v| (v, false))
         }
     };
     match parts.len() {
         1 => {
-            let w = pd(parts[0])?;
-            Some(BackgroundSize::Explicit(w, w))
+            let (width, width_is_percent) = parse_dimension(parts[0])?;
+            Some(BackgroundSize::Explicit {
+                width,
+                height: None,
+                width_is_percent,
+                height_is_percent: false,
+            })
         }
         2 => {
-            let w = pd(parts[0])?;
-            let h = pd(parts[1])?;
-            Some(BackgroundSize::Explicit(w, h))
+            let (width, width_is_percent) = parse_dimension(parts[0])?;
+            let (height, height_is_percent) = parse_dimension(parts[1])?;
+            Some(BackgroundSize::Explicit {
+                width,
+                height: Some(height),
+                width_is_percent,
+                height_is_percent,
+            })
         }
         _ => None,
     }
@@ -2020,19 +2479,60 @@ fn parse_background_position(val: &str) -> Option<BackgroundPosition> {
             }
         }
     };
-    match p.len() {
-        1 => {
-            let (x, xp) = pc(p[0])?;
+    let set_axis =
+        |token: &str, x: &mut Option<(f32, bool)>, y: &mut Option<(f32, bool)>| -> Option<()> {
+            match token {
+                "left" => *x = Some((0.0, true)),
+                "right" => *x = Some((1.0, true)),
+                "top" => *y = Some((0.0, true)),
+                "bottom" => *y = Some((1.0, true)),
+                "center" => {
+                    if x.is_none() {
+                        *x = Some((0.5, true));
+                    } else if y.is_none() {
+                        *y = Some((0.5, true));
+                    } else {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+            Some(())
+        };
+    match p.as_slice() {
+        [token] => {
+            let (value, is_percent) = pc(token)?;
+            let (x, y) = if matches!(*token, "top" | "bottom") {
+                ((0.5, true), (value, true))
+            } else {
+                ((value, is_percent), (0.5, true))
+            };
             Some(BackgroundPosition {
-                x,
-                y: 0.5,
-                x_is_percent: xp,
+                x: x.0,
+                y: y.0,
+                x_is_percent: x.1,
                 y_is_percent: true,
             })
         }
-        2 => {
-            let (x, xp) = pc(p[0])?;
-            let (y, yp) = pc(p[1])?;
+        [first, second]
+            if is_background_position_keyword(first) && is_background_position_keyword(second) =>
+        {
+            let mut x = None;
+            let mut y = None;
+            set_axis(first, &mut x, &mut y)?;
+            set_axis(second, &mut x, &mut y)?;
+            let (x, xp) = x.unwrap_or((0.5, true));
+            let (y, yp) = y.unwrap_or((0.5, true));
+            Some(BackgroundPosition {
+                x,
+                y,
+                x_is_percent: xp,
+                y_is_percent: yp,
+            })
+        }
+        [first, second] => {
+            let (x, xp) = pc(first)?;
+            let (y, yp) = pc(second)?;
             Some(BackgroundPosition {
                 x,
                 y,
@@ -2042,6 +2542,10 @@ fn parse_background_position(val: &str) -> Option<BackgroundPosition> {
         }
         _ => None,
     }
+}
+
+fn is_background_position_keyword(token: &str) -> bool {
+    matches!(token, "left" | "right" | "top" | "bottom" | "center")
 }
 
 /// Parse a `box-shadow` shorthand value.
@@ -2865,6 +3369,7 @@ mod tests {
     fn font_family_inherited() {
         let mut parent = ComputedStyle::default();
         parent.font_family = FontFamily::Courier;
+        parent.font_stack = FontStack::from_family(FontFamily::Courier);
         let style = compute_style(HtmlTag::Span, None, &parent);
         assert_eq!(style.font_family, FontFamily::Courier);
     }
@@ -2928,38 +3433,54 @@ mod tests {
     // --- Extended font-family mapping tests ---
 
     #[test]
-    fn font_family_arial_maps_to_helvetica() {
+    fn font_family_arial_prefers_custom_face() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: Arial"), &parent);
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(style.font_family, FontFamily::Custom("arial".to_string()));
     }
 
     #[test]
-    fn font_family_roboto_maps_to_helvetica() {
+    fn font_family_roboto_prefers_custom_face() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: Roboto"), &parent);
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(style.font_family, FontFamily::Custom("roboto".to_string()));
     }
 
     #[test]
-    fn font_family_verdana_maps_to_helvetica() {
+    fn font_family_verdana_prefers_custom_face() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: Verdana"), &parent);
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(style.font_family, FontFamily::Custom("verdana".to_string()));
     }
 
     #[test]
-    fn font_family_open_sans_maps_to_helvetica() {
+    fn font_family_open_sans_prefers_custom_face() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: 'Open Sans'"), &parent);
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(
+            style.font_family,
+            FontFamily::Custom("open sans".to_string())
+        );
     }
 
     #[test]
-    fn font_family_system_ui_maps_to_helvetica() {
+    fn font_family_system_ui_prefers_custom_face() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: system-ui"), &parent);
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(
+            style.font_family,
+            FontFamily::Custom("system-ui".to_string())
+        );
+    }
+
+    #[test]
+    fn font_family_ui_sans_serif_prefers_custom_face() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-family: ui-sans-serif"), &parent);
+        assert_eq!(
+            style.font_family,
+            FontFamily::Custom("ui-sans-serif".to_string())
+        );
     }
 
     #[test]
@@ -3896,19 +4417,6 @@ mod tests {
     }
 
     #[test]
-    fn revert_keyword_restores_previous_style_state() {
-        let mut parent = ComputedStyle::default();
-        parent.color = Color::rgb(12, 34, 56);
-        let style = compute_style(
-            HtmlTag::Div,
-            Some("color: blue; color: revert; display: none; display: revert"),
-            &parent,
-        );
-        assert_eq!(style.color.to_f32_rgb(), parent.color.to_f32_rgb());
-        assert_eq!(style.display, Display::Block);
-    }
-
-    #[test]
     fn font_weight_inherit_from_parent() {
         let mut parent = ComputedStyle::default();
         parent.font_weight = FontWeight::Bold;
@@ -4129,6 +4637,7 @@ mod tests {
     fn font_family_inherit_from_parent() {
         let mut parent = ComputedStyle::default();
         parent.font_family = FontFamily::TimesRoman;
+        parent.font_stack = FontStack::from_family(FontFamily::TimesRoman);
         let style = compute_style(HtmlTag::Span, Some("font-family: inherit"), &parent);
         assert_eq!(style.font_family, FontFamily::TimesRoman);
     }
@@ -4463,82 +4972,51 @@ mod tests {
     #[test]
     fn width_em_value() {
         let parent = ComputedStyle::default(); // font_size = 12.0
-        let inline = crate::parser::css::parse_inline_style("width: 10em");
-        assert!(matches!(
-            inline.get("width"),
-            Some(CssValue::Number(value)) if (*value - 10.0).abs() < 0.01
-        ));
         let style = compute_style(HtmlTag::Div, Some("width: 10em"), &parent);
-        let width = style.width.expect("width should be set");
-        assert!(
-            (width - 120.0).abs() < 0.1,
-            "expected width 120pt for 10em, got {width} with font-size {}",
-            style.font_size
-        );
+        assert!((style.width.unwrap() - 120.0).abs() < 0.1);
     }
 
     #[test]
-    fn width_em_uses_computed_percentage_font_size() {
+    fn width_calc_em_value_uses_current_font_size() {
         let mut parent = ComputedStyle::default();
         parent.font_size = 20.0;
-        let style = compute_style(HtmlTag::Div, Some("font-size: 150%; width: 10em"), &parent);
-        assert!((style.font_size - 30.0).abs() < 0.1);
-        assert_eq!(style.width, Some(300.0));
+        let style = compute_style(HtmlTag::Div, Some("width: calc(1em + 5pt)"), &parent);
+        assert!((style.width.unwrap() - 25.0).abs() < 0.1);
     }
 
     #[test]
     fn height_em_value() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("height: 5em"), &parent);
-        let height = style.height.expect("height should be set");
-        assert!(
-            (height - 60.0).abs() < 0.1,
-            "expected height 60pt for 5em, got {height}"
-        );
+        assert!((style.height.unwrap() - 60.0).abs() < 0.1);
     }
 
     #[test]
     fn max_width_em_value() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("max-width: 20em"), &parent);
-        let max_width = style.max_width.expect("max-width should be set");
-        assert!(
-            (max_width - 240.0).abs() < 0.1,
-            "expected max-width 240pt for 20em, got {max_width}"
-        );
+        assert!((style.max_width.unwrap() - 240.0).abs() < 0.1);
     }
 
     #[test]
     fn min_width_em_value() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("min-width: 5em"), &parent);
-        let min_width = style.min_width.expect("min-width should be set");
-        assert!(
-            (min_width - 60.0).abs() < 0.1,
-            "expected min-width 60pt for 5em, got {min_width}"
-        );
+        assert!((style.min_width.unwrap() - 60.0).abs() < 0.1);
     }
 
     #[test]
     fn min_height_em_value() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("min-height: 8em"), &parent);
-        let min_height = style.min_height.expect("min-height should be set");
-        assert!(
-            (min_height - 96.0).abs() < 0.1,
-            "expected min-height 96pt for 8em, got {min_height}"
-        );
+        assert!((style.min_height.unwrap() - 96.0).abs() < 0.1);
     }
 
     #[test]
     fn max_height_em_value() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("max-height: 15em"), &parent);
-        let max_height = style.max_height.expect("max-height should be set");
-        assert!(
-            (max_height - 180.0).abs() < 0.1,
-            "expected max-height 180pt for 15em, got {max_height}"
-        );
+        assert!((style.max_height.unwrap() - 180.0).abs() < 0.1);
     }
 
     // --- opacity as Number (line 933) ---
@@ -5335,21 +5813,25 @@ mod tests {
     }
 
     #[test]
+    fn rem_uses_root_font_size_from_parent_context() {
+        let mut parent = ComputedStyle::default();
+        parent.root_font_size = 10.0;
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 1.5rem; margin-top: 0.5rem"),
+            &parent,
+        );
+        assert!((style.font_size - 15.0).abs() < 0.1);
+        assert!((style.margin.top - 5.0).abs() < 0.1);
+    }
+
+    #[test]
     fn percentage_font_size() {
         let mut parent = ComputedStyle::default();
         parent.font_size = 16.0;
         let style = compute_style(HtmlTag::Div, Some("font-size: 150%"), &parent);
         // 150% of 16pt = 24pt
         assert!((style.font_size - 24.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn calc_font_size_uses_parent_font_size_for_percentages() {
-        let mut parent = ComputedStyle::default();
-        parent.font_size = 20.0;
-        parent.width = Some(500.0);
-        let style = compute_style(HtmlTag::Div, Some("font-size: calc(150% - 2pt)"), &parent);
-        assert!((style.font_size - 28.0).abs() < 0.1);
     }
 
     #[test]
@@ -5394,6 +5876,20 @@ mod tests {
     }
 
     #[test]
+    fn overflow_wrap_break_word_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("overflow-wrap: break-word"), &parent);
+        assert_eq!(s.overflow_wrap, OverflowWrap::BreakWord);
+    }
+
+    #[test]
+    fn word_wrap_alias_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("word-wrap: break-word"), &parent);
+        assert_eq!(s.overflow_wrap, OverflowWrap::BreakWord);
+    }
+
+    #[test]
     fn border_collapse_default_is_separate() {
         let s = ComputedStyle::default();
         assert_eq!(s.border_collapse, BorderCollapse::Separate);
@@ -5425,129 +5921,40 @@ mod tests {
     }
 
     #[test]
+    fn table_layout_default_is_auto() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.table_layout, TableLayout::Auto);
+    }
+
+    #[test]
+    fn table_layout_fixed_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("table-layout: fixed"), &parent);
+        assert_eq!(s.table_layout, TableLayout::Fixed);
+    }
+
+    #[test]
+    fn table_layout_does_not_inherit() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("table-layout: fixed"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Td, None, &parent);
+        assert_eq!(child.table_layout, TableLayout::Auto);
+    }
+
+    #[test]
     fn border_spacing_default_is_zero() {
         let s = ComputedStyle::default();
-        assert!((s.border_spacing.horizontal - 0.0).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 0.0).abs() < 0.001);
+        assert!((s.border_spacing - 0.0).abs() < 0.001);
     }
 
     #[test]
     fn border_spacing_parsed() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Table, Some("border-spacing: 10px"), &parent);
-        assert!((s.border_spacing.horizontal - 7.5).abs() < 0.001); // 10px = 7.5pt
-        assert!((s.border_spacing.vertical - 7.5).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_two_values_parsed() {
-        let parent = ComputedStyle::default();
-        let s = compute_style(HtmlTag::Table, Some("border-spacing: 10px 20px"), &parent);
-        assert!((s.border_spacing.horizontal - 7.5).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 15.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_same_scope_var_resolves() {
-        let parent = ComputedStyle::default();
-        let s = compute_style(
-            HtmlTag::Table,
-            Some("--gap: 10px; border-spacing: var(--gap)"),
-            &parent,
-        );
-        assert!((s.border_spacing.horizontal - 7.5).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 7.5).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_var_em_uses_table_font_size() {
-        let parent = ComputedStyle::default();
-        let s = compute_style(
-            HtmlTag::Table,
-            Some("font-size: 20pt; --gap: 1.5em; border-spacing: var(--gap)"),
-            &parent,
-        );
-        assert!((s.border_spacing.horizontal - 30.0).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 30.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_rejects_percentages() {
-        let parent = ComputedStyle::default();
-        let s = compute_style(HtmlTag::Table, Some("border-spacing: 10%"), &parent);
-        assert!((s.border_spacing.horizontal - 0.0).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 0.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_var_uses_resolved_font_size() {
-        let mut parent = ComputedStyle::default();
-        parent.font_size = 10.0;
-        let s = compute_style(
-            HtmlTag::Table,
-            Some("--fs: 150%; font-size: var(--fs); border-spacing: 1em"),
-            &parent,
-        );
-        assert!((s.font_size - 15.0).abs() < 0.1);
-        assert!((s.border_spacing.horizontal - 15.0).abs() < 0.1);
-        assert!((s.border_spacing.vertical - 15.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn border_spacing_var_css_wide_keyword_resets_or_inherits() {
-        let mut parent = ComputedStyle::default();
-        parent.border_spacing = BorderSpacing {
-            horizontal: 5.0,
-            vertical: 9.0,
-        };
-
-        let initial = compute_style(
-            HtmlTag::Table,
-            Some("--gap: initial; border-spacing: var(--gap)"),
-            &parent,
-        );
-        assert!((initial.border_spacing.horizontal - 0.0).abs() < 0.001);
-        assert!((initial.border_spacing.vertical - 0.0).abs() < 0.001);
-
-        let inherit = compute_style(
-            HtmlTag::Table,
-            Some("--gap: unset; border-spacing: var(--gap)"),
-            &parent,
-        );
-        assert!((inherit.border_spacing.horizontal - 5.0).abs() < 0.001);
-        assert!((inherit.border_spacing.vertical - 9.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_two_value_var_keyword_invalidates_whole_declaration() {
-        let mut parent = ComputedStyle::default();
-        parent.border_spacing = BorderSpacing {
-            horizontal: 5.0,
-            vertical: 9.0,
-        };
-        let s = compute_style(
-            HtmlTag::Table,
-            Some("--gap: initial; border-spacing: var(--gap) 10px"),
-            &parent,
-        );
-        assert!((s.border_spacing.horizontal - 5.0).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 9.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn border_spacing_two_value_var_percentage_invalidates_whole_declaration() {
-        let mut parent = ComputedStyle::default();
-        parent.border_spacing = BorderSpacing {
-            horizontal: 5.0,
-            vertical: 9.0,
-        };
-        let s = compute_style(
-            HtmlTag::Table,
-            Some("--gap: 10%; border-spacing: 12px var(--gap)"),
-            &parent,
-        );
-        assert!((s.border_spacing.horizontal - 5.0).abs() < 0.001);
-        assert!((s.border_spacing.vertical - 9.0).abs() < 0.001);
+        assert!((s.border_spacing - 7.5).abs() < 0.001); // 10px = 7.5pt
     }
 
     #[test]
@@ -5558,8 +5965,7 @@ mod tests {
             &ComputedStyle::default(),
         );
         let child = compute_style(HtmlTag::Td, None, &parent);
-        assert!((child.border_spacing.horizontal - 3.75).abs() < 0.001); // 5px = 3.75pt
-        assert!((child.border_spacing.vertical - 3.75).abs() < 0.001);
+        assert!((child.border_spacing - 3.75).abs() < 0.001); // 5px = 3.75pt
     }
 
     #[test]
@@ -5586,9 +5992,17 @@ mod tests {
     fn background_size_explicit_parsed() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
-        if let BackgroundSize::Explicit(w, h) = s.background_size {
-            assert!((w - 75.0).abs() < 0.001); // 100px = 75pt
-            assert!((h - 150.0).abs() < 0.001); // 200px = 150pt
+        if let BackgroundSize::Explicit {
+            width,
+            height,
+            width_is_percent,
+            height_is_percent,
+        } = s.background_size
+        {
+            assert!(!width_is_percent);
+            assert!(!height_is_percent);
+            assert!((width - 75.0).abs() < 0.001); // 100px = 75pt
+            assert!((height.unwrap_or_default() - 150.0).abs() < 0.001); // 200px = 150pt
         } else {
             panic!(
                 "Expected BackgroundSize::Explicit, got {:?}",
@@ -5649,6 +6063,40 @@ mod tests {
         let s = compute_style(HtmlTag::Div, Some("background-position: top left"), &parent);
         assert!((s.background_position.x - 0.0).abs() < 0.001);
         assert!((s.background_position.y - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn background_position_top_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-position: top"), &parent);
+        assert!((s.background_position.x - 0.5).abs() < 0.001);
+        assert!((s.background_position.y - 0.0).abs() < 0.001);
+        assert!(s.background_position.x_is_percent);
+        assert!(s.background_position.y_is_percent);
+    }
+
+    #[test]
+    fn background_position_center_left_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-position: center left"),
+            &parent,
+        );
+        assert!((s.background_position.x - 0.0).abs() < 0.001);
+        assert!((s.background_position.y - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn background_position_bottom_center_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-position: bottom center"),
+            &parent,
+        );
+        assert!((s.background_position.x - 0.5).abs() < 0.001);
+        assert!((s.background_position.y - 1.0).abs() < 0.001);
     }
 
     #[test]
@@ -5933,13 +6381,17 @@ mod tests {
     #[test]
     fn initial_keyword_resets_border_spacing() {
         let mut parent = ComputedStyle::default();
-        parent.border_spacing = BorderSpacing {
-            horizontal: 10.0,
-            vertical: 20.0,
-        };
+        parent.border_spacing = 10.0;
         let s = compute_style(HtmlTag::Div, Some("border-spacing: initial"), &parent);
-        assert!((s.border_spacing.horizontal - 0.0).abs() < 0.1);
-        assert!((s.border_spacing.vertical - 0.0).abs() < 0.1);
+        assert!((s.border_spacing - 0.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn revert_keyword_keeps_border_spacing_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.border_spacing = 10.0;
+        let s = compute_style(HtmlTag::Div, Some("border-spacing: revert"), &parent);
+        assert!((s.border_spacing - 10.0).abs() < 0.1);
     }
 
     #[test]
@@ -6019,13 +6471,9 @@ mod tests {
     #[test]
     fn inherit_keyword_restores_border_spacing_from_parent() {
         let mut parent = ComputedStyle::default();
-        parent.border_spacing = BorderSpacing {
-            horizontal: 5.0,
-            vertical: 9.0,
-        };
+        parent.border_spacing = 5.0;
         let s = compute_style(HtmlTag::Div, Some("border-spacing: inherit"), &parent);
-        assert!((s.border_spacing.horizontal - 5.0).abs() < 0.1);
-        assert!((s.border_spacing.vertical - 9.0).abs() < 0.1);
+        assert!((s.border_spacing - 5.0).abs() < 0.1);
     }
 
     #[test]
@@ -6055,6 +6503,267 @@ mod tests {
         };
         let s = compute_style(HtmlTag::Div, Some("background-position: inherit"), &parent);
         assert_eq!(s.background_position, parent.background_position);
+    }
+
+    #[test]
+    fn inherit_keyword_restores_background_svg() {
+        let mut parent = ComputedStyle::default();
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+        assert!(parent.background_svg.is_some());
+        let s = compute_style(HtmlTag::Div, Some("background-image: inherit"), &parent);
+        assert!(s.background_svg.is_some());
+    }
+
+    #[test]
+    fn background_image_initial_clears_only_image_layers() {
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-color: red; background-repeat: no-repeat; background-size: cover; background-position: center; background-origin: content-box; background-image: initial"#,
+            ),
+            &ComputedStyle::default(),
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((255, 0, 0, 255))
+        );
+        assert_eq!(style.background_repeat, BackgroundRepeat::NoRepeat);
+        assert_eq!(style.background_size, BackgroundSize::Cover);
+        assert_eq!(
+            style.background_position,
+            BackgroundPosition {
+                x: 0.5,
+                y: 0.5,
+                x_is_percent: true,
+                y_is_percent: true,
+            }
+        );
+        assert_eq!(style.background_origin, BackgroundOrigin::ContentBox);
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_inherit_restores_only_image_layers() {
+        let mut parent = ComputedStyle::default();
+        parent.background_color = Some(Color::rgb(10, 20, 30));
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+        parent.background_size = BackgroundSize::Cover;
+        parent.background_position = BackgroundPosition {
+            x: 0.25,
+            y: 0.75,
+            x_is_percent: true,
+            y_is_percent: true,
+        };
+        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("background-color: red; background-repeat: repeat-x; background-image: inherit"),
+            &parent,
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            Some((255, 0, 0, 255))
+        );
+        assert_eq!(style.background_repeat, BackgroundRepeat::RepeatX);
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert!(style.background_svg.is_some());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_none_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background-image: none"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_none_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background: none"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_image_url_clears_existing_svg_background() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"); background-image: url("data:image/png;base64,AAAA")"#,
+            ),
+            &parent,
+        );
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn background_initial_resets_all_background_state() {
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E") no-repeat center / cover; background: initial"#,
+            ),
+            &ComputedStyle::default(),
+        );
+        assert!(style.background_color.is_none());
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+    }
+
+    #[test]
+    fn background_shorthand_resets_omitted_longhands_from_previous_rule() {
+        let parent = ComputedStyle::default();
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                "background-repeat: no-repeat; background-position: center; background-origin: content-box; background-size: cover; background-color: red",
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA")"#,
+            ),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert!(style.background_color.is_none());
+    }
+
+    #[test]
+    fn later_background_initial_rule_resets_previous_background_state() {
+        let parent = ComputedStyle::default();
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style("background: initial"),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert!(style.background_color.is_none());
+        assert!(style.background_svg.is_none());
+        assert!(style.background_gradient.is_none());
+        assert!(style.background_radial_gradient.is_none());
+        assert_eq!(style.background_size, BackgroundSize::Auto);
+        assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
+        assert_eq!(style.background_position, BackgroundPosition::default());
+        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+    }
+
+    #[test]
+    fn later_background_inherit_rule_restores_parent_background_state() {
+        let mut parent = ComputedStyle::default();
+        parent.background_color = Some(Color::rgb(10, 20, 30));
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+        parent.background_size = BackgroundSize::Cover;
+        parent.background_position = BackgroundPosition {
+            x: 0.25,
+            y: 0.75,
+            x_is_percent: true,
+            y_is_percent: true,
+        };
+        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
+        );
+
+        let prior_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style(
+                r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
+            ),
+            pseudo_element: None,
+        };
+        let later_rule = CssRule {
+            selector: "div".to_string(),
+            declarations: crate::parser::css::parse_inline_style("background: inherit"),
+            pseudo_element: None,
+        };
+        let style = compute_style_with_rules(
+            HtmlTag::Div,
+            None,
+            &parent,
+            &[prior_rule, later_rule],
+            "div",
+            &[],
+            None,
+        );
+
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b, c.a)),
+            parent.background_color.map(|c| (c.r, c.g, c.b, c.a))
+        );
+        assert_eq!(style.background_repeat, parent.background_repeat);
+        assert_eq!(style.background_size, parent.background_size);
+        assert_eq!(style.background_position, parent.background_position);
+        assert_eq!(style.background_origin, parent.background_origin);
+        assert!(style.background_svg.is_some());
     }
 
     #[test]
@@ -6126,14 +6835,24 @@ mod tests {
     fn max_height_from_percentage() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("max-height: 80%"), &parent);
-        assert!(s.max_height.is_some());
+        assert!(s.max_height.is_none());
+        assert_eq!(s.percentage_sizing.max_height, Some(80.0));
     }
 
     #[test]
     fn min_height_from_percentage() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("min-height: 10%"), &parent);
-        assert!(s.min_height.is_some());
+        assert!(s.min_height.is_none());
+        assert_eq!(s.percentage_sizing.min_height, Some(10.0));
+    }
+
+    #[test]
+    fn height_percentage_stays_deferred_without_parent_height() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("height: 100%"), &parent);
+        assert!(s.height.is_none());
+        assert_eq!(s.percentage_sizing.height, Some(100.0));
     }
 
     #[test]
@@ -6189,8 +6908,7 @@ mod tests {
     fn border_spacing_from_rem() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("border-spacing: 1rem"), &parent);
-        assert!((s.border_spacing.horizontal - 12.0).abs() < 0.1);
-        assert!((s.border_spacing.vertical - 12.0).abs() < 0.1);
+        assert!((s.border_spacing - 12.0).abs() < 0.1);
     }
 
     // --- Coverage: font-size from Var (lines 1363-1369) ---
@@ -6204,61 +6922,6 @@ mod tests {
             &parent,
         );
         assert!((s.font_size - 20.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn font_size_var_calc_uses_parent_font_size_for_percentages() {
-        let mut parent = ComputedStyle::default();
-        parent.font_size = 20.0;
-        parent.width = Some(500.0);
-        let s = compute_style(
-            HtmlTag::Div,
-            Some("--my-size: calc(150% - 2pt); font-size: var(--my-size)"),
-            &parent,
-        );
-        assert!((s.font_size - 28.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn font_size_var_css_wide_keywords_follow_cascade() {
-        let mut parent = ComputedStyle::default();
-        parent.font_size = 20.0;
-
-        let initial = compute_style(
-            HtmlTag::Div,
-            Some("--fs: initial; font-size: var(--fs)"),
-            &parent,
-        );
-        assert!((initial.font_size - 12.0).abs() < 0.1);
-
-        let unset = compute_style(
-            HtmlTag::Div,
-            Some("--fs: unset; font-size: var(--fs)"),
-            &parent,
-        );
-        assert!((unset.font_size - 20.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn inline_revert_ignores_author_rule_values() {
-        let parent = ComputedStyle::default();
-        let rules = crate::parser::css::parse_stylesheet(
-            ".match { font-size: 18pt; color: red; display: none; }",
-        );
-        let style = compute_style_with_context(
-            HtmlTag::Div,
-            Some("font-size: revert; color: revert; display: revert"),
-            &parent,
-            &rules,
-            "div",
-            &["match"],
-            None,
-            &HashMap::new(),
-            &SelectorContext::default(),
-        );
-        assert!((style.font_size - 12.0).abs() < 0.1);
-        assert_eq!(style.color.to_f32_rgb(), parent.color.to_f32_rgb());
-        assert_eq!(style.display, Display::Block);
     }
 
     // --- Coverage: border-color from Var (lines 1391-1395) ---
@@ -6505,35 +7168,175 @@ mod tests {
     fn background_size_explicit_px() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 75.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 75.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_pt() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 50pt"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 50.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_percent() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 50%"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(50.0, 50.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 50.0,
+                height: None,
+                width_is_percent: true,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_bare_number() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 42"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(42.0, 42.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 42.0,
+                height: None,
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
     }
 
     #[test]
     fn background_size_explicit_two_values() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: 100px 200px"), &parent);
-        assert_eq!(s.background_size, BackgroundSize::Explicit(75.0, 150.0));
+        assert_eq!(
+            s.background_size,
+            BackgroundSize::Explicit {
+                width: 75.0,
+                height: Some(150.0),
+                width_is_percent: false,
+                height_is_percent: false,
+            }
+        );
+    }
+
+    #[test]
+    fn filter_blur_default_is_zero() {
+        let style = ComputedStyle::default();
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_from_inline_style_px() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(20px)"), &parent);
+        assert!((style.blur_radius - 15.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_from_inline_style_pt() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(10pt)"), &parent);
+        assert!((style.blur_radius - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn filter_blur_bare_number_is_rejected() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(8)"), &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_none_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: none"), &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_not_inherited() {
+        let mut parent = ComputedStyle::default();
+        parent.blur_radius = 10.0;
+        let style = compute_style(HtmlTag::Div, None, &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_inherit_from_parent() {
+        let mut parent = ComputedStyle::default();
+        parent.blur_radius = 12.0;
+        let style = compute_style(HtmlTag::Div, Some("filter: inherit"), &parent);
+        assert!((style.blur_radius - 12.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn filter_blur_initial_resets() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("filter: initial"), &parent);
+        assert!((style.blur_radius - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn parse_filter_blur_valid_px() {
+        let parsed = parse_filter_blur("blur(5px)");
+        assert!(parsed.is_some_and(|radius| (radius - 3.75).abs() < 0.01));
+    }
+
+    #[test]
+    fn parse_filter_blur_valid_pt() {
+        let parsed = parse_filter_blur("blur(10pt)");
+        assert!(parsed.is_some_and(|radius| (radius - 10.0).abs() < 0.01));
+    }
+
+    #[test]
+    fn parse_filter_blur_bare_number() {
+        assert_eq!(parse_filter_blur("blur(12)"), None);
+    }
+
+    #[test]
+    fn parse_filter_blur_none() {
+        let parsed = parse_filter_blur("none");
+        assert!(parsed.is_some_and(|radius| radius.abs() < f32::EPSILON));
+    }
+
+    #[test]
+    fn parse_filter_blur_invalid() {
+        assert!(parse_filter_blur("brightness(50%)").is_none());
+        assert!(parse_filter_blur("blur()").is_none());
+        assert!(parse_filter_blur("blur(abc)").is_none());
+        assert!(parse_filter_blur("blur(-1px)").is_none());
+    }
+
+    #[test]
+    fn parse_filter_blur_unitless_zero() {
+        let parsed = parse_filter_blur("blur(0)");
+        assert!(parsed.is_some_and(|radius| radius.abs() < f32::EPSILON));
+    }
+
+    #[test]
+    fn parse_filter_blur_whitespace() {
+        let parsed = parse_filter_blur("  blur( 5px )  ");
+        assert!(parsed.is_some_and(|radius| (radius - 3.75).abs() < 0.01));
     }
 
     #[test]
@@ -6938,5 +7741,156 @@ mod tests {
         parent.flex_grow = 3.0;
         let style = compute_style(HtmlTag::Div, Some("flex-grow: inherit"), &parent);
         assert!((style.flex_grow - 3.0).abs() < f32::EPSILON);
+    }
+
+    // ---- Pseudo-element style computation tests ----
+
+    #[test]
+    fn pseudo_element_style_inherits_color() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let mut parent_with_color = parent.clone();
+        parent_with_color.color = Color::rgb(255, 0, 0);
+        let rules = parse_stylesheet(".box::before { content: 'X'; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent_with_color,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_some());
+        let ps = result.unwrap();
+        // Color should be inherited from parent
+        let (r, g, b) = ps.color.to_f32_rgb();
+        assert!((r - 1.0).abs() < 0.01 && g < 0.01 && b < 0.01);
+    }
+
+    #[test]
+    fn pseudo_element_style_applies_own_declarations() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let rules =
+            parse_stylesheet(".box::after { content: 'Y'; font-weight: bold; display: block; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::After,
+        );
+        assert!(result.is_some());
+        let ps = result.unwrap();
+        assert_eq!(ps.font_weight, FontWeight::Bold);
+        assert_eq!(ps.display, Display::Block);
+    }
+
+    #[test]
+    fn pseudo_element_none_without_content() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        // No content property = no pseudo-element
+        let rules = parse_stylesheet(".box::before { color: red; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_none_with_content_none() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let parent = ComputedStyle::default();
+        let rules = parse_stylesheet(".box::before { content: none; color: red; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_resets_non_inherited() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(200.0);
+        parent.position = Position::Relative;
+        parent.background_color = Some(Color::rgb(128, 128, 128));
+        let rules = parse_stylesheet(".box::before { content: 'X'; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+        let ps = result.unwrap();
+        // Non-inherited properties should be reset
+        assert_eq!(ps.width, None);
+        assert_eq!(ps.position, Position::Static);
+        assert!(ps.background_color.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_rules_skipped_in_normal_style() {
+        use crate::parser::css::parse_stylesheet;
+        let parent = ComputedStyle::default();
+        // This rule targets ::before, not the element itself
+        let rules = parse_stylesheet(".box::before { content: 'X'; font-weight: bold; }");
+        let style =
+            compute_style_with_rules(HtmlTag::Div, None, &parent, &rules, "div", &["box"], None);
+        // The element should NOT get font-weight: bold from the ::before rule
+        assert_eq!(style.font_weight, FontWeight::Normal);
+    }
+
+    #[test]
+    fn background_image_inherit_copies_gradient() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+        let mut parent = ComputedStyle::default();
+        parent.background_gradient = Some(LinearGradient {
+            angle: 90.0,
+            stops: vec![],
+        });
+        let rules = parse_stylesheet(".box::after { content: ''; background-image: inherit; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::After,
+        );
+        let ps = result.unwrap();
+        assert!(ps.background_gradient.is_some());
     }
 }

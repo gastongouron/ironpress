@@ -115,6 +115,11 @@ impl StyleMap {
         self.properties.get(key)
     }
 
+    pub fn remove(&mut self, key: &str) {
+        self.properties.remove(key);
+        self.important.remove(key);
+    }
+
     pub fn is_important(&self, key: &str) -> bool {
         self.important.get(key).copied().unwrap_or(false)
     }

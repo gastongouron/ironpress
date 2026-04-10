@@ -5,6 +5,8 @@
 //! points, multiply: `afm_width / 1000.0 * font_size`.
 
 use crate::style::computed::FontFamily;
+use crate::{parser::ttf::TtfFont, system_fonts, text};
+use std::collections::HashMap;
 
 /// Helvetica character widths (AFM units, 1000 per em) for ASCII 32–126.
 /// Index 0 corresponds to codepoint 32 (space).
@@ -227,6 +229,44 @@ pub(crate) fn descender_ratio(font_family: &FontFamily) -> f32 {
         FontFamily::TimesRoman => 0.217,
         FontFamily::Courier => 0.157,
     }
+}
+
+pub(crate) fn font_metrics_ratios(
+    font_family: &FontFamily,
+    bold: bool,
+    italic: bool,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> (f32, f32) {
+    if let FontFamily::Custom(name) = font_family {
+        if let Some((_, ttf)) = system_fonts::find_font(custom_fonts, name, bold, italic) {
+            let metrics = ttf.pdf_vertical_metrics();
+            return (
+                metrics.ascender_ratio(ttf.units_per_em),
+                metrics.descender_ratio(ttf.units_per_em),
+            );
+        }
+    }
+
+    (ascender_ratio(font_family), descender_ratio(font_family))
+}
+
+pub(crate) fn normal_line_height_factor(
+    font_family: &FontFamily,
+    bold: bool,
+    italic: bool,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    if matches!(font_family, FontFamily::Custom(_)) {
+        if let Some(height) = text::custom_font_line_height(font_family, bold, italic, custom_fonts)
+        {
+            return height;
+        }
+
+        let (ascender, descender) = font_metrics_ratios(font_family, bold, italic, custom_fonts);
+        return (ascender + descender).max(1.0);
+    }
+
+    1.2
 }
 
 /// Courier character width (all glyphs are the same in a monospace font).

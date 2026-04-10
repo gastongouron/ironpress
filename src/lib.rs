@@ -76,8 +76,11 @@ pub(crate) mod parser;
 pub(crate) mod render;
 pub(crate) mod security;
 pub(crate) mod style;
+pub(crate) mod system_fonts;
+pub(crate) mod text;
 /// Public types: page size, margins, and colors.
 pub mod types;
+pub(crate) mod util;
 
 /// Fetch bytes from a remote URL (requires the `remote` feature).
 /// Returns `None` when the feature is disabled or the request fails.
@@ -459,6 +462,8 @@ impl HtmlConverter {
                 }
             }
         }
+
+        system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
 
         // Step 5: Layout
         let pages = layout::engine::layout_with_rules_and_fonts(
@@ -1482,12 +1487,20 @@ fn main() {
             .unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(
-            content.contains("/Subtype /TrueType"),
-            "PDF should contain embedded TrueType font"
+            content.contains("/Subtype /Type0"),
+            "PDF should contain a Type0 custom font wrapper"
         );
         assert!(
-            content.contains("/BaseFont /testfont"),
-            "PDF should reference the custom font name"
+            content.contains("/Subtype /CIDFontType2"),
+            "PDF should contain a CIDFontType2 descendant font"
+        );
+        assert!(
+            content.contains("/testfont "),
+            "PDF should keep the custom font resource key"
+        );
+        assert!(
+            content.contains("/BaseFont /TestFont") || content.contains("+TestFont"),
+            "Custom fonts should preserve the embedded face name, with a subset tag when available"
         );
         assert!(
             content.contains("/FontDescriptor"),
@@ -1498,12 +1511,20 @@ fn main() {
             "FontDescriptor should reference embedded font file"
         );
         assert!(
-            content.contains("/Widths ["),
-            "Font object should contain Widths array"
+            content.contains("/Filter /FlateDecode"),
+            "Embedded custom font streams should be compressed"
         );
         assert!(
-            content.contains("/Encoding /WinAnsiEncoding"),
-            "Font should use WinAnsiEncoding"
+            content.contains("/W [0 ["),
+            "Descendant font should contain CID widths"
+        );
+        assert!(
+            content.contains("/Encoding /Identity-H"),
+            "Font should use Identity-H"
+        );
+        assert!(
+            content.contains("/ToUnicode"),
+            "Custom fonts should emit a ToUnicode CMap"
         );
     }
 
@@ -1528,6 +1549,20 @@ fn main() {
         assert!(
             content.contains("/Helvetica"),
             "Should fall back to Helvetica for unregistered custom font"
+        );
+    }
+
+    #[test]
+    fn missing_system_font_in_stack_falls_back_to_later_family() {
+        let pdf = html_to_pdf(r#"<p style="font-family: MissingFont, serif">Text</p>"#).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            !content.contains("/missingfont"),
+            "Missing primary families should not bind to an unrelated fallback as a custom font"
+        );
+        assert!(
+            content.contains("/Times-Roman"),
+            "Missing primary families should fall back to later CSS families"
         );
     }
 
@@ -1834,6 +1869,29 @@ fn main() {
     fn gradient_via_background_image_property() {
         let html = r#"<div style="background-image: linear-gradient(45deg, #ff0000, #0000ff); height: 50pt; width: 200pt">Angled</div>"#;
         let pdf = html_to_pdf(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn svg_background_image_from_data_uri() {
+        let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23ccc'/%3E%3C/svg%3E"); background-size: cover; }
+</style></head><body>
+<h1>Background Test</h1>
+<p>This page should have an SVG pattern background.</p>
+</body></html>"#;
+        let pdf = HtmlConverter::new().sanitize(false).convert(html).unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Background Test"));
+    }
+
+    #[test]
+    fn svg_background_image_base64() {
+        let html = r#"<html><head><style>
+body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1MCcgaGVpZ2h0PSc1MCc+PHJlY3Qgd2lkdGg9JzUwJyBoZWlnaHQ9JzUwJyBmaWxsPSdibHVlJy8+PC9zdmc+"); }
+</style></head><body><p>Base64 SVG BG</p></body></html>"#;
+        let pdf = HtmlConverter::new().sanitize(false).convert(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
     }
 
