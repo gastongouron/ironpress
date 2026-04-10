@@ -3770,6 +3770,13 @@ mod tests {
     use crate::layout::engine::{LayoutBorder, layout};
     use crate::parser::html::parse_html;
 
+    const TEST_JPEG_DATA_URI: &str = concat!(
+        "data:image/jpeg;base64,",
+        "/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkK",
+        "DA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAA",
+        "AAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q=="
+    );
+
     fn test_text_run(text: impl Into<String>) -> TextRun {
         TextRun {
             text: text.into(),
@@ -3931,7 +3938,7 @@ mod tests {
     #[test]
     fn render_underline() {
         let html = "<p><u>Underlined text</u></p>";
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -3942,7 +3949,7 @@ mod tests {
     #[test]
     fn render_bold_italic_combined() {
         let html = "<p><strong><em>Bold Italic</em></strong></p>";
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -3952,7 +3959,7 @@ mod tests {
     #[test]
     fn render_page_break_in_content() {
         let html = r#"<p>Page 1</p><div style="page-break-before: always"><p>Page 2</p></div>"#;
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -4047,7 +4054,7 @@ mod tests {
     #[test]
     fn render_colored_text() {
         let html = r#"<p style="color: red">Red text</p>"#;
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -4538,9 +4545,8 @@ mod tests {
 
     #[test]
     fn render_image_contains_xobject() {
-        // Use a data URI with a tiny JPEG-like payload
-        let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="100" height="80">"#;
-        let nodes = parse_html(html).unwrap();
+        let html = format!(r#"<img src="{TEST_JPEG_DATA_URI}" width="100" height="80">"#);
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -4749,9 +4755,8 @@ mod tests {
 
     #[test]
     fn render_jpeg_image_contains_xobject() {
-        // Use a data URI with a tiny JPEG-like payload
-        let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="100" height="80">"#;
-        let nodes = parse_html(html).unwrap();
+        let html = format!(r#"<img src="{TEST_JPEG_DATA_URI}" width="100" height="80">"#);
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);

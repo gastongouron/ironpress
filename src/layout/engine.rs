@@ -6950,6 +6950,27 @@ mod tests {
     use crate::parser::html::{parse_html, parse_html_with_styles};
     use crate::parser::svg::{SvgTree, ViewBox};
 
+    const TEST_JPEG_DATA_URI: &str = concat!(
+        "data:image/jpeg;base64,",
+        "/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkK",
+        "DA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAA",
+        "AAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q=="
+    );
+
+    fn first_child_element(node: &ElementNode) -> Option<&ElementNode> {
+        node.children.iter().find_map(|child| match child {
+            DomNode::Element(element) => Some(element),
+            _ => None,
+        })
+    }
+
+    fn first_child_element_with_tag(node: &ElementNode, tag: HtmlTag) -> Option<&ElementNode> {
+        node.children.iter().find_map(|child| match child {
+            DomNode::Element(element) if element.tag == tag => Some(element),
+            _ => None,
+        })
+    }
+
     fn page_text_runs(page: &Page) -> Vec<&TextRun> {
         let mut runs = Vec::new();
         for (_, element) in &page.elements {
@@ -7002,7 +7023,7 @@ mod tests {
     #[test]
     fn page_break_creates_new_page() {
         let html = r#"<p>Page 1</p><div style="page-break-before: always"><p>Page 2</p></div>"#;
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert!(pages.len() >= 2);
     }
@@ -7019,7 +7040,7 @@ mod tests {
     #[test]
     fn br_element_creates_empty_line() {
         let html = "<p>Line one</p><br><p>Line two</p>";
-        let nodes = parse_html(html).unwrap();
+        let nodes = parse_html(&html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
         // Should have at least 3 elements (p, br, p)
@@ -7863,8 +7884,8 @@ mod tests {
     #[test]
     fn img_scales_to_fit_available_width() {
         // Very wide image: 2000px = 1500pt, which exceeds A4 content width (~451pt)
-        let html = r#"<img src="data:image/jpeg;base64,/9j/4AAC/9k=" width="2000" height="1000">"#;
-        let nodes = parse_html(html).unwrap();
+        let html = format!(r#"<img src="{TEST_JPEG_DATA_URI}" width="2000" height="1000">"#);
+        let nodes = parse_html(&html).unwrap();
         let page_size = PageSize::A4;
         let margin_val = Margin::default();
         let available_width = page_size.width - margin_val.left - margin_val.right;
@@ -11229,18 +11250,15 @@ mod tests {
                 _ => None,
             })
             .unwrap();
-        let outer_body = match &table.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected outer tbody"),
-        };
-        let outer_row = match &outer_body.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected outer row"),
-        };
-        let outer_cell = match &outer_row.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected table cell"),
-        };
+        let outer_body = first_child_element_with_tag(table, HtmlTag::Tbody)
+            .or_else(|| first_child_element(table))
+            .expect("expected outer tbody");
+        let outer_row = first_child_element_with_tag(outer_body, HtmlTag::Tr)
+            .or_else(|| first_child_element(outer_body))
+            .expect("expected outer row");
+        let outer_cell = first_child_element_with_tag(outer_row, HtmlTag::Td)
+            .or_else(|| first_child_element(outer_row))
+            .expect("expected table cell");
         let inner_table = outer_cell
             .children
             .iter()
@@ -11249,22 +11267,16 @@ mod tests {
                 _ => None,
             })
             .unwrap();
-        let inner_body = match &inner_table.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected inner tbody"),
-        };
-        let heading_row = match &inner_body.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected heading row"),
-        };
-        let heading_cell = match &heading_row.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected heading cell"),
-        };
-        let heading = match &heading_cell.children[0] {
-            DomNode::Element(element) => element,
-            _ => panic!("expected heading element"),
-        };
+        let inner_body = first_child_element_with_tag(inner_table, HtmlTag::Tbody)
+            .or_else(|| first_child_element(inner_table))
+            .expect("expected inner tbody");
+        let heading_row = first_child_element_with_tag(inner_body, HtmlTag::Tr)
+            .or_else(|| first_child_element(inner_body))
+            .expect("expected heading row");
+        let heading_cell = first_child_element_with_tag(heading_row, HtmlTag::Td)
+            .or_else(|| first_child_element(heading_row))
+            .expect("expected heading cell");
+        let heading = first_child_element(heading_cell).expect("expected heading element");
 
         let table_style = compute_style_with_context(
             table.tag,
@@ -11386,22 +11398,9 @@ mod tests {
             &heading_ctx,
         );
 
-        println!(
-            "root font_size={:.3} root_root={:.3}\n\
-             th padding=({:.3},{:.3},{:.3},{:.3})\n\
-             h1 font_size={:.3} root_font_size={:.3} margin=({:.3},{:.3}) line_height={:?}",
-            root_style.font_size,
-            root_style.root_font_size,
-            cell_style.padding.top,
-            cell_style.padding.right,
-            cell_style.padding.bottom,
-            cell_style.padding.left,
-            heading_style.font_size,
-            heading_style.root_font_size,
-            heading_style.margin.top,
-            heading_style.margin.bottom,
-            heading_style.line_height,
-        );
+        assert!(heading_style.font_size > root_style.font_size);
+        assert!(cell_style.padding.right > 0.0 || cell_style.padding.bottom > 0.0);
+        assert!(heading_style.margin.top >= 0.0);
     }
 
     #[test]
