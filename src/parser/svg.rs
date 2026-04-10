@@ -93,7 +93,7 @@ impl SvgTree {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ViewBox {
     pub min_x: f32,
     pub min_y: f32,
@@ -118,16 +118,11 @@ pub struct SvgLinearGradient {
     pub stops: Vec<SvgGradientStop>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SvgGradientUnits {
     UserSpaceOnUse,
+    #[default]
     ObjectBoundingBox,
-}
-
-impl Default for SvgGradientUnits {
-    fn default() -> Self {
-        Self::ObjectBoundingBox
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -144,16 +139,11 @@ pub struct SvgClipPath {
     pub children: Vec<SvgNode>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SvgClipPathUnits {
+    #[default]
     UserSpaceOnUse,
     ObjectBoundingBox,
-}
-
-impl Default for SvgClipPathUnits {
-    fn default() -> Self {
-        Self::UserSpaceOnUse
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -232,9 +222,10 @@ pub enum SvgNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SvgPaint {
     /// The property was not specified on this element (so it should inherit from its parent).
+    #[default]
     Unspecified,
     /// The property was explicitly set to `none`.
     None,
@@ -244,12 +235,6 @@ pub enum SvgPaint {
     Url(String),
     /// An explicit sRGB color (0.0-1.0 per channel).
     Color((f32, f32, f32)),
-}
-
-impl Default for SvgPaint {
-    fn default() -> Self {
-        Self::Unspecified
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -298,7 +283,7 @@ pub enum SvgPreserveAspectRatio {
 impl Default for SvgPreserveAspectRatio {
     fn default() -> Self {
         Self::Align {
-            align: SvgAlign::XMidYMid,
+            align: SvgAlign::Center,
             meet_or_slice: SvgMeetOrSlice::Meet,
         }
     }
@@ -306,15 +291,15 @@ impl Default for SvgPreserveAspectRatio {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SvgAlign {
-    XMinYMin,
-    XMidYMin,
-    XMaxYMin,
-    XMinYMid,
-    XMidYMid,
-    XMaxYMid,
-    XMinYMax,
-    XMidYMax,
-    XMaxYMax,
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    Center,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -743,9 +728,7 @@ fn parse_svg_referenced_node(
     parent_viewport: Option<(f32, f32)>,
     ctx: &mut SvgParseContext<'_>,
 ) -> Option<SvgNode> {
-    if ctx.defs_raw.get(id).is_none() {
-        return None;
-    }
+    ctx.defs_raw.get(id)?;
 
     if ctx.ref_depth() > 16 {
         return None;
@@ -1276,15 +1259,15 @@ fn parse_svg_preserve_aspect_ratio_value(raw: &str) -> Option<SvgPreserveAspectR
 
 fn parse_svg_align(raw: &str) -> Option<SvgAlign> {
     match raw {
-        "xMinYMin" => Some(SvgAlign::XMinYMin),
-        "xMidYMin" => Some(SvgAlign::XMidYMin),
-        "xMaxYMin" => Some(SvgAlign::XMaxYMin),
-        "xMinYMid" => Some(SvgAlign::XMinYMid),
-        "xMidYMid" => Some(SvgAlign::XMidYMid),
-        "xMaxYMid" => Some(SvgAlign::XMaxYMid),
-        "xMinYMax" => Some(SvgAlign::XMinYMax),
-        "xMidYMax" => Some(SvgAlign::XMidYMax),
-        "xMaxYMax" => Some(SvgAlign::XMaxYMax),
+        "xMinYMin" => Some(SvgAlign::TopLeft),
+        "xMidYMin" => Some(SvgAlign::TopCenter),
+        "xMaxYMin" => Some(SvgAlign::TopRight),
+        "xMinYMid" => Some(SvgAlign::CenterLeft),
+        "xMidYMid" => Some(SvgAlign::Center),
+        "xMaxYMid" => Some(SvgAlign::CenterRight),
+        "xMinYMax" => Some(SvgAlign::BottomLeft),
+        "xMidYMax" => Some(SvgAlign::BottomCenter),
+        "xMaxYMax" => Some(SvgAlign::BottomRight),
         _ => None,
     }
 }
@@ -1320,7 +1303,7 @@ fn resolve_svg_font_family(css_family: &str) -> String {
 
 fn is_bold_value(val: &str) -> bool {
     let lower = val.to_ascii_lowercase();
-    lower == "bold" || lower == "bolder" || lower.parse::<u32>().map_or(false, |w| w >= 700)
+    lower == "bold" || lower == "bolder" || lower.parse::<u32>().is_ok_and(|w| w >= 700)
 }
 
 fn is_italic_value(val: &str) -> bool {
@@ -1655,17 +1638,14 @@ pub fn parse_path_data(d: &str) -> Vec<PathCommand> {
                 if let Some((rx, ry, x_axis_rotation, large_arc, sweep, x, y)) =
                     read_arc(&tokens, &mut i)
                 {
-                    let segments = arc_endpoint_to_cubics(
-                        cur_x,
-                        cur_y,
-                        rx,
-                        ry,
+                    let segments = arc_endpoint_to_cubics(ArcEndpoint {
+                        start: SvgPoint { x: cur_x, y: cur_y },
+                        end: SvgPoint { x, y },
+                        radii: SvgPoint { x: rx, y: ry },
                         x_axis_rotation,
                         large_arc,
                         sweep,
-                        x,
-                        y,
-                    );
+                    });
                     if segments.is_empty() {
                         commands.push(PathCommand::LineTo(x, y));
                         last_ctrl_x = x;
@@ -1688,17 +1668,14 @@ pub fn parse_path_data(d: &str) -> Vec<PathCommand> {
                 {
                     let x = cur_x + dx;
                     let y = cur_y + dy;
-                    let segments = arc_endpoint_to_cubics(
-                        cur_x,
-                        cur_y,
-                        rx,
-                        ry,
+                    let segments = arc_endpoint_to_cubics(ArcEndpoint {
+                        start: SvgPoint { x: cur_x, y: cur_y },
+                        end: SvgPoint { x, y },
+                        radii: SvgPoint { x: rx, y: ry },
                         x_axis_rotation,
                         large_arc,
                         sweep,
-                        x,
-                        y,
-                    );
+                    });
                     if segments.is_empty() {
                         commands.push(PathCommand::LineTo(x, y));
                         last_ctrl_x = x;
@@ -1836,45 +1813,63 @@ fn read_arc(tokens: &[String], i: &mut usize) -> Option<(f32, f32, f32, bool, bo
     Some((rx, ry, x_axis_rotation, large_arc, sweep, x, y))
 }
 
-fn arc_endpoint_to_cubics(
-    x0: f32,
-    y0: f32,
-    rx: f32,
-    ry: f32,
+#[derive(Debug, Clone, Copy)]
+struct SvgPoint {
+    x: f32,
+    y: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ArcEndpoint {
+    start: SvgPoint,
+    end: SvgPoint,
+    radii: SvgPoint,
     x_axis_rotation: f32,
     large_arc: bool,
     sweep: bool,
-    x: f32,
-    y: f32,
-) -> Vec<(f32, f32, f32, f32, f32, f32)> {
-    let mut rx = rx.abs();
-    let mut ry = ry.abs();
-    if rx <= f32::EPSILON
-        || ry <= f32::EPSILON
-        || ((x0 - x).abs() <= f32::EPSILON && (y0 - y).abs() <= f32::EPSILON)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ArcTransform {
+    cos_phi: f32,
+    sin_phi: f32,
+    radii: SvgPoint,
+    center: SvgPoint,
+}
+
+fn arc_endpoint_to_cubics(arc: ArcEndpoint) -> Vec<(f32, f32, f32, f32, f32, f32)> {
+    let mut radii = SvgPoint {
+        x: arc.radii.x.abs(),
+        y: arc.radii.y.abs(),
+    };
+    if radii.x <= f32::EPSILON
+        || radii.y <= f32::EPSILON
+        || ((arc.start.x - arc.end.x).abs() <= f32::EPSILON
+            && (arc.start.y - arc.end.y).abs() <= f32::EPSILON)
     {
         return Vec::new();
     }
 
-    let phi = x_axis_rotation
+    let phi = arc
+        .x_axis_rotation
         .to_radians()
         .rem_euclid(std::f32::consts::TAU);
     let cos_phi = phi.cos();
     let sin_phi = phi.sin();
-    let dx2 = (x0 - x) * 0.5;
-    let dy2 = (y0 - y) * 0.5;
+    let dx2 = (arc.start.x - arc.end.x) * 0.5;
+    let dy2 = (arc.start.y - arc.end.y) * 0.5;
     let x1p = cos_phi * dx2 + sin_phi * dy2;
     let y1p = -sin_phi * dx2 + cos_phi * dy2;
 
-    let lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+    let lambda = (x1p * x1p) / (radii.x * radii.x) + (y1p * y1p) / (radii.y * radii.y);
     if lambda > 1.0 {
         let scale = lambda.sqrt();
-        rx *= scale;
-        ry *= scale;
+        radii.x *= scale;
+        radii.y *= scale;
     }
 
-    let rx_sq = rx * rx;
-    let ry_sq = ry * ry;
+    let rx_sq = radii.x * radii.x;
+    let ry_sq = radii.y * radii.y;
     let x1p_sq = x1p * x1p;
     let y1p_sq = y1p * y1p;
 
@@ -1883,22 +1878,34 @@ fn arc_endpoint_to_cubics(
     if denominator.abs() <= f32::EPSILON {
         return Vec::new();
     }
-    let sign = if large_arc == sweep { -1.0 } else { 1.0 };
+    let sign = if arc.large_arc == arc.sweep {
+        -1.0
+    } else {
+        1.0
+    };
     let coeff = sign * (numerator / denominator).max(0.0).sqrt();
-    let cxp = coeff * ((rx * y1p) / ry);
-    let cyp = coeff * (-(ry * x1p) / rx);
+    let cxp = coeff * ((radii.x * y1p) / radii.y);
+    let cyp = coeff * (-(radii.y * x1p) / radii.x);
 
-    let cx = cos_phi * cxp - sin_phi * cyp + (x0 + x) * 0.5;
-    let cy = sin_phi * cxp + cos_phi * cyp + (y0 + y) * 0.5;
+    let center = SvgPoint {
+        x: cos_phi * cxp - sin_phi * cyp + (arc.start.x + arc.end.x) * 0.5,
+        y: sin_phi * cxp + cos_phi * cyp + (arc.start.y + arc.end.y) * 0.5,
+    };
+    let transform = ArcTransform {
+        cos_phi,
+        sin_phi,
+        radii,
+        center,
+    };
 
-    let theta1 = unit_vector_angle((1.0, 0.0), ((x1p - cxp) / rx, (y1p - cyp) / ry));
+    let theta1 = unit_vector_angle((1.0, 0.0), ((x1p - cxp) / radii.x, (y1p - cyp) / radii.y));
     let mut delta_theta = unit_vector_angle(
-        ((x1p - cxp) / rx, (y1p - cyp) / ry),
-        ((-x1p - cxp) / rx, (-y1p - cyp) / ry),
+        ((x1p - cxp) / radii.x, (y1p - cyp) / radii.y),
+        ((-x1p - cxp) / radii.x, (-y1p - cyp) / radii.y),
     );
-    if !sweep && delta_theta > 0.0 {
+    if !arc.sweep && delta_theta > 0.0 {
         delta_theta -= std::f32::consts::TAU;
-    } else if sweep && delta_theta < 0.0 {
+    } else if arc.sweep && delta_theta < 0.0 {
         delta_theta += std::f32::consts::TAU;
     }
 
@@ -1917,46 +1924,40 @@ fn arc_endpoint_to_cubics(
         let (sin_end, cos_end) = end_theta.sin_cos();
 
         let c1 = map_arc_point(
-            cos_phi,
-            sin_phi,
-            rx,
-            ry,
-            cx,
-            cy,
-            cos_start - alpha * sin_start,
-            sin_start + alpha * cos_start,
+            transform,
+            SvgPoint {
+                x: cos_start - alpha * sin_start,
+                y: sin_start + alpha * cos_start,
+            },
         );
         let c2 = map_arc_point(
-            cos_phi,
-            sin_phi,
-            rx,
-            ry,
-            cx,
-            cy,
-            cos_end + alpha * sin_end,
-            sin_end - alpha * cos_end,
+            transform,
+            SvgPoint {
+                x: cos_end + alpha * sin_end,
+                y: sin_end - alpha * cos_end,
+            },
         );
-        let p2 = map_arc_point(cos_phi, sin_phi, rx, ry, cx, cy, cos_end, sin_end);
-        curves.push((c1.0, c1.1, c2.0, c2.1, p2.0, p2.1));
+        let p2 = map_arc_point(
+            transform,
+            SvgPoint {
+                x: cos_end,
+                y: sin_end,
+            },
+        );
+        curves.push((c1.x, c1.y, c2.x, c2.y, p2.x, p2.y));
     }
 
     curves
 }
 
-fn map_arc_point(
-    cos_phi: f32,
-    sin_phi: f32,
-    rx: f32,
-    ry: f32,
-    cx: f32,
-    cy: f32,
-    ux: f32,
-    uy: f32,
-) -> (f32, f32) {
-    (
-        cx + cos_phi * rx * ux - sin_phi * ry * uy,
-        cy + sin_phi * rx * ux + cos_phi * ry * uy,
-    )
+fn map_arc_point(transform: ArcTransform, unit_point: SvgPoint) -> SvgPoint {
+    SvgPoint {
+        x: transform.center.x + transform.cos_phi * transform.radii.x * unit_point.x
+            - transform.sin_phi * transform.radii.y * unit_point.y,
+        y: transform.center.y
+            + transform.sin_phi * transform.radii.x * unit_point.x
+            + transform.cos_phi * transform.radii.y * unit_point.y,
+    }
 }
 
 fn unit_vector_angle(u: (f32, f32), v: (f32, f32)) -> f32 {

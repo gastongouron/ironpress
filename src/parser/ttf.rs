@@ -90,12 +90,14 @@ impl TtfFont {
     }
 
     /// Get the advance width for a character code, in font units.
+    #[cfg(test)]
     pub fn char_width(&self, ch: u16) -> u16 {
         let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
         self.glyph_width(glyph_id)
     }
 
     /// Get the advance width for a glyph in PDF units (1/1000 of text space).
+    #[cfg(test)]
     pub fn glyph_width_pdf(&self, glyph_id: u16) -> u16 {
         self.glyph_width_pdf_value(glyph_id).trunc() as u16
     }
@@ -118,11 +120,13 @@ impl TtfFont {
     }
 
     /// Get the advance width for a character in PDF units (1/1000 of text space).
+    #[cfg(test)]
     pub fn char_width_pdf(&self, ch: u16) -> u16 {
         self.char_width_pdf_value(ch).trunc() as u16
     }
 
     /// Get the advance width for a character in PDF units (1/1000 of text space).
+    #[cfg(test)]
     pub fn char_width_pdf_value(&self, ch: u16) -> f32 {
         if self.units_per_em == 0 {
             return 0.0;
@@ -131,6 +135,7 @@ impl TtfFont {
     }
 
     /// Get the advance width scaled to a given font size in points.
+    #[cfg(test)]
     pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
         let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
         self.glyph_width_scaled(glyph_id, font_size)

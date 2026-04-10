@@ -1,4 +1,4 @@
-/// Shared helpers used across the parser, layout, and renderer.
+//! Shared helpers used across the parser, layout, and renderer.
 
 /// Decode a standard Base64 string without pulling in an extra dependency.
 pub(crate) fn decode_base64(input: &str) -> Option<Vec<u8>> {
