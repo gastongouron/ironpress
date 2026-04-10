@@ -28,8 +28,15 @@ wasm = ["wasm-bindgen", "js-sys", "getrandom/wasm_js"]
 [dependencies]
 html5ever = "0.27"
 lightningcss = { version = "1.0.0-alpha.71", default-features = false }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+png_decoder = { package = "png", version = "0.18" }
 pulldown-cmark = "0.12"
 markup5ever_rcdom = "0.3"
+fontdb = "0.23"
+flate2 = "1"
+resvg = "0.47"
+rustybuzz = "0.20"
+subsetter = "0.2.3"
 thiserror = "2"
 tokio = { version = "1", features = ["fs", "rt"], optional = true }
 ureq = { version = "3", optional = true }
