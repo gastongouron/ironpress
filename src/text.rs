@@ -50,10 +50,10 @@ pub(crate) fn custom_font_line_height(
     fonts: &HashMap<String, TtfFont>,
 ) -> Option<f32> {
     let (_, font) = resolve_custom_font(font_family, bold, italic, fonts)?;
-    let face = rustybuzz::Face::from_slice(&font.data, 0)?;
-    let units_per_em = (face.units_per_em() as f32).max(1.0);
-    let height = f32::from(face.height()).abs() / units_per_em;
-    Some(height.max(1.0))
+    Some(
+        font.layout_vertical_metrics()
+            .line_height_ratio(font.units_per_em),
+    )
 }
 
 pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Option<ShapedRun> {

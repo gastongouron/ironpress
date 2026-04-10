@@ -2,7 +2,6 @@
 //!
 //! Parses a subset of LaTeX math into a [`MathNode`] AST suitable for
 //! typographic layout following TeX conventions.
-
 /// A node in the math expression tree.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MathNode {

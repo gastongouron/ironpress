@@ -746,7 +746,7 @@ impl BackgroundFields {
             size: BackgroundSize::Auto,
             position: BackgroundPosition::default(),
             repeat: BackgroundRepeat::Repeat,
-            origin: BackgroundOrigin::PaddingBox,
+            origin: BackgroundOrigin::Padding,
         }
     }
 }
@@ -1222,7 +1222,7 @@ fn flatten_nodes(
                             background_size: BackgroundSize::Auto,
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
-                            background_origin: BackgroundOrigin::PaddingBox,
+                            background_origin: BackgroundOrigin::Padding,
                             z_index: 0,
                             repeat_on_each_page: false,
                             positioned_depth: 0,
@@ -2548,7 +2548,7 @@ fn flatten_element(
                 background_size: BackgroundSize::Auto,
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
-                background_origin: BackgroundOrigin::PaddingBox,
+                background_origin: BackgroundOrigin::Padding,
                 z_index: 0,
                 repeat_on_each_page: false,
                 positioned_depth: 0,
@@ -2614,7 +2614,7 @@ fn flatten_element(
                     background_size: BackgroundSize::Auto,
                     background_position: BackgroundPosition::default(),
                     background_repeat: BackgroundRepeat::Repeat,
-                    background_origin: BackgroundOrigin::PaddingBox,
+                    background_origin: BackgroundOrigin::Padding,
                     z_index: 0,
                     repeat_on_each_page: false,
                     positioned_depth: 0,
@@ -2737,7 +2737,7 @@ fn flatten_flex_container(
         let after_abs = after_style.is_some_and(|pseudo| {
             pseudo_is_block_like(pseudo) && pseudo.position == Position::Absolute
         });
-        if has_background_paint(&style)
+        if has_background_paint(style)
             || style.border.has_any()
             || style.border_radius > 0.0
             || style.box_shadow.is_some()
@@ -2748,7 +2748,7 @@ fn flatten_flex_container(
         {
             let container_h = style
                 .height
-                .or_else(|| aspect_ratio_height(block_w, &style))
+                .or_else(|| aspect_ratio_height(block_w, style))
                 .unwrap_or(0.0);
             let containing_block = (style.position == Position::Relative
                 || style.position == Position::Absolute)
@@ -2774,7 +2774,7 @@ fn flatten_flex_container(
                 position: background_position,
                 repeat: background_repeat,
                 origin: background_origin,
-            } = BackgroundFields::from_style(&style);
+            } = BackgroundFields::from_style(style);
             output.push(LayoutElement::TextBlock {
                 lines: Vec::new(),
                 margin_top: style.margin.top,
@@ -2931,14 +2931,16 @@ fn flatten_flex_container(
             preceding_siblings: Vec::new(),
         });
         let mut runs = Vec::new();
-        collect_flex_child_text_runs(
-            &child_el.children,
-            &child_style,
-            &mut runs,
-            None,
-            (0.0, 0.0),
+        FlexTextRunCollector {
+            runs: &mut runs,
             rules,
             fonts,
+        }
+        .collect(
+            &child_el.children,
+            &child_style,
+            None,
+            (0.0, 0.0),
             &child_ancestors,
         );
 
@@ -3167,7 +3169,7 @@ fn flatten_flex_container(
 
     // For column direction, emit container background separately
     let emitted_column_bg = direction == FlexDirection::Column
-        && (has_background_paint(&style) || style.border.has_any() || style.box_shadow.is_some());
+        && (has_background_paint(style) || style.border.has_any() || style.box_shadow.is_some());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
         // It advances y by its full height in paginate.  We then emit a
@@ -3183,7 +3185,7 @@ fn flatten_flex_container(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
-        } = BackgroundFields::from_style(&style);
+        } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
             margin_top: style.margin.top,
@@ -3451,7 +3453,7 @@ fn flatten_flex_container(
                         None
                     },
                     background_svg: if cross_offset == 0.0 {
-                        background_svg_for_style(&style)
+                        background_svg_for_style(style)
                     } else {
                         None
                     },
@@ -3478,7 +3480,7 @@ fn flatten_flex_container(
                     background_origin: if cross_offset == 0.0 {
                         style.background_origin
                     } else {
-                        BackgroundOrigin::PaddingBox
+                        BackgroundOrigin::Padding
                     },
                 });
             }
@@ -3664,7 +3666,7 @@ fn flatten_flex_container(
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_origin: BackgroundOrigin::Padding,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -3806,14 +3808,16 @@ fn flatten_grid_container(
                 (cell_width - child_style.padding.left - child_style.padding.right).max(1.0);
 
             let mut runs = Vec::new();
-            collect_flex_child_text_runs(
-                &child_el.children,
-                &child_style,
-                &mut runs,
-                None,
-                (0.0, 0.0),
+            FlexTextRunCollector {
+                runs: &mut runs,
                 rules,
                 fonts,
+            }
+            .collect(
+                &child_el.children,
+                &child_style,
+                None,
+                (0.0, 0.0),
                 &child_ancestors,
             );
             let lines = wrap_text_runs(
@@ -4956,103 +4960,108 @@ fn table_cell_edge_block_margins(
 
 /// Collect text runs from flex child content, recursively descending into
 /// block-level children so that nested `<h1>`, `<p>`, etc. are captured.
-#[allow(clippy::only_used_in_recursion)]
-fn collect_flex_child_text_runs(
-    nodes: &[DomNode],
-    parent_style: &ComputedStyle,
-    runs: &mut Vec<TextRun>,
-    link_url: Option<&str>,
-    text_padding: (f32, f32),
-    rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
-    ancestors: &[AncestorInfo],
-) {
-    let preserve_ws = matches!(
-        parent_style.white_space,
-        WhiteSpace::Pre | WhiteSpace::PreWrap
-    );
+struct FlexTextRunCollector<'a> {
+    runs: &'a mut Vec<TextRun>,
+    rules: &'a [CssRule],
+    fonts: &'a HashMap<String, TtfFont>,
+}
 
-    for node in nodes {
-        match node {
-            DomNode::Text(text) => {
-                let processed = if preserve_ws {
-                    text.clone()
-                } else {
-                    collapse_whitespace(text)
-                };
-                if !processed.is_empty() {
-                    runs.push(TextRun {
-                        text: processed,
-                        font_size: parent_style.font_size,
-                        bold: parent_style.font_weight == FontWeight::Bold,
-                        italic: parent_style.font_style == FontStyle::Italic,
-                        underline: parent_style.text_decoration_underline,
-                        line_through: parent_style.text_decoration_line_through,
-                        color: parent_style.color.to_f32_rgb(),
-                        link_url: link_url.map(String::from),
-                        font_family: resolve_style_font_family(parent_style, fonts),
-                        background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
-                        padding: text_padding,
-                        border_radius: 0.0,
-                    });
+impl<'a> FlexTextRunCollector<'a> {
+    fn collect(
+        &mut self,
+        nodes: &[DomNode],
+        parent_style: &ComputedStyle,
+        link_url: Option<&str>,
+        text_padding: (f32, f32),
+        ancestors: &[AncestorInfo],
+    ) {
+        let preserve_ws = matches!(
+            parent_style.white_space,
+            WhiteSpace::Pre | WhiteSpace::PreWrap
+        );
+
+        for node in nodes {
+            match node {
+                DomNode::Text(text) => {
+                    let processed = if preserve_ws {
+                        text.clone()
+                    } else {
+                        collapse_whitespace(text)
+                    };
+                    if !processed.is_empty() {
+                        self.runs.push(TextRun {
+                            text: processed,
+                            font_size: parent_style.font_size,
+                            bold: parent_style.font_weight == FontWeight::Bold,
+                            italic: parent_style.font_style == FontStyle::Italic,
+                            underline: parent_style.text_decoration_underline,
+                            line_through: parent_style.text_decoration_line_through,
+                            color: parent_style.color.to_f32_rgb(),
+                            link_url: link_url.map(String::from),
+                            font_family: resolve_style_font_family(parent_style, self.fonts),
+                            background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
+                            padding: text_padding,
+                            border_radius: 0.0,
+                        });
+                    }
                 }
-            }
-            DomNode::Element(el) => {
-                let classes = el.class_list();
-                let selector_ctx = SelectorContext {
-                    ancestors: ancestors.to_vec(),
-                    child_index: 0,
-                    sibling_count: nodes.len(),
-                    preceding_siblings: Vec::new(),
-                };
-                let child_style = compute_style_with_context(
-                    el.tag,
-                    el.style_attr(),
-                    parent_style,
-                    rules,
-                    el.tag_name(),
-                    &classes,
-                    el.id(),
-                    &el.attributes,
-                    &selector_ctx,
-                );
+                DomNode::Element(el) => {
+                    let classes = el.class_list();
+                    let selector_ctx = SelectorContext {
+                        ancestors: ancestors.to_vec(),
+                        child_index: 0,
+                        sibling_count: nodes.len(),
+                        preceding_siblings: Vec::new(),
+                    };
+                    let child_style = compute_style_with_context(
+                        el.tag,
+                        el.style_attr(),
+                        parent_style,
+                        self.rules,
+                        el.tag_name(),
+                        &classes,
+                        el.id(),
+                        &el.attributes,
+                        &selector_ctx,
+                    );
 
-                if child_style.display == Display::None {
-                    continue;
-                }
+                    if child_style.display == Display::None {
+                        continue;
+                    }
 
-                let child_padding = if child_style.display == Display::Block
-                    || child_style.background_color.is_some()
-                    || child_style.border.has_any()
-                    || child_style.border_radius > 0.0
-                {
-                    (child_style.padding.left, child_style.padding.top)
-                } else {
-                    text_padding
-                };
-                let child_link_url = if el.tag == HtmlTag::A {
-                    el.attributes.get("href").map(|s| s.as_str()).or(link_url)
-                } else {
-                    link_url
-                };
+                    let child_padding = if child_style.display == Display::Block
+                        || child_style.background_color.is_some()
+                        || child_style.border.has_any()
+                        || child_style.border_radius > 0.0
+                    {
+                        (child_style.padding.left, child_style.padding.top)
+                    } else {
+                        text_padding
+                    };
+                    let child_link_url = if el.tag == HtmlTag::A {
+                        el.attributes.get("href").map(|s| s.as_str()).or(link_url)
+                    } else {
+                        link_url
+                    };
 
-                if el.tag == HtmlTag::Br {
-                    runs.push(TextRun {
-                        text: "\n".to_string(),
-                        font_size: parent_style.font_size,
-                        bold: false,
-                        italic: false,
-                        underline: false,
-                        line_through: false,
-                        color: (0.0, 0.0, 0.0),
-                        link_url: None,
-                        font_family: resolve_style_font_family(parent_style, fonts),
-                        background_color: None,
-                        padding: (0.0, 0.0),
-                        border_radius: 0.0,
-                    });
-                } else {
-                    // Build ancestor chain including current element for recursive calls
+                    if el.tag == HtmlTag::Br {
+                        self.runs.push(TextRun {
+                            text: "\n".to_string(),
+                            font_size: parent_style.font_size,
+                            bold: false,
+                            italic: false,
+                            underline: false,
+                            line_through: false,
+                            color: (0.0, 0.0, 0.0),
+                            link_url: None,
+                            font_family: resolve_style_font_family(parent_style, self.fonts),
+                            background_color: None,
+                            padding: (0.0, 0.0),
+                            border_radius: 0.0,
+                        });
+                        continue;
+                    }
+
                     let mut child_ancestors = ancestors.to_vec();
                     child_ancestors.push(AncestorInfo {
                         element: el,
@@ -5060,22 +5069,15 @@ fn collect_flex_child_text_runs(
                         sibling_count: nodes.len(),
                         preceding_siblings: Vec::new(),
                     });
-                    // Recurse into both inline and block children so flex items
-                    // with nested block elements (h1, h2, p, div, …) produce text.
-                    collect_flex_child_text_runs(
+                    self.collect(
                         &el.children,
                         &child_style,
-                        runs,
                         child_link_url,
                         child_padding,
-                        rules,
-                        fonts,
                         &child_ancestors,
                     );
-                    // Insert a line break after block-level elements so they don't
-                    // merge with following content on the same line.
-                    if el.tag.is_block() && !runs.is_empty() {
-                        runs.push(TextRun {
+                    if el.tag.is_block() && !self.runs.is_empty() {
+                        self.runs.push(TextRun {
                             text: "\n".to_string(),
                             font_size: child_style.font_size,
                             bold: false,
@@ -5084,7 +5086,7 @@ fn collect_flex_child_text_runs(
                             line_through: false,
                             color: child_style.color.to_f32_rgb(),
                             link_url: child_link_url.map(String::from),
-                            font_family: resolve_style_font_family(&child_style, fonts),
+                            font_family: resolve_style_font_family(&child_style, self.fonts),
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
@@ -5361,33 +5363,18 @@ fn collect_table_cell_content_inner(
                         child_index,
                         element_sibling_count,
                     );
-                } else if recurse_blocks
-                    && style.display != Display::Inline
-                    && el.tag != HtmlTag::Br
-                    && el.children.is_empty()
-                    && (has_background_paint(&style)
-                        || style.border.has_any()
-                        || style.box_shadow.is_some()
-                        || style.aspect_ratio.is_some()
-                        || style.height.is_some()
-                        || style.width.is_some())
+                } else if el.tag == HtmlTag::Svg
+                    || (recurse_blocks
+                        && style.display != Display::Inline
+                        && el.tag != HtmlTag::Br
+                        && el.children.is_empty()
+                        && (has_background_paint(&style)
+                            || style.border.has_any()
+                            || style.box_shadow.is_some()
+                            || style.aspect_ratio.is_some()
+                            || style.height.is_some()
+                            || style.width.is_some()))
                 {
-                    flatten_element(
-                        el,
-                        parent_style,
-                        available_width,
-                        f32::INFINITY,
-                        nested_rows,
-                        None,
-                        rules,
-                        ancestors,
-                        0,
-                        child_index,
-                        element_sibling_count,
-                        &selector_ctx.preceding_siblings,
-                        fonts,
-                    );
-                } else if el.tag == HtmlTag::Svg {
                     flatten_element(
                         el,
                         parent_style,
@@ -6254,13 +6241,6 @@ pub(crate) fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
 /// that non-UTF-8 binary content is safely rejected) and then parses the full
 /// content through the HTML parser to extract the `<svg>` element.
 fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
-    try_parse_svg_bytes_with_viewport(raw, None)
-}
-
-fn try_parse_svg_bytes_with_viewport(
-    raw: &[u8],
-    root_viewport: Option<(f32, f32)>,
-) -> Option<crate::parser::svg::SvgTree> {
     // Heuristic: check if the content looks like SVG (XML with an <svg element).
     let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
@@ -6285,23 +6265,7 @@ fn try_parse_svg_bytes_with_viewport(
     // Parse the full SVG content — use lossy conversion so that stray non-UTF-8
     // bytes don't cause the whole parse to fail.
     let svg_str = String::from_utf8_lossy(raw);
-    let nodes = crate::parser::html::parse_html(&svg_str).ok()?;
-    let svg_el = find_svg_element(&nodes)?;
-    crate::parser::svg::parse_svg_from_element_with_viewport(svg_el, root_viewport)
-}
-
-fn find_svg_element<'a>(nodes: &'a [crate::parser::dom::DomNode]) -> Option<&'a ElementNode> {
-    for node in nodes {
-        if let crate::parser::dom::DomNode::Element(el) = node {
-            if el.tag == HtmlTag::Svg {
-                return Some(el);
-            }
-            if let Some(found) = find_svg_element(&el.children) {
-                return Some(found);
-            }
-        }
-    }
-    None
+    crate::parser::svg::parse_svg_from_string(&svg_str)
 }
 
 /// Detect PNG/JPEG format and return a raster asset with source dimensions.
@@ -6355,68 +6319,41 @@ fn load_image_from_element(
         .is_some_and(|m| !m.is_empty() && !m.contains("svg") && !m.contains("xml"));
 
     // Try SVG path first — render as vector graphics instead of raster.
-    if !skip_svg {
-        let svg_str = String::from_utf8_lossy(&raw);
-        if let Ok(nodes) = crate::parser::html::parse_html(&svg_str) {
-            if let Some(svg_el) = find_svg_element(&nodes) {
-                let intrinsic = resolve_svg_element_size(
-                    svg_el,
-                    available_width,
-                    available_height,
-                    false,
-                    false,
-                );
-                let html_attr_width = style
-                    .width
-                    .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
-                let html_attr_height = style
-                    .height
-                    .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
+    if !skip_svg && let Some(mut tree) = try_parse_svg_bytes(&raw) {
+        let intrinsic = resolve_svg_size(&tree, available_width, available_height, false, false);
+        let html_attr_width = style
+            .width
+            .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
+        let html_attr_height = style
+            .height
+            .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
-                let (width, height) = match (html_attr_width, html_attr_height) {
-                    (Some(w), Some(h)) => (w, h),
-                    (Some(w), None) => {
-                        if intrinsic.0 > 0.0 {
-                            (w, intrinsic.1 * (w / intrinsic.0))
-                        } else {
-                            (w, intrinsic.1)
-                        }
-                    }
-                    (None, Some(h)) => {
-                        if intrinsic.1 > 0.0 {
-                            (intrinsic.0 * (h / intrinsic.1), h)
-                        } else {
-                            (intrinsic.0, h)
-                        }
-                    }
-                    (None, None) => intrinsic,
-                };
+        let (width, height) = match (html_attr_width, html_attr_height) {
+            (Some(w), Some(h)) => (w, h),
+            (Some(w), None) if intrinsic.0 > 0.0 => (w, intrinsic.1 * (w / intrinsic.0)),
+            (Some(w), None) => (w, intrinsic.1),
+            (None, Some(h)) if intrinsic.1 > 0.0 => (intrinsic.0 * (h / intrinsic.1), h),
+            (None, Some(h)) => (intrinsic.0, h),
+            (None, None) => intrinsic,
+        };
 
-                let (width, height) = constrain_replaced_image_size(
-                    width,
-                    height,
-                    available_width,
-                    style.max_width,
-                    style.max_height,
-                );
+        let (width, height) = constrain_replaced_image_size(
+            width,
+            height,
+            available_width,
+            style.max_width,
+            style.max_height,
+        );
 
-                if let Some(tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
-                    svg_el,
-                    Some((width, height)),
-                ) {
-                    let mut tree = tree;
-                    sync_svg_tree_to_layout_box(&mut tree, width, height);
-                    return Some(LayoutElement::Svg {
-                        tree,
-                        width,
-                        height,
-                        flow_extra_bottom: 0.0,
-                        margin_top: style.margin.top,
-                        margin_bottom: style.margin.bottom,
-                    });
-                }
-            }
-        }
+        sync_svg_tree_to_layout_box(&mut tree, width, height);
+        return Some(LayoutElement::Svg {
+            tree,
+            width,
+            height,
+            flow_extra_bottom: 0.0,
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+        });
     }
 
     // Fall back to raster image using the same bytes.
@@ -6545,6 +6482,160 @@ fn parse_html_image_dimension(raw: Option<&String>) -> Option<f32> {
     raw.parse::<f32>().ok().map(|px| px * 0.75)
 }
 
+struct SvgSizeSource<'a> {
+    width_raw: Option<&'a str>,
+    height_raw: Option<&'a str>,
+    natural_width: Option<f32>,
+    natural_height: Option<f32>,
+    natural_ratio: Option<f32>,
+}
+
+impl<'a> SvgSizeSource<'a> {
+    fn from_tree(tree: &'a crate::parser::svg::SvgTree) -> Self {
+        let explicit_width = tree
+            .width_attr
+            .as_deref()
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|width| *width > 0.0);
+        let explicit_height = tree
+            .height_attr
+            .as_deref()
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|height| *height > 0.0);
+        let natural_width = explicit_width
+            .or_else(|| (tree.view_box.is_none() && tree.width > 0.0).then_some(tree.width));
+        let natural_height = explicit_height
+            .or_else(|| (tree.view_box.is_none() && tree.height > 0.0).then_some(tree.height));
+        Self {
+            width_raw: tree.width_attr.as_deref(),
+            height_raw: tree.height_attr.as_deref(),
+            natural_ratio: svg_natural_ratio(
+                explicit_width,
+                explicit_height,
+                natural_width,
+                natural_height,
+                tree.view_box,
+            ),
+            natural_width,
+            natural_height,
+        }
+    }
+
+    fn from_element(el: &'a ElementNode) -> Self {
+        let width_raw = el.attributes.get("width").map(String::as_str);
+        let height_raw = el.attributes.get("height").map(String::as_str);
+        let view_box = el
+            .attributes
+            .get("viewBox")
+            .and_then(|value| crate::parser::svg::parse_viewbox(value));
+        let natural_width = width_raw
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|width| *width > 0.0);
+        let natural_height = height_raw
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|height| *height > 0.0);
+
+        Self {
+            width_raw,
+            height_raw,
+            natural_width,
+            natural_height,
+            natural_ratio: svg_natural_ratio(
+                natural_width,
+                natural_height,
+                natural_width,
+                natural_height,
+                view_box,
+            ),
+        }
+    }
+
+    fn resolve(
+        self,
+        available_width: f32,
+        available_height: f32,
+        allow_percent_width: bool,
+        allow_percent_height: bool,
+    ) -> (f32, f32) {
+        const DEFAULT_OBJECT_WIDTH: f32 = 300.0;
+        const DEFAULT_OBJECT_HEIGHT: f32 = 150.0;
+        let width = resolve_svg_dimension(self.width_raw, available_width, allow_percent_width);
+        let height = resolve_svg_dimension(self.height_raw, available_height, allow_percent_height);
+
+        match (width, height) {
+            (Some(width), Some(height)) => (width, height),
+            (Some(width), None) => {
+                if let Some(ratio) = self.natural_ratio {
+                    (width, width * ratio)
+                } else {
+                    (width, self.natural_height.unwrap_or(DEFAULT_OBJECT_HEIGHT))
+                }
+            }
+            (None, Some(height)) => {
+                if let Some(ratio) = self.natural_ratio {
+                    (height / ratio.max(f32::EPSILON), height)
+                } else {
+                    (self.natural_width.unwrap_or(DEFAULT_OBJECT_WIDTH), height)
+                }
+            }
+            (None, None) => {
+                if let Some(width) = self.natural_width {
+                    if let Some(height) = self.natural_height {
+                        (width, height)
+                    } else if let Some(ratio) = self.natural_ratio {
+                        (width, width * ratio)
+                    } else {
+                        (width, DEFAULT_OBJECT_HEIGHT)
+                    }
+                } else if let Some(height) = self.natural_height {
+                    if let Some(ratio) = self.natural_ratio {
+                        (height / ratio.max(f32::EPSILON), height)
+                    } else {
+                        (DEFAULT_OBJECT_WIDTH, height)
+                    }
+                } else if let Some(ratio) = self.natural_ratio {
+                    contain_default_object_size(ratio)
+                } else {
+                    (DEFAULT_OBJECT_WIDTH, DEFAULT_OBJECT_HEIGHT)
+                }
+            }
+        }
+    }
+}
+
+fn svg_natural_ratio(
+    explicit_width: Option<f32>,
+    explicit_height: Option<f32>,
+    natural_width: Option<f32>,
+    natural_height: Option<f32>,
+    view_box: Option<crate::parser::svg::ViewBox>,
+) -> Option<f32> {
+    match (explicit_width, explicit_height) {
+        (Some(width), Some(height)) => Some(height / width.max(f32::EPSILON)),
+        _ => view_box
+            .and_then(|view_box| {
+                (view_box.width > 0.0 && view_box.height > 0.0)
+                    .then_some(view_box.height / view_box.width)
+            })
+            .or_else(|| match (natural_width, natural_height) {
+                (Some(width), Some(height)) => Some(height / width.max(f32::EPSILON)),
+                _ => None,
+            }),
+    }
+}
+
+fn contain_default_object_size(ratio: f32) -> (f32, f32) {
+    const DEFAULT_OBJECT_WIDTH: f32 = 300.0;
+    const DEFAULT_OBJECT_HEIGHT: f32 = 150.0;
+
+    let default_ratio = DEFAULT_OBJECT_HEIGHT / DEFAULT_OBJECT_WIDTH;
+    if ratio > default_ratio {
+        (DEFAULT_OBJECT_HEIGHT / ratio, DEFAULT_OBJECT_HEIGHT)
+    } else {
+        (DEFAULT_OBJECT_WIDTH, DEFAULT_OBJECT_WIDTH * ratio)
+    }
+}
+
 /// Resolve the rendered size of an SVG from its intrinsic dimensions and raw
 /// `width`/`height` attributes.
 fn resolve_svg_size(
@@ -6554,12 +6645,7 @@ fn resolve_svg_size(
     allow_percent_width: bool,
     allow_percent_height: bool,
 ) -> (f32, f32) {
-    resolve_svg_size_raw(
-        tree.width_attr.as_deref(),
-        tree.height_attr.as_deref(),
-        tree.view_box.as_ref(),
-        tree.width,
-        tree.height,
+    SvgSizeSource::from_tree(tree).resolve(
         available_width,
         available_height,
         allow_percent_width,
@@ -6574,24 +6660,7 @@ fn resolve_svg_element_size(
     allow_percent_width: bool,
     allow_percent_height: bool,
 ) -> (f32, f32) {
-    let width_raw = el.attributes.get("width").map(String::as_str);
-    let height_raw = el.attributes.get("height").map(String::as_str);
-    let view_box = el
-        .attributes
-        .get("viewBox")
-        .and_then(|v| crate::parser::svg::parse_viewbox(v));
-    let intrinsic_width = width_raw
-        .and_then(crate::parser::svg::parse_absolute_length)
-        .unwrap_or(0.0);
-    let intrinsic_height = height_raw
-        .and_then(crate::parser::svg::parse_absolute_length)
-        .unwrap_or(0.0);
-    resolve_svg_size_raw(
-        width_raw,
-        height_raw,
-        view_box.as_ref(),
-        intrinsic_width,
-        intrinsic_height,
+    SvgSizeSource::from_element(el).resolve(
         available_width,
         available_height,
         allow_percent_width,
@@ -6599,75 +6668,12 @@ fn resolve_svg_element_size(
     )
 }
 
-fn resolve_svg_size_raw(
-    width_raw: Option<&str>,
-    height_raw: Option<&str>,
-    view_box: Option<&crate::parser::svg::ViewBox>,
-    intrinsic_width: f32,
-    intrinsic_height: f32,
-    available_width: f32,
-    available_height: f32,
-    allow_percent_width: bool,
-    allow_percent_height: bool,
-) -> (f32, f32) {
-    const DEFAULT_OBJECT_WIDTH: f32 = 300.0;
-    const DEFAULT_OBJECT_HEIGHT: f32 = 150.0;
-
-    let intrinsic_ratio = if let Some(vb) = view_box {
-        if vb.width > 0.0 && vb.height > 0.0 {
-            Some(vb.height / vb.width)
-        } else if intrinsic_width > 0.0 {
-            Some(intrinsic_height / intrinsic_width)
-        } else {
-            None
-        }
-    } else {
-        Some(if intrinsic_width > 0.0 {
-            intrinsic_height / intrinsic_width
-        } else {
-            1.0
-        })
-    };
-    let fallback_size = if intrinsic_width > 0.0 && intrinsic_height > 0.0 {
-        (intrinsic_width, intrinsic_height)
-    } else if intrinsic_width > 0.0 {
-        (
-            intrinsic_width,
-            intrinsic_width
-                * intrinsic_ratio.unwrap_or(DEFAULT_OBJECT_HEIGHT / DEFAULT_OBJECT_WIDTH),
-        )
-    } else if intrinsic_height > 0.0 {
-        let ratio = intrinsic_ratio.unwrap_or(DEFAULT_OBJECT_HEIGHT / DEFAULT_OBJECT_WIDTH);
-        (intrinsic_height / ratio.max(f32::EPSILON), intrinsic_height)
-    } else if let Some(ratio) = intrinsic_ratio {
-        let default_ratio = DEFAULT_OBJECT_HEIGHT / DEFAULT_OBJECT_WIDTH;
-        if ratio > default_ratio {
-            (DEFAULT_OBJECT_HEIGHT / ratio, DEFAULT_OBJECT_HEIGHT)
-        } else {
-            (DEFAULT_OBJECT_WIDTH, DEFAULT_OBJECT_WIDTH * ratio)
-        }
-    } else {
-        (DEFAULT_OBJECT_WIDTH, DEFAULT_OBJECT_HEIGHT)
-    };
-
-    let width = resolve_svg_dimension(width_raw, available_width, allow_percent_width);
-    let height = resolve_svg_dimension(height_raw, available_height, allow_percent_height);
-    match (width, height, intrinsic_ratio) {
-        (Some(w), Some(h), _) => (w, h),
-        (Some(w), None, Some(ratio)) => (w, w * ratio),
-        (None, Some(h), Some(ratio)) => (h / ratio.max(f32::EPSILON), h),
-        _ => fallback_size,
-    }
-}
-
 fn resolve_svg_dimension(
     raw: Option<&str>,
     available_space: f32,
     allow_percent: bool,
 ) -> Option<f32> {
-    let Some(raw) = raw else {
-        return None;
-    };
+    let raw = raw?;
     let raw = raw.trim();
     if let Some(pct) = raw.strip_suffix('%') {
         if allow_percent {
@@ -6751,6 +6757,7 @@ fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
 /// Load image data from a src attribute (supports data: URIs, local files, and remote URLs).
 ///
 /// This is a convenience wrapper around `load_src_bytes` + `load_image_bytes`.
+#[cfg(test)]
 fn load_image_data(src: &str) -> Option<RasterImageAsset> {
     let (raw, _mime) = load_src_bytes(src)?;
     load_image_bytes(raw)
@@ -6863,6 +6870,7 @@ fn decode_png_for_blur(data: &[u8]) -> Option<image::DynamicImage> {
     }
 }
 
+#[cfg(test)]
 fn base64_encode(data: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -6892,6 +6900,7 @@ fn base64_encode(data: &[u8]) -> String {
     result
 }
 
+#[cfg(test)]
 fn append_base64_char(out: &mut String, table: &[u8], index: usize) {
     if let Some(&byte) = table.get(index) {
         out.push(char::from(byte));
@@ -9619,7 +9628,7 @@ mod tests {
                 background_size: BackgroundSize::Auto,
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
-                background_origin: BackgroundOrigin::PaddingBox,
+                background_origin: BackgroundOrigin::Padding,
                 z_index,
                 repeat_on_each_page,
                 positioned_depth: 0,
@@ -9746,7 +9755,7 @@ mod tests {
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_origin: BackgroundOrigin::Padding,
             z_index,
             repeat_on_each_page,
             positioned_depth: 0,

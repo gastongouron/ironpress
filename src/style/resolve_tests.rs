@@ -282,6 +282,57 @@ fn try_resolve_var_to_keyword_with_fallback() {
 }
 
 #[test]
+fn try_resolve_var_to_keyword_resolves_nested_aliases() {
+    let mut props = HashMap::new();
+    props.insert("--mode".to_string(), "var(--layout)".to_string());
+    props.insert("--layout".to_string(), "flex".to_string());
+    let val = CssValue::Var("--mode".to_string(), None);
+
+    assert_eq!(
+        try_resolve_var_to_keyword(&val, &props),
+        Some("flex".to_string())
+    );
+}
+
+#[test]
+fn try_resolve_var_to_color_resolves_nested_aliases() {
+    let mut props = HashMap::new();
+    props.insert("--accent".to_string(), "var(--brand)".to_string());
+    props.insert("--brand".to_string(), "red".to_string());
+    let val = CssValue::Var("--accent".to_string(), None);
+
+    let color = try_resolve_var_to_color(&val, &props).unwrap();
+    assert_eq!(color.r, 255);
+    assert_eq!(color.g, 0);
+    assert_eq!(color.b, 0);
+}
+
+#[test]
+fn try_resolve_var_to_keyword_uses_outer_fallback_when_alias_breaks() {
+    let mut props = HashMap::new();
+    props.insert("--mode".to_string(), "var(--layout)".to_string());
+    let val = CssValue::Var("--mode".to_string(), Some("flex".to_string()));
+
+    assert_eq!(
+        try_resolve_var_to_keyword(&val, &props),
+        Some("flex".to_string())
+    );
+}
+
+#[test]
+fn try_resolve_var_to_keyword_uses_fallback_when_alias_cycle_is_detected() {
+    let mut props = HashMap::new();
+    props.insert("--mode".to_string(), "var(--layout)".to_string());
+    props.insert("--layout".to_string(), "var(--mode)".to_string());
+    let val = CssValue::Var("--mode".to_string(), Some("block".to_string()));
+
+    assert_eq!(
+        try_resolve_var_to_keyword(&val, &props),
+        Some("block".to_string())
+    );
+}
+
+#[test]
 fn try_resolve_var_to_keyword_non_var_returns_none() {
     let val = CssValue::Keyword("block".to_string());
     assert!(try_resolve_var_to_keyword(&val, &HashMap::new()).is_none());

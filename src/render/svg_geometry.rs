@@ -164,20 +164,20 @@ impl SvgSourceBox {
                 let draw_width = self.width * scale;
                 let draw_height = self.height * scale;
                 let offset_x = match align {
-                    SvgAlign::XMinYMin | SvgAlign::XMinYMid | SvgAlign::XMinYMax => 0.0,
-                    SvgAlign::XMidYMin | SvgAlign::XMidYMid | SvgAlign::XMidYMax => {
+                    SvgAlign::TopLeft | SvgAlign::CenterLeft | SvgAlign::BottomLeft => 0.0,
+                    SvgAlign::TopCenter | SvgAlign::Center | SvgAlign::BottomCenter => {
                         (request.viewport.width - draw_width) / 2.0
                     }
-                    SvgAlign::XMaxYMin | SvgAlign::XMaxYMid | SvgAlign::XMaxYMax => {
+                    SvgAlign::TopRight | SvgAlign::CenterRight | SvgAlign::BottomRight => {
                         request.viewport.width - draw_width
                     }
                 };
                 let offset_y = match align {
-                    SvgAlign::XMinYMin | SvgAlign::XMidYMin | SvgAlign::XMaxYMin => 0.0,
-                    SvgAlign::XMinYMid | SvgAlign::XMidYMid | SvgAlign::XMaxYMid => {
+                    SvgAlign::TopLeft | SvgAlign::TopCenter | SvgAlign::TopRight => 0.0,
+                    SvgAlign::CenterLeft | SvgAlign::Center | SvgAlign::CenterRight => {
                         (request.viewport.height - draw_height) / 2.0
                     }
-                    SvgAlign::XMinYMax | SvgAlign::XMidYMax | SvgAlign::XMaxYMax => {
+                    SvgAlign::BottomLeft | SvgAlign::BottomCenter | SvgAlign::BottomRight => {
                         request.viewport.height - draw_height
                     }
                 };

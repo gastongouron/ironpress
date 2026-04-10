@@ -1,9 +1,9 @@
 //! CSS value resolution for calc(), var(), and new unit types (%, em, rem, vw, vh).
-
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::parser::css::{CalcOp, CalcToken, CssValue};
 
+#[cfg(test)]
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const DEFAULT_PAGE_WIDTH: f32 = 595.28;
 const DEFAULT_PAGE_HEIGHT: f32 = 841.89;
@@ -34,6 +34,7 @@ impl LengthResolutionContext {
         }
     }
 
+    #[cfg(test)]
     pub const fn pdf_defaults(parent_width: f32) -> Self {
         Self::new(
             parent_width,
@@ -148,22 +149,18 @@ pub fn resolve_length_value_in_context(
             ctx.page_height,
         )),
         CssValue::Var(name, fallback) => {
-            let raw = custom_properties
-                .get(name.as_str())
-                .cloned()
-                .or_else(|| fallback.clone())?;
+            let raw = resolve_var_to_string(name, fallback.as_deref(), custom_properties)?;
             let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));
-            if let Some(inner) = parsed.get("_x") {
-                resolve_length_value_in_context(inner, ctx, custom_properties)
-            } else {
-                None
-            }
+            parsed
+                .get("_x")
+                .and_then(|inner| resolve_length_value_in_context(inner, ctx, custom_properties))
         }
         _ => None,
     }
 }
 
 /// Resolve a CssValue to absolute length in points.
+#[cfg(test)]
 pub fn resolve_length_value(
     val: &CssValue,
     parent_width: f32,
@@ -186,6 +183,7 @@ pub fn resolve_length_value(
 }
 
 /// Try to resolve a CssValue to an absolute length using defaults.
+#[cfg(test)]
 pub fn try_resolve_to_length(
     val: &CssValue,
     custom_properties: &HashMap<String, String>,
@@ -210,6 +208,7 @@ pub fn try_resolve_to_length_in_context(
 
 /// Try to resolve a CssValue to an absolute length using a caller-provided
 /// `font_size` basis for em units.
+#[cfg(test)]
 pub fn try_resolve_to_length_with_font_size(
     val: &CssValue,
     custom_properties: &HashMap<String, String>,
@@ -224,16 +223,64 @@ pub fn try_resolve_to_length_with_font_size(
     )
 }
 
-/// Resolve a var() name to its value string.
+fn parse_var_reference(raw: &str) -> Option<(&str, Option<&str>)> {
+    let inner = raw.trim().strip_prefix("var(")?.strip_suffix(')')?.trim();
+    let (name, fallback) = match inner.split_once(',') {
+        Some((name, fallback)) => (name.trim(), Some(fallback.trim())),
+        None => (inner, None),
+    };
+
+    name.starts_with("--").then_some((name, fallback))
+}
+
+struct VarResolver<'a> {
+    custom_properties: &'a HashMap<String, String>,
+    visiting: HashSet<String>,
+}
+
+impl<'a> VarResolver<'a> {
+    fn new(custom_properties: &'a HashMap<String, String>) -> Self {
+        Self {
+            custom_properties,
+            visiting: HashSet::new(),
+        }
+    }
+
+    fn resolve_var(&mut self, name: &str, fallback: Option<&str>) -> Option<String> {
+        if self.visiting.contains(name) {
+            return fallback.and_then(|value| self.resolve_raw(value));
+        }
+
+        let resolved = self
+            .custom_properties
+            .get(name)
+            .map(String::as_str)
+            .and_then(|raw| {
+                self.visiting.insert(name.to_string());
+                let result = self.resolve_raw(raw);
+                self.visiting.remove(name);
+                result
+            });
+
+        resolved.or_else(|| fallback.and_then(|value| self.resolve_raw(value)))
+    }
+
+    fn resolve_raw(&mut self, raw: &str) -> Option<String> {
+        if let Some((name, fallback)) = parse_var_reference(raw) {
+            self.resolve_var(name, fallback)
+        } else {
+            Some(raw.trim().to_string())
+        }
+    }
+}
+
+/// Resolve a var() name to its final value string, following nested aliases.
 pub fn resolve_var_to_string(
     name: &str,
     fallback: Option<&str>,
     custom_properties: &HashMap<String, String>,
 ) -> Option<String> {
-    custom_properties
-        .get(name)
-        .cloned()
-        .or_else(|| fallback.map(|s| s.to_string()))
+    VarResolver::new(custom_properties).resolve_var(name, fallback)
 }
 
 /// Try to resolve a CssValue::Var to a color.

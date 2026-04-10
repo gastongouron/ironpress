@@ -364,9 +364,9 @@ pub enum TableLayout {
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BackgroundOrigin {
     #[default]
-    PaddingBox,
-    BorderBox,
-    ContentBox,
+    Padding,
+    Border,
+    Content,
 }
 /// CSS background-size property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -683,7 +683,7 @@ impl Default for ComputedStyle {
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_origin: BackgroundOrigin::Padding,
             z_index: 0,
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
@@ -712,7 +712,7 @@ impl ComputedStyle {
         self.background_size = BackgroundSize::Auto;
         self.background_repeat = BackgroundRepeat::Repeat;
         self.background_position = BackgroundPosition::default();
-        self.background_origin = BackgroundOrigin::PaddingBox;
+        self.background_origin = BackgroundOrigin::Padding;
     }
 
     fn inherit_background_image(&mut self, source: &ComputedStyle) {
@@ -851,7 +851,7 @@ pub fn compute_style_with_context(
     style.background_size = BackgroundSize::Auto;
     style.background_repeat = BackgroundRepeat::Repeat;
     style.background_position = BackgroundPosition::default();
-    style.background_origin = BackgroundOrigin::PaddingBox;
+    style.background_origin = BackgroundOrigin::Padding;
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
@@ -934,9 +934,7 @@ pub fn compute_pseudo_element_style(
     // Reset non-inherited properties (pseudo-elements are generated boxes)
     style.margin = EdgeSizes::default();
     style.padding = EdgeSizes::default();
-    style.background_color = None;
-    style.background_gradient = None;
-    style.background_radial_gradient = None;
+    style.reset_background();
     style.border = BorderSides::default();
     style.width = None;
     style.height = None;
@@ -976,9 +974,6 @@ pub fn compute_pseudo_element_style(
     style.text_indent = 0.0;
     style.vertical_align = VerticalAlign::Baseline;
     style.text_overflow = TextOverflow::Clip;
-    style.background_size = BackgroundSize::Auto;
-    style.background_repeat = BackgroundRepeat::Repeat;
-    style.background_position = BackgroundPosition::default();
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
@@ -1948,9 +1943,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
         style.background_origin = match k.as_str() {
-            "border-box" => BackgroundOrigin::BorderBox,
-            "content-box" => BackgroundOrigin::ContentBox,
-            _ => BackgroundOrigin::PaddingBox,
+            "border-box" => BackgroundOrigin::Border,
+            "content-box" => BackgroundOrigin::Content,
+            _ => BackgroundOrigin::Padding,
         };
     }
 
@@ -6541,7 +6536,7 @@ mod tests {
                 y_is_percent: true,
             }
         );
-        assert_eq!(style.background_origin, BackgroundOrigin::ContentBox);
+        assert_eq!(style.background_origin, BackgroundOrigin::Content);
         assert!(style.background_svg.is_none());
         assert!(style.background_gradient.is_none());
         assert!(style.background_radial_gradient.is_none());
@@ -6559,7 +6554,7 @@ mod tests {
             x_is_percent: true,
             y_is_percent: true,
         };
-        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_origin = BackgroundOrigin::Content;
         parent.background_svg = crate::parser::svg::parse_svg_from_string(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
         );
@@ -6577,7 +6572,7 @@ mod tests {
         assert_eq!(style.background_repeat, BackgroundRepeat::RepeatX);
         assert_eq!(style.background_size, BackgroundSize::Auto);
         assert_eq!(style.background_position, BackgroundPosition::default());
-        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert_eq!(style.background_origin, BackgroundOrigin::Padding);
         assert!(style.background_svg.is_some());
         assert!(style.background_gradient.is_none());
         assert!(style.background_radial_gradient.is_none());
@@ -6644,7 +6639,7 @@ mod tests {
         assert_eq!(style.background_size, BackgroundSize::Auto);
         assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
         assert_eq!(style.background_position, BackgroundPosition::default());
-        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert_eq!(style.background_origin, BackgroundOrigin::Padding);
     }
 
     #[test]
@@ -6677,7 +6672,7 @@ mod tests {
         assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
         assert_eq!(style.background_size, BackgroundSize::Auto);
         assert_eq!(style.background_position, BackgroundPosition::default());
-        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert_eq!(style.background_origin, BackgroundOrigin::Padding);
         assert!(style.background_color.is_none());
     }
 
@@ -6713,7 +6708,7 @@ mod tests {
         assert_eq!(style.background_size, BackgroundSize::Auto);
         assert_eq!(style.background_repeat, BackgroundRepeat::Repeat);
         assert_eq!(style.background_position, BackgroundPosition::default());
-        assert_eq!(style.background_origin, BackgroundOrigin::PaddingBox);
+        assert_eq!(style.background_origin, BackgroundOrigin::Padding);
     }
 
     #[test]
@@ -6728,7 +6723,7 @@ mod tests {
             x_is_percent: true,
             y_is_percent: true,
         };
-        parent.background_origin = BackgroundOrigin::ContentBox;
+        parent.background_origin = BackgroundOrigin::Content;
         parent.background_svg = crate::parser::svg::parse_svg_from_string(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
         );
@@ -7856,6 +7851,38 @@ mod tests {
         assert_eq!(ps.width, None);
         assert_eq!(ps.position, Position::Static);
         assert!(ps.background_color.is_none());
+    }
+
+    #[test]
+    fn pseudo_element_resets_background_image_layers() {
+        use crate::parser::css::{PseudoElement, parse_stylesheet};
+
+        let mut parent = ComputedStyle::default();
+        parent.background_image = Some("data:image/png;base64,abc".to_string());
+        parent.background_svg = crate::parser::svg::parse_svg_from_string(
+            r#"<svg width="1" height="1"><rect width="1" height="1"/></svg>"#,
+        );
+        parent.background_origin = BackgroundOrigin::Content;
+        parent.background_repeat = BackgroundRepeat::NoRepeat;
+
+        let rules = parse_stylesheet(".box::before { content: 'X'; }");
+        let ctx = SelectorContext::default();
+        let result = compute_pseudo_element_style(
+            &parent,
+            &rules,
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &ctx,
+            PseudoElement::Before,
+        );
+
+        let ps = result.unwrap();
+        assert!(ps.background_image.is_none());
+        assert!(ps.background_svg.is_none());
+        assert_eq!(ps.background_origin, BackgroundOrigin::Padding);
+        assert_eq!(ps.background_repeat, BackgroundRepeat::Repeat);
     }
 
     #[test]

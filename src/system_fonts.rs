@@ -320,6 +320,7 @@ fn fontconfig_family_matches(query: &SystemFontQuery<'_>, family_output: &str) -
         .any(|family| family.eq_ignore_ascii_case(requested))
 }
 
+#[cfg(test)]
 fn build_fontconfig_pattern(query: &SystemFontQuery<'_>) -> String {
     query.fontconfig_pattern()
 }

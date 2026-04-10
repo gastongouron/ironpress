@@ -3,7 +3,6 @@
 //! Converts a [`MathNode`] AST into positioned [`MathGlyph`]s ready for
 //! PDF rendering. Implements TeX's four style levels, Knuth's atom spacing
 //! matrix, and proper fraction/script/radical layout.
-
 use crate::parser::math::{AtomType, MathNode};
 
 /// A positioned glyph or drawing command in the laid-out math expression.

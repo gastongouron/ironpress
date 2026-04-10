@@ -22,6 +22,19 @@ use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
 use std::io::Write as _;
 
+mod layout_elements;
+
+use layout_elements::{
+    NestedLayoutFrame, PageRenderContext, TableCellRenderBox, compute_row_height,
+    render_cell_content, table_cell_geometry,
+};
+
+#[cfg(test)]
+use layout_elements::{
+    CellTextPlacement, NestedTextBlock, TextRenderContext, plan_nested_layout_elements,
+    render_cell_text, render_nested_text_block,
+};
+
 /// A link annotation to be placed on a PDF page.
 struct LinkAnnotation {
     x1: f32,
@@ -411,19 +424,19 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let bg_y = block_y - total_h;
                         // Adjust reference box based on background-origin
                         let (ref_x, ref_y, ref_w, ref_h) = match background_origin {
-                            BackgroundOrigin::BorderBox => (
+                            BackgroundOrigin::Border => (
                                 block_x - border.left.width,
                                 bg_y - border.bottom.width,
                                 render_width + border.left.width + border.right.width,
                                 total_h + border.top.width + border.bottom.width,
                             ),
-                            BackgroundOrigin::ContentBox => (
+                            BackgroundOrigin::Content => (
                                 block_x + padding_left,
                                 bg_y + padding_bottom,
                                 (render_width - padding_left - padding_right).max(0.0),
                                 (total_h - padding_top - padding_bottom).max(0.0),
                             ),
-                            BackgroundOrigin::PaddingBox => (block_x, bg_y, render_width, total_h),
+                            BackgroundOrigin::Padding => (block_x, bg_y, render_width, total_h),
                         };
                         render_svg_background(
                             &mut content,
@@ -840,15 +853,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Render cell text at the first row's y position
-                        render_cell_content(
-                            &mut content,
-                            cell,
-                            cell_x,
-                            row_y,
-                            cell_w,
-                            row_height,
-                            margin.left,
-                            page_size.height - margin.top,
+                        let mut page_context = PageRenderContext::new(
                             &mut pdf_writer,
                             &mut page_images,
                             custom_fonts,
@@ -856,6 +861,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_shadings,
                             &mut shading_counter,
                             &mut annotations,
+                        );
+                        render_cell_content(
+                            &mut content,
+                            cell,
+                            TableCellRenderBox::new(
+                                cell_x,
+                                row_y,
+                                cell_w,
+                                row_height,
+                                NestedLayoutFrame::new(
+                                    cell_x,
+                                    row_y,
+                                    margin.left,
+                                    page_size.height - margin.top,
+                                    cell_w,
+                                ),
+                            ),
+                            &mut page_context,
                         );
 
                         col_pos += cell.colspan;
@@ -887,15 +910,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Render cell text
-                        render_cell_content(
-                            &mut content,
-                            cell,
-                            cell_x,
-                            row_y,
-                            cell_w,
-                            row_height,
-                            margin.left,
-                            page_size.height - margin.top,
+                        let mut page_context = PageRenderContext::new(
                             &mut pdf_writer,
                             &mut page_images,
                             custom_fonts,
@@ -903,6 +918,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_shadings,
                             &mut shading_counter,
                             &mut annotations,
+                        );
+                        render_cell_content(
+                            &mut content,
+                            cell,
+                            TableCellRenderBox::new(
+                                cell_x,
+                                row_y,
+                                cell_w,
+                                row_height,
+                                NestedLayoutFrame::new(
+                                    cell_x,
+                                    row_y,
+                                    margin.left,
+                                    page_size.height - margin.top,
+                                    cell_w,
+                                ),
+                            ),
+                            &mut page_context,
                         );
 
                         cell_x += cell_w;
@@ -1046,19 +1079,19 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let bg_y = row_y - full_height;
                         // Adjust reference box based on background-origin
                         let (ref_x, ref_y, ref_w, ref_h) = match flex_bg_origin {
-                            BackgroundOrigin::BorderBox => (
+                            BackgroundOrigin::Border => (
                                 bg_x - border.left.width,
                                 bg_y - border.bottom.width,
                                 *container_width + border.left.width + border.right.width,
                                 full_height + border.top.width + border.bottom.width,
                             ),
-                            BackgroundOrigin::ContentBox => (
+                            BackgroundOrigin::Content => (
                                 bg_x + padding_left,
                                 bg_y + padding_bottom,
                                 (*container_width - padding_left - padding_right).max(0.0),
                                 (full_height - padding_top - padding_bottom).max(0.0),
                             ),
-                            BackgroundOrigin::PaddingBox => {
+                            BackgroundOrigin::Padding => {
                                 (bg_x, bg_y, *container_width, full_height)
                             }
                         };
@@ -1247,13 +1280,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let bg_x = margin.left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - row_height;
                             let (ref_x, ref_y, ref_w, ref_h) = match cell.background_origin {
-                                BackgroundOrigin::ContentBox => (
+                                BackgroundOrigin::Content => (
                                     bg_x + cell.padding_left,
                                     bg_y + cell.padding_bottom,
                                     (cell.width - cell.padding_left - cell.padding_right).max(0.0),
                                     (row_height - cell.padding_top - cell.padding_bottom).max(0.0),
                                 ),
-                                BackgroundOrigin::BorderBox | BackgroundOrigin::PaddingBox => {
+                                BackgroundOrigin::Border | BackgroundOrigin::Padding => {
                                     (bg_x, bg_y, cell.width, *row_height)
                                 }
                             };
@@ -1595,679 +1628,6 @@ fn register_used_custom_fonts(
             pdf_writer.add_ttf_font(font_name, ttf, prepared_font);
         }
     }
-}
-
-/// Compute the height of a table row from its cells.
-fn compute_row_height(cells: &[TableCell]) -> f32 {
-    cells
-        .iter()
-        .map(table_cell_content_height)
-        .fold(0.0f32, f32::max)
-}
-
-fn table_cell_geometry(
-    col_widths: &[f32],
-    col_pos: usize,
-    colspan: usize,
-    spacing: f32,
-    origin_x: f32,
-) -> (f32, f32) {
-    let cell_x = origin_x + col_widths.iter().take(col_pos).sum::<f32>() + spacing * col_pos as f32;
-    let cell_w = col_widths.iter().skip(col_pos).take(colspan).sum::<f32>()
-        + spacing * colspan.saturating_sub(1) as f32;
-    (cell_x, cell_w)
-}
-
-fn render_cell_content(
-    content: &mut String,
-    cell: &TableCell,
-    cell_x: f32,
-    row_y: f32,
-    col_width: f32,
-    row_height: f32,
-    initial_origin_x: f32,
-    initial_top_y: f32,
-    pdf_writer: &mut PdfWriter,
-    page_images: &mut Vec<ImageRef>,
-    custom_fonts: &HashMap<String, TtfFont>,
-    prepared_custom_fonts: &PreparedCustomFonts,
-    shadings: &mut Vec<ShadingEntry>,
-    shading_counter: &mut usize,
-    annotations: &mut Vec<LinkAnnotation>,
-) {
-    let content_top = table_cell_content_top(cell, row_y, row_height);
-    if !cell.nested_rows.is_empty() {
-        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-        render_cell_text(
-            content,
-            cell,
-            cell_x,
-            content_top,
-            col_width,
-            custom_fonts,
-            prepared_custom_fonts,
-            annotations,
-        );
-        render_nested_layout_elements(
-            content,
-            &cell.nested_rows,
-            cell_x + cell.padding_left,
-            content_top - text_h - cell.padding_bottom,
-            initial_origin_x,
-            initial_top_y,
-            (col_width - cell.padding_left - cell.padding_right).max(0.0),
-            pdf_writer,
-            page_images,
-            custom_fonts,
-            prepared_custom_fonts,
-            shadings,
-            shading_counter,
-            annotations,
-        );
-        return;
-    }
-
-    render_cell_text(
-        content,
-        cell,
-        cell_x,
-        content_top,
-        col_width,
-        custom_fonts,
-        prepared_custom_fonts,
-        annotations,
-    );
-}
-
-fn render_cell_text(
-    content: &mut String,
-    cell: &TableCell,
-    cell_x: f32,
-    content_top: f32,
-    col_width: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
-    prepared_custom_fonts: &PreparedCustomFonts,
-    annotations: &mut Vec<LinkAnnotation>,
-) {
-    let cell_inner_w = col_width - cell.padding_left - cell.padding_right;
-    let mut text_y = content_top;
-    for line in &cell.lines {
-        let metrics = line_box_metrics(line, custom_fonts);
-        text_y -= metrics.half_leading + metrics.ascender;
-        let line_annotation_box = TextLineAnnotationBox {
-            top: text_y + metrics.ascender + metrics.half_leading,
-            bottom: text_y - metrics.descender - metrics.half_leading,
-        };
-        let text_content: String = line.runs.iter().map(|r| r.text.as_str()).collect();
-        if text_content.is_empty() {
-            continue;
-        }
-        let merged = merge_runs(&line.runs);
-        let line_width: f32 = merged
-            .iter()
-            .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
-            .sum();
-        let text_x = match cell.text_align {
-            TextAlign::Right => cell_x + cell.padding_left + (cell_inner_w - line_width).max(0.0),
-            TextAlign::Center => {
-                cell_x + cell.padding_left + ((cell_inner_w - line_width) / 2.0).max(0.0)
-            }
-            _ => cell_x + cell.padding_left,
-        };
-        let mut x = text_x;
-        for run in &merged {
-            if run.text.is_empty() {
-                continue;
-            }
-            let (r, g, b) = run.color;
-            let rw = estimate_run_width_with_fonts(run, custom_fonts);
-
-            // Draw background rectangle for inline spans
-            if let Some((br, bgc, bb)) = run.background_color {
-                let (pad_h, pad_v) = run.padding;
-                let rx = x - pad_h;
-                let ry = text_y - 2.0 - pad_v;
-                let rw2 = rw + pad_h * 2.0;
-                let rh = run.font_size + 2.0 + pad_v * 2.0;
-                content.push_str(&format!("{br} {bgc} {bb} rg\n"));
-                if run.border_radius > 0.0 {
-                    content.push_str(&rounded_rect_path(rx, ry, rw2, rh, run.border_radius));
-                    content.push_str("\nf\n");
-                } else {
-                    content.push_str(&format!("{rx} {ry} {rw2} {rh} re\nf\n"));
-                }
-            }
-
-            render_run_text(content, run, x, text_y, custom_fonts, prepared_custom_fonts);
-
-            // Draw underline (font-size-relative)
-            if run.underline {
-                let (_, descender_ratio) = crate::fonts::font_metrics_ratios(
-                    &run.font_family,
-                    run.bold,
-                    run.italic,
-                    custom_fonts,
-                );
-                let desc = descender_ratio * run.font_size;
-                let uy = text_y - desc * 0.6;
-                let thickness = (run.font_size * 0.07).max(0.5);
-                content.push_str(&format!(
-                    "{r} {g} {b} RG\n{thickness} w\n{x} {uy} m {x2} {uy} l\nS\n",
-                    x2 = x + rw,
-                ));
-            }
-
-            // Draw strikethrough (line-through)
-            if run.line_through {
-                let sy = text_y + run.font_size * 0.3;
-                let thickness = (run.font_size * 0.07).max(0.5);
-                content.push_str(&format!(
-                    "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
-                    x2 = x + rw,
-                ));
-            }
-
-            if let Some(annotation) = text_run_link_annotation(run, x, rw, line_annotation_box) {
-                annotations.push(annotation);
-            }
-
-            x += rw;
-        }
-        text_y -= metrics.descender + metrics.half_leading;
-    }
-}
-
-fn table_cell_content_top(cell: &TableCell, row_y: f32, row_height: f32) -> f32 {
-    let content_height = table_cell_content_height(cell);
-    let offset = match cell.vertical_align {
-        VerticalAlign::Middle => ((row_height - content_height) / 2.0).max(0.0),
-        VerticalAlign::Bottom => (row_height - content_height).max(0.0),
-        VerticalAlign::Top
-        | VerticalAlign::Baseline
-        | VerticalAlign::Super
-        | VerticalAlign::Sub => 0.0,
-    };
-    row_y - offset - cell.padding_top
-}
-
-fn table_row_total_height(row: &LayoutElement) -> f32 {
-    match row {
-        LayoutElement::TableRow {
-            cells,
-            margin_top,
-            margin_bottom,
-            ..
-        } => margin_top + compute_row_height(cells) + margin_bottom,
-        _ => 0.0,
-    }
-}
-
-fn render_nested_text_block(
-    content: &mut String,
-    lines: &[TextLine],
-    text_align: TextAlign,
-    padding_top: f32,
-    padding_bottom: f32,
-    padding_left: f32,
-    padding_right: f32,
-    border: crate::layout::engine::LayoutBorder,
-    block_width: Option<f32>,
-    block_height: Option<f32>,
-    background_color: Option<(f32, f32, f32)>,
-    background_svg: Option<&crate::parser::svg::SvgTree>,
-    background_blur_radius: f32,
-    background_size: &BackgroundSize,
-    background_position: &BackgroundPosition,
-    background_repeat: &BackgroundRepeat,
-    background_origin: BackgroundOrigin,
-    background_blur_canvas_box: Option<SvgViewportBox>,
-    border_radius: f32,
-    available_width: f32,
-    origin_x: f32,
-    top_y: f32,
-    pdf_writer: &mut PdfWriter,
-    page_images: &mut Vec<ImageRef>,
-    custom_fonts: &HashMap<String, TtfFont>,
-    prepared_custom_fonts: &PreparedCustomFonts,
-    shadings: &mut Vec<ShadingEntry>,
-    shading_counter: &mut usize,
-    annotations: &mut Vec<LinkAnnotation>,
-) {
-    let render_width = block_width.unwrap_or(available_width).max(0.0);
-    let total_h = text_block_total_height(lines, padding_top, padding_bottom, block_height);
-    let block_bottom = top_y - total_h;
-
-    if let Some((r, g, b)) = background_color {
-        content.push_str(&format!("{r} {g} {b} rg\n"));
-        if border_radius > 0.0 {
-            content.push_str(&rounded_rect_path(
-                origin_x,
-                block_bottom,
-                render_width,
-                total_h,
-                border_radius,
-            ));
-        } else {
-            content.push_str(&format!(
-                "{x} {y} {w} {h} re\n",
-                x = origin_x,
-                y = block_bottom,
-                w = render_width,
-                h = total_h,
-            ));
-        }
-        content.push_str("f\n");
-    }
-
-    if let Some(svg_tree) = background_svg {
-        let (ref_x, ref_y, ref_w, ref_h) = match background_origin {
-            BackgroundOrigin::BorderBox => (
-                origin_x - border.left.width,
-                block_bottom - border.bottom.width,
-                render_width + border.left.width + border.right.width,
-                total_h + border.top.width + border.bottom.width,
-            ),
-            BackgroundOrigin::ContentBox => (
-                origin_x + padding_left,
-                block_bottom + padding_bottom,
-                (render_width - padding_left - padding_right).max(0.0),
-                (total_h - padding_top - padding_bottom).max(0.0),
-            ),
-            BackgroundOrigin::PaddingBox => (origin_x, block_bottom, render_width, total_h),
-        };
-        render_svg_background(
-            content,
-            svg_tree,
-            pdf_writer,
-            page_images,
-            shadings,
-            shading_counter,
-            BackgroundPaintContext::new(
-                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                SvgViewportBox::new(
-                    origin_x - border.left.width,
-                    block_bottom - border.bottom.width,
-                    render_width + border.left.width + border.right.width,
-                    total_h + border.top.width + border.bottom.width,
-                ),
-                border_radius,
-                background_blur_radius,
-                *background_size,
-                *background_position,
-                *background_repeat,
-            )
-            .with_blur_canvas_box(background_blur_canvas_box),
-        );
-    }
-
-    if border.has_any() {
-        let x1 = origin_x;
-        let x2 = origin_x + render_width;
-        let y_top = top_y;
-        let y_bottom = block_bottom;
-        if border.top.width > 0.0 {
-            let (r, g, b) = border.top.color;
-            content.push_str(&format!(
-                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
-                border.top.width
-            ));
-        }
-        if border.right.width > 0.0 {
-            let (r, g, b) = border.right.color;
-            content.push_str(&format!(
-                "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
-                border.right.width
-            ));
-        }
-        if border.bottom.width > 0.0 {
-            let (r, g, b) = border.bottom.color;
-            content.push_str(&format!(
-                "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
-                border.bottom.width
-            ));
-        }
-        if border.left.width > 0.0 {
-            let (r, g, b) = border.left.color;
-            content.push_str(&format!(
-                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
-                border.left.width
-            ));
-        }
-    }
-
-    if !lines.is_empty() {
-        let proxy_cell = TableCell {
-            lines: lines.to_vec(),
-            nested_rows: Vec::new(),
-            bold: false,
-            background_color: None,
-            padding_top,
-            padding_right,
-            padding_bottom,
-            padding_left,
-            colspan: 1,
-            rowspan: 1,
-            border: crate::layout::engine::LayoutBorder::default(),
-            text_align,
-            vertical_align: VerticalAlign::Baseline,
-        };
-        render_cell_text(
-            content,
-            &proxy_cell,
-            origin_x,
-            top_y - padding_top,
-            render_width,
-            custom_fonts,
-            prepared_custom_fonts,
-            annotations,
-        );
-    }
-}
-
-fn render_nested_layout_elements(
-    content: &mut String,
-    elements: &[LayoutElement],
-    origin_x: f32,
-    top_y: f32,
-    initial_origin_x: f32,
-    initial_top_y: f32,
-    available_width: f32,
-    pdf_writer: &mut PdfWriter,
-    page_images: &mut Vec<ImageRef>,
-    custom_fonts: &HashMap<String, TtfFont>,
-    prepared_custom_fonts: &PreparedCustomFonts,
-    shadings: &mut Vec<ShadingEntry>,
-    shading_counter: &mut usize,
-    annotations: &mut Vec<LinkAnnotation>,
-) {
-    let mut planned = plan_nested_layout_elements(
-        elements,
-        origin_x,
-        top_y,
-        initial_origin_x,
-        initial_top_y,
-        available_width,
-    );
-    planned.sort_by_key(|planned_element| layout_element_paint_order(planned_element.element));
-
-    for planned_element in planned {
-        match planned_element.element {
-            LayoutElement::TableRow {
-                cells,
-                col_widths,
-                border_collapse,
-                border_spacing,
-                ..
-            } => {
-                let spacing = if *border_collapse == BorderCollapse::Collapse {
-                    0.0
-                } else {
-                    *border_spacing
-                };
-                let row_y = planned_element.top_y;
-                let row_height = compute_row_height(cells);
-
-                let mut col_pos: usize = 0;
-                for cell in cells {
-                    if cell.rowspan == 0 {
-                        col_pos += cell.colspan;
-                        continue;
-                    }
-
-                    let (cell_x, cell_w) = table_cell_geometry(
-                        col_widths,
-                        col_pos,
-                        cell.colspan,
-                        spacing,
-                        planned_element.origin_x,
-                    );
-
-                    let cell_height = if cell.rowspan > 1 {
-                        let mut total_h = row_height;
-                        for offset in 1..cell.rowspan {
-                            if let Some(future_row) = elements
-                                .iter()
-                                .skip(planned_element.source_index + offset)
-                                .find(|element| matches!(element, LayoutElement::TableRow { .. }))
-                            {
-                                total_h += table_row_total_height(future_row);
-                            }
-                        }
-                        total_h
-                    } else {
-                        row_height
-                    };
-
-                    if let Some((r, g, b)) = cell.background_color {
-                        content.push_str(&format!(
-                            "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
-                            x = cell_x,
-                            y = row_y - cell_height,
-                            w = cell_w,
-                            h = cell_height,
-                        ));
-                    }
-
-                    if cell.border.has_any() {
-                        let x1 = cell_x;
-                        let x2 = cell_x + cell_w;
-                        let y_top = row_y;
-                        let y_bottom = row_y - cell_height;
-                        if cell.border.top.width > 0.0 {
-                            let (r, g, b) = cell.border.top.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
-                                cell.border.top.width
-                            ));
-                        }
-                        if cell.border.right.width > 0.0 {
-                            let (r, g, b) = cell.border.right.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
-                                cell.border.right.width
-                            ));
-                        }
-                        if cell.border.bottom.width > 0.0 {
-                            let (r, g, b) = cell.border.bottom.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
-                                cell.border.bottom.width
-                            ));
-                        }
-                        if cell.border.left.width > 0.0 {
-                            let (r, g, b) = cell.border.left.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
-                                cell.border.left.width
-                            ));
-                        }
-                    }
-
-                    render_cell_content(
-                        content,
-                        cell,
-                        cell_x,
-                        row_y,
-                        cell_w,
-                        row_height,
-                        initial_origin_x,
-                        initial_top_y,
-                        pdf_writer,
-                        page_images,
-                        custom_fonts,
-                        prepared_custom_fonts,
-                        shadings,
-                        shading_counter,
-                        annotations,
-                    );
-
-                    col_pos += cell.colspan;
-                }
-            }
-            LayoutElement::TextBlock {
-                lines,
-                text_align,
-                background_color,
-                padding_top,
-                padding_bottom,
-                padding_left,
-                padding_right,
-                border,
-                block_width,
-                block_height,
-                border_radius,
-                background_gradient: _,
-                background_radial_gradient: _,
-                background_svg,
-                background_blur_radius,
-                background_size,
-                background_position,
-                background_repeat,
-                background_origin,
-                ..
-            } => {
-                render_nested_text_block(
-                    content,
-                    lines,
-                    *text_align,
-                    *padding_top,
-                    *padding_bottom,
-                    *padding_left,
-                    *padding_right,
-                    *border,
-                    *block_width,
-                    *block_height,
-                    *background_color,
-                    background_svg.as_ref(),
-                    *background_blur_radius,
-                    background_size,
-                    background_position,
-                    background_repeat,
-                    *background_origin,
-                    planned_element.blur_canvas_box,
-                    *border_radius,
-                    planned_element.available_width,
-                    planned_element.origin_x,
-                    planned_element.top_y,
-                    pdf_writer,
-                    page_images,
-                    custom_fonts,
-                    prepared_custom_fonts,
-                    shadings,
-                    shading_counter,
-                    annotations,
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-struct PlannedNestedElement<'a> {
-    element: &'a LayoutElement,
-    source_index: usize,
-    origin_x: f32,
-    top_y: f32,
-    available_width: f32,
-    blur_canvas_box: Option<SvgViewportBox>,
-}
-
-fn plan_nested_layout_elements<'a>(
-    elements: &'a [LayoutElement],
-    origin_x: f32,
-    top_y: f32,
-    initial_origin_x: f32,
-    initial_top_y: f32,
-    available_width: f32,
-) -> Vec<PlannedNestedElement<'a>> {
-    let mut cursor_y = top_y;
-    let mut positioned_origins: HashMap<usize, (f32, f32)> = HashMap::new();
-    let mut planned = Vec::with_capacity(elements.len());
-
-    for (element_idx, element) in elements.iter().enumerate() {
-        match element {
-            LayoutElement::TableRow {
-                cells,
-                margin_top,
-                margin_bottom,
-                ..
-            } => {
-                cursor_y -= *margin_top;
-                let row_y = cursor_y;
-                planned.push(PlannedNestedElement {
-                    element,
-                    source_index: element_idx,
-                    origin_x,
-                    top_y: row_y,
-                    available_width,
-                    blur_canvas_box: None,
-                });
-                cursor_y -= compute_row_height(cells) + *margin_bottom;
-            }
-            LayoutElement::TextBlock {
-                margin_top,
-                margin_bottom,
-                containing_block,
-                positioned_depth,
-                position,
-                offset_top,
-                offset_left,
-                lines,
-                padding_top,
-                padding_bottom,
-                block_height,
-                ..
-            } => {
-                let containing_origin =
-                    containing_block.and_then(|cb| positioned_origins.get(&cb.depth).copied());
-                let base_origin_x = match position {
-                    Position::Absolute => containing_origin.map_or(initial_origin_x, |(x, _)| x),
-                    _ => containing_origin.map_or(origin_x, |(x, _)| x),
-                };
-                let base_top_y = match position {
-                    Position::Absolute => {
-                        containing_origin.map_or(initial_top_y, |(_, y)| y) - *margin_top
-                    }
-                    _ => cursor_y - *margin_top,
-                };
-                let element_top_y = match position {
-                    Position::Absolute | Position::Relative => base_top_y - *offset_top,
-                    Position::Static => base_top_y,
-                };
-                let element_origin_x = base_origin_x + offset_left;
-                let blur_canvas_box = containing_block.and_then(|cb| {
-                    containing_origin
-                        .map(|(x, y)| SvgViewportBox::new(x, y - cb.height, cb.width, cb.height))
-                });
-                planned.push(PlannedNestedElement {
-                    element,
-                    source_index: element_idx,
-                    origin_x: element_origin_x,
-                    top_y: element_top_y,
-                    available_width,
-                    blur_canvas_box,
-                });
-                if *positioned_depth > 0
-                    && (*position == Position::Relative || *position == Position::Absolute)
-                {
-                    positioned_origins.insert(*positioned_depth, (element_origin_x, element_top_y));
-                }
-                if *position != Position::Absolute {
-                    cursor_y = base_top_y
-                        - text_block_total_height(
-                            lines,
-                            *padding_top,
-                            *padding_bottom,
-                            *block_height,
-                        )
-                        - *margin_bottom;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    planned
 }
 
 fn font_name_for_run(run: &TextRun) -> &str {
@@ -3839,7 +3199,7 @@ mod tests {
             background_size: BackgroundSize::Auto,
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
-            background_origin: BackgroundOrigin::PaddingBox,
+            background_origin: BackgroundOrigin::Padding,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -5314,15 +4674,12 @@ mod tests {
         let fonts = HashMap::new();
         let mut annotations = Vec::new();
         let prepared_fonts = PreparedCustomFonts::new();
+        let mut text_context = TextRenderContext::new(&fonts, &prepared_fonts, &mut annotations);
         render_cell_text(
             &mut content,
             &cell,
-            0.0,
-            100.0,
-            50.0,
-            &fonts,
-            &prepared_fonts,
-            &mut annotations,
+            CellTextPlacement::new(0.0, 100.0, 50.0),
+            &mut text_context,
         );
         assert!(content.contains("Hello"));
     }
@@ -6139,29 +5496,7 @@ mod tests {
         let mut annotations = Vec::new();
 
         let mut without_padding = String::new();
-        render_nested_text_block(
-            &mut without_padding,
-            &lines,
-            TextAlign::Left,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            LayoutBorder::default(),
-            Some(80.0),
-            None,
-            None,
-            None,
-            0.0,
-            &BackgroundSize::Auto,
-            &BackgroundPosition::default(),
-            &BackgroundRepeat::Repeat,
-            BackgroundOrigin::PaddingBox,
-            None,
-            0.0,
-            80.0,
-            10.0,
-            100.0,
+        let mut without_padding_context = PageRenderContext::new(
             &mut pdf_writer,
             &mut page_images,
             &custom_fonts,
@@ -6170,31 +5505,35 @@ mod tests {
             &mut shading_counter,
             &mut annotations,
         );
+        render_nested_text_block(
+            &mut without_padding,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border: LayoutBorder::default(),
+                block_width: Some(80.0),
+                block_height: None,
+                background_color: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
+            &mut without_padding_context,
+        );
+        drop(without_padding_context);
 
         let mut with_padding = String::new();
-        render_nested_text_block(
-            &mut with_padding,
-            &lines,
-            TextAlign::Left,
-            12.0,
-            0.0,
-            0.0,
-            0.0,
-            LayoutBorder::default(),
-            Some(80.0),
-            None,
-            None,
-            None,
-            0.0,
-            &BackgroundSize::Auto,
-            &BackgroundPosition::default(),
-            &BackgroundRepeat::Repeat,
-            BackgroundOrigin::PaddingBox,
-            None,
-            0.0,
-            80.0,
-            10.0,
-            100.0,
+        let mut with_padding_context = PageRenderContext::new(
             &mut pdf_writer,
             &mut page_images,
             &custom_fonts,
@@ -6202,6 +5541,31 @@ mod tests {
             &mut shadings,
             &mut shading_counter,
             &mut annotations,
+        );
+        render_nested_text_block(
+            &mut with_padding,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 12.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border: LayoutBorder::default(),
+                block_width: Some(80.0),
+                block_height: None,
+                background_color: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
+            &mut with_padding_context,
         );
 
         let without_padding_y = first_td_y(&without_padding).unwrap();
@@ -6225,7 +5589,10 @@ mod tests {
         }
 
         let elements = [absolute];
-        let planned = plan_nested_layout_elements(&elements, 50.0, 100.0, 10.0, 200.0, 80.0);
+        let planned = plan_nested_layout_elements(
+            &elements,
+            NestedLayoutFrame::new(50.0, 100.0, 10.0, 200.0, 80.0),
+        );
         assert_eq!(planned.len(), 1);
         assert!((planned[0].origin_x - 30.0).abs() < 0.01);
         assert!((planned[0].top_y - 190.0).abs() < 0.01);
@@ -6235,7 +5602,10 @@ mod tests {
     fn nested_static_without_containing_block_uses_local_origin() {
         let static_block = test_text_block_from_runs(vec![test_text_run("Static")]);
         let elements = [static_block];
-        let planned = plan_nested_layout_elements(&elements, 50.0, 100.0, 10.0, 200.0, 80.0);
+        let planned = plan_nested_layout_elements(
+            &elements,
+            NestedLayoutFrame::new(50.0, 100.0, 10.0, 200.0, 80.0),
+        );
         assert_eq!(planned.len(), 1);
         assert!((planned[0].origin_x - 50.0).abs() < 0.01);
         assert!((planned[0].top_y - 100.0).abs() < 0.01);
@@ -6807,15 +6177,12 @@ mod tests {
         let fonts = HashMap::new();
         let mut annotations = Vec::new();
         let prepared_fonts = PreparedCustomFonts::new();
+        let mut text_context = TextRenderContext::new(&fonts, &prepared_fonts, &mut annotations);
         render_cell_text(
             &mut content,
             &cell,
-            10.0,
-            200.0,
-            100.0,
-            &fonts,
-            &prepared_fonts,
-            &mut annotations,
+            CellTextPlacement::new(10.0, 200.0, 100.0),
+            &mut text_context,
         );
         assert!(content.contains("Centered"), "Should render cell text");
         // Background with border-radius produces rounded rect

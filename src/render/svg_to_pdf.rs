@@ -51,6 +51,7 @@ impl<'a> SvgPdfResources<'a> {
 ///
 /// The caller must wrap this in a `q ... Q` block and set up the coordinate
 /// transform (position on page + y-axis flip).
+#[cfg(test)]
 pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     let mut shadings = Vec::new();
     let mut shading_counter = 0usize;
@@ -58,6 +59,7 @@ pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     render_svg_tree_with_resources(tree, out, &mut resources);
 }
 
+#[cfg(test)]
 pub(crate) fn render_svg_tree_with_shadings(
     tree: &SvgTree,
     out: &mut String,
@@ -1011,14 +1013,14 @@ fn resolve_svg_text_font(
         .unwrap_or(text_ctx.font_italic);
 
     if let Some(base) = font_family.or(inherited_font_family) {
-        pdf_font_name(base, bold, italic).to_string()
+        crate::fonts::pdf_font_name(base, bold, italic).to_string()
     } else if font_bold.is_some()
         || font_italic.is_some()
         || inherited_font_bold.is_some()
         || inherited_font_italic.is_some()
     {
         let base = base_family_from_pdf_name(&text_ctx.font_family);
-        pdf_font_name(base, bold, italic).to_string()
+        crate::fonts::pdf_font_name(base, bold, italic).to_string()
     } else {
         text_ctx.font_family.clone()
     }
@@ -1032,32 +1034,6 @@ fn base_family_from_pdf_name(name: &str) -> &str {
         "Courier"
     } else {
         "Helvetica"
-    }
-}
-
-/// Map (base_family, bold, italic) to a concrete PDF built-in font name.
-fn pdf_font_name(base: &str, bold: bool, italic: bool) -> &'static str {
-    if base.starts_with("Times") {
-        match (bold, italic) {
-            (true, true) => "Times-BoldItalic",
-            (true, false) => "Times-Bold",
-            (false, true) => "Times-Italic",
-            (false, false) => "Times-Roman",
-        }
-    } else if base.starts_with("Courier") {
-        match (bold, italic) {
-            (true, true) => "Courier-BoldOblique",
-            (true, false) => "Courier-Bold",
-            (false, true) => "Courier-Oblique",
-            (false, false) => "Courier",
-        }
-    } else {
-        match (bold, italic) {
-            (true, true) => "Helvetica-BoldOblique",
-            (true, false) => "Helvetica-Bold",
-            (false, true) => "Helvetica-Oblique",
-            (false, false) => "Helvetica",
-        }
     }
 }
 
@@ -1169,6 +1145,9 @@ fn render_image_with_resources(
     if let Some(png_info) = crate::parser::png::parse_png(&raw) {
         if let Some(name) = resources.register_png(&raw) {
             render_registered_raster_image(&name, png_info.width, png_info.height, request, out);
+            return;
+        }
+        if png_info.has_alpha() {
             return;
         }
         render_raster_image(
