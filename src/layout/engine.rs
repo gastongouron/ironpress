@@ -103,6 +103,14 @@ fn advance_positioned_ancestors_after_page_break(
     }
 }
 
+fn recurses_as_layout_child(tag: HtmlTag) -> bool {
+    tag.is_block() || tag == HtmlTag::Svg
+}
+
+fn collects_as_inline_text(tag: HtmlTag) -> bool {
+    tag != HtmlTag::Svg && tag.is_inline()
+}
+
 /// Counter state for CSS counters.
 #[derive(Debug, Default, Clone)]
 #[allow(dead_code)]
@@ -2015,7 +2023,7 @@ fn flatten_element(
                         &[],
                         fonts,
                     );
-                } else if child_el.tag.is_block() {
+                } else if recurses_as_layout_child(child_el.tag) {
                     flatten_element(
                         child_el,
                         &style,
@@ -2384,7 +2392,7 @@ fn flatten_element(
             let mut child_el_idx = 0;
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
-                    if child_el.tag.is_block() {
+                    if recurses_as_layout_child(child_el.tag) {
                         flatten_element(
                             child_el,
                             &style,
@@ -2627,7 +2635,7 @@ fn flatten_element(
             let mut child_el_idx = 0;
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
-                    if child_el.tag.is_block() {
+                    if recurses_as_layout_child(child_el.tag) {
                         flatten_element(
                             child_el,
                             &style,
@@ -4517,9 +4525,9 @@ fn flatten_table(
                         );
                         let mut runs = Vec::new();
                         let mut nested_rows = Vec::new();
-                        let recurse_descendants = cell_el.children.iter().any(|node| {
-                            matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br)
-                        });
+                        let recurse_descendants = cell_el.children.iter().any(
+                            |node| matches!(node, DomNode::Element(e) if recurses_as_layout_child(e.tag)),
+                        );
                         let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
                         text_ancestors.push(AncestorInfo {
                             element: cell_el,
@@ -4778,9 +4786,10 @@ fn flatten_table(
 
             let mut runs = Vec::new();
             let mut nested_rows = Vec::new();
-            let recurse_descendants = cell_el.children.iter().any(
-                |node| matches!(node, DomNode::Element(e) if !e.tag.is_inline() && e.tag != HtmlTag::Br),
-            );
+            let recurse_descendants = cell_el
+                .children
+                .iter()
+                .any(|node| matches!(node, DomNode::Element(e) if recurses_as_layout_child(e.tag)));
             let mut text_ancestors = cell_selector_ctx.ancestors.clone();
             text_ancestors.push(AncestorInfo {
                 element: cell_el,
@@ -5165,7 +5174,7 @@ fn collect_text_runs_inner(
                 }
             }
             DomNode::Element(el) => {
-                if el.tag.is_inline() || el.tag == HtmlTag::Br {
+                if collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br {
                     if el.tag == HtmlTag::Br {
                         runs.push(TextRun {
                             text: "\n".to_string(),
@@ -5378,7 +5387,24 @@ fn collect_table_cell_content_inner(
                         &selector_ctx.preceding_siblings,
                         fonts,
                     );
-                } else if recurse_blocks || el.tag.is_inline() || el.tag == HtmlTag::Br {
+                } else if el.tag == HtmlTag::Svg {
+                    flatten_element(
+                        el,
+                        parent_style,
+                        available_width,
+                        f32::INFINITY,
+                        nested_rows,
+                        None,
+                        rules,
+                        ancestors,
+                        0,
+                        child_index,
+                        element_sibling_count,
+                        &selector_ctx.preceding_siblings,
+                        fonts,
+                    );
+                } else if recurse_blocks || collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br
+                {
                     if el.tag == HtmlTag::Br {
                         push_line_break_run(runs, parent_style, fonts);
                     } else {
@@ -5390,7 +5416,7 @@ fn collect_table_cell_content_inner(
                             url,
                             rules,
                             fonts,
-                            el.tag.is_inline(),
+                            collects_as_inline_text(el.tag),
                             recurse_blocks,
                             false,
                             &child_ancestors,
