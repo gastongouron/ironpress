@@ -2459,27 +2459,21 @@ struct SvgPageImageSink<'a> {
     page_images: &'a mut Vec<ImageRef>,
 }
 
-impl crate::render::svg_to_pdf::SvgImageObjectSink for SvgPageImageSink<'_> {
-    fn register_png(&mut self, raw_png: &[u8]) -> Option<String> {
-        let obj_id = self.pdf_writer.add_raw_png_image_object(raw_png)?;
+impl SvgPageImageSink<'_> {
+    fn register_page_image(&mut self, obj_id: usize) -> String {
         let name = format!("Im{obj_id}");
         self.page_images.push(ImageRef {
             name: name.clone(),
             obj_id,
         });
-        Some(name)
+        name
     }
+}
 
-    fn register_jpeg(&mut self, raw_jpeg: &[u8], width: u32, height: u32) -> Option<String> {
-        let obj_id =
-            self.pdf_writer
-                .add_image_object(raw_jpeg, width, height, ImageFormat::Jpeg, None);
-        let name = format!("Im{obj_id}");
-        self.page_images.push(ImageRef {
-            name: name.clone(),
-            obj_id,
-        });
-        Some(name)
+impl crate::render::svg_to_pdf::SvgImageObjectSink for SvgPageImageSink<'_> {
+    fn register_raster(&mut self, raw_image: &[u8]) -> Option<String> {
+        let obj_id = self.pdf_writer.add_raw_raster_image_object(raw_image)?;
+        Some(self.register_page_image(obj_id))
     }
 }
 
@@ -2702,6 +2696,15 @@ impl PdfWriter {
         self.objects.push(header);
         self.binary_objects.insert(id, color_stream);
         Some(id)
+    }
+
+    pub(crate) fn add_raw_raster_image_object(&mut self, raw_image: &[u8]) -> Option<usize> {
+        if crate::parser::png::is_png(raw_image) {
+            return self.add_raw_png_image_object(raw_image);
+        }
+
+        let (width, height) = crate::parser::jpeg::parse_jpeg_dimensions(raw_image)?;
+        Some(self.add_image_object(raw_image, width, height, ImageFormat::Jpeg, None))
     }
 
     /// Embed a TrueType font and return the PDF resource name to reference it.

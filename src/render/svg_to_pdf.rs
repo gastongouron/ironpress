@@ -13,8 +13,7 @@ use crate::style::computed::{FontFamily, parse_font_stack};
 use std::fmt::Write as _;
 
 pub(crate) trait SvgImageObjectSink {
-    fn register_png(&mut self, raw_png: &[u8]) -> Option<String>;
-    fn register_jpeg(&mut self, raw_jpeg: &[u8], width: u32, height: u32) -> Option<String>;
+    fn register_raster(&mut self, raw_image: &[u8]) -> Option<String>;
 }
 
 pub(crate) struct SvgPdfResources<'a> {
@@ -36,14 +35,8 @@ impl<'a> SvgPdfResources<'a> {
         (self.shadings, self.shading_counter)
     }
 
-    fn register_png(&mut self, raw_png: &[u8]) -> Option<String> {
-        self.image_sink.as_deref_mut()?.register_png(raw_png)
-    }
-
-    fn register_jpeg(&mut self, raw_jpeg: &[u8], width: u32, height: u32) -> Option<String> {
-        self.image_sink
-            .as_deref_mut()?
-            .register_jpeg(raw_jpeg, width, height)
+    fn register_raster(&mut self, raw_image: &[u8]) -> Option<String> {
+        self.image_sink.as_deref_mut()?.register_raster(raw_image)
     }
 }
 
@@ -1142,41 +1135,13 @@ fn render_image_with_resources(
         return;
     }
 
-    if let Some(png_info) = crate::parser::png::parse_png(&raw) {
-        if let Some(name) = resources.register_png(&raw) {
-            render_registered_raster_image(&name, png_info.width, png_info.height, request, out);
-            return;
-        }
-        if png_info.has_alpha() {
-            return;
-        }
-        render_raster_image(
-            &png_info.idat_data,
-            png_info.width,
-            png_info.height,
-            RasterImageKind::Png {
-                channels: png_info.channels,
-                bit_depth: png_info.bit_depth,
-            },
-            request,
-            out,
-        );
-        return;
-    }
-
-    if let Some((image_width, image_height)) = crate::parser::jpeg::parse_jpeg_dimensions(&raw) {
-        if let Some(name) = resources.register_jpeg(&raw, image_width, image_height) {
+    if let Some(raster) = parse_raster_image(&raw) {
+        let (image_width, image_height) = raster.source_size();
+        if let Some(name) = resources.register_raster(&raw) {
             render_registered_raster_image(&name, image_width, image_height, request, out);
             return;
         }
-        render_raster_image(
-            &raw,
-            image_width,
-            image_height,
-            RasterImageKind::Jpeg,
-            request,
-            out,
-        );
+        raster.render_inline(&raw, request, out);
         return;
     }
 
@@ -1275,6 +1240,53 @@ fn render_raster_image(
     emit_raster_draw_prefix(placement.draw_box, out);
     emit_inline_image(data, source_width, source_height, kind, out);
     out.push_str("Q\n");
+}
+
+enum ParsedRasterImage {
+    Png(crate::parser::png::PngInfo),
+    Jpeg { width: u32, height: u32 },
+}
+
+impl ParsedRasterImage {
+    fn source_size(&self) -> (u32, u32) {
+        match self {
+            Self::Png(png_info) => (png_info.width, png_info.height),
+            Self::Jpeg { width, height } => (*width, *height),
+        }
+    }
+
+    fn render_inline(self, raw: &[u8], request: SvgPlacementRequest, out: &mut String) {
+        match self {
+            Self::Png(png_info) => {
+                if png_info.has_alpha() {
+                    return;
+                }
+                render_raster_image(
+                    &png_info.idat_data,
+                    png_info.width,
+                    png_info.height,
+                    RasterImageKind::Png {
+                        channels: png_info.channels,
+                        bit_depth: png_info.bit_depth,
+                    },
+                    request,
+                    out,
+                );
+            }
+            Self::Jpeg { width, height } => {
+                render_raster_image(raw, width, height, RasterImageKind::Jpeg, request, out);
+            }
+        }
+    }
+}
+
+fn parse_raster_image(raw: &[u8]) -> Option<ParsedRasterImage> {
+    if let Some(png_info) = crate::parser::png::parse_png(raw) {
+        return Some(ParsedRasterImage::Png(png_info));
+    }
+
+    let (width, height) = crate::parser::jpeg::parse_jpeg_dimensions(raw)?;
+    Some(ParsedRasterImage::Jpeg { width, height })
 }
 
 fn emit_raster_draw_prefix(draw_box: SvgViewportBox, out: &mut String) {
@@ -1440,12 +1452,7 @@ mod tests {
     }
 
     impl SvgImageObjectSink for TestImageSink {
-        fn register_png(&mut self, _raw_png: &[u8]) -> Option<String> {
-            self.next_id += 1;
-            Some(format!("Im{}", self.next_id))
-        }
-
-        fn register_jpeg(&mut self, _raw_jpeg: &[u8], _width: u32, _height: u32) -> Option<String> {
+        fn register_raster(&mut self, _raw_image: &[u8]) -> Option<String> {
             self.next_id += 1;
             Some(format!("Im{}", self.next_id))
         }
