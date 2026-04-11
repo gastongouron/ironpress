@@ -517,4 +517,45 @@ mod tests {
             "Helvetica-BoldOblique"
         );
     }
+
+    /// BUG P2-3: the default `line-height: normal` factor must be 1.2 for
+    /// Helvetica/Arial, matching Chrome's measured value.  A smaller constant
+    /// (e.g. 1.0) would produce tighter text than browsers render.
+    #[test]
+    fn normal_line_height_factor_helvetica_is_1_2() {
+        let custom_fonts = HashMap::new();
+        let factor = normal_line_height_factor(&FontFamily::Helvetica, false, false, &custom_fonts);
+        assert!(
+            (factor - 1.2).abs() < 0.001,
+            "Helvetica normal line-height should be 1.2 (Chrome parity), got {factor}"
+        );
+    }
+
+    #[test]
+    fn normal_line_height_factor_helvetica_bold_is_1_2() {
+        let custom_fonts = HashMap::new();
+        let factor = normal_line_height_factor(&FontFamily::Helvetica, true, false, &custom_fonts);
+        assert!(
+            (factor - 1.2).abs() < 0.001,
+            "Helvetica-Bold normal line-height should be 1.2, got {factor}"
+        );
+    }
+
+    #[test]
+    fn normal_line_height_factor_standard_fonts_all_1_2() {
+        let custom_fonts = HashMap::new();
+        for family in &[
+            FontFamily::Helvetica,
+            FontFamily::TimesRoman,
+            FontFamily::Courier,
+        ] {
+            for bold in [false, true] {
+                let factor = normal_line_height_factor(family, bold, false, &custom_fonts);
+                assert!(
+                    (factor - 1.2).abs() < 0.001,
+                    "{family:?} bold={bold} normal line-height should be 1.2, got {factor}"
+                );
+            }
+        }
+    }
 }

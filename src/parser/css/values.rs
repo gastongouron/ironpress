@@ -164,6 +164,13 @@ pub(crate) fn parse_color(val: &str) -> Option<CssValue> {
         return parse_hex_color(hex);
     }
 
+    if let Some(inner) = lower
+        .strip_prefix("rgba(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return parse_rgba_function(inner);
+    }
+
     lower
         .strip_prefix("rgb(")
         .and_then(|inner| inner.strip_suffix(')'))
@@ -310,6 +317,23 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword("auto".to_string()));
     }
 
+    // line-height: a bare number (e.g. `1.6`) is a unitless multiplier,
+    // not a length.  Only values with explicit units should be Length.
+    if property == "line-height" {
+        if lower == "normal" {
+            return Some(CssValue::Keyword("normal".into()));
+        }
+        // Try unit-based parsing first (px, pt, em, rem, %, etc.)
+        let has_unit = val
+            .trim()
+            .ends_with(|c: char| c.is_ascii_alphabetic() || c == '%');
+        if has_unit {
+            return parse_length(val);
+        }
+        // Bare number → unitless line-height multiplier
+        return val.trim().parse::<f32>().ok().map(CssValue::Number);
+    }
+
     parse_length(val)
 }
 
@@ -423,6 +447,31 @@ fn parse_rgb_function(inner: &str) -> Option<CssValue> {
         [r, g, b] => Some(CssValue::Color(Color::rgb(*r, *g, *b))),
         _ => None,
     }
+}
+
+/// Parse `rgba(r, g, b, a)` where alpha is 0.0–1.0.
+///
+/// The alpha channel is pre-composited against white so that the stored
+/// `Color` value can be used directly as an opaque RGB fill in PDF output
+/// without requiring a separate transparency mechanism.  For example,
+/// `rgba(239, 68, 68, 0.05)` becomes approximately `(252, 243, 243)`.
+fn parse_rgba_function(inner: &str) -> Option<CssValue> {
+    let parts: Vec<&str> = inner.splitn(4, ',').collect();
+    if parts.len() != 4 {
+        return None;
+    }
+    let r = parts[0].trim().parse::<u8>().ok()?;
+    let g = parts[1].trim().parse::<u8>().ok()?;
+    let b = parts[2].trim().parse::<u8>().ok()?;
+    let a: f32 = parts[3].trim().parse::<f32>().ok()?;
+    let a = a.clamp(0.0, 1.0);
+
+    // Pre-composite against white (255, 255, 255).
+    let blend = |channel: u8| -> u8 {
+        let c = channel as f32;
+        (c * a + 255.0 * (1.0 - a)).round() as u8
+    };
+    Some(CssValue::Color(Color::rgb(blend(r), blend(g), blend(b))))
 }
 
 fn hex_digit(byte: u8) -> Option<u8> {

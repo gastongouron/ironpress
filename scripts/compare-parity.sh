@@ -73,17 +73,46 @@ for layer in features combined edge-cases; do
             continue
         fi
 
-        # Resize rendered PNG to match reference dimensions if needed
+        # Resize both images to exactly the same dimensions to prevent compare failure
         ref_dims=$(identify -format "%wx%h" "$ref_png" 2>/dev/null || echo "")
         if [ -n "$ref_dims" ]; then
-            convert "$render_png" -resize "$ref_dims!" "$render_png" 2>/dev/null
+            # Force-resize rendered image to exact reference size (! overrides aspect ratio)
+            convert "$render_png" -resize "${ref_dims}!" "$render_png" 2>/dev/null
+            # Also force-resize reference to ensure both end up at identical dimensions
+            # (needed when identify returns a size that convert rounds differently)
+            resized_ref="$TMPDIR_WORK/${layer}_${name}_ref.png"
+            convert "$ref_png" -resize "${ref_dims}!" "$resized_ref" 2>/dev/null
+        else
+            resized_ref="$ref_png"
+        fi
+
+        # Verify dimensions match before comparing
+        render_dims=$(identify -format "%wx%h" "$render_png" 2>/dev/null || echo "")
+        actual_ref_dims=$(identify -format "%wx%h" "$resized_ref" 2>/dev/null || echo "")
+        if [ "$render_dims" != "$actual_ref_dims" ]; then
+            # Dimensions still differ; force both to render_dims to guarantee a match
+            canonical_dims="$render_dims"
+            convert "$render_png"   -resize "${canonical_dims}!" "$render_png"   2>/dev/null
+            convert "$resized_ref"  -resize "${canonical_dims}!" "$resized_ref"  2>/dev/null
         fi
 
         # Compare with ImageMagick AE metric (absolute error = diff pixel count)
+        # NOTE: compare outputs the metric value on STDERR, not stdout
         diff_png="$TMPDIR_WORK/${layer}_${name}_diff.png"
-        diff_pixels=$(compare -metric AE "$ref_png" "$render_png" "$diff_png" 2>&1 || true)
-        # compare exits non-zero when images differ; capture output regardless
+        diff_pixels=$(compare -metric AE "$resized_ref" "$render_png" "$diff_png" 2>&1 || true)
         diff_pixels=$(echo "$diff_pixels" | tr -d '[:space:]')
+
+        # If compare produced no numeric output, try extracting from error message
+        if ! [[ "$diff_pixels" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            # compare sometimes outputs "NNN image.png" — extract the number
+            numeric=$(echo "$diff_pixels" | grep -oE '^[0-9]+(\.[0-9]+)?' || echo "")
+            if [ -n "$numeric" ]; then
+                diff_pixels="$numeric"
+            else
+                echo "# compare failed for $layer/$name: $diff_pixels" >&2
+                diff_pixels=$(identify -format "%[fx:w*h]" "$resized_ref" 2>/dev/null || echo "0")
+            fi
+        fi
 
         # Calculate total pixels from reference
         total_pixels=$(identify -format "%[fx:w*h]" "$ref_png" 2>/dev/null || echo "1")
