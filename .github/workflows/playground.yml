@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'playground/**'
+      - 'tests/fixtures/**'
       - 'Cargo.toml'
 
 permissions:

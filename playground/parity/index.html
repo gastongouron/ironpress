@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ironpress — Chromium Parity Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header h1 span { color: var(--text-muted); font-weight: 400; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.pass { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.warn { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge.fail { background: rgba(248,81,73,0.15); color: var(--red); }
+  nav {
+    display: flex;
+    gap: 8px;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  nav button {
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  nav button:hover { color: var(--text); border-color: var(--text-muted); }
+  nav button.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .stat-card .delta { font-size: 13px; margin-top: 2px; }
+  .fixtures { display: grid; gap: 16px; }
+  .fixture-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .fixture-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .fixture-header:hover { background: rgba(88,166,255,0.04); }
+  .fixture-name { font-weight: 600; font-size: 14px; }
+  .fixture-meta { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); }
+  .fixture-body { display: none; padding: 16px; }
+  .fixture-body.open { display: block; }
+  .comparison {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .comparison .panel { text-align: center; }
+  .comparison .panel-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .comparison img {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .slider-container {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: col-resize;
+    background: #fff;
+  }
+  .slider-container img {
+    width: 100%;
+    display: block;
+    border: none;
+    border-radius: 0;
+  }
+  .slider-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+  .slider-overlay img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    cursor: col-resize;
+    z-index: 10;
+  }
+  .slider-handle::after {
+    content: '⟷';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--accent);
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .no-images {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .no-images code {
+    display: block;
+    margin-top: 8px;
+    background: var(--bg);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .assertions {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .assertions h4 { color: var(--text-muted); margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
+  .assertions li { margin-left: 16px; margin-bottom: 4px; color: var(--text-muted); }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ironpress <span>/ parity dashboard</span></h1>
+  <span class="badge pass" id="overall-badge">loading...</span>
+</header>
+
+<nav id="layer-nav">
+  <button class="active" data-layer="all">All (24)</button>
+  <button data-layer="features">Features (12)</button>
+  <button data-layer="combined">Combined (6)</button>
+  <button data-layer="edge-cases">Edge Cases (6)</button>
+</nav>
+
+<div class="container">
+  <div class="summary" id="summary">
+    <div class="stat-card">
+      <div class="label">Fixtures</div>
+      <div class="value" id="stat-fixtures">24</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total PDF Size</div>
+      <div class="value" id="stat-size">—</div>
+      <div class="delta" id="stat-size-delta"></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Render Time</div>
+      <div class="value" id="stat-time">—</div>
+      <div class="delta" id="stat-time-delta"></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Pixel Diff</div>
+      <div class="value" id="stat-diff">—</div>
+    </div>
+  </div>
+
+  <div class="fixtures" id="fixtures"></div>
+</div>
+
+<footer>
+  <a href="../">Playground</a> · <a href="https://github.com/gastongouron/ironpress">GitHub</a> · <a href="https://docs.rs/ironpress">Docs</a>
+</footer>
+
+<script>
+// Fixture definitions — updated by CI with actual data
+const FIXTURES = [
+  // Layer 1: Features
+  { name: "typography", layer: "features", description: "Font size, weight, style, family, spacing" },
+  { name: "box-model", layer: "features", description: "Margin, padding, border, border-radius, box-sizing" },
+  { name: "colors-backgrounds", layer: "features", description: "Named colors, hex, rgb, gradients, opacity" },
+  { name: "flexbox", layer: "features", description: "Direction, justify, align, wrap, gap, grow/shrink" },
+  { name: "grid", layer: "features", description: "Template columns, fr, auto, repeat, minmax, gap" },
+  { name: "tables", layer: "features", description: "Border-collapse, spacing, colspan, rowspan, fixed layout" },
+  { name: "images-svg", layer: "features", description: "Inline SVG: rect, circle, path, text, gradient, clipPath" },
+  { name: "positioning", layer: "features", description: "Relative, absolute, z-index, float, clear, overflow" },
+  { name: "math", layer: "features", description: "Inline/display LaTeX: fractions, integrals, Greek, matrices" },
+  { name: "pseudo-elements", layer: "features", description: "::before/::after, content, counters, block pseudo" },
+  { name: "transforms", layer: "features", description: "Rotate, scale, translate, box-shadow" },
+  { name: "backgrounds-advanced", layer: "features", description: "SVG data URI, background-size/position/repeat, blur" },
+  // Layer 2: Combined
+  { name: "simple-report", layer: "combined", description: "Headings, paragraphs, tables, lists" },
+  { name: "invoice", layer: "combined", description: "Header with SVG logo, line items, totals" },
+  { name: "resume", layer: "combined", description: "Multi-column flex layout, styled headings" },
+  { name: "article", layer: "combined", description: "Long-form text, blockquotes, code blocks" },
+  { name: "math-paper", layer: "combined", description: "Academic paper with equations, references" },
+  { name: "dashboard", layer: "combined", description: "Progress bars, flex cards, tables, SVG charts" },
+  // Layer 3: Edge cases
+  { name: "deep-nesting", layer: "edge-cases", description: "25 levels of nested divs" },
+  { name: "long-table", layer: "edge-cases", description: "100-row table spanning multiple pages" },
+  { name: "page-breaks", layer: "edge-cases", description: "Explicit page-break-before/after" },
+  { name: "overflow", layer: "edge-cases", description: "overflow:hidden with border-radius, clipping" },
+  { name: "empty-elements", layer: "edge-cases", description: "Empty divs, zero dimensions, display:none" },
+  { name: "unicode", layer: "edge-cases", description: "CJK, RTL, emoji, special characters" },
+];
+
+// Results — populated by CI (this block is replaced by the deploy script)
+// <!-- PARITY_DATA_START -->
+const RESULTS = {};
+// <!-- PARITY_DATA_END -->
+
+let activeLayer = 'all';
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function formatTime(us) {
+  if (us < 1000) return us + ' us';
+  if (us < 1000000) return (us/1000).toFixed(1) + ' ms';
+  return (us/1000000).toFixed(2) + ' s';
+}
+
+function diffBadge(pct) {
+  if (pct === null || pct === undefined) return '<span class="badge">n/a</span>';
+  const cls = pct <= 2 ? 'pass' : pct <= 5 ? 'warn' : 'fail';
+  return `<span class="badge ${cls}">${pct.toFixed(2)}%</span>`;
+}
+
+function renderFixtures() {
+  const container = document.getElementById('fixtures');
+  const filtered = FIXTURES.filter(f => activeLayer === 'all' || f.layer === activeLayer);
+
+  container.innerHTML = filtered.map(f => {
+    const key = `${f.layer}/${f.name}`;
+    const r = RESULTS[key] || {};
+    const hasImages = r.chromium_img || r.ironpress_img;
+
+    return `
+    <div class="fixture-card" data-layer="${f.layer}">
+      <div class="fixture-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div>
+          <span class="fixture-name">${f.name}</span>
+          <span style="color:var(--text-muted);font-size:12px;margin-left:8px">${f.layer}</span>
+        </div>
+        <div class="fixture-meta">
+          ${r.size_bytes ? `<span>${formatBytes(r.size_bytes)}</span>` : ''}
+          ${r.render_time_us ? `<span>${formatTime(r.render_time_us)}</span>` : ''}
+          ${r.diff_pct !== undefined ? diffBadge(r.diff_pct) : ''}
+        </div>
+      </div>
+      <div class="fixture-body">
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">${f.description}</p>
+        ${hasImages ? `
+        <div class="comparison">
+          <div class="panel">
+            <div class="panel-label">Chromium (reference)</div>
+            <img src="${r.chromium_img || ''}" alt="Chromium render" onerror="this.parentElement.innerHTML='<div class=no-images>No reference image</div>'">
+          </div>
+          <div class="panel">
+            <div class="panel-label">ironpress</div>
+            <img src="${r.ironpress_img || ''}" alt="ironpress render" onerror="this.parentElement.innerHTML='<div class=no-images>No render image</div>'">
+          </div>
+          <div class="panel">
+            <div class="panel-label">Diff (${r.diff_pct !== undefined ? r.diff_pct.toFixed(2) + '%' : 'n/a'})</div>
+            <img src="${r.diff_img || ''}" alt="Pixel diff" onerror="this.parentElement.innerHTML='<div class=no-images>No diff image</div>'">
+          </div>
+        </div>
+        ` : `
+        <div class="no-images">
+          Visual comparison images are generated by CI.<br>
+          <code>bash scripts/generate-references.sh && bash scripts/compare-parity.sh /tmp/pdfs</code>
+        </div>
+        `}
+        ${r.visual_assertions ? `
+        <div class="assertions">
+          <h4>Visual Assertions</h4>
+          <ul>${r.visual_assertions.map(a => `<li>${a}</li>`).join('')}</ul>
+        </div>
+        ` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Layer navigation
+document.querySelectorAll('#layer-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#layer-nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeLayer = btn.dataset.layer;
+    renderFixtures();
+  });
+});
+
+// Summary stats
+function updateSummary() {
+  const keys = Object.keys(RESULTS);
+  if (keys.length === 0) return;
+
+  const totalSize = keys.reduce((s, k) => s + (RESULTS[k].size_bytes || 0), 0);
+  const totalTime = keys.reduce((s, k) => s + (RESULTS[k].render_time_us || 0), 0);
+  const diffs = keys.filter(k => RESULTS[k].diff_pct !== undefined).map(k => RESULTS[k].diff_pct);
+  const avgDiff = diffs.length > 0 ? diffs.reduce((a, b) => a + b, 0) / diffs.length : null;
+
+  document.getElementById('stat-fixtures').textContent = keys.length;
+  document.getElementById('stat-size').textContent = formatBytes(totalSize);
+  document.getElementById('stat-time').textContent = formatTime(totalTime);
+  document.getElementById('stat-diff').textContent = avgDiff !== null ? avgDiff.toFixed(2) + '%' : '—';
+
+  const badge = document.getElementById('overall-badge');
+  if (avgDiff === null) {
+    badge.textContent = 'no data';
+    badge.className = 'badge';
+  } else if (avgDiff <= 2) {
+    badge.textContent = avgDiff.toFixed(1) + '% avg diff';
+    badge.className = 'badge pass';
+  } else if (avgDiff <= 5) {
+    badge.textContent = avgDiff.toFixed(1) + '% avg diff';
+    badge.className = 'badge warn';
+  } else {
+    badge.textContent = avgDiff.toFixed(1) + '% avg diff';
+    badge.className = 'badge fail';
+  }
+}
+
+renderFixtures();
+updateSummary();
+</script>
+</body>
+</html>
