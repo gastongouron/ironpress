@@ -114,4 +114,106 @@ mod tests {
         assert_eq!(decoded.icc_profile.as_deref(), Some(icc_profile.as_slice()));
         assert_eq!(decoded.rgb_data.len(), 3);
     }
+
+    #[test]
+    fn parse_jpeg_dimensions_valid() {
+        // Encode a small RGB JPEG and confirm parse_jpeg_dimensions returns the right size.
+        let pixels = [128u8, 64, 32, 200, 100, 50, 10, 20, 30, 40, 80, 160];
+        let mut encoded = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new(&mut encoded)
+            .write_image(&pixels, 2, 2, image::ExtendedColorType::Rgb8)
+            .expect("jpeg encoding should succeed");
+        let dims = parse_jpeg_dimensions(&encoded);
+        assert_eq!(dims, Some((2, 2)));
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_rejects_empty() {
+        assert_eq!(parse_jpeg_dimensions(&[]), None);
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_rejects_wrong_magic() {
+        // Valid length but wrong SOI marker bytes.
+        assert_eq!(parse_jpeg_dimensions(&[0x00, 0xD8, 0xFF, 0xE0]), None);
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_rejects_too_short() {
+        // Only the SOI bytes — not enough for any marker segment.
+        assert_eq!(parse_jpeg_dimensions(&[0xFF, 0xD8, 0xFF]), None);
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_stops_at_eoi_marker() {
+        // A JPEG that contains an EOI (0xD9) marker before any SOF — should return None.
+        let data: &[u8] = &[
+            0xFF, 0xD8, // SOI
+            0xFF, 0xD9, // EOI — parser must stop here
+            0xFF, 0xC0, // SOF0 — should never be reached
+            0x00, 0x0B, // length = 11
+            0x08, // precision
+            0x00, 0x01, // height = 1
+            0x00, 0x01, // width  = 1
+            0x01, // components
+        ];
+        assert_eq!(parse_jpeg_dimensions(data), None);
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_rejects_invalid_segment_length() {
+        // Segment length of 1 is invalid (must be >= 2).
+        let data: &[u8] = &[
+            0xFF, 0xD8, // SOI
+            0xFF, 0xE0, // APP0 marker
+            0x00, 0x01, // length = 1 — invalid
+        ];
+        assert_eq!(parse_jpeg_dimensions(data), None);
+    }
+
+    #[test]
+    fn parse_jpeg_dimensions_rejects_zero_width() {
+        // SOF0 segment with zero width — must be rejected.
+        let data: &[u8] = &[
+            0xFF, 0xD8, // SOI
+            0xFF, 0xC0, // SOF0
+            0x00, 0x0B, // length = 11
+            0x08, // precision
+            0x00, 0x01, // height = 1
+            0x00, 0x00, // width  = 0  ← invalid
+            0x01, 0x01, 0x11, 0x00, // component data
+        ];
+        assert_eq!(parse_jpeg_dimensions(data), None);
+    }
+
+    #[test]
+    fn decode_jpeg_grayscale_expands_to_rgb() {
+        // Encode a 1-pixel grayscale JPEG and verify decode_jpeg_for_pdf expands it to 3 bytes.
+        let pixels = [200u8];
+        let mut encoded = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new(&mut encoded)
+            .write_image(&pixels, 1, 1, image::ExtendedColorType::L8)
+            .expect("jpeg encoding should succeed");
+
+        let decoded = decode_jpeg_for_pdf(&encoded).expect("grayscale jpeg should decode");
+        assert_eq!(decoded.width, 1);
+        assert_eq!(decoded.height, 1);
+        // Grayscale expanded to RGB: all three channels equal the original luma value.
+        assert_eq!(decoded.rgb_data.len(), 3);
+        assert!(
+            decoded
+                .rgb_data
+                .iter()
+                .all(|&b| (b as i32 - 200i32).abs() <= 5),
+            "grayscale pixel should expand to near-equal R/G/B values, got {:?}",
+            decoded.rgb_data
+        );
+    }
+
+    #[test]
+    fn decode_jpeg_for_pdf_rejects_non_jpeg() {
+        // Random bytes are not a valid JPEG — decode should return None.
+        let data = b"not a jpeg at all";
+        assert!(decode_jpeg_for_pdf(data).is_none());
+    }
 }
