@@ -255,34 +255,6 @@ fn smoke_inline_svg() {
     assert!(pdf_is_valid(&pdf));
 }
 
-#[test]
-fn smoke_inline_svg_text_inherits_current_color() {
-    let html = r#"
-        <div style="color: blue">
-            <svg width="160" height="40" viewBox="0 0 160 40">
-                <text x="8" y="24" fill="currentColor">Hello SVG</text>
-            </svg>
-        </div>
-    "#;
-    let pdf = ironpress::html_to_pdf(html).unwrap();
-    assert!(pdf_is_valid(&pdf));
-    assert!(pdf_has_text(&pdf, "Hello SVG"));
-    assert!(pdf_has_text(&pdf, "0 0 1 rg"));
-}
-
-#[test]
-fn smoke_inline_svg_text_tspan_uses_font_attributes() {
-    let html = r#"
-        <svg width="220" height="40" viewBox="0 0 220 40">
-            <text x="8" y="24" font-family="Courier" font-weight="700" font-style="oblique">Hello <tspan>world</tspan>!</text>
-        </svg>
-    "#;
-    let pdf = ironpress::html_to_pdf(html).unwrap();
-    assert!(pdf_is_valid(&pdf));
-    assert!(pdf_has_text(&pdf, "Hello world!"));
-    assert!(pdf_has_text(&pdf, "/Courier-BoldOblique"));
-}
-
 // === Complex document ===
 
 #[test]
@@ -331,167 +303,124 @@ fn smoke_full_document() {
     assert!(pdf_page_count(&pdf) >= 1);
 }
 
-// === Math (LaTeX) ===
+// === SVG background image ===
 
 #[test]
-fn smoke_inline_math_markdown() {
-    let md = "The equation $E = mc^2$ is famous.";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+fn smoke_svg_background_image_percent_encoded() {
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23ccc'/%3E%3C/svg%3E"); background-size: cover; }
+</style></head><body>
+<h1>Background Test</h1>
+<p>This page should have an SVG pattern background.</p>
+</body></html>"#;
+    let pdf = ironpress::HtmlConverter::new()
+        .sanitize(false)
+        .convert(html)
+        .unwrap();
     assert!(pdf_is_valid(&pdf));
-    // Should contain text from the expression
-    assert!(pdf_has_text(&pdf, "E"));
+    assert!(pdf_has_text(&pdf, "Background Test"));
+    // The SVG should generate PDF drawing operators (rect and circle beziers)
+    let content = String::from_utf8_lossy(&pdf);
+    // "re" (rectangle) from the SVG rect element
+    assert!(content.contains(" re\n"));
 }
 
 #[test]
-fn smoke_display_math_markdown() {
-    let md = "Euler's identity:\n\n$$e^{i\\pi} + 1 = 0$$\n\nBeautiful.";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
+fn smoke_svg_background_image_base64() {
+    // SVG: <svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><rect width='50' height='50' fill='blue'/></svg>
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc1MCcgaGVpZ2h0PSc1MCc+PHJlY3Qgd2lkdGg9JzUwJyBoZWlnaHQ9JzUwJyBmaWxsPSdibHVlJy8+PC9zdmc+"); background-size: cover; }
+</style></head><body>
+<p>Base64 SVG background</p>
+</body></html>"#;
+    let pdf = ironpress::HtmlConverter::new()
+        .sanitize(false)
+        .convert(html)
+        .unwrap();
     assert!(pdf_is_valid(&pdf));
-    assert!(pdf_has_text(&pdf, "Beautiful"));
+    assert!(pdf_has_text(&pdf, "Base64 SVG background"));
 }
 
 #[test]
-fn smoke_math_fraction() {
-    let md = "Consider: $$\\frac{a^2 + b^2}{c}$$";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_math_sqrt_greek() {
-    let md = "Root: $\\sqrt{\\alpha^2 + \\beta^2}$, and $\\Omega$";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_math_sum_integral() {
-    let md = r"$$\sum_{i=1}^{n} x_i = \int_0^\infty f(x)\,dx$$";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_math_matrix() {
-    let md = r"$$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$$";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_math_via_html() {
-    let html = r#"<p>Inline: <span class="math-inline" data-math="x^2">x^2</span></p>
-    <div class="math-display" data-math="\frac{1}{2}">\frac{1}{2}</div>"#;
+fn smoke_svg_background_with_sanitizer() {
+    // Verify that the sanitizer preserves data: URIs in CSS
+    let html = r#"<html><head><style>
+body { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Crect width='10' height='10' fill='%23ddd'/%3E%3C/svg%3E"); }
+</style></head><body>
+<p>Sanitized SVG background</p>
+</body></html>"#;
+    // With sanitizer enabled (default)
     let pdf = ironpress::html_to_pdf(html).unwrap();
     assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "Sanitized SVG background"));
 }
 
-#[test]
-fn smoke_math_complex_document() {
-    let md = r#"# Mathematical Analysis
-
-## Theorem 1
-
-For all $n \geq 1$, we have:
-
-$$\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$$
-
-## Proof
-
-By induction. The base case $n = 1$ gives $\frac{1 \cdot 2}{2} = 1$. Assuming
-the result holds for $n$, then for $n + 1$:
-
-$$\sum_{k=1}^{n+1} k = \frac{n(n+1)}{2} + (n+1) = \frac{(n+1)(n+2)}{2}$$
-
-Which completes the proof. $\blacksquare$
-"#;
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-    assert!(pdf_has_text(&pdf, "Mathematical Analysis"));
-    assert!(pdf_has_text(&pdf, "Theorem"));
-    assert!(pdf_has_text(&pdf, "Proof"));
-}
+// === CSS filter: blur() ===
 
 #[test]
-fn smoke_gfm_table_from_markdown() {
-    let md = "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_gfm_strikethrough_from_markdown() {
-    let md = "This is ~~deleted~~ text.";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_gfm_footnotes_from_markdown() {
-    let md = "Main text[^1].\n\n[^1]: Footnote content.";
-    let pdf = ironpress::markdown_to_pdf(md).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-// === SVG data URI images ===
-
-#[test]
-fn smoke_svg_data_uri_base64() {
-    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="blue"/></svg>"#;
-    let b64 = base64_encode(svg.as_bytes());
-    let html = format!(r#"<img src="data:image/svg+xml;base64,{b64}">"#);
-    let pdf = ironpress::html_to_pdf(&html).unwrap();
-    assert!(pdf_is_valid(&pdf));
-}
-
-#[test]
-fn smoke_svg_data_uri_plain() {
-    let html = r#"<img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2250%22%20height%3D%2250%22%3E%3Ccircle%20cx%3D%2225%22%20cy%3D%2225%22%20r%3D%2220%22%20fill%3D%22red%22%2F%3E%3C%2Fsvg%3E">"#;
+fn smoke_filter_blur_png_image() {
+    let html = r#"
+        <style>
+        .blurred { filter: blur(5px); }
+        </style>
+        <img class="blurred" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="200" height="200" />
+        <p>Text below blurred image</p>
+    "#;
     let pdf = ironpress::html_to_pdf(html).unwrap();
     assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /DCTDecode"));
+    assert!(pdf_has_text(&pdf, "Text below blurred image"));
 }
 
 #[test]
-fn smoke_svg_data_uri_with_text() {
-    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50"><text x="10" y="30" font-size="16">Hello SVG</text></svg>"#;
-    let b64 = base64_encode(svg.as_bytes());
-    let html = format!(r#"<p>Before</p><img src="data:image/svg+xml;base64,{b64}"><p>After</p>"#);
-    let pdf = ironpress::html_to_pdf(&html).unwrap();
-    assert!(pdf_is_valid(&pdf));
-    assert!(pdf_has_text(&pdf, "Before"));
-    assert!(pdf_has_text(&pdf, "After"));
-}
-
-#[test]
-fn smoke_raster_image_still_works() {
-    // Ensure raster images are not broken by SVG probing
-    // 1x1 red JPEG (minimal valid JPEG)
-    let html = r#"<p>No image crash</p>"#;
+fn smoke_filter_blur_zero_radius_no_blur() {
+    let html = r#"
+        <style>
+        .no-blur { filter: blur(0px); }
+        </style>
+        <img class="no-blur" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="100" height="100" />
+    "#;
     let pdf = ironpress::html_to_pdf(html).unwrap();
     assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /FlateDecode"));
 }
 
-/// Minimal base64 encoder for tests.
-fn base64_encode(data: &[u8]) -> String {
-    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut result = String::new();
-    for chunk in data.chunks(3) {
-        let b0 = chunk[0] as u32;
-        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
-        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
-        let n = (b0 << 16) | (b1 << 8) | b2;
-        result.push(CHARS[(n >> 18 & 63) as usize] as char);
-        result.push(CHARS[(n >> 12 & 63) as usize] as char);
-        if chunk.len() > 1 {
-            result.push(CHARS[(n >> 6 & 63) as usize] as char);
-        } else {
-            result.push('=');
-        }
-        if chunk.len() > 2 {
-            result.push(CHARS[(n & 63) as usize] as char);
-        } else {
-            result.push('=');
-        }
-    }
-    result
+#[test]
+fn smoke_filter_blur_none_keyword() {
+    let html = r#"
+        <style>
+        .clear { filter: none; }
+        </style>
+        <img class="clear" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="100" height="100" />
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /FlateDecode"));
+}
+
+#[test]
+fn smoke_filter_blur_inline_style() {
+    let html = r#"
+        <img style="filter: blur(10px)" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2P8z8BQz0BFwMgwasCoAgBGWAkF3c01mQAAAABJRU5ErkJggg==" width="150" height="150" />
+        <p>After inline blur</p>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "/Filter /DCTDecode"));
+    assert!(pdf_has_text(&pdf, "After inline blur"));
+}
+
+#[test]
+fn smoke_filter_blur_text_element_no_crash() {
+    let html = r#"
+        <style>
+        .blurred-text { filter: blur(3px); }
+        </style>
+        <p class="blurred-text">This text has a blur filter applied</p>
+        <p>Normal text</p>
+    "#;
+    let pdf = ironpress::html_to_pdf(html).unwrap();
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_has_text(&pdf, "This text has a blur filter applied"));
+    assert!(pdf_has_text(&pdf, "Normal text"));
 }

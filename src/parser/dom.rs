@@ -31,6 +31,8 @@ pub enum HtmlTag {
     Td,
     Th,
     Caption,
+    Colgroup,
+    Col,
     Ul,
     Ol,
     Li,
@@ -69,8 +71,6 @@ pub enum HtmlTag {
     Audio,
     Progress,
     Meter,
-    Colgroup,
-    Col,
     Unknown,
 }
 
@@ -105,6 +105,8 @@ impl HtmlTag {
             "td" => Self::Td,
             "th" => Self::Th,
             "caption" => Self::Caption,
+            "colgroup" => Self::Colgroup,
+            "col" => Self::Col,
             "ul" => Self::Ul,
             "ol" => Self::Ol,
             "li" => Self::Li,
@@ -143,8 +145,6 @@ impl HtmlTag {
             "audio" => Self::Audio,
             "progress" => Self::Progress,
             "meter" => Self::Meter,
-            "colgroup" => Self::Colgroup,
-            "col" => Self::Col,
             _ => Self::Unknown,
         }
     }
@@ -189,7 +189,6 @@ impl HtmlTag {
                 | Self::Address
                 | Self::Details
                 | Self::Summary
-                | Self::Svg
                 | Self::Video
                 | Self::Textarea
         )
@@ -214,6 +213,8 @@ impl HtmlTag {
                 | Self::Ins
                 | Self::Mark
                 | Self::Abbr
+                | Self::Img
+                | Self::Svg
                 | Self::Input
                 | Self::Select
                 | Self::Audio
@@ -224,14 +225,14 @@ impl HtmlTag {
 }
 
 /// A node in the internal DOM tree.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DomNode {
     Element(ElementNode),
     Text(String),
 }
 
 /// An HTML element with tag, attributes, and children.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElementNode {
     pub tag: HtmlTag,
     /// The original tag name as it appeared in the HTML (lowercase).
@@ -305,6 +306,8 @@ impl ElementNode {
             HtmlTag::Td => "td",
             HtmlTag::Th => "th",
             HtmlTag::Caption => "caption",
+            HtmlTag::Colgroup => "colgroup",
+            HtmlTag::Col => "col",
             HtmlTag::Ul => "ul",
             HtmlTag::Ol => "ol",
             HtmlTag::Li => "li",
@@ -343,8 +346,6 @@ impl ElementNode {
             HtmlTag::Audio => "audio",
             HtmlTag::Progress => "progress",
             HtmlTag::Meter => "meter",
-            HtmlTag::Colgroup => "colgroup",
-            HtmlTag::Col => "col",
             HtmlTag::Unknown => "unknown",
         }
     }
@@ -386,6 +387,8 @@ mod tests {
         assert_eq!(HtmlTag::from_tag_name("tbody"), HtmlTag::Tbody);
         assert_eq!(HtmlTag::from_tag_name("tfoot"), HtmlTag::Tfoot);
         assert_eq!(HtmlTag::from_tag_name("caption"), HtmlTag::Caption);
+        assert_eq!(HtmlTag::from_tag_name("colgroup"), HtmlTag::Colgroup);
+        assert_eq!(HtmlTag::from_tag_name("col"), HtmlTag::Col);
         assert_eq!(HtmlTag::from_tag_name("dl"), HtmlTag::Dl);
         assert_eq!(HtmlTag::from_tag_name("dt"), HtmlTag::Dt);
         assert_eq!(HtmlTag::from_tag_name("dd"), HtmlTag::Dd);
@@ -493,6 +496,8 @@ mod tests {
             (HtmlTag::Td, "td"),
             (HtmlTag::Th, "th"),
             (HtmlTag::Caption, "caption"),
+            (HtmlTag::Colgroup, "colgroup"),
+            (HtmlTag::Col, "col"),
             (HtmlTag::Ul, "ul"),
             (HtmlTag::Ol, "ol"),
             (HtmlTag::Li, "li"),

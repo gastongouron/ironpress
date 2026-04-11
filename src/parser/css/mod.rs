@@ -12,7 +12,7 @@ mod values;
 #[cfg(test)]
 mod values_tests;
 
-pub(crate) use imports::extract_url_path;
+pub(crate) use imports::{extract_svg_data_uri, extract_url_path};
 #[allow(unused_imports)]
 pub use imports::{is_path_within, parse_import_rules, resolve_imports};
 pub use inline::parse_inline_style;
@@ -31,7 +31,9 @@ pub use page::{parse_font_face_rules, parse_page_rules};
 #[cfg(test)]
 pub(crate) use rules::parse_stylesheet;
 pub(crate) use rules::parse_stylesheet_with_context;
-pub use selectors::{selector_matches, selector_matches_with_context};
+#[cfg(test)]
+pub(crate) use selectors::selector_matches;
+pub use selectors::selector_matches_with_context;
 pub(crate) use values::{is_css_wide_keyword, parse_length};
 #[cfg(test)]
 pub(crate) use values::{

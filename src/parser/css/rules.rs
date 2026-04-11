@@ -157,7 +157,6 @@ mod tests {
 
     #[test]
     fn parse_stylesheet_with_context_none() {
-        use super::super::MediaContext;
         use super::parse_stylesheet_with_context;
         let rules = parse_stylesheet_with_context("p { color: red }", None);
         assert_eq!(rules.len(), 1);

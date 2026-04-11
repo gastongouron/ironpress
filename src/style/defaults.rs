@@ -89,16 +89,16 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("margin-bottom", CssValue::Length(4.0));
         }
         HtmlTag::Td => {
-            style.set("padding-top", CssValue::Length(4.0));
-            style.set("padding-right", CssValue::Length(6.0));
-            style.set("padding-bottom", CssValue::Length(4.0));
-            style.set("padding-left", CssValue::Length(6.0));
+            style.set("padding-top", CssValue::Length(0.75));
+            style.set("padding-right", CssValue::Length(0.75));
+            style.set("padding-bottom", CssValue::Length(0.75));
+            style.set("padding-left", CssValue::Length(0.75));
         }
         HtmlTag::Th => {
-            style.set("padding-top", CssValue::Length(4.0));
-            style.set("padding-right", CssValue::Length(6.0));
-            style.set("padding-bottom", CssValue::Length(4.0));
-            style.set("padding-left", CssValue::Length(6.0));
+            style.set("padding-top", CssValue::Length(0.75));
+            style.set("padding-right", CssValue::Length(0.75));
+            style.set("padding-bottom", CssValue::Length(0.75));
+            style.set("padding-left", CssValue::Length(0.75));
             style.set("font-weight", CssValue::Keyword("bold".into()));
         }
         HtmlTag::Blockquote => {

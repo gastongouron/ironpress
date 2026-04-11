@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use crate::util::decode_base64;
+
 use super::{ImportRule, preprocess_media_queries};
 
 /// Maximum recursion depth for @import processing.
@@ -26,6 +28,33 @@ pub(crate) fn extract_url_path(val: &str) -> Option<String> {
         .to_string();
 
     if path.is_empty() { None } else { Some(path) }
+}
+
+pub(crate) fn extract_svg_data_uri(val: &str) -> Option<String> {
+    let lower = val.to_ascii_lowercase();
+    let start = lower.find("url(")?;
+    let after_url = val.get(start + 4..)?;
+    let end = after_url.rfind(')')?;
+    let inner = after_url.get(..end)?.trim();
+    let inner = inner.trim_matches('"').trim_matches('\'').trim();
+
+    let inner_lower = inner.to_ascii_lowercase();
+    if !inner_lower.starts_with("data:image/svg+xml") {
+        return None;
+    }
+
+    let after_mime = inner.get("data:image/svg+xml".len()..)?;
+    let (params, data) = after_mime.split_once(',')?;
+
+    if params
+        .split(';')
+        .any(|param| param.eq_ignore_ascii_case("base64"))
+    {
+        let decoded = decode_base64(data)?;
+        String::from_utf8(decoded).ok()
+    } else {
+        Some(percent_decode(data))
+    }
 }
 
 /// Parse `@import` rules from a CSS string.
@@ -100,6 +129,35 @@ fn extract_import_rules(css: &str) -> Vec<ImportRule> {
     }
 
     rules
+}
+
+fn percent_decode(input: &str) -> String {
+    let mut out = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hi = hex_val(bytes[i + 1]);
+            let lo = hex_val(bytes[i + 2]);
+            if let (Some(h), Some(l)) = (hi, lo) {
+                out.push((h << 4) | l);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_default()
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(10 + b - b'a'),
+        b'A'..=b'F' => Some(10 + b - b'A'),
+        _ => None,
+    }
 }
 
 pub(crate) fn resolve_imports_inner(
