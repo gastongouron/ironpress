@@ -2963,15 +2963,24 @@ impl PdfWriter {
             "Courier-Bold",
             "Courier-Oblique",
             "Courier-BoldOblique",
+            // Symbol (math/Greek)
+            "Symbol",
         ];
 
         let mut all_objects: Vec<String> = self.objects.clone();
 
         for (i, name) in font_names.iter().enumerate() {
             let id = font_base_id + i;
-            all_objects.push(format!(
-                "{id} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /{name} /Encoding /WinAnsiEncoding >>\nendobj",
-            ));
+            if name == &"Symbol" {
+                // Symbol font uses its own built-in encoding, not WinAnsiEncoding
+                all_objects.push(format!(
+                    "{id} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /{name} >>\nendobj",
+                ));
+            } else {
+                all_objects.push(format!(
+                    "{id} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /{name} /Encoding /WinAnsiEncoding >>\nendobj",
+                ));
+            }
         }
 
         // Font dictionary (standard + custom fonts)
