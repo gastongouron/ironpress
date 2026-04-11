@@ -249,6 +249,9 @@ fn parse_expression(tokens: &[Token], pos: &mut usize, depth: &mut usize) -> Vec
             Token::RBrace | Token::RBracket => break,
             Token::Ampersand | Token::Backslash => break,
             _ => {
+                if *depth > MAX_MATH_DEPTH {
+                    break;
+                }
                 if let Some(node) = parse_atom(tokens, pos, depth) {
                     let node = parse_scripts(node, tokens, pos, depth);
                     nodes.push(node);
