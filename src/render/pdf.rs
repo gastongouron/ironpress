@@ -272,22 +272,36 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     );
                     let block_bottom = block_y - total_h;
 
-                    // Apply transform if set (wrap in q/Q)
+                    // Apply transform if set (wrap in q/Q).
+                    // Rotate and scale are applied around the element's centre so
+                    // that the element stays in its layout position (matching
+                    // CSS `transform-origin: 50% 50%`).  The combined matrix is:
+                    //   T(cx,cy) · M · T(-cx,-cy)
+                    // which in PDF `cm` notation is a single 6-value matrix.
                     let needs_transform = transform.is_some();
                     if let Some(t) = transform {
+                        // Centre of the element in PDF (bottom-up) coordinates.
+                        let cx = block_x + render_width * 0.5;
+                        let cy = block_bottom + total_h * 0.5;
                         content.push_str("q\n");
                         match t {
                             crate::style::computed::Transform::Rotate(deg) => {
                                 let rad = deg * std::f32::consts::PI / 180.0;
                                 let cos_v = rad.cos();
                                 let sin_v = rad.sin();
+                                // T(cx,cy) · Rot · T(-cx,-cy)
+                                let tx = cx - cx * cos_v + cy * sin_v;
+                                let ty = cy - cx * sin_v - cy * cos_v;
                                 content.push_str(&format!(
-                                    "{cos_v} {sin_v} {neg_sin} {cos_v} 0 0 cm\n",
+                                    "{cos_v} {sin_v} {neg_sin} {cos_v} {tx} {ty} cm\n",
                                     neg_sin = -sin_v,
                                 ));
                             }
                             crate::style::computed::Transform::Scale(sx, sy) => {
-                                content.push_str(&format!("{sx} 0 0 {sy} 0 0 cm\n",));
+                                // T(cx,cy) · Scale(sx,sy) · T(-cx,-cy)
+                                let tx = cx - cx * sx;
+                                let ty = cy - cy * sy;
+                                content.push_str(&format!("{sx} 0 0 {sy} {tx} {ty} cm\n",));
                             }
                             crate::style::computed::Transform::Translate(tx, ty) => {
                                 content.push_str(&format!("1 0 0 1 {tx} {ty} cm\n",));
@@ -4937,9 +4951,15 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
+        // scale(2) produces "2 0 0 2 tx ty cm" where tx,ty are the centre-offset
+        // translation terms (non-zero because the block is not at the page origin).
         assert!(
-            content.contains("2 0 0 2 0 0 cm"),
-            "transform: scale(2) should produce '2 0 0 2 0 0 cm'"
+            content.contains("2 0 0 2 "),
+            "transform: scale(2) should produce '2 0 0 2 ...' cm operator"
+        );
+        assert!(
+            content.contains(" cm\n"),
+            "transform: scale(2) should produce a cm operator"
         );
     }
 
@@ -4953,6 +4973,59 @@ mod tests {
         assert!(
             content.contains("1 0 0 1 10 20 cm"),
             "transform: translate(10pt, 20pt) should produce '1 0 0 1 10 20 cm'"
+        );
+    }
+
+    /// BUG P2-2: rotate/scale transforms must be applied around the element
+    /// centre (CSS `transform-origin: 50% 50%`), not the page origin.
+    /// Previously the translation terms in the `cm` matrix were always 0,
+    /// which displaced the element off-page.
+    #[test]
+    fn render_transform_scale_centered_on_element() {
+        // A block with explicit 100pt × 20pt size, positioned at the top of
+        // the content area.  The rendered PDF matrix must be
+        //   scale_x 0 0 scale_y tx ty
+        // where tx = cx*(1-sx) and ty = cy*(1-sy) (non-zero when the element
+        // is not at the page origin).
+        let html = r#"<div style="transform: scale(2); width: 100pt; height: 20pt; background-color: blue">Box</div>"#;
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+
+        // The matrix scale values are correct.
+        assert!(
+            content.contains("2 0 0 2 "),
+            "scale(2) should produce '2 0 0 2 tx ty cm'"
+        );
+        // The translation terms must NOT both be zero — the element is not
+        // at the page origin, so the centre-based offset is non-zero.
+        assert!(
+            !content.contains("2 0 0 2 0 0 cm"),
+            "scale(2) on a non-origin element must have non-zero tx/ty in the cm matrix"
+        );
+    }
+
+    /// BUG P2-2: a rotate transform must include non-zero translation terms
+    /// so the element stays in its section instead of being displaced.
+    #[test]
+    fn render_transform_rotate_includes_translation_terms() {
+        let html = r#"<div style="transform: rotate(45deg); width: 100pt; height: 20pt; background-color: red">Rotated</div>"#;
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+
+        // cos/sin values of 45 deg must be present.
+        assert!(
+            content.contains("0.707"),
+            "rotate(45deg) must contain cos/sin ~0.707"
+        );
+        // The matrix must NOT have zero translation — the element centre
+        // is not at (0, 0) in PDF coordinates.
+        assert!(
+            !content.contains("0.70710677 0.70710677 -0.70710677 0.70710677 0 0 cm"),
+            "rotate on a non-origin element must have non-zero tx/ty in the cm matrix"
         );
     }
 

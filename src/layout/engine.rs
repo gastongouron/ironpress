@@ -3809,7 +3809,8 @@ fn flatten_flex_container(
                                     // add only the container padding offset.
                                     style.padding.top + *tb_mt
                                 } else {
-                                    *tb_mt
+                                    // Apply gap between column-direction flex items.
+                                    gap + *tb_mt
                                 },
                                 margin_bottom: *tb_mb,
                                 text_align: *tb_ta,
@@ -9246,6 +9247,25 @@ mod tests {
             (b.1 - expected).abs() < 1.0,
             "no gap: expected {expected}, got {}",
             b.1
+        );
+    }
+
+    #[test]
+    fn flex_column_gap_spacing() {
+        // Column-direction flex: gap should push items apart vertically.
+        let html = r#"<div style="display: flex; flex-direction: column; gap: 20pt"><div style="height: 30pt">A</div><div style="height: 30pt">B</div></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let items = extract_flex_items(&pages);
+        assert!(items.len() >= 2, "expected at least 2 flex column items");
+        let a = items.iter().find(|i| i.3 == "A").unwrap();
+        let b = items.iter().find(|i| i.3 == "B").unwrap();
+        // B must be below A; with a 20pt gap the Y gap between starts should exceed 20pt
+        assert!(
+            b.0 > a.0 + 20.0,
+            "column gap: B y={} should be more than 20pt below A y={}",
+            b.0,
+            a.0
         );
     }
 
