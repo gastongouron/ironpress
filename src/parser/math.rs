@@ -104,11 +104,15 @@ impl MathNode {
     }
 }
 
+/// Maximum nesting depth for math expressions to prevent stack overflow.
+const MAX_MATH_DEPTH: usize = 50;
+
 /// Parse a LaTeX math string into a MathNode AST.
 pub fn parse_math(input: &str) -> MathNode {
     let tokens = tokenize(input);
     let mut pos = 0;
-    let nodes = parse_expression(&tokens, &mut pos);
+    let mut depth = 0;
+    let nodes = parse_expression(&tokens, &mut pos, &mut depth);
     if nodes.len() == 1 {
         nodes.into_iter().next().unwrap()
     } else {
@@ -234,33 +238,39 @@ fn tokenize(input: &str) -> Vec<Token> {
 // Parser
 // ---------------------------------------------------------------------------
 
-fn parse_expression(tokens: &[Token], pos: &mut usize) -> Vec<MathNode> {
+fn parse_expression(tokens: &[Token], pos: &mut usize, depth: &mut usize) -> Vec<MathNode> {
+    *depth += 1;
+    if *depth > MAX_MATH_DEPTH {
+        return vec![];
+    }
     let mut nodes = Vec::new();
     while *pos < tokens.len() {
         match &tokens[*pos] {
             Token::RBrace | Token::RBracket => break,
             Token::Ampersand | Token::Backslash => break,
             _ => {
-                if let Some(node) = parse_atom(tokens, pos) {
-                    // Check for super/subscripts
-                    let node = parse_scripts(node, tokens, pos);
+                if *depth > MAX_MATH_DEPTH {
+                    break;
+                }
+                if let Some(node) = parse_atom(tokens, pos, depth) {
+                    let node = parse_scripts(node, tokens, pos, depth);
                     nodes.push(node);
                 }
             }
         }
     }
+    *depth -= 1;
     nodes
 }
 
-fn parse_atom(tokens: &[Token], pos: &mut usize) -> Option<MathNode> {
-    if *pos >= tokens.len() {
+fn parse_atom(tokens: &[Token], pos: &mut usize, depth: &mut usize) -> Option<MathNode> {
+    if *pos >= tokens.len() || *depth > MAX_MATH_DEPTH {
         return None;
     }
     match &tokens[*pos] {
         Token::Char(ch) => {
             let ch = *ch;
             *pos += 1;
-            // Collect consecutive digits into a Number node
             if ch.is_ascii_digit() {
                 let mut num = String::new();
                 num.push(ch);
@@ -284,13 +294,13 @@ fn parse_atom(tokens: &[Token], pos: &mut usize) -> Option<MathNode> {
         Token::Command(cmd) => {
             let cmd = cmd.clone();
             *pos += 1;
-            parse_command(&cmd, tokens, pos)
+            parse_command(&cmd, tokens, pos, depth)
         }
         Token::LBrace => {
-            *pos += 1; // skip {
-            let inner = parse_expression(tokens, pos);
+            *pos += 1;
+            let inner = parse_expression(tokens, pos, depth);
             if *pos < tokens.len() && tokens[*pos] == Token::RBrace {
-                *pos += 1; // skip }
+                *pos += 1;
             }
             let node = if inner.len() == 1 {
                 inner.into_iter().next().unwrap()
@@ -306,10 +316,10 @@ fn parse_atom(tokens: &[Token], pos: &mut usize) -> Option<MathNode> {
     }
 }
 
-fn parse_group(tokens: &[Token], pos: &mut usize) -> MathNode {
+fn parse_group(tokens: &[Token], pos: &mut usize, depth: &mut usize) -> MathNode {
     if *pos < tokens.len() && tokens[*pos] == Token::LBrace {
         *pos += 1;
-        let inner = parse_expression(tokens, pos);
+        let inner = parse_expression(tokens, pos, depth);
         if *pos < tokens.len() && tokens[*pos] == Token::RBrace {
             *pos += 1;
         }
@@ -318,14 +328,14 @@ fn parse_group(tokens: &[Token], pos: &mut usize) -> MathNode {
         } else {
             MathNode::Row(inner)
         }
-    } else if let Some(atom) = parse_atom(tokens, pos) {
+    } else if let Some(atom) = parse_atom(tokens, pos, depth) {
         atom
     } else {
         MathNode::Row(vec![])
     }
 }
 
-fn parse_scripts(base: MathNode, tokens: &[Token], pos: &mut usize) -> MathNode {
+fn parse_scripts(base: MathNode, tokens: &[Token], pos: &mut usize, depth: &mut usize) -> MathNode {
     let mut node = base;
     loop {
         if *pos >= tokens.len() {
@@ -334,11 +344,11 @@ fn parse_scripts(base: MathNode, tokens: &[Token], pos: &mut usize) -> MathNode 
         match &tokens[*pos] {
             Token::Caret => {
                 *pos += 1;
-                let sup = parse_group(tokens, pos);
+                let sup = parse_group(tokens, pos, depth);
                 // Check if there's also a subscript
                 if *pos < tokens.len() && tokens[*pos] == Token::Underscore {
                     *pos += 1;
-                    let sub = parse_group(tokens, pos);
+                    let sub = parse_group(tokens, pos, depth);
                     node = MathNode::SubSup {
                         base: Box::new(node),
                         sub: Box::new(sub),
@@ -353,11 +363,11 @@ fn parse_scripts(base: MathNode, tokens: &[Token], pos: &mut usize) -> MathNode 
             }
             Token::Underscore => {
                 *pos += 1;
-                let sub = parse_group(tokens, pos);
+                let sub = parse_group(tokens, pos, depth);
                 // Check if there's also a superscript
                 if *pos < tokens.len() && tokens[*pos] == Token::Caret {
                     *pos += 1;
-                    let sup = parse_group(tokens, pos);
+                    let sup = parse_group(tokens, pos, depth);
                     node = MathNode::SubSup {
                         base: Box::new(node),
                         sub: Box::new(sub),
@@ -376,12 +386,17 @@ fn parse_scripts(base: MathNode, tokens: &[Token], pos: &mut usize) -> MathNode 
     node
 }
 
-fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNode> {
+fn parse_command(
+    cmd: &str,
+    tokens: &[Token],
+    pos: &mut usize,
+    depth: &mut usize,
+) -> Option<MathNode> {
     match cmd {
         // Fractions
         "frac" | "dfrac" | "tfrac" => {
-            let num = parse_group(tokens, pos);
-            let den = parse_group(tokens, pos);
+            let num = parse_group(tokens, pos, depth);
+            let den = parse_group(tokens, pos, depth);
             Some(MathNode::Fraction {
                 numerator: Box::new(num),
                 denominator: Box::new(den),
@@ -392,7 +407,7 @@ fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNod
             // Optional index: \sqrt[3]{x}
             let index = if *pos < tokens.len() && tokens[*pos] == Token::LBracket {
                 *pos += 1;
-                let inner = parse_expression(tokens, pos);
+                let inner = parse_expression(tokens, pos, depth);
                 if *pos < tokens.len() && tokens[*pos] == Token::RBracket {
                     *pos += 1;
                 }
@@ -405,7 +420,7 @@ fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNod
             } else {
                 None
             };
-            let radicand = parse_group(tokens, pos);
+            let radicand = parse_group(tokens, pos, depth);
             Some(MathNode::Root {
                 index,
                 radicand: Box::new(radicand),
@@ -556,42 +571,42 @@ fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNod
         "qquad" => Some(MathNode::Space(2.0)),
         // Accents
         "hat" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{0302}', // combining circumflex
                 body: Box::new(body),
             })
         }
         "bar" | "overline" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{0304}', // combining macron
                 body: Box::new(body),
             })
         }
         "vec" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{20D7}', // combining right arrow above
                 body: Box::new(body),
             })
         }
         "dot" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{0307}', // combining dot above
                 body: Box::new(body),
             })
         }
         "ddot" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{0308}', // combining diaeresis
                 body: Box::new(body),
             })
         }
         "tilde" | "widetilde" => {
-            let body = parse_group(tokens, pos);
+            let body = parse_group(tokens, pos, depth);
             Some(MathNode::Accent {
                 accent: '\u{0303}', // combining tilde
                 body: Box::new(body),
@@ -600,7 +615,7 @@ fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNod
         // Delimiters
         "left" => {
             let open = parse_delimiter(tokens, pos);
-            let inner = parse_expression(tokens, pos);
+            let inner = parse_expression(tokens, pos, depth);
             // Expect \right
             let close = if *pos < tokens.len() {
                 if let Token::Command(ref c) = tokens[*pos] {
@@ -637,7 +652,7 @@ fn parse_command(cmd: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNod
         // Matrix environments
         "begin" => {
             let env = parse_text_group(tokens, pos);
-            parse_environment(&env, tokens, pos)
+            parse_environment(&env, tokens, pos, depth)
         }
         "end" => {
             // Skip the environment name
@@ -723,7 +738,12 @@ fn parse_text_group(tokens: &[Token], pos: &mut usize) -> String {
     text
 }
 
-fn parse_environment(env: &str, tokens: &[Token], pos: &mut usize) -> Option<MathNode> {
+fn parse_environment(
+    env: &str,
+    tokens: &[Token],
+    pos: &mut usize,
+    depth: &mut usize,
+) -> Option<MathNode> {
     let delims = match env {
         "pmatrix" => ('(', ')'),
         "bmatrix" => ('[', ']'),
@@ -783,7 +803,7 @@ fn parse_environment(env: &str, tokens: &[Token], pos: &mut usize) -> Option<Mat
                 rows.push(Vec::new()); // start new row
             }
             _ => {
-                let nodes = parse_expression(tokens, pos);
+                let nodes = parse_expression(tokens, pos, depth);
                 current_row.extend(nodes);
             }
         }
@@ -976,5 +996,16 @@ mod tests {
         assert_eq!(MathNode::Symbol('(').atom_type(), AtomType::Open);
         assert_eq!(MathNode::Symbol(')').atom_type(), AtomType::Close);
         assert_eq!(MathNode::Symbol('x').atom_type(), AtomType::Ord);
+    }
+
+    #[test]
+    fn deeply_nested_braces_no_stack_overflow() {
+        // Build {{{...{x}...}}} with 60 levels (beyond MAX_MATH_DEPTH of 50)
+        let mut expr = "x".to_string();
+        for _ in 0..60 {
+            expr = format!("{{{expr}}}");
+        }
+        // Should not panic or stack overflow, depth limit kicks in
+        let _ = parse_math(&expr);
     }
 }
