@@ -164,3 +164,38 @@ fn parse_color_invalid_inputs() {
     assert!(parse_color("#12345").is_none());
     assert!(parse_color("rgb(1,2)").is_none());
 }
+
+#[test]
+fn line_height_bare_number_is_not_length() {
+    // A bare number like `1.6` for line-height must be parsed as Number
+    // (unitless multiplier), not Length. Previously this was parsed as
+    // CssValue::Length(1.6) which caused line-height to be divided by
+    // font-size, producing tiny line heights and text overlap.
+    let val = parse_property_value("line-height", "1.6");
+    assert!(
+        matches!(val, Some(CssValue::Number(v)) if (v - 1.6).abs() < 0.001),
+        "line-height: 1.6 should be Number(1.6), got {:?}",
+        val
+    );
+
+    let val = parse_property_value("line-height", "1.8");
+    assert!(matches!(val, Some(CssValue::Number(v)) if (v - 1.8).abs() < 0.001));
+
+    let val = parse_property_value("line-height", "2");
+    assert!(matches!(val, Some(CssValue::Number(v)) if (v - 2.0).abs() < 0.001));
+
+    // Values with units should still be parsed as Length
+    let val = parse_property_value("line-height", "18pt");
+    assert!(matches!(val, Some(CssValue::Length(v)) if (v - 18.0).abs() < 0.001));
+
+    let val = parse_property_value("line-height", "24px");
+    assert!(matches!(val, Some(CssValue::Length(v)) if (v - 18.0).abs() < 0.001)); // 24 * 0.75
+
+    // em values should be Number (the em-to-number conversion)
+    let val = parse_property_value("line-height", "1.5em");
+    assert!(matches!(val, Some(CssValue::Number(v)) if (v - 1.5).abs() < 0.001));
+
+    // "normal" should be Keyword
+    let val = parse_property_value("line-height", "normal");
+    assert!(matches!(val, Some(CssValue::Keyword(ref k)) if k == "normal"));
+}

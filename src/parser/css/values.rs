@@ -310,6 +310,23 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword("auto".to_string()));
     }
 
+    // line-height: a bare number (e.g. `1.6`) is a unitless multiplier,
+    // not a length.  Only values with explicit units should be Length.
+    if property == "line-height" {
+        if lower == "normal" {
+            return Some(CssValue::Keyword("normal".into()));
+        }
+        // Try unit-based parsing first (px, pt, em, rem, %, etc.)
+        let has_unit = val
+            .trim()
+            .ends_with(|c: char| c.is_ascii_alphabetic() || c == '%');
+        if has_unit {
+            return parse_length(val);
+        }
+        // Bare number → unitless line-height multiplier
+        return val.trim().parse::<f32>().ok().map(CssValue::Number);
+    }
+
     parse_length(val)
 }
 

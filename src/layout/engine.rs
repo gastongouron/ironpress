@@ -1090,6 +1090,7 @@ pub fn layout_with_rules_and_fonts(
         &ancestors,
         0,
         custom_fonts,
+        None,
     );
 
     // Then paginate
@@ -1108,6 +1109,7 @@ fn flatten_nodes(
     ancestors: &[AncestorInfo],
     positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
+    abs_containing_block: Option<ContainingBlock>,
 ) {
     // Count element children for sibling context
     let element_count = nodes
@@ -1211,6 +1213,7 @@ fn flatten_nodes(
                     element_count,
                     &preceding_siblings,
                     fonts,
+                    abs_containing_block,
                 );
                 // Track this element as a preceding sibling for the next element
                 preceding_siblings.push((
@@ -1252,6 +1255,7 @@ fn flatten_element(
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
     fonts: &HashMap<String, TtfFont>,
+    abs_containing_block: Option<ContainingBlock>,
 ) {
     let classes = el.class_list();
     let selector_ctx = SelectorContext {
@@ -1830,6 +1834,7 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
+                        None,
                     );
                     if let ListContext::Ordered { index, .. } = &mut ctx {
                         *index += 1;
@@ -1849,6 +1854,7 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
+                        None,
                     );
                 }
                 child_el_idx += 1;
@@ -2006,6 +2012,7 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
+                        None,
                     );
                 } else if recurses_as_layout_child(child_el.tag) {
                     flatten_element(
@@ -2022,6 +2029,7 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
+                        None,
                     );
                 }
                 child_el_idx += 1;
@@ -2469,6 +2477,14 @@ fn flatten_element(
             );
             cb_info = make_containing_block(total_h);
 
+            // Resolve containing block and offsets for absolute elements
+            let (elem_cb, resolved_top, resolved_left) = resolve_abs_containing_block(
+                &style,
+                abs_containing_block,
+                total_h,
+                explicit_width.unwrap_or(block_w),
+            );
+
             output.push(LayoutElement::TextBlock {
                 lines,
                 margin_top: style.margin.top,
@@ -2486,11 +2502,11 @@ fn flatten_element(
                 float: style.float,
                 clear: style.clear,
                 position: style.position,
-                offset_top: style.top.unwrap_or(0.0),
-                offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                offset_top: resolved_top,
+                offset_left: resolved_left + auto_offset_left,
                 offset_bottom: 0.0,
                 offset_right: 0.0,
-                containing_block: None,
+                containing_block: elem_cb,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
                 clip_rect,
@@ -2570,6 +2586,7 @@ fn flatten_element(
                             child_el_count,
                             &[],
                             fonts,
+                            None, // CB will be patched below after container_h is known
                         );
                     }
                     child_el_idx += 1;
@@ -2592,6 +2609,12 @@ fn flatten_element(
             }
             cb_info = make_containing_block(container_h);
 
+            // Patch absolute children with the now-known containing block,
+            // and resolve bottom/right offsets into top/left.
+            if let Some(cb) = cb_info {
+                patch_absolute_children_containing_block(&mut child_elements, cb);
+            }
+
             let bg = style
                 .background_color
                 .map(|c: crate::types::Color| c.to_f32_rgb());
@@ -2605,6 +2628,9 @@ fn flatten_element(
                 repeat: background_repeat,
                 origin: background_origin,
             } = BackgroundFields::from_style(&style);
+            // Resolve containing block and offsets for absolute elements
+            let (wrapper_cb, wrapper_top, wrapper_left) =
+                resolve_abs_containing_block(&style, abs_containing_block, container_h, block_w);
             // Emit wrapper with visual properties
             output.push(LayoutElement::TextBlock {
                 lines: Vec::new(),
@@ -2625,11 +2651,11 @@ fn flatten_element(
                 float: style.float,
                 clear: style.clear,
                 position: style.position,
-                offset_top: style.top.unwrap_or(0.0),
-                offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                offset_top: wrapper_top,
+                offset_left: wrapper_left + auto_offset_left,
                 offset_bottom: 0.0,
                 offset_right: 0.0,
-                containing_block: None,
+                containing_block: wrapper_cb,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: if style.overflow == Overflow::Hidden {
@@ -2797,6 +2823,12 @@ fn flatten_element(
                     positioned_depth,
                 );
             }
+            // Compute cb_info for positioned containers in the non-wrapper path
+            // so that absolute children get a containing block.
+            if cb_info.is_none() && positioned_container {
+                let h = effective_height.unwrap_or(0.0);
+                cb_info = make_containing_block(h);
+            }
             let mut child_el_idx = 0;
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
@@ -2815,6 +2847,7 @@ fn flatten_element(
                             child_el_count,
                             &[],
                             fonts,
+                            cb_info,
                         );
                     }
                     child_el_idx += 1;
@@ -2845,6 +2878,7 @@ fn flatten_element(
             &child_ancestors,
             positioned_depth,
             fonts,
+            None,
         );
     }
 
@@ -5560,6 +5594,7 @@ fn collect_table_cell_content_inner(
                         element_sibling_count,
                         &selector_ctx.preceding_siblings,
                         fonts,
+                        None,
                     );
                 } else if recurse_blocks || collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br
                 {
@@ -5937,6 +5972,68 @@ fn apply_text_overflow_ellipsis(
 
     // Remove any additional lines (shouldn't exist with nowrap, but just in case)
     lines.truncate(1);
+}
+
+/// Resolve the containing block for an element that is `position: absolute`.
+/// If the element is absolute and `abs_cb` is `Some`, returns `abs_cb` and
+/// resolves bottom/right offsets into top/left. Otherwise returns `None`
+/// and leaves offsets unchanged.
+fn resolve_abs_containing_block(
+    style: &ComputedStyle,
+    abs_cb: Option<ContainingBlock>,
+    elem_height: f32,
+    elem_width: f32,
+) -> (Option<ContainingBlock>, f32, f32) {
+    if style.position != Position::Absolute {
+        return (None, style.top.unwrap_or(0.0), style.left.unwrap_or(0.0));
+    }
+    let cb = match abs_cb {
+        Some(cb) => cb,
+        None => return (None, style.top.unwrap_or(0.0), style.left.unwrap_or(0.0)),
+    };
+
+    let top_from_percent = style.percentage_insets.top.map(|p| cb.height * p / 100.0);
+    let bottom_from_percent = style
+        .percentage_insets
+        .bottom
+        .map(|p| cb.height * p / 100.0);
+    let left_from_percent = style.percentage_insets.left.map(|p| cb.width * p / 100.0);
+    let right_from_percent = style.percentage_insets.right.map(|p| cb.width * p / 100.0);
+
+    let resolved_top = if let Some(top) = top_from_percent.or(style.top) {
+        top
+    } else if let Some(bottom) = bottom_from_percent.or(style.bottom) {
+        cb.height - elem_height - bottom
+    } else {
+        0.0
+    };
+    let resolved_left = if let Some(left) = left_from_percent.or(style.left) {
+        left
+    } else if let Some(right) = right_from_percent.or(style.right) {
+        cb.width - elem_width - right
+    } else {
+        0.0
+    };
+
+    (Some(cb), resolved_top, resolved_left)
+}
+
+/// Patch absolute-positioned children in a flattened element list with
+/// the parent's containing block info. This resolves bottom/right offsets
+/// into top/left and sets the `containing_block` field.
+fn patch_absolute_children_containing_block(elements: &mut [LayoutElement], cb: ContainingBlock) {
+    for element in elements.iter_mut() {
+        if let LayoutElement::TextBlock {
+            position,
+            containing_block,
+            ..
+        } = element
+        {
+            if *position == Position::Absolute && containing_block.is_none() {
+                *containing_block = Some(cb);
+            }
+        }
+    }
 }
 
 /// A tracked float region for simplified float layout.
@@ -8656,6 +8753,56 @@ mod tests {
         } else {
             panic!("Expected TextBlock");
         }
+    }
+
+    #[test]
+    fn position_absolute_relative_to_containing_block() {
+        let html = r#"
+            <div style="margin-top: 200pt; height: 200pt; position: relative; background: #eee;">
+                <div style="position: absolute; top: 10pt; left: 10pt; width: 50pt; height: 50pt; background: red;">X</div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+        let parent = pages[0]
+            .elements
+            .iter()
+            .find(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Relative,
+                        background_color: Some(_),
+                        ..
+                    }
+                )
+            })
+            .expect("Should find positioned parent");
+        let parent_y = parent.0;
+        assert!(
+            (parent_y - 200.0).abs() < 1.0,
+            "Parent should be at ~200pt, got {parent_y}"
+        );
+        let child = pages[0]
+            .elements
+            .iter()
+            .find(|(_, el)| {
+                matches!(
+                    el,
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        ..
+                    }
+                )
+            })
+            .expect("Should find absolute child");
+        let child_y = child.0;
+        assert!(
+            (child_y - (parent_y + 10.0)).abs() < 1.0,
+            "Absolute child y={child_y} should be ~{} (parent_y + 10), not near 0 (page origin)",
+            parent_y + 10.0
+        );
     }
 
     #[test]
@@ -12562,6 +12709,365 @@ mod tests {
             )),
             "expected nested flex block with raster background to survive table-cell layout"
         );
+    }
+
+    #[test]
+    fn paginate_math_block_advances_y() {
+        // MathBlock elements must reserve vertical space so subsequent content
+        // doesn't overlap.
+        let html = r#"<p>Before</p><div class="math-display" data-math="\frac{a}{b}">frac</div><p>After</p>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+
+        // Gather y positions and element types
+        let mut y_positions: Vec<(f32, &str)> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            match el {
+                LayoutElement::TextBlock { .. } => y_positions.push((*y, "TextBlock")),
+                LayoutElement::MathBlock { .. } => y_positions.push((*y, "MathBlock")),
+                _ => {}
+            }
+        }
+
+        // We expect: TextBlock("Before"), MathBlock, TextBlock("After")
+        assert!(
+            y_positions.len() >= 3,
+            "Expected at least 3 elements (Before text, MathBlock, After text), got {}: {:?}",
+            y_positions.len(),
+            y_positions
+        );
+
+        // Each element must have a strictly increasing y position
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0,
+                "Element {} ({} at y={}) should be below element {} ({} at y={})",
+                i,
+                y_positions[i].1,
+                y_positions[i].0,
+                i - 1,
+                y_positions[i - 1].1,
+                y_positions[i - 1].0,
+            );
+        }
+    }
+
+    #[test]
+    fn paginate_math_block_from_markdown() {
+        // Test the actual markdown flow: $$ ... $$ produces display math
+        // that must advance Y so subsequent text doesn't overlap.
+        let md = "# Title\n\n$$\\frac{a}{b}$$\n\nText after math should not overlap";
+        let html = crate::parser::markdown::markdown_to_html(md);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(pages.len(), 1);
+
+        let mut y_positions: Vec<(f32, &str)> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            match el {
+                LayoutElement::TextBlock { .. } => y_positions.push((*y, "TextBlock")),
+                LayoutElement::MathBlock { .. } => y_positions.push((*y, "MathBlock")),
+                _ => {}
+            }
+        }
+
+        // We expect: TextBlock(Title), MathBlock(frac), TextBlock(Text after...)
+        assert!(
+            y_positions.len() >= 3,
+            "Expected at least 3 elements (Title, MathBlock, After text), got {}: {:?}",
+            y_positions.len(),
+            y_positions
+        );
+
+        // Each element must have a strictly increasing y position
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0,
+                "Element {} ({} at y={}) should be below element {} ({} at y={})",
+                i,
+                y_positions[i].1,
+                y_positions[i].0,
+                i - 1,
+                y_positions[i - 1].1,
+                y_positions[i - 1].0,
+            );
+        }
+    }
+
+    /// Verify that styled blocks (background, border, padding) don't cause
+    /// subsequent content to overlap.
+    #[test]
+    fn styled_block_does_not_overlap_next_element() {
+        let css = r#"
+            .summary { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <h1>Title</h1>
+            <div class="summary">This is a summary box with background and border styling.</div>
+            <h2>Next Section</h2>
+            <p>This should not overlap with the summary box.</p>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        // Collect Y positions of text blocks with content
+        let mut y_positions: Vec<(f32, String)> = Vec::new();
+        for (y_pos, elem) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = elem {
+                let text: String = lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                    .collect();
+                if !text.is_empty() {
+                    y_positions.push((*y_pos, text[..text.len().min(40)].to_string()));
+                }
+            }
+        }
+
+        // Each Y position should be strictly greater than the previous
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0 + 1.0,
+                "Text blocks should have distinct Y positions!\n  block {}: y={:.1} {:?}\n  block {}: y={:.1} {:?}",
+                i - 1,
+                y_positions[i - 1].0,
+                y_positions[i - 1].1,
+                i,
+                y_positions[i].0,
+                y_positions[i].1,
+            );
+        }
+    }
+
+    /// Verify that blockquotes with visual styling don't cause overlap.
+    #[test]
+    fn blockquote_with_background_no_overlap() {
+        let css = r#"
+            blockquote { margin: 20px 0; padding: 12px 20px; border-left: 4px solid #3b82f6; background-color: #f8fafc; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <p>Paragraph before the blockquote.</p>
+            <blockquote>This is a blockquote with background and border styling that should take up vertical space.</blockquote>
+            <p>Paragraph after the blockquote should not overlap.</p>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let mut y_positions: Vec<(f32, String)> = Vec::new();
+        for (y_pos, elem) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = elem {
+                let text: String = lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                    .collect();
+                if !text.is_empty() {
+                    y_positions.push((*y_pos, text[..text.len().min(40)].to_string()));
+                }
+            }
+        }
+
+        assert!(
+            y_positions.len() >= 2,
+            "Expected at least 2 text blocks, got {}: {:?}",
+            y_positions.len(),
+            y_positions
+        );
+
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0 + 1.0,
+                "Text blocks should have distinct Y positions!\n  block {}: y={:.1} {:?}\n  block {}: y={:.1} {:?}",
+                i - 1,
+                y_positions[i - 1].0,
+                y_positions[i - 1].1,
+                i,
+                y_positions[i].0,
+                y_positions[i].1,
+            );
+        }
+    }
+
+    /// Verify pre blocks with padding/background don't cause overlap.
+    #[test]
+    fn pre_block_with_padding_no_overlap() {
+        let css = r#"
+            pre { background-color: #1e293b; padding: 16px 20px; margin: 16px 0; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <p>Before the code block.</p>
+            <pre>line 1
+line 2
+line 3</pre>
+            <p>After the code block should not overlap.</p>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let mut y_positions: Vec<(f32, String)> = Vec::new();
+        for (y_pos, elem) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = elem {
+                let text: String = lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                    .collect();
+                if !text.is_empty() {
+                    y_positions.push((*y_pos, text[..text.len().min(40)].to_string()));
+                }
+            }
+        }
+
+        assert!(
+            y_positions.len() >= 2,
+            "Expected at least 2 text blocks with content, got {}: {:?}",
+            y_positions.len(),
+            y_positions
+        );
+
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0 + 1.0,
+                "Text blocks should have distinct Y positions!\n  block {}: y={:.1} {:?}\n  block {}: y={:.1} {:?}",
+                i - 1,
+                y_positions[i - 1].0,
+                y_positions[i - 1].1,
+                i,
+                y_positions[i].0,
+                y_positions[i].1,
+            );
+        }
+    }
+    /// Verify fixture text blocks have monotonically increasing Y positions
+    /// (no overlapping text).
+    fn check_fixture_no_overlap(html: &str, fixture_name: &str) {
+        let result = crate::parser::html::parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules_and_fonts(
+            &result.nodes,
+            PageSize::A4,
+            Margin::default(),
+            &rules,
+            &std::collections::HashMap::new(),
+        );
+
+        for (page_idx, page) in pages.iter().enumerate() {
+            let mut y_positions: Vec<(f32, String)> = Vec::new();
+            for (y_pos, elem) in &page.elements {
+                if let LayoutElement::TextBlock {
+                    lines, position, ..
+                } = elem
+                {
+                    if *position == Position::Absolute {
+                        continue;
+                    }
+                    let text: String = lines
+                        .iter()
+                        .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                        .collect();
+                    if !text.is_empty() {
+                        y_positions.push((*y_pos, text[..text.len().min(50)].to_string()));
+                    }
+                }
+            }
+
+            for i in 1..y_positions.len() {
+                let (prev_y, ref prev_text) = y_positions[i - 1];
+                let (curr_y, ref curr_text) = y_positions[i];
+                assert!(
+                    curr_y >= prev_y - 0.1,
+                    "{fixture_name} page {page_idx}: text blocks overlap!\n  \
+                     [{prev}] y={prev_y:.1} {prev_text:?}\n  \
+                     [{i}] y={curr_y:.1} {curr_text:?}",
+                    prev = i - 1,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn simple_report_fixture_no_overlap() {
+        check_fixture_no_overlap(
+            include_str!("../../tests/fixtures/combined/simple-report.html"),
+            "simple-report",
+        );
+    }
+
+    #[test]
+    fn article_fixture_no_overlap() {
+        check_fixture_no_overlap(
+            include_str!("../../tests/fixtures/combined/article.html"),
+            "article",
+        );
+    }
+
+    #[test]
+    fn page_breaks_fixture_no_overlap() {
+        check_fixture_no_overlap(
+            include_str!("../../tests/fixtures/edge-cases/page-breaks.html"),
+            "page-breaks",
+        );
+    }
+
+    /// Test with styled wrapper block containing only block children.
+    #[test]
+    fn styled_wrapper_with_block_children_no_overlap() {
+        let css = r#"
+            .section { padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 4px; }
+        "#;
+        let rules = parse_stylesheet(css);
+        let html = r#"
+            <h1>Page Break Test</h1>
+            <div class="section">
+                <h2>Section 1</h2>
+                <p>Content in section 1.</p>
+            </div>
+            <div class="section">
+                <h2>Section 2</h2>
+                <p>Content in section 2 should not overlap with section 1.</p>
+            </div>
+            <p>Final paragraph after both sections.</p>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
+
+        let mut y_positions: Vec<(f32, String)> = Vec::new();
+        for (y_pos, elem) in &pages[0].elements {
+            if let LayoutElement::TextBlock {
+                lines, position, ..
+            } = elem
+            {
+                if *position == Position::Absolute {
+                    continue;
+                }
+                let text: String = lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                    .collect();
+                if !text.is_empty() {
+                    y_positions.push((*y_pos, text[..text.len().min(50)].to_string()));
+                }
+            }
+        }
+
+        for i in 1..y_positions.len() {
+            assert!(
+                y_positions[i].0 > y_positions[i - 1].0 + 0.5,
+                "Text blocks should have distinct Y positions!\n  block {}: y={:.1} {:?}\n  block {}: y={:.1} {:?}",
+                i - 1,
+                y_positions[i - 1].0,
+                y_positions[i - 1].1,
+                i,
+                y_positions[i].0,
+                y_positions[i].1,
+            );
+        }
     }
 }
 
