@@ -104,6 +104,58 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+  benchmarks:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run parity benchmarks
+        run: |
+          cargo test --test parity_tests --release -- --ignored --nocapture 2>&1 | tee /tmp/bench-output.txt
+      - name: Extract benchmark table
+        id: bench
+        run: |
+          # Extract the markdown table from the test output
+          TABLE=$(sed -n '/^| Fixture/,/^$/p' /tmp/bench-output.txt)
+          if [ -z "$TABLE" ]; then
+            TABLE="⚠️ No benchmark table found in output"
+          fi
+          echo "table<<EOF" >> $GITHUB_OUTPUT
+          echo "$TABLE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Post benchmark results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## 📊 Parity Benchmark Results\n\n${process.env.TABLE}\n\n*Release build on \`ubuntu-latest\`*`;
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes('Parity Benchmark Results'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+        env:
+          TABLE: ${{ steps.bench.outputs.table }}
+
   coverage:
     runs-on: ubuntu-latest
     steps:
