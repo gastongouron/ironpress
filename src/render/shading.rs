@@ -86,3 +86,162 @@ pub(crate) fn build_shading_function(stops: &[(f32, (f32, f32, f32))]) -> String
         "<< /FunctionType 3 /Domain [0 1] /Functions [{functions_str}] /Bounds [{bounds_str}] /Encode [{encode_str}] >>"
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -------------------------------------------------------------------------
+    // build_shading_function
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn shading_function_zero_stops_uses_black() {
+        let result = build_shading_function(&[]);
+        assert!(
+            result.contains("/FunctionType 2"),
+            "should be FunctionType 2"
+        );
+        assert!(result.contains("/C0 [0 0 0]"), "C0 should be black");
+        assert!(result.contains("/C1 [0 0 0]"), "C1 should be black");
+    }
+
+    #[test]
+    fn shading_function_one_stop_repeats_color() {
+        let stops = [(0.0_f32, (1.0_f32, 0.5_f32, 0.0_f32))];
+        let result = build_shading_function(&stops);
+        assert!(result.contains("/FunctionType 2"));
+        // Both C0 and C1 must carry the same colour.
+        assert!(result.contains("/C0 [1 0.5 0]"));
+        assert!(result.contains("/C1 [1 0.5 0]"));
+    }
+
+    #[test]
+    fn shading_function_two_stops_produces_type2() {
+        let stops = [
+            (0.0_f32, (0.0_f32, 0.0_f32, 0.0_f32)),
+            (1.0_f32, (1.0_f32, 1.0_f32, 1.0_f32)),
+        ];
+        let result = build_shading_function(&stops);
+        assert!(
+            result.contains("/FunctionType 2"),
+            "two stops → FunctionType 2"
+        );
+        assert!(result.contains("/C0 [0 0 0]"));
+        assert!(result.contains("/C1 [1 1 1]"));
+        // Must NOT be a stitching function.
+        assert!(!result.contains("/FunctionType 3"));
+    }
+
+    #[test]
+    fn shading_function_three_stops_produces_type3_stitching() {
+        let stops = [
+            (0.0_f32, (0.0_f32, 0.0_f32, 0.0_f32)),
+            (0.5_f32, (0.5_f32, 0.5_f32, 0.5_f32)),
+            (1.0_f32, (1.0_f32, 1.0_f32, 1.0_f32)),
+        ];
+        let result = build_shading_function(&stops);
+        assert!(
+            result.contains("/FunctionType 3"),
+            "three stops → FunctionType 3 (stitching)"
+        );
+        // The inner functions are FunctionType 2.
+        assert!(result.contains("/FunctionType 2"));
+        // Bounds should list the middle stop position.
+        assert!(
+            result.contains("/Bounds [0.5]"),
+            "bounds should contain middle stop offset"
+        );
+        // Two sub-functions → two "0 1" encode entries.
+        assert!(result.contains("/Encode [0 1 0 1]"));
+    }
+
+    #[test]
+    fn shading_function_four_stops_has_three_bounds() {
+        let stops = [
+            (0.0_f32, (0.0_f32, 0.0_f32, 0.0_f32)),
+            (0.25_f32, (0.25_f32, 0.0_f32, 0.0_f32)),
+            (0.75_f32, (0.75_f32, 0.0_f32, 0.0_f32)),
+            (1.0_f32, (1.0_f32, 0.0_f32, 0.0_f32)),
+        ];
+        let result = build_shading_function(&stops);
+        assert!(result.contains("/FunctionType 3"));
+        // Three sub-functions → three "0 1" entries.
+        assert!(result.contains("/Encode [0 1 0 1 0 1]"));
+        // Two interior boundaries.
+        assert!(result.contains("/Bounds [0.25 0.75]"));
+    }
+
+    // -------------------------------------------------------------------------
+    // push_axial_shading
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn push_axial_shading_returns_correct_name_and_increments_counter() {
+        let mut shadings: Vec<ShadingEntry> = Vec::new();
+        let mut counter = 0usize;
+        let stops = vec![(0.0_f32, (0.0_f32, 0.0_f32, 0.0_f32))];
+
+        let name = push_axial_shading(
+            &mut shadings,
+            &mut counter,
+            [0.0, 0.0, 100.0, 100.0],
+            stops.clone(),
+        );
+        assert_eq!(name, "SH0");
+        assert_eq!(counter, 1);
+        assert_eq!(shadings.len(), 1);
+        assert_eq!(shadings[0].shading_type, 2);
+        assert_eq!(shadings[0].name, "SH0");
+
+        let name2 =
+            push_axial_shading(&mut shadings, &mut counter, [10.0, 20.0, 30.0, 40.0], stops);
+        assert_eq!(name2, "SH1");
+        assert_eq!(counter, 2);
+        assert_eq!(shadings.len(), 2);
+    }
+
+    #[test]
+    fn push_axial_shading_stores_correct_coords() {
+        let mut shadings: Vec<ShadingEntry> = Vec::new();
+        let mut counter = 0usize;
+        push_axial_shading(&mut shadings, &mut counter, [1.0, 2.0, 3.0, 4.0], vec![]);
+
+        let entry = &shadings[0];
+        // Axial uses only the first four coords; last two are padded with 0.
+        assert_eq!(entry.coords[0], 1.0);
+        assert_eq!(entry.coords[1], 2.0);
+        assert_eq!(entry.coords[2], 3.0);
+        assert_eq!(entry.coords[3], 4.0);
+        assert_eq!(entry.coords[4], 0.0);
+        assert_eq!(entry.coords[5], 0.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // push_radial_shading
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn push_radial_shading_returns_correct_name_and_increments_counter() {
+        let mut shadings: Vec<ShadingEntry> = Vec::new();
+        let mut counter = 5usize; // start at non-zero to verify offset
+        let coords = [10.0_f32, 20.0, 5.0, 30.0, 40.0, 15.0];
+        let stops = vec![(0.0_f32, (1.0_f32, 0.0_f32, 0.0_f32))];
+
+        let name = push_radial_shading(&mut shadings, &mut counter, coords, stops);
+        assert_eq!(name, "SH5");
+        assert_eq!(counter, 6);
+        assert_eq!(shadings.len(), 1);
+        assert_eq!(shadings[0].shading_type, 3);
+    }
+
+    #[test]
+    fn push_radial_shading_stores_all_six_coords() {
+        let mut shadings: Vec<ShadingEntry> = Vec::new();
+        let mut counter = 0usize;
+        let coords = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+        push_radial_shading(&mut shadings, &mut counter, coords, vec![]);
+
+        assert_eq!(shadings[0].coords, coords);
+    }
+}

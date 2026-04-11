@@ -360,6 +360,250 @@ fn encode_blurred_png_for_background(
     Some((encoded, draw_box))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::render::svg_geometry::SvgViewportBox;
+    use crate::style::computed::{BackgroundPosition, BackgroundRepeat, BackgroundSize};
+
+    // ── SvgVisualOverflow::scale ─────────────────────────────────────────────
+
+    #[test]
+    fn svg_visual_overflow_scale_uniform() {
+        let overflow = SvgVisualOverflow {
+            left: 2.0,
+            top: 3.0,
+            right: 4.0,
+            bottom: 5.0,
+        };
+        let scaled = overflow.scale(2.0, 3.0);
+        assert_eq!(scaled.left, 4.0);
+        assert_eq!(scaled.top, 9.0);
+        assert_eq!(scaled.right, 8.0);
+        assert_eq!(scaled.bottom, 15.0);
+    }
+
+    #[test]
+    fn svg_visual_overflow_scale_zero() {
+        let overflow = SvgVisualOverflow {
+            left: 10.0,
+            top: 20.0,
+            right: 30.0,
+            bottom: 40.0,
+        };
+        let scaled = overflow.scale(0.0, 0.0);
+        assert_eq!(scaled.left, 0.0);
+        assert_eq!(scaled.top, 0.0);
+        assert_eq!(scaled.right, 0.0);
+        assert_eq!(scaled.bottom, 0.0);
+    }
+
+    // ── BackgroundPaintContext helpers ────────────────────────────────────────
+
+    fn make_context(ref_x: f32, ref_y: f32, w: f32, h: f32) -> BackgroundPaintContext {
+        let reference_box = SvgViewportBox::new(ref_x, ref_y, w, h);
+        let clip_box = SvgViewportBox::new(ref_x, ref_y, w, h);
+        BackgroundPaintContext::new(
+            reference_box,
+            clip_box,
+            0.0,
+            0.0,
+            BackgroundSize::Auto,
+            BackgroundPosition::default(),
+            BackgroundRepeat::NoRepeat,
+        )
+    }
+
+    #[test]
+    fn background_paint_context_tile_origin_no_offset() {
+        let ctx = make_context(10.0, 20.0, 100.0, 50.0);
+        let origin = ctx.tile_origin(0.0, 0.0);
+        assert_eq!(origin.x, 10.0);
+        assert_eq!(origin.y, 20.0);
+        assert_eq!(origin.width, 100.0);
+        assert_eq!(origin.height, 50.0);
+    }
+
+    #[test]
+    fn background_paint_context_tile_origin_with_offset() {
+        let ctx = make_context(10.0, 20.0, 100.0, 50.0);
+        // tile_origin translates by (offset_x, -offset_y)
+        let origin = ctx.tile_origin(5.0, 3.0);
+        assert_eq!(origin.x, 15.0);
+        assert_eq!(origin.y, 17.0); // 20 - 3
+    }
+
+    #[test]
+    fn background_paint_context_local_reference_box() {
+        let ctx = make_context(50.0, 80.0, 200.0, 100.0);
+        let local = ctx.local_reference_box();
+        assert_eq!(local.x, 0.0);
+        assert_eq!(local.y, 0.0);
+        assert_eq!(local.width, 200.0);
+        assert_eq!(local.height, 100.0);
+    }
+
+    // ── viewport_box_from_overflow / overflow_from_viewport_box symmetry ─────
+
+    #[test]
+    fn viewport_box_overflow_roundtrip() {
+        let viewport = SvgViewportBox::new(10.0, 20.0, 100.0, 80.0);
+        let overflow = SvgVisualOverflow {
+            left: 5.0,
+            top: 8.0,
+            right: 12.0,
+            bottom: 3.0,
+        };
+
+        let draw_box = viewport_box_from_overflow(viewport, overflow);
+        let recovered = overflow_from_viewport_box(viewport, draw_box);
+
+        assert!((recovered.left - overflow.left).abs() < 1e-4);
+        assert!((recovered.top - overflow.top).abs() < 1e-4);
+        assert!((recovered.right - overflow.right).abs() < 1e-4);
+        assert!((recovered.bottom - overflow.bottom).abs() < 1e-4);
+    }
+
+    #[test]
+    fn overflow_from_viewport_box_no_overflow() {
+        // draw_box equal to viewport → zero overflow
+        let viewport = SvgViewportBox::new(0.0, 0.0, 100.0, 100.0);
+        let overflow = overflow_from_viewport_box(viewport, viewport);
+        assert_eq!(overflow.left, 0.0);
+        assert_eq!(overflow.top, 0.0);
+        assert_eq!(overflow.right, 0.0);
+        assert_eq!(overflow.bottom, 0.0);
+    }
+
+    // ── blur_padding_pixels ──────────────────────────────────────────────────
+
+    #[test]
+    fn blur_padding_pixels_zero_sigma() {
+        assert_eq!(blur_padding_pixels(0.0), 0);
+    }
+
+    #[test]
+    fn blur_padding_pixels_negative_sigma_clamps_to_zero() {
+        assert_eq!(blur_padding_pixels(-5.0), 0);
+    }
+
+    #[test]
+    fn blur_padding_pixels_sigma_one() {
+        // ceil(1.0 * 2.5) = 3
+        assert_eq!(blur_padding_pixels(1.0), 3);
+    }
+
+    #[test]
+    fn blur_padding_pixels_sigma_ten() {
+        // ceil(10.0 * 2.5) = 25
+        assert_eq!(blur_padding_pixels(10.0), 25);
+    }
+
+    // ── points_to_filtered_background_pixels / filtered_background_pixels_to_points roundtrip
+
+    #[test]
+    fn filtered_background_pixels_roundtrip() {
+        // Convert a point value → pixels → back to points.
+        // Due to rounding the roundtrip is approximate.
+        let original_points = 72.0f32; // exactly 300 px at 300 PPI
+        let pixels = points_to_filtered_background_pixels(original_points);
+        assert_eq!(pixels, 300);
+        let recovered = filtered_background_pixels_to_points(pixels);
+        assert!((recovered - original_points).abs() < 0.5);
+    }
+
+    #[test]
+    fn points_to_filtered_background_pixels_zero_clamps_to_one() {
+        // Negative / zero input should yield the minimum of 1 pixel.
+        assert_eq!(points_to_filtered_background_pixels(0.0), 1);
+        assert_eq!(points_to_filtered_background_pixels(-100.0), 1);
+    }
+
+    // ── premultiply_rgba / unpremultiply_rgba roundtrip ──────────────────────
+
+    fn make_solid_image(r: u8, g: u8, b: u8, a: u8) -> image::RgbaImage {
+        let mut img = image::RgbaImage::new(2, 2);
+        for pixel in img.pixels_mut() {
+            *pixel = image::Rgba([r, g, b, a]);
+        }
+        img
+    }
+
+    #[test]
+    fn premultiply_unpremultiply_roundtrip_fully_opaque() {
+        let original = make_solid_image(200, 100, 50, 255);
+        let premul = premultiply_rgba(&original);
+        let recovered = unpremultiply_rgba(&premul);
+        for (orig, rec) in original.pixels().zip(recovered.pixels()) {
+            // Fully opaque: channels should survive the roundtrip exactly.
+            assert_eq!(orig[0], rec[0]);
+            assert_eq!(orig[1], rec[1]);
+            assert_eq!(orig[2], rec[2]);
+            assert_eq!(orig[3], rec[3]);
+        }
+    }
+
+    #[test]
+    fn premultiply_unpremultiply_roundtrip_semitransparent() {
+        let original = make_solid_image(200, 100, 50, 128);
+        let premul = premultiply_rgba(&original);
+        let recovered = unpremultiply_rgba(&premul);
+        for (orig, rec) in original.pixels().zip(recovered.pixels()) {
+            // Semi-transparent: allow ±1 rounding error per channel.
+            assert!((i16::from(orig[0]) - i16::from(rec[0])).abs() <= 1);
+            assert!((i16::from(orig[1]) - i16::from(rec[1])).abs() <= 1);
+            assert!((i16::from(orig[2]) - i16::from(rec[2])).abs() <= 1);
+            assert_eq!(orig[3], rec[3]);
+        }
+    }
+
+    #[test]
+    fn premultiply_unpremultiply_fully_transparent() {
+        let original = make_solid_image(200, 100, 50, 0);
+        let premul = premultiply_rgba(&original);
+        // All channels must be zeroed when alpha == 0.
+        for pixel in premul.pixels() {
+            assert_eq!(pixel[0], 0);
+            assert_eq!(pixel[1], 0);
+            assert_eq!(pixel[2], 0);
+            assert_eq!(pixel[3], 0);
+        }
+        let recovered = unpremultiply_rgba(&premul);
+        // Channels are 0 when alpha == 0.
+        for pixel in recovered.pixels() {
+            assert_eq!(pixel[0], 0);
+        }
+    }
+
+    // ── pad_rgba_image ───────────────────────────────────────────────────────
+
+    #[test]
+    fn pad_rgba_image_zero_padding_same_dimensions() {
+        let original = make_solid_image(10, 20, 30, 255);
+        let padded = pad_rgba_image(&original, 0).expect("pad_rgba_image returned None");
+        assert_eq!(padded.width(), original.width());
+        assert_eq!(padded.height(), original.height());
+    }
+
+    #[test]
+    fn pad_rgba_image_nonzero_padding_expands_dimensions() {
+        let original = make_solid_image(10, 20, 30, 255);
+        let padding = 5u32;
+        let padded = pad_rgba_image(&original, padding).expect("pad_rgba_image returned None");
+        assert_eq!(padded.width(), original.width() + padding * 2);
+        assert_eq!(padded.height(), original.height() + padding * 2);
+    }
+
+    #[test]
+    fn pad_rgba_image_border_is_transparent() {
+        let original = image::RgbaImage::from_pixel(4, 4, image::Rgba([255u8, 0, 0, 255]));
+        let padded = pad_rgba_image(&original, 2).expect("pad_rgba_image returned None");
+        // Top-left corner pixel should be transparent (part of the padding).
+        let corner = padded.get_pixel(0, 0);
+        assert_eq!(corner[3], 0);
+    }
+}
+
 pub(crate) fn register_background_image(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,

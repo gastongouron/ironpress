@@ -270,7 +270,7 @@ Layout follows TeX conventions: 4 style levels (display, text, script, scriptscr
 
 | Category | Properties |
 |----------|-----------|
-| Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align`, `text-overflow` |
+| Typography | `font-size`, `font-weight`, `font-style`, `font-family`, `letter-spacing`, `word-spacing`, `text-indent`, `text-transform`, `white-space`, `vertical-align`, `text-overflow`, `overflow-wrap` |
 | Colors | `color`, `background-color`, `opacity` |
 | Box model | `margin` (including `auto`), `padding`, `border`, `border-top/right/bottom/left`, `border-width`, `border-color`, `border-radius`, `outline`, `outline-width`, `outline-color`, `box-sizing`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height` |
 | Layout | `text-align` (left, center, right, justify), `line-height`, `display` (none, block, inline, flex, grid), `float` (left, right), `clear`, `position` (static, relative, absolute), `z-index` |
@@ -278,11 +278,11 @@ Layout follows TeX conventions: 4 style levels (display, text, script, scriptscr
 | Grid | `grid-template-columns` (fixed, `fr`, `auto`, `repeat()`, `minmax()`, `auto-fill`, `auto-fit`), `grid-gap` |
 | Multi-column | `column-count`, `columns`, `column-gap` |
 | Positioning | `top`, `left`, `z-index` |
-| Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility` |
-| Backgrounds | `background-color`, `background-position`, `background-size`, `background-repeat`, `linear-gradient()`, `radial-gradient()` |
+| Visual effects | `box-shadow`, `transform` (rotate, scale, translate), `overflow` (visible, hidden), `visibility`, `filter` (`blur()`) |
+| Backgrounds | `background` (shorthand), `background-color`, `background-image` (SVG data URIs, raster images), `background-position`, `background-size`, `background-repeat`, `background-origin`, `linear-gradient()`, `radial-gradient()` |
 | Decoration | `text-decoration` (underline, line-through) |
 | Lists | `list-style-type` (disc, circle, square, decimal, lower-alpha, upper-alpha, lower-roman, upper-roman, none), `list-style-position` (inside, outside) |
-| Tables | `border-collapse`, `border-spacing` |
+| Tables | `border-collapse`, `border-spacing`, `table-layout` (auto, fixed) |
 | Counters | `counter-reset`, `counter-increment`, `content: counter()` |
 | Pseudo-elements | `::before`, `::after` with `content` property |
 | Custom properties | `--my-var: value`, `var(--my-var)`, `var(--my-var, fallback)` |
@@ -389,9 +389,11 @@ Inline SVG elements are rendered as vector graphics directly in the PDF (not ras
 </svg>
 ```
 
-Supported elements: `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>` (full path command set: M, L, H, V, C, S, Q, T, Z with relative variants), `<g>` groups with `transform` (translate, scale, rotate, matrix), and `viewBox` scaling.
+Supported elements: `<rect>`, `<circle>`, `<ellipse>`, `<line>`, `<polyline>`, `<polygon>`, `<path>` (full path command set: M, L, H, V, C, S, Q, T, A, Z with relative variants), `<g>` groups with `transform` (translate, scale, rotate, matrix), `<text>` with style inheritance, `<image>` with embedded raster data, `<use>` references (depth-limited), `<defs>` with `<linearGradient>` and `<clipPath>`, and `viewBox` scaling with `preserveAspectRatio`.
 
-SVG content is automatically sanitized: `<script>`, `<foreignObject>`, `<use>`, `<image>`, and event handlers are stripped.
+SVG can also be used as a CSS background via `background-image: url("data:image/svg+xml;...")` or inline data URIs.
+
+SVG content is automatically sanitized: `<script>`, `<foreignObject>`, and event handlers are stripped.
 
 ## Tables
 
@@ -450,7 +452,7 @@ let pdf = HtmlConverter::new()
     .unwrap();
 ```
 
-The TTF parser extracts character metrics for accurate text wrapping and embeds the font directly in the PDF.
+Text is shaped with HarfBuzz (via [rustybuzz](https://crates.io/crates/rustybuzz)) for correct ligatures and kerning. Fonts are subset to include only used glyphs, embedded as CIDFontType2 with a ToUnicode CMap for copy-paste support. System fonts are discovered automatically via [fontdb](https://crates.io/crates/fontdb) and fontconfig.
 
 ### `@font-face`
 
@@ -563,8 +565,8 @@ graph LR
 1. **Sanitize**: strip dangerous elements (`<script>`, `<iframe>`, event handlers, `javascript:` URLs)
 2. **Parse**: build a DOM tree using html5ever, extract `<style>` blocks and `@page`/`@font-face` rules
 3. **Style cascade**: resolve tag defaults, `@media` rules, stylesheet rules, inline CSS, with `inherit`/`initial`/`unset` and CSS variable support
-4. **Layout**: text wrapping with Adobe font metrics, flexbox, CSS grid, multi-column, tables with colspan/rowspan, margin collapsing, floats, page breaks, images, SVG, and the full CSS box model
-5. **Render**: PDF 1.4 output with bookmarks, headers/footers, shading dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and TrueType font embedding
+4. **Layout**: text wrapping with HarfBuzz shaping and Adobe font metrics, flexbox, CSS grid, multi-column, tables with colspan/rowspan, margin collapsing, floats, page breaks, images, SVG backgrounds with blur, and the full CSS box model
+5. **Render**: PDF 1.4 output with bookmarks, headers/footers, shading dictionaries for gradients, per-side borders, border-radius, link annotations, embedded images, and CIDFontType2 font embedding with glyph subsetting
 
 For Markdown input, a built-in parser converts Markdown to HTML first (no external dependencies).
 
@@ -608,7 +610,7 @@ Three functions are exported: `htmlToPdf(html)`, `markdownToPdf(md)`, and `htmlT
 
 ironpress uses three layers of testing:
 
-- **Unit tests**: 1690+ tests covering parsing, style computation, layout, rendering, and CLI
+- **Unit tests**: 1740+ tests covering parsing, style computation, layout, rendering, and CLI
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
 - **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
 
