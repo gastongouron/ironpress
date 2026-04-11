@@ -16,7 +16,13 @@ enum Combinator {
 }
 
 /// Check if a CSS selector matches a given element (backward-compatible, no context).
-pub fn selector_matches(selector: &str, tag: &str, classes: &[&str], id: Option<&str>) -> bool {
+#[cfg(test)]
+pub(crate) fn selector_matches(
+    selector: &str,
+    tag: &str,
+    classes: &[&str],
+    id: Option<&str>,
+) -> bool {
     selector_matches_with_context(
         selector,
         tag,

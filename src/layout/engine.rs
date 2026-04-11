@@ -1,6 +1,4 @@
-use crate::parser::css::{
-    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext,
-};
+use crate::parser::css::{AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
@@ -264,7 +262,6 @@ fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32
         })
         .sum()
 }
-
 
 fn pseudo_is_block_like(pseudo_style: &ComputedStyle) -> bool {
     pseudo_style.display == Display::Block || pseudo_style.position == Position::Absolute
@@ -2172,7 +2169,14 @@ fn flatten_element(
             .is_some_and(|s| s.position == Position::Absolute);
         if let Some(ref ps) = before_style {
             if pseudo_is_block_like(ps) && !before_is_abs {
-                output.push(build_pseudo_block(ps, el, inner_width, fonts, None, positioned_depth));
+                output.push(build_pseudo_block(
+                    ps,
+                    el,
+                    inner_width,
+                    fonts,
+                    None,
+                    positioned_depth,
+                ));
             }
         }
 
