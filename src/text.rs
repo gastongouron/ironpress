@@ -140,9 +140,10 @@ fn glyph_cluster_unicode(text: &str, clusters: &[usize]) -> Option<Vec<Vec<u16>>
 #[cfg(test)]
 mod tests {
     use super::{
-        custom_font_line_height, glyph_cluster_unicode, measure_text_width, resolve_custom_font,
-        shape_text_with_font,
+        ShapedGlyph, ShapedRun, custom_font_line_height, glyph_cluster_unicode, measure_text_width,
+        resolve_custom_font, shape_text_run, shape_text_with_font,
     };
+    use crate::layout::engine::TextRun;
     use crate::style::computed::FontFamily;
     use std::collections::HashMap;
 
@@ -257,5 +258,269 @@ mod tests {
         let fonts = HashMap::new();
         let family = FontFamily::Custom("Ghost".into());
         assert!(custom_font_line_height(&family, false, false, &fonts).is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // ShapedGlyph / ShapedRun – struct field access, Clone, Debug
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn shaped_glyph_fields_and_clone() {
+        let g = ShapedGlyph {
+            glyph_id: 42,
+            x_advance: 10.5,
+            x_offset: 1.0,
+            y_offset: -2.0,
+            unicode: vec![0x0041],
+        };
+        let g2 = g.clone();
+        assert_eq!(g2.glyph_id, 42);
+        assert_eq!(g2.x_advance, 10.5);
+        assert_eq!(g2.x_offset, 1.0);
+        assert_eq!(g2.y_offset, -2.0);
+        assert_eq!(g2.unicode, vec![0x0041u16]);
+        // Debug must not panic
+        let _ = format!("{:?}", g);
+    }
+
+    #[test]
+    fn shaped_run_fields_and_clone() {
+        let run = ShapedRun {
+            glyphs: vec![ShapedGlyph {
+                glyph_id: 1,
+                x_advance: 5.0,
+                x_offset: 0.0,
+                y_offset: 0.0,
+                unicode: vec![0x0061],
+            }],
+            width: 5.0,
+        };
+        let run2 = run.clone();
+        assert_eq!(run2.width, 5.0);
+        assert_eq!(run2.glyphs.len(), 1);
+        assert_eq!(run2.glyphs[0].glyph_id, 1);
+        let _ = format!("{:?}", run);
+    }
+
+    // -----------------------------------------------------------------------
+    // shape_text_run – None when font is missing from map
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn shape_text_run_returns_none_when_font_not_found() {
+        let fonts = HashMap::new();
+        let run = TextRun {
+            text: "hello".into(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Custom("Missing".into()),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        assert!(shape_text_run(&run, &fonts).is_none());
+    }
+
+    #[test]
+    fn shape_text_run_returns_none_for_standard_font_family() {
+        let fonts = HashMap::new();
+        let run = TextRun {
+            text: "hello".into(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        assert!(shape_text_run(&run, &fonts).is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // shape_text_with_font – returns None when font.data is not a valid face
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn shape_text_with_font_returns_none_for_invalid_font_data() {
+        let font = make_stub_font(); // data is Vec::new(), rustybuzz can't parse it
+        assert!(shape_text_with_font("hello", 12.0, &font).is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper to load a real system font so we can test the shaping hot path.
+    // The font path is macOS-specific; the tests are gated accordingly.
+    // -----------------------------------------------------------------------
+
+    #[cfg(target_os = "macos")]
+    fn load_real_font() -> Option<crate::parser::ttf::TtfFont> {
+        let data = std::fs::read("/System/Library/Fonts/Geneva.ttf").ok()?;
+        crate::parser::ttf::parse_ttf(data).ok()
+    }
+
+    #[cfg(target_os = "macos")]
+    fn make_real_font_map() -> HashMap<String, crate::parser::ttf::TtfFont> {
+        let font = match load_real_font() {
+            Some(f) => f,
+            None => return HashMap::new(),
+        };
+        let mut fonts = HashMap::new();
+        fonts.insert(
+            crate::system_fonts::font_variant_key("Geneva", false, false),
+            font,
+        );
+        fonts
+    }
+
+    // -----------------------------------------------------------------------
+    // shape_text_with_font – full shaping path with a real font
+    // -----------------------------------------------------------------------
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn shape_text_with_font_shapes_ascii_text_with_real_font() {
+        let font = match load_real_font() {
+            Some(f) => f,
+            None => return, // font not available on this machine, skip
+        };
+        let result = shape_text_with_font("Hi", 12.0, &font);
+        let run = result.expect("shaping should succeed with a real font");
+        assert_eq!(run.glyphs.len(), 2, "two glyphs for two-character input");
+        assert!(run.width > 0.0, "shaped width must be positive");
+        // Each glyph should carry the right character
+        assert!(!run.glyphs[0].unicode.is_empty());
+        assert!(!run.glyphs[1].unicode.is_empty());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn shape_text_with_font_glyph_fields_are_populated() {
+        let font = match load_real_font() {
+            Some(f) => f,
+            None => return,
+        };
+        let run = shape_text_with_font("A", 10.0, &font).unwrap();
+        assert_eq!(run.glyphs.len(), 1);
+        let g = &run.glyphs[0];
+        // x_advance should be a non-negative scaled value for a normal glyph
+        assert!(g.x_advance >= 0.0);
+        assert_eq!(run.width, g.x_advance);
+    }
+
+    // -----------------------------------------------------------------------
+    // shape_text_run – full path with a real font
+    // -----------------------------------------------------------------------
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn shape_text_run_returns_some_when_font_found() {
+        let fonts = make_real_font_map();
+        if fonts.is_empty() {
+            return; // font not available, skip
+        }
+        let run = TextRun {
+            text: "Hi".into(),
+            font_size: 14.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Custom("Geneva".into()),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let result = shape_text_run(&run, &fonts);
+        let shaped = result.expect("shape_text_run must return Some for a found font");
+        assert_eq!(shaped.glyphs.len(), 2);
+        assert!(shaped.width > 0.0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn shape_text_run_empty_text_returns_zero_width_run() {
+        let fonts = make_real_font_map();
+        if fonts.is_empty() {
+            return;
+        }
+        let run = TextRun {
+            text: String::new(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Custom("Geneva".into()),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let shaped = shape_text_run(&run, &fonts).expect("empty text still returns Some");
+        assert_eq!(shaped.width, 0.0);
+        assert!(shaped.glyphs.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // measure_text_width – returns Some when font is present
+    // -----------------------------------------------------------------------
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn measure_text_width_returns_some_when_font_found() {
+        let fonts = make_real_font_map();
+        if fonts.is_empty() {
+            return;
+        }
+        let family = FontFamily::Custom("Geneva".into());
+        let result = measure_text_width("hello", 12.0, &family, false, false, &fonts);
+        let width = result.expect("must return Some for a found custom font");
+        assert!(width > 0.0, "width of non-empty text must be positive");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn measure_text_width_empty_string_returns_zero() {
+        let fonts = make_real_font_map();
+        if fonts.is_empty() {
+            return;
+        }
+        let family = FontFamily::Custom("Geneva".into());
+        let result = measure_text_width("", 12.0, &family, false, false, &fonts);
+        assert_eq!(result, Some(0.0));
+    }
+
+    // -----------------------------------------------------------------------
+    // custom_font_line_height – returns Some when font is present
+    // -----------------------------------------------------------------------
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn custom_font_line_height_returns_some_when_font_found() {
+        let fonts = make_real_font_map();
+        if fonts.is_empty() {
+            return;
+        }
+        let family = FontFamily::Custom("Geneva".into());
+        let result = custom_font_line_height(&family, false, false, &fonts);
+        let ratio = result.expect("must return Some for a found custom font");
+        // line_height_ratio is clamped to at least 1.0
+        assert!(
+            ratio >= 1.0,
+            "line height ratio must be >= 1.0, got {}",
+            ratio
+        );
     }
 }

@@ -359,6 +359,277 @@ fn query_fontdb_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Opti
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::ttf::{FontVerticalMetrics, TtfFont};
+    use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
+
+    fn stub_font(name: &str) -> TtfFont {
+        let metrics = FontVerticalMetrics::new(800, -200, 0);
+        TtfFont {
+            font_name: name.to_string(),
+            units_per_em: 1000,
+            bbox: [0, -200, 1000, 800],
+            pdf_metrics: metrics,
+            layout_metrics: metrics,
+            cmap: std::collections::HashMap::new(),
+            glyph_widths: vec![500],
+            num_h_metrics: 1,
+            flags: 0,
+            data: vec![],
+        }
+    }
+
+    // ── find_font ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn find_font_exact_match_regular() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial".to_string(), stub_font("Arial"));
+        let (key, _) = find_font(&fonts, "Arial", false, false).unwrap();
+        assert_eq!(key, "arial");
+    }
+
+    #[test]
+    fn find_font_exact_match_bold() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial__bold".to_string(), stub_font("Arial Bold"));
+        let (key, _) = find_font(&fonts, "Arial", true, false).unwrap();
+        assert_eq!(key, "arial__bold");
+    }
+
+    #[test]
+    fn find_font_exact_match_italic() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial__italic".to_string(), stub_font("Arial Italic"));
+        let (key, _) = find_font(&fonts, "Arial", false, true).unwrap();
+        assert_eq!(key, "arial__italic");
+    }
+
+    #[test]
+    fn find_font_exact_match_bold_italic() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial__bold_italic".to_string(), stub_font("Arial BI"));
+        let (key, _) = find_font(&fonts, "Arial", true, true).unwrap();
+        assert_eq!(key, "arial__bold_italic");
+    }
+
+    #[test]
+    fn find_font_case_insensitive_match() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial".to_string(), stub_font("Arial"));
+        // Stored under lowercase key; look up with mixed case
+        assert!(find_font(&fonts, "ARIAL", false, false).is_some());
+        assert!(find_font(&fonts, "Arial", false, false).is_some());
+    }
+
+    #[test]
+    fn find_font_bold_falls_back_to_regular() {
+        let mut fonts = HashMap::new();
+        // Only the regular variant is stored.
+        fonts.insert("arial".to_string(), stub_font("Arial"));
+        let (key, _) = find_font(&fonts, "Arial", true, false).unwrap();
+        assert_eq!(key, "arial");
+    }
+
+    #[test]
+    fn find_font_italic_falls_back_to_regular() {
+        let mut fonts = HashMap::new();
+        fonts.insert("arial".to_string(), stub_font("Arial"));
+        let (key, _) = find_font(&fonts, "Arial", false, true).unwrap();
+        assert_eq!(key, "arial");
+    }
+
+    #[test]
+    fn find_font_returns_none_when_family_absent() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        assert!(find_font(&fonts, "NonExistent", false, false).is_none());
+    }
+
+    // ── resolve_font_family ──────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_font_family_returns_custom_when_font_loaded() {
+        let mut fonts = HashMap::new();
+        fonts.insert("roboto".to_string(), stub_font("Roboto"));
+        let stack = parse_font_stack("Roboto, sans-serif");
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::Custom("roboto".to_string()));
+    }
+
+    #[test]
+    fn resolve_font_family_returns_builtin_helvetica() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let stack = FontStack::from_family(FontFamily::Helvetica);
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::Helvetica);
+    }
+
+    #[test]
+    fn resolve_font_family_returns_builtin_times_roman() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let stack = FontStack::from_family(FontFamily::TimesRoman);
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn resolve_font_family_returns_builtin_courier() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let stack = FontStack::from_family(FontFamily::Courier);
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::Courier);
+    }
+
+    #[test]
+    fn resolve_font_family_skips_missing_custom_and_falls_back_to_builtin() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        // "Roboto" is parsed as Custom; "serif" maps to TimesRoman.
+        let stack = parse_font_stack("Roboto, serif");
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn resolve_font_family_defaults_to_helvetica_when_all_custom_missing() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let stack = FontStack::from_family(FontFamily::Custom("Roboto".to_string()));
+        let result = resolve_font_family(&stack, &fonts, false, false);
+        assert_eq!(result, FontFamily::Helvetica);
+    }
+
+    // ── should_try_system_font ───────────────────────────────────────────────
+
+    #[test]
+    fn should_try_system_font_rejects_cursive_and_fantasy() {
+        assert!(!should_try_system_font("cursive"));
+        assert!(!should_try_system_font("fantasy"));
+    }
+
+    #[test]
+    fn should_try_system_font_is_case_insensitive() {
+        assert!(!should_try_system_font("Serif"));
+        assert!(!should_try_system_font("MONOSPACE"));
+        assert!(should_try_system_font("Roboto"));
+    }
+
+    // ── font_variant_key with mixed-case / whitespace ────────────────────────
+
+    #[test]
+    fn font_variant_key_lowercases_input() {
+        assert_eq!(font_variant_key("Arial", false, false), "arial");
+        assert_eq!(font_variant_key("Arial", true, false), "arial__bold");
+        assert_eq!(font_variant_key("Arial", false, true), "arial__italic");
+        assert_eq!(font_variant_key("Arial", true, true), "arial__bold_italic");
+    }
+
+    #[test]
+    fn font_variant_key_trims_whitespace() {
+        assert_eq!(font_variant_key("  Arial  ", false, false), "arial");
+        assert_eq!(
+            font_variant_key("  Arial  ", true, true),
+            "arial__bold_italic"
+        );
+    }
+
+    // ── SystemFontQuery::normalized_family ───────────────────────────────────
+
+    #[test]
+    fn normalized_family_maps_ui_sans_aliases_to_sans_serif() {
+        for alias in &[
+            "ui-sans-serif",
+            "system-ui",
+            "-apple-system",
+            "blinkmacsystemfont",
+        ] {
+            let q = SystemFontQuery::new(alias, FontVariant::new(false, false));
+            assert_eq!(q.normalized_family(), "sans-serif", "failed for {alias}");
+        }
+    }
+
+    #[test]
+    fn normalized_family_maps_ui_serif_to_serif() {
+        let q = SystemFontQuery::new("ui-serif", FontVariant::new(false, false));
+        assert_eq!(q.normalized_family(), "serif");
+    }
+
+    #[test]
+    fn normalized_family_maps_ui_monospace_to_monospace() {
+        let q = SystemFontQuery::new("ui-monospace", FontVariant::new(false, false));
+        assert_eq!(q.normalized_family(), "monospace");
+    }
+
+    #[test]
+    fn normalized_family_passes_through_custom_name() {
+        let q = SystemFontQuery::new("Roboto", FontVariant::new(false, false));
+        assert_eq!(q.normalized_family(), "Roboto");
+    }
+
+    #[test]
+    fn normalized_family_trims_surrounding_whitespace() {
+        let q = SystemFontQuery::new("  Roboto  ", FontVariant::new(false, false));
+        assert_eq!(q.normalized_family(), "Roboto");
+    }
+
+    // ── SystemFontQuery::prefers_ui_sans_resolution ──────────────────────────
+
+    #[test]
+    fn prefers_ui_sans_resolution_true_for_all_aliases() {
+        for alias in &[
+            "ui-sans-serif",
+            "system-ui",
+            "-apple-system",
+            "blinkmacsystemfont",
+        ] {
+            let q = SystemFontQuery::new(alias, FontVariant::new(false, false));
+            assert!(q.prefers_ui_sans_resolution(), "expected true for {alias}");
+        }
+    }
+
+    #[test]
+    fn prefers_ui_sans_resolution_false_for_other_families() {
+        for family in &["ui-serif", "ui-monospace", "sans-serif", "Roboto"] {
+            let q = SystemFontQuery::new(family, FontVariant::new(false, false));
+            assert!(
+                !q.prefers_ui_sans_resolution(),
+                "expected false for {family}"
+            );
+        }
+    }
+
+    // ── SystemFontQuery::fontdb_families ─────────────────────────────────────
+
+    #[test]
+    fn fontdb_families_ui_sans_returns_fallback_list_plus_generic() {
+        let q = SystemFontQuery::new("ui-sans-serif", FontVariant::new(false, false));
+        let families = q.fontdb_families();
+        // Should include the named fallbacks and the generic SansSerif sentinel.
+        assert!(families.contains(&fontdb::Family::Name("DejaVu Sans")));
+        assert!(families.contains(&fontdb::Family::Name("Arial")));
+        assert!(families.contains(&fontdb::Family::SansSerif));
+    }
+
+    #[test]
+    fn fontdb_families_sans_serif_returns_single_generic() {
+        let q = SystemFontQuery::new("sans-serif", FontVariant::new(false, false));
+        assert_eq!(q.fontdb_families(), vec![fontdb::Family::SansSerif]);
+    }
+
+    #[test]
+    fn fontdb_families_serif_returns_single_generic() {
+        let q = SystemFontQuery::new("serif", FontVariant::new(false, false));
+        assert_eq!(q.fontdb_families(), vec![fontdb::Family::Serif]);
+    }
+
+    #[test]
+    fn fontdb_families_monospace_returns_single_generic() {
+        let q = SystemFontQuery::new("monospace", FontVariant::new(false, false));
+        assert_eq!(q.fontdb_families(), vec![fontdb::Family::Monospace]);
+    }
+
+    #[test]
+    fn fontdb_families_named_returns_name_family() {
+        let q = SystemFontQuery::new("Roboto", FontVariant::new(false, false));
+        assert_eq!(q.fontdb_families(), vec![fontdb::Family::Name("Roboto")]);
+    }
 
     #[test]
     fn font_variant_key_suffixes_are_stable() {
