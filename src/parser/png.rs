@@ -24,6 +24,12 @@ pub struct PngInfo {
     pub idat_data: Vec<u8>,
 }
 
+impl PngInfo {
+    pub const fn has_alpha(&self) -> bool {
+        matches!(self.channels, 2 | 4)
+    }
+}
+
 /// Check whether a byte slice starts with the PNG signature.
 pub fn is_png(data: &[u8]) -> bool {
     data.len() >= 8 && data[..8] == PNG_SIGNATURE

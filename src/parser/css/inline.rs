@@ -1,5 +1,7 @@
 use super::{
     CssValue, StyleMap,
+    imports::extract_svg_data_uri,
+    is_css_wide_keyword,
     lightning::parse_inline_style_with_lightning,
     parse_length,
     values::{border_spacing_value_count, parse_border_spacing_shorthand, parse_property_value},
@@ -59,26 +61,28 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
         return;
     }
 
-    if (prop == "background" || prop == "background-image")
-        && val.trim_start().starts_with("linear-gradient(")
-    {
-        map.set_with_importance(
-            "background-gradient",
-            CssValue::Keyword(val.trim().to_string()),
-            is_important,
-        );
-        return;
+    if prop == "background" {
+        let trimmed = val.trim();
+        let lower = trimmed.to_ascii_lowercase();
+        if is_css_wide_keyword(&lower) {
+            clear_background_shorthand_keys(map);
+            map.set_with_importance("background", CssValue::Keyword(lower), is_important);
+            return;
+        }
+
+        let mut parsed = StyleMap::new();
+        if parse_background_shorthand(trimmed, &mut parsed, is_important) {
+            clear_background_shorthand_keys(map);
+            map.merge(&parsed);
+            return;
+        }
     }
 
-    if (prop == "background" || prop == "background-image")
-        && val.trim_start().starts_with("radial-gradient(")
-    {
-        map.set_with_importance(
-            "background-radial-gradient",
-            CssValue::Keyword(val.trim().to_string()),
-            is_important,
-        );
-        return;
+    if prop == "background-image" {
+        clear_background_image_keys(map);
+        if apply_background_image_value(map, val.trim(), is_important) {
+            return;
+        }
     }
 
     if prop == "border-spacing" {
@@ -102,6 +106,309 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
     }
 }
 
+fn clear_background_image_keys(map: &mut StyleMap) {
+    for key in [
+        "background-image",
+        "background-svg",
+        "background-gradient",
+        "background-radial-gradient",
+    ] {
+        map.remove(key);
+    }
+}
+
+fn clear_background_shorthand_keys(map: &mut StyleMap) {
+    clear_background_image_keys(map);
+    for key in [
+        "background",
+        "background-color",
+        "background-size",
+        "background-repeat",
+        "background-position",
+        "background-origin",
+    ] {
+        map.remove(key);
+    }
+}
+
+fn apply_background_image_value(map: &mut StyleMap, value: &str, is_important: bool) -> bool {
+    let trimmed = value.trim();
+    let lower = trimmed.to_ascii_lowercase();
+
+    if lower.starts_with("linear-gradient(") {
+        map.set_with_importance(
+            "background-gradient",
+            CssValue::Keyword(trimmed.to_string()),
+            is_important,
+        );
+        return true;
+    }
+
+    if lower.starts_with("radial-gradient(") {
+        map.set_with_importance(
+            "background-radial-gradient",
+            CssValue::Keyword(trimmed.to_string()),
+            is_important,
+        );
+        return true;
+    }
+
+    if lower == "none" {
+        map.set_with_importance(
+            "background-image",
+            CssValue::Keyword("none".to_string()),
+            is_important,
+        );
+        return true;
+    }
+
+    if let Some(svg_text) = extract_svg_data_uri(trimmed) {
+        map.set_with_importance("background-svg", CssValue::Keyword(svg_text), is_important);
+        return true;
+    }
+
+    false
+}
+
+fn apply_background_shorthand_defaults(map: &mut StyleMap, is_important: bool) {
+    map.set_with_importance(
+        "background-color",
+        CssValue::Keyword("initial".to_string()),
+        is_important,
+    );
+    map.set_with_importance(
+        "background-image",
+        CssValue::Keyword("none".to_string()),
+        is_important,
+    );
+    map.set_with_importance(
+        "background-size",
+        CssValue::Keyword("auto".to_string()),
+        is_important,
+    );
+    map.set_with_importance(
+        "background-repeat",
+        CssValue::Keyword("repeat".to_string()),
+        is_important,
+    );
+    map.set_with_importance(
+        "background-position",
+        CssValue::Keyword("0% 0%".to_string()),
+        is_important,
+    );
+    map.set_with_importance(
+        "background-origin",
+        CssValue::Keyword("padding-box".to_string()),
+        is_important,
+    );
+}
+
+fn ensure_background_shorthand_defaults(
+    map: &mut StyleMap,
+    defaults_applied: &mut bool,
+    is_important: bool,
+) {
+    if !*defaults_applied {
+        apply_background_shorthand_defaults(map, is_important);
+        *defaults_applied = true;
+    }
+}
+
+fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool) -> bool {
+    let mut defaults_applied = false;
+
+    if let Some(color_value) = super::values::parse_color(val) {
+        ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+        map.set_with_importance("background-color", color_value, is_important);
+        return true;
+    }
+
+    let origin_keywords = ["padding-box", "border-box", "content-box"];
+    let repeat_keywords = ["no-repeat", "repeat", "repeat-x", "repeat-y"];
+    let position_keywords = ["center", "top", "bottom", "left", "right"];
+    let mut found_image = false;
+    let mut found_repeat = false;
+    let mut found_origin = false;
+    let mut found_size = false;
+    let mut found_color = false;
+    let mut position_parts = Vec::new();
+    let tokens = tokenize_background_value(val);
+    let mut index = 0usize;
+
+    while let Some(token) = tokens.get(index) {
+        let lower = token.trim().to_ascii_lowercase();
+
+        if !found_image
+            && (lower.starts_with("linear-gradient(")
+                || lower.starts_with("radial-gradient(")
+                || lower.starts_with("url(")
+                || lower == "none")
+        {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+            if apply_background_image_value(map, token, is_important) {
+                found_image = true;
+                index += 1;
+                continue;
+            }
+            if lower.starts_with("url(") {
+                map.set_with_importance(
+                    "background-image",
+                    CssValue::Keyword(token.trim().to_string()),
+                    is_important,
+                );
+                found_image = true;
+                index += 1;
+                continue;
+            }
+        }
+
+        if !found_origin && origin_keywords.contains(&lower.as_str()) {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+            map.set_with_importance("background-origin", CssValue::Keyword(lower), is_important);
+            found_origin = true;
+            index += 1;
+            continue;
+        }
+
+        if !found_repeat && repeat_keywords.contains(&lower.as_str()) {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+            map.set_with_importance("background-repeat", CssValue::Keyword(lower), is_important);
+            found_repeat = true;
+            index += 1;
+            continue;
+        }
+
+        if lower == "/" {
+            index += 1;
+            if !found_size {
+                if let Some(size_token) = tokens.get(index) {
+                    ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+                    let mut size = size_token.trim().to_string();
+                    if let Some(next_token) = tokens.get(index + 1) {
+                        let next = next_token.trim().to_ascii_lowercase();
+                        if is_background_size_continuation(
+                            &next,
+                            &origin_keywords,
+                            &repeat_keywords,
+                            &position_keywords,
+                        ) {
+                            size.push(' ');
+                            size.push_str(next_token.trim());
+                            index += 1;
+                        }
+                    }
+                    map.set_with_importance(
+                        "background-size",
+                        CssValue::Keyword(size),
+                        is_important,
+                    );
+                    found_size = true;
+                }
+            }
+            index += 1;
+            continue;
+        }
+
+        if position_keywords.contains(&lower.as_str()) || is_background_position_length(token) {
+            ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+            position_parts.push(token.trim().to_string());
+            index += 1;
+            continue;
+        }
+
+        if !found_color {
+            if let Some(color_value) = super::values::parse_color(token) {
+                ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
+                map.set_with_importance("background-color", color_value, is_important);
+                found_color = true;
+                index += 1;
+                continue;
+            }
+        }
+
+        index += 1;
+    }
+
+    if !position_parts.is_empty() {
+        map.set_with_importance(
+            "background-position",
+            CssValue::Keyword(position_parts.join(" ")),
+            is_important,
+        );
+    }
+
+    defaults_applied
+}
+
+fn is_background_size_continuation(
+    token: &str,
+    origin_keywords: &[&str],
+    repeat_keywords: &[&str],
+    position_keywords: &[&str],
+) -> bool {
+    !origin_keywords.contains(&token)
+        && !repeat_keywords.contains(&token)
+        && !position_keywords.contains(&token)
+        && token != "/"
+        && !token.starts_with("url(")
+        && !token.starts_with('#')
+        && super::values::parse_color(token).is_none()
+}
+
+fn is_background_position_length(token: &str) -> bool {
+    matches!(
+        parse_length(token),
+        Some(CssValue::Length(_) | CssValue::Percentage(_) | CssValue::Calc(_))
+    )
+}
+
+fn tokenize_background_value(val: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0u32;
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+
+    for ch in val.chars() {
+        match ch {
+            '\'' if !in_double_quote && paren_depth > 0 => {
+                in_single_quote = !in_single_quote;
+                current.push(ch);
+            }
+            '"' if !in_single_quote && paren_depth > 0 => {
+                in_double_quote = !in_double_quote;
+                current.push(ch);
+            }
+            '(' if !in_single_quote && !in_double_quote => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' if !in_single_quote && !in_double_quote && paren_depth > 0 => {
+                paren_depth -= 1;
+                current.push(ch);
+            }
+            ' ' | '\t' if paren_depth == 0 && !in_single_quote && !in_double_quote => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            '/' if paren_depth == 0 && !in_single_quote && !in_double_quote => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+                tokens.push("/".to_string());
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    tokens
+}
+
 fn reconcile_legacy_value_forms(parsed: &mut StyleMap, legacy: &StyleMap) {
     for (key, value) in &legacy.properties {
         let prefer_legacy = parsed
@@ -118,6 +425,7 @@ fn prefer_legacy_value_form(key: &str, parsed: &CssValue, legacy: &CssValue) -> 
     matches!(
         key,
         "font-family"
+            | "filter"
             | "border"
             | "border-top"
             | "border-right"
@@ -261,9 +569,10 @@ mod tests {
         assert!(
             matches!(style.get("font-style"), Some(CssValue::Keyword(value)) if value == "italic")
         );
-        assert!(
-            matches!(style.get("font-family"), Some(CssValue::Keyword(value)) if value == "'Times New Roman'")
-        );
+        assert!(matches!(
+            style.get("font-family"),
+            Some(CssValue::Keyword(value)) if value == "'Times New Roman', serif"
+        ));
     }
 
     #[test]
