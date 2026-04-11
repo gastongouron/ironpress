@@ -12,7 +12,7 @@ mod values;
 #[cfg(test)]
 mod values_tests;
 
-pub(crate) use imports::extract_url_path;
+pub(crate) use imports::{extract_svg_data_uri, extract_url_path};
 #[allow(unused_imports)]
 pub use imports::{is_path_within, parse_import_rules, resolve_imports};
 pub use inline::parse_inline_style;

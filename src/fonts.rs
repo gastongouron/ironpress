@@ -5,6 +5,8 @@
 //! points, multiply: `afm_width / 1000.0 * font_size`.
 
 use crate::style::computed::FontFamily;
+use crate::{parser::ttf::TtfFont, system_fonts, text};
+use std::collections::HashMap;
 
 /// Helvetica character widths (AFM units, 1000 per em) for ASCII 32–126.
 /// Index 0 corresponds to codepoint 32 (space).
@@ -229,6 +231,44 @@ pub(crate) fn descender_ratio(font_family: &FontFamily) -> f32 {
     }
 }
 
+pub(crate) fn font_metrics_ratios(
+    font_family: &FontFamily,
+    bold: bool,
+    italic: bool,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> (f32, f32) {
+    if let FontFamily::Custom(name) = font_family {
+        if let Some((_, ttf)) = system_fonts::find_font(custom_fonts, name, bold, italic) {
+            let metrics = ttf.pdf_vertical_metrics();
+            return (
+                metrics.ascender_ratio(ttf.units_per_em),
+                metrics.descender_ratio(ttf.units_per_em),
+            );
+        }
+    }
+
+    (ascender_ratio(font_family), descender_ratio(font_family))
+}
+
+pub(crate) fn normal_line_height_factor(
+    font_family: &FontFamily,
+    bold: bool,
+    italic: bool,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    if matches!(font_family, FontFamily::Custom(_)) {
+        if let Some(height) = text::custom_font_line_height(font_family, bold, italic, custom_fonts)
+        {
+            return height;
+        }
+
+        let (ascender, descender) = font_metrics_ratios(font_family, bold, italic, custom_fonts);
+        return (ascender + descender).max(1.0);
+    }
+
+    1.2
+}
+
 /// Courier character width (all glyphs are the same in a monospace font).
 const COURIER_WIDTH: u16 = 600;
 
@@ -257,29 +297,43 @@ pub(crate) fn str_width(s: &str, font_size: f32, font_family: &FontFamily, bold:
         .sum()
 }
 
-/// Return the standard PDF font name for a given font family, weight, and style.
+/// Return the standard PDF font name for a given base family, weight, and style.
 ///
 /// This is the single source of truth for mapping CSS font properties to PDF
 /// base-14 font names. Used by the PDF renderer and the SVG text pipeline.
-pub(crate) fn pdf_font_name(font_family: &FontFamily, bold: bool, italic: bool) -> &'static str {
-    match (font_family, bold, italic) {
-        (FontFamily::Helvetica, true, true) => "Helvetica-BoldOblique",
-        (FontFamily::Helvetica, true, false) => "Helvetica-Bold",
-        (FontFamily::Helvetica, false, true) => "Helvetica-Oblique",
-        (FontFamily::Helvetica, false, false) => "Helvetica",
-        (FontFamily::TimesRoman, true, true) => "Times-BoldItalic",
-        (FontFamily::TimesRoman, true, false) => "Times-Bold",
-        (FontFamily::TimesRoman, false, true) => "Times-Italic",
-        (FontFamily::TimesRoman, false, false) => "Times-Roman",
-        (FontFamily::Courier, true, true) => "Courier-BoldOblique",
-        (FontFamily::Courier, true, false) => "Courier-Bold",
-        (FontFamily::Courier, false, true) => "Courier-Oblique",
-        (FontFamily::Courier, false, false) => "Courier",
-        (FontFamily::Custom(_), true, true) => "Helvetica-BoldOblique",
-        (FontFamily::Custom(_), true, false) => "Helvetica-Bold",
-        (FontFamily::Custom(_), false, true) => "Helvetica-Oblique",
-        (FontFamily::Custom(_), false, false) => "Helvetica",
+pub(crate) fn pdf_font_name(base_family: &str, bold: bool, italic: bool) -> &'static str {
+    if base_family.starts_with("Times") {
+        match (bold, italic) {
+            (true, true) => "Times-BoldItalic",
+            (true, false) => "Times-Bold",
+            (false, true) => "Times-Italic",
+            (false, false) => "Times-Roman",
+        }
+    } else if base_family.starts_with("Courier") {
+        match (bold, italic) {
+            (true, true) => "Courier-BoldOblique",
+            (true, false) => "Courier-Bold",
+            (false, true) => "Courier-Oblique",
+            (false, false) => "Courier",
+        }
+    } else {
+        match (bold, italic) {
+            (true, true) => "Helvetica-BoldOblique",
+            (true, false) => "Helvetica-Bold",
+            (false, true) => "Helvetica-Oblique",
+            (false, false) => "Helvetica",
+        }
     }
+}
+
+#[cfg(test)]
+fn pdf_font_name_for_family(font_family: &FontFamily, bold: bool, italic: bool) -> &'static str {
+    let base_family = match font_family {
+        FontFamily::Helvetica | FontFamily::Custom(_) => "Helvetica",
+        FontFamily::TimesRoman => "Times-Roman",
+        FontFamily::Courier => "Courier",
+    };
+    pdf_font_name(base_family, bold, italic)
 }
 
 /// Look up the Helvetica (or Helvetica-Bold) AFM width for a character.
@@ -390,19 +444,19 @@ mod tests {
     #[test]
     fn pdf_font_name_helvetica_variants() {
         assert_eq!(
-            pdf_font_name(&FontFamily::Helvetica, false, false),
+            pdf_font_name_for_family(&FontFamily::Helvetica, false, false),
             "Helvetica"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::Helvetica, true, false),
+            pdf_font_name_for_family(&FontFamily::Helvetica, true, false),
             "Helvetica-Bold"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::Helvetica, false, true),
+            pdf_font_name_for_family(&FontFamily::Helvetica, false, true),
             "Helvetica-Oblique"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::Helvetica, true, true),
+            pdf_font_name_for_family(&FontFamily::Helvetica, true, true),
             "Helvetica-BoldOblique"
         );
     }
@@ -410,28 +464,31 @@ mod tests {
     #[test]
     fn pdf_font_name_times_variants() {
         assert_eq!(
-            pdf_font_name(&FontFamily::TimesRoman, false, false),
+            pdf_font_name_for_family(&FontFamily::TimesRoman, false, false),
             "Times-Roman"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::TimesRoman, true, false),
+            pdf_font_name_for_family(&FontFamily::TimesRoman, true, false),
             "Times-Bold"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::TimesRoman, false, true),
+            pdf_font_name_for_family(&FontFamily::TimesRoman, false, true),
             "Times-Italic"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::TimesRoman, true, true),
+            pdf_font_name_for_family(&FontFamily::TimesRoman, true, true),
             "Times-BoldItalic"
         );
     }
 
     #[test]
     fn pdf_font_name_courier_variants() {
-        assert_eq!(pdf_font_name(&FontFamily::Courier, false, false), "Courier");
         assert_eq!(
-            pdf_font_name(&FontFamily::Courier, true, true),
+            pdf_font_name_for_family(&FontFamily::Courier, false, false),
+            "Courier"
+        );
+        assert_eq!(
+            pdf_font_name_for_family(&FontFamily::Courier, true, true),
             "Courier-BoldOblique"
         );
     }
@@ -439,11 +496,11 @@ mod tests {
     #[test]
     fn pdf_font_name_custom_falls_back_to_helvetica() {
         assert_eq!(
-            pdf_font_name(&FontFamily::Custom("MyFont".into()), false, false),
+            pdf_font_name_for_family(&FontFamily::Custom("MyFont".into()), false, false),
             "Helvetica"
         );
         assert_eq!(
-            pdf_font_name(&FontFamily::Custom("MyFont".into()), true, true),
+            pdf_font_name_for_family(&FontFamily::Custom("MyFont".into()), true, true),
             "Helvetica-BoldOblique"
         );
     }

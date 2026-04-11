@@ -1,11 +1,50 @@
 //! Minimal TrueType font parser.
 //!
-//! Extracts metrics needed for PDF embedding: font name, character widths,
-//! units per em, cmap, bounding box, ascent, and descent.
+//! Extracts metrics needed for PDF embedding and layout: font name, character
+//! widths, units per em, cmap, bounding box, and vertical metrics.
 
 use std::collections::HashMap;
 
 /// Parsed TrueType font data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FontVerticalMetrics {
+    pub ascent: i16,
+    pub descent: i16,
+    pub line_gap: i16,
+}
+
+impl FontVerticalMetrics {
+    pub const fn new(ascent: i16, descent: i16, line_gap: i16) -> Self {
+        Self {
+            ascent,
+            descent,
+            line_gap,
+        }
+    }
+
+    pub fn ascender_ratio(self, units_per_em: u16) -> f32 {
+        if units_per_em == 0 {
+            return 0.0;
+        }
+        f32::from(self.ascent).max(0.0) / f32::from(units_per_em)
+    }
+
+    pub fn descender_ratio(self, units_per_em: u16) -> f32 {
+        if units_per_em == 0 {
+            return 0.0;
+        }
+        (-f32::from(self.descent)).max(0.0) / f32::from(units_per_em)
+    }
+
+    pub fn line_height_ratio(self, units_per_em: u16) -> f32 {
+        if units_per_em == 0 {
+            return 1.0;
+        }
+        let height = i32::from(self.ascent) - i32::from(self.descent) + i32::from(self.line_gap);
+        (height.max(0) as f32 / f32::from(units_per_em)).max(1.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct TtfFont {
@@ -15,10 +54,11 @@ pub struct TtfFont {
     pub units_per_em: u16,
     /// Font bounding box [xMin, yMin, xMax, yMax] from the `head` table.
     pub bbox: [i16; 4],
-    /// Ascent from the `OS/2` or `hhea` table.
-    pub ascent: i16,
-    /// Descent from the `OS/2` or `hhea` table.
-    pub descent: i16,
+    /// Vertical metrics used for PDF embedding, sourced from `hhea`.
+    pub pdf_metrics: FontVerticalMetrics,
+    /// Vertical metrics used for CSS layout, sourced from `OS/2 sTypo*`
+    /// when available and falling back to `hhea`.
+    pub layout_metrics: FontVerticalMetrics,
     /// Character code to glyph ID mapping from the `cmap` table.
     pub cmap: HashMap<u16, u16>,
     /// Advance width for each glyph ID from the `hmtx` table.
@@ -32,36 +72,73 @@ pub struct TtfFont {
 }
 
 impl TtfFont {
-    /// Get the advance width for a character code, in font units.
-    pub fn char_width(&self, ch: u16) -> u16 {
-        let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
+    pub const fn pdf_vertical_metrics(&self) -> FontVerticalMetrics {
+        self.pdf_metrics
+    }
+
+    pub const fn layout_vertical_metrics(&self) -> FontVerticalMetrics {
+        self.layout_metrics
+    }
+
+    /// Get the advance width for a glyph ID, in font units.
+    pub fn glyph_width(&self, glyph_id: u16) -> u16 {
         if (glyph_id as usize) < self.glyph_widths.len() {
             self.glyph_widths[glyph_id as usize]
-        } else if !self.glyph_widths.is_empty() {
-            // Use last long metric for glyphs beyond num_h_metrics
-            self.glyph_widths[self.glyph_widths.len() - 1]
         } else {
-            0
+            self.glyph_widths.last().copied().unwrap_or(0)
         }
     }
 
-    /// Get the advance width for a character in PDF units (1/1000 of text space).
-    pub fn char_width_pdf(&self, ch: u16) -> u16 {
-        let w = self.char_width(ch) as u64;
-        let upm = self.units_per_em as u64;
-        if upm == 0 {
-            return 0;
-        }
-        ((w * 1000) / upm) as u16
+    /// Get the advance width for a character code, in font units.
+    #[cfg(test)]
+    pub fn char_width(&self, ch: u16) -> u16 {
+        let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
+        self.glyph_width(glyph_id)
     }
 
-    /// Get the advance width scaled to a given font size in points.
-    pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
+    /// Get the advance width for a glyph in PDF units (1/1000 of text space).
+    #[cfg(test)]
+    pub fn glyph_width_pdf(&self, glyph_id: u16) -> u16 {
+        self.glyph_width_pdf_value(glyph_id).trunc() as u16
+    }
+
+    /// Get the advance width for a glyph in PDF units (1/1000 of text space).
+    pub fn glyph_width_pdf_value(&self, glyph_id: u16) -> f32 {
         if self.units_per_em == 0 {
             return 0.0;
         }
-        let w = self.char_width(ch) as f32;
-        w * font_size / self.units_per_em as f32
+        self.glyph_width(glyph_id) as f32 * 1000.0 / self.units_per_em as f32
+    }
+
+    /// Get the advance width for a glyph scaled to a given font size in points.
+    pub fn glyph_width_scaled(&self, glyph_id: u16, font_size: f32) -> f32 {
+        if self.units_per_em == 0 {
+            return 0.0;
+        }
+        let width = self.glyph_width(glyph_id) as f32;
+        width * font_size / self.units_per_em as f32
+    }
+
+    /// Get the advance width for a character in PDF units (1/1000 of text space).
+    #[cfg(test)]
+    pub fn char_width_pdf(&self, ch: u16) -> u16 {
+        self.char_width_pdf_value(ch).trunc() as u16
+    }
+
+    /// Get the advance width for a character in PDF units (1/1000 of text space).
+    #[cfg(test)]
+    pub fn char_width_pdf_value(&self, ch: u16) -> f32 {
+        if self.units_per_em == 0 {
+            return 0.0;
+        }
+        self.char_width(ch) as f32 * 1000.0 / self.units_per_em as f32
+    }
+
+    /// Get the advance width scaled to a given font size in points.
+    #[cfg(test)]
+    pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
+        let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
+        self.glyph_width_scaled(glyph_id, font_size)
     }
 }
 
@@ -123,21 +200,12 @@ pub fn parse_ttf(data: Vec<u8>) -> Result<TtfFont, String> {
     }
     let hhea_ascent = read_i16(&data, hhea_off + 4);
     let hhea_descent = read_i16(&data, hhea_off + 6);
+    let hhea_line_gap = read_i16(&data, hhea_off + 8);
     let num_h_metrics = read_u16(&data, hhea_off + 34);
 
-    // Parse OS/2 table for ascent/descent if available, else use hhea
-    let (ascent, descent) = if let Some(os2) = tables.get(b"OS/2") {
-        let os2_off = os2.offset as usize;
-        if data.len() >= os2_off + 72 {
-            let s_typo_ascender = read_i16(&data, os2_off + 68);
-            let s_typo_descender = read_i16(&data, os2_off + 70);
-            (s_typo_ascender, s_typo_descender)
-        } else {
-            (hhea_ascent, hhea_descent)
-        }
-    } else {
-        (hhea_ascent, hhea_descent)
-    };
+    let pdf_metrics = FontVerticalMetrics::new(hhea_ascent, hhea_descent, hhea_line_gap);
+    let layout_metrics =
+        parse_os2_typographic_metrics(&data, tables.get(b"OS/2")).unwrap_or(pdf_metrics);
 
     // Parse maxp table for num_glyphs
     let maxp = tables.get(b"maxp").ok_or("Missing maxp table")?;
@@ -181,14 +249,30 @@ pub fn parse_ttf(data: Vec<u8>) -> Result<TtfFont, String> {
         font_name,
         units_per_em,
         bbox,
-        ascent,
-        descent,
+        pdf_metrics,
+        layout_metrics,
         cmap,
         glyph_widths,
         num_h_metrics,
         flags,
         data,
     })
+}
+
+fn parse_os2_typographic_metrics(
+    data: &[u8],
+    os2: Option<&TableRecord>,
+) -> Option<FontVerticalMetrics> {
+    let os2 = os2?;
+    let os2_off = os2.offset as usize;
+    if data.len() < os2_off + 74 {
+        return None;
+    }
+
+    let ascent = read_i16(data, os2_off + 68);
+    let descent = read_i16(data, os2_off + 70);
+    let line_gap = read_i16(data, os2_off + 72);
+    Some(FontVerticalMetrics::new(ascent, descent, line_gap))
 }
 
 /// Parse the cmap table, looking for a format 4 (BMP Unicode) subtable.
@@ -311,7 +395,7 @@ fn parse_cmap_format4(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, S
     Ok(map)
 }
 
-/// Parse the name table and extract the font family name (nameID 1 or 4).
+/// Parse the name table and extract the best available font face name.
 fn parse_name_table(data: &[u8], offset: usize) -> Result<String, String> {
     if data.len() < offset + 6 {
         return Err("name table too short".to_string());
@@ -321,7 +405,7 @@ fn parse_name_table(data: &[u8], offset: usize) -> Result<String, String> {
     let string_offset = read_u16(data, offset + 4) as usize;
     let storage_off = offset + string_offset;
 
-    // Try to find nameID 4 (full name) first, then nameID 1 (family name)
+    // Prefer the PostScript name (nameID 6), then full name (4), then family (1).
     let mut best_name: Option<String> = None;
     let mut best_priority = 0u8;
 
@@ -336,11 +420,12 @@ fn parse_name_table(data: &[u8], offset: usize) -> Result<String, String> {
         let length = read_u16(data, rec_off + 8) as usize;
         let str_offset = read_u16(data, rec_off + 10) as usize;
 
-        if name_id != 1 && name_id != 4 {
-            continue;
-        }
-
-        let priority = if name_id == 4 { 2 } else { 1 };
+        let priority = match name_id {
+            6 => 3,
+            4 => 2,
+            1 => 1,
+            _ => continue,
+        };
         if priority <= best_priority {
             continue;
         }
@@ -607,8 +692,8 @@ mod tests {
         let data = build_test_ttf();
         let font = parse_ttf(data).unwrap();
         // No OS/2 table, should fall back to hhea values
-        assert_eq!(font.ascent, 800);
-        assert_eq!(font.descent, -200);
+        assert_eq!(font.pdf_metrics, FontVerticalMetrics::new(800, -200, 0));
+        assert_eq!(font.layout_metrics, FontVerticalMetrics::new(800, -200, 0));
     }
 
     #[test]
@@ -694,8 +779,8 @@ mod tests {
             font_name: String::new(),
             units_per_em: 1000,
             bbox: [0; 4],
-            ascent: 0,
-            descent: 0,
+            pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
+            layout_metrics: FontVerticalMetrics::new(0, 0, 0),
             cmap: {
                 let mut m = HashMap::new();
                 m.insert(65, 999); // glyph 999 is beyond widths vec
@@ -716,8 +801,8 @@ mod tests {
             font_name: String::new(),
             units_per_em: 1000,
             bbox: [0; 4],
-            ascent: 0,
-            descent: 0,
+            pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
+            layout_metrics: FontVerticalMetrics::new(0, 0, 0),
             cmap: HashMap::new(),
             glyph_widths: vec![],
             num_h_metrics: 0,
@@ -974,8 +1059,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_ttf_os2_table_used_for_ascent_descent() {
-        // Lines 119-123: OS/2 table present and large enough
+    fn parse_ttf_uses_os2_typographic_metrics_for_layout() {
         let head = make_head_table(1000);
         let hhea = make_hhea_table(800, -200, 1);
         let maxp = make_maxp_table(1);
@@ -983,16 +1067,18 @@ mod tests {
         let cmap = make_cmap_format4(65, 65, -64); // char 65 -> glyph 1
         let name = make_name_table_ascii(1, b"Test");
 
-        let mut os2 = vec![0u8; 72];
+        let mut os2 = vec![0u8; 74];
         // sTypoAscender at offset 68
         os2[68..70].copy_from_slice(&900i16.to_be_bytes());
         // sTypoDescender at offset 70
         os2[70..72].copy_from_slice(&(-300i16).to_be_bytes());
+        // sTypoLineGap at offset 72
+        os2[72..74].copy_from_slice(&50i16.to_be_bytes());
 
         let data = build_full_ttf(&head, &hhea, &maxp, &hmtx, &cmap, &name, Some(&os2));
         let font = parse_ttf(data).unwrap();
-        assert_eq!(font.ascent, 900);
-        assert_eq!(font.descent, -300);
+        assert_eq!(font.pdf_metrics, FontVerticalMetrics::new(800, -200, 0));
+        assert_eq!(font.layout_metrics, FontVerticalMetrics::new(900, -300, 50));
     }
 
     #[test]
@@ -1008,8 +1094,8 @@ mod tests {
         let os2 = vec![0u8; 10]; // too short for ascent/descent fields
         let data = build_full_ttf(&head, &hhea, &maxp, &hmtx, &cmap, &name, Some(&os2));
         let font = parse_ttf(data).unwrap();
-        assert_eq!(font.ascent, 800);
-        assert_eq!(font.descent, -200);
+        assert_eq!(font.pdf_metrics, FontVerticalMetrics::new(800, -200, 0));
+        assert_eq!(font.layout_metrics, FontVerticalMetrics::new(800, -200, 0));
     }
 
     #[test]
@@ -1428,8 +1514,8 @@ mod tests {
             font_name: String::new(),
             units_per_em: 1000,
             bbox: [0; 4],
-            ascent: 0,
-            descent: 0,
+            pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
+            layout_metrics: FontVerticalMetrics::new(0, 0, 0),
             cmap: {
                 let mut m = HashMap::new();
                 m.insert(65, 0);
@@ -1451,8 +1537,8 @@ mod tests {
             font_name: String::new(),
             units_per_em: 0,
             bbox: [0; 4],
-            ascent: 0,
-            descent: 0,
+            pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
+            layout_metrics: FontVerticalMetrics::new(0, 0, 0),
             cmap: {
                 let mut m = HashMap::new();
                 m.insert(65, 0);

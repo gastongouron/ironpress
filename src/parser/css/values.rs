@@ -199,8 +199,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
     }
 
     if property == "font-family" {
-        let first_font = val.split(',').next().unwrap_or(val).trim();
-        return Some(CssValue::Keyword(first_font.to_string()));
+        return Some(CssValue::Keyword(val.trim().to_string()));
     }
 
     if matches!(property, "text-align" | "text-decoration" | "display") {
@@ -273,16 +272,23 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "overflow"
             | "visibility"
             | "transform"
+            | "filter"
+            | "aspect-ratio"
             | "grid-template-columns"
             | "box-shadow"
             | "outline"
             | "box-sizing"
             | "text-overflow"
             | "border-collapse"
+            | "table-layout"
             | "background-size"
             | "background-repeat"
             | "background-position"
+            | "background-origin"
+            | "background-image"
             | "white-space"
+            | "overflow-wrap"
+            | "word-wrap"
             | "text-transform"
     ) {
         return Some(CssValue::Keyword(val.to_string()));
