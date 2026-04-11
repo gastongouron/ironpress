@@ -2297,8 +2297,8 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
     }
 }
 
-/// Public wrapper for `parse_content_value` used by the layout engine.
-#[allow(dead_code)]
+/// Test-only wrapper for `parse_content_value`.
+#[cfg(test)]
 pub fn parse_content_value_pub(raw: &str) -> Vec<ContentItem> {
     parse_content_value(raw)
 }
