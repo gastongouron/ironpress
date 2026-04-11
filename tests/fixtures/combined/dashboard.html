@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 24px; color: #1e293b; background-color: #f8fafc; font-size: 13px; }
+  h1 { font-size: 22px; margin: 0 0 20px 0; }
+  .cards { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .card { flex: 1; min-width: 140px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
+  .card-value { font-size: 28px; font-weight: 700; color: #0f172a; }
+  .card-change { font-size: 12px; margin-top: 4px; }
+  .up { color: #059669; }
+  .down { color: #dc2626; }
+
+  .section { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .section-title { font-size: 15px; font-weight: 600; margin: 0 0 12px 0; }
+
+  .progress-row { display: flex; align-items: center; margin-bottom: 10px; }
+  .progress-label { width: 100px; font-size: 12px; color: #475569; }
+  .progress-bar { flex: 1; height: 12px; background-color: #e2e8f0; border-radius: 6px; overflow: hidden; margin: 0 12px; }
+  .progress-fill-blue { height: 100%; background-color: #3b82f6; border-radius: 6px; }
+  .progress-fill-green { height: 100%; background-color: #10b981; border-radius: 6px; }
+  .progress-fill-amber { height: 100%; background-color: #f59e0b; border-radius: 6px; }
+  .progress-fill-red { height: 100%; background-color: #ef4444; border-radius: 6px; }
+  .progress-value { width: 40px; text-align: right; font-size: 12px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+  .status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .status-active { background-color: #dcfce7; color: #166534; }
+  .status-warning { background-color: #fef3c7; color: #92400e; }
+  .status-error { background-color: #fef2f2; color: #991b1b; }
+
+  .chart-container { text-align: center; }
+</style>
+</head>
+<body>
+  <h1>System Dashboard</h1>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Requests / min</div>
+      <div class="card-value">12,847</div>
+      <div class="card-change up">+12.3% vs last week</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Avg Latency</div>
+      <div class="card-value">42ms</div>
+      <div class="card-change up">-8.7% vs last week</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Error Rate</div>
+      <div class="card-value">0.03%</div>
+      <div class="card-change up">-15% vs last week</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Uptime</div>
+      <div class="card-value">99.98%</div>
+      <div class="card-change up">+0.01%</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Resource Usage</div>
+    <div class="progress-row">
+      <div class="progress-label">CPU</div>
+      <div class="progress-bar"><div class="progress-fill-blue" style="width:67%;"></div></div>
+      <div class="progress-value">67%</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-label">Memory</div>
+      <div class="progress-bar"><div class="progress-fill-green" style="width:45%;"></div></div>
+      <div class="progress-value">45%</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-label">Disk</div>
+      <div class="progress-bar"><div class="progress-fill-amber" style="width:82%;"></div></div>
+      <div class="progress-value">82%</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-label">Network</div>
+      <div class="progress-bar"><div class="progress-fill-blue" style="width:31%;"></div></div>
+      <div class="progress-value">31%</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Service Status</div>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Status</th><th>Latency</th><th>Requests/s</th><th>Errors</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>API Gateway</td><td><span class="status status-active">Active</span></td><td>12ms</td><td>4,280</td><td>2</td></tr>
+        <tr><td>Auth Service</td><td><span class="status status-active">Active</span></td><td>8ms</td><td>2,150</td><td>0</td></tr>
+        <tr><td>PDF Renderer</td><td><span class="status status-active">Active</span></td><td>145ms</td><td>890</td><td>1</td></tr>
+        <tr><td>Image Service</td><td><span class="status status-warning">Degraded</span></td><td>320ms</td><td>1,240</td><td>15</td></tr>
+        <tr><td>Email Service</td><td><span class="status status-active">Active</span></td><td>95ms</td><td>420</td><td>0</td></tr>
+        <tr><td>Cache Layer</td><td><span class="status status-error">Down</span></td><td>--</td><td>0</td><td>--</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Request Distribution (SVG Chart)</div>
+    <div class="chart-container">
+      <svg width="400" height="200" viewBox="0 0 400 200">
+        <!-- Axes -->
+        <line x1="50" y1="10" x2="50" y2="170" stroke="#cbd5e1" stroke-width="1" />
+        <line x1="50" y1="170" x2="390" y2="170" stroke="#cbd5e1" stroke-width="1" />
+        <!-- Grid lines -->
+        <line x1="50" y1="130" x2="390" y2="130" stroke="#f1f5f9" />
+        <line x1="50" y1="90" x2="390" y2="90" stroke="#f1f5f9" />
+        <line x1="50" y1="50" x2="390" y2="50" stroke="#f1f5f9" />
+        <!-- Y labels -->
+        <text x="45" y="174" font-size="10" fill="#94a3b8" text-anchor="end">0</text>
+        <text x="45" y="134" font-size="10" fill="#94a3b8" text-anchor="end">2k</text>
+        <text x="45" y="94" font-size="10" fill="#94a3b8" text-anchor="end">4k</text>
+        <text x="45" y="54" font-size="10" fill="#94a3b8" text-anchor="end">6k</text>
+        <!-- Bars -->
+        <rect x="65" y="60" width="35" height="110" fill="#3b82f6" rx="3" />
+        <rect x="115" y="90" width="35" height="80" fill="#3b82f6" rx="3" />
+        <rect x="165" y="40" width="35" height="130" fill="#3b82f6" rx="3" />
+        <rect x="215" y="70" width="35" height="100" fill="#3b82f6" rx="3" />
+        <rect x="265" y="100" width="35" height="70" fill="#3b82f6" rx="3" />
+        <rect x="315" y="120" width="35" height="50" fill="#3b82f6" rx="3" />
+        <!-- X labels -->
+        <text x="82" y="185" font-size="10" fill="#64748b" text-anchor="middle">Mon</text>
+        <text x="132" y="185" font-size="10" fill="#64748b" text-anchor="middle">Tue</text>
+        <text x="182" y="185" font-size="10" fill="#64748b" text-anchor="middle">Wed</text>
+        <text x="232" y="185" font-size="10" fill="#64748b" text-anchor="middle">Thu</text>
+        <text x="282" y="185" font-size="10" fill="#64748b" text-anchor="middle">Fri</text>
+        <text x="332" y="185" font-size="10" fill="#64748b" text-anchor="middle">Sat</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

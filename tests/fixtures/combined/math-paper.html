@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>On the Convergence of Series</title>
+<style>
+  body { font-family: Georgia, serif; margin: 40px auto; max-width: 600px; color: #1e293b; line-height: 1.7; font-size: 14px; }
+  h1 { font-family: sans-serif; font-size: 24px; text-align: center; margin-bottom: 4px; }
+  .author { text-align: center; font-size: 14px; color: #475569; margin-bottom: 4px; }
+  .affiliation { text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 24px; }
+  .abstract { margin: 0 40px 24px 40px; font-size: 13px; }
+  .abstract-title { font-weight: bold; font-size: 13px; }
+  h2 { font-family: sans-serif; font-size: 16px; margin-top: 24px; }
+  .equation { text-align: center; margin: 16px 0; position: relative; }
+  .eq-number { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 13px; color: #64748b; }
+  .ref { color: #2563eb; }
+  p { margin: 8px 0; text-align: justify; }
+  .theorem { margin: 16px 0; padding: 12px 16px; background-color: #f8fafc; border-left: 3px solid #1e40af; }
+  .theorem-title { font-weight: bold; font-style: italic; }
+  .proof { margin: 8px 0 16px 0; }
+  .proof-title { font-weight: bold; }
+  .qed { text-align: right; }
+  .references { font-size: 12px; }
+  .references h2 { font-size: 14px; }
+  .references p { margin: 4px 0; text-indent: -20px; padding-left: 20px; }
+</style>
+</head>
+<body>
+  <h1>On the Convergence Properties of Generalized Power Series</h1>
+  <div class="author">Dr. Maria Chen and Prof. James Watson</div>
+  <div class="affiliation">Department of Mathematics, University of Cambridge</div>
+
+  <div class="abstract">
+    <span class="abstract-title">Abstract.</span> We investigate the convergence behavior of generalized power series of the form $\sum_{n=0}^{\infty} a_n (x - c)^n$ under relaxed coefficient growth conditions. We establish a new criterion for absolute convergence and derive tight bounds on the radius of convergence for several classes of coefficient sequences. Our main result extends the classical Cauchy-Hadamard theorem to series with sub-exponential coefficient growth.
+  </div>
+
+  <h2>1. Introduction</h2>
+  <p>The study of power series convergence is fundamental to analysis. Given a formal power series</p>
+  <div class="equation">
+    $$f(x) = \sum_{n=0}^{\infty} a_n (x - c)^n$$
+    <span class="eq-number">(1)</span>
+  </div>
+  <p>the classical Cauchy-Hadamard theorem states that the radius of convergence $R$ is given by</p>
+  <div class="equation">
+    $$\frac{1}{R} = \limsup_{n \to \infty} |a_n|^{1/n}$$
+    <span class="eq-number">(2)</span>
+  </div>
+  <p>This result, while powerful, provides limited information about the behavior at the boundary $|x - c| = R$. In this paper, we develop refined tools for analyzing boundary convergence for series whose coefficients satisfy growth conditions weaker than those typically assumed in classical analysis.</p>
+
+  <h2>2. Preliminaries</h2>
+  <p>We recall several standard definitions. A sequence $\{a_n\}$ is said to have <em>sub-exponential growth</em> if for every $\epsilon > 0$ there exists $N$ such that $|a_n| \leq e^{\epsilon n}$ for all $n > N$. Equivalently, $\lim_{n \to \infty} |a_n|^{1/n} = 1$, so the radius of convergence is $R = 1$.</p>
+
+  <p>We define the <em>growth index</em> $\gamma$ of such a sequence by</p>
+  <div class="equation">
+    $$\gamma = \limsup_{n \to \infty} \frac{\log |a_n|}{\log n}$$
+    <span class="eq-number">(3)</span>
+  </div>
+
+  <h2>3. Main Results</h2>
+
+  <div class="theorem">
+    <span class="theorem-title">Theorem 3.1.</span> Let $f(x) = \sum a_n x^n$ be a power series with sub-exponential coefficient growth and growth index $\gamma$. Then:
+    <br>(i) If $\gamma < -1$, the series converges absolutely on the closed unit disk $\overline{D}(0, 1)$.
+    <br>(ii) If $\gamma = -1$, the series converges conditionally on $|x| = 1$ if and only if $\sum a_n e^{in\theta}$ satisfies the Dirichlet criterion for each $\theta$.
+    <br>(iii) If $\gamma > -1$, there exist points on $|x| = 1$ where the series diverges.
+  </div>
+
+  <div class="proof">
+    <span class="proof-title">Proof.</span> For part (i), since $\gamma < -1$, there exists $\delta > 0$ such that $|a_n| \leq n^{-1-\delta}$ for sufficiently large $n$. On $|x| = 1$, we have $|a_n x^n| = |a_n| \leq n^{-1-\delta}$, and $\sum n^{-1-\delta}$ converges by the $p$-series test.
+
+    For part (iii), consider the partial sums $S_N(\theta) = \sum_{n=0}^{N} a_n e^{in\theta}$. By a counting argument on the distribution of $\{n\theta \mod 2\pi\}$, we can find a subsequence of partial sums that grows without bound.
+    <div class="qed">$\square$</div>
+  </div>
+
+  <p>As a corollary, we obtain a refined version of Abel's theorem:</p>
+
+  <div class="equation">
+    $$\lim_{r \to 1^-} \sum_{n=0}^{\infty} a_n r^n = \sum_{n=0}^{\infty} a_n$$
+    <span class="eq-number">(4)</span>
+  </div>
+  <p>whenever the right-hand side converges and $\gamma \leq -1$.</p>
+
+  <h2>4. Applications</h2>
+  <p>Our results apply to several classical objects. The polylogarithm $\text{Li}_s(z) = \sum_{n=1}^{\infty} z^n / n^s$ has growth index $\gamma = -s$, so by Theorem 3.1, $\text{Li}_s$ converges absolutely on $\overline{D}(0,1)$ for $s > 1$ and has boundary singularities for $0 < s \leq 1$.</p>
+
+  <p>For the generating function of partition numbers $p(n)$, Hardy and Ramanujan showed that $p(n) \sim \frac{1}{4n\sqrt{3}} e^{\pi\sqrt{2n/3}}$, giving exponential growth. This falls outside the scope of our theorem, confirming the known result that $\prod (1 - x^n)^{-1}$ has the unit circle as a natural boundary.</p>
+
+  <h2>5. Conclusion</h2>
+  <p>We have extended the Cauchy-Hadamard framework to provide a complete characterization of boundary convergence for power series with sub-exponential coefficient growth. The growth index $\gamma$ serves as a simple but effective discriminant. Future work will address the multivariate case and connections to analytic continuation.</p>
+
+  <div class="references">
+    <h2>References</h2>
+    <p>[1] G. H. Hardy and M. Riesz. <em>The General Theory of Dirichlet's Series.</em> Cambridge Tracts in Mathematics, 1915.</p>
+    <p>[2] W. Rudin. <em>Real and Complex Analysis.</em> McGraw-Hill, 3rd edition, 1987.</p>
+    <p>[3] E. C. Titchmarsh. <em>The Theory of Functions.</em> Oxford University Press, 2nd edition, 1939.</p>
+    <p>[4] S. Lang. <em>Complex Analysis.</em> Springer, Graduate Texts in Mathematics, 1999.</p>
+  </div>
+</body>
+</html>

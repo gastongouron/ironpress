@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Box Model Features</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .box { background-color: #e0e7ff; margin-bottom: 12px; padding: 12px; }
+
+  .margin-all { margin: 20px; background-color: #dbeafe; padding: 8px; }
+  .margin-sides { margin-top: 10px; margin-right: 40px; margin-bottom: 10px; margin-left: 40px; background-color: #dbeafe; padding: 8px; }
+
+  .padding-all { padding: 30px; background-color: #dcfce7; }
+  .padding-sides { padding-top: 5px; padding-right: 40px; padding-bottom: 5px; padding-left: 40px; background-color: #dcfce7; }
+
+  .border-solid { border: 3px solid #1e40af; padding: 12px; margin-bottom: 8px; }
+  .border-dashed { border: 2px dashed #dc2626; padding: 12px; margin-bottom: 8px; }
+  .border-sides { border-top: 4px solid #059669; border-bottom: 2px dotted #7c3aed; border-left: 1px solid #ca8a04; border-right: 6px double #be185d; padding: 12px; margin-bottom: 8px; }
+
+  .radius-sm { border-radius: 4px; border: 2px solid #333; padding: 12px; margin-bottom: 8px; background-color: #fef3c7; }
+  .radius-lg { border-radius: 20px; border: 2px solid #333; padding: 12px; margin-bottom: 8px; background-color: #fef3c7; }
+  .radius-pill { border-radius: 999px; border: 2px solid #333; padding: 8px 24px; margin-bottom: 8px; background-color: #fef3c7; display: inline-block; }
+  .radius-circle { border-radius: 50%; width: 80px; height: 80px; border: 2px solid #333; background-color: #fef3c7; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+
+  .content-box { box-sizing: content-box; width: 200px; padding: 20px; border: 5px solid #6366f1; background-color: #ede9fe; margin-bottom: 8px; }
+  .border-box { box-sizing: border-box; width: 200px; padding: 20px; border: 5px solid #6366f1; background-color: #ede9fe; margin-bottom: 8px; }
+
+  .fixed-w { width: 300px; background-color: #fce7f3; padding: 8px; margin-bottom: 8px; }
+  .fixed-h { height: 60px; background-color: #fce7f3; padding: 8px; margin-bottom: 8px; }
+  .min-w { min-width: 250px; background-color: #ccfbf1; padding: 8px; margin-bottom: 8px; display: inline-block; }
+  .max-w { max-width: 200px; background-color: #ccfbf1; padding: 8px; margin-bottom: 8px; }
+  .min-h { min-height: 80px; background-color: #fef9c3; padding: 8px; margin-bottom: 8px; }
+  .max-h { max-height: 40px; overflow: hidden; background-color: #fef9c3; padding: 8px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <h1>Box Model Test Fixture</h1>
+
+  <h2>Margin</h2>
+  <div class="margin-all">Margin 20px all sides</div>
+  <div class="margin-sides">Margin: 10px top/bottom, 40px left/right</div>
+
+  <h2>Padding</h2>
+  <div class="padding-all">Padding 30px all sides</div>
+  <div class="padding-sides">Padding: 5px top/bottom, 40px left/right</div>
+
+  <h2>Border</h2>
+  <div class="border-solid">3px solid blue border</div>
+  <div class="border-dashed">2px dashed red border</div>
+  <div class="border-sides">Different borders on each side</div>
+
+  <h2>Border Radius</h2>
+  <div class="radius-sm">Small radius (4px)</div>
+  <div class="radius-lg">Large radius (20px)</div>
+  <span class="radius-pill">Pill shape</span>
+  <div style="margin-top: 12px;"></div>
+  <div class="radius-circle">Circle</div>
+
+  <h2>Box Sizing</h2>
+  <div class="content-box">content-box: width 200px + padding + border</div>
+  <div class="border-box">border-box: total width 200px including padding + border</div>
+
+  <h2>Width &amp; Height</h2>
+  <div class="fixed-w">Fixed width: 300px</div>
+  <div class="fixed-h">Fixed height: 60px</div>
+  <div class="min-w">Min-width: 250px</div>
+  <div class="max-w">Max-width: 200px with text that might overflow the constraint.</div>
+  <div class="min-h">Min-height: 80px</div>
+  <div class="max-h">Max-height: 40px, overflow hidden. This text will be clipped.</div>
+</body>
+</html>

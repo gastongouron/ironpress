@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Page Breaks</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #1e293b; line-height: 1.6; }
+  h1 { font-size: 24px; }
+  h2 { font-size: 18px; margin-top: 16px; color: #1e40af; }
+  .page-break-before { page-break-before: always; }
+  .page-break-after { page-break-after: always; }
+  .no-break { page-break-inside: avoid; }
+  .section { padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 4px; }
+  .filler { margin: 8px 0; }
+</style>
+</head>
+<body>
+  <h1>Page Break Test Fixture</h1>
+
+  <div class="section">
+    <h2>Section 1: First Page Content</h2>
+    <p class="filler">This content appears on the first page. It includes enough text to establish the page context before testing explicit page breaks.</p>
+    <p class="filler">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+  </div>
+
+  <div class="section page-break-after">
+    <h2>Section 2: page-break-after: always</h2>
+    <p>After this section, a page break should be inserted. The next content should appear on a new page.</p>
+    <p class="filler">This is the last content before the explicit page break.</p>
+  </div>
+
+  <div class="section">
+    <h2>Section 3: After the First Break</h2>
+    <p>This section should appear at the top of a new page because the previous section had page-break-after: always.</p>
+    <p class="filler">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+  </div>
+
+  <div class="section page-break-before">
+    <h2>Section 4: page-break-before: always</h2>
+    <p>This section forces a page break before itself. It should always start on a new page.</p>
+    <p class="filler">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+  </div>
+
+  <div class="section no-break">
+    <h2>Section 5: page-break-inside: avoid</h2>
+    <p>This entire section should try to stay together on a single page. If it cannot fit on the current page, it should move to the next page.</p>
+    <p class="filler">Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    <p class="filler">Additional content to make this section larger and test the avoid behavior with more substantial content blocks.</p>
+  </div>
+
+  <div class="section page-break-before">
+    <h2>Section 6: Another page-break-before</h2>
+    <p>This is another section with page-break-before to verify multiple consecutive page breaks work correctly.</p>
+  </div>
+
+  <div class="section page-break-after">
+    <h2>Section 7: Final page-break-after</h2>
+    <p>This section has page-break-after. Any trailing content should appear on the final page.</p>
+  </div>
+
+  <div class="section">
+    <h2>Section 8: Final Content</h2>
+    <p>This is the last section. It should appear on its own page after the previous section's page-break-after.</p>
+  </div>
+</body>
+</html>

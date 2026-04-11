@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Typography Features</title>
+<style>
+  body { font-family: serif; margin: 40px; color: #222; }
+  .size-sm { font-size: 10px; }
+  .size-md { font-size: 16px; }
+  .size-lg { font-size: 24px; }
+  .size-xl { font-size: 36px; }
+  .weight-light { font-weight: 300; }
+  .weight-normal { font-weight: 400; }
+  .weight-bold { font-weight: 700; }
+  .weight-black { font-weight: 900; }
+  .italic { font-style: italic; }
+  .sans { font-family: sans-serif; }
+  .mono { font-family: monospace; }
+  .tracking-wide { letter-spacing: 4px; }
+  .tracking-tight { letter-spacing: -1px; }
+  .word-space { word-spacing: 8px; }
+  .indent { text-indent: 40px; }
+  .uppercase { text-transform: uppercase; }
+  .lowercase { text-transform: lowercase; }
+  .capitalize { text-transform: capitalize; }
+  .underline { text-decoration: underline; }
+  .line-through { text-decoration: line-through; }
+  .overline { text-decoration: overline; }
+  .lh-tight { line-height: 1.0; }
+  .lh-normal { line-height: 1.5; }
+  .lh-loose { line-height: 2.5; }
+  h2 { margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+</style>
+</head>
+<body>
+  <h1>Typography Test Fixture</h1>
+
+  <h2>Font Sizes</h2>
+  <p class="size-sm">This text is 10px small.</p>
+  <p class="size-md">This text is 16px medium (default).</p>
+  <p class="size-lg">This text is 24px large.</p>
+  <p class="size-xl">This text is 36px extra-large.</p>
+
+  <h2>Font Weights</h2>
+  <p class="weight-light">Light weight (300) text sample.</p>
+  <p class="weight-normal">Normal weight (400) text sample.</p>
+  <p class="weight-bold">Bold weight (700) text sample.</p>
+  <p class="weight-black">Black weight (900) text sample.</p>
+
+  <h2>Font Style &amp; Family</h2>
+  <p class="italic">This text is italic serif.</p>
+  <p class="sans">This text uses sans-serif.</p>
+  <p class="mono">This text uses monospace.</p>
+  <p class="sans italic">This text is italic sans-serif.</p>
+
+  <h2>Letter &amp; Word Spacing</h2>
+  <p class="tracking-wide">Wide letter-spacing applied here.</p>
+  <p class="tracking-tight">Tight letter-spacing applied here.</p>
+  <p class="word-space">Extra word spacing between these words.</p>
+
+  <h2>Text Indent</h2>
+  <p class="indent">This paragraph has a 40px first-line indent. The remaining text wraps normally to demonstrate that only the first line is indented in this block-level element.</p>
+
+  <h2>Text Transform</h2>
+  <p class="uppercase">this should appear uppercase.</p>
+  <p class="lowercase">THIS SHOULD APPEAR LOWERCASE.</p>
+  <p class="capitalize">these words should be capitalized.</p>
+
+  <h2>Text Decoration</h2>
+  <p class="underline">Underlined text decoration.</p>
+  <p class="line-through">Line-through (strikethrough) text.</p>
+  <p class="overline">Overline text decoration.</p>
+
+  <h2>Line Height</h2>
+  <p class="lh-tight">Tight line-height (1.0). This paragraph has multiple lines to show the effect of reduced leading between lines of text in a block element.</p>
+  <p class="lh-normal">Normal line-height (1.5). This paragraph has multiple lines to show comfortable default leading between lines of text in a block element.</p>
+  <p class="lh-loose">Loose line-height (2.5). This paragraph has multiple lines to show generous leading between lines of text in a block element.</p>
+</body>
+</html>

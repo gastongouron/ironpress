@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resume - Jane Doe</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 40px; color: #1e293b; font-size: 13px; line-height: 1.5; }
+  .layout { display: flex; gap: 32px; }
+  .sidebar { width: 200px; flex-shrink: 0; }
+  .main { flex-grow: 1; }
+  h1 { font-size: 28px; margin: 0 0 4px 0; color: #0f172a; }
+  .subtitle { font-size: 16px; color: #3b82f6; margin-bottom: 16px; font-weight: 500; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 2px; color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; }
+  h3 { font-size: 14px; margin: 12px 0 2px 0; color: #0f172a; }
+  .meta { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+  .contact-info p { margin: 3px 0; font-size: 12px; }
+  .skill-bar { height: 6px; background-color: #e2e8f0; border-radius: 3px; margin: 4px 0 8px 0; }
+  .skill-fill { height: 100%; background-color: #3b82f6; border-radius: 3px; }
+  .skill-name { font-size: 12px; font-weight: 600; }
+  ul { margin: 4px 0; padding-left: 16px; }
+  li { margin-bottom: 3px; }
+  .tag { display: inline-block; background-color: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px 2px; }
+  .experience-item { margin-bottom: 14px; }
+  .education-item { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+  <h1>Jane Doe</h1>
+  <div class="subtitle">Senior Software Engineer</div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <h2>Contact</h2>
+      <div class="contact-info">
+        <p>jane.doe@email.com</p>
+        <p>+1 (555) 123-4567</p>
+        <p>San Francisco, CA</p>
+        <p>github.com/janedoe</p>
+        <p>linkedin.com/in/janedoe</p>
+      </div>
+
+      <h2>Skills</h2>
+      <div class="skill-name">Rust</div>
+      <div class="skill-bar"><div class="skill-fill" style="width:95%;"></div></div>
+      <div class="skill-name">TypeScript</div>
+      <div class="skill-bar"><div class="skill-fill" style="width:90%;"></div></div>
+      <div class="skill-name">Python</div>
+      <div class="skill-bar"><div class="skill-fill" style="width:85%;"></div></div>
+      <div class="skill-name">Go</div>
+      <div class="skill-bar"><div class="skill-fill" style="width:75%;"></div></div>
+      <div class="skill-name">SQL</div>
+      <div class="skill-bar"><div class="skill-fill" style="width:80%;"></div></div>
+
+      <h2>Languages</h2>
+      <p>English (native)</p>
+      <p>French (fluent)</p>
+      <p>Japanese (conversational)</p>
+
+      <h2>Interests</h2>
+      <p>Open-source contributions</p>
+      <p>Technical writing</p>
+      <p>Rock climbing</p>
+    </div>
+
+    <div class="main">
+      <h2>Experience</h2>
+
+      <div class="experience-item">
+        <h3>Senior Software Engineer</h3>
+        <div class="meta">TechCorp Inc. | Jan 2023 - Present | San Francisco, CA</div>
+        <ul>
+          <li>Led development of a high-performance PDF rendering engine in Rust serving 50M+ requests/month</li>
+          <li>Designed and implemented a microservice architecture reducing latency by 40%</li>
+          <li>Mentored a team of 4 junior engineers through code reviews and pair programming</li>
+          <li>Introduced automated performance regression testing, catching 12 critical issues pre-release</li>
+        </ul>
+        <div>
+          <span class="tag">Rust</span><span class="tag">gRPC</span><span class="tag">PostgreSQL</span><span class="tag">Docker</span><span class="tag">Kubernetes</span>
+        </div>
+      </div>
+
+      <div class="experience-item">
+        <h3>Software Engineer</h3>
+        <div class="meta">StartupXYZ | Jun 2020 - Dec 2022 | Remote</div>
+        <ul>
+          <li>Built a real-time collaboration platform handling 10,000 concurrent WebSocket connections</li>
+          <li>Developed a custom query optimizer that improved database query performance by 60%</li>
+          <li>Created CI/CD pipelines reducing deployment time from 30 minutes to 5 minutes</li>
+        </ul>
+        <div>
+          <span class="tag">TypeScript</span><span class="tag">Node.js</span><span class="tag">React</span><span class="tag">Redis</span><span class="tag">AWS</span>
+        </div>
+      </div>
+
+      <div class="experience-item">
+        <h3>Junior Developer</h3>
+        <div class="meta">WebAgency Co. | Sep 2018 - May 2020 | New York, NY</div>
+        <ul>
+          <li>Developed responsive web applications for 15+ client projects</li>
+          <li>Implemented automated testing increasing code coverage from 40% to 85%</li>
+        </ul>
+        <div>
+          <span class="tag">JavaScript</span><span class="tag">Python</span><span class="tag">Django</span><span class="tag">PostgreSQL</span>
+        </div>
+      </div>
+
+      <h2>Education</h2>
+      <div class="education-item">
+        <h3>B.S. Computer Science</h3>
+        <div class="meta">University of California, Berkeley | 2014 - 2018</div>
+        <p>GPA: 3.8/4.0 | Dean's List | Senior thesis on distributed systems</p>
+      </div>
+
+      <h2>Certifications</h2>
+      <ul>
+        <li>AWS Solutions Architect - Professional (2024)</li>
+        <li>Certified Kubernetes Administrator (2023)</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

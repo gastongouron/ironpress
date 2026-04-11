@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Simple Report</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #1e293b; line-height: 1.6; }
+  h1 { font-size: 28px; color: #1e40af; border-bottom: 3px solid #1e40af; padding-bottom: 8px; }
+  h2 { font-size: 20px; color: #334155; margin-top: 24px; }
+  h3 { font-size: 16px; color: #475569; }
+  p { margin: 8px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+  th { background-color: #1e40af; color: white; }
+  tbody tr:nth-child(even) { background-color: #f1f5f9; }
+  ul, ol { margin: 8px 0 8px 20px; }
+  li { margin-bottom: 4px; }
+  .summary { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; }
+</style>
+</head>
+<body>
+  <h1>Quarterly Performance Report</h1>
+  <p><strong>Period:</strong> Q1 2026 | <strong>Department:</strong> Engineering</p>
+
+  <div class="summary">
+    <strong>Executive Summary:</strong> The engineering team delivered 14 features, resolved 87 bugs, and reduced average page load time by 23% compared to the previous quarter.
+  </div>
+
+  <h2>Key Metrics</h2>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Q4 2025</th><th>Q1 2026</th><th>Change</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Features Shipped</td><td>11</td><td>14</td><td>+27%</td></tr>
+      <tr><td>Bugs Resolved</td><td>62</td><td>87</td><td>+40%</td></tr>
+      <tr><td>Uptime</td><td>99.92%</td><td>99.97%</td><td>+0.05%</td></tr>
+      <tr><td>Avg Load Time (ms)</td><td>320</td><td>246</td><td>-23%</td></tr>
+      <tr><td>Team Size</td><td>12</td><td>14</td><td>+2</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Highlights</h2>
+  <ul>
+    <li>Launched the new dashboard redesign with 40% faster rendering</li>
+    <li>Migrated 3 core services to the new microservice architecture</li>
+    <li>Implemented automated deployment pipeline reducing deploy time from 45min to 8min</li>
+    <li>Achieved zero-downtime deployments for all production services</li>
+  </ul>
+
+  <h2>Goals for Q2 2026</h2>
+  <ol>
+    <li>Complete migration of remaining 5 legacy services</li>
+    <li>Reduce error rate below 0.01%</li>
+    <li>Launch mobile API v2 with GraphQL support</li>
+    <li>Hire 3 additional senior engineers</li>
+    <li>Implement comprehensive monitoring and alerting</li>
+  </ol>
+
+  <h3>Risk Factors</h3>
+  <p>The primary risk for Q2 is the tight timeline for the mobile API launch, which depends on completing the legacy migration first. A contingency plan has been prepared in case of delays.</p>
+</body>
+</html>

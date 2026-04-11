@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Advanced Backgrounds</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .box { width: 300px; height: 150px; margin-bottom: 16px; border: 1px solid #d1d5db; padding: 12px; font-size: 13px; color: #1e293b; }
+
+  .bg-svg-uri {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='15' fill='%236366f1' opacity='0.3'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  .bg-svg-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Crect width='20' height='20' fill='%23f1f5f9'/%3E%3Ccircle cx='10' cy='10' r='2' fill='%2394a3b8'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  .bg-size-cover { background-size: cover; }
+  .bg-size-contain { background-size: contain; }
+  .bg-size-px { background-size: 60px 60px; }
+
+  .bg-pos-center { background-position: center; }
+  .bg-pos-top-right { background-position: top right; }
+  .bg-pos-bottom-left { background-position: bottom left; }
+
+  .bg-repeat-x { background-repeat: repeat-x; }
+  .bg-repeat-y { background-repeat: repeat-y; }
+  .bg-no-repeat { background-repeat: no-repeat; }
+
+  .bg-origin-border {
+    background-origin: border-box;
+    border: 8px dashed #3b82f6;
+    padding: 16px;
+  }
+  .bg-origin-content {
+    background-origin: content-box;
+    border: 8px dashed #3b82f6;
+    padding: 16px;
+  }
+
+  .filter-blur { filter: blur(2px); }
+  .filter-blur-heavy { filter: blur(5px); }
+
+  .filter-demo { display: inline-block; margin: 8px; padding: 16px 24px; background-color: #3b82f6; color: white; border-radius: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+  <h1>Advanced Backgrounds Test Fixture</h1>
+
+  <h2>background-image with SVG Data URI</h2>
+  <div class="box bg-svg-uri">SVG circle pattern via data URI (repeat)</div>
+  <div class="box bg-svg-pattern">SVG dot pattern via data URI (repeat)</div>
+
+  <h2>background-size</h2>
+  <div class="box bg-svg-uri bg-size-cover">background-size: cover</div>
+  <div class="box bg-svg-uri bg-size-contain bg-no-repeat" style="background-color:#f8fafc;">background-size: contain (no-repeat)</div>
+  <div class="box bg-svg-uri bg-size-px">background-size: 60px 60px</div>
+
+  <h2>background-position</h2>
+  <div class="box bg-svg-uri bg-no-repeat bg-pos-center" style="background-color:#f8fafc;">background-position: center</div>
+  <div class="box bg-svg-uri bg-no-repeat bg-pos-top-right" style="background-color:#f8fafc;">background-position: top right</div>
+  <div class="box bg-svg-uri bg-no-repeat bg-pos-bottom-left" style="background-color:#f8fafc;">background-position: bottom left</div>
+
+  <h2>background-repeat</h2>
+  <div class="box bg-svg-uri bg-repeat-x" style="background-color:#f8fafc;">repeat-x</div>
+  <div class="box bg-svg-uri bg-repeat-y" style="background-color:#f8fafc;">repeat-y</div>
+  <div class="box bg-svg-uri bg-no-repeat" style="background-color:#f8fafc;">no-repeat</div>
+
+  <h2>background-origin</h2>
+  <div class="box bg-svg-pattern bg-origin-border">background-origin: border-box (pattern starts at border)</div>
+  <div class="box bg-svg-pattern bg-origin-content">background-origin: content-box (pattern starts at content)</div>
+
+  <h2>filter: blur()</h2>
+  <div class="filter-demo">Normal (no filter)</div>
+  <div class="filter-demo filter-blur">blur(2px)</div>
+  <div class="filter-demo filter-blur-heavy">blur(5px)</div>
+</body>
+</html>

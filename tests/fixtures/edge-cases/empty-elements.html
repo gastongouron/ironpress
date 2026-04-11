@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Empty Elements</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #1e293b; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .container { border: 1px dashed #94a3b8; padding: 8px; margin-bottom: 12px; }
+  .label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <h1>Empty Elements Test Fixture</h1>
+
+  <h2>Empty div (no content, no size)</h2>
+  <div class="container">
+    <div class="label">Before empty div</div>
+    <div></div>
+    <div class="label">After empty div</div>
+  </div>
+
+  <h2>Empty div with background and size</h2>
+  <div class="container">
+    <div class="label">Before</div>
+    <div style="width: 100px; height: 40px; background-color: #3b82f6;"></div>
+    <div class="label">After (blue box above is an empty div with dimensions)</div>
+  </div>
+
+  <h2>Zero-width element</h2>
+  <div class="container">
+    <div class="label">Before zero-width</div>
+    <div style="width: 0; height: 40px; border-left: 3px solid #ef4444;"></div>
+    <div class="label">After zero-width (should see a red border line)</div>
+  </div>
+
+  <h2>Zero-height element</h2>
+  <div class="container">
+    <div class="label">Before zero-height</div>
+    <div style="width: 200px; height: 0; border-top: 2px solid #10b981;"></div>
+    <div class="label">After zero-height (should see a green border line)</div>
+  </div>
+
+  <h2>display: none</h2>
+  <div class="container">
+    <div class="label">Before hidden element</div>
+    <div style="display: none; background-color: red; width: 200px; height: 100px;">THIS SHOULD NOT BE VISIBLE</div>
+    <div class="label">After hidden element (nothing should appear between labels)</div>
+  </div>
+
+  <h2>Multiple display:none elements</h2>
+  <div class="container">
+    <div class="label">Start</div>
+    <div style="display: none;">Hidden 1</div>
+    <div style="display: none;">Hidden 2</div>
+    <div style="display: none;">Hidden 3</div>
+    <div class="label">End (three hidden elements above)</div>
+  </div>
+
+  <h2>Empty paragraph and span</h2>
+  <div class="container">
+    <div class="label">Before empty p</div>
+    <p></p>
+    <div class="label">After empty p, before empty span</div>
+    <span></span>
+    <div class="label">After empty span</div>
+  </div>
+
+  <h2>Whitespace-only content</h2>
+  <div class="container">
+    <div class="label">Before whitespace div</div>
+    <div>   </div>
+    <div class="label">After whitespace div</div>
+  </div>
+
+  <h2>Empty table</h2>
+  <div class="container">
+    <div class="label">Before empty table</div>
+    <table style="border: 1px solid #ccc;"><tbody></tbody></table>
+    <div class="label">After empty table</div>
+  </div>
+
+  <h2>Mixed visible and hidden</h2>
+  <div class="container" style="display: flex; gap: 8px;">
+    <div style="width:60px; height:40px; background:#3b82f6;"></div>
+    <div style="display:none; width:60px; height:40px; background:#ef4444;"></div>
+    <div style="width:60px; height:40px; background:#10b981;"></div>
+    <div style="display:none; width:60px; height:40px; background:#f59e0b;"></div>
+    <div style="width:60px; height:40px; background:#8b5cf6;"></div>
+  </div>
+  <div class="label">Should show 3 colored boxes (blue, green, purple) with 2 hidden (red, amber)</div>
+</body>
+</html>

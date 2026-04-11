@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Unicode &amp; Special Characters</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #1e293b; line-height: 1.8; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .sample { padding: 8px; margin-bottom: 8px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; }
+  .large { font-size: 24px; }
+  table { border-collapse: collapse; margin: 8px 0; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 12px; text-align: left; }
+  th { background-color: #f1f5f9; }
+</style>
+</head>
+<body>
+  <h1>Unicode &amp; Special Characters Test Fixture</h1>
+
+  <h2>CJK Characters (Chinese, Japanese, Korean)</h2>
+  <div class="sample large">
+    <p>Chinese: 你好世界 (Hello World)</p>
+    <p>Japanese Hiragana: こんにちは</p>
+    <p>Japanese Katakana: カタカナ</p>
+    <p>Japanese Kanji: 漢字 東京 大阪</p>
+    <p>Korean: 안녕하세요 (Hello)</p>
+  </div>
+
+  <h2>RTL Text (Arabic &amp; Hebrew)</h2>
+  <div class="sample" style="font-size: 20px;">
+    <p dir="rtl">Arabic: مرحبا بالعالم</p>
+    <p dir="rtl">Hebrew: שלום עולם</p>
+    <p>Mixed: Hello مرحبا World عالم</p>
+  </div>
+
+  <h2>Emoji</h2>
+  <div class="sample large">
+    <p>Faces: 😀 😂 🤔 😍 🥳 😎</p>
+    <p>Objects: 📚 💻 🎨 🔬 🏠 🚀</p>
+    <p>Nature: 🌍 🌸 🌊 ⭐ 🌈 🔥</p>
+    <p>Flags: 🇺🇸 🇬🇧 🇫🇷 🇩🇪 🇯🇵 🇧🇷</p>
+    <p>Compound: 👨‍👩‍👧‍👦 👩‍💻 🏳️‍🌈</p>
+  </div>
+
+  <h2>Mathematical Symbols</h2>
+  <div class="sample">
+    <p>Greek: α β γ δ ε ζ η θ ι κ λ μ ν ξ π ρ σ τ φ χ ψ ω</p>
+    <p>Operators: ± × ÷ ≠ ≤ ≥ ≈ ∞ ∑ ∏ ∫ ∂ ∇ √ ∝</p>
+    <p>Sets: ∈ ∉ ⊂ ⊃ ⊆ ⊇ ∪ ∩ ∅ ℕ ℤ ℚ ℝ ℂ</p>
+    <p>Logic: ∧ ∨ ¬ ⇒ ⇔ ∀ ∃ ⊢ ⊨</p>
+    <p>Arrows: → ← ↑ ↓ ↔ ⇒ ⇐ ⇑ ⇓ ⇔</p>
+  </div>
+
+  <h2>Currency Symbols</h2>
+  <table>
+    <tr><th>Currency</th><th>Symbol</th><th>Example</th></tr>
+    <tr><td>US Dollar</td><td>$</td><td>$1,234.56</td></tr>
+    <tr><td>Euro</td><td>€</td><td>€1.234,56</td></tr>
+    <tr><td>British Pound</td><td>£</td><td>£1,234.56</td></tr>
+    <tr><td>Japanese Yen</td><td>¥</td><td>¥123,456</td></tr>
+    <tr><td>Indian Rupee</td><td>₹</td><td>₹1,23,456</td></tr>
+    <tr><td>Bitcoin</td><td>₿</td><td>₿0.0042</td></tr>
+  </table>
+
+  <h2>Typographic Characters</h2>
+  <div class="sample">
+    <p>Dashes: hyphen(-) en-dash(–) em-dash(—)</p>
+    <p>Quotes: "double" 'single' «guillemet» „German"</p>
+    <p>Ellipsis: … (single char) vs ... (three dots)</p>
+    <p>Spaces: normal thin&#8201;hair&#8202;no-break&#160;end</p>
+    <p>Bullets: • ◦ ▪ ▸ ‣</p>
+    <p>Misc: © ® ™ § ¶ † ‡ ° ‰ №</p>
+  </div>
+
+  <h2>Accented Characters</h2>
+  <div class="sample">
+    <p>French: àâæçéèêëïîôœùûüÿ — Résumé, naïve, café</p>
+    <p>German: äöüß — Straße, Gemütlichkeit, Übung</p>
+    <p>Spanish: áéíóúñ¿¡ — El niño, señor, ¿Cómo estás?</p>
+    <p>Portuguese: ãõâêôáéíóú — São Paulo, coração</p>
+    <p>Scandinavian: åäöæøÅÄÖÆØ — København, Malmö</p>
+    <p>Polish: ąćęłńóśźż — Łódź, Gdańsk</p>
+    <p>Turkish: çğıöşü — İstanbul, Türkiye</p>
+  </div>
+
+  <h2>Box Drawing</h2>
+  <pre style="font-family: monospace; line-height: 1.2; font-size: 14px;">
+┌──────────┬──────────┐
+│  Cell A  │  Cell B  │
+├──────────┼──────────┤
+│  Cell C  │  Cell D  │
+└──────────┴──────────┘
+  </pre>
+
+  <h2>Combining Characters</h2>
+  <div class="sample" style="font-size: 20px;">
+    <p>Vietnamese: Việt Nam, Hà Nội, Thành phố Hồ Chí Minh</p>
+    <p>Zalgo-light: H̆ĕl̆l̆ŏ (breve combining marks)</p>
+  </div>
+</body>
+</html>

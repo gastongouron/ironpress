@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Future of PDF Generation</title>
+<style>
+  body { font-family: Georgia, serif; margin: 40px auto; max-width: 640px; color: #1e293b; line-height: 1.8; font-size: 15px; }
+  h1 { font-family: sans-serif; font-size: 32px; line-height: 1.2; margin-bottom: 8px; }
+  h2 { font-family: sans-serif; font-size: 22px; margin-top: 32px; color: #0f172a; }
+  h3 { font-family: sans-serif; font-size: 17px; margin-top: 24px; color: #334155; }
+  .byline { font-size: 14px; color: #64748b; margin-bottom: 24px; font-family: sans-serif; }
+  p { margin: 12px 0; }
+  blockquote { margin: 20px 0; padding: 12px 20px; border-left: 4px solid #3b82f6; background-color: #f8fafc; font-style: italic; color: #475569; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: #94a3b8; }
+  code { font-family: monospace; background-color: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #be123c; }
+  pre { background-color: #1e293b; color: #e2e8f0; padding: 16px 20px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 16px 0; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .figure { text-align: center; margin: 24px 0; }
+  .figure svg { display: inline-block; }
+  .caption { font-size: 13px; color: #64748b; margin-top: 8px; font-style: italic; }
+  .highlight { background-color: #fef3c7; padding: 2px 4px; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+  <h1>The Future of PDF Generation: From Browsers to Native Renderers</h1>
+  <div class="byline">By Alex Chen | Published March 10, 2026 | 8 min read</div>
+
+  <p>The landscape of programmatic PDF generation has shifted dramatically over the past decade. What was once dominated by heavyweight Java libraries and browser-based solutions is now seeing a new wave of <span class="highlight">high-performance native renderers</span> that promise faster, smaller, and more predictable output.</p>
+
+  <h2>The Problem with Browser-Based PDF</h2>
+  <p>For years, the standard approach to generating PDFs from HTML was to spin up a headless browser instance, typically Chromium via Puppeteer or Playwright. While this approach offers excellent CSS fidelity, it comes with significant drawbacks:</p>
+
+  <blockquote>
+    "We were spinning up 200 Chromium instances just to generate invoices. Our AWS bill was astronomical, and cold starts were killing our user experience."
+    <cite>-- Sarah Kim, CTO at BillingCo</cite>
+  </blockquote>
+
+  <p>The resource overhead of a full browser engine is substantial. Each instance requires <code>150-300MB</code> of memory, and startup times can range from <code>500ms</code> to several seconds. For high-volume applications, this translates directly into infrastructure costs.</p>
+
+  <h2>Enter Native Renderers</h2>
+  <p>A new generation of PDF renderers takes a different approach: instead of leveraging a browser's rendering engine, they implement HTML and CSS parsing directly, producing PDF output without the overhead of a full browser.</p>
+
+  <h3>Architecture Overview</h3>
+  <p>The typical architecture of a native HTML-to-PDF renderer involves several key components:</p>
+
+  <pre><code>HTML Input
+    |
+    v
+[HTML Parser] ---> DOM Tree
+    |
+    v
+[CSS Engine] ---> Styled Tree
+    |
+    v
+[Layout Engine] ---> Box Tree with positions
+    |
+    v
+[PDF Writer] ---> Binary PDF output</code></pre>
+
+  <p>Each stage is purpose-built for PDF output, eliminating the overhead of features like JavaScript execution, animation, and interactive DOM manipulation that are irrelevant for static document generation.</p>
+
+  <h3>Performance Comparison</h3>
+  <p>In our benchmarks, native renderers consistently outperform browser-based solutions:</p>
+
+  <div class="figure">
+    <svg width="400" height="200" viewBox="0 0 400 200">
+      <rect x="50" y="160" width="350" height="1" fill="#cbd5e1" />
+      <rect x="50" y="120" width="350" height="1" fill="#e2e8f0" stroke-dasharray="4" />
+      <rect x="50" y="80" width="350" height="1" fill="#e2e8f0" stroke-dasharray="4" />
+      <rect x="50" y="40" width="350" height="1" fill="#e2e8f0" stroke-dasharray="4" />
+      <text x="45" y="164" font-size="10" fill="#94a3b8" text-anchor="end">0</text>
+      <text x="45" y="124" font-size="10" fill="#94a3b8" text-anchor="end">250</text>
+      <text x="45" y="84" font-size="10" fill="#94a3b8" text-anchor="end">500</text>
+      <text x="45" y="44" font-size="10" fill="#94a3b8" text-anchor="end">750</text>
+      <rect x="80" y="40" width="60" height="120" fill="#ef4444" rx="4" />
+      <text x="110" y="175" font-size="11" fill="#64748b" text-anchor="middle">Chromium</text>
+      <rect x="180" y="130" width="60" height="30" fill="#3b82f6" rx="4" />
+      <text x="210" y="175" font-size="11" fill="#64748b" text-anchor="middle">Native</text>
+      <rect x="280" y="100" width="60" height="60" fill="#10b981" rx="4" />
+      <text x="310" y="175" font-size="11" fill="#64748b" text-anchor="middle">WASM</text>
+      <text x="200" y="15" font-size="12" fill="#334155" text-anchor="middle" font-weight="bold">Render Time (ms) - Lower is Better</text>
+    </svg>
+    <div class="caption">Figure 1: Average render time for a 5-page document with tables and images</div>
+  </div>
+
+  <h2>CSS Support: The Trade-off</h2>
+  <p>The primary trade-off with native renderers is CSS support. While browsers implement the full CSS specification, native renderers must be selective about which features to support. The most commonly needed features for document generation include:</p>
+
+  <ul>
+    <li><strong>Box model</strong> -- margins, padding, borders, and sizing</li>
+    <li><strong>Flexbox</strong> -- the workhorse of modern document layouts</li>
+    <li><strong>Grid</strong> -- for complex tabular arrangements</li>
+    <li><strong>Typography</strong> -- font selection, sizing, and text decoration</li>
+    <li><strong>Colors and backgrounds</strong> -- including gradients</li>
+  </ul>
+
+  <p>Features like <code>animation</code>, <code>transition</code>, and complex <code>@media</code> queries are typically omitted, as they serve no purpose in static PDF output.</p>
+
+  <h2>Looking Ahead</h2>
+  <p>The future of PDF generation is native, fast, and resource-efficient. As CSS support in native renderers continues to improve, the gap between browser and native output will narrow to the point where the trade-off becomes negligible for most use cases.</p>
+
+  <blockquote>
+    "The best PDF renderer is the one your users never notice -- it just works, instantly."
+    <cite>-- Anonymous engineer</cite>
+  </blockquote>
+
+  <p>For teams generating hundreds of thousands of PDFs daily, the migration to native renderers is not just an optimization -- it is a fundamental shift in how we think about document generation at scale.</p>
+</body>
+</html>

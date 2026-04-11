@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Images &amp; SVG</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  svg { border: 1px solid #e5e7eb; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+  <h1>Images &amp; SVG Test Fixture</h1>
+
+  <h2>Basic Shapes</h2>
+  <svg width="400" height="120" viewBox="0 0 400 120">
+    <rect x="10" y="10" width="80" height="80" fill="#3b82f6" rx="8" />
+    <circle cx="160" cy="50" r="40" fill="#ef4444" />
+    <ellipse cx="270" cy="50" rx="50" ry="30" fill="#10b981" />
+    <line x1="330" y1="10" x2="390" y2="100" stroke="#f59e0b" stroke-width="3" />
+  </svg>
+
+  <h2>Path</h2>
+  <svg width="200" height="120" viewBox="0 0 200 120">
+    <path d="M10,100 Q50,10 100,80 T190,60" fill="none" stroke="#6366f1" stroke-width="3" />
+    <path d="M10,110 L60,20 L110,110 Z" fill="#f97316" opacity="0.6" />
+  </svg>
+
+  <h2>Text in SVG</h2>
+  <svg width="300" height="80" viewBox="0 0 300 80">
+    <text x="10" y="30" font-size="20" fill="#1e293b">Plain SVG text</text>
+    <text x="10" y="60" font-size="16" fill="#dc2626" font-weight="bold">Bold red SVG text</text>
+  </svg>
+
+  <h2>Gradient Fills</h2>
+  <svg width="300" height="100" viewBox="0 0 300 100">
+    <defs>
+      <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#3b82f6" />
+        <stop offset="100%" stop-color="#8b5cf6" />
+      </linearGradient>
+      <radialGradient id="rg1" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#fbbf24" />
+        <stop offset="100%" stop-color="#f97316" />
+      </radialGradient>
+    </defs>
+    <rect x="10" y="10" width="120" height="80" fill="url(#lg1)" rx="10" />
+    <circle cx="220" cy="50" r="40" fill="url(#rg1)" />
+  </svg>
+
+  <h2>ClipPath</h2>
+  <svg width="200" height="120" viewBox="0 0 200 120">
+    <defs>
+      <clipPath id="clip1">
+        <circle cx="100" cy="60" r="50" />
+      </clipPath>
+    </defs>
+    <rect x="0" y="0" width="200" height="120" fill="#6366f1" clip-path="url(#clip1)" />
+  </svg>
+
+  <h2>viewBox &amp; preserveAspectRatio</h2>
+  <svg width="300" height="60" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style="background:#f1f5f9;">
+    <circle cx="50" cy="50" r="45" fill="#0891b2" />
+  </svg>
+  <br>
+  <svg width="300" height="60" viewBox="0 0 100 100" preserveAspectRatio="none" style="background:#f1f5f9;">
+    <circle cx="50" cy="50" r="45" fill="#0891b2" />
+  </svg>
+
+  <h2>Complex SVG: Star</h2>
+  <svg width="120" height="120" viewBox="0 0 120 120">
+    <polygon points="60,5 73,45 115,45 80,70 93,110 60,85 27,110 40,70 5,45 47,45"
+             fill="#f59e0b" stroke="#b45309" stroke-width="2" />
+  </svg>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Positioning</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+
+  .rel-container { position: relative; width: 300px; height: 150px; background-color: #dbeafe; border: 2px solid #3b82f6; margin-bottom: 16px; }
+  .rel-box { position: relative; top: 20px; left: 30px; width: 100px; height: 60px; background-color: #3b82f6; color: white; padding: 8px; font-size: 12px; }
+
+  .abs-container { position: relative; width: 300px; height: 200px; background-color: #fef3c7; border: 2px solid #f59e0b; margin-bottom: 16px; }
+  .abs-tl { position: absolute; top: 10px; left: 10px; width: 80px; height: 40px; background-color: #ef4444; color: white; padding: 4px; font-size: 11px; }
+  .abs-tr { position: absolute; top: 10px; right: 10px; width: 80px; height: 40px; background-color: #3b82f6; color: white; padding: 4px; font-size: 11px; }
+  .abs-bl { position: absolute; bottom: 10px; left: 10px; width: 80px; height: 40px; background-color: #10b981; color: white; padding: 4px; font-size: 11px; }
+  .abs-br { position: absolute; bottom: 10px; right: 10px; width: 80px; height: 40px; background-color: #8b5cf6; color: white; padding: 4px; font-size: 11px; }
+
+  .z-container { position: relative; width: 200px; height: 150px; margin-bottom: 16px; }
+  .z-back { position: absolute; top: 0; left: 0; width: 120px; height: 120px; background-color: #ef4444; z-index: 1; opacity: 0.8; }
+  .z-mid { position: absolute; top: 20px; left: 20px; width: 120px; height: 120px; background-color: #3b82f6; z-index: 2; opacity: 0.8; }
+  .z-front { position: absolute; top: 40px; left: 40px; width: 120px; height: 120px; background-color: #10b981; z-index: 3; opacity: 0.8; }
+
+  .float-container { overflow: hidden; margin-bottom: 16px; border: 1px solid #d1d5db; padding: 8px; }
+  .float-left { float: left; width: 100px; height: 80px; background-color: #818cf8; color: white; margin-right: 12px; padding: 8px; font-size: 12px; }
+  .float-right { float: right; width: 100px; height: 80px; background-color: #f472b6; color: white; margin-left: 12px; padding: 8px; font-size: 12px; }
+
+  .clear-demo { margin-bottom: 16px; border: 1px solid #d1d5db; padding: 8px; overflow: hidden; }
+  .clear-both { clear: both; background-color: #fef3c7; padding: 8px; }
+
+  .overflow-demo { width: 200px; height: 80px; overflow: hidden; border: 2px solid #dc2626; margin-bottom: 16px; padding: 8px; background-color: #fef2f2; }
+</style>
+</head>
+<body>
+  <h1>Positioning Test Fixture</h1>
+
+  <h2>position: relative</h2>
+  <div class="rel-container">
+    <div class="rel-box">Relative: top:20, left:30</div>
+  </div>
+
+  <h2>position: absolute</h2>
+  <div class="abs-container">
+    <div class="abs-tl">Top-Left</div>
+    <div class="abs-tr">Top-Right</div>
+    <div class="abs-bl">Bottom-Left</div>
+    <div class="abs-br">Bottom-Right</div>
+  </div>
+
+  <h2>z-index Stacking</h2>
+  <div class="z-container">
+    <div class="z-back" style="padding:4px; color:white; font-size:11px;">z:1 (red)</div>
+    <div class="z-mid" style="padding:4px; color:white; font-size:11px;">z:2 (blue)</div>
+    <div class="z-front" style="padding:4px; color:white; font-size:11px;">z:3 (green)</div>
+  </div>
+
+  <h2>Float</h2>
+  <div class="float-container">
+    <div class="float-left">Float Left</div>
+    <p>This text wraps around the left-floated element. It should flow to the right side of the blue box and continue below when there is not enough horizontal space.</p>
+  </div>
+  <div class="float-container">
+    <div class="float-right">Float Right</div>
+    <p>This text wraps around the right-floated element. It should flow to the left side of the pink box.</p>
+  </div>
+
+  <h2>Clear</h2>
+  <div class="clear-demo">
+    <div class="float-left">Floated</div>
+    <div class="clear-both">Cleared element below the float.</div>
+  </div>
+
+  <h2>overflow: hidden</h2>
+  <div class="overflow-demo">
+    <p>This content is inside a 200x80 box with overflow hidden. Any text that extends beyond the boundary should be clipped and not visible outside the container bounds. Extra text here to ensure clipping occurs.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invoice #2026-0042</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 40px; color: #1e293b; font-size: 14px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+  .logo svg { display: block; }
+  .company-name { font-size: 24px; font-weight: 700; color: #1e40af; margin-top: 8px; }
+  .invoice-title { font-size: 32px; font-weight: 700; color: #334155; text-align: right; }
+  .invoice-number { font-size: 14px; color: #64748b; text-align: right; margin-top: 4px; }
+  .addresses { display: flex; justify-content: space-between; margin-bottom: 24px; }
+  .address-block { width: 45%; }
+  .address-block h3 { font-size: 12px; text-transform: uppercase; color: #64748b; margin: 0 0 8px 0; letter-spacing: 1px; }
+  .address-block p { margin: 2px 0; }
+  .meta { display: flex; gap: 40px; margin-bottom: 24px; padding: 12px 16px; background-color: #f8fafc; border-radius: 4px; }
+  .meta-item { }
+  .meta-label { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
+  .meta-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  thead th { background-color: #1e293b; color: white; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+  tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }
+  tbody tr:nth-child(even) { background-color: #f8fafc; }
+  .totals { display: flex; justify-content: flex-end; }
+  .totals-table { width: 280px; }
+  .totals-table tr td { padding: 6px 12px; border: none; }
+  .totals-table tr td:last-child { text-align: right; font-weight: 600; }
+  .totals-table .grand-total td { border-top: 2px solid #1e293b; font-size: 16px; font-weight: 700; padding-top: 10px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: center; }
+  .notes { margin-top: 24px; padding: 12px 16px; background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <rect width="48" height="48" rx="8" fill="#1e40af" />
+          <text x="24" y="32" font-size="24" fill="white" text-anchor="middle" font-weight="bold">IP</text>
+        </svg>
+      </div>
+      <div class="company-name">IronPress Inc.</div>
+    </div>
+    <div>
+      <div class="invoice-title">INVOICE</div>
+      <div class="invoice-number">#2026-0042</div>
+    </div>
+  </div>
+
+  <div class="addresses">
+    <div class="address-block">
+      <h3>From</h3>
+      <p><strong>IronPress Inc.</strong></p>
+      <p>123 Render Lane, Suite 400</p>
+      <p>San Francisco, CA 94102</p>
+      <p>billing@ironpress.dev</p>
+    </div>
+    <div class="address-block">
+      <h3>Bill To</h3>
+      <p><strong>Acme Corporation</strong></p>
+      <p>456 Business Ave</p>
+      <p>New York, NY 10001</p>
+      <p>accounts@acme.com</p>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-item">
+      <div class="meta-label">Invoice Date</div>
+      <div class="meta-value">March 15, 2026</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Due Date</div>
+      <div class="meta-value">April 14, 2026</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Payment Terms</div>
+      <div class="meta-value">Net 30</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Description</th><th>Details</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>PDF Generation API</td><td>Enterprise plan, monthly</td><td>1</td><td>$499.00</td><td>$499.00</td></tr>
+      <tr><td>Additional API Calls</td><td>Over 10,000 limit (2,340 calls)</td><td>2,340</td><td>$0.05</td><td>$117.00</td></tr>
+      <tr><td>Priority Support</td><td>24/7 SLA, dedicated channel</td><td>1</td><td>$199.00</td><td>$199.00</td></tr>
+      <tr><td>Custom Template Setup</td><td>Invoice + Report templates</td><td>2</td><td>$150.00</td><td>$300.00</td></tr>
+      <tr><td>Training Session</td><td>1-hour remote onboarding</td><td>1</td><td>$250.00</td><td>$250.00</td></tr>
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <table class="totals-table">
+      <tr><td>Subtotal</td><td>$1,365.00</td></tr>
+      <tr><td>Tax (8.5%)</td><td>$116.03</td></tr>
+      <tr class="grand-total"><td>Total Due</td><td>$1,481.03</td></tr>
+    </table>
+  </div>
+
+  <div class="notes">
+    <strong>Notes:</strong> Payment can be made via wire transfer or credit card. Please reference invoice #2026-0042 in your payment. Late payments are subject to a 1.5% monthly finance charge.
+  </div>
+
+  <div class="footer">
+    IronPress Inc. | 123 Render Lane, Suite 400, San Francisco, CA 94102 | billing@ironpress.dev
+  </div>
+</body>
+</html>

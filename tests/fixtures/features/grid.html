@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Grid Layout</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .grid { border: 2px solid #0891b2; margin-bottom: 16px; }
+  .cell { background-color: #22d3ee; color: #164e63; padding: 12px; font-size: 13px; border: 1px solid #0891b2; }
+  .cell-alt { background-color: #67e8f9; color: #164e63; padding: 12px; font-size: 13px; border: 1px solid #0891b2; }
+
+  .fr-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 8px; padding: 8px; }
+  .auto-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; padding: 8px; }
+  .repeat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px; }
+  .minmax-grid { display: grid; grid-template-columns: repeat(3, minmax(80px, 1fr)); gap: 8px; padding: 8px; }
+  .fixed-grid { display: grid; grid-template-columns: 100px 200px 100px; gap: 8px; padding: 8px; }
+  .mixed-grid { display: grid; grid-template-columns: 80px 1fr 2fr; gap: 12px; padding: 8px; }
+
+  .gap-sm { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; }
+  .gap-lg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 8px; }
+  .gap-asym { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 20px; row-gap: 8px; padding: 8px; }
+</style>
+</head>
+<body>
+  <h1>Grid Layout Test Fixture</h1>
+
+  <h2>grid-template-columns: 1fr 2fr 1fr</h2>
+  <div class="grid fr-grid">
+    <div class="cell">1fr</div>
+    <div class="cell-alt">2fr</div>
+    <div class="cell">1fr</div>
+    <div class="cell-alt">1fr</div>
+    <div class="cell">2fr</div>
+    <div class="cell-alt">1fr</div>
+  </div>
+
+  <h2>grid-template-columns: auto 1fr auto</h2>
+  <div class="grid auto-grid">
+    <div class="cell">Auto</div>
+    <div class="cell-alt">Flexible 1fr</div>
+    <div class="cell">Auto</div>
+  </div>
+
+  <h2>repeat(4, 1fr)</h2>
+  <div class="grid repeat-grid">
+    <div class="cell">A</div>
+    <div class="cell-alt">B</div>
+    <div class="cell">C</div>
+    <div class="cell-alt">D</div>
+    <div class="cell-alt">E</div>
+    <div class="cell">F</div>
+    <div class="cell-alt">G</div>
+    <div class="cell">H</div>
+  </div>
+
+  <h2>repeat(3, minmax(80px, 1fr))</h2>
+  <div class="grid minmax-grid">
+    <div class="cell">Min 80px</div>
+    <div class="cell-alt">Min 80px</div>
+    <div class="cell">Min 80px</div>
+  </div>
+
+  <h2>Fixed widths: 100px 200px 100px</h2>
+  <div class="grid fixed-grid">
+    <div class="cell">100px</div>
+    <div class="cell-alt">200px</div>
+    <div class="cell">100px</div>
+  </div>
+
+  <h2>Mixed: 80px 1fr 2fr</h2>
+  <div class="grid mixed-grid">
+    <div class="cell">80px</div>
+    <div class="cell-alt">1fr</div>
+    <div class="cell">2fr</div>
+    <div class="cell-alt">80px</div>
+    <div class="cell">1fr</div>
+    <div class="cell-alt">2fr</div>
+  </div>
+
+  <h2>Grid Gap Variants</h2>
+  <p>gap: 4px</p>
+  <div class="grid gap-sm">
+    <div class="cell">A</div><div class="cell-alt">B</div><div class="cell">C</div>
+    <div class="cell-alt">D</div><div class="cell">E</div><div class="cell-alt">F</div>
+  </div>
+  <p>gap: 24px</p>
+  <div class="grid gap-lg">
+    <div class="cell">A</div><div class="cell-alt">B</div><div class="cell">C</div>
+    <div class="cell-alt">D</div><div class="cell">E</div><div class="cell-alt">F</div>
+  </div>
+  <p>column-gap: 20px, row-gap: 8px</p>
+  <div class="grid gap-asym">
+    <div class="cell">A</div><div class="cell-alt">B</div><div class="cell">C</div>
+    <div class="cell-alt">D</div><div class="cell">E</div><div class="cell-alt">F</div>
+  </div>
+</body>
+</html>

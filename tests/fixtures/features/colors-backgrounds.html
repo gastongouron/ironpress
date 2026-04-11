@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Colors &amp; Backgrounds</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .swatch { display: inline-block; width: 80px; height: 50px; margin: 4px; border: 1px solid #999; vertical-align: top; padding: 4px; font-size: 11px; color: #fff; }
+
+  .named-red { background-color: red; }
+  .named-blue { background-color: blue; }
+  .named-green { background-color: green; }
+  .named-orange { background-color: orange; color: #000; }
+  .named-purple { background-color: purple; }
+  .named-black { background-color: black; }
+
+  .hex-1 { background-color: #1e40af; }
+  .hex-2 { background-color: #dc2626; }
+  .hex-3 { background-color: #059669; }
+  .hex-4 { background-color: #f59e0b; color: #000; }
+  .hex-5 { background-color: #6366f1; }
+  .hex-6 { background-color: #333; }
+
+  .rgb-1 { background-color: rgb(220, 38, 38); }
+  .rgb-2 { background-color: rgb(5, 150, 105); }
+  .rgb-3 { background-color: rgb(99, 102, 241); }
+
+  .bg-solid { background-color: #3b82f6; color: white; padding: 16px; margin-bottom: 8px; }
+
+  .gradient-linear { background: linear-gradient(to right, #3b82f6, #8b5cf6); color: white; padding: 16px; margin-bottom: 8px; }
+  .gradient-linear-angle { background: linear-gradient(135deg, #f97316, #ef4444, #ec4899); color: white; padding: 16px; margin-bottom: 8px; }
+  .gradient-radial { background: radial-gradient(circle, #fbbf24, #f97316, #dc2626); color: white; padding: 16px; margin-bottom: 8px; }
+
+  .opacity-100 { opacity: 1.0; background-color: #2563eb; color: white; padding: 12px; margin-bottom: 4px; }
+  .opacity-75 { opacity: 0.75; background-color: #2563eb; color: white; padding: 12px; margin-bottom: 4px; }
+  .opacity-50 { opacity: 0.5; background-color: #2563eb; color: white; padding: 12px; margin-bottom: 4px; }
+  .opacity-25 { opacity: 0.25; background-color: #2563eb; color: white; padding: 12px; margin-bottom: 4px; }
+
+  .text-colors p { padding: 4px 0; }
+</style>
+</head>
+<body>
+  <h1>Colors &amp; Backgrounds Test Fixture</h1>
+
+  <h2>Named Colors</h2>
+  <div class="swatch named-red">red</div>
+  <div class="swatch named-blue">blue</div>
+  <div class="swatch named-green">green</div>
+  <div class="swatch named-orange">orange</div>
+  <div class="swatch named-purple">purple</div>
+  <div class="swatch named-black">black</div>
+
+  <h2>Hex Colors</h2>
+  <div class="swatch hex-1">#1e40af</div>
+  <div class="swatch hex-2">#dc2626</div>
+  <div class="swatch hex-3">#059669</div>
+  <div class="swatch hex-4">#f59e0b</div>
+  <div class="swatch hex-5">#6366f1</div>
+  <div class="swatch hex-6">#333</div>
+
+  <h2>RGB Colors</h2>
+  <div class="swatch rgb-1">rgb red</div>
+  <div class="swatch rgb-2">rgb green</div>
+  <div class="swatch rgb-3">rgb indigo</div>
+
+  <h2>Background Color</h2>
+  <div class="bg-solid">Solid background-color #3b82f6</div>
+
+  <h2>Gradients</h2>
+  <div class="gradient-linear">Linear gradient (left to right, blue to purple)</div>
+  <div class="gradient-linear-angle">Linear gradient (135deg, orange to red to pink)</div>
+  <div class="gradient-radial">Radial gradient (circle, yellow to orange to red)</div>
+
+  <h2>Opacity</h2>
+  <div class="opacity-100">Opacity 1.0 (fully opaque)</div>
+  <div class="opacity-75">Opacity 0.75</div>
+  <div class="opacity-50">Opacity 0.50</div>
+  <div class="opacity-25">Opacity 0.25</div>
+
+  <h2>Text Colors</h2>
+  <div class="text-colors">
+    <p style="color: #dc2626;">Red text (#dc2626)</p>
+    <p style="color: rgb(5, 150, 105);">Green text (rgb)</p>
+    <p style="color: blue;">Blue text (named)</p>
+    <p style="color: #6366f1;">Indigo text (#6366f1)</p>
+  </div>
+</body>
+</html>

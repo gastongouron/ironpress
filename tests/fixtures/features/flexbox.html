@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flexbox Layout</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .container { border: 2px solid #6366f1; margin-bottom: 12px; padding: 8px; }
+  .item { background-color: #818cf8; color: white; padding: 12px 16px; font-size: 14px; border-radius: 4px; }
+
+  .row { display: flex; flex-direction: row; gap: 8px; }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+
+  .jc-start { display: flex; justify-content: flex-start; gap: 8px; }
+  .jc-center { display: flex; justify-content: center; gap: 8px; }
+  .jc-end { display: flex; justify-content: flex-end; gap: 8px; }
+  .jc-between { display: flex; justify-content: space-between; }
+  .jc-around { display: flex; justify-content: space-around; }
+
+  .ai-start { display: flex; align-items: flex-start; gap: 8px; min-height: 80px; }
+  .ai-center { display: flex; align-items: center; gap: 8px; min-height: 80px; }
+  .ai-end { display: flex; align-items: flex-end; gap: 8px; min-height: 80px; }
+  .ai-stretch { display: flex; align-items: stretch; gap: 8px; min-height: 80px; }
+
+  .wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .wrap .item { width: 120px; }
+
+  .gap-sm { display: flex; gap: 4px; }
+  .gap-lg { display: flex; gap: 24px; }
+
+  .grow-demo { display: flex; gap: 8px; }
+  .grow-1 { flex-grow: 1; }
+  .grow-2 { flex-grow: 2; }
+  .grow-0 { flex-grow: 0; }
+  .shrink-0 { flex-shrink: 0; width: 200px; }
+  .basis-demo { display: flex; gap: 8px; }
+  .basis-100 { flex-basis: 100px; }
+  .basis-200 { flex-basis: 200px; }
+</style>
+</head>
+<body>
+  <h1>Flexbox Test Fixture</h1>
+
+  <h2>flex-direction: row</h2>
+  <div class="container row">
+    <div class="item">A</div>
+    <div class="item">B</div>
+    <div class="item">C</div>
+  </div>
+
+  <h2>flex-direction: column</h2>
+  <div class="container col">
+    <div class="item">A</div>
+    <div class="item">B</div>
+    <div class="item">C</div>
+  </div>
+
+  <h2>justify-content</h2>
+  <div class="container jc-start"><div class="item">Start</div><div class="item">B</div><div class="item">C</div></div>
+  <div class="container jc-center"><div class="item">Center</div><div class="item">B</div><div class="item">C</div></div>
+  <div class="container jc-end"><div class="item">End</div><div class="item">B</div><div class="item">C</div></div>
+  <div class="container jc-between"><div class="item">Between</div><div class="item">B</div><div class="item">C</div></div>
+  <div class="container jc-around"><div class="item">Around</div><div class="item">B</div><div class="item">C</div></div>
+
+  <h2>align-items</h2>
+  <div class="container ai-start">
+    <div class="item">Start</div>
+    <div class="item" style="padding: 24px 16px;">Tall</div>
+    <div class="item">C</div>
+  </div>
+  <div class="container ai-center">
+    <div class="item">Center</div>
+    <div class="item" style="padding: 24px 16px;">Tall</div>
+    <div class="item">C</div>
+  </div>
+  <div class="container ai-end">
+    <div class="item">End</div>
+    <div class="item" style="padding: 24px 16px;">Tall</div>
+    <div class="item">C</div>
+  </div>
+  <div class="container ai-stretch">
+    <div class="item">Stretch</div>
+    <div class="item" style="padding: 24px 16px;">Tall</div>
+    <div class="item">C</div>
+  </div>
+
+  <h2>flex-wrap</h2>
+  <div class="container wrap">
+    <div class="item">Item 1</div>
+    <div class="item">Item 2</div>
+    <div class="item">Item 3</div>
+    <div class="item">Item 4</div>
+    <div class="item">Item 5</div>
+    <div class="item">Item 6</div>
+    <div class="item">Item 7</div>
+    <div class="item">Item 8</div>
+  </div>
+
+  <h2>Gap</h2>
+  <div class="container gap-sm">
+    <div class="item">4px</div><div class="item">gap</div><div class="item">items</div>
+  </div>
+  <div class="container gap-lg">
+    <div class="item">24px</div><div class="item">gap</div><div class="item">items</div>
+  </div>
+
+  <h2>flex-grow / flex-shrink / flex-basis</h2>
+  <div class="container grow-demo">
+    <div class="item grow-1">grow:1</div>
+    <div class="item grow-2">grow:2</div>
+    <div class="item grow-0">grow:0</div>
+  </div>
+  <div class="container grow-demo">
+    <div class="item grow-1">flexible</div>
+    <div class="item shrink-0">shrink:0 (200px)</div>
+  </div>
+  <div class="container basis-demo">
+    <div class="item basis-100">basis:100px</div>
+    <div class="item basis-200">basis:200px</div>
+    <div class="item grow-1">grow:1</div>
+  </div>
+</body>
+</html>

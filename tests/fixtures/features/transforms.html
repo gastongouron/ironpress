@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Transforms &amp; Shadows</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .demo { display: inline-block; width: 100px; height: 80px; margin: 20px; background-color: #6366f1; color: white; font-size: 12px; padding: 8px; text-align: center; line-height: 80px; vertical-align: top; }
+  .row { margin-bottom: 20px; }
+
+  .rotate-15 { transform: rotate(15deg); }
+  .rotate-45 { transform: rotate(45deg); }
+  .rotate-90 { transform: rotate(90deg); }
+  .rotate-neg { transform: rotate(-30deg); }
+
+  .scale-up { transform: scale(1.3); }
+  .scale-down { transform: scale(0.7); }
+  .scale-x { transform: scaleX(1.5); }
+  .scale-y { transform: scaleY(0.5); }
+
+  .translate-right { transform: translateX(40px); }
+  .translate-down { transform: translateY(20px); }
+  .translate-both { transform: translate(20px, -10px); }
+
+  .shadow-sm { box-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+  .shadow-md { box-shadow: 4px 4px 8px rgba(0,0,0,0.3); }
+  .shadow-lg { box-shadow: 8px 8px 24px rgba(0,0,0,0.3); }
+  .shadow-inset { box-shadow: inset 0 2px 8px rgba(0,0,0,0.3); }
+  .shadow-multi { box-shadow: 4px 4px 8px rgba(0,0,0,0.2), -2px -2px 4px rgba(99,102,241,0.3); }
+  .shadow-color { box-shadow: 0 4px 16px rgba(99,102,241,0.5); }
+
+  .shadow-box { display: inline-block; width: 120px; height: 80px; margin: 16px; background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; font-size: 12px; text-align: center; line-height: 56px; vertical-align: top; }
+
+  .combined { transform: rotate(10deg) scale(1.1) translateX(10px); }
+</style>
+</head>
+<body>
+  <h1>Transforms &amp; Shadows Test Fixture</h1>
+
+  <h2>Rotate</h2>
+  <div class="row">
+    <div class="demo rotate-15">15deg</div>
+    <div class="demo rotate-45">45deg</div>
+    <div class="demo rotate-90">90deg</div>
+    <div class="demo rotate-neg">-30deg</div>
+  </div>
+
+  <h2>Scale</h2>
+  <div class="row">
+    <div class="demo scale-up">1.3x</div>
+    <div class="demo scale-down">0.7x</div>
+    <div class="demo scale-x">scaleX 1.5</div>
+    <div class="demo scale-y">scaleY 0.5</div>
+  </div>
+
+  <h2>Translate</h2>
+  <div class="row">
+    <div class="demo translate-right">X+40</div>
+    <div class="demo translate-down">Y+20</div>
+    <div class="demo translate-both">20, -10</div>
+  </div>
+
+  <h2>Combined Transform</h2>
+  <div class="row">
+    <div class="demo combined">rotate+scale+translate</div>
+  </div>
+
+  <h2>Box Shadow</h2>
+  <div class="row">
+    <div class="shadow-box shadow-sm">Small</div>
+    <div class="shadow-box shadow-md">Medium</div>
+    <div class="shadow-box shadow-lg">Large</div>
+  </div>
+  <div class="row">
+    <div class="shadow-box shadow-inset">Inset</div>
+    <div class="shadow-box shadow-multi">Multi</div>
+    <div class="shadow-box shadow-color">Colored</div>
+  </div>
+</body>
+</html>

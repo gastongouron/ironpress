@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tables</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+
+  .table-collapse { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+  .table-collapse th, .table-collapse td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+  .table-collapse th { background-color: #1e40af; color: white; font-weight: 600; }
+  .table-collapse tbody tr:nth-child(even) { background-color: #f3f4f6; }
+
+  .table-spacing { border-collapse: separate; border-spacing: 8px; width: 100%; margin-bottom: 20px; }
+  .table-spacing th, .table-spacing td { border: 2px solid #059669; padding: 8px 12px; background-color: #ecfdf5; }
+  .table-spacing th { background-color: #059669; color: white; }
+
+  .table-fixed { table-layout: fixed; width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .table-fixed th, .table-fixed td { border: 1px solid #d1d5db; padding: 8px; overflow: hidden; }
+  .table-fixed th { background-color: #7c3aed; color: white; }
+
+  .table-sections { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+  .table-sections th, .table-sections td { border: 1px solid #d1d5db; padding: 8px 12px; }
+  .table-sections thead th { background-color: #1e293b; color: white; }
+  .table-sections tfoot td { background-color: #f1f5f9; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1>Tables Test Fixture</h1>
+
+  <h2>border-collapse: collapse</h2>
+  <table class="table-collapse">
+    <thead>
+      <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Widget A</td><td>Hardware</td><td>$12.99</td><td>142</td></tr>
+      <tr><td>Widget B</td><td>Software</td><td>$29.99</td><td>87</td></tr>
+      <tr><td>Gadget X</td><td>Hardware</td><td>$45.00</td><td>23</td></tr>
+      <tr><td>Service Y</td><td>Services</td><td>$99.99</td><td>N/A</td></tr>
+    </tbody>
+  </table>
+
+  <h2>border-collapse: separate (border-spacing: 8px)</h2>
+  <table class="table-spacing">
+    <thead>
+      <tr><th>Name</th><th>Role</th><th>Department</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Alice</td><td>Engineer</td><td>R&amp;D</td></tr>
+      <tr><td>Bob</td><td>Designer</td><td>Product</td></tr>
+      <tr><td>Carol</td><td>Manager</td><td>Operations</td></tr>
+    </tbody>
+  </table>
+
+  <h2>colspan &amp; rowspan</h2>
+  <table class="table-collapse">
+    <thead>
+      <tr><th>Region</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr>
+    </thead>
+    <tbody>
+      <tr><td rowspan="2">North</td><td>$100k</td><td>$120k</td><td>$90k</td><td>$150k</td></tr>
+      <tr><td colspan="2">$220k combined</td><td>$90k</td><td>$150k</td></tr>
+      <tr><td>South</td><td>$80k</td><td>$95k</td><td>$110k</td><td>$105k</td></tr>
+      <tr><td colspan="4" style="text-align:center; font-weight:bold;">Total: $1,310k</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h2>table-layout: fixed</h2>
+  <table class="table-fixed">
+    <thead>
+      <tr>
+        <th style="width:50px;">ID</th>
+        <th style="width:200px;">Title</th>
+        <th>Description (takes remaining space)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>First Item</td><td>A longer description that might overflow in a fixed layout table.</td></tr>
+      <tr><td>2</td><td>Second Item</td><td>Another description.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>thead / tbody / tfoot</h2>
+  <table class="table-sections">
+    <thead>
+      <tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Apples</td><td>5</td><td>$1.20</td><td>$6.00</td></tr>
+      <tr><td>Bananas</td><td>3</td><td>$0.50</td><td>$1.50</td></tr>
+      <tr><td>Cherries</td><td>2</td><td>$4.00</td><td>$8.00</td></tr>
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3">Grand Total</td><td>$15.50</td></tr>
+    </tfoot>
+  </table>
+</body>
+</html>

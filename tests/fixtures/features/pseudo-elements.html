@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pseudo-Elements</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; color: #222; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+
+  .before-after::before { content: "\2605 "; color: #f59e0b; }
+  .before-after::after { content: " \2605"; color: #f59e0b; }
+
+  .quote::before { content: "\201C"; font-size: 24px; color: #6366f1; }
+  .quote::after { content: "\201D"; font-size: 24px; color: #6366f1; }
+
+  .label::before { content: "Note: "; font-weight: bold; color: #dc2626; }
+
+  .block-pseudo { position: relative; padding-left: 20px; margin-bottom: 12px; }
+  .block-pseudo::before { content: ""; display: block; position: absolute; left: 0; top: 0; width: 4px; height: 100%; background-color: #3b82f6; }
+
+  .counter-list { list-style: none; padding-left: 0; counter-reset: item; }
+  .counter-list li { counter-increment: item; margin-bottom: 4px; padding: 4px 0; }
+  .counter-list li::before { content: counter(item) ". "; font-weight: bold; color: #059669; }
+
+  .nested-counter { list-style: none; padding-left: 0; counter-reset: section; }
+  .nested-counter > li { counter-increment: section; margin-bottom: 8px; }
+  .nested-counter > li::before { content: counter(section) ". "; font-weight: bold; color: #1e40af; font-size: 18px; }
+  .nested-counter ol { list-style: none; padding-left: 20px; counter-reset: subsection; }
+  .nested-counter ol li { counter-increment: subsection; margin: 2px 0; }
+  .nested-counter ol li::before { content: counter(section) "." counter(subsection) " "; color: #6366f1; }
+
+  .decorated { padding: 16px; margin-bottom: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; position: relative; }
+  .decorated::after { content: "SAMPLE"; position: absolute; top: 4px; right: 8px; font-size: 10px; color: #94a3b8; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+  <h1>Pseudo-Elements Test Fixture</h1>
+
+  <h2>::before and ::after with content</h2>
+  <p class="before-after">Star-decorated text</p>
+  <p class="quote">A wise saying goes here</p>
+  <p class="label">This paragraph has a bold red prefix via ::before.</p>
+
+  <h2>display:block pseudo-element</h2>
+  <div class="block-pseudo">
+    <p>This paragraph has a blue left border created by a ::before pseudo-element with display:block and absolute positioning.</p>
+  </div>
+  <div class="block-pseudo">
+    <p>Another block-pseudo paragraph with the same blue accent bar.</p>
+  </div>
+
+  <h2>Counters</h2>
+  <ul class="counter-list">
+    <li>First item with counter</li>
+    <li>Second item with counter</li>
+    <li>Third item with counter</li>
+    <li>Fourth item with counter</li>
+    <li>Fifth item with counter</li>
+  </ul>
+
+  <h2>Nested Counters</h2>
+  <ol class="nested-counter">
+    <li>Introduction
+      <ol>
+        <li>Background</li>
+        <li>Motivation</li>
+        <li>Overview</li>
+      </ol>
+    </li>
+    <li>Methods
+      <ol>
+        <li>Data Collection</li>
+        <li>Analysis</li>
+      </ol>
+    </li>
+    <li>Results
+      <ol>
+        <li>Primary Findings</li>
+        <li>Secondary Findings</li>
+        <li>Discussion</li>
+      </ol>
+    </li>
+  </ol>
+
+  <h2>Decorative pseudo-element</h2>
+  <div class="decorated">
+    <p>This box has a subtle "SAMPLE" watermark label in the top-right corner via ::after.</p>
+  </div>
+</body>
+</html>

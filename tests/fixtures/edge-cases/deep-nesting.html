@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deep Nesting</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; color: #1e293b; font-size: 12px; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  div { padding: 4px 4px 4px 8px; border-left: 2px solid; margin: 2px 0; }
+  .d1  { border-color: #ef4444; background-color: rgba(239,68,68,0.05); }
+  .d2  { border-color: #f97316; background-color: rgba(249,115,22,0.05); }
+  .d3  { border-color: #f59e0b; background-color: rgba(245,158,11,0.05); }
+  .d4  { border-color: #84cc16; background-color: rgba(132,204,22,0.05); }
+  .d5  { border-color: #22c55e; background-color: rgba(34,197,94,0.05); }
+  .d6  { border-color: #14b8a6; background-color: rgba(20,184,166,0.05); }
+  .d7  { border-color: #06b6d4; background-color: rgba(6,182,212,0.05); }
+  .d8  { border-color: #3b82f6; background-color: rgba(59,130,246,0.05); }
+  .d9  { border-color: #6366f1; background-color: rgba(99,102,241,0.05); }
+  .d10 { border-color: #8b5cf6; background-color: rgba(139,92,246,0.05); }
+  .d11 { border-color: #a855f7; background-color: rgba(168,85,247,0.05); }
+  .d12 { border-color: #d946ef; background-color: rgba(217,70,239,0.05); }
+  .d13 { border-color: #ec4899; background-color: rgba(236,72,153,0.05); }
+  .d14 { border-color: #f43f5e; background-color: rgba(244,63,94,0.05); }
+  .d15 { border-color: #ef4444; background-color: rgba(239,68,68,0.08); }
+  .d16 { border-color: #f97316; background-color: rgba(249,115,22,0.08); }
+  .d17 { border-color: #f59e0b; background-color: rgba(245,158,11,0.08); }
+  .d18 { border-color: #22c55e; background-color: rgba(34,197,94,0.08); }
+  .d19 { border-color: #3b82f6; background-color: rgba(59,130,246,0.08); }
+  .d20 { border-color: #6366f1; background-color: rgba(99,102,241,0.08); }
+  .d21 { border-color: #8b5cf6; background-color: rgba(139,92,246,0.08); }
+  .d22 { border-color: #d946ef; background-color: rgba(217,70,239,0.08); }
+  .d23 { border-color: #ec4899; background-color: rgba(236,72,153,0.08); }
+  .d24 { border-color: #f43f5e; background-color: rgba(244,63,94,0.08); }
+  .d25 { border-color: #14b8a6; background-color: rgba(20,184,166,0.08); }
+  .label { font-size: 10px; color: #94a3b8; }
+</style>
+</head>
+<body>
+  <h1>Deep Nesting Test (25 Levels)</h1>
+  <div class="d1"><span class="label">Level 1</span>
+    <div class="d2"><span class="label">Level 2</span>
+      <div class="d3"><span class="label">Level 3</span>
+        <div class="d4"><span class="label">Level 4</span>
+          <div class="d5"><span class="label">Level 5</span>
+            <div class="d6"><span class="label">Level 6</span>
+              <div class="d7"><span class="label">Level 7</span>
+                <div class="d8"><span class="label">Level 8</span>
+                  <div class="d9"><span class="label">Level 9</span>
+                    <div class="d10"><span class="label">Level 10</span>
+                      <div class="d11"><span class="label">Level 11</span>
+                        <div class="d12"><span class="label">Level 12</span>
+                          <div class="d13"><span class="label">Level 13</span>
+                            <div class="d14"><span class="label">Level 14</span>
+                              <div class="d15"><span class="label">Level 15</span>
+                                <div class="d16"><span class="label">Level 16</span>
+                                  <div class="d17"><span class="label">Level 17</span>
+                                    <div class="d18"><span class="label">Level 18</span>
+                                      <div class="d19"><span class="label">Level 19</span>
+                                        <div class="d20"><span class="label">Level 20</span>
+                                          <div class="d21"><span class="label">Level 21</span>
+                                            <div class="d22"><span class="label">Level 22</span>
+                                              <div class="d23"><span class="label">Level 23</span>
+                                                <div class="d24"><span class="label">Level 24</span>
+                                                  <div class="d25"><span class="label">Level 25 - Deepest</span>
+                                                    <p style="font-weight:bold; color:#0f172a;">Content at the deepest nesting level. All accumulated border-left and padding styles should be visible.</p>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

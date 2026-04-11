@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Math Rendering</title>
+<style>
+  body { font-family: serif; margin: 40px; color: #222; line-height: 1.6; }
+  h2 { margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-family: sans-serif; }
+  .math-block { text-align: center; margin: 16px 0; }
+  p { margin: 8px 0; }
+</style>
+</head>
+<body>
+  <h1 style="font-family: sans-serif;">Math Rendering Test Fixture</h1>
+
+  <h2>Inline Math</h2>
+  <p>Einstein's famous equation $E = mc^2$ relates energy and mass.</p>
+  <p>The quadratic formula gives $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ for any quadratic.</p>
+  <p>Euler's identity: $e^{i\pi} + 1 = 0$ is often called the most beautiful equation.</p>
+  <p>For a circle of radius $r$, the area is $A = \pi r^2$ and circumference is $C = 2\pi r$.</p>
+
+  <h2>Display Math: Fractions</h2>
+  <div class="math-block">
+    $$\frac{a}{b} + \frac{c}{d} = \frac{ad + bc}{bd}$$
+  </div>
+  <div class="math-block">
+    $$\frac{d}{dx}\left(\frac{f(x)}{g(x)}\right) = \frac{f'(x)g(x) - f(x)g'(x)}{[g(x)]^2}$$
+  </div>
+
+  <h2>Display Math: Integrals</h2>
+  <div class="math-block">
+    $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$
+  </div>
+  <div class="math-block">
+    $$\oint_C \mathbf{F} \cdot d\mathbf{r} = \iint_S (\nabla \times \mathbf{F}) \cdot d\mathbf{S}$$
+  </div>
+
+  <h2>Display Math: Sums &amp; Products</h2>
+  <div class="math-block">
+    $$\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}$$
+  </div>
+  <div class="math-block">
+    $$\prod_{i=1}^{n} x_i = x_1 \cdot x_2 \cdots x_n$$
+  </div>
+
+  <h2>Display Math: Matrices</h2>
+  <div class="math-block">
+    $$\begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} x \\ y \end{pmatrix} = \begin{pmatrix} ax + by \\ cx + dy \end{pmatrix}$$
+  </div>
+  <div class="math-block">
+    $$\det\begin{vmatrix} a & b & c \\ d & e & f \\ g & h & i \end{vmatrix}$$
+  </div>
+
+  <h2>Greek Letters</h2>
+  <p>Lowercase: $\alpha, \beta, \gamma, \delta, \epsilon, \zeta, \eta, \theta, \iota, \kappa, \lambda, \mu$</p>
+  <p>More: $\nu, \xi, \pi, \rho, \sigma, \tau, \upsilon, \phi, \chi, \psi, \omega$</p>
+  <p>Uppercase: $\Gamma, \Delta, \Theta, \Lambda, \Xi, \Pi, \Sigma, \Phi, \Psi, \Omega$</p>
+
+  <h2>Subscripts &amp; Superscripts</h2>
+  <p>$x_1, x_2, \ldots, x_n$ and $a^{n+1}$</p>
+  <p>Nested: $e^{x^2}$ and $a_{i_j}$</p>
+
+  <h2>Display Math: Limits</h2>
+  <div class="math-block">
+    $$\lim_{x \to 0} \frac{\sin x}{x} = 1$$
+  </div>
+</body>
+</html>
