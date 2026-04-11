@@ -450,11 +450,22 @@ pub struct BoxShadow {
     pub color: Color,
 }
 
-/// A single border side with width and color.
+/// Border line style.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BorderStyle {
+    #[default]
+    Solid,
+    Dashed,
+    Dotted,
+    None,
+}
+
+/// A single border side with width, color, and style.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BorderSide {
     pub width: f32,
     pub color: Option<Color>,
+    pub style: BorderStyle,
 }
 
 /// Per-side border specification.
@@ -469,7 +480,24 @@ pub struct BorderSides {
 #[allow(dead_code)]
 impl BorderSides {
     pub fn uniform(width: f32, color: Option<Color>) -> Self {
-        let side = BorderSide { width, color };
+        let side = BorderSide {
+            width,
+            color,
+            style: BorderStyle::Solid,
+        };
+        Self {
+            top: side,
+            right: side,
+            bottom: side,
+            left: side,
+        }
+    }
+    pub fn uniform_styled(width: f32, color: Option<Color>, style: BorderStyle) -> Self {
+        let side = BorderSide {
+            width,
+            color,
+            style,
+        };
         Self {
             top: side,
             right: side,
@@ -1571,40 +1599,56 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
 
     // Border shorthand: "1px solid black"
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border") {
-        let (w, c) = parse_border_shorthand(k);
-        style.border = BorderSides::uniform(w, c);
+        let (w, c, bs) = parse_border_shorthand(k);
+        style.border = BorderSides::uniform_styled(w, c, bs);
     }
 
     // Per-side border shorthands
     for (prop, setter) in &[
         (
             "border-top",
-            (|s: &mut ComputedStyle, w, c| {
-                s.border.top = BorderSide { width: w, color: c };
-            }) as fn(&mut ComputedStyle, f32, Option<Color>),
+            (|s: &mut ComputedStyle, w, c, bs| {
+                s.border.top = BorderSide {
+                    width: w,
+                    color: c,
+                    style: bs,
+                };
+            }) as fn(&mut ComputedStyle, f32, Option<Color>, BorderStyle),
         ),
         (
             "border-right",
-            (|s: &mut ComputedStyle, w, c| {
-                s.border.right = BorderSide { width: w, color: c };
-            }) as fn(&mut ComputedStyle, f32, Option<Color>),
+            (|s: &mut ComputedStyle, w, c, bs| {
+                s.border.right = BorderSide {
+                    width: w,
+                    color: c,
+                    style: bs,
+                };
+            }) as fn(&mut ComputedStyle, f32, Option<Color>, BorderStyle),
         ),
         (
             "border-bottom",
-            (|s: &mut ComputedStyle, w, c| {
-                s.border.bottom = BorderSide { width: w, color: c };
-            }) as fn(&mut ComputedStyle, f32, Option<Color>),
+            (|s: &mut ComputedStyle, w, c, bs| {
+                s.border.bottom = BorderSide {
+                    width: w,
+                    color: c,
+                    style: bs,
+                };
+            }) as fn(&mut ComputedStyle, f32, Option<Color>, BorderStyle),
         ),
         (
             "border-left",
-            (|s: &mut ComputedStyle, w, c| {
-                s.border.left = BorderSide { width: w, color: c };
-            }) as fn(&mut ComputedStyle, f32, Option<Color>),
+            (|s: &mut ComputedStyle, w, c, bs| {
+                s.border.left = BorderSide {
+                    width: w,
+                    color: c,
+                    style: bs,
+                };
+            }) as fn(&mut ComputedStyle, f32, Option<Color>, BorderStyle),
         ),
     ] {
         if let Some(CssValue::Keyword(k)) = get_non_special(map, prop) {
-            let (w, c) = parse_border_shorthand(k);
-            setter(style, w, c);
+            let (w, c, bs) = parse_border_shorthand(k);
+            setter(style, w, c, bs);
         }
     }
 
@@ -2824,10 +2868,11 @@ fn find_matching_paren(s: &str, start: usize) -> Option<usize> {
     None
 }
 
-/// Parse a border shorthand string like "1px solid black" into (width_pt, Option<Color>).
-fn parse_border_shorthand(k: &str) -> (f32, Option<Color>) {
+/// Parse a border shorthand string like "1px solid black" into (width_pt, Option<Color>, BorderStyle).
+fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
     let parts: Vec<&str> = k.split_whitespace().collect();
     let mut width = 0.0f32;
+    let mut border_style = BorderStyle::Solid;
     for part in &parts {
         if let Some(n) = part.strip_suffix("px") {
             if let Ok(v) = n.parse::<f32>() {
@@ -2837,10 +2882,18 @@ fn parse_border_shorthand(k: &str) -> (f32, Option<Color>) {
             if let Ok(v) = n.parse::<f32>() {
                 width = v;
             }
+        } else {
+            match *part {
+                "dashed" => border_style = BorderStyle::Dashed,
+                "dotted" => border_style = BorderStyle::Dotted,
+                "none" => border_style = BorderStyle::None,
+                "solid" => border_style = BorderStyle::Solid,
+                _ => {}
+            }
         }
     }
     let color = parts.last().and_then(|last| parse_border_color(last));
-    (width, color)
+    (width, color, border_style)
 }
 
 /// Parse a color name or hex value for border shorthand.
@@ -7521,6 +7574,7 @@ mod tests {
         parent.border.top = BorderSide {
             width: 1.0,
             color: Some(Color::rgb(0, 0, 0)),
+            style: BorderStyle::Solid,
         };
         let style = compute_style(HtmlTag::Span, None, &parent);
         assert!((style.border.top.width).abs() < 0.01);
@@ -7536,18 +7590,22 @@ mod tests {
             top: BorderSide {
                 width: 3.0,
                 color: None,
+                style: BorderStyle::Solid,
             },
             right: BorderSide {
                 width: 5.0,
                 color: None,
+                style: BorderStyle::Solid,
             },
             bottom: BorderSide {
                 width: 2.0,
                 color: None,
+                style: BorderStyle::Solid,
             },
             left: BorderSide {
                 width: 4.0,
                 color: None,
+                style: BorderStyle::Solid,
             },
         };
         assert!((b.max_width() - 5.0).abs() < 0.01);

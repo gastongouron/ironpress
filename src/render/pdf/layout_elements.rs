@@ -413,31 +413,39 @@ pub(super) fn render_nested_text_block(
         let y_bottom = block_bottom;
         if block.border.top.width > 0.0 {
             let (r, g, b) = block.border.top.color;
+            content.push_str(dash_pattern_for_style(block.border.top.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                 block.border.top.width
             ));
+            content.push_str(reset_dash_pattern(block.border.top.style));
         }
         if block.border.right.width > 0.0 {
             let (r, g, b) = block.border.right.color;
+            content.push_str(dash_pattern_for_style(block.border.right.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                 block.border.right.width
             ));
+            content.push_str(reset_dash_pattern(block.border.right.style));
         }
         if block.border.bottom.width > 0.0 {
             let (r, g, b) = block.border.bottom.color;
+            content.push_str(dash_pattern_for_style(block.border.bottom.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                 block.border.bottom.width
             ));
+            content.push_str(reset_dash_pattern(block.border.bottom.style));
         }
         if block.border.left.width > 0.0 {
             let (r, g, b) = block.border.left.color;
+            content.push_str(dash_pattern_for_style(block.border.left.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                 block.border.left.width
             ));
+            content.push_str(reset_dash_pattern(block.border.left.style));
         }
     }
 

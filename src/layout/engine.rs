@@ -19,6 +19,7 @@ use std::collections::HashMap;
 pub struct LayoutBorderSide {
     pub width: f32,
     pub color: (f32, f32, f32),
+    pub style: crate::style::computed::BorderStyle,
 }
 
 /// Per-side border for layout rendering.
@@ -39,18 +40,22 @@ impl LayoutBorder {
             top: LayoutBorderSide {
                 width: b.top.width,
                 color: b.top.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                style: b.top.style,
             },
             right: LayoutBorderSide {
                 width: b.right.width,
                 color: b.right.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                style: b.right.style,
             },
             bottom: LayoutBorderSide {
                 width: b.bottom.width,
                 color: b.bottom.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                style: b.bottom.style,
             },
             left: LayoutBorderSide {
                 width: b.left.width,
                 color: b.left.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                style: b.left.style,
             },
         }
     }
@@ -272,14 +277,21 @@ fn append_pseudo_inline_run(
     pseudo_style: Option<&ComputedStyle>,
     el: &ElementNode,
     fonts: &HashMap<String, TtfFont>,
+    counter_state: &CounterState,
 ) {
     if let Some(pseudo_style) = pseudo_style {
         if !pseudo_is_block_like(pseudo_style) {
-            runs.push(build_pseudo_inline_run(pseudo_style, el, fonts));
+            runs.push(build_pseudo_inline_run(
+                pseudo_style,
+                el,
+                fonts,
+                counter_state,
+            ));
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_block_pseudo(
     output: &mut Vec<LayoutElement>,
     pseudo_style: Option<&ComputedStyle>,
@@ -288,6 +300,7 @@ fn push_block_pseudo(
     fonts: &HashMap<String, TtfFont>,
     containing_block_info: Option<ContainingBlock>,
     positioned_ancestor_depth: usize,
+    counter_state: &CounterState,
 ) {
     if let Some(pseudo_style) = pseudo_style {
         if pseudo_is_block_like(pseudo_style) {
@@ -303,6 +316,7 @@ fn push_block_pseudo(
                 fonts,
                 pseudo_cb,
                 positioned_ancestor_depth,
+                counter_state,
             ));
         }
     }
@@ -317,12 +331,9 @@ fn build_pseudo_block(
     fonts: &HashMap<String, TtfFont>,
     containing_block_info: Option<ContainingBlock>,
     positioned_ancestor_depth: usize,
+    counter_state: &CounterState,
 ) -> LayoutElement {
-    let content_text = resolve_content(
-        &pseudo_style.content,
-        &el.attributes,
-        &CounterState::default(),
-    );
+    let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
 
     let mut block_w = available_width;
     if let Some(cb) = containing_block_info
@@ -584,12 +595,9 @@ fn build_pseudo_inline_run(
     pseudo_style: &ComputedStyle,
     el: &ElementNode,
     fonts: &HashMap<String, TtfFont>,
+    counter_state: &CounterState,
 ) -> TextRun {
-    let content_text = resolve_content(
-        &pseudo_style.content,
-        &el.attributes,
-        &CounterState::default(),
-    );
+    let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
     TextRun {
         text: content_text,
         font_size: pseudo_style.font_size,
@@ -1079,6 +1087,7 @@ pub fn layout_with_rules_and_fonts(
     }
 
     let ancestors: Vec<AncestorInfo> = Vec::new();
+    let mut counter_state = CounterState::default();
     flatten_nodes(
         nodes,
         &parent_style,
@@ -1091,6 +1100,7 @@ pub fn layout_with_rules_and_fonts(
         0,
         custom_fonts,
         None,
+        &mut counter_state,
     );
 
     // Then paginate
@@ -1110,6 +1120,7 @@ fn flatten_nodes(
     positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
     abs_containing_block: Option<ContainingBlock>,
+    counter_state: &mut CounterState,
 ) {
     // Count element children for sibling context
     let element_count = nodes
@@ -1214,6 +1225,7 @@ fn flatten_nodes(
                     &preceding_siblings,
                     fonts,
                     abs_containing_block,
+                    counter_state,
                 );
                 // Track this element as a preceding sibling for the next element
                 preceding_siblings.push((
@@ -1256,6 +1268,7 @@ fn flatten_element(
     preceding_siblings: &[(String, Vec<String>)],
     fonts: &HashMap<String, TtfFont>,
     abs_containing_block: Option<ContainingBlock>,
+    counter_state: &mut CounterState,
 ) {
     let classes = el.class_list();
     let selector_ctx = SelectorContext {
@@ -1275,6 +1288,11 @@ fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+
+    // Apply CSS counter operations for this element.
+    counter_state.apply_resets(&style.counter_reset);
+    counter_state.apply_increments(&style.counter_increment);
+
     let available_height = style.height.unwrap_or(available_height);
     let positioned_depth =
         if style.position == Position::Relative || style.position == Position::Absolute {
@@ -1778,6 +1796,7 @@ fn flatten_element(
             ancestors,
             child_index,
             sibling_count,
+            counter_state,
         );
         return;
     }
@@ -1835,6 +1854,7 @@ fn flatten_element(
                         &[],
                         fonts,
                         None,
+                        counter_state,
                     );
                     if let ListContext::Ordered { index, .. } = &mut ctx {
                         *index += 1;
@@ -1855,6 +1875,7 @@ fn flatten_element(
                         &[],
                         fonts,
                         None,
+                        counter_state,
                     );
                 }
                 child_el_idx += 1;
@@ -2013,6 +2034,7 @@ fn flatten_element(
                         &[],
                         fonts,
                         None,
+                        counter_state,
                     );
                 } else if recurses_as_layout_child(child_el.tag) {
                     flatten_element(
@@ -2030,6 +2052,7 @@ fn flatten_element(
                         &[],
                         fonts,
                         None,
+                        counter_state,
                     );
                 }
                 child_el_idx += 1;
@@ -2075,6 +2098,7 @@ fn flatten_element(
             before_style.as_ref(),
             after_style.as_ref(),
             positioned_depth,
+            counter_state,
         );
 
         if style.page_break_after {
@@ -2212,6 +2236,7 @@ fn flatten_element(
                     fonts,
                     None,
                     positioned_depth,
+                    counter_state,
                 ));
             }
         }
@@ -2220,7 +2245,7 @@ fn flatten_element(
         // When a math span is encountered, flush accumulated text runs as a
         // TextBlock, emit a MathBlock, then continue collecting.
         let mut runs = Vec::new();
-        append_pseudo_inline_run(&mut runs, before_style.as_ref(), el, fonts);
+        append_pseudo_inline_run(&mut runs, before_style.as_ref(), el, fonts, counter_state);
 
         // Helper closure: flush accumulated runs as a TextBlock
         let flush_runs = |runs: &mut Vec<TextRun>,
@@ -2399,7 +2424,7 @@ fn flatten_element(
                 ancestors,
             );
         }
-        append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts);
+        append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts, counter_state);
 
         let had_inline_runs = !runs.is_empty() || has_math_children;
         let mut cb_info = None;
@@ -2539,6 +2564,7 @@ fn flatten_element(
                 fonts,
                 cb_info,
                 positioned_depth,
+                counter_state,
             );
         }
 
@@ -2587,6 +2613,7 @@ fn flatten_element(
                             &[],
                             fonts,
                             None, // CB will be patched below after container_h is known
+                            counter_state,
                         );
                     }
                     child_el_idx += 1;
@@ -2692,6 +2719,7 @@ fn flatten_element(
                 fonts,
                 cb_info,
                 positioned_depth,
+                counter_state,
             );
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
@@ -2821,6 +2849,7 @@ fn flatten_element(
                     fonts,
                     cb_info,
                     positioned_depth,
+                    counter_state,
                 );
             }
             // Compute cb_info for positioned containers in the non-wrapper path
@@ -2848,6 +2877,7 @@ fn flatten_element(
                             &[],
                             fonts,
                             cb_info,
+                            counter_state,
                         );
                     }
                     child_el_idx += 1;
@@ -2864,6 +2894,7 @@ fn flatten_element(
             fonts,
             cb_info,
             positioned_depth,
+            counter_state,
         );
     } else {
         // Inline element — process children with this style context
@@ -2879,12 +2910,16 @@ fn flatten_element(
             positioned_depth,
             fonts,
             None,
+            counter_state,
         );
     }
 
     if style.page_break_after {
         output.push(LayoutElement::PageBreak);
     }
+
+    // Pop any counters that were pushed by counter-reset on this element.
+    counter_state.pop_resets(&style.counter_reset);
 }
 
 /// Lay out children of a `display: flex` container.
@@ -2905,6 +2940,7 @@ fn flatten_flex_container(
     before_style: Option<&ComputedStyle>,
     after_style: Option<&ComputedStyle>,
     positioned_depth: usize,
+    counter_state: &mut CounterState,
 ) {
     let mut block_w = available_width;
     if let Some(w) = style.width {
@@ -3035,6 +3071,7 @@ fn flatten_flex_container(
                     fonts,
                     containing_block,
                     positioned_depth,
+                    counter_state,
                 );
             }
             if after_abs {
@@ -3046,6 +3083,7 @@ fn flatten_flex_container(
                     fonts,
                     containing_block,
                     positioned_depth,
+                    counter_state,
                 );
             }
         }
@@ -3100,27 +3138,22 @@ fn flatten_flex_container(
 
         // Determine child width: flex-basis takes priority, then explicit width.
         // If neither is set and flex-grow > 0, use 0 as base (grow will distribute).
-        // Otherwise fall back to equal share.
-        let child_w = child_style
+        // If neither is set and flex-grow == 0 (default), use natural content width
+        // so items shrink to fit their content and justify-content can distribute
+        // the remaining free space.
+        let has_explicit_width = child_style.flex_basis.is_some() || child_style.width.is_some();
+        let child_w_initial = child_style
             .flex_basis
             .or(child_style.width)
             .unwrap_or_else(|| {
                 if child_style.flex_grow > 0.0 {
                     0.0
                 } else {
+                    // Use full width initially for text wrapping measurement;
+                    // we will shrink to natural content width below.
                     width_for_percentages / child_count as f32
                 }
             });
-
-        let child_inner_w = if child_style.box_sizing == BoxSizing::BorderBox {
-            child_w
-                - child_style.padding.left
-                - child_style.padding.right
-                - child_style.border.horizontal_width()
-        } else {
-            child_w - child_style.padding.left - child_style.padding.right
-        }
-        .max(0.0);
 
         // Collect text runs for this child, including from nested block elements.
         // Include the child element itself in the ancestor chain so that
@@ -3145,6 +3178,32 @@ fn flatten_flex_container(
             (0.0, 0.0),
             &child_ancestors,
         );
+
+        // When no explicit width/flex-basis and flex-grow is 0, measure the
+        // natural (intrinsic) content width so the item shrinks to fit.
+        let child_w = if !has_explicit_width && child_style.flex_grow == 0.0 && !runs.is_empty() {
+            let natural_text_w = measure_runs_width(&runs, fonts);
+            let pad_h = child_style.padding.left + child_style.padding.right;
+            let border_h = if child_style.box_sizing == BoxSizing::BorderBox {
+                child_style.border.horizontal_width()
+            } else {
+                0.0
+            };
+            // Content width = text width + padding + border (capped at container)
+            (natural_text_w + pad_h + border_h).min(width_for_percentages)
+        } else {
+            child_w_initial
+        };
+
+        let child_inner_w = if child_style.box_sizing == BoxSizing::BorderBox {
+            child_w
+                - child_style.padding.left
+                - child_style.padding.right
+                - child_style.border.horizontal_width()
+        } else {
+            child_w - child_style.padding.left - child_style.padding.right
+        }
+        .max(0.0);
 
         let lines = if !runs.is_empty() {
             wrap_text_runs(
@@ -3519,17 +3578,6 @@ fn flatten_flex_container(
                 if free_space > 0.0 && total_grow > 0.0 {
                     for &i in &line_items {
                         items[i].width += free_space * (items[i].flex_grow / total_grow);
-                    }
-                    free_space = 0.0;
-                } else if free_space > 0.0
-                    && total_grow == 0.0
-                    && free_space < inner_width * 0.05
-                    && line_item_count > 0
-                {
-                    // Fallback: small rounding remainder with no explicit flex-grow
-                    let grow_each = free_space / line_item_count as f32;
-                    for &i in &line_items {
-                        items[i].width += grow_each;
                     }
                     free_space = 0.0;
                 }
@@ -4457,6 +4505,7 @@ fn flatten_table(
     ancestors: &[AncestorInfo],
     table_child_index: usize,
     table_sibling_count: usize,
+    counter_state: &mut CounterState,
 ) {
     let inner_width = resolve_table_inner_width(style, available_width);
 
@@ -4754,6 +4803,7 @@ fn flatten_table(
                             recurse_descendants,
                             &text_ancestors,
                             inner_width.max(1.0),
+                            counter_state,
                         );
                         // Estimate content width using estimate_word_width for accurate
                         // measurement. Use the maximum of (full text width, longest word
@@ -5022,6 +5072,7 @@ fn flatten_table(
                 recurse_descendants,
                 &text_ancestors,
                 cell_inner.max(1.0),
+                counter_state,
             );
             let lines = wrap_text_runs(
                 runs,
@@ -5452,6 +5503,7 @@ fn collect_table_cell_content_inner(
     suppress_direct_text_padding: bool,
     ancestors: &[AncestorInfo],
     available_width: f32,
+    counter_state: &mut CounterState,
 ) {
     let preserve_ws = matches!(
         parent_style.white_space,
@@ -5567,6 +5619,7 @@ fn collect_table_cell_content_inner(
                         &child_ancestors,
                         child_index,
                         element_sibling_count,
+                        counter_state,
                     );
                 } else if el.tag == HtmlTag::Svg
                     || (recurse_blocks
@@ -5595,6 +5648,7 @@ fn collect_table_cell_content_inner(
                         &selector_ctx.preceding_siblings,
                         fonts,
                         None,
+                        counter_state,
                     );
                 } else if recurse_blocks || collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br
                 {
@@ -5614,6 +5668,7 @@ fn collect_table_cell_content_inner(
                             false,
                             &child_ancestors,
                             available_width,
+                            counter_state,
                         );
                         if recurse_blocks && style.display != Display::Inline && !runs.is_empty() {
                             push_line_break_run(runs, &style, fonts);
@@ -10535,6 +10590,41 @@ mod tests {
     }
 
     #[test]
+    fn css_counter_in_pseudo_element_generates_numbers() {
+        // Verifies that counter-reset + counter-increment + counter() in
+        // ::before pseudo-elements produce sequential numbers (BUG 1 fix).
+        let html = r#"<html><head><style>
+            ol.counted { counter-reset: item }
+            ol.counted li { counter-increment: item }
+            ol.counted li::before { content: counter(item) ". " }
+        </style></head><body>
+            <ol class="counted"><li>First</li><li>Second</li><li>Third</li></ol>
+        </body></html>"#;
+        let result = crate::parser::html::parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(crate::parser::css::parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut all_texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let text: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    if !text.trim().is_empty() {
+                        all_texts.push(text);
+                    }
+                }
+            }
+        }
+        let joined = all_texts.join(" ");
+        assert!(
+            joined.contains("1.") && joined.contains("2.") && joined.contains("3."),
+            "CSS counters should generate sequential numbers 1, 2, 3. Got: {joined}"
+        );
+    }
+
+    #[test]
     fn layout_flex_container() {
         // Covers lines 1067,1133,1395: flex layout code paths
         let html = r#"<div style="display: flex; width: 400pt;">
@@ -11173,18 +11263,22 @@ mod tests {
             top: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 3.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 2.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 5.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
         };
         assert!((border.horizontal_width() - 8.0).abs() < f32::EPSILON);
@@ -11196,18 +11290,22 @@ mod tests {
             top: LayoutBorderSide {
                 width: 4.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 6.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
         };
         assert!((border.vertical_width() - 10.0).abs() < f32::EPSILON);
@@ -11219,18 +11317,22 @@ mod tests {
             top: LayoutBorderSide {
                 width: 2.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 7.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 3.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 5.0,
                 color: (0.0, 0.0, 0.0),
+                style: crate::style::computed::BorderStyle::Solid,
             },
         };
         assert!((border.max_width() - 7.0).abs() < f32::EPSILON);
@@ -11742,6 +11844,148 @@ mod tests {
             "flex-shrink: 1 item should shrink, got {}",
             cells[1].width
         );
+    }
+
+    #[test]
+    fn flex_no_grow_uses_content_width() {
+        // 3 flex items with no flex-grow should use their content width,
+        // not expand to fill the full container.
+        let html = r#"<html><head><style>
+            .container { display: flex; width: 400pt; }
+            .item { width: 50pt; }
+        </style></head><body>
+        <div class="container">
+            <div class="item">A</div>
+            <div class="item">B</div>
+            <div class="item">C</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 3);
+        // Each item should be ~50pt wide, not ~133pt (400/3)
+        for (idx, cell) in cells.iter().enumerate() {
+            assert!(
+                (cell.width - 50.0).abs() < 5.0,
+                "Item {} should be ~50pt wide (content width), got {}",
+                idx,
+                cell.width
+            );
+        }
+        // Total width of items should be much less than container width
+        let total: f32 = cells.iter().map(|c| c.width).sum();
+        assert!(
+            total < 200.0,
+            "Total item width should be much less than 400pt container, got {total}"
+        );
+    }
+
+    #[test]
+    fn flex_justify_center_positions_items_in_middle() {
+        // justify-content: center should position items in the middle
+        // of the container, not at the start.
+        let html = r#"<html><head><style>
+            .container { display: flex; justify-content: center; width: 400pt; }
+            .item { width: 100pt; }
+        </style></head><body>
+        <div class="container">
+            <div class="item">X</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 1);
+        // Item should be centered: x_offset should be ~150pt ((400-100)/2)
+        assert!(
+            (cells[0].x_offset - 150.0).abs() < 5.0,
+            "justify-content: center should put item at ~150pt, got {}",
+            cells[0].x_offset
+        );
+        // Width should stay at 100pt
+        assert!(
+            (cells[0].width - 100.0).abs() < 5.0,
+            "Item width should remain ~100pt, got {}",
+            cells[0].width
+        );
+    }
+
+    #[test]
+    fn flex_justify_space_between_distributes_items() {
+        // justify-content: space-between with 3 items should put first at
+        // start, last at end, and distribute space between them evenly.
+        let html = r#"<html><head><style>
+            .container { display: flex; justify-content: space-between; width: 400pt; }
+            .item { width: 80pt; }
+        </style></head><body>
+        <div class="container">
+            <div class="item">A</div>
+            <div class="item">B</div>
+            <div class="item">C</div>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut flex_rows: Vec<&Vec<FlexCell>> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::FlexRow { cells, .. } = el {
+                flex_rows.push(cells);
+            }
+        }
+        assert_eq!(flex_rows.len(), 1);
+        let cells = flex_rows[0];
+        assert_eq!(cells.len(), 3);
+        // First item should be at x=0
+        assert!(
+            cells[0].x_offset < 5.0,
+            "First item should be at start, got {}",
+            cells[0].x_offset
+        );
+        // Last item should end at ~400pt (x_offset + width ~ 400)
+        let last_end = cells[2].x_offset + cells[2].width;
+        assert!(
+            (last_end - 400.0).abs() < 5.0,
+            "Last item should end at ~400pt, got {last_end}"
+        );
+        // Gaps between items should be equal
+        let gap1 = cells[1].x_offset - (cells[0].x_offset + cells[0].width);
+        let gap2 = cells[2].x_offset - (cells[1].x_offset + cells[1].width);
+        assert!(
+            (gap1 - gap2).abs() < 1.0,
+            "Gaps should be equal: {gap1} vs {gap2}"
+        );
+        // Each gap should be ~80pt ((400 - 240) / 2)
+        assert!((gap1 - 80.0).abs() < 5.0, "Gap should be ~80pt, got {gap1}");
     }
 
     #[test]

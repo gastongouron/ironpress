@@ -15,8 +15,9 @@ use crate::render::shading::{
 };
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, Float,
-    FontFamily, LinearGradient, Position, RadialGradient, TextAlign, VerticalAlign,
+    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse,
+    BorderStyle, Float, FontFamily, LinearGradient, Position, RadialGradient, TextAlign,
+    VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -35,6 +36,23 @@ use layout_elements::{
     render_cell_text, render_nested_layout_elements, render_nested_text_block,
     table_row_total_height,
 };
+
+/// Returns the PDF dash-pattern operator string for a given border style.
+fn dash_pattern_for_style(style: BorderStyle) -> &'static str {
+    match style {
+        BorderStyle::Dashed => "[6 4] 0 d\n",
+        BorderStyle::Dotted => "[1 3] 0 d\n",
+        _ => "",
+    }
+}
+
+/// Reset the dash pattern back to solid after a dashed/dotted stroke.
+fn reset_dash_pattern(style: BorderStyle) -> &'static str {
+    match style {
+        BorderStyle::Dashed | BorderStyle::Dotted => "[] 0 d\n",
+        _ => "",
+    }
+}
 
 /// A link annotation to be placed on a PDF page.
 struct LinkAnnotation {
@@ -472,9 +490,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.width == border.left.width
                             && border.top.color == border.right.color
                             && border.top.color == border.bottom.color
-                            && border.top.color == border.left.color;
+                            && border.top.color == border.left.color
+                            && border.top.style == border.right.style
+                            && border.top.style == border.bottom.style
+                            && border.top.style == border.left.style;
                         if uniform && *border_radius > 0.0 {
                             let (br, bg, bb) = border.top.color;
+                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{br} {bg} {bb} RG\n{bw} w\n",
                                 bw = border.top.width
@@ -487,8 +509,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 *border_radius,
                             ));
                             content.push_str("S\n");
+                            content.push_str(reset_dash_pattern(border.top.style));
                         } else if uniform {
                             let (br, bg, bb) = border.top.color;
+                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{br} {bg} {bb} RG\n{bw} w\n",
                                 bw = border.top.width
@@ -501,6 +525,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 h = total_h,
                             ));
                             content.push_str("S\n");
+                            content.push_str(reset_dash_pattern(border.top.style));
                         } else {
                             let x1 = block_x;
                             let x2 = block_x + render_width;
@@ -513,13 +538,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             // Top border
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
+                                content.push_str(dash_pattern_for_style(border.top.style));
                                 content
                                     .push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
                                 content.push_str(&format!("{x1} {y_top} m {x2} {y_top} l S\n"));
+                                content.push_str(reset_dash_pattern(border.top.style));
                             }
                             // Right border
                             if border.right.width > 0.0 {
                                 let (r, g, b) = border.right.color;
+                                content.push_str(dash_pattern_for_style(border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.right.width
@@ -527,20 +555,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str(&format!(
                                     "{x_right} {y_top} m {x_right} {y_bottom} l S\n"
                                 ));
+                                content.push_str(reset_dash_pattern(border.right.style));
                             }
                             // Bottom border
                             if border.bottom.width > 0.0 {
                                 let (r, g, b) = border.bottom.color;
+                                content.push_str(dash_pattern_for_style(border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.bottom.width
                                 ));
                                 content
                                     .push_str(&format!("{x1} {y_bottom} m {x2} {y_bottom} l S\n"));
+                                content.push_str(reset_dash_pattern(border.bottom.style));
                             }
                             // Left border
                             if border.left.width > 0.0 {
                                 let (r, g, b) = border.left.color;
+                                content.push_str(dash_pattern_for_style(border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.left.width
@@ -548,6 +580,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str(&format!(
                                     "{x_left} {y_top} m {x_left} {y_bottom} l S\n"
                                 ));
+                                content.push_str(reset_dash_pattern(border.left.style));
                             }
                         }
                     }
@@ -825,31 +858,39 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let y_bottom = row_y - cell_height;
                             if cell.border.top.width > 0.0 {
                                 let (r, g, b) = cell.border.top.color;
+                                content.push_str(dash_pattern_for_style(cell.border.top.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                     cell.border.top.width
                                 ));
+                                content.push_str(reset_dash_pattern(cell.border.top.style));
                             }
                             if cell.border.right.width > 0.0 {
                                 let (r, g, b) = cell.border.right.color;
+                                content.push_str(dash_pattern_for_style(cell.border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                     cell.border.right.width
                                 ));
+                                content.push_str(reset_dash_pattern(cell.border.right.style));
                             }
                             if cell.border.bottom.width > 0.0 {
                                 let (r, g, b) = cell.border.bottom.color;
+                                content.push_str(dash_pattern_for_style(cell.border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                     cell.border.bottom.width
                                 ));
+                                content.push_str(reset_dash_pattern(cell.border.bottom.style));
                             }
                             if cell.border.left.width > 0.0 {
                                 let (r, g, b) = cell.border.left.color;
+                                content.push_str(dash_pattern_for_style(cell.border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                     cell.border.left.width
                                 ));
+                                content.push_str(reset_dash_pattern(cell.border.left.style));
                             }
                         }
 
@@ -1129,9 +1170,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.width == border.left.width
                             && border.top.color == border.right.color
                             && border.top.color == border.bottom.color
-                            && border.top.color == border.left.color;
+                            && border.top.color == border.left.color
+                            && border.top.style == border.right.style
+                            && border.top.style == border.bottom.style
+                            && border.top.style == border.left.style;
                         if uniform && *border_radius > 0.0 {
                             let (r, g, b) = border.top.color;
+                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n",
                                 bw = border.top.width
@@ -1144,14 +1189,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 *border_radius,
                             ));
                             content.push_str("S\n");
+                            content.push_str(reset_dash_pattern(border.top.style));
                         } else if uniform {
                             let (r, g, b) = border.top.color;
+                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
                                 bw = border.top.width,
                                 w = container_width,
                                 h = full_height,
                             ));
+                            content.push_str(reset_dash_pattern(border.top.style));
                         } else {
                             let x1 = bx;
                             let x2 = bx + container_width;
@@ -1159,31 +1207,39 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let y_bottom = by;
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
+                                content.push_str(dash_pattern_for_style(border.top.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                     border.top.width
                                 ));
+                                content.push_str(reset_dash_pattern(border.top.style));
                             }
                             if border.right.width > 0.0 {
                                 let (r, g, b) = border.right.color;
+                                content.push_str(dash_pattern_for_style(border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                     border.right.width
                                 ));
+                                content.push_str(reset_dash_pattern(border.right.style));
                             }
                             if border.bottom.width > 0.0 {
                                 let (r, g, b) = border.bottom.color;
+                                content.push_str(dash_pattern_for_style(border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                     border.bottom.width
                                 ));
+                                content.push_str(reset_dash_pattern(border.bottom.style));
                             }
                             if border.left.width > 0.0 {
                                 let (r, g, b) = border.left.color;
+                                content.push_str(dash_pattern_for_style(border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                     border.left.width
                                 ));
+                                content.push_str(reset_dash_pattern(border.left.style));
                             }
                         }
                     }
@@ -4319,6 +4375,68 @@ mod tests {
     }
 
     #[test]
+    fn render_dashed_border_emits_dash_pattern() {
+        let html = r#"<div style="border: 2px dashed black; width: 100pt">Dashed</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("[6 4] 0 d"),
+            "Dashed border should emit [6 4] 0 d dash pattern. Got: {}",
+            &content[..content.len().min(2000)]
+        );
+        assert!(
+            content.contains("[] 0 d"),
+            "Dashed border should reset dash pattern with [] 0 d"
+        );
+    }
+
+    #[test]
+    fn render_dotted_border_emits_dash_pattern() {
+        let html = r#"<div style="border: 2px dotted red; width: 100pt">Dotted</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("[1 3] 0 d"),
+            "Dotted border should emit [1 3] 0 d dash pattern"
+        );
+    }
+
+    #[test]
+    fn render_solid_border_no_dash_pattern() {
+        let html = r#"<div style="border: 2px solid black; width: 100pt">Solid</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Solid borders should NOT have dash patterns
+        assert!(
+            !content.contains("[6 4] 0 d") && !content.contains("[1 3] 0 d"),
+            "Solid border should not emit dash patterns"
+        );
+    }
+
+    #[test]
+    fn border_style_parsed_from_shorthand() {
+        use crate::parser::dom::HtmlTag;
+        use crate::style::computed::ComputedStyle;
+        use crate::style::computed::{BorderStyle, compute_style_with_context};
+        let parent = ComputedStyle::default();
+        let style = crate::style::computed::compute_style(
+            HtmlTag::Div,
+            Some("border: 2px dashed red"),
+            &parent,
+        );
+        assert_eq!(style.border.top.style, BorderStyle::Dashed);
+        assert_eq!(style.border.right.style, BorderStyle::Dashed);
+        assert_eq!(style.border.bottom.style, BorderStyle::Dashed);
+        assert_eq!(style.border.left.style, BorderStyle::Dashed);
+    }
+
+    #[test]
     fn render_times_roman_font_family() {
         let html = r#"<p style="font-family: serif">Serif text</p>"#;
         let nodes = parse_html(html).unwrap();
@@ -7073,18 +7191,22 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (1.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 1.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         render_nested_text_block(
             &mut content,
@@ -7158,6 +7280,7 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (1.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         render_nested_text_block(
             &mut content,
@@ -7234,18 +7357,22 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         let lines = vec![test_text_line(vec![test_text_run("SvgBorder")])];
         let mut content = String::new();
@@ -7613,18 +7740,22 @@ mod tests {
         border.top = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            style: crate::style::computed::BorderStyle::Solid,
         };
         let cell = TableCell {
             lines: vec![TextLine {
