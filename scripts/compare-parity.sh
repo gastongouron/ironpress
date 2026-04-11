@@ -97,20 +97,21 @@ for layer in features combined edge-cases; do
         fi
 
         # Compare with ImageMagick AE metric (absolute error = diff pixel count)
+        # NOTE: compare outputs the metric value on STDERR, not stdout
         diff_png="$TMPDIR_WORK/${layer}_${name}_diff.png"
-        compare_err="$TMPDIR_WORK/${layer}_${name}_compare.err"
-        diff_pixels=$(compare -metric AE "$resized_ref" "$render_png" "$diff_png" 2>"$compare_err" || true)
-        # compare exits non-zero when images differ; capture output regardless
+        diff_pixels=$(compare -metric AE "$resized_ref" "$render_png" "$diff_png" 2>&1 || true)
         diff_pixels=$(echo "$diff_pixels" | tr -d '[:space:]')
 
-        # If compare produced no numeric output or failed to create a diff image,
-        # fall back to a pixel-by-pixel difference composite instead of a grey placeholder
+        # If compare produced no numeric output, try extracting from error message
         if ! [[ "$diff_pixels" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-            compare_err_msg=$(cat "$compare_err" 2>/dev/null | head -1)
-            echo "# compare error for $layer/$name: $compare_err_msg" >&2
-            # Use composite difference as fallback; count non-black pixels as diff
-            composite -compose difference "$resized_ref" "$render_png" "$diff_png" 2>/dev/null || true
-            diff_pixels=$(identify -format "%[fx:w*h]" "$resized_ref" 2>/dev/null || echo "0")
+            # compare sometimes outputs "NNN image.png" — extract the number
+            numeric=$(echo "$diff_pixels" | grep -oE '^[0-9]+(\.[0-9]+)?' || echo "")
+            if [ -n "$numeric" ]; then
+                diff_pixels="$numeric"
+            else
+                echo "# compare failed for $layer/$name: $diff_pixels" >&2
+                diff_pixels=$(identify -format "%[fx:w*h]" "$resized_ref" 2>/dev/null || echo "0")
+            fi
         fi
 
         # Calculate total pixels from reference
