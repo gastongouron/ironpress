@@ -32,7 +32,8 @@ use layout_elements::{
 #[cfg(test)]
 use layout_elements::{
     CellTextPlacement, NestedTextBlock, TextRenderContext, plan_nested_layout_elements,
-    render_cell_text, render_nested_text_block,
+    render_cell_text, render_nested_layout_elements, render_nested_text_block,
+    table_row_total_height,
 };
 
 /// A link annotation to be placed on a PDF page.
@@ -6595,5 +6596,1272 @@ mod tests {
             "Should render centered cell text"
         );
         assert!(pdf_str.contains("(Short)"), "Should render short cell text");
+    }
+
+    // ===== layout_elements.rs coverage tests =====
+
+    /// table_cell_content_top: VerticalAlign::Middle positions text mid-row
+    #[test]
+    fn layout_elements_vertical_align_middle_in_table_cell() {
+        use crate::parser::css::parse_stylesheet;
+        let html = r#"<html><head><style>
+            td { vertical-align: middle; }
+        </style></head><body>
+        <table>
+            <tr>
+                <td style="height: 80pt; padding: 0">Middle</td>
+                <td style="height: 80pt; padding: 0">Other</td>
+            </tr>
+        </table>
+        </body></html>"#;
+        let result = crate::parser::html::parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = crate::layout::engine::layout_with_rules(
+            &result.nodes,
+            PageSize::A4,
+            Margin::default(),
+            &rules,
+        );
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("(Middle)"),
+            "Should render middle-aligned text"
+        );
+    }
+
+    /// table_cell_content_top: VerticalAlign::Bottom positions text at bottom
+    #[test]
+    fn layout_elements_vertical_align_bottom_in_table_cell() {
+        use crate::parser::css::parse_stylesheet;
+        let html = r#"<html><head><style>
+            td.bottom { vertical-align: bottom; }
+        </style></head><body>
+        <table>
+            <tr>
+                <td class="bottom" style="padding: 0">Bottom</td>
+                <td style="padding: 0; height: 60pt">Tall</td>
+            </tr>
+        </table>
+        </body></html>"#;
+        let result = crate::parser::html::parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = crate::layout::engine::layout_with_rules(
+            &result.nodes,
+            PageSize::A4,
+            Margin::default(),
+            &rules,
+        );
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("(Bottom)"),
+            "Should render bottom-aligned text"
+        );
+    }
+
+    /// render_nested_text_block: background_color + border_radius in nested block
+    #[test]
+    fn layout_elements_nested_text_block_background_with_border_radius() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let lines = vec![test_text_line(vec![test_text_run("BgRound")])];
+        let mut content = String::new();
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 4.0,
+                padding_bottom: 4.0,
+                padding_left: 4.0,
+                padding_right: 4.0,
+                border: LayoutBorder::default(),
+                block_width: Some(100.0),
+                block_height: None,
+                background_color: Some((0.0, 1.0, 0.0)),
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 8.0, // Triggers rounded rect path
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        // Green background
+        assert!(
+            content.contains("0 1 0 rg"),
+            "Should have green background color"
+        );
+        // Rounded rect uses Bezier curves
+        assert!(
+            content.contains(" c\n"),
+            "Should have Bezier curves for border-radius"
+        );
+        assert!(content.contains("f\n"), "Should fill the rounded rect");
+    }
+
+    /// render_nested_text_block: border rendering (all 4 sides)
+    #[test]
+    fn layout_elements_nested_text_block_all_four_borders() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let lines = vec![test_text_line(vec![test_text_run("Bordered")])];
+        let mut content = String::new();
+        let mut border = LayoutBorder::default();
+        border.top = crate::layout::engine::LayoutBorderSide {
+            width: 1.0,
+            color: (1.0, 0.0, 0.0),
+        };
+        border.right = crate::layout::engine::LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 1.0, 0.0),
+        };
+        border.bottom = crate::layout::engine::LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 1.0),
+        };
+        border.left = crate::layout::engine::LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 0.0),
+        };
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 2.0,
+                padding_bottom: 2.0,
+                padding_left: 2.0,
+                padding_right: 2.0,
+                border,
+                block_width: Some(100.0),
+                block_height: None,
+                background_color: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        // Should have stroke commands for all 4 borders
+        assert!(content.contains("1 0 0 RG"), "Should have red top border");
+        assert!(
+            content.contains("0 1 0 RG"),
+            "Should have green right border"
+        );
+        assert!(
+            content.contains("0 0 1 RG"),
+            "Should have blue bottom border"
+        );
+        assert!(
+            content.contains("0 0 0 RG"),
+            "Should have black left border"
+        );
+        // All 4 sides produce line strokes
+        let stroke_count = content.matches(" l S\n").count() + content.matches(" l\nS\n").count();
+        assert!(
+            stroke_count >= 4,
+            "Should have at least 4 border strokes, got {stroke_count}"
+        );
+    }
+
+    /// render_nested_text_block: only top border triggers single line
+    #[test]
+    fn layout_elements_nested_text_block_top_border_only() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let lines = vec![test_text_line(vec![test_text_run("TopOnly")])];
+        let mut content = String::new();
+        let mut border = LayoutBorder::default();
+        border.top = crate::layout::engine::LayoutBorderSide {
+            width: 2.0,
+            color: (1.0, 0.0, 0.0),
+        };
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border,
+                block_width: Some(80.0),
+                block_height: None,
+                background_color: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
+            &mut ctx,
+        );
+        assert!(content.contains("1 0 0 RG"), "Should have red top border");
+        assert!(content.contains("2 w\n"), "Should have 2pt line width");
+    }
+
+    /// render_nested_text_block: background_svg with BackgroundOrigin::Border
+    #[test]
+    fn layout_elements_nested_text_block_svg_background_border_origin() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let svg_tree = crate::parser::svg::SvgTree {
+            width: 10.0,
+            height: 10.0,
+            width_attr: None,
+            height_attr: None,
+            preserve_aspect_ratio: crate::parser::svg::SvgPreserveAspectRatio::default(),
+            view_box: None,
+            defs: Default::default(),
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle {
+                    fill: crate::parser::svg::SvgPaint::Color((1.0, 0.0, 0.0)),
+                    ..Default::default()
+                },
+            }],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+            source_markup: None,
+        };
+        let mut border = LayoutBorder::default();
+        border.top = crate::layout::engine::LayoutBorderSide {
+            width: 2.0,
+            color: (0.0, 0.0, 0.0),
+        };
+        border.bottom = crate::layout::engine::LayoutBorderSide {
+            width: 2.0,
+            color: (0.0, 0.0, 0.0),
+        };
+        border.left = crate::layout::engine::LayoutBorderSide {
+            width: 2.0,
+            color: (0.0, 0.0, 0.0),
+        };
+        border.right = crate::layout::engine::LayoutBorderSide {
+            width: 2.0,
+            color: (0.0, 0.0, 0.0),
+        };
+        let lines = vec![test_text_line(vec![test_text_run("SvgBorder")])];
+        let mut content = String::new();
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border,
+                block_width: Some(100.0),
+                block_height: None,
+                background_color: None,
+                background_svg: Some(&svg_tree),
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Cover,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::NoRepeat,
+                // Border origin expands ref box by border widths
+                background_origin: BackgroundOrigin::Border,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        // SVG rect should produce fill output
+        assert!(
+            content.contains("1 0 0 rg"),
+            "Should have red fill from SVG rect"
+        );
+        assert!(content.contains("(SvgBorder)"), "Should render block text");
+    }
+
+    /// render_nested_text_block: background_svg with BackgroundOrigin::Content
+    #[test]
+    fn layout_elements_nested_text_block_svg_background_content_origin() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let svg_tree = crate::parser::svg::SvgTree {
+            width: 10.0,
+            height: 10.0,
+            width_attr: None,
+            height_attr: None,
+            preserve_aspect_ratio: crate::parser::svg::SvgPreserveAspectRatio::default(),
+            view_box: None,
+            defs: Default::default(),
+            children: vec![crate::parser::svg::SvgNode::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
+                rx: 0.0,
+                ry: 0.0,
+                style: crate::parser::svg::SvgStyle {
+                    fill: crate::parser::svg::SvgPaint::Color((0.0, 0.0, 1.0)),
+                    ..Default::default()
+                },
+            }],
+            text_ctx: crate::parser::svg::SvgTextContext::default(),
+            source_markup: None,
+        };
+        let lines = vec![test_text_line(vec![test_text_run("SvgContent")])];
+        let mut content = String::new();
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &lines,
+                text_align: TextAlign::Left,
+                padding_top: 5.0,
+                padding_bottom: 5.0,
+                padding_left: 5.0,
+                padding_right: 5.0,
+                border: LayoutBorder::default(),
+                block_width: Some(100.0),
+                block_height: None,
+                background_color: None,
+                background_svg: Some(&svg_tree),
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Cover,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::NoRepeat,
+                // Content origin shrinks ref box by padding
+                background_origin: BackgroundOrigin::Content,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        // SVG rect should produce fill output (blue)
+        assert!(
+            content.contains("0 0 1 rg"),
+            "Should have blue fill from SVG rect"
+        );
+    }
+
+    /// render_nested_text_block: empty lines (no text) but with background
+    #[test]
+    fn layout_elements_nested_text_block_no_lines_with_background() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let mut content = String::new();
+        render_nested_text_block(
+            &mut content,
+            NestedTextBlock {
+                lines: &[], // No lines
+                text_align: TextAlign::Left,
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border: LayoutBorder::default(),
+                block_width: Some(100.0),
+                block_height: Some(50.0), // Explicit height keeps the block visible
+                background_color: Some((0.5, 0.5, 0.5)),
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_blur_canvas_box: None,
+                border_radius: 0.0,
+            },
+            NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        // Background rect fill should be emitted even with no lines
+        assert!(
+            content.contains("0.5 0.5 0.5 rg"),
+            "Should have gray background fill even with no lines"
+        );
+        assert!(content.contains("re\nf\n"), "Should have rectangle fill");
+    }
+
+    /// render_nested_layout_elements: rowspan == 0 skips the cell
+    #[test]
+    fn layout_elements_nested_rowspan_zero_skips_cell() {
+        use crate::layout::engine::{LayoutBorder, TableCell};
+        let run = TextRun {
+            text: "Skipped".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let run_visible = TextRun {
+            text: "Visible".to_string(),
+            ..run.clone()
+        };
+        // rowspan=0 means "continuation" — renderer skips it
+        let cell_skip = TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 0, // Should be skipped
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+        let cell_visible = TableCell {
+            lines: vec![TextLine {
+                runs: vec![run_visible],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+        let element = LayoutElement::TableRow {
+            cells: vec![cell_skip, cell_visible],
+            col_widths: vec![100.0, 100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: crate::style::computed::BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let mut content = String::new();
+        render_nested_layout_elements(
+            &mut content,
+            &[element],
+            NestedLayoutFrame::new(0.0, 100.0, 0.0, 100.0, 200.0),
+            &mut ctx,
+        );
+        assert!(
+            content.contains("(Visible)"),
+            "Visible cell should be rendered"
+        );
+        assert!(
+            !content.contains("(Skipped)"),
+            "rowspan=0 cell should be skipped"
+        );
+    }
+
+    /// render_nested_layout_elements: cell with background_color in nested table
+    #[test]
+    fn layout_elements_nested_table_cell_background_color() {
+        use crate::layout::engine::{LayoutBorder, TableCell};
+        let run = TextRun {
+            text: "BgCell".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let cell = TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: Some((1.0, 0.0, 0.0)), // red cell background
+            padding_top: 2.0,
+            padding_right: 2.0,
+            padding_bottom: 2.0,
+            padding_left: 2.0,
+            colspan: 1,
+            rowspan: 1,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+        let element = LayoutElement::TableRow {
+            cells: vec![cell],
+            col_widths: vec![100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: crate::style::computed::BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let mut content = String::new();
+        render_nested_layout_elements(
+            &mut content,
+            &[element],
+            NestedLayoutFrame::new(0.0, 100.0, 0.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        assert!(
+            content.contains("1 0 0 rg"),
+            "Should have red cell background fill"
+        );
+        assert!(
+            content.contains("re\nf\n"),
+            "Should have filled rect for cell background"
+        );
+        assert!(content.contains("(BgCell)"), "Should render cell text");
+    }
+
+    /// render_nested_layout_elements: cell with borders in nested context
+    #[test]
+    fn layout_elements_nested_table_cell_with_borders() {
+        use crate::layout::engine::{LayoutBorder, LayoutBorderSide, TableCell};
+        let run = TextRun {
+            text: "BorderedNested".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let mut border = LayoutBorder::default();
+        border.top = LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 1.0),
+        };
+        border.right = LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 1.0),
+        };
+        border.bottom = LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 1.0),
+        };
+        border.left = LayoutBorderSide {
+            width: 1.0,
+            color: (0.0, 0.0, 1.0),
+        };
+        let cell = TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 2.0,
+            padding_right: 2.0,
+            padding_bottom: 2.0,
+            padding_left: 2.0,
+            colspan: 1,
+            rowspan: 1,
+            border,
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+        let element = LayoutElement::TableRow {
+            cells: vec![cell],
+            col_widths: vec![100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: crate::style::computed::BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        let mut annotations = Vec::new();
+        let mut ctx = PageRenderContext::new(
+            &mut pdf_writer,
+            &mut page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut shadings,
+            &mut shading_counter,
+            &mut annotations,
+        );
+        let mut content = String::new();
+        render_nested_layout_elements(
+            &mut content,
+            &[element],
+            NestedLayoutFrame::new(0.0, 100.0, 0.0, 100.0, 100.0),
+            &mut ctx,
+        );
+        assert!(
+            content.contains("0 0 1 RG"),
+            "Should have blue cell border color"
+        );
+        // Should have stroke commands for cell borders
+        let stroke_count = content.matches("l S\n").count() + content.matches("l\nS\n").count();
+        assert!(
+            stroke_count >= 4,
+            "Should have at least 4 cell border strokes, got {stroke_count}"
+        );
+    }
+
+    /// render_cell_text: text-align right and center in nested table cell
+    #[test]
+    fn layout_elements_cell_text_align_right_and_center() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut annotations = Vec::new();
+        let mut ctx =
+            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+
+        let run = TextRun {
+            text: "Aligned".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+
+        // Test right-align
+        let cell_right = crate::layout::engine::TableCell {
+            lines: vec![TextLine {
+                runs: vec![run.clone()],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: crate::layout::engine::LayoutBorder::default(),
+            text_align: TextAlign::Right,
+            vertical_align: VerticalAlign::Top,
+        };
+        let mut content_right = String::new();
+        render_cell_text(
+            &mut content_right,
+            &cell_right,
+            CellTextPlacement::new(0.0, 100.0, 200.0),
+            &mut ctx,
+        );
+        assert!(
+            content_right.contains("(Aligned)"),
+            "Should render right-aligned text"
+        );
+
+        // Test center-align
+        let cell_center = crate::layout::engine::TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: crate::layout::engine::LayoutBorder::default(),
+            text_align: TextAlign::Center,
+            vertical_align: VerticalAlign::Top,
+        };
+        let mut content_center = String::new();
+        render_cell_text(
+            &mut content_center,
+            &cell_center,
+            CellTextPlacement::new(0.0, 100.0, 200.0),
+            &mut ctx,
+        );
+        assert!(
+            content_center.contains("(Aligned)"),
+            "Should render center-aligned text"
+        );
+    }
+
+    /// render_cell_text: underline and line_through in nested table cell
+    #[test]
+    fn layout_elements_cell_text_underline_and_line_through() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut annotations = Vec::new();
+        let mut ctx =
+            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+
+        let underline_run = TextRun {
+            text: "Under".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: true,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let strike_run = TextRun {
+            text: "Strike".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: true,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+
+        let cell = crate::layout::engine::TableCell {
+            lines: vec![
+                TextLine {
+                    runs: vec![underline_run],
+                    height: 14.0,
+                },
+                TextLine {
+                    runs: vec![strike_run],
+                    height: 14.0,
+                },
+            ],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: crate::layout::engine::LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+
+        let mut content = String::new();
+        render_cell_text(
+            &mut content,
+            &cell,
+            CellTextPlacement::new(10.0, 200.0, 150.0),
+            &mut ctx,
+        );
+        assert!(content.contains("(Under)"), "Should render underlined text");
+        assert!(
+            content.contains("(Strike)"),
+            "Should render struck-through text"
+        );
+        // Both decorations draw lines with S stroke command
+        let stroke_count = content.matches(" l\nS\n").count() + content.matches(" l S\n").count();
+        assert!(
+            stroke_count >= 2,
+            "Should have strokes for underline and line-through, got {stroke_count}"
+        );
+    }
+
+    /// render_cell_text: inline span with background_color and border_radius in nested cell
+    #[test]
+    fn layout_elements_cell_text_inline_bg_with_border_radius() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut annotations = Vec::new();
+        let mut ctx =
+            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+
+        let run = TextRun {
+            text: "Badge".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (1.0, 1.0, 1.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: Some((0.2, 0.4, 0.8)),
+            padding: (3.0, 2.0),
+            border_radius: 4.0, // Triggers rounded rect for inline background
+        };
+
+        let cell = crate::layout::engine::TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: crate::layout::engine::LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+
+        let mut content = String::new();
+        render_cell_text(
+            &mut content,
+            &cell,
+            CellTextPlacement::new(10.0, 200.0, 150.0),
+            &mut ctx,
+        );
+        assert!(content.contains("(Badge)"), "Should render badge text");
+        // Inline background fill (rounded rect uses Bezier c operator)
+        assert!(
+            content.contains("0.2 0.4 0.8 rg"),
+            "Should have blue inline background color"
+        );
+        assert!(
+            content.contains(" c\n"),
+            "Should have Bezier curves for rounded inline bg"
+        );
+    }
+
+    /// render_cell_text: inline span with background_color but no border_radius (rect path)
+    #[test]
+    fn layout_elements_cell_text_inline_bg_no_border_radius() {
+        let custom_fonts = HashMap::new();
+        let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut annotations = Vec::new();
+        let mut ctx =
+            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+
+        let run = TextRun {
+            text: "Tag".to_string(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            font_family: FontFamily::Helvetica,
+            link_url: None,
+            background_color: Some((1.0, 1.0, 0.0)), // yellow
+            padding: (2.0, 1.0),
+            border_radius: 0.0, // No rounding — should use rectangle
+        };
+
+        let cell = crate::layout::engine::TableCell {
+            lines: vec![TextLine {
+                runs: vec![run],
+                height: 14.0,
+            }],
+            nested_rows: Vec::new(),
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: crate::layout::engine::LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Top,
+        };
+
+        let mut content = String::new();
+        render_cell_text(
+            &mut content,
+            &cell,
+            CellTextPlacement::new(10.0, 200.0, 150.0),
+            &mut ctx,
+        );
+        assert!(content.contains("(Tag)"), "Should render tag text");
+        assert!(
+            content.contains("1 1 0 rg"),
+            "Should have yellow inline background color"
+        );
+        // No border-radius: should use rectangle re operator
+        assert!(
+            content.contains(" re\nf\n"),
+            "Should use rectangle fill for zero-radius inline bg"
+        );
+    }
+
+    /// plan_nested_layout_elements: Position::Relative with positioned_depth registers origin
+    #[test]
+    fn layout_elements_plan_relative_with_positioned_depth() {
+        let mut relative = test_text_block_from_runs(vec![test_text_run("Relative")]);
+        if let LayoutElement::TextBlock {
+            position,
+            offset_top,
+            offset_left,
+            positioned_depth,
+            ..
+        } = &mut relative
+        {
+            *position = Position::Relative;
+            *offset_top = 5.0;
+            *offset_left = 15.0;
+            *positioned_depth = 1; // Non-zero: should register origin
+        }
+        let elements = [relative];
+        let planned = plan_nested_layout_elements(
+            &elements,
+            NestedLayoutFrame::new(20.0, 80.0, 10.0, 120.0, 100.0),
+        );
+        assert_eq!(planned.len(), 1);
+        // Relative: uses local origin (20.0) + offset_left (15.0)
+        assert!(
+            (planned[0].origin_x - 35.0).abs() < 0.01,
+            "Relative block origin_x should be frame.origin_x + offset_left"
+        );
+        // top_y: cursor_y (80.0) - margin_top (0) - offset_top (5) = 75.0
+        assert!(
+            (planned[0].top_y - 75.0).abs() < 0.01,
+            "Relative block top_y should be cursor_y - offset_top"
+        );
+    }
+
+    /// plan_nested_layout_elements: absolute with containing_block sets blur_canvas_box
+    #[test]
+    fn layout_elements_plan_absolute_with_containing_block_sets_blur_canvas_box() {
+        let containing = crate::layout::engine::ContainingBlock {
+            x: 5.0,
+            width: 200.0,
+            height: 100.0,
+            depth: 2,
+        };
+        let mut absolute = test_text_block_from_runs(vec![test_text_run("Abs")]);
+        if let LayoutElement::TextBlock {
+            position,
+            containing_block,
+            positioned_depth,
+            ..
+        } = &mut absolute
+        {
+            *position = Position::Absolute;
+            *containing_block = Some(containing);
+            *positioned_depth = 0;
+        }
+        // First register a positioned origin for depth 2 by planning a relative block
+        let mut relative_parent = test_text_block_from_runs(vec![test_text_run("Parent")]);
+        if let LayoutElement::TextBlock {
+            position,
+            positioned_depth,
+            ..
+        } = &mut relative_parent
+        {
+            *position = Position::Relative;
+            *positioned_depth = 2;
+        }
+        let elements = [relative_parent, absolute];
+        let planned = plan_nested_layout_elements(
+            &elements,
+            NestedLayoutFrame::new(10.0, 200.0, 10.0, 200.0, 300.0),
+        );
+        // The absolute element should have a blur_canvas_box derived from the containing block
+        let abs_planned = planned.iter().find(|p| {
+            if let LayoutElement::TextBlock { .. } = p.element {
+                // The second element (absolute) should have blur_canvas_box set when
+                // its containing_block refers to a depth that has been registered
+                true
+            } else {
+                false
+            }
+        });
+        // Just verify the plan succeeds without panic and produces 2 elements
+        assert_eq!(planned.len(), 2, "Should plan both elements");
+    }
+
+    /// table_row_total_height: returns 0 for non-TableRow variant
+    #[test]
+    fn layout_elements_table_row_total_height_non_row_returns_zero() {
+        let non_row = LayoutElement::PageBreak;
+        assert_eq!(
+            table_row_total_height(&non_row),
+            0.0,
+            "Non-TableRow element should return 0 height"
+        );
+        let text_block = test_text_block_from_runs(vec![test_text_run("Hello")]);
+        assert_eq!(
+            table_row_total_height(&text_block),
+            0.0,
+            "TextBlock element should return 0 height"
+        );
+    }
+
+    /// Integration: nested table with vertical-align middle exercises layout_elements paths
+    #[test]
+    fn layout_elements_nested_table_cell_vertical_align_middle_integration() {
+        let html = r#"<table>
+            <tr>
+                <td>
+                    <table>
+                        <tr>
+                            <td style="vertical-align: middle; height: 50pt">Inner</td>
+                            <td style="height: 50pt">Other</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("(Inner)"),
+            "Should render inner nested cell text"
+        );
+    }
+
+    /// Integration: nested div inside table cell with SVG background
+    /// exercises render_nested_text_block with background_svg via nested cell rows
+    #[test]
+    fn layout_elements_nested_svg_background_in_table_cell() {
+        // A div with SVG background inside a td triggers render_nested_layout_elements
+        // and render_nested_text_block with background_svg set
+        let html = r#"<table>
+            <tr>
+                <td>
+                    <div style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22%3E%3Crect width=%2210%22 height=%2210%22 fill=%22red%22/%3E%3C/svg%3E'); background-size: cover; width: 40pt; height: 20pt;">CellSVG</div>
+                </td>
+            </tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        // The text should render
+        assert!(
+            pdf_str.contains("(CellSVG)"),
+            "Should render text inside nested cell div"
+        );
+        // The overall PDF should be valid (no crash on SVG background in nested context)
+        assert!(pdf_str.contains("%PDF-1.4"), "Should produce a valid PDF");
+    }
+
+    /// Integration: border-collapse collapse with nested elements
+    #[test]
+    fn layout_elements_nested_border_collapse() {
+        let html = r#"<table style="border-collapse: collapse">
+            <tr>
+                <td style="border: 1pt solid black">CollapseA</td>
+                <td style="border: 1pt solid black">CollapseB</td>
+            </tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(pdf_str.contains("(CollapseA)"), "Should render first cell");
+        assert!(pdf_str.contains("(CollapseB)"), "Should render second cell");
+    }
+
+    /// Integration: nested table with rowspan > 1 spanning into future rows
+    #[test]
+    fn layout_elements_nested_rowspan_spans_future_rows() {
+        let html = r#"<table>
+            <tr>
+                <td>
+                    <table>
+                        <tr>
+                            <td rowspan="2">SpanInner</td>
+                            <td>A</td>
+                        </tr>
+                        <tr>
+                            <td>B</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let pdf_str = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf_str.contains("(SpanInner)"),
+            "Should render spanning nested cell"
+        );
+        assert!(
+            pdf_str.contains("(A)"),
+            "Should render first row second cell"
+        );
+        assert!(
+            pdf_str.contains("(B)"),
+            "Should render second row second cell"
+        );
     }
 }

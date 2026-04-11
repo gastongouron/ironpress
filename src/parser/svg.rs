@@ -3611,4 +3611,1169 @@ mod tests {
             _ => panic!("Expected Group"),
         }
     }
+
+    // ── SVG <image> element ────────────────────────────────────────────
+
+    #[test]
+    fn parse_image_no_href_returns_none() {
+        // No href or xlink:href — parse_svg_image_href returns None, node skipped
+        let el = make_el(
+            "image",
+            vec![("x", "0"), ("y", "0"), ("width", "10"), ("height", "10")],
+        );
+        assert!(parse_svg_node(&el).is_none());
+    }
+
+    #[test]
+    fn parse_image_empty_href_returns_none() {
+        let el = make_el(
+            "image",
+            vec![("href", "  "), ("width", "50"), ("height", "50")],
+        );
+        assert!(parse_svg_node(&el).is_none());
+    }
+
+    #[test]
+    fn parse_image_data_uri_href() {
+        let el = make_el(
+            "image",
+            vec![
+                ("href", "data:image/png;base64,ABC=="),
+                ("x", "5"),
+                ("y", "5"),
+                ("width", "80"),
+                ("height", "40"),
+            ],
+        );
+        let node = parse_svg_node(&el).unwrap();
+        match node {
+            SvgNode::Image {
+                href,
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
+                assert_eq!(href, "data:image/png;base64,ABC==");
+                assert_eq!((x, y, width, height), (5.0, 5.0, 80.0, 40.0));
+            }
+            _ => panic!("expected Image node"),
+        }
+    }
+
+    #[test]
+    fn parse_image_negative_dimensions_clamp_to_zero() {
+        // width/height are clamped to 0 via .max(0.0)
+        let el = make_el(
+            "image",
+            vec![("href", "test.png"), ("width", "-5"), ("height", "-10")],
+        );
+        let node = parse_svg_node(&el).unwrap();
+        match node {
+            SvgNode::Image { width, height, .. } => {
+                assert_eq!(width, 0.0);
+                assert_eq!(height, 0.0);
+            }
+            _ => panic!("expected Image node"),
+        }
+    }
+
+    #[test]
+    fn parse_image_preserve_aspect_ratio_xmidymid_meet() {
+        let el = make_el(
+            "image",
+            vec![
+                ("href", "test.png"),
+                ("width", "100"),
+                ("height", "50"),
+                ("preserveAspectRatio", "xMidYMid meet"),
+            ],
+        );
+        let node = parse_svg_node(&el).unwrap();
+        match node {
+            SvgNode::Image {
+                preserve_aspect_ratio,
+                ..
+            } => {
+                assert_eq!(
+                    preserve_aspect_ratio,
+                    SvgPreserveAspectRatio::Align {
+                        align: SvgAlign::Center,
+                        meet_or_slice: SvgMeetOrSlice::Meet,
+                    }
+                );
+            }
+            _ => panic!("expected Image node"),
+        }
+    }
+
+    #[test]
+    fn parse_image_preserve_aspect_ratio_slice() {
+        let el = make_el(
+            "image",
+            vec![
+                ("href", "test.png"),
+                ("width", "100"),
+                ("height", "50"),
+                ("preserveAspectRatio", "xMinYMin slice"),
+            ],
+        );
+        let node = parse_svg_node(&el).unwrap();
+        match node {
+            SvgNode::Image {
+                preserve_aspect_ratio,
+                ..
+            } => {
+                assert_eq!(
+                    preserve_aspect_ratio,
+                    SvgPreserveAspectRatio::Align {
+                        align: SvgAlign::TopLeft,
+                        meet_or_slice: SvgMeetOrSlice::Slice,
+                    }
+                );
+            }
+            _ => panic!("expected Image node"),
+        }
+    }
+
+    // ── preserveAspectRatio all align variants ─────────────────────────
+
+    #[test]
+    fn parse_preserve_aspect_ratio_all_align_values() {
+        let cases = [
+            ("xMinYMin", SvgAlign::TopLeft),
+            ("xMidYMin", SvgAlign::TopCenter),
+            ("xMaxYMin", SvgAlign::TopRight),
+            ("xMinYMid", SvgAlign::CenterLeft),
+            ("xMidYMid", SvgAlign::Center),
+            ("xMaxYMid", SvgAlign::CenterRight),
+            ("xMinYMax", SvgAlign::BottomLeft),
+            ("xMidYMax", SvgAlign::BottomCenter),
+            ("xMaxYMax", SvgAlign::BottomRight),
+        ];
+        for (raw, expected_align) in cases {
+            let result = parse_svg_preserve_aspect_ratio_value(raw).unwrap();
+            match result {
+                SvgPreserveAspectRatio::Align {
+                    align,
+                    meet_or_slice,
+                } => {
+                    assert_eq!(align, expected_align, "failed for {raw}");
+                    assert_eq!(meet_or_slice, SvgMeetOrSlice::Meet);
+                }
+                SvgPreserveAspectRatio::None => panic!("expected Align for {raw}"),
+            }
+        }
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_none_case_insensitive() {
+        assert_eq!(
+            parse_svg_preserve_aspect_ratio_value("none"),
+            Some(SvgPreserveAspectRatio::None)
+        );
+        assert_eq!(
+            parse_svg_preserve_aspect_ratio_value("NONE"),
+            Some(SvgPreserveAspectRatio::None)
+        );
+        assert_eq!(
+            parse_svg_preserve_aspect_ratio_value("None"),
+            Some(SvgPreserveAspectRatio::None)
+        );
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_unknown_align_returns_none() {
+        assert!(parse_svg_preserve_aspect_ratio_value("xMidYMed").is_none());
+        assert!(parse_svg_preserve_aspect_ratio_value("center").is_none());
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_unknown_meetorslice_returns_none() {
+        assert!(parse_svg_preserve_aspect_ratio_value("xMidYMid zoom").is_none());
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_extra_tokens_returns_none() {
+        assert!(parse_svg_preserve_aspect_ratio_value("xMidYMid meet slice").is_none());
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_missing_attr_returns_default() {
+        let el = make_el("svg", vec![]);
+        let par = parse_svg_preserve_aspect_ratio(&el);
+        assert_eq!(
+            par,
+            SvgPreserveAspectRatio::Align {
+                align: SvgAlign::Center,
+                meet_or_slice: SvgMeetOrSlice::Meet,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_preserve_aspect_ratio_invalid_value_uses_default() {
+        let el = make_el("svg", vec![("preserveAspectRatio", "bogus")]);
+        let par = parse_svg_preserve_aspect_ratio(&el);
+        // parse_svg_preserve_aspect_ratio_value returns None => unwrap_or_default
+        assert_eq!(
+            par,
+            SvgPreserveAspectRatio::Align {
+                align: SvgAlign::Center,
+                meet_or_slice: SvgMeetOrSlice::Meet,
+            }
+        );
+    }
+
+    // ── <use> element with depth limiting ─────────────────────────────
+
+    #[test]
+    fn parse_use_with_xlink_href() {
+        let rect = make_el("rect", vec![("id", "r"), ("width", "10"), ("height", "10")]);
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(rect)];
+
+        let use_el = make_el("use", vec![("xlink:href", "#r")]);
+        let svg = make_svg_el(
+            vec![("width", "100"), ("height", "100")],
+            vec![defs, use_el],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert_eq!(tree.children.len(), 1);
+        match &tree.children[0] {
+            SvgNode::Group { children, .. } => {
+                assert_eq!(children.len(), 1);
+                assert!(matches!(children[0], SvgNode::Rect { .. }));
+            }
+            other => panic!("expected use group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_use_missing_href_skipped() {
+        // <use> with no href/xlink:href → parse_svg_node returns None
+        let el = make_el("use", vec![]);
+        assert!(parse_svg_node(&el).is_none());
+    }
+
+    #[test]
+    fn parse_use_href_not_in_defs_skipped() {
+        // href references id that doesn't exist in defs
+        let el = make_el("use", vec![("href", "#nonexistent")]);
+        assert!(parse_svg_node(&el).is_none());
+    }
+
+    #[test]
+    fn parse_use_depth_limit_exceeded() {
+        // Build a <use> referencing itself via defs — the depth limit (>16) must fire
+        // We test by directly exceeding ref_depth in the parse context.
+        // Construct defs with a rect that has id "shape"
+        let mut attrs_map = HashMap::new();
+        attrs_map.insert("id".to_string(), "shape".to_string());
+        attrs_map.insert("width".to_string(), "10".to_string());
+        attrs_map.insert("height".to_string(), "10".to_string());
+        let rect_el = ElementNode {
+            tag: HtmlTag::Unknown,
+            raw_tag_name: "rect".to_string(),
+            attributes: attrs_map,
+            children: vec![],
+        };
+        let mut defs_raw: HashMap<String, ElementNode> = HashMap::new();
+        defs_raw.insert("shape".to_string(), rect_el);
+
+        let mut ctx = SvgParseContext::new(&defs_raw);
+        // Push ref depth beyond the limit (>16)
+        for _ in 0..17 {
+            ctx.push_ref();
+        }
+        assert!(ctx.ref_depth() > 16);
+        let result = parse_svg_referenced_node("shape", None, &mut ctx);
+        assert!(result.is_none(), "expected None when depth limit exceeded");
+    }
+
+    #[test]
+    fn parse_use_no_translation_when_xy_zero() {
+        let rect = make_el("rect", vec![("id", "r"), ("width", "10"), ("height", "10")]);
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(rect)];
+
+        // use with x=0, y=0 → no translation transform
+        let use_el = make_el("use", vec![("href", "#r"), ("x", "0"), ("y", "0")]);
+        let svg = make_svg_el(
+            vec![("width", "100"), ("height", "100")],
+            vec![defs, use_el],
+        );
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { transform, .. } => {
+                // No translate transform when x=0,y=0
+                assert!(transform.is_none());
+            }
+            other => panic!("expected use group, got {other:?}"),
+        }
+    }
+
+    // ── Arc path commands (A/a) edge cases ────────────────────────────
+
+    #[test]
+    fn parse_path_arc_zero_radii_becomes_lineto() {
+        // rx=0 causes arc_endpoint_to_cubics to return empty → becomes LineTo
+        let cmds = parse_path_data("M 0 0 A 0 0 0 0 1 10 10");
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(cmds[0], PathCommand::MoveTo(0.0, 0.0));
+        assert_eq!(cmds[1], PathCommand::LineTo(10.0, 10.0));
+    }
+
+    #[test]
+    fn parse_path_arc_same_start_end_becomes_lineto() {
+        // start == end causes arc_endpoint_to_cubics to return empty → becomes LineTo
+        let cmds = parse_path_data("M 10 10 A 5 5 0 0 1 10 10");
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(cmds[0], PathCommand::MoveTo(10.0, 10.0));
+        assert_eq!(cmds[1], PathCommand::LineTo(10.0, 10.0));
+    }
+
+    #[test]
+    fn parse_path_arc_large_arc_flag() {
+        // large_arc=1 takes the larger arc path
+        let cmds = parse_path_data("M 0 0 A 10 10 0 1 0 10 0");
+        assert!(matches!(cmds.first(), Some(PathCommand::MoveTo(0.0, 0.0))));
+        // Should produce multiple cubic segments for the large arc
+        let cubics: Vec<_> = cmds
+            .iter()
+            .filter(|c| matches!(c, PathCommand::CubicTo(..)))
+            .collect();
+        assert!(!cubics.is_empty());
+    }
+
+    #[test]
+    fn parse_path_relative_arc_a_lower() {
+        // Relative arc command 'a'
+        let cmds = parse_path_data("M 5 5 a 10 10 0 0 1 10 0");
+        assert!(matches!(cmds.first(), Some(PathCommand::MoveTo(5.0, 5.0))));
+        assert!(
+            cmds.iter().any(|c| matches!(c, PathCommand::CubicTo(..))),
+            "expected arc to produce cubic segments"
+        );
+    }
+
+    #[test]
+    fn parse_path_arc_with_rotation() {
+        // x_axis_rotation != 0
+        let cmds = parse_path_data("M 0 0 A 10 5 45 0 1 10 10");
+        assert!(matches!(cmds.first(), Some(PathCommand::MoveTo(0.0, 0.0))));
+        assert!(
+            cmds.iter().any(|c| matches!(c, PathCommand::CubicTo(..))),
+            "expected rotated arc to produce cubic segments"
+        );
+    }
+
+    // ── linearGradient in defs ─────────────────────────────────────────
+
+    #[test]
+    fn parse_linear_gradient_object_bounding_box_units() {
+        let stop0 = make_el("stop", vec![("offset", "0%"), ("stop-color", "red")]);
+        let stop1 = make_el("stop", vec![("offset", "100%"), ("stop-color", "blue")]);
+        let mut gradient = make_el(
+            "linearGradient",
+            vec![
+                ("id", "g1"),
+                ("x1", "0%"),
+                ("y1", "0%"),
+                ("x2", "100%"),
+                ("y2", "0%"),
+                ("gradientUnits", "objectBoundingBox"),
+            ],
+        );
+        gradient.children = vec![DomNode::Element(stop0), DomNode::Element(stop1)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let g = tree
+            .defs
+            .gradients
+            .get("g1")
+            .expect("gradient 'g1' not found");
+        assert_eq!(g.gradient_units, SvgGradientUnits::ObjectBoundingBox);
+        assert!((g.x1 - 0.0).abs() < 0.01);
+        assert!((g.x2 - 1.0).abs() < 0.01);
+        assert_eq!(g.stops.len(), 2);
+        assert!((g.stops[0].offset - 0.0).abs() < 0.01);
+        assert!((g.stops[1].offset - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_linear_gradient_with_transform() {
+        let stop0 = make_el("stop", vec![("offset", "0"), ("stop-color", "black")]);
+        let stop1 = make_el("stop", vec![("offset", "1"), ("stop-color", "white")]);
+        let mut gradient = make_el(
+            "linearGradient",
+            vec![
+                ("id", "g2"),
+                ("x1", "0"),
+                ("y1", "0"),
+                ("x2", "10"),
+                ("y2", "0"),
+                ("gradientTransform", "translate(5, 5)"),
+            ],
+        );
+        gradient.children = vec![DomNode::Element(stop0), DomNode::Element(stop1)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let g = tree
+            .defs
+            .gradients
+            .get("g2")
+            .expect("gradient 'g2' not found");
+        assert!(g.gradient_transform.is_some());
+    }
+
+    #[test]
+    fn parse_linear_gradient_fewer_than_two_stops_skipped() {
+        let stop0 = make_el("stop", vec![("offset", "0"), ("stop-color", "black")]);
+        let mut gradient = make_el("linearGradient", vec![("id", "g3")]);
+        gradient.children = vec![DomNode::Element(stop0)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert!(!tree.defs.gradients.contains_key("g3"));
+    }
+
+    #[test]
+    fn parse_linear_gradient_stop_opacity_from_style() {
+        let mut stop0 = make_el(
+            "stop",
+            vec![
+                ("offset", "0"),
+                ("style", "stop-color: red; stop-opacity: 0.5;"),
+            ],
+        );
+        // Remove direct stop-color attribute so it falls back to the style
+        stop0.attributes.remove("stop-color");
+        let stop1 = make_el("stop", vec![("offset", "1"), ("stop-color", "blue")]);
+        let mut gradient = make_el("linearGradient", vec![("id", "g4")]);
+        gradient.children = vec![DomNode::Element(stop0), DomNode::Element(stop1)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let g = tree
+            .defs
+            .gradients
+            .get("g4")
+            .expect("gradient 'g4' not found");
+        assert!((g.stops[0].opacity - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_linear_gradient_stop_opacity_attribute() {
+        let stop0 = make_el(
+            "stop",
+            vec![
+                ("offset", "0"),
+                ("stop-color", "red"),
+                ("stop-opacity", "0.25"),
+            ],
+        );
+        let stop1 = make_el("stop", vec![("offset", "1"), ("stop-color", "blue")]);
+        let mut gradient = make_el("linearGradient", vec![("id", "g5")]);
+        gradient.children = vec![DomNode::Element(stop0), DomNode::Element(stop1)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let g = tree
+            .defs
+            .gradients
+            .get("g5")
+            .expect("gradient 'g5' not found");
+        assert!((g.stops[0].opacity - 0.25).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_linear_gradient_stop_missing_color_skipped() {
+        // A stop with no stop-color is skipped; gradient needs 2 valid stops
+        let stop_no_color = make_el("stop", vec![("offset", "0")]);
+        let stop_valid = make_el("stop", vec![("offset", "1"), ("stop-color", "blue")]);
+        let mut gradient = make_el("linearGradient", vec![("id", "g6")]);
+        gradient.children = vec![
+            DomNode::Element(stop_no_color),
+            DomNode::Element(stop_valid),
+        ];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        // Only 1 valid stop → gradient skipped
+        assert!(!tree.defs.gradients.contains_key("g6"));
+    }
+
+    // ── clipPath in defs ───────────────────────────────────────────────
+
+    #[test]
+    fn parse_clip_path_object_bounding_box_units() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut clip = make_el(
+            "clipPath",
+            vec![("id", "cp1"), ("clipPathUnits", "objectBoundingBox")],
+        );
+        clip.children = vec![DomNode::Element(rect)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(clip)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let cp = tree
+            .defs
+            .clip_paths
+            .get("cp1")
+            .expect("clip path 'cp1' not found");
+        assert_eq!(cp.clip_path_units, SvgClipPathUnits::ObjectBoundingBox);
+    }
+
+    #[test]
+    fn parse_clip_path_with_transform() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut clip = make_el(
+            "clipPath",
+            vec![("id", "cp2"), ("transform", "translate(5, 5)")],
+        );
+        clip.children = vec![DomNode::Element(rect)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(clip)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let cp = tree
+            .defs
+            .clip_paths
+            .get("cp2")
+            .expect("clip path 'cp2' not found");
+        assert!(cp.transform.is_some());
+    }
+
+    #[test]
+    fn parse_clip_path_empty_children_skipped() {
+        // A clipPath with no renderable children returns None → not inserted in defs
+        let clip = make_el("clipPath", vec![("id", "cp3")]);
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(clip)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert!(!tree.defs.clip_paths.contains_key("cp3"));
+    }
+
+    #[test]
+    fn parse_clip_path_user_space_on_use_is_default() {
+        let rect = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut clip = make_el("clipPath", vec![("id", "cp4")]);
+        clip.children = vec![DomNode::Element(rect)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(clip)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        let cp = tree
+            .defs
+            .clip_paths
+            .get("cp4")
+            .expect("clip path 'cp4' not found");
+        assert_eq!(cp.clip_path_units, SvgClipPathUnits::UserSpaceOnUse);
+    }
+
+    // ── parse_svg_from_string ──────────────────────────────────────────
+
+    #[test]
+    fn parse_svg_from_string_basic() {
+        let svg_text = r#"<svg width="100" height="50"><rect width="10" height="10"/></svg>"#;
+        let tree = parse_svg_from_string(svg_text).unwrap();
+        assert_eq!(tree.width, 100.0);
+        assert_eq!(tree.height, 50.0);
+        assert!(tree.source_markup.is_some());
+        assert_eq!(tree.source_markup.as_deref(), Some(svg_text));
+    }
+
+    #[test]
+    fn parse_svg_from_string_no_svg_returns_none() {
+        let result = parse_svg_from_string("<div><p>Not SVG</p></div>");
+        assert!(result.is_none());
+    }
+
+    // ── parse_svg_gradient_coordinate ─────────────────────────────────
+
+    #[test]
+    fn parse_gradient_coordinate_percentage() {
+        // "50%" should parse as 0.5
+        let mut attrs = HashMap::new();
+        attrs.insert("x1".to_string(), "50%".to_string());
+        let el = ElementNode {
+            tag: HtmlTag::Unknown,
+            raw_tag_name: "linearGradient".to_string(),
+            attributes: attrs,
+            children: vec![],
+        };
+        let val = parse_svg_gradient_coordinate(el.attributes.get("x1"), 0.0);
+        assert!((val - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_gradient_coordinate_absolute() {
+        let mut attrs = HashMap::new();
+        attrs.insert("x1".to_string(), "25".to_string());
+        let el = ElementNode {
+            tag: HtmlTag::Unknown,
+            raw_tag_name: "linearGradient".to_string(),
+            attributes: attrs,
+            children: vec![],
+        };
+        let val = parse_svg_gradient_coordinate(el.attributes.get("x1"), 0.0);
+        assert!((val - 25.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_gradient_coordinate_missing_uses_fallback() {
+        let val = parse_svg_gradient_coordinate(None, 42.0);
+        assert_eq!(val, 42.0);
+    }
+
+    // ── parse_svg_gradient_offset ──────────────────────────────────────
+
+    #[test]
+    fn parse_gradient_offset_percentage() {
+        assert!((parse_svg_gradient_offset("75%").unwrap() - 0.75).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_gradient_offset_decimal() {
+        assert!((parse_svg_gradient_offset("0.5").unwrap() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_gradient_offset_integer() {
+        assert!((parse_svg_gradient_offset("1").unwrap() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_gradient_offset_invalid_returns_none() {
+        assert!(parse_svg_gradient_offset("abc%").is_none());
+    }
+
+    // ── style_property_value with parenthesized url ────────────────────
+
+    #[test]
+    fn style_property_value_with_url_in_value() {
+        // url(...) inside a style value should not be split on ';' inside the parens
+        let el = make_el("rect", vec![("style", "fill: url(#grad); stroke: red;")]);
+        let style = parse_svg_style(&el);
+        assert!(matches!(style.fill, SvgPaint::Url(ref id) if id == "grad"));
+        assert!(matches!(style.stroke, SvgPaint::Color((1.0, 0.0, 0.0))));
+    }
+
+    #[test]
+    fn style_property_value_clip_path_from_style_attr() {
+        // clip-path set via inline style
+        let el = make_el("rect", vec![("style", "clip-path: url(#myClip);")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.clip_path.as_deref(), Some("myClip"));
+    }
+
+    // ── parse_svg_paint_server_reference edge cases ────────────────────
+
+    #[test]
+    fn parse_paint_server_reference_with_quotes() {
+        // url("#id") with double quotes
+        let result = parse_svg_paint_server_reference("url(\"#myGrad\")");
+        assert_eq!(result, Some("myGrad".to_string()));
+    }
+
+    #[test]
+    fn parse_paint_server_reference_with_single_quotes() {
+        let result = parse_svg_paint_server_reference("url('#myGrad')");
+        assert_eq!(result, Some("myGrad".to_string()));
+    }
+
+    #[test]
+    fn parse_paint_server_reference_no_hash_returns_none() {
+        let result = parse_svg_paint_server_reference("url(myGrad)");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_paint_server_reference_not_url_returns_none() {
+        let result = parse_svg_paint_server_reference("red");
+        assert!(result.is_none());
+    }
+
+    // ── parse_svg_reference_id ─────────────────────────────────────────
+
+    #[test]
+    fn parse_reference_id_hash_prefix() {
+        assert_eq!(parse_svg_reference_id("#foo"), Some("foo".to_string()));
+    }
+
+    #[test]
+    fn parse_reference_id_url_hash() {
+        assert_eq!(parse_svg_reference_id("url(#bar)"), Some("bar".to_string()));
+    }
+
+    #[test]
+    fn parse_reference_id_no_hash_no_url_returns_none() {
+        assert!(parse_svg_reference_id("notanid").is_none());
+    }
+
+    // ── parse_absolute_length ──────────────────────────────────────────
+
+    #[test]
+    fn parse_absolute_length_percent_returns_none() {
+        assert!(parse_absolute_length("50%").is_none());
+    }
+
+    #[test]
+    fn parse_absolute_length_px_suffix() {
+        assert_eq!(parse_absolute_length("72px"), Some(72.0));
+    }
+
+    #[test]
+    fn parse_absolute_length_plain_number() {
+        assert_eq!(parse_absolute_length("100"), Some(100.0));
+    }
+
+    // ── resolve_svg_viewport_length edge cases ─────────────────────────
+
+    #[test]
+    fn resolve_viewport_length_percentage_without_parent_uses_fallback() {
+        // "50%" with no parent extent should use fallback
+        let mut attrs = HashMap::new();
+        attrs.insert("width".to_string(), "50%".to_string());
+        let el = ElementNode {
+            tag: HtmlTag::Unknown,
+            raw_tag_name: "svg".to_string(),
+            attributes: attrs,
+            children: vec![],
+        };
+        let val = resolve_svg_viewport_length(el.attributes.get("width"), None, 99.0);
+        assert_eq!(val, 99.0);
+    }
+
+    #[test]
+    fn resolve_viewport_length_no_attr_uses_parent() {
+        let val = resolve_svg_viewport_length(None, Some(200.0), 0.0);
+        assert_eq!(val, 200.0);
+    }
+
+    #[test]
+    fn resolve_viewport_length_no_attr_no_parent_uses_fallback() {
+        let val = resolve_svg_viewport_length(None, None, 42.0);
+        assert_eq!(val, 42.0);
+    }
+
+    // ── svg_style_is_default ───────────────────────────────────────────
+
+    #[test]
+    fn svg_style_is_default_true_for_empty() {
+        let style = SvgStyle::default();
+        assert!(svg_style_is_default(&style));
+    }
+
+    #[test]
+    fn svg_style_is_default_false_when_fill_set() {
+        let mut style = SvgStyle::default();
+        style.fill = SvgPaint::Color((1.0, 0.0, 0.0));
+        assert!(!svg_style_is_default(&style));
+    }
+
+    #[test]
+    fn svg_style_is_default_false_when_opacity_not_one() {
+        let mut style = SvgStyle::default();
+        style.opacity = 0.5;
+        assert!(!svg_style_is_default(&style));
+    }
+
+    #[test]
+    fn svg_style_is_default_false_when_color_set() {
+        let mut style = SvgStyle::default();
+        style.color = Some((0.0, 0.0, 0.0));
+        assert!(!svg_style_is_default(&style));
+    }
+
+    #[test]
+    fn svg_style_is_default_false_when_stroke_width_set() {
+        let mut style = SvgStyle::default();
+        style.stroke_width = Some(1.0);
+        assert!(!svg_style_is_default(&style));
+    }
+
+    #[test]
+    fn svg_style_is_default_false_when_clip_path_set() {
+        let mut style = SvgStyle::default();
+        style.clip_path = Some("clip".to_string());
+        assert!(!svg_style_is_default(&style));
+    }
+
+    // ── compose_transform ──────────────────────────────────────────────
+
+    #[test]
+    fn compose_transform_both_none_is_none() {
+        assert!(compose_transform(None, None).is_none());
+    }
+
+    #[test]
+    fn compose_transform_outer_only() {
+        let t = SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 5.0, 10.0);
+        let result = compose_transform(Some(t), None);
+        assert!(matches!(
+            result,
+            Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 5.0, 10.0))
+        ));
+    }
+
+    #[test]
+    fn compose_transform_inner_only() {
+        let t = SvgTransform::Matrix(2.0, 0.0, 0.0, 2.0, 0.0, 0.0);
+        let result = compose_transform(None, Some(t));
+        assert!(matches!(
+            result,
+            Some(SvgTransform::Matrix(2.0, 0.0, 0.0, 2.0, 0.0, 0.0))
+        ));
+    }
+
+    #[test]
+    fn compose_transform_two_translates_adds_offsets() {
+        let t1 = SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 3.0, 4.0);
+        let t2 = SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 7.0, 6.0);
+        let result = compose_transform(Some(t1), Some(t2)).unwrap();
+        match result {
+            SvgTransform::Matrix(a, b, c, d, e, f) => {
+                assert!((a - 1.0).abs() < 0.001);
+                assert!((b - 0.0).abs() < 0.001);
+                assert!((c - 0.0).abs() < 0.001);
+                assert!((d - 1.0).abs() < 0.001);
+                assert!((e - 10.0).abs() < 0.001);
+                assert!((f - 10.0).abs() < 0.001);
+            }
+        }
+    }
+
+    // ── collect_svg_defs_from_element ──────────────────────────────────
+
+    #[test]
+    fn collect_defs_from_element_registers_id_outside_defs() {
+        // An element with an id directly inside <svg> (not in <defs>) gets registered
+        let shape = make_el("circle", vec![("id", "c1"), ("r", "5")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![shape]);
+        // parse_svg_from_element calls collect_svg_defs on svg.children
+        // The circle with id "c1" should end up in defs_raw (though not as a gradient/clip)
+        let tree = parse_svg_from_element(&svg).unwrap();
+        // It appears as a normal child, not in processed defs
+        assert_eq!(tree.children.len(), 1);
+        assert!(matches!(tree.children[0], SvgNode::Circle { .. }));
+    }
+
+    #[test]
+    fn collect_defs_nested_inside_defs_wrapper_are_collected() {
+        // Elements nested in <defs> are collected by id
+        let mut gradient = make_el(
+            "linearGradient",
+            vec![
+                ("id", "nested_g"),
+                ("x1", "0"),
+                ("y1", "0"),
+                ("x2", "1"),
+                ("y2", "0"),
+            ],
+        );
+        let s0 = make_el("stop", vec![("offset", "0"), ("stop-color", "black")]);
+        let s1 = make_el("stop", vec![("offset", "1"), ("stop-color", "white")]);
+        gradient.children = vec![DomNode::Element(s0), DomNode::Element(s1)];
+
+        let mut defs = make_el("defs", vec![]);
+        defs.children = vec![DomNode::Element(gradient)];
+
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![defs]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        assert!(tree.defs.gradients.contains_key("nested_g"));
+    }
+
+    // ── stroke-width edge cases ────────────────────────────────────────
+
+    #[test]
+    fn parse_style_stroke_width_negative_rejected() {
+        // Negative stroke-width should be rejected (filter)
+        let el = make_el("rect", vec![("stroke-width", "-1")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke_width, None);
+    }
+
+    #[test]
+    fn parse_style_stroke_width_zero_accepted() {
+        let el = make_el("rect", vec![("stroke-width", "0")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke_width, Some(0.0));
+    }
+
+    #[test]
+    fn parse_style_stroke_width_from_inline_style() {
+        let el = make_el("rect", vec![("style", "stroke-width: 4.5;")]);
+        let style = parse_svg_style(&el);
+        assert_eq!(style.stroke_width, Some(4.5));
+    }
+
+    // ── font attribute parsing ─────────────────────────────────────────
+
+    #[test]
+    fn parse_svg_font_family_times() {
+        let el = make_el("text", vec![("font-family", "Times New Roman")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_family, .. } => {
+                assert_eq!(font_family.as_deref(), Some("Times-Roman"));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_family_courier() {
+        let el = make_el("text", vec![("font-family", "Courier New")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_family, .. } => {
+                assert_eq!(font_family.as_deref(), Some("Courier"));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_family_inherit_returns_none() {
+        let el = make_el("text", vec![("font-family", "inherit")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_family, .. } => {
+                assert!(font_family.is_none());
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_weight_bold() {
+        let el = make_el("text", vec![("font-weight", "bold")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_bold, .. } => {
+                assert_eq!(*font_bold, Some(true));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_weight_numeric_700() {
+        let el = make_el("text", vec![("font-weight", "700")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_bold, .. } => {
+                assert_eq!(*font_bold, Some(true));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_weight_400_not_bold() {
+        let el = make_el("text", vec![("font-weight", "400")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_bold, .. } => {
+                assert_eq!(*font_bold, Some(false));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_style_italic() {
+        let el = make_el("text", vec![("font-style", "italic")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_italic, .. } => {
+                assert_eq!(*font_italic, Some(true));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_style_oblique() {
+        let el = make_el("text", vec![("font-style", "oblique")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_italic, .. } => {
+                assert_eq!(*font_italic, Some(true));
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_font_style_inherit_returns_none() {
+        let el = make_el("text", vec![("font-style", "inherit")]);
+        let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![el]);
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Text { font_italic, .. } => {
+                assert!(font_italic.is_none());
+            }
+            other => panic!("expected Text, got {other:?}"),
+        }
+    }
+
+    // ── tspan text content ─────────────────────────────────────────────
+
+    #[test]
+    fn collect_text_content_with_tspan_children() {
+        let mut text_el = make_el("text", vec![]);
+        let mut tspan = make_el("tspan", vec![]);
+        tspan.children = vec![DomNode::Text("hello".to_string())];
+        text_el.children = vec![
+            DomNode::Text("prefix ".to_string()),
+            DomNode::Element(tspan),
+        ];
+        let content = collect_text_content(&text_el);
+        assert_eq!(content, "prefix hello");
+    }
+
+    #[test]
+    fn collect_text_content_non_tspan_element_ignored() {
+        let mut text_el = make_el("text", vec![]);
+        let span = make_el("span", vec![]); // not a tspan
+        text_el.children = vec![DomNode::Element(span), DomNode::Text(" world".to_string())];
+        let content = collect_text_content(&text_el);
+        assert_eq!(content, " world");
+    }
+
+    // ── parse_svg_from_element_with_viewport ──────────────────────────
+
+    #[test]
+    fn parse_svg_from_element_with_viewport_overrides_dimensions() {
+        let svg = make_svg_el(vec![("width", "100"), ("height", "50")], vec![]);
+        let tree = parse_svg_from_element_with_viewport(&svg, Some((800.0, 600.0))).unwrap();
+        assert_eq!(tree.width, 800.0);
+        assert_eq!(tree.height, 600.0);
+    }
+
+    #[test]
+    fn parse_svg_from_element_with_viewport_none_uses_attrs() {
+        let svg = make_svg_el(vec![("width", "200"), ("height", "100")], vec![]);
+        let tree = parse_svg_from_element_with_viewport(&svg, None).unwrap();
+        assert_eq!(tree.width, 200.0);
+        assert_eq!(tree.height, 100.0);
+    }
+
+    // ── parse_svg_from_element_with_ctx ───────────────────────────────
+
+    #[test]
+    fn parse_svg_from_element_with_ctx_applies_text_context() {
+        let svg = make_svg_el(vec![("width", "100"), ("height", "50")], vec![]);
+        let ctx = SvgTextContext {
+            font_family: "Courier".to_string(),
+            font_size: 14.0,
+            font_bold: true,
+            font_italic: false,
+            color: Some((1.0, 0.0, 0.0)),
+        };
+        let tree = parse_svg_from_element_with_ctx(&svg, ctx.clone()).unwrap();
+        assert_eq!(tree.text_ctx.font_family, "Courier");
+        assert_eq!(tree.text_ctx.font_size, 14.0);
+        assert!(tree.text_ctx.font_bold);
+        assert_eq!(tree.text_ctx.color, Some((1.0, 0.0, 0.0)));
+    }
+
+    // ── nested SVG without viewBox, x/y offset ────────────────────────
+
+    #[test]
+    fn nested_svg_no_viewbox_with_offset_applies_translate() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el("svg", vec![("x", "15"), ("y", "25")]);
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                assert!(matches!(
+                    transform,
+                    Some(SvgTransform::Matrix(1.0, 0.0, 0.0, 1.0, 15.0, 25.0))
+                ));
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nested_svg_no_viewbox_no_offset_has_no_transform() {
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el("svg", vec![]);
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                assert!(transform.is_none());
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
+
+    // ── nested SVG viewBox with zero dimensions ────────────────────────
+
+    #[test]
+    fn nested_svg_viewbox_zero_width_no_transform() {
+        // viewBox with width=0 should NOT produce a scale transform
+        let inner = make_el("rect", vec![("width", "10"), ("height", "10")]);
+        let mut svg_inner = make_el(
+            "svg",
+            vec![
+                ("width", "100"),
+                ("height", "100"),
+                ("viewBox", "0 0 0 100"),
+            ],
+        );
+        svg_inner.children.push(DomNode::Element(inner));
+        let node = parse_svg_node(&svg_inner).unwrap();
+        match node {
+            SvgNode::Group { transform, .. } => {
+                // vb.width == 0 → condition vb.width > 0 && vb.height > 0 fails → no viewbox transform
+                assert!(transform.is_none());
+            }
+            other => panic!("expected nested svg group, got {other:?}"),
+        }
+    }
 }
