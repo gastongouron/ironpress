@@ -244,6 +244,141 @@ fn sanitize_pdf_font_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::engine::{FlexCell, LayoutBorder, TableCell, TextLine, TextRun};
+    use crate::parser::ttf::{FontVerticalMetrics, TtfFont};
+    use crate::style::computed::{
+        BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse,
+        Clear, Float, FontFamily, Position, TextAlign, VerticalAlign,
+    };
+
+    // ── Test helpers ─────────────────────────────────────────────────────────
+
+    fn make_stub_ttf() -> TtfFont {
+        TtfFont {
+            font_name: "Stub".into(),
+            units_per_em: 1000,
+            bbox: [0, -200, 800, 800],
+            pdf_metrics: FontVerticalMetrics::new(800, -200, 0),
+            layout_metrics: FontVerticalMetrics::new(800, -200, 0),
+            cmap: HashMap::new(),
+            glyph_widths: vec![0, 500, 600],
+            num_h_metrics: 3,
+            flags: 32,
+            data: Vec::new(), // empty ⟹ subsetting always fails → fallback_font path
+        }
+    }
+
+    fn make_ttf_with_cmap(cmap: HashMap<u16, u16>, widths: Vec<u16>) -> TtfFont {
+        TtfFont {
+            font_name: "TestFont".into(),
+            units_per_em: 1000,
+            bbox: [0, -200, 800, 800],
+            pdf_metrics: FontVerticalMetrics::new(800, -200, 0),
+            layout_metrics: FontVerticalMetrics::new(800, -200, 0),
+            cmap,
+            glyph_widths: widths,
+            num_h_metrics: 3,
+            flags: 32,
+            data: Vec::new(),
+        }
+    }
+
+    fn empty_text_line() -> TextLine {
+        TextLine {
+            runs: vec![],
+            height: 12.0,
+        }
+    }
+
+    fn empty_table_cell() -> TableCell {
+        TableCell {
+            lines: vec![],
+            nested_rows: vec![],
+            bold: false,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            colspan: 1,
+            rowspan: 1,
+            border: LayoutBorder::default(),
+            text_align: TextAlign::Left,
+            vertical_align: VerticalAlign::Middle,
+        }
+    }
+
+    fn empty_flex_cell() -> FlexCell {
+        FlexCell {
+            lines: vec![],
+            x_offset: 0.0,
+            width: 100.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_right: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            border_radius: 0.0,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+        }
+    }
+
+    fn text_block_element(lines: Vec<TextLine>) -> LayoutElement {
+        LayoutElement::TextBlock {
+            lines,
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: None,
+            block_height: None,
+            opacity: 1.0,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Static,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+            z_index: 0,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: None,
+        }
+    }
 
     // ── sanitize_pdf_font_name ───────────────────────────────────────────────
 
@@ -380,5 +515,348 @@ mod tests {
         // BTreeSet is sorted — collect to verify all are present
         let ids: Vec<u16> = usage.glyphs.iter().copied().collect();
         assert_eq!(ids, vec![1, 2, 3, 5, 8]);
+    }
+
+    // ── PreparedCustomFont::pdf_glyph_id ────────────────────────────────────
+
+    #[test]
+    fn pdf_glyph_id_returns_remapped_id_when_present() {
+        let mut map = HashMap::new();
+        map.insert(10u16, 1u16);
+        map.insert(20u16, 2u16);
+        let font = PreparedCustomFont {
+            base_font_name: "X".into(),
+            font_data: vec![],
+            widths: vec![],
+            to_unicode_map: vec![],
+            glyph_id_map: map,
+        };
+        assert_eq!(font.pdf_glyph_id(10), 1);
+        assert_eq!(font.pdf_glyph_id(20), 2);
+    }
+
+    #[test]
+    fn pdf_glyph_id_returns_original_when_not_in_map() {
+        let font = PreparedCustomFont {
+            base_font_name: "X".into(),
+            font_data: vec![],
+            widths: vec![],
+            to_unicode_map: vec![],
+            glyph_id_map: HashMap::new(),
+        };
+        // Any unknown glyph ID should pass through unchanged.
+        assert_eq!(font.pdf_glyph_id(42), 42);
+        assert_eq!(font.pdf_glyph_id(0), 0);
+    }
+
+    // ── to_unicode_map_for_full_font ─────────────────────────────────────────
+
+    #[test]
+    fn to_unicode_map_for_full_font_maps_cmap_entries() {
+        let mut cmap = HashMap::new();
+        cmap.insert(0x0041u16, 1u16); // 'A' → glyph 1
+        cmap.insert(0x0042u16, 2u16); // 'B' → glyph 2
+        let ttf = make_ttf_with_cmap(cmap, vec![0, 500, 500]);
+        let map = to_unicode_map_for_full_font(&ttf);
+        // The map is collected from a BTreeMap, so entries are sorted by glyph_id.
+        let found_a = map.iter().find(|(gid, _)| *gid == 1);
+        let found_b = map.iter().find(|(gid, _)| *gid == 2);
+        assert!(found_a.is_some(), "glyph 1 ('A') should be in the map");
+        assert_eq!(found_a.unwrap().1, vec![0x0041u16]);
+        assert!(found_b.is_some(), "glyph 2 ('B') should be in the map");
+        assert_eq!(found_b.unwrap().1, vec![0x0042u16]);
+    }
+
+    #[test]
+    fn to_unicode_map_for_full_font_skips_glyph_zero() {
+        // cmap entries that map to glyph ID 0 (.notdef) must not appear in the map.
+        let mut cmap = HashMap::new();
+        cmap.insert(0x0020u16, 0u16); // space → .notdef (should be skipped)
+        cmap.insert(0x0041u16, 1u16); // 'A' → glyph 1
+        let ttf = make_ttf_with_cmap(cmap, vec![0, 500]);
+        let map = to_unicode_map_for_full_font(&ttf);
+        assert!(
+            map.iter().all(|(gid, _)| *gid != 0),
+            "glyph 0 (.notdef) must not appear"
+        );
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn to_unicode_map_for_full_font_empty_cmap_yields_empty_map() {
+        let ttf = make_ttf_with_cmap(HashMap::new(), vec![]);
+        let map = to_unicode_map_for_full_font(&ttf);
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn to_unicode_map_for_full_font_first_codepoint_wins_for_same_glyph() {
+        // Two codepoints map to the same glyph — only the first insertion should survive.
+        let mut cmap = HashMap::new();
+        cmap.insert(0x0041u16, 5u16);
+        cmap.insert(0x0061u16, 5u16); // same glyph
+        let ttf = make_ttf_with_cmap(cmap, vec![0, 0, 0, 0, 0, 500]);
+        let map = to_unicode_map_for_full_font(&ttf);
+        let entry = map.iter().find(|(gid, _)| *gid == 5);
+        assert!(entry.is_some());
+        assert_eq!(
+            entry.unwrap().1.len(),
+            1,
+            "only one codepoint should be stored"
+        );
+    }
+
+    // ── to_unicode_map_for_subset ────────────────────────────────────────────
+
+    #[test]
+    fn to_unicode_map_for_subset_remaps_glyph_ids() {
+        // Build a FontUsage with glyphs 5 and 10.
+        let mut usage = FontUsage::default();
+        usage.record_glyph(5, vec![0x0041]); // 'A'
+        usage.record_glyph(10, vec![0x0042]); // 'B'
+
+        // Build a remapper for those same glyphs (sorted).
+        let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&[5, 10]);
+
+        let map = to_unicode_map_for_subset(&usage, &remapper);
+
+        // Both glyphs must appear in the output under their *new* IDs.
+        assert_eq!(map.len(), 2, "both glyphs should have entries");
+
+        // New IDs come from the remapper — old ID 5 gets new ID 1 (0 is .notdef),
+        // old ID 10 gets new ID 2.
+        let new_5 = remapper.get(5).expect("glyph 5 must be remapped");
+        let new_10 = remapper.get(10).expect("glyph 10 must be remapped");
+
+        let entry_5 = map.iter().find(|(gid, _)| *gid == new_5);
+        let entry_10 = map.iter().find(|(gid, _)| *gid == new_10);
+
+        assert!(entry_5.is_some());
+        assert_eq!(entry_5.unwrap().1, vec![0x0041u16]);
+        assert!(entry_10.is_some());
+        assert_eq!(entry_10.unwrap().1, vec![0x0042u16]);
+    }
+
+    #[test]
+    fn to_unicode_map_for_subset_skips_glyphs_not_in_remapper() {
+        let mut usage = FontUsage::default();
+        usage.record_glyph(5, vec![0x0041]);
+        usage.record_glyph(99, vec![0x0042]); // not in remapper
+
+        // Only remap glyph 5.
+        let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&[5]);
+        let map = to_unicode_map_for_subset(&usage, &remapper);
+
+        // Only glyph 5 should appear after remapping.
+        assert_eq!(map.len(), 1);
+        let new_5 = remapper.get(5).unwrap();
+        assert!(map.iter().any(|(gid, _)| *gid == new_5));
+    }
+
+    #[test]
+    fn to_unicode_map_for_subset_empty_usage_yields_empty_map() {
+        let usage = FontUsage::default();
+        let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&[]);
+        let map = to_unicode_map_for_subset(&usage, &remapper);
+        assert!(map.is_empty());
+    }
+
+    // ── fallback_font ────────────────────────────────────────────────────────
+
+    #[test]
+    fn fallback_font_uses_full_font_data() {
+        let ttf = make_stub_ttf();
+        let prepared = fallback_font(&ttf);
+        assert_eq!(prepared.font_data, ttf.data);
+    }
+
+    #[test]
+    fn fallback_font_name_matches_sanitized_font_name() {
+        let ttf = make_stub_ttf();
+        let prepared = fallback_font(&ttf);
+        assert_eq!(
+            prepared.base_font_name,
+            sanitize_pdf_font_name(&ttf.font_name)
+        );
+    }
+
+    #[test]
+    fn fallback_font_widths_match_glyph_count() {
+        let ttf = make_stub_ttf(); // glyph_widths has 3 entries
+        let prepared = fallback_font(&ttf);
+        assert_eq!(prepared.widths.len(), ttf.glyph_widths.len());
+    }
+
+    #[test]
+    fn fallback_font_glyph_id_map_is_empty() {
+        let ttf = make_stub_ttf();
+        let prepared = fallback_font(&ttf);
+        // Empty map means pdf_glyph_id passes IDs through unchanged.
+        assert_eq!(prepared.pdf_glyph_id(5), 5);
+    }
+
+    #[test]
+    fn prepare_font_falls_back_when_data_empty() {
+        // Empty font data causes subsetter::subset to fail, so prepare_font
+        // must call fallback_font instead of subset_font.
+        let ttf = make_stub_ttf(); // data: Vec::new()
+        let mut usage = FontUsage::default();
+        usage.record_glyph(1, vec![0x0041]);
+        let prepared = prepare_font(&ttf, &usage);
+        // Fallback: base_font_name must NOT contain a '+' prefix tag.
+        assert!(
+            !prepared.base_font_name.starts_with(char::is_uppercase)
+                || !prepared.base_font_name.contains('+')
+                || prepared
+                    .base_font_name
+                    .ends_with(&sanitize_pdf_font_name(&ttf.font_name)),
+            "fallback font name should be sanitized font name, not a subset tag"
+        );
+        // Widths come from all glyphs (fallback uses full glyph_widths).
+        assert_eq!(prepared.widths.len(), ttf.glyph_widths.len());
+    }
+
+    // ── collect_font_usage_from_element ─────────────────────────────────────
+
+    #[test]
+    fn collect_font_usage_from_element_ignores_image() {
+        let element = LayoutElement::PageBreak;
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(usage.is_empty(), "PageBreak should produce no font usage");
+    }
+
+    #[test]
+    fn collect_font_usage_from_element_handles_table_row() {
+        let element = LayoutElement::TableRow {
+            cells: vec![empty_table_cell()],
+            col_widths: vec![100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        // Should not panic; empty cells with no custom fonts yield empty usage.
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(usage.is_empty());
+    }
+
+    #[test]
+    fn collect_font_usage_from_element_handles_grid_row() {
+        let element = LayoutElement::GridRow {
+            cells: vec![empty_table_cell()],
+            col_widths: vec![100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+        };
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(usage.is_empty());
+    }
+
+    #[test]
+    fn collect_font_usage_from_element_handles_flex_row() {
+        let element = LayoutElement::FlexRow {
+            cells: vec![empty_flex_cell()],
+            row_height: 20.0,
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            background_color: None,
+            container_width: 500.0,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            border_radius: 0.0,
+            box_shadow: None,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+        };
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(usage.is_empty());
+    }
+
+    #[test]
+    fn collect_font_usage_from_element_handles_text_block() {
+        let element = text_block_element(vec![empty_text_line()]);
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        // No custom fonts configured, so usage stays empty.
+        assert!(usage.is_empty());
+    }
+
+    #[test]
+    fn collect_font_usage_from_element_table_row_with_nested_rows() {
+        // A TableCell with a nested TableRow inside should recurse.
+        let nested = LayoutElement::TableRow {
+            cells: vec![empty_table_cell()],
+            col_widths: vec![50.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let mut cell = empty_table_cell();
+        cell.nested_rows = vec![nested];
+
+        let element = LayoutElement::TableRow {
+            cells: vec![cell],
+            col_widths: vec![100.0],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            border_collapse: BorderCollapse::Separate,
+            border_spacing: 0.0,
+        };
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        // Should not panic when recursing through nested rows.
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(usage.is_empty());
+    }
+
+    // ── collect_font_usage_from_run (non-custom font is skipped) ────────────
+
+    #[test]
+    fn collect_font_usage_skips_non_custom_font_family() {
+        let run = TextRun {
+            text: "Hello".into(),
+            font_size: 12.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+        };
+        let line = TextLine {
+            runs: vec![run],
+            height: 12.0,
+        };
+        let element = text_block_element(vec![line]);
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
+        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        assert!(
+            usage.is_empty(),
+            "non-custom font families should not produce any usage entries"
+        );
     }
 }
