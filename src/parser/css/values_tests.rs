@@ -167,34 +167,21 @@ fn parse_color_invalid_inputs() {
 
 /// BUG P2-1: rgba() background-color must be parsed and pre-composited.
 /// Previously `parse_color` did not handle `rgba(...)` at all, so any
-/// `background-color: rgba(...)` rule silently produced no background fill.
+/// `background-color: rgba(...)` preserves the original RGB values and alpha.
 #[test]
-fn parse_color_rgba_composited_against_white() {
-    // rgba(239, 68, 68, 0.05) composited on white:
-    //   r = 239*0.05 + 255*0.95 = 11.95 + 242.25 = 254.2 → 254
-    //   g = 68*0.05  + 255*0.95 = 3.4   + 242.25 = 245.65 → 246
-    //   b = 68*0.05  + 255*0.95 = 3.4   + 242.25 = 245.65 → 246
+fn parse_color_rgba_preserves_rgb_and_alpha() {
+    // rgba(239, 68, 68, 0.05) should store the raw RGB values and alpha.
     let color = parse_color("rgba(239, 68, 68, 0.05)");
     assert!(
         color.is_some(),
         "rgba() should be parsed as a Color, not None"
     );
     if let Some(CssValue::Color(c)) = color {
-        assert!(
-            c.r > 250,
-            "near-transparent red on white should have high r, got {}",
-            c.r
-        );
-        assert!(
-            c.g > 240,
-            "near-transparent red on white should have high g, got {}",
-            c.g
-        );
-        assert!(
-            c.b > 240,
-            "near-transparent red on white should have high b, got {}",
-            c.b
-        );
+        assert_eq!(c.r, 239, "r should be preserved as-is");
+        assert_eq!(c.g, 68, "g should be preserved as-is");
+        assert_eq!(c.b, 68, "b should be preserved as-is");
+        // alpha 0.05 * 255 = 12.75, rounds to 13
+        assert_eq!(c.a, 13, "alpha 0.05 should be stored as 13/255");
     }
 }
 
@@ -215,12 +202,13 @@ fn parse_color_rgba_fully_opaque() {
 
 #[test]
 fn parse_color_rgba_fully_transparent() {
-    // rgba(0, 0, 0, 0.0) composited on white = white (255, 255, 255).
+    // rgba(0, 0, 0, 0.0) should store RGB as-is with alpha = 0.
     let color = parse_color("rgba(0, 0, 0, 0.0)");
     if let Some(CssValue::Color(c)) = color {
-        assert_eq!(c.r, 255);
-        assert_eq!(c.g, 255);
-        assert_eq!(c.b, 255);
+        assert_eq!(c.r, 0);
+        assert_eq!(c.g, 0);
+        assert_eq!(c.b, 0);
+        assert_eq!(c.a, 0, "alpha 0.0 should be stored as 0");
     } else {
         panic!("rgba(0,0,0,0) should parse to a Color");
     }

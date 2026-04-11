@@ -174,6 +174,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
         let mut annotations: Vec<LinkAnnotation> = Vec::new();
         let mut page_images: Vec<ImageRef> = Vec::new();
         let mut page_ext_gstates: Vec<(String, f32)> = Vec::new();
+        let mut bg_alpha_counter: usize = 0;
         let mut page_shadings: Vec<ShadingEntry> = Vec::new();
         let mut shading_counter: usize = 0;
 
@@ -364,8 +365,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw background if specified
-                    if let Some((r, g, b)) = background_color {
+                    if let Some((r, g, b, a)) = background_color {
                         let bg_y = block_bottom;
+                        let needs_bg_alpha = *a < 1.0;
+                        if needs_bg_alpha {
+                            let effective_alpha = *a * *opacity;
+                            let gs_name = format!("GSbg{elem_idx}");
+                            page_ext_gstates.push((gs_name.clone(), effective_alpha));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
                         if *border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
@@ -385,6 +393,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                         }
                         content.push_str("f\n");
+                        if needs_bg_alpha {
+                            // Reset to element opacity or full opacity
+                            if needs_opacity {
+                                let gs_name = format!("GS{elem_idx}");
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            } else {
+                                content.push_str("/GSDefault gs\n");
+                            }
+                        }
                     }
 
                     // Draw linear gradient if specified
@@ -700,7 +717,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let run_width = estimate_run_width_with_fonts(run, custom_fonts);
 
                             // Draw background rectangle for inline spans
-                            if let Some((br, bg, bb)) = run.background_color {
+                            if let Some((br, bg, bb, ba)) = run.background_color {
+                                let needs_inline_bg_alpha = ba < 1.0;
+                                if needs_inline_bg_alpha {
+                                    let effective_alpha = ba * *opacity;
+                                    let gs_name = format!("GSba{bg_alpha_counter}");
+                                    bg_alpha_counter += 1;
+                                    page_ext_gstates.push((gs_name.clone(), effective_alpha));
+                                    content.push_str(&format!("/{gs_name} gs\n"));
+                                }
                                 let (pad_h, pad_v) = run.padding;
                                 let rect_x = x - pad_h;
                                 let rect_y = text_y - 2.0 - pad_v;
@@ -720,6 +745,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     content.push_str(&format!(
                                         "{rect_x} {rect_y} {rect_w} {rect_h} re\nf\n"
                                     ));
+                                }
+                                if needs_inline_bg_alpha {
+                                    if needs_opacity {
+                                        let gs_name = format!("GS{elem_idx}");
+                                        content.push_str(&format!("/{gs_name} gs\n"));
+                                    } else {
+                                        content.push_str("/GSDefault gs\n");
+                                    }
                                 }
                             }
 
@@ -854,7 +887,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         // Draw cell background
-                        if let Some((r, g, b)) = cell.background_color {
+                        if let Some((r, g, b, a)) = cell.background_color {
+                            let needs_cell_bg_alpha = a < 1.0;
+                            if needs_cell_bg_alpha {
+                                let gs_name = format!("GStcbg{elem_idx}_{col_pos}");
+                                page_ext_gstates.push((gs_name.clone(), a));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
                             content.push_str(&format!(
                                 "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
                                 x = cell_x,
@@ -862,6 +901,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 w = cell_w,
                                 h = cell_height,
                             ));
+                            if needs_cell_bg_alpha {
+                                content.push_str("/GSDefault gs\n");
+                            }
                         }
 
                         // Draw cell borders when CSS specifies them.
@@ -916,6 +958,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &prepared_custom_fonts,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
                             &mut annotations,
                         );
                         render_cell_content(
@@ -955,7 +999,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         // Draw cell background
-                        if let Some((r, g, b)) = cell.background_color {
+                        if let Some((r, g, b, a)) = cell.background_color {
+                            let needs_grid_bg_alpha = a < 1.0;
+                            if needs_grid_bg_alpha {
+                                let gs_name = format!("GSgcbg{elem_idx}_{i}");
+                                page_ext_gstates.push((gs_name.clone(), a));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
                             content.push_str(&format!(
                                 "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
                                 x = cell_x,
@@ -963,6 +1013,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 w = cell_w,
                                 h = row_height,
                             ));
+                            if needs_grid_bg_alpha {
+                                content.push_str("/GSDefault gs\n");
+                            }
                         }
 
                         // Render cell text
@@ -973,6 +1026,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &prepared_custom_fonts,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
                             &mut annotations,
                         );
                         render_cell_content(
@@ -1045,9 +1100,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw container background
-                    if let Some((r, g, b)) = background_color {
+                    if let Some((r, g, b, a)) = background_color {
                         let bg_x = margin.left;
                         let bg_y = row_y - full_height;
+                        let needs_flex_bg_alpha = *a < 1.0;
+                        if needs_flex_bg_alpha {
+                            let gs_name = format!("GSfbg{elem_idx}");
+                            page_ext_gstates.push((gs_name.clone(), *a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
                         if *border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
@@ -1066,6 +1127,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 w = container_width,
                                 h = full_height,
                             ));
+                        }
+                        if needs_flex_bg_alpha {
+                            content.push_str("/GSDefault gs\n");
                         }
                     }
 
@@ -1265,9 +1329,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
 
                         // Draw cell background
-                        if let Some((r, g, b)) = cell.background_color {
+                        if let Some((r, g, b, a)) = cell.background_color {
                             let bg_x = margin.left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - row_height;
+                            let needs_fcell_bg_alpha = a < 1.0;
+                            if needs_fcell_bg_alpha {
+                                let gs_name = format!("GSfcbg{bg_alpha_counter}");
+                                bg_alpha_counter += 1;
+                                page_ext_gstates.push((gs_name.clone(), a));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
                             content.push_str(&format!("{r} {g} {b} rg\n"));
                             if cell.border_radius > 0.0 {
                                 content.push_str(&rounded_rect_path(
@@ -1284,6 +1355,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     w = cell.width,
                                     h = *row_height,
                                 ));
+                            }
+                            if needs_fcell_bg_alpha {
+                                content.push_str("/GSDefault gs\n");
                             }
                         }
 
@@ -1428,7 +1502,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let rw = estimate_run_width_with_fonts(run, custom_fonts);
 
                                 // Draw background rectangle for inline spans
-                                if let Some((br, bgc, bb)) = run.background_color {
+                                if let Some((br, bgc, bb, ba)) = run.background_color {
+                                    let needs_inline_bg_alpha = ba < 1.0;
+                                    if needs_inline_bg_alpha {
+                                        let gs_name = format!("GSfiba{bg_alpha_counter}");
+                                        bg_alpha_counter += 1;
+                                        page_ext_gstates.push((gs_name.clone(), ba));
+                                        content.push_str(&format!("/{gs_name} gs\n"));
+                                    }
                                     let (pad_h, pad_v) = run.padding;
                                     let rx = x - pad_h;
                                     let ry = text_y - 2.0 - pad_v;
@@ -1446,6 +1527,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         content.push_str("\nf\n");
                                     } else {
                                         content.push_str(&format!("{rx} {ry} {rw2} {rh} re\nf\n"));
+                                    }
+                                    if needs_inline_bg_alpha {
+                                        content.push_str("/GSDefault gs\n");
                                     }
                                 }
 
@@ -2468,6 +2552,30 @@ pub(crate) fn utf8_to_winansi(text: &str) -> Vec<u8> {
         }
     }
     result
+}
+
+/// Returns `true` if every character in `text` can be encoded in WinAnsiEncoding.
+///
+/// Characters outside this range (CJK, Arabic, Hebrew, emoji, box-drawing, etc.)
+/// cannot be rendered by the standard PDF fonts and require a Unicode-capable
+/// embedded font instead.
+pub(crate) fn is_winansi_encodable(text: &str) -> bool {
+    text.chars().all(|ch| is_winansi_char(ch))
+}
+
+/// Check whether a single character is representable in WinAnsiEncoding.
+pub(crate) fn is_winansi_char(ch: char) -> bool {
+    let code = ch as u32;
+    matches!(code,
+        0x0000..=0x007F |
+        0x00A0..=0x00FF |
+        0x20AC | 0x201A | 0x0192 | 0x201E | 0x2026 |
+        0x2020 | 0x2021 | 0x02C6 | 0x2030 | 0x0160 |
+        0x2039 | 0x0152 | 0x017D | 0x2018 | 0x2019 |
+        0x201C | 0x201D | 0x2022 | 0x2013 | 0x2014 |
+        0x02DC | 0x2122 | 0x0161 | 0x203A | 0x0153 |
+        0x017E | 0x0178
+    )
 }
 
 /// Encode a UTF-8 string for use in a PDF text operator (Tj).
@@ -6020,6 +6128,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
 
         let mut without_padding = String::new();
@@ -6030,6 +6140,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         render_nested_text_block(
@@ -6067,6 +6179,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         render_nested_text_block(
@@ -6678,7 +6792,7 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
-            background_color: Some((1.0, 0.0, 0.0)),
+            background_color: Some((1.0, 0.0, 0.0, 1.0)),
             padding: (4.0, 2.0),
             border_radius: 3.0,
         };
@@ -6732,7 +6846,7 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
-            background_color: Some((1.0, 1.0, 0.0)),
+            background_color: Some((1.0, 1.0, 0.0, 1.0)),
             padding: (2.0, 1.0),
             border_radius: 4.0,
         };
@@ -6746,7 +6860,7 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
-            background_color: Some((1.0, 1.0, 0.0)),
+            background_color: Some((1.0, 1.0, 0.0, 1.0)),
             padding: (2.0, 1.0),
             border_radius: 8.0, // Different border_radius
         };
@@ -7198,6 +7312,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7206,6 +7322,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let lines = vec![test_text_line(vec![test_text_run("BgRound")])];
@@ -7222,7 +7340,7 @@ mod tests {
                 border: LayoutBorder::default(),
                 block_width: Some(100.0),
                 block_height: None,
-                background_color: Some((0.0, 1.0, 0.0)),
+                background_color: Some((0.0, 1.0, 0.0, 1.0)),
                 background_svg: None,
                 background_blur_radius: 0.0,
                 background_size: BackgroundSize::Auto,
@@ -7257,6 +7375,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7265,6 +7385,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let lines = vec![test_text_line(vec![test_text_run("Bordered")])];
@@ -7346,6 +7468,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7354,6 +7478,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let lines = vec![test_text_line(vec![test_text_run("TopOnly")])];
@@ -7402,6 +7528,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7410,6 +7538,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let svg_tree = crate::parser::svg::SvgTree {
@@ -7501,6 +7631,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7509,6 +7641,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let svg_tree = crate::parser::svg::SvgTree {
@@ -7578,6 +7712,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7586,6 +7722,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let mut content = String::new();
@@ -7601,7 +7739,7 @@ mod tests {
                 border: LayoutBorder::default(),
                 block_width: Some(100.0),
                 block_height: Some(50.0), // Explicit height keeps the block visible
-                background_color: Some((0.5, 0.5, 0.5)),
+                background_color: Some((0.5, 0.5, 0.5, 1.0)),
                 background_svg: None,
                 background_blur_radius: 0.0,
                 background_size: BackgroundSize::Auto,
@@ -7695,6 +7833,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7703,6 +7843,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let mut content = String::new();
@@ -7747,7 +7889,7 @@ mod tests {
             }],
             nested_rows: Vec::new(),
             bold: false,
-            background_color: Some((1.0, 0.0, 0.0)), // red cell background
+            background_color: Some((1.0, 0.0, 0.0, 1.0)), // red cell background
             padding_top: 2.0,
             padding_right: 2.0,
             padding_bottom: 2.0,
@@ -7772,6 +7914,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7780,6 +7924,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let mut content = String::new();
@@ -7871,6 +8017,8 @@ mod tests {
         let mut page_images = Vec::new();
         let mut shadings = Vec::new();
         let mut shading_counter = 0usize;
+        let mut page_ext_gstates = Vec::new();
+        let mut bg_alpha_counter = 0usize;
         let mut annotations = Vec::new();
         let mut ctx = PageRenderContext::new(
             &mut pdf_writer,
@@ -7879,6 +8027,8 @@ mod tests {
             &prepared_custom_fonts,
             &mut shadings,
             &mut shading_counter,
+            &mut page_ext_gstates,
+            &mut bg_alpha_counter,
             &mut annotations,
         );
         let mut content = String::new();
@@ -8089,7 +8239,7 @@ mod tests {
             color: (1.0, 1.0, 1.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
-            background_color: Some((0.2, 0.4, 0.8)),
+            background_color: Some((0.2, 0.4, 0.8, 1.0)),
             padding: (3.0, 2.0),
             border_radius: 4.0, // Triggers rounded rect for inline background
         };
@@ -8151,7 +8301,7 @@ mod tests {
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
-            background_color: Some((1.0, 1.0, 0.0)), // yellow
+            background_color: Some((1.0, 1.0, 0.0, 1.0)), // yellow
             padding: (2.0, 1.0),
             border_radius: 0.0, // No rounding — should use rectangle
         };
@@ -8629,6 +8779,28 @@ mod tests {
         let pdf = crate::markdown_to_pdf("$$\\sum_{k=1}^{n} k = \\frac{n(n+1)}{2}$$").unwrap();
         let text = String::from_utf8_lossy(&pdf);
         assert!(text.contains("/Symbol"));
+    }
+
+    #[test]
+    fn render_rgba_background_produces_extgstate() {
+        let html =
+            r#"<div style="background-color: rgba(255, 0, 0, 0.5)">Semi-transparent bg</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/ca 0.5"),
+            "PDF should contain fill opacity /ca 0.5 for rgba background"
+        );
+        assert!(
+            content.contains("/ExtGState"),
+            "PDF should contain ExtGState resource for rgba background"
+        );
+        assert!(
+            content.contains("gs\n"),
+            "PDF should use gs operator for rgba background"
+        );
     }
 
     #[test]

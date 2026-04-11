@@ -117,6 +117,15 @@ impl Color {
             self.b as f32 / 255.0,
         )
     }
+
+    pub fn to_f32_rgba(self) -> (f32, f32, f32, f32) {
+        (
+            self.r as f32 / 255.0,
+            self.g as f32 / 255.0,
+            self.b as f32 / 255.0,
+            self.a as f32 / 255.0,
+        )
+    }
 }
 
 impl Default for Color {

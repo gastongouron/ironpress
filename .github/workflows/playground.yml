@@ -94,8 +94,10 @@ jobs:
           node -e "
           const fs = require('fs');
           const path = require('path');
+          const { execSync } = require('child_process');
           const results = {};
           const imgDir = 'playground/parity/images';
+          const pdfDir = '/tmp/parity-pdfs';
           for (const layer of ['features', 'combined', 'edge-cases']) {
             const dir = path.join(imgDir, layer);
             if (!fs.existsSync(dir)) continue;
@@ -103,11 +105,33 @@ jobs:
             for (const f of files) {
               const name = f.replace('_chromium.png', '');
               const key = layer + '/' + name;
-              results[key] = {
+              const entry = {
                 chromium_img: 'images/' + layer + '/' + name + '_chromium.png',
                 ironpress_img: 'images/' + layer + '/' + name + '_ironpress.png',
                 diff_img: 'images/' + layer + '/' + name + '_diff.png',
               };
+              // PDF file size
+              const pdfPath = path.join(pdfDir, layer, name + '.pdf');
+              if (fs.existsSync(pdfPath)) {
+                entry.size_bytes = fs.statSync(pdfPath).size;
+              }
+              // Pixel diff percentage
+              try {
+                const chromPng = path.join(dir, name + '_chromium.png');
+                const ironPng = path.join(dir, name + '_ironpress.png');
+                const diffOut = execSync(
+                  'compare -metric AE ' + chromPng + ' ' + ironPng + ' null: 2>&1 || true',
+                  { encoding: 'utf8', timeout: 10000 }
+                ).trim();
+                const diffPixels = parseInt(diffOut) || 0;
+                const totalOut = execSync(
+                  'identify -format \"%[fx:w*h]\" ' + chromPng,
+                  { encoding: 'utf8', timeout: 5000 }
+                ).trim();
+                const totalPixels = parseInt(totalOut) || 1;
+                entry.diff_pct = parseFloat(((diffPixels / totalPixels) * 100).toFixed(2));
+              } catch (e) {}
+              results[key] = entry;
             }
           }
           // Read expectations for visual_assertions

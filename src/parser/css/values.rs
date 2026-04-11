@@ -451,10 +451,9 @@ fn parse_rgb_function(inner: &str) -> Option<CssValue> {
 
 /// Parse `rgba(r, g, b, a)` where alpha is 0.0–1.0.
 ///
-/// The alpha channel is pre-composited against white so that the stored
-/// `Color` value can be used directly as an opaque RGB fill in PDF output
-/// without requiring a separate transparency mechanism.  For example,
-/// `rgba(239, 68, 68, 0.05)` becomes approximately `(252, 243, 243)`.
+/// The alpha channel is stored in the `Color` struct so the PDF renderer
+/// can emit a proper ExtGState with `/ca` (fill opacity) instead of
+/// pre-compositing against white.
 fn parse_rgba_function(inner: &str) -> Option<CssValue> {
     let parts: Vec<&str> = inner.splitn(4, ',').collect();
     if parts.len() != 4 {
@@ -466,12 +465,12 @@ fn parse_rgba_function(inner: &str) -> Option<CssValue> {
     let a: f32 = parts[3].trim().parse::<f32>().ok()?;
     let a = a.clamp(0.0, 1.0);
 
-    // Pre-composite against white (255, 255, 255).
-    let blend = |channel: u8| -> u8 {
-        let c = channel as f32;
-        (c * a + 255.0 * (1.0 - a)).round() as u8
-    };
-    Some(CssValue::Color(Color::rgb(blend(r), blend(g), blend(b))))
+    Some(CssValue::Color(Color {
+        r,
+        g,
+        b,
+        a: (a * 255.0).round() as u8,
+    }))
 }
 
 fn hex_digit(byte: u8) -> Option<u8> {

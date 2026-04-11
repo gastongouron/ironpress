@@ -25,6 +25,8 @@ pub(super) struct PageRenderContext<'a> {
     page_images: &'a mut Vec<ImageRef>,
     shadings: &'a mut Vec<ShadingEntry>,
     shading_counter: &'a mut usize,
+    pub(super) page_ext_gstates: &'a mut Vec<(String, f32)>,
+    pub(super) bg_alpha_counter: &'a mut usize,
     text: TextRenderContext<'a>,
 }
 
@@ -36,6 +38,8 @@ impl<'a> PageRenderContext<'a> {
         prepared_custom_fonts: &'a PreparedCustomFonts,
         shadings: &'a mut Vec<ShadingEntry>,
         shading_counter: &'a mut usize,
+        page_ext_gstates: &'a mut Vec<(String, f32)>,
+        bg_alpha_counter: &'a mut usize,
         annotations: &'a mut Vec<LinkAnnotation>,
     ) -> Self {
         Self {
@@ -43,6 +47,8 @@ impl<'a> PageRenderContext<'a> {
             page_images,
             shadings,
             shading_counter,
+            page_ext_gstates,
+            bg_alpha_counter,
             text: TextRenderContext::new(custom_fonts, prepared_custom_fonts, annotations),
         }
     }
@@ -129,7 +135,7 @@ pub(super) struct NestedTextBlock<'a> {
     pub(super) border: crate::layout::engine::LayoutBorder,
     pub(super) block_width: Option<f32>,
     pub(super) block_height: Option<f32>,
-    pub(super) background_color: Option<(f32, f32, f32)>,
+    pub(super) background_color: Option<(f32, f32, f32, f32)>,
     pub(super) background_svg: Option<&'a crate::parser::svg::SvgTree>,
     pub(super) background_blur_radius: f32,
     pub(super) background_size: BackgroundSize,
@@ -240,7 +246,9 @@ pub(super) fn render_cell_text(
             let (r, g, b) = run.color;
             let run_width = estimate_run_width_with_fonts(run, ctx.custom_fonts);
 
-            if let Some((background_r, background_g, background_b)) = run.background_color {
+            if let Some((background_r, background_g, background_b, _background_a)) =
+                run.background_color
+            {
                 let (pad_h, pad_v) = run.padding;
                 let rx = x - pad_h;
                 let ry = text_y - 2.0 - pad_v;
@@ -343,7 +351,14 @@ pub(super) fn render_nested_text_block(
     );
     let block_bottom = frame.top_y - total_height;
 
-    if let Some((r, g, b)) = block.background_color {
+    if let Some((r, g, b, a)) = block.background_color {
+        let needs_bg_alpha = a < 1.0;
+        if needs_bg_alpha {
+            let gs_name = format!("GSba{}", ctx.bg_alpha_counter);
+            *ctx.bg_alpha_counter += 1;
+            ctx.page_ext_gstates.push((gs_name.clone(), a));
+            content.push_str(&format!("/{gs_name} gs\n"));
+        }
         content.push_str(&format!("{r} {g} {b} rg\n"));
         if block.border_radius > 0.0 {
             content.push_str(&rounded_rect_path(
@@ -363,6 +378,9 @@ pub(super) fn render_nested_text_block(
             ));
         }
         content.push_str("f\n");
+        if needs_bg_alpha {
+            content.push_str("/GSDefault gs\n");
+        }
     }
 
     if let Some(svg_tree) = block.background_svg {
@@ -532,7 +550,14 @@ pub(super) fn render_nested_layout_elements(
                         row_height
                     };
 
-                    if let Some((r, g, b)) = cell.background_color {
+                    if let Some((r, g, b, a)) = cell.background_color {
+                        let needs_cell_bg_alpha = a < 1.0;
+                        if needs_cell_bg_alpha {
+                            let gs_name = format!("GSba{}", ctx.bg_alpha_counter);
+                            *ctx.bg_alpha_counter += 1;
+                            ctx.page_ext_gstates.push((gs_name.clone(), a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
                         content.push_str(&format!(
                             "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
                             x = cell_x,
@@ -540,6 +565,9 @@ pub(super) fn render_nested_layout_elements(
                             w = cell_w,
                             h = cell_height,
                         ));
+                        if needs_cell_bg_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
                     }
 
                     if cell.border.has_any() {

@@ -183,6 +183,47 @@ pub(crate) fn resolve_font_family(
         .unwrap_or_default()
 }
 
+/// Key used to store the Unicode fallback font in the font map.
+pub(crate) const UNICODE_FALLBACK_KEY: &str = "__unicode_fallback";
+
+/// Candidate font families to try when looking for a Unicode fallback font.
+/// Ordered by breadth of Unicode coverage (CJK, symbols, etc.).
+const UNICODE_FALLBACK_FAMILIES: &[&str] = &[
+    "Noto Sans CJK SC",
+    "Noto Sans CJK",
+    "Noto Sans SC",
+    "Noto Sans",
+    "Arial Unicode MS",
+    "DejaVu Sans",
+    "Liberation Sans",
+    "FreeSans",
+];
+
+/// Load a single Unicode-capable fallback font for characters outside
+/// WinAnsiEncoding.  The font is registered under [`UNICODE_FALLBACK_KEY`].
+///
+/// This enables CJK and other non-Latin characters to render correctly
+/// instead of appearing as rectangles/tofu when the document uses a
+/// standard PDF font (Helvetica, Times-Roman, Courier).
+pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
+    if fonts.contains_key(UNICODE_FALLBACK_KEY) {
+        return;
+    }
+
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+
+    for family in UNICODE_FALLBACK_FAMILIES {
+        let query = SystemFontQuery::new(family, FontVariant::new(false, false));
+        if let Some(font) = query_fontdb_font(&db, &query)
+            .or_else(|| query_fontconfig_font(&query))
+        {
+            fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
+            return;
+        }
+    }
+}
+
 pub(crate) fn load_requested_system_fonts(
     nodes: &[DomNode],
     rules: &[CssRule],

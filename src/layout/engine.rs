@@ -366,20 +366,24 @@ fn build_pseudo_block(
     let mut lines = Vec::new();
     let mut runs = Vec::new();
     if !content_text.is_empty() {
-        runs.push(TextRun {
-            text: content_text,
-            font_size: pseudo_style.font_size,
-            bold: pseudo_style.font_weight == FontWeight::Bold,
-            italic: pseudo_style.font_style == FontStyle::Italic,
-            underline: pseudo_style.text_decoration_underline,
-            line_through: pseudo_style.text_decoration_line_through,
-            color: pseudo_style.color.to_f32_rgb(),
-            link_url: None,
-            font_family: resolve_style_font_family(pseudo_style, fonts),
-            background_color: None,
-            padding: (0.0, 0.0),
-            border_radius: 0.0,
-        });
+        push_text_run_with_fallback(
+            TextRun {
+                text: content_text,
+                font_size: pseudo_style.font_size,
+                bold: pseudo_style.font_weight == FontWeight::Bold,
+                italic: pseudo_style.font_style == FontStyle::Italic,
+                underline: pseudo_style.text_decoration_underline,
+                line_through: pseudo_style.text_decoration_line_through,
+                color: pseudo_style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: resolve_style_font_family(pseudo_style, fonts),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+            },
+            &mut runs,
+            fonts,
+        );
         lines = wrap_text_runs(
             runs.clone(),
             TextWrapOptions::new(
@@ -407,7 +411,7 @@ fn build_pseudo_block(
         };
     }
 
-    let bg = pseudo_style.background_color.map(|c| c.to_f32_rgb());
+    let bg = pseudo_style.background_color.map(|c| c.to_f32_rgba());
     let border = LayoutBorder::from_computed(&pseudo_style.border);
     let BackgroundFields {
         gradient: background_gradient,
@@ -608,7 +612,7 @@ fn build_pseudo_inline_run(
         color: pseudo_style.color.to_f32_rgb(),
         link_url: None,
         font_family: resolve_style_font_family(pseudo_style, fonts),
-        background_color: pseudo_style.background_color.map(|c| c.to_f32_rgb()),
+        background_color: pseudo_style.background_color.map(|c| c.to_f32_rgba()),
         padding: (0.0, 0.0),
         border_radius: 0.0,
     }
@@ -628,7 +632,7 @@ pub struct TableCell {
     pub lines: Vec<TextLine>,
     pub nested_rows: Vec<LayoutElement>,
     pub bold: bool,
-    pub background_color: Option<(f32, f32, f32)>,
+    pub background_color: Option<(f32, f32, f32, f32)>,
     pub padding_top: f32,
     pub padding_right: f32,
     pub padding_bottom: f32,
@@ -659,7 +663,7 @@ pub struct FlexCell {
     pub x_offset: f32,
     pub width: f32,
     pub text_align: TextAlign,
-    pub background_color: Option<(f32, f32, f32)>,
+    pub background_color: Option<(f32, f32, f32, f32)>,
     pub padding_top: f32,
     pub padding_right: f32,
     pub padding_bottom: f32,
@@ -753,7 +757,7 @@ pub struct TextRun {
     pub link_url: Option<String>,
     pub font_family: FontFamily,
     /// Background color for inline spans (e.g. badge/highlight).
-    pub background_color: Option<(f32, f32, f32)>,
+    pub background_color: Option<(f32, f32, f32, f32)>,
     /// Horizontal and vertical padding for inline background.
     pub padding: (f32, f32),
     /// Border radius for inline spans (e.g. badge with rounded corners).
@@ -816,7 +820,7 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
         text_align: TextAlign,
-        background_color: Option<(f32, f32, f32)>,
+        background_color: Option<(f32, f32, f32, f32)>,
         padding_top: f32,
         padding_bottom: f32,
         padding_left: f32,
@@ -913,7 +917,7 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
         /// Container background color.
-        background_color: Option<(f32, f32, f32)>,
+        background_color: Option<(f32, f32, f32, f32)>,
         /// Full container width (including padding).
         container_width: f32,
         padding_top: f32,
@@ -1043,7 +1047,7 @@ pub fn layout_with_rules_and_fonts(
             margin_top: 0.0,
             margin_bottom: 0.0,
             text_align: TextAlign::Left,
-            background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
+            background_color: parent_style.background_color.map(|c| c.to_f32_rgba()),
             padding_top: 0.0,
             padding_bottom: 0.0,
             padding_left: 0.0,
@@ -1135,22 +1139,27 @@ fn flatten_nodes(
             DomNode::Text(text) => {
                 let trimmed = collapse_whitespace(text);
                 if !trimmed.is_empty() {
-                    let run = TextRun {
-                        text: trimmed,
-                        font_size: parent_style.font_size,
-                        bold: parent_style.font_weight == FontWeight::Bold,
-                        italic: parent_style.font_style == FontStyle::Italic,
-                        underline: parent_style.text_decoration_underline,
-                        line_through: parent_style.text_decoration_line_through,
-                        color: parent_style.color.to_f32_rgb(),
-                        link_url: None,
-                        font_family: resolve_style_font_family(parent_style, fonts),
-                        background_color: None,
-                        padding: (0.0, 0.0),
-                        border_radius: 0.0,
-                    };
+                    let mut text_runs = Vec::new();
+                    push_text_run_with_fallback(
+                        TextRun {
+                            text: trimmed,
+                            font_size: parent_style.font_size,
+                            bold: parent_style.font_weight == FontWeight::Bold,
+                            italic: parent_style.font_style == FontStyle::Italic,
+                            underline: parent_style.text_decoration_underline,
+                            line_through: parent_style.text_decoration_line_through,
+                            color: parent_style.color.to_f32_rgb(),
+                            link_url: None,
+                            font_family: resolve_style_font_family(parent_style, fonts),
+                            background_color: None,
+                            padding: (0.0, 0.0),
+                            border_radius: 0.0,
+                        },
+                        &mut text_runs,
+                        fonts,
+                    );
                     let lines = wrap_text_runs(
-                        vec![run],
+                        text_runs,
                         TextWrapOptions::new(
                             available_width,
                             parent_style.font_size,
@@ -1494,20 +1503,25 @@ fn flatten_element(
 
         let mut lines = Vec::new();
         if !label.is_empty() {
-            let runs = vec![TextRun {
-                text: label,
-                font_size: style.font_size,
-                bold: false,
-                italic: false,
-                underline: false,
-                line_through: false,
-                color: style.color.to_f32_rgb(),
-                link_url: None,
-                font_family: resolve_style_font_family(&style, fonts),
-                background_color: None,
-                padding: (0.0, 0.0),
-                border_radius: 0.0,
-            }];
+            let mut runs = Vec::new();
+            push_text_run_with_fallback(
+                TextRun {
+                    text: label,
+                    font_size: style.font_size,
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    line_through: false,
+                    color: style.color.to_f32_rgb(),
+                    link_url: None,
+                    font_family: resolve_style_font_family(&style, fonts),
+                    background_color: None,
+                    padding: (0.0, 0.0),
+                    border_radius: 0.0,
+                },
+                &mut runs,
+                fonts,
+            );
             let inner_w = ctrl_width - style.padding.left - style.padding.right;
             lines = wrap_text_runs(
                 runs,
@@ -1523,8 +1537,8 @@ fn flatten_element(
 
         let bg = style
             .background_color
-            .map(|c| c.to_f32_rgb())
-            .unwrap_or((1.0, 1.0, 1.0));
+            .map(|c| c.to_f32_rgba())
+            .unwrap_or((1.0, 1.0, 1.0, 1.0));
         let BackgroundFields {
             gradient: background_gradient,
             radial_gradient: background_radial_gradient,
@@ -1622,11 +1636,11 @@ fn flatten_element(
         let bg =
             style
                 .background_color
-                .map(|c| c.to_f32_rgb())
+                .map(|c| c.to_f32_rgba())
                 .unwrap_or(if el.tag == HtmlTag::Video {
-                    (0.0, 0.0, 0.0)
+                    (0.0, 0.0, 0.0, 1.0)
                 } else {
-                    (0.94, 0.94, 0.94)
+                    (0.94, 0.94, 0.94, 1.0)
                 });
         let text_color = if el.tag == HtmlTag::Video {
             (1.0, 1.0, 1.0)
@@ -1644,20 +1658,25 @@ fn flatten_element(
             origin: background_origin,
         } = BackgroundFields::from_style(&style);
 
-        let runs = vec![TextRun {
-            text: label,
-            font_size: style.font_size,
-            bold: false,
-            italic: false,
-            underline: false,
-            line_through: false,
-            color: text_color,
-            link_url: None,
-            font_family: resolve_style_font_family(&style, fonts),
-            background_color: None,
-            padding: (0.0, 0.0),
-            border_radius: 0.0,
-        }];
+        let mut runs = Vec::new();
+        push_text_run_with_fallback(
+            TextRun {
+                text: label,
+                font_size: style.font_size,
+                bold: false,
+                italic: false,
+                underline: false,
+                line_through: false,
+                color: text_color,
+                link_url: None,
+                font_family: resolve_style_font_family(&style, fonts),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+            },
+            &mut runs,
+            fonts,
+        );
         let lines = wrap_text_runs(
             runs,
             TextWrapOptions::new(
@@ -1912,20 +1931,24 @@ fn flatten_element(
             }
         };
         if !marker.is_empty() {
-            runs.push(TextRun {
-                text: marker,
-                font_size: style.font_size,
-                bold: style.font_weight == FontWeight::Bold,
-                italic: style.font_style == FontStyle::Italic,
-                underline: false,
-                line_through: false,
-                color: style.color.to_f32_rgb(),
-                link_url: None,
-                font_family: resolve_style_font_family(&style, fonts),
-                background_color: None,
-                padding: (0.0, 0.0),
-                border_radius: 0.0,
-            });
+            push_text_run_with_fallback(
+                TextRun {
+                    text: marker,
+                    font_size: style.font_size,
+                    bold: style.font_weight == FontWeight::Bold,
+                    italic: style.font_style == FontStyle::Italic,
+                    underline: false,
+                    line_through: false,
+                    color: style.color.to_f32_rgb(),
+                    link_url: None,
+                    font_family: resolve_style_font_family(&style, fonts),
+                    background_color: None,
+                    padding: (0.0, 0.0),
+                    border_radius: 0.0,
+                },
+                &mut runs,
+                fonts,
+            );
         }
 
         collect_text_runs(
@@ -2281,7 +2304,7 @@ fn flatten_element(
             }
             let bg = style
                 .background_color
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                .map(|c: crate::types::Color| c.to_f32_rgba());
             let explicit_width = if block_w < available_width || style.min_width.is_some() {
                 Some(block_w)
             } else {
@@ -2458,7 +2481,7 @@ fn flatten_element(
 
             let bg = style
                 .background_color
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                .map(|c: crate::types::Color| c.to_f32_rgba());
 
             let explicit_width = if block_w < available_width || style.min_width.is_some() {
                 Some(block_w)
@@ -2644,7 +2667,7 @@ fn flatten_element(
 
             let bg = style
                 .background_color
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                .map(|c: crate::types::Color| c.to_f32_rgba());
             let BackgroundFields {
                 gradient: background_gradient,
                 radial_gradient: background_radial_gradient,
@@ -3000,7 +3023,7 @@ fn flatten_flex_container(
                 });
             let bg = style
                 .background_color
-                .map(|color: crate::types::Color| color.to_f32_rgb());
+                .map(|color: crate::types::Color| color.to_f32_rgba());
             let BackgroundFields {
                 gradient: background_gradient,
                 radial_gradient: background_radial_gradient,
@@ -3254,7 +3277,7 @@ fn flatten_flex_container(
 
         let bg = child_style
             .background_color
-            .map(|c: crate::types::Color| c.to_f32_rgb());
+            .map(|c: crate::types::Color| c.to_f32_rgba());
         let BackgroundFields {
             gradient: background_gradient,
             radial_gradient: background_radial_gradient,
@@ -3440,7 +3463,7 @@ fn flatten_flex_container(
     };
     let bg = style
         .background_color
-        .map(|color: crate::types::Color| color.to_f32_rgb());
+        .map(|color: crate::types::Color| color.to_f32_rgba());
 
     // For column direction, emit container background separately
     let emitted_column_bg = direction == FlexDirection::Column
@@ -4098,7 +4121,7 @@ fn flatten_grid_container(
 
             let bg = child_style
                 .background_color
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                .map(|c: crate::types::Color| c.to_f32_rgba());
 
             cells.push(TableCell {
                 lines,
@@ -5103,7 +5126,7 @@ fn flatten_table(
             let bg = cell_style
                 .background_color
                 .or(row_style.background_color)
-                .map(|c: crate::types::Color| c.to_f32_rgb());
+                .map(|c: crate::types::Color| c.to_f32_rgba());
 
             cells.push(TableCell {
                 lines,
@@ -5257,20 +5280,24 @@ impl<'a> FlexTextRunCollector<'a> {
                         collapse_whitespace(text)
                     };
                     if !processed.is_empty() {
-                        self.runs.push(TextRun {
-                            text: processed,
-                            font_size: parent_style.font_size,
-                            bold: parent_style.font_weight == FontWeight::Bold,
-                            italic: parent_style.font_style == FontStyle::Italic,
-                            underline: parent_style.text_decoration_underline,
-                            line_through: parent_style.text_decoration_line_through,
-                            color: parent_style.color.to_f32_rgb(),
-                            link_url: link_url.map(String::from),
-                            font_family: resolve_style_font_family(parent_style, self.fonts),
-                            background_color: parent_style.background_color.map(|c| c.to_f32_rgb()),
-                            padding: text_padding,
-                            border_radius: 0.0,
-                        });
+                        push_text_run_with_fallback(
+                            TextRun {
+                                text: processed,
+                                font_size: parent_style.font_size,
+                                bold: parent_style.font_weight == FontWeight::Bold,
+                                italic: parent_style.font_style == FontStyle::Italic,
+                                underline: parent_style.text_decoration_underline,
+                                line_through: parent_style.text_decoration_line_through,
+                                color: parent_style.color.to_f32_rgb(),
+                                link_url: link_url.map(String::from),
+                                font_family: resolve_style_font_family(parent_style, self.fonts),
+                                background_color: parent_style.background_color.map(|c| c.to_f32_rgba()),
+                                padding: text_padding,
+                                border_radius: 0.0,
+                            },
+                            self.runs,
+                            self.fonts,
+                        );
                     }
                 }
                 DomNode::Element(el) => {
@@ -5366,6 +5393,75 @@ impl<'a> FlexTextRunCollector<'a> {
     }
 }
 
+/// Push a text run, splitting it into standard-font and fallback-font segments
+/// when the run uses a standard PDF font and contains characters outside
+/// WinAnsiEncoding.
+///
+/// Characters that cannot be encoded in WinAnsi (CJK, Arabic, emoji, etc.) are
+/// placed into separate runs that reference the `__unicode_fallback` custom font,
+/// which is rendered through the CIDFontType2/Identity-H pipeline.
+fn push_text_run_with_fallback(
+    run: TextRun,
+    runs: &mut Vec<TextRun>,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    let is_standard_font = matches!(
+        run.font_family,
+        FontFamily::Helvetica | FontFamily::TimesRoman | FontFamily::Courier
+    );
+
+    // If using a custom font or there's no fallback loaded, push as-is.
+    if !is_standard_font
+        || !fonts.contains_key(crate::system_fonts::UNICODE_FALLBACK_KEY)
+    {
+        runs.push(run);
+        return;
+    }
+
+    // If everything is WinAnsi-encodable, no splitting needed.
+    if crate::render::pdf::is_winansi_encodable(&run.text) {
+        runs.push(run);
+        return;
+    }
+
+    // Split text into contiguous segments of WinAnsi / non-WinAnsi characters.
+    let fallback_family =
+        FontFamily::Custom(crate::system_fonts::UNICODE_FALLBACK_KEY.to_string());
+    let mut current = String::new();
+    let mut current_is_winansi = true;
+
+    for ch in run.text.chars() {
+        let ch_winansi = crate::render::pdf::is_winansi_char(ch);
+        if ch_winansi != current_is_winansi && !current.is_empty() {
+            let family = if current_is_winansi {
+                run.font_family.clone()
+            } else {
+                fallback_family.clone()
+            };
+            runs.push(TextRun {
+                text: std::mem::take(&mut current),
+                font_family: family,
+                ..run.clone()
+            });
+        }
+        current_is_winansi = ch_winansi;
+        current.push(ch);
+    }
+
+    if !current.is_empty() {
+        let family = if current_is_winansi {
+            run.font_family.clone()
+        } else {
+            fallback_family
+        };
+        runs.push(TextRun {
+            text: current,
+            font_family: family,
+            ..run
+        });
+    }
+}
+
 fn collect_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
@@ -5420,27 +5516,31 @@ fn collect_text_runs_inner(
                     // to avoid overlapping rects that hide subsequent lines.
                     let (bg, pad, br) = if inline_parent && !preserve_ws {
                         (
-                            parent_style.background_color.map(|c| c.to_f32_rgb()),
+                            parent_style.background_color.map(|c| c.to_f32_rgba()),
                             (parent_style.padding.left, parent_style.padding.top),
                             parent_style.border_radius,
                         )
                     } else {
                         (None, (0.0, 0.0), 0.0)
                     };
-                    runs.push(TextRun {
-                        text: processed,
-                        font_size: parent_style.font_size,
-                        bold: parent_style.font_weight == FontWeight::Bold,
-                        italic: parent_style.font_style == FontStyle::Italic,
-                        underline: parent_style.text_decoration_underline,
-                        line_through: parent_style.text_decoration_line_through,
-                        color: parent_style.color.to_f32_rgb(),
-                        link_url: link_url.map(String::from),
-                        font_family: resolve_style_font_family(parent_style, fonts),
-                        background_color: bg,
-                        padding: pad,
-                        border_radius: br,
-                    });
+                    push_text_run_with_fallback(
+                        TextRun {
+                            text: processed,
+                            font_size: parent_style.font_size,
+                            bold: parent_style.font_weight == FontWeight::Bold,
+                            italic: parent_style.font_style == FontStyle::Italic,
+                            underline: parent_style.text_decoration_underline,
+                            line_through: parent_style.text_decoration_line_through,
+                            color: parent_style.color.to_f32_rgb(),
+                            link_url: link_url.map(String::from),
+                            font_family: resolve_style_font_family(parent_style, fonts),
+                            background_color: bg,
+                            padding: pad,
+                            border_radius: br,
+                        },
+                        runs,
+                        fonts,
+                    );
                 }
             }
             DomNode::Element(el) => {
@@ -5545,7 +5645,7 @@ fn collect_table_cell_content_inner(
                             (parent_style.padding.left, parent_style.padding.top)
                         };
                         (
-                            parent_style.background_color.map(|c| c.to_f32_rgb()),
+                            parent_style.background_color.map(|c| c.to_f32_rgba()),
                             pad,
                             parent_style.border_radius,
                         )
@@ -11116,7 +11216,7 @@ mod tests {
         let first_is_background = matches!(
             &pages[0].elements[0].1,
             LayoutElement::TextBlock {
-                background_color: Some((r, g, b)),
+                background_color: Some((r, g, b, _a)),
                 repeat_on_each_page: true,
                 ..
             } if (*r - 0xAB as f32 / 255.0).abs() < 0.01
