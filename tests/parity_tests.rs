@@ -2,8 +2,11 @@
 ///
 /// Each fixture is a complete HTML document loaded via `include_str!`.
 /// Tests verify that ironpress produces valid PDFs with reasonable file sizes.
+/// Expectation JSON files in `tests/fixtures/expectations/` define semantic
+/// assertions (required PDF operators, required text, size bounds).
+/// A baseline JSON at `tests/fixtures/baseline.json` tracks historical metrics.
 /// The ignored `parity_benchmark_report` test runs all fixtures and prints a
-/// markdown summary table with file sizes and render times.
+/// markdown summary table with file sizes, render times, and baseline diffs.
 use std::time::Instant;
 
 // ---------------------------------------------------------------------------
@@ -74,20 +77,154 @@ fn pdf_is_valid(pdf: &[u8]) -> bool {
     pdf.starts_with(b"%PDF") && text.contains("%%EOF")
 }
 
-fn assert_fixture(name: &str, html: &str) {
-    let result = run_fixture(name, html);
+/// Load and verify the expectation JSON for a fixture.
+/// The expectation key is the fixture name as it appears in baseline.json
+/// (e.g. "features/typography").  The JSON file name uses underscores to
+/// replace the slash separator (e.g. "features_typography.json").
+fn verify_expectations(fixture_key: &str, pdf: &[u8]) {
+    // Derive filename: "features/typography" -> "features_typography.json"
+    let filename = fixture_key.replace('/', "_");
+    let path = format!(
+        "{}/tests/fixtures/expectations/{}.json",
+        env!("CARGO_MANIFEST_DIR"),
+        filename
+    );
+
+    let json_str = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => {
+            // Missing expectation file is a soft warning, not a hard failure,
+            // to avoid blocking tests when expectations are being incrementally added.
+            eprintln!(
+                "WARN: expectation file not found for '{}': {} ({})",
+                fixture_key, e, path
+            );
+            return;
+        }
+    };
+
+    let expectations: serde_json::Value = serde_json::from_str(&json_str)
+        .expect(&format!("Failed to parse expectations JSON for '{}'", fixture_key));
+
+    let pdf_text = String::from_utf8_lossy(pdf);
+
+    // --- must_contain_operators ---
+    if let Some(ops) = expectations["pdf_assertions"]["must_contain_operators"].as_array() {
+        for op in ops {
+            let op_str = op.as_str().unwrap_or("");
+            if !op_str.is_empty() {
+                assert!(
+                    pdf_text.contains(op_str),
+                    "Fixture '{}': PDF missing required operator '{}'",
+                    fixture_key,
+                    op_str
+                );
+            }
+        }
+    }
+
+    // --- must_contain_text ---
+    if let Some(texts) = expectations["pdf_assertions"]["must_contain_text"].as_array() {
+        for text in texts {
+            let t = text.as_str().unwrap_or("");
+            if !t.is_empty() {
+                assert!(
+                    pdf_text.contains(t),
+                    "Fixture '{}': PDF missing required text '{}'",
+                    fixture_key,
+                    t
+                );
+            }
+        }
+    }
+
+    // --- min_size_bytes ---
+    if let Some(min) = expectations["pdf_assertions"]["min_size_bytes"].as_u64() {
+        let min = min as usize;
+        assert!(
+            pdf.len() >= min,
+            "Fixture '{}': PDF size {} bytes is below minimum {} bytes",
+            fixture_key,
+            pdf.len(),
+            min
+        );
+    }
+
+    // --- max_size_bytes ---
+    if let Some(max) = expectations["pdf_assertions"]["max_size_bytes"].as_u64() {
+        let max = max as usize;
+        assert!(
+            pdf.len() <= max,
+            "Fixture '{}': PDF size {} bytes exceeds maximum {} bytes",
+            fixture_key,
+            pdf.len(),
+            max
+        );
+    }
+
+    // --- min_pages: count "%%" sequences as a proxy for page count ---
+    if let Some(min_pages) = expectations["pdf_assertions"]["min_pages"].as_u64() {
+        let min_pages = min_pages as usize;
+        // Each page object in a PDF contains "Page" in the type dictionary.
+        // Counting occurrences of "/Type /Page" (without the "s") is a reliable
+        // heuristic for page count in ironpress-generated PDFs.
+        let page_count = count_pdf_pages(pdf);
+        assert!(
+            page_count >= min_pages,
+            "Fixture '{}': PDF has {} page(s), expected at least {}",
+            fixture_key,
+            page_count,
+            min_pages
+        );
+    }
+}
+
+/// Count PDF pages by scanning for "/Type /Page" dictionary entries.
+/// This avoids a full PDF parse while remaining accurate for ironpress output.
+fn count_pdf_pages(pdf: &[u8]) -> usize {
+    let text = String::from_utf8_lossy(pdf);
+    // ironpress writes "/Type /Page" (without trailing 's') for individual pages.
+    // We count non-overlapping occurrences.
+    let needle = "/Type /Page";
+    let mut count = 0;
+    let mut start = 0;
+    while let Some(pos) = text[start..].find(needle) {
+        // Make sure it is not "/Type /Pages" (the Pages tree node).
+        let abs = start + pos;
+        let after = abs + needle.len();
+        let next_char = text[after..].chars().next();
+        if next_char != Some('s') {
+            count += 1;
+        }
+        start = abs + 1;
+    }
+    // Fallback: at least 1 if the PDF is non-empty.
+    count.max(if pdf.len() > 64 { 1 } else { 0 })
+}
+
+fn assert_fixture(fixture_key: &str, html: &str) {
+    // The short name used for error messages is the last path component.
+    let short_name = fixture_key.rsplit('/').next().unwrap_or(fixture_key);
+
+    let start = Instant::now();
+    let pdf = ironpress::html_to_pdf(html).expect(&format!("Failed to render {}", short_name));
+    let _elapsed = start.elapsed().as_micros();
+
     assert!(
-        result.valid,
+        pdf_is_valid(&pdf),
         "Fixture '{}' produced an invalid PDF ({} bytes)",
-        name, result.pdf_size
+        short_name,
+        pdf.len()
     );
-    // Sanity: even the simplest fixture should produce more than 100 bytes
     assert!(
-        result.pdf_size > 100,
+        pdf.len() > 100,
         "Fixture '{}' produced a suspiciously small PDF ({} bytes)",
-        name,
-        result.pdf_size
+        short_name,
+        pdf.len()
     );
+
+    // Semantic assertions from expectation JSON.
+    verify_expectations(fixture_key, &pdf);
 }
 
 // ---------------------------------------------------------------------------
@@ -96,62 +233,62 @@ fn assert_fixture(name: &str, html: &str) {
 
 #[test]
 fn parity_typography() {
-    assert_fixture("typography", TYPOGRAPHY_HTML);
+    assert_fixture("features/typography", TYPOGRAPHY_HTML);
 }
 
 #[test]
 fn parity_box_model() {
-    assert_fixture("box-model", BOX_MODEL_HTML);
+    assert_fixture("features/box-model", BOX_MODEL_HTML);
 }
 
 #[test]
 fn parity_colors_backgrounds() {
-    assert_fixture("colors-backgrounds", COLORS_BACKGROUNDS_HTML);
+    assert_fixture("features/colors-backgrounds", COLORS_BACKGROUNDS_HTML);
 }
 
 #[test]
 fn parity_flexbox() {
-    assert_fixture("flexbox", FLEXBOX_HTML);
+    assert_fixture("features/flexbox", FLEXBOX_HTML);
 }
 
 #[test]
 fn parity_grid() {
-    assert_fixture("grid", GRID_HTML);
+    assert_fixture("features/grid", GRID_HTML);
 }
 
 #[test]
 fn parity_tables() {
-    assert_fixture("tables", TABLES_HTML);
+    assert_fixture("features/tables", TABLES_HTML);
 }
 
 #[test]
 fn parity_images_svg() {
-    assert_fixture("images-svg", IMAGES_SVG_HTML);
+    assert_fixture("features/images-svg", IMAGES_SVG_HTML);
 }
 
 #[test]
 fn parity_positioning() {
-    assert_fixture("positioning", POSITIONING_HTML);
+    assert_fixture("features/positioning", POSITIONING_HTML);
 }
 
 #[test]
 fn parity_math() {
-    assert_fixture("math", MATH_HTML);
+    assert_fixture("features/math", MATH_HTML);
 }
 
 #[test]
 fn parity_pseudo_elements() {
-    assert_fixture("pseudo-elements", PSEUDO_ELEMENTS_HTML);
+    assert_fixture("features/pseudo-elements", PSEUDO_ELEMENTS_HTML);
 }
 
 #[test]
 fn parity_transforms() {
-    assert_fixture("transforms", TRANSFORMS_HTML);
+    assert_fixture("features/transforms", TRANSFORMS_HTML);
 }
 
 #[test]
 fn parity_backgrounds_advanced() {
-    assert_fixture("backgrounds-advanced", BACKGROUNDS_ADV_HTML);
+    assert_fixture("features/backgrounds-advanced", BACKGROUNDS_ADV_HTML);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,32 +297,32 @@ fn parity_backgrounds_advanced() {
 
 #[test]
 fn parity_simple_report() {
-    assert_fixture("simple-report", SIMPLE_REPORT_HTML);
+    assert_fixture("combined/simple-report", SIMPLE_REPORT_HTML);
 }
 
 #[test]
 fn parity_invoice() {
-    assert_fixture("invoice", INVOICE_HTML);
+    assert_fixture("combined/invoice", INVOICE_HTML);
 }
 
 #[test]
 fn parity_resume() {
-    assert_fixture("resume", RESUME_HTML);
+    assert_fixture("combined/resume", RESUME_HTML);
 }
 
 #[test]
 fn parity_article() {
-    assert_fixture("article", ARTICLE_HTML);
+    assert_fixture("combined/article", ARTICLE_HTML);
 }
 
 #[test]
 fn parity_math_paper() {
-    assert_fixture("math-paper", MATH_PAPER_HTML);
+    assert_fixture("combined/math-paper", MATH_PAPER_HTML);
 }
 
 #[test]
 fn parity_dashboard() {
-    assert_fixture("dashboard", DASHBOARD_HTML);
+    assert_fixture("combined/dashboard", DASHBOARD_HTML);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,32 +331,32 @@ fn parity_dashboard() {
 
 #[test]
 fn parity_deep_nesting() {
-    assert_fixture("deep-nesting", DEEP_NESTING_HTML);
+    assert_fixture("edge-cases/deep-nesting", DEEP_NESTING_HTML);
 }
 
 #[test]
 fn parity_long_table() {
-    assert_fixture("long-table", LONG_TABLE_HTML);
+    assert_fixture("edge-cases/long-table", LONG_TABLE_HTML);
 }
 
 #[test]
 fn parity_page_breaks() {
-    assert_fixture("page-breaks", PAGE_BREAKS_HTML);
+    assert_fixture("edge-cases/page-breaks", PAGE_BREAKS_HTML);
 }
 
 #[test]
 fn parity_overflow() {
-    assert_fixture("overflow", OVERFLOW_HTML);
+    assert_fixture("edge-cases/overflow", OVERFLOW_HTML);
 }
 
 #[test]
 fn parity_empty_elements() {
-    assert_fixture("empty-elements", EMPTY_ELEMENTS_HTML);
+    assert_fixture("edge-cases/empty-elements", EMPTY_ELEMENTS_HTML);
 }
 
 #[test]
 fn parity_unicode() {
-    assert_fixture("unicode", UNICODE_HTML);
+    assert_fixture("edge-cases/unicode", UNICODE_HTML);
 }
 
 // ---------------------------------------------------------------------------
@@ -259,20 +396,26 @@ fn parity_benchmark_report() {
         ("edge-cases/unicode", UNICODE_HTML),
     ];
 
+    // Load baseline for diff computation.
+    let baseline = load_baseline();
+
     let mut results: Vec<ParityResult> = Vec::new();
     for (name, html) in &fixtures {
         results.push(run_fixture(name, html));
     }
 
-    // Print markdown table
+    // Print markdown table with baseline diffs.
     println!();
     println!("## Parity Benchmark Report");
     println!();
     println!(
-        "| {:<35} | {:>10} | {:>12} | {:>5} |",
-        "Fixture", "Size (B)", "Time (us)", "Valid"
+        "| {:<35} | {:>10} | {:>12} | {:>10} | {:>12} | {:>5} |",
+        "Fixture", "Size (B)", "Δ Size", "Time (us)", "Δ Time", "Valid"
     );
-    println!("|{:-<37}|{:-<12}|{:-<14}|{:-<7}|", "", "", "", "");
+    println!(
+        "|{:-<37}|{:-<12}|{:-<12}|{:-<12}|{:-<14}|{:-<7}|",
+        "", "", "", "", "", ""
+    );
 
     let mut total_size: usize = 0;
     let mut total_time: u128 = 0;
@@ -284,21 +427,31 @@ fn parity_benchmark_report() {
         if !r.valid {
             all_valid = false;
         }
+
+        let (size_diff, time_diff) = compute_baseline_diff(&baseline, &r.fixture, r.pdf_size, r.render_time_us);
+
         println!(
-            "| {:<35} | {:>10} | {:>12} | {:>5} |",
+            "| {:<35} | {:>10} | {:>10} | {:>12} | {:>12} | {:>5} |",
             r.fixture,
             format_size(r.pdf_size),
+            size_diff,
             format_time(r.render_time_us),
+            time_diff,
             if r.valid { "ok" } else { "FAIL" }
         );
     }
 
-    println!("|{:-<37}|{:-<12}|{:-<14}|{:-<7}|", "", "", "", "");
     println!(
-        "| {:<35} | {:>10} | {:>12} | {:>5} |",
+        "|{:-<37}|{:-<12}|{:-<12}|{:-<12}|{:-<14}|{:-<7}|",
+        "", "", "", "", "", ""
+    );
+    println!(
+        "| {:<35} | {:>10} | {:>10} | {:>12} | {:>12} | {:>5} |",
         "TOTAL",
         format_size(total_size),
+        "",
         format_time(total_time),
+        "",
         if all_valid { "ok" } else { "FAIL" }
     );
     println!();
@@ -313,11 +466,92 @@ fn parity_benchmark_report() {
     );
     println!();
 
-    // Assert everything passed
+    // Print baseline info.
+    println!("Baseline: {}", baseline_summary(&baseline));
+    println!("(Run with --ignored to update the report; baseline values of 0 indicate not yet populated.)");
+    println!();
+
+    // Assert everything passed.
     for r in &results {
         assert!(r.valid, "Fixture '{}' produced an invalid PDF", r.fixture);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Baseline helpers
+// ---------------------------------------------------------------------------
+
+fn load_baseline() -> serde_json::Value {
+    let path = format!(
+        "{}/tests/fixtures/baseline.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or(serde_json::Value::Null),
+        Err(_) => serde_json::Value::Null,
+    }
+}
+
+fn baseline_summary(baseline: &serde_json::Value) -> String {
+    if baseline.is_null() {
+        return "(no baseline file found)".to_string();
+    }
+    let version = baseline["version"].as_str().unwrap_or("unknown");
+    let generated_at = baseline["generated_at"].as_str().unwrap_or("unknown");
+    format!("v{} generated {}", version, generated_at)
+}
+
+/// Returns (size_diff_str, time_diff_str) comparing current run to baseline.
+/// If baseline value is 0 (uninitialized), returns "n/a".
+fn compute_baseline_diff(
+    baseline: &serde_json::Value,
+    fixture: &str,
+    current_size: usize,
+    current_time_us: u128,
+) -> (String, String) {
+    if baseline.is_null() {
+        return ("n/a".to_string(), "n/a".to_string());
+    }
+
+    let fixtures = &baseline["fixtures"];
+    let entry = &fixtures[fixture];
+
+    let size_diff = if let Some(base_size) = entry["size_bytes"].as_u64() {
+        if base_size == 0 {
+            "n/a".to_string()
+        } else {
+            let pct = (current_size as f64 - base_size as f64) / base_size as f64 * 100.0;
+            format_pct(pct)
+        }
+    } else {
+        "n/a".to_string()
+    };
+
+    let time_diff = if let Some(base_time) = entry["render_time_us"].as_u64() {
+        if base_time == 0 {
+            "n/a".to_string()
+        } else {
+            let pct = (current_time_us as f64 - base_time as f64) / base_time as f64 * 100.0;
+            format_pct(pct)
+        }
+    } else {
+        "n/a".to_string()
+    };
+
+    (size_diff, time_diff)
+}
+
+fn format_pct(pct: f64) -> String {
+    if pct >= 0.0 {
+        format!("+{:.1}%", pct)
+    } else {
+        format!("{:.1}%", pct)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
 
 fn format_size(bytes: usize) -> String {
     if bytes >= 1_000_000 {

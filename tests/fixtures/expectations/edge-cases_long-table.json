@@ -1,0 +1,41 @@
+{
+  "fixture": "long-table",
+  "layer": "edge-cases",
+  "description": "A 100-row table testing multi-page table rendering, row striping, and consistent column widths across pages",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Inventory Report",
+      "100 Items",
+      "Name",
+      "Category",
+      "Price",
+      "Qty",
+      "Status",
+      "Item #0001",
+      "Item #0010",
+      "Item #0050",
+      "Item #0100",
+      "Category A",
+      "Category B",
+      "Active",
+      "Pending",
+      "Completed",
+      "Cancelled",
+      "$12.50",
+      "$1,250.00"
+    ],
+    "min_size_bytes": 15000,
+    "max_size_bytes": 800000,
+    "min_pages": 2
+  },
+  "visual_assertions": [
+    "The table header (# | Name | Category | Price | Qty | Status) should have a dark background with white uppercase text",
+    "Even rows should have a light gray (#f8fafc) background for striping",
+    "All 100 rows should be present, requiring the table to span multiple pages",
+    "Column widths should remain consistent across all rows and pages",
+    "The '#' column should contain sequential numbers from 1 to 100",
+    "Status values should cycle through Pending, Completed, Cancelled, Active",
+    "Price values should increase by $12.50 with each row, ending at $1,250.00"
+  ]
+}

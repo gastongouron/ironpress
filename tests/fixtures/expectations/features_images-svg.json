@@ -1,0 +1,34 @@
+{
+  "fixture": "images-svg",
+  "layer": "features",
+  "description": "Inline SVG rendering: basic shapes, paths, text-in-SVG, gradient fills, clipPath, viewBox/preserveAspectRatio, complex polygon",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "W", "cm", "q", "Q"],
+    "must_contain_text": [
+      "Images",
+      "SVG Test Fixture",
+      "Basic Shapes",
+      "Path",
+      "Text in SVG",
+      "Plain SVG text",
+      "Bold red SVG text",
+      "Gradient Fills",
+      "ClipPath",
+      "viewBox",
+      "Complex SVG"
+    ],
+    "min_size_bytes": 8000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The basic shapes SVG should display a blue rectangle, a red circle, a green ellipse, and a yellow diagonal line",
+    "The path SVG should display a purple quadratic bezier curve and an orange triangle",
+    "The text-in-SVG section should render 'Plain SVG text' in dark color and 'Bold red SVG text' in red",
+    "The gradient fills SVG should show a rect with a blue-to-purple horizontal gradient and a circle with a yellow-to-orange radial gradient",
+    "The clipPath SVG should show a purple rectangle clipped to a circular region",
+    "The viewBox meet SVG should preserve aspect ratio and show a circle centered in the viewport",
+    "The viewBox none SVG should stretch the circle to fill the entire viewport dimensions",
+    "The star polygon should render as a gold/yellow 10-pointed star shape with a darker border"
+  ]
+}

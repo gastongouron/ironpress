@@ -1,0 +1,46 @@
+{
+  "fixture": "article",
+  "layer": "combined",
+  "description": "A long-form article with byline, blockquotes, inline code, pre/code blocks, an SVG figure, and mixed serif/sans typography",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "Tf", "re", "f", "cm", "q", "Q"],
+    "must_contain_text": [
+      "The Future of PDF Generation",
+      "Alex Chen",
+      "March 10, 2026",
+      "Browser-Based PDF",
+      "Native Renderers",
+      "Architecture Overview",
+      "Performance Comparison",
+      "CSS Support",
+      "Looking Ahead",
+      "Chromium",
+      "Puppeteer",
+      "Playwright",
+      "Sarah Kim",
+      "HTML Parser",
+      "CSS Engine",
+      "Layout Engine",
+      "PDF Writer",
+      "Flexbox",
+      "Typography",
+      "animation",
+      "transition"
+    ],
+    "min_size_bytes": 12000,
+    "max_size_bytes": 600000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The article title should be large (32px) sans-serif at the top",
+    "The byline should appear in smaller gray sans-serif text below the title",
+    "Blockquotes should have a blue left border and light background with italic text",
+    "The 'cite' text below each blockquote should appear in small gray non-italic text",
+    "Inline code snippets (e.g., '150-300MB') should appear in a monospace font with a light background and red text",
+    "The pre/code block showing the architecture diagram should appear in a dark background with light text",
+    "The SVG bar chart figure should appear with colored rectangles representing Chromium, Native, and WASM render times",
+    "The figure caption should appear in small italic gray text below the chart",
+    "Body text should use a serif font (Georgia or Times) for readability",
+    "The highlighted span ('high-performance native renderers') should have a yellow background"
+  ]
+}

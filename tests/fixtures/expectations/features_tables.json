@@ -1,0 +1,43 @@
+{
+  "fixture": "tables",
+  "layer": "features",
+  "description": "HTML tables: border-collapse, border-spacing, colspan, rowspan, table-layout fixed, thead/tbody/tfoot",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S"],
+    "must_contain_text": [
+      "Tables Test Fixture",
+      "border-collapse",
+      "Product",
+      "Category",
+      "Price",
+      "Stock",
+      "Widget A",
+      "Widget B",
+      "Alice",
+      "Engineer",
+      "colspan",
+      "rowspan",
+      "North",
+      "Q1",
+      "Q2",
+      "Apples",
+      "Bananas",
+      "Grand Total",
+      "$15.50"
+    ],
+    "min_size_bytes": 8000,
+    "max_size_bytes": 400000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The collapse table should show thin single-line borders between all cells",
+    "The separate table should show visible spacing/gaps between cells (border-spacing: 8px)",
+    "Table header rows should have a dark/colored background with white text",
+    "Even rows in the striped table should have a light gray background",
+    "The rowspan=2 cell 'North' should span two rows visually",
+    "The colspan=2 cell '$220k combined' should span two columns visually",
+    "The colspan=4 'Total: $1,310k' cell should span four columns",
+    "The table-layout fixed table should have the first column constrained to 50px",
+    "The tfoot row 'Grand Total' should appear at the bottom of the table with bold styling"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "fixture": "grid",
+  "layer": "features",
+  "description": "CSS Grid Layout: fr units, auto columns, repeat(), minmax(), fixed widths, gap variants",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Grid Layout Test Fixture",
+      "1fr",
+      "2fr",
+      "Auto",
+      "Flexible 1fr",
+      "repeat",
+      "Min 80px",
+      "100px",
+      "200px",
+      "80px",
+      "Gap",
+      "column-gap"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The 1fr 2fr 1fr grid should show the middle column twice as wide as the outer columns",
+    "The auto 1fr auto grid should show outer cells sized to their content with the middle cell taking remaining space",
+    "The repeat(4, 1fr) grid should show 4 equal-width columns with 8 cells wrapping to 2 rows",
+    "The minmax(80px, 1fr) grid should show 3 equal columns each at least 80px wide",
+    "The fixed 100px 200px 100px grid should show the middle column visibly wider than the outer two",
+    "The mixed 80px 1fr 2fr grid should show the third column twice as wide as the second",
+    "gap: 4px grid cells should be very close together",
+    "gap: 24px grid cells should have noticeable space between them",
+    "Asymmetric gap (column-gap: 20px, row-gap: 8px) should show wider horizontal gaps than vertical"
+  ]
+}

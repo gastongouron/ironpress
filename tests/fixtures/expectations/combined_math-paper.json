@@ -1,0 +1,43 @@
+{
+  "fixture": "math-paper",
+  "layer": "combined",
+  "description": "An academic math paper with LaTeX math, theorem/proof environments, numbered equations, and references",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "Tf", "cm", "q", "Q"],
+    "must_contain_text": [
+      "On the Convergence Properties",
+      "Generalized Power Series",
+      "Dr. Maria Chen",
+      "Prof. James Watson",
+      "University of Cambridge",
+      "Abstract",
+      "Introduction",
+      "Cauchy-Hadamard",
+      "Preliminaries",
+      "Main Results",
+      "Theorem 3.1",
+      "Proof",
+      "Applications",
+      "Conclusion",
+      "References",
+      "Hardy",
+      "Rudin",
+      "Titchmarsh",
+      "Lang"
+    ],
+    "min_size_bytes": 15000,
+    "max_size_bytes": 1000000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The paper title should be centered at the top in a larger sans-serif font",
+    "Author names and affiliation should be centered below the title in smaller text",
+    "The Abstract paragraph should be indented on both sides",
+    "Display math equations should be centered on their own lines with equation numbers right-aligned",
+    "Inline math expressions should appear within the flow of prose text",
+    "The Theorem 3.1 block should have a blue left border and light gray background",
+    "The Proof section should end with the QED square (□) right-aligned",
+    "References should be in smaller font with hanging indent formatting",
+    "Section headings (1. Introduction, 2. Preliminaries, etc.) should be in sans-serif"
+  ]
+}

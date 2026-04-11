@@ -1,0 +1,45 @@
+{
+  "fixture": "transforms",
+  "layer": "features",
+  "description": "CSS transforms (rotate, scale, translate, combined) and box-shadow (sm, md, lg, inset, multi-layer, colored)",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "cm", "q", "Q"],
+    "must_contain_text": [
+      "Transforms",
+      "Shadows Test Fixture",
+      "Rotate",
+      "Scale",
+      "Translate",
+      "Combined Transform",
+      "Box Shadow",
+      "15deg",
+      "45deg",
+      "90deg",
+      "1.3x",
+      "0.7x",
+      "X+40",
+      "Y+20",
+      "Small",
+      "Medium",
+      "Large",
+      "Inset",
+      "Multi",
+      "Colored"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The rotate-15 box should appear rotated 15 degrees clockwise",
+    "The rotate-45 box should appear rotated 45 degrees, looking like a diamond",
+    "The rotate-90 box should appear rotated 90 degrees",
+    "The rotate-neg box should appear rotated 30 degrees counter-clockwise",
+    "The scale-up box should appear 30% larger than the base size",
+    "The scale-down box should appear 30% smaller than the base size",
+    "The translate-right box should appear shifted 40px to the right",
+    "The translate-down box should appear shifted 20px downward",
+    "The combined transform box should show all three transformations applied simultaneously",
+    "Shadow boxes should show drop shadows of varying size and intensity below/around them"
+  ]
+}

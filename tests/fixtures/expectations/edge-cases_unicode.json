@@ -1,0 +1,47 @@
+{
+  "fixture": "unicode",
+  "layer": "edge-cases",
+  "description": "Unicode and special characters: CJK, RTL (Arabic/Hebrew), emoji, math symbols, currency, typographic chars, accented chars, box-drawing, combining marks",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj"],
+    "must_contain_text": [
+      "Unicode",
+      "Special Characters",
+      "CJK Characters",
+      "Chinese",
+      "Japanese",
+      "Korean",
+      "RTL Text",
+      "Arabic",
+      "Hebrew",
+      "Emoji",
+      "Mathematical Symbols",
+      "Currency Symbols",
+      "US Dollar",
+      "Euro",
+      "British Pound",
+      "Typographic Characters",
+      "Accented Characters",
+      "French",
+      "German",
+      "Spanish",
+      "Box Drawing",
+      "Combining Characters",
+      "Vietnamese"
+    ],
+    "min_size_bytes": 8000,
+    "max_size_bytes": 600000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "CJK characters (你好世界, こんにちは, 안녕하세요) should render as recognizable glyphs, not boxes or question marks",
+    "Arabic and Hebrew text (مرحبا, שלום) should appear with correct RTL reading order",
+    "Emoji characters should either render as visible glyphs or fall back gracefully without causing crashes",
+    "Greek letters (α β γ δ etc.) should render correctly",
+    "Mathematical operators (±, ×, ÷, ∞, ∑, ∫) should render as their correct symbols",
+    "Currency symbols ($, €, £, ¥, ₹, ₿) should render correctly in the table",
+    "The box-drawing characters (┌──┬──┐ etc.) in the pre block should render as a coherent grid",
+    "Accented Latin characters (àâæçéèêë, äöüß, áéíóúñ) should render correctly without substitution",
+    "Em-dash (—), en-dash (–), ellipsis (…), and curly quotes should render as their correct typographic forms"
+  ]
+}

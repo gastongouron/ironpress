@@ -1,0 +1,41 @@
+{
+  "fixture": "page-breaks",
+  "layer": "edge-cases",
+  "description": "CSS page break properties: page-break-after, page-break-before, page-break-inside: avoid",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj"],
+    "must_contain_text": [
+      "Page Break Test Fixture",
+      "Section 1",
+      "First Page Content",
+      "Section 2",
+      "page-break-after: always",
+      "Section 3",
+      "After the First Break",
+      "Section 4",
+      "page-break-before: always",
+      "Section 5",
+      "page-break-inside: avoid",
+      "Section 6",
+      "Another page-break-before",
+      "Section 7",
+      "Final page-break-after",
+      "Section 8",
+      "Final Content",
+      "Lorem ipsum"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 3
+  },
+  "visual_assertions": [
+    "Section 1 content should appear on page 1",
+    "Section 2 ends with page-break-after, so Section 3 should begin at the top of a new page",
+    "Section 4 has page-break-before, so it should always start at the top of a fresh page",
+    "Section 5 with page-break-inside: avoid should try to keep its content on a single page",
+    "Section 6 has another page-break-before, so it should start on its own page",
+    "Section 7's page-break-after should push Section 8 to the start of the final page",
+    "Section 8 'Final Content' should appear at the top of the last page",
+    "The PDF should span at least 3 pages due to the explicit page breaks"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "fixture": "invoice",
+  "layer": "combined",
+  "description": "A professional invoice layout with flex header, address blocks, metadata row, line-item table, totals, notes, and footer",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S", "cm", "q", "Q"],
+    "must_contain_text": [
+      "INVOICE",
+      "#2026-0042",
+      "IronPress Inc.",
+      "Acme Corporation",
+      "123 Render Lane",
+      "456 Business Ave",
+      "March 15, 2026",
+      "April 14, 2026",
+      "Net 30",
+      "PDF Generation API",
+      "Additional API Calls",
+      "Priority Support",
+      "Custom Template Setup",
+      "Training Session",
+      "$499.00",
+      "$1,365.00",
+      "$116.03",
+      "$1,481.03",
+      "billing@ironpress.dev",
+      "IP"
+    ],
+    "min_size_bytes": 10000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The SVG logo 'IP' should appear in the top-left as a blue rounded square",
+    "The 'INVOICE' title and invoice number should appear right-aligned in the top-right",
+    "The 'From' and 'Bill To' address blocks should appear side by side",
+    "The metadata row (Invoice Date, Due Date, Payment Terms) should appear in a light gray band",
+    "The line-item table should have a dark (#1e293b) header row with white uppercase text",
+    "The totals section (Subtotal, Tax, Total Due) should be right-aligned",
+    "The 'Total Due' grand total row should be larger/bolder and separated by a top border",
+    "The notes box should have a yellow/amber border and background",
+    "The footer should show centered small text with company contact information"
+  ]
+}

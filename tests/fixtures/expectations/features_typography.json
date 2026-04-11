@@ -1,0 +1,40 @@
+{
+  "fixture": "typography",
+  "layer": "features",
+  "description": "Typography properties: font-size, weight, style, family, letter-spacing, word-spacing, text-indent, text-transform, text-decoration, line-height",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "Tf"],
+    "must_contain_text": [
+      "Typography Test Fixture",
+      "Font Sizes",
+      "Font Weights",
+      "Font Style",
+      "Letter",
+      "Word Spacing",
+      "Text Indent",
+      "Text Transform",
+      "Text Decoration",
+      "Line Height"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "Heading text (h1, h2) should be larger than body paragraph text",
+    "Serif font (Times-Roman or similar) should be used for body text",
+    "Monospace font (Courier or similar) should be used for .mono class text",
+    "Sans-serif font (Helvetica or similar) should be used for .sans class text",
+    "Bold weight text should appear visually heavier than normal weight text",
+    "Italic text should use an oblique or italic font variant",
+    "Letter-spacing: 4px text should have visible gaps between characters compared to normal text",
+    "Letter-spacing: -1px text should appear tighter than normal",
+    "The .indent paragraph should have its first line indented by approximately 40px",
+    ".uppercase text should appear in ALL CAPS",
+    ".lowercase text should appear in all lowercase",
+    ".capitalize text should have each word starting with a capital letter",
+    ".underline text should have a line drawn below it",
+    ".line-through text should have a line drawn through the middle",
+    "Loose line-height (2.5) paragraphs should have more vertical space between lines than tight (1.0)"
+  ]
+}

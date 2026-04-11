@@ -1,0 +1,36 @@
+{
+  "fixture": "empty-elements",
+  "layer": "edge-cases",
+  "description": "Edge cases for empty and zero-dimension elements: empty div, display:none, empty p/span, whitespace-only, empty table",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Empty Elements Test Fixture",
+      "Empty div",
+      "no content",
+      "no size",
+      "Empty div with background and size",
+      "Zero-width element",
+      "Zero-height element",
+      "display: none",
+      "THIS SHOULD NOT BE VISIBLE",
+      "Multiple display:none",
+      "Empty paragraph and span",
+      "Whitespace-only",
+      "Empty table",
+      "Mixed visible and hidden"
+    ],
+    "min_size_bytes": 3000,
+    "max_size_bytes": 200000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The plain empty div should take up no visible space (no background or border)",
+    "The empty div with width/height and background-color should appear as a solid blue rectangle",
+    "The zero-width element should show only a thin red vertical line (the border-left)",
+    "The zero-height element should show only a thin green horizontal line (the border-top)",
+    "The display:none element 'THIS SHOULD NOT BE VISIBLE' must not appear in the PDF",
+    "The three display:none hidden elements must all be absent from the output",
+    "The 'Mixed visible and hidden' row should show 3 colored boxes (blue, green, purple) with 2 gaps where hidden elements would be"
+  ]
+}

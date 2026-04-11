@@ -1,0 +1,46 @@
+{
+  "fixture": "resume",
+  "layer": "combined",
+  "description": "A two-column resume layout with sidebar (contact, skills, languages) and main content (experience, education, certifications)",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Jane Doe",
+      "Senior Software Engineer",
+      "Contact",
+      "Skills",
+      "Languages",
+      "Interests",
+      "Experience",
+      "Education",
+      "Certifications",
+      "TechCorp Inc.",
+      "StartupXYZ",
+      "WebAgency Co.",
+      "Rust",
+      "TypeScript",
+      "Python",
+      "Go",
+      "SQL",
+      "English",
+      "French",
+      "Japanese",
+      "Berkeley",
+      "AWS Solutions Architect",
+      "Kubernetes"
+    ],
+    "min_size_bytes": 10000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The layout should have two columns: a narrow sidebar (~200px) on the left and a wider main area on the right",
+    "The name 'Jane Doe' should be large (28px) at the top",
+    "The 'Senior Software Engineer' subtitle should appear in blue below the name",
+    "Section headings (CONTACT, SKILLS, etc.) should be in uppercase blue with a blue underline",
+    "The skill bars should appear as horizontal progress bars with blue fill at varying widths",
+    "Experience items should show job title, company/date metadata in smaller gray text, and bullet points",
+    "The tag chips (Rust, gRPC, etc.) should appear as small blue-tinted badges",
+    "Education section should show degree, institution, and GPA information"
+  ]
+}

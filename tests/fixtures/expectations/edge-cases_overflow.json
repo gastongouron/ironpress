@@ -1,0 +1,34 @@
+{
+  "fixture": "overflow",
+  "layer": "edge-cases",
+  "description": "Overflow clipping: overflow:hidden with basic box, border-radius, circle clip, nested larger child, nowrap text, overflow:visible comparison",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "W", "n"],
+    "must_contain_text": [
+      "Overflow Clipping Test Fixture",
+      "overflow: hidden",
+      "basic",
+      "overflow: hidden with border-radius",
+      "Circular clip",
+      "Nested overflow with larger child",
+      "Text overflow",
+      "nowrap",
+      "overflow: visible",
+      "Short text fits fine",
+      "This is a much longer line",
+      "This text overflows visibly"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The basic overflow:hidden box should clip text that extends beyond its 200x60px boundary",
+    "The rounded clip box should clip content to a rounded rectangle with 20px corner radius",
+    "The circle clip box should clip content to a circle shape (border-radius: 50%)",
+    "The nested overflow box should show only the portion of the inner 400x200 div that fits in the 250x100 container",
+    "The gradient background in the nested clip should be partially visible where not clipped",
+    "The nowrap overflow text box with 'This is a much longer line' should be clipped at the right edge",
+    "The overflow:visible div should show its text extending beyond the dashed yellow border"
+  ]
+}

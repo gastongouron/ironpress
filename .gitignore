@@ -7,3 +7,4 @@ examples/
 fuzz/corpus/
 fuzz/artifacts/
 fuzz/target/
+tests/fixtures/references/**/*.png

@@ -1,0 +1,47 @@
+{
+  "fixture": "backgrounds-advanced",
+  "layer": "features",
+  "description": "Advanced CSS backgrounds: SVG data URI background images, background-size, background-position, background-repeat, background-origin, filter: blur()",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "cm", "q", "Q", "Do"],
+    "must_contain_text": [
+      "Advanced Backgrounds Test Fixture",
+      "background-image",
+      "SVG Data URI",
+      "background-size",
+      "cover",
+      "contain",
+      "background-position",
+      "center",
+      "top right",
+      "bottom left",
+      "background-repeat",
+      "repeat-x",
+      "repeat-y",
+      "no-repeat",
+      "background-origin",
+      "border-box",
+      "content-box",
+      "filter: blur",
+      "Normal (no filter)",
+      "blur(2px)",
+      "blur(5px)"
+    ],
+    "min_size_bytes": 8000,
+    "max_size_bytes": 1000000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The SVG circle pattern box should show repeating small indigo circle patterns",
+    "The SVG dot pattern box should show a repeating small grey dot pattern",
+    "The background-size: cover box should show the SVG pattern scaled to cover the entire box",
+    "The background-size: contain box should show one instance of the SVG pattern fit inside the box without cropping",
+    "The background-position: center box should show the SVG image centered within the box",
+    "The background-position: top right box should show the SVG image anchored to the top-right corner",
+    "The repeat-x box should show the SVG tiled horizontally along one row",
+    "The repeat-y box should show the SVG tiled vertically along one column",
+    "The no-repeat box should show only a single instance of the SVG image",
+    "The blur(2px) element should appear slightly blurred compared to the non-filtered element",
+    "The blur(5px) element should appear more heavily blurred than the blur(2px) element"
+  ]
+}

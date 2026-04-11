@@ -1,0 +1,41 @@
+{
+  "fixture": "flexbox",
+  "layer": "features",
+  "description": "CSS Flexbox: flex-direction, justify-content, align-items, flex-wrap, gap, flex-grow/shrink/basis",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Flexbox Test Fixture",
+      "justify-content",
+      "align-items",
+      "flex-wrap",
+      "Gap",
+      "Start",
+      "Center",
+      "End",
+      "Between",
+      "Around",
+      "Stretch",
+      "Item 1",
+      "Item 2"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "flex-direction: row container should show items A, B, C arranged horizontally side by side",
+    "flex-direction: column container should show items A, B, C stacked vertically",
+    "justify-content: flex-start should pack items to the left edge",
+    "justify-content: center should center items horizontally within the container",
+    "justify-content: flex-end should push items to the right edge",
+    "justify-content: space-between should spread items with equal space between but none at the edges",
+    "align-items: flex-start should top-align items when one is taller",
+    "align-items: center should vertically center all items relative to the tallest",
+    "align-items: flex-end should bottom-align items",
+    "align-items: stretch should make all items fill the container height",
+    "flex-wrap container with 8 items should wrap items onto multiple rows when they exceed container width",
+    "gap: 4px container should have smaller gaps between items than gap: 24px container",
+    "flex-grow: 2 item should be approximately twice as wide as flex-grow: 1 items"
+  ]
+}

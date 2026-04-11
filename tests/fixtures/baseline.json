@@ -1,0 +1,102 @@
+{
+  "version": "1.4.0",
+  "generated_at": "2026-04-11T00:00:00Z",
+  "fixtures": {
+    "features/typography": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/box-model": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/colors-backgrounds": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/flexbox": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/grid": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/tables": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/images-svg": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/positioning": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/math": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/pseudo-elements": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/transforms": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "features/backgrounds-advanced": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/simple-report": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/invoice": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/resume": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/article": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/math-paper": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "combined/dashboard": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/deep-nesting": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/long-table": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/page-breaks": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/overflow": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/empty-elements": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    },
+    "edge-cases/unicode": {
+      "size_bytes": 0,
+      "render_time_us": 0
+    }
+  }
+}

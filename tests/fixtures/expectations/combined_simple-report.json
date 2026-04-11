@@ -1,0 +1,39 @@
+{
+  "fixture": "simple-report",
+  "layer": "combined",
+  "description": "A typical business report combining headings, summary box, data table, unordered/ordered lists, and body prose",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S"],
+    "must_contain_text": [
+      "Quarterly Performance Report",
+      "Q1 2026",
+      "Engineering",
+      "Executive Summary",
+      "Key Metrics",
+      "Highlights",
+      "Goals for Q2 2026",
+      "Risk Factors",
+      "Features Shipped",
+      "Bugs Resolved",
+      "Uptime",
+      "14",
+      "87",
+      "99.97%",
+      "dashboard redesign",
+      "microservice",
+      "GraphQL"
+    ],
+    "min_size_bytes": 8000,
+    "max_size_bytes": 400000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The h1 heading 'Quarterly Performance Report' should be large and in blue (#1e40af) with a blue underline",
+    "The executive summary box should have a blue left border and light blue background",
+    "The metrics table should have a dark blue header row with white text",
+    "Even rows of the table should have a light gray background (striped table)",
+    "The unordered list items in 'Highlights' should have bullet markers",
+    "The ordered list items in 'Goals for Q2 2026' should be numbered 1 through 5",
+    "All heading levels (h1, h2, h3) should be visually distinct in size and weight"
+  ]
+}

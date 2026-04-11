@@ -1,0 +1,36 @@
+{
+  "fixture": "colors-backgrounds",
+  "layer": "features",
+  "description": "CSS colors (named, hex, rgb) and backgrounds (solid, linear/radial gradients, opacity)",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "rg", "RG", "g", "G"],
+    "must_contain_text": [
+      "Colors",
+      "Backgrounds Test Fixture",
+      "Named Colors",
+      "Hex Colors",
+      "RGB Colors",
+      "Background Color",
+      "Gradients",
+      "Opacity",
+      "Text Colors",
+      "red",
+      "blue",
+      "green"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "Named color swatches (red, blue, green, orange, purple, black) should each display with their correct background color",
+    "Hex color swatches (#1e40af blue, #dc2626 red, #059669 green) should render with accurate colors",
+    "RGB color swatches should render with colors matching their rgb() values",
+    "The solid background div should have a blue (#3b82f6) fill",
+    "The linear gradient div should show a smooth color transition from blue to purple left-to-right",
+    "The 135deg linear gradient should transition orange -> red -> pink diagonally",
+    "The radial gradient should show a circular yellow-to-orange-to-red gradient",
+    "The four opacity boxes should show the same blue color at decreasing opacity levels (1.0, 0.75, 0.50, 0.25)",
+    "Text color paragraph should appear in red, green, blue, and indigo respectively"
+  ]
+}

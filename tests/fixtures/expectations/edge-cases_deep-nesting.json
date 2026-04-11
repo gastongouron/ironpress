@@ -1,0 +1,31 @@
+{
+  "fixture": "deep-nesting",
+  "layer": "edge-cases",
+  "description": "25 levels of nested divs each with distinct border-left color and background, testing renderer stack depth handling",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Deep Nesting Test",
+      "25 Levels",
+      "Level 1",
+      "Level 5",
+      "Level 10",
+      "Level 15",
+      "Level 20",
+      "Level 25",
+      "Deepest",
+      "Content at the deepest nesting level"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "Each nesting level should show a distinct colored left border (cycling through the rainbow spectrum)",
+    "Each level should be indented further to the right than the previous due to accumulated padding-left",
+    "The 'Level N' labels should appear in small gray text at each nesting level",
+    "The deepest level content ('Content at the deepest nesting level') should be bold and dark colored",
+    "Background colors should subtly differ at each level due to the rgba color with increasing opacity",
+    "The renderer should not crash or truncate at any nesting level up to 25"
+  ]
+}

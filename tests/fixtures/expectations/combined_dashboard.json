@@ -1,0 +1,52 @@
+{
+  "fixture": "dashboard",
+  "layer": "combined",
+  "description": "A system dashboard with stat cards, progress bars, service status table, and an SVG bar chart",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "cm", "q", "Q"],
+    "must_contain_text": [
+      "System Dashboard",
+      "Requests / min",
+      "Avg Latency",
+      "Error Rate",
+      "Uptime",
+      "12,847",
+      "42ms",
+      "0.03%",
+      "99.98%",
+      "Resource Usage",
+      "CPU",
+      "Memory",
+      "Disk",
+      "Network",
+      "Service Status",
+      "API Gateway",
+      "Auth Service",
+      "PDF Renderer",
+      "Image Service",
+      "Email Service",
+      "Cache Layer",
+      "Active",
+      "Degraded",
+      "Down",
+      "Request Distribution",
+      "Mon",
+      "Tue",
+      "Wed"
+    ],
+    "min_size_bytes": 10000,
+    "max_size_bytes": 500000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The four stat cards should appear in a row with white background and border",
+    "Each card should show a metric label in small uppercase gray text above a large bold value",
+    "The percentage changes should appear in green (up) or red (down) below each card value",
+    "The progress bars should show colored fills at correct percentages (CPU 67%, Memory 45%, Disk 82%, Network 31%)",
+    "The service status table should have alternating row backgrounds",
+    "Status badges should be color-coded: 'Active' green, 'Degraded' amber, 'Down' red",
+    "The SVG bar chart should show 6 blue bars of varying heights representing Mon-Sat data",
+    "Y-axis labels (0, 2k, 4k, 6k) should appear to the left of the chart",
+    "X-axis labels (Mon, Tue, Wed, Thu, Fri, Sat) should appear below the bars"
+  ]
+}

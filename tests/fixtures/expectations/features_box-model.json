@@ -1,0 +1,35 @@
+{
+  "fixture": "box-model",
+  "layer": "features",
+  "description": "CSS box model: margin, padding, border styles/radius, box-sizing, width/height constraints",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S"],
+    "must_contain_text": [
+      "Box Model Test Fixture",
+      "Margin",
+      "Padding",
+      "Border",
+      "Border Radius",
+      "Box Sizing",
+      "Width",
+      "Height",
+      "content-box",
+      "border-box"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The .margin-all box should have 20px of space on all sides separating it from surrounding elements",
+    "The .padding-all box should have 30px of internal padding between its border and its text content",
+    "The .border-solid box should show a visible 3px solid blue border",
+    "The .border-dashed box should show a visible 2px dashed red border",
+    "The .radius-sm box should have slightly rounded corners (4px radius)",
+    "The .radius-lg box should have noticeably rounded corners (20px radius)",
+    "The .radius-pill should appear as a pill/capsule shape",
+    "The .radius-circle should appear as or close to a circle",
+    "The .fixed-w box should be constrained to 300px width",
+    "Background colors should be clearly visible on each styled div"
+  ]
+}

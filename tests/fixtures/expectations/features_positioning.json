@@ -1,0 +1,37 @@
+{
+  "fixture": "positioning",
+  "layer": "features",
+  "description": "CSS positioning: relative, absolute, z-index stacking, float left/right, clear, overflow hidden",
+  "pdf_assertions": {
+    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
+    "must_contain_text": [
+      "Positioning Test Fixture",
+      "position: relative",
+      "position: absolute",
+      "z-index",
+      "Float",
+      "Clear",
+      "overflow: hidden",
+      "Top-Left",
+      "Top-Right",
+      "Bottom-Left",
+      "Bottom-Right",
+      "Float Left",
+      "Float Right",
+      "Floated",
+      "Cleared"
+    ],
+    "min_size_bytes": 5000,
+    "max_size_bytes": 300000,
+    "min_pages": 1
+  },
+  "visual_assertions": [
+    "The relative-positioned box should be offset 20px from top and 30px from left within its container",
+    "The absolute-positioned boxes should appear in the four corners of their yellow container",
+    "The z-index stacking section should show green (z:3) on top of blue (z:2) on top of red (z:1)",
+    "The float-left box should appear on the left side with text wrapping to its right",
+    "The float-right box should appear on the right side with text flowing to its left",
+    "The cleared element should appear below the floated element, not beside it",
+    "The overflow:hidden box should clip content that extends beyond its 200x80px boundary"
+  ]
+}
