@@ -139,7 +139,12 @@ fn glyph_cluster_unicode(text: &str, clusters: &[usize]) -> Option<Vec<Vec<u16>>
 
 #[cfg(test)]
 mod tests {
-    use super::glyph_cluster_unicode;
+    use super::{
+        custom_font_line_height, glyph_cluster_unicode, measure_text_width, resolve_custom_font,
+        shape_text_with_font,
+    };
+    use crate::style::computed::FontFamily;
+    use std::collections::HashMap;
 
     #[test]
     fn glyph_cluster_unicode_emits_cluster_text_once_per_cluster() {
@@ -151,5 +156,106 @@ mod tests {
     fn glyph_cluster_unicode_handles_reordered_clusters() {
         let unicode = glyph_cluster_unicode("ab", &[1, 0]).unwrap();
         assert_eq!(unicode, vec![vec![0x0062], vec![0x0061]]);
+    }
+
+    // --- shape_text_with_font ---
+
+    // shape_text_with_font is private; we need a real TtfFont to call it with a
+    // non-empty string.  For the empty-string branch we can verify the fast path
+    // without any font data by constructing a minimal stub.
+    fn make_stub_font() -> crate::parser::ttf::TtfFont {
+        use crate::parser::ttf::{FontVerticalMetrics, TtfFont};
+        TtfFont {
+            font_name: "Stub".into(),
+            units_per_em: 1000,
+            bbox: [0, 0, 0, 0],
+            pdf_metrics: FontVerticalMetrics::new(800, -200, 0),
+            layout_metrics: FontVerticalMetrics::new(800, -200, 0),
+            cmap: HashMap::new(),
+            glyph_widths: Vec::new(),
+            num_h_metrics: 0,
+            flags: 0,
+            data: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn shape_text_with_font_empty_string_returns_zero_width() {
+        let font = make_stub_font();
+        let run = shape_text_with_font("", 12.0, &font).unwrap();
+        assert_eq!(run.width, 0.0);
+        assert!(run.glyphs.is_empty());
+    }
+
+    // --- resolve_custom_font ---
+
+    #[test]
+    fn resolve_custom_font_returns_none_for_helvetica() {
+        let fonts = HashMap::new();
+        assert!(resolve_custom_font(&FontFamily::Helvetica, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn resolve_custom_font_returns_none_for_times_roman() {
+        let fonts = HashMap::new();
+        assert!(resolve_custom_font(&FontFamily::TimesRoman, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn resolve_custom_font_returns_none_for_courier() {
+        let fonts = HashMap::new();
+        assert!(resolve_custom_font(&FontFamily::Courier, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn resolve_custom_font_returns_none_when_custom_font_not_in_map() {
+        let fonts = HashMap::new();
+        let family = FontFamily::Custom("MyFont".into());
+        assert!(resolve_custom_font(&family, false, false, &fonts).is_none());
+    }
+
+    // --- measure_text_width ---
+
+    #[test]
+    fn measure_text_width_returns_none_for_standard_font() {
+        let fonts = HashMap::new();
+        let result =
+            measure_text_width("hello", 12.0, &FontFamily::Helvetica, false, false, &fonts);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn measure_text_width_returns_none_when_custom_font_not_found() {
+        let fonts = HashMap::new();
+        let family = FontFamily::Custom("Missing".into());
+        let result = measure_text_width("hello", 12.0, &family, false, false, &fonts);
+        assert!(result.is_none());
+    }
+
+    // --- custom_font_line_height ---
+
+    #[test]
+    fn custom_font_line_height_returns_none_for_helvetica() {
+        let fonts = HashMap::new();
+        assert!(custom_font_line_height(&FontFamily::Helvetica, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn custom_font_line_height_returns_none_for_times_roman() {
+        let fonts = HashMap::new();
+        assert!(custom_font_line_height(&FontFamily::TimesRoman, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn custom_font_line_height_returns_none_for_courier() {
+        let fonts = HashMap::new();
+        assert!(custom_font_line_height(&FontFamily::Courier, false, false, &fonts).is_none());
+    }
+
+    #[test]
+    fn custom_font_line_height_returns_none_when_custom_font_not_found() {
+        let fonts = HashMap::new();
+        let family = FontFamily::Custom("Ghost".into());
+        assert!(custom_font_line_height(&family, false, false, &fonts).is_none());
     }
 }

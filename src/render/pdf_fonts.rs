@@ -240,3 +240,145 @@ fn sanitize_pdf_font_name(name: &str) -> String {
         sanitized
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── sanitize_pdf_font_name ───────────────────────────────────────────────
+
+    #[test]
+    fn sanitize_pdf_font_name_normal() {
+        assert_eq!(sanitize_pdf_font_name("OpenSans"), "OpenSans");
+    }
+
+    #[test]
+    fn sanitize_pdf_font_name_with_allowed_special_chars() {
+        assert_eq!(
+            sanitize_pdf_font_name("Open-Sans_Bold+Italic"),
+            "Open-Sans_Bold+Italic"
+        );
+    }
+
+    #[test]
+    fn sanitize_pdf_font_name_strips_spaces_and_punctuation() {
+        // spaces, slashes, dots, and other punctuation must be removed
+        let result = sanitize_pdf_font_name("Open Sans / Bold.ttf");
+        // Only alphanumeric, '-', '_', '+' survive
+        assert_eq!(result, "OpenSansBoldttf");
+    }
+
+    #[test]
+    fn sanitize_pdf_font_name_empty_returns_custom_font() {
+        assert_eq!(sanitize_pdf_font_name(""), "CustomFont");
+    }
+
+    #[test]
+    fn sanitize_pdf_font_name_all_special_chars_returns_custom_font() {
+        assert_eq!(sanitize_pdf_font_name("!@#$%^&*()"), "CustomFont");
+    }
+
+    #[test]
+    fn sanitize_pdf_font_name_unicode_alphanumeric_kept() {
+        // Digits and ASCII letters are always kept.
+        let result = sanitize_pdf_font_name("Font123");
+        assert_eq!(result, "Font123");
+    }
+
+    // ── subset_base_font_name ────────────────────────────────────────────────
+
+    #[test]
+    fn subset_base_font_name_format() {
+        let name = subset_base_font_name("OpenSans", 42);
+        // Must be "XXXXXX+<sanitized_name>"
+        let parts: Vec<&str> = name.splitn(2, '+').collect();
+        assert_eq!(parts.len(), 2, "expected exactly one '+' separator");
+        let tag = parts[0];
+        let base = parts[1];
+        assert_eq!(tag.len(), 6, "tag must be exactly 6 characters");
+        assert!(
+            tag.chars().all(|c| c.is_ascii_uppercase()),
+            "tag must be uppercase ASCII letters"
+        );
+        assert_eq!(base, "OpenSans");
+    }
+
+    #[test]
+    fn subset_base_font_name_deterministic() {
+        // Same inputs must always produce the same output.
+        let a = subset_base_font_name("Roboto", 10);
+        let b = subset_base_font_name("Roboto", 10);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn subset_base_font_name_different_glyph_count_differs() {
+        let a = subset_base_font_name("Roboto", 10);
+        let b = subset_base_font_name("Roboto", 20);
+        assert_ne!(a, b, "different glyph counts should produce different tags");
+    }
+
+    #[test]
+    fn subset_base_font_name_different_name_differs() {
+        let a = subset_base_font_name("Roboto", 10);
+        let b = subset_base_font_name("OpenSans", 10);
+        assert_ne!(a, b, "different font names should produce different tags");
+    }
+
+    #[test]
+    fn subset_base_font_name_sanitizes_input() {
+        // Special characters in the name are stripped before embedding.
+        let name = subset_base_font_name("Open Sans", 5);
+        assert!(
+            name.ends_with("+OpenSans"),
+            "sanitized name should appear after '+'"
+        );
+    }
+
+    // ── FontUsage::record_glyph ──────────────────────────────────────────────
+
+    #[test]
+    fn font_usage_record_glyph_stores_glyph_id() {
+        let mut usage = FontUsage::default();
+        usage.record_glyph(42, vec![0x0041]); // 'A'
+        assert!(usage.glyphs.contains(&42));
+    }
+
+    #[test]
+    fn font_usage_record_glyph_stores_unicode_mapping() {
+        let mut usage = FontUsage::default();
+        usage.record_glyph(7, vec![0x0048, 0x0069]); // "Hi"
+        assert_eq!(
+            usage.to_unicode_map.get(&7),
+            Some(&vec![0x0048u16, 0x0069u16])
+        );
+    }
+
+    #[test]
+    fn font_usage_record_glyph_empty_unicode_does_not_insert_mapping() {
+        let mut usage = FontUsage::default();
+        usage.record_glyph(99, vec![]);
+        assert!(usage.glyphs.contains(&99));
+        assert!(!usage.to_unicode_map.contains_key(&99));
+    }
+
+    #[test]
+    fn font_usage_record_glyph_first_mapping_wins() {
+        let mut usage = FontUsage::default();
+        usage.record_glyph(1, vec![0x0041]); // 'A'
+        usage.record_glyph(1, vec![0x0042]); // 'B' — second call should not overwrite
+        assert_eq!(usage.to_unicode_map.get(&1), Some(&vec![0x0041u16]));
+    }
+
+    #[test]
+    fn font_usage_record_glyph_multiple_glyphs() {
+        let mut usage = FontUsage::default();
+        for glyph_id in [1u16, 2, 3, 5, 8] {
+            usage.record_glyph(glyph_id, vec![glyph_id]);
+        }
+        assert_eq!(usage.glyphs.len(), 5);
+        // BTreeSet is sorted — collect to verify all are present
+        let ids: Vec<u16> = usage.glyphs.iter().copied().collect();
+        assert_eq!(ids, vec![1, 2, 3, 5, 8]);
+    }
+}

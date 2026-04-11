@@ -82,4 +82,50 @@ mod tests {
             Some(b"Hello".as_ref())
         );
     }
+
+    #[test]
+    fn decode_base64_empty_string() {
+        assert_eq!(decode_base64("").as_deref(), Some(b"".as_ref()));
+    }
+
+    #[test]
+    fn decode_base64_no_padding_two_chars() {
+        // "YQ" is "a" without padding (base64 of b"a" is "YQ==")
+        assert_eq!(decode_base64("YQ").as_deref(), Some(b"a".as_ref()));
+    }
+
+    #[test]
+    fn decode_base64_no_padding_three_chars() {
+        // "YWI" is "ab" without padding (base64 of b"ab" is "YWI=")
+        assert_eq!(decode_base64("YWI").as_deref(), Some(b"ab".as_ref()));
+    }
+
+    #[test]
+    fn decode_base64_invalid_character_returns_none() {
+        assert!(decode_base64("SG!s").is_none());
+    }
+
+    #[test]
+    fn decode_base64_another_invalid_character_returns_none() {
+        // '@' is not a valid base64 character
+        assert!(decode_base64("SGVs@G8=").is_none());
+    }
+
+    #[test]
+    fn decode_base64_longer_multi_block_string() {
+        // base64 of b"The quick brown fox"
+        assert_eq!(
+            decode_base64("VGhlIHF1aWNrIGJyb3duIGZveA==").as_deref(),
+            Some(b"The quick brown fox".as_ref())
+        );
+    }
+
+    #[test]
+    fn decode_base64_longer_string_no_padding() {
+        // base64 of b"ironpress" is "aXJvbnByZXNz" (no padding needed — 9 bytes → 12 chars)
+        assert_eq!(
+            decode_base64("aXJvbnByZXNz").as_deref(),
+            Some(b"ironpress".as_ref())
+        );
+    }
 }
