@@ -1,5 +1,5 @@
 use crate::parser::css::{
-    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext, selector_matches,
+    AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext,
 };
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::png;
@@ -265,34 +265,6 @@ fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32
         .sum()
 }
 
-#[allow(dead_code)]
-fn resolve_pseudo_content(
-    rules: &[CssRule],
-    tag_name: &str,
-    classes: &[&str],
-    id: Option<&str>,
-    attributes: &HashMap<String, String>,
-    pseudo: PseudoElement,
-    counter_state: &CounterState,
-) -> Option<String> {
-    rules.iter().find_map(|rule| {
-        if rule.pseudo_element != Some(pseudo)
-            || !selector_matches(&rule.selector, tag_name, classes, id)
-        {
-            return None;
-        }
-
-        let CssValue::Keyword(content) = rule.declarations.get("content")? else {
-            return None;
-        };
-        let items = crate::style::computed::parse_content_value_pub(content);
-        if items.is_empty() {
-            return None;
-        }
-        let text = resolve_content(&items, attributes, counter_state);
-        (!text.is_empty()).then_some(text)
-    })
-}
 
 fn pseudo_is_block_like(pseudo_style: &ComputedStyle) -> bool {
     pseudo_style.display == Display::Block || pseudo_style.position == Position::Absolute
@@ -318,6 +290,7 @@ fn push_block_pseudo(
     available_width: f32,
     fonts: &HashMap<String, TtfFont>,
     containing_block_info: Option<ContainingBlock>,
+    positioned_ancestor_depth: usize,
 ) {
     if let Some(pseudo_style) = pseudo_style {
         if pseudo_is_block_like(pseudo_style) {
@@ -332,6 +305,7 @@ fn push_block_pseudo(
                 available_width,
                 fonts,
                 pseudo_cb,
+                positioned_ancestor_depth,
             ));
         }
     }
@@ -345,6 +319,7 @@ fn build_pseudo_block(
     available_width: f32,
     fonts: &HashMap<String, TtfFont>,
     containing_block_info: Option<ContainingBlock>,
+    positioned_ancestor_depth: usize,
 ) -> LayoutElement {
     let content_text = resolve_content(
         &pseudo_style.content,
@@ -570,7 +545,13 @@ fn build_pseudo_block(
         background_origin,
         z_index: pseudo_style.z_index,
         repeat_on_each_page: false,
-        positioned_depth: 0,
+        positioned_depth: if pseudo_style.position == Position::Relative
+            || pseudo_style.position == Position::Absolute
+        {
+            positioned_ancestor_depth + 1
+        } else {
+            positioned_ancestor_depth
+        },
         heading_level: None,
     }
 }
@@ -2191,7 +2172,7 @@ fn flatten_element(
             .is_some_and(|s| s.position == Position::Absolute);
         if let Some(ref ps) = before_style {
             if pseudo_is_block_like(ps) && !before_is_abs {
-                output.push(build_pseudo_block(ps, el, inner_width, fonts, None));
+                output.push(build_pseudo_block(ps, el, inner_width, fonts, None, positioned_depth));
             }
         }
 
@@ -2338,6 +2319,7 @@ fn flatten_element(
                 inner_width,
                 fonts,
                 cb_info,
+                positioned_depth,
             );
         }
 
@@ -2480,6 +2462,7 @@ fn flatten_element(
                 inner_width,
                 fonts,
                 cb_info,
+                positioned_depth,
             );
             // Pull y back so children flow inside the wrapper, starting
             // after the top padding.  The wrapper advanced y by its full
@@ -2608,6 +2591,7 @@ fn flatten_element(
                     inner_width,
                     fonts,
                     cb_info,
+                    positioned_depth,
                 );
             }
             let mut child_el_idx = 0;
@@ -2643,6 +2627,7 @@ fn flatten_element(
             inner_width,
             fonts,
             cb_info,
+            positioned_depth,
         );
     } else {
         // Inline element — process children with this style context
@@ -2812,6 +2797,7 @@ fn flatten_flex_container(
                     inner_width.max(0.0),
                     fonts,
                     containing_block,
+                    positioned_depth,
                 );
             }
             if after_abs {
@@ -2822,6 +2808,7 @@ fn flatten_flex_container(
                     inner_width.max(0.0),
                     fonts,
                     containing_block,
+                    positioned_depth,
                 );
             }
         }

@@ -302,14 +302,27 @@ pub(crate) fn str_width(s: &str, font_size: f32, font_family: &FontFamily, bold:
 /// This is the single source of truth for mapping CSS font properties to PDF
 /// base-14 font names. Used by the PDF renderer and the SVG text pipeline.
 pub(crate) fn pdf_font_name(base_family: &str, bold: bool, italic: bool) -> &'static str {
-    if base_family.starts_with("Times") {
+    let normalized = base_family.trim();
+    let is_times = normalized.eq_ignore_ascii_case("Times-Roman")
+        || normalized.eq_ignore_ascii_case("Times")
+        || normalized.eq_ignore_ascii_case("Times-Bold")
+        || normalized.eq_ignore_ascii_case("Times-Italic")
+        || normalized.eq_ignore_ascii_case("Times-BoldItalic")
+        || normalized.eq_ignore_ascii_case("Times New Roman");
+    let is_courier = normalized.eq_ignore_ascii_case("Courier")
+        || normalized.eq_ignore_ascii_case("Courier-Bold")
+        || normalized.eq_ignore_ascii_case("Courier-Oblique")
+        || normalized.eq_ignore_ascii_case("Courier-BoldOblique")
+        || normalized.eq_ignore_ascii_case("Courier New");
+
+    if is_times {
         match (bold, italic) {
             (true, true) => "Times-BoldItalic",
             (true, false) => "Times-Bold",
             (false, true) => "Times-Italic",
             (false, false) => "Times-Roman",
         }
-    } else if base_family.starts_with("Courier") {
+    } else if is_courier {
         match (bold, italic) {
             (true, true) => "Courier-BoldOblique",
             (true, false) => "Courier-Bold",

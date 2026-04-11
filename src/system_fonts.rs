@@ -286,14 +286,34 @@ fn load_preferred_family_font(
 }
 
 fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
-    let output = Command::new("fc-match")
+    let mut child = Command::new("fc-match")
         .args([
             query.fontconfig_pattern().as_str(),
             "-f",
             "%{family}\n%{file}",
         ])
-        .output()
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
         .ok()?;
+
+    // Timeout after 5 seconds to avoid blocking on slow/absent fontconfig.
+    let timeout = std::time::Duration::from_secs(5);
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    return None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(_) => return None,
+        }
+    }
+    let output = child.wait_with_output().ok()?;
     if !output.status.success() {
         return None;
     }
