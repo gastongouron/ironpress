@@ -939,6 +939,15 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
     },
+    /// A math expression (LaTeX).
+    MathBlock {
+        /// Laid-out math glyphs.
+        layout: crate::layout::math::MathLayout,
+        /// Whether this is display math (centered, own paragraph) or inline.
+        display: bool,
+        margin_top: f32,
+        margin_bottom: f32,
+    },
     /// A page break.
     PageBreak,
 }
@@ -1272,6 +1281,25 @@ fn flatten_element(
 
     // display: none — skip this element entirely
     if style.display == Display::None {
+        return;
+    }
+
+    // Math elements: <span class="math-inline"> or <div class="math-display">
+    if let Some(tex) = el.attributes.get("data-math") {
+        let is_display = classes.contains(&"math-display");
+        let ast = crate::parser::math::parse_math(tex);
+        let math_layout = crate::layout::math::layout_math(&ast, style.font_size, is_display);
+        let (mt, mb) = if is_display {
+            (style.margin.top.max(6.0), style.margin.bottom.max(6.0))
+        } else {
+            (0.0, 0.0)
+        };
+        output.push(LayoutElement::MathBlock {
+            layout: math_layout,
+            display: is_display,
+            margin_top: mt,
+            margin_bottom: mb,
+        });
         return;
     }
 
@@ -2180,21 +2208,192 @@ fn flatten_element(
             }
         }
 
-        // Collect all inline content as text runs, with inline ::before/::after
+        // Collect inline content as text runs, splitting at math elements.
+        // When a math span is encountered, flush accumulated text runs as a
+        // TextBlock, emit a MathBlock, then continue collecting.
         let mut runs = Vec::new();
         append_pseudo_inline_run(&mut runs, before_style.as_ref(), el, fonts);
-        collect_text_runs(
-            &el.children,
-            &style,
-            &mut runs,
-            None,
-            rules,
-            fonts,
-            ancestors,
-        );
+
+        // Helper closure: flush accumulated runs as a TextBlock
+        let flush_runs = |runs: &mut Vec<TextRun>,
+                          inner_width: f32,
+                          style: &ComputedStyle,
+                          available_width: f32,
+                          block_w: f32,
+                          effective_height: Option<f32>,
+                          auto_offset_left: f32,
+                          el: &ElementNode,
+                          output: &mut Vec<LayoutElement>,
+                          fonts: &HashMap<String, TtfFont>| {
+            if runs.is_empty() {
+                return;
+            }
+            let wrap_width = if style.white_space == WhiteSpace::NoWrap {
+                f32::MAX
+            } else {
+                inner_width
+            };
+            let lines = wrap_text_runs(
+                std::mem::take(runs),
+                TextWrapOptions::new(
+                    wrap_width,
+                    style.font_size,
+                    resolved_line_height_factor(style, fonts),
+                    style.overflow_wrap,
+                ),
+                fonts,
+            );
+            if lines.is_empty() {
+                return;
+            }
+            let bg = style
+                .background_color
+                .map(|c: crate::types::Color| c.to_f32_rgb());
+            let explicit_width = if block_w < available_width || style.min_width.is_some() {
+                Some(block_w)
+            } else {
+                None
+            };
+            let BackgroundFields {
+                gradient: background_gradient,
+                radial_gradient: background_radial_gradient,
+                svg: background_svg,
+                blur_radius: background_blur_radius,
+                size: background_size,
+                position: background_position,
+                repeat: background_repeat,
+                origin: background_origin,
+            } = BackgroundFields::from_style(style);
+            output.push(LayoutElement::TextBlock {
+                lines,
+                margin_top: style.margin.top,
+                margin_bottom: 0.0,
+                text_align: style.text_align,
+                background_color: bg,
+                padding_top: style.padding.top,
+                padding_bottom: style.padding.bottom,
+                padding_left: style.padding.left,
+                padding_right: style.padding.right,
+                border: LayoutBorder::from_computed(&style.border),
+                block_width: explicit_width,
+                block_height: effective_height,
+                opacity: style.opacity,
+                float: style.float,
+                clear: style.clear,
+                position: style.position,
+                offset_top: style.top.unwrap_or(0.0),
+                offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
+                box_shadow: style.box_shadow,
+                visible: style.visibility == Visibility::Visible,
+                clip_rect: None,
+                transform: style.transform,
+                border_radius: style.border_radius,
+                outline_width: style.outline_width,
+                outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+                text_indent: style.text_indent,
+                letter_spacing: style.letter_spacing,
+                word_spacing: style.word_spacing,
+                vertical_align: style.vertical_align,
+                background_gradient,
+                background_radial_gradient,
+                background_svg,
+                background_blur_radius,
+                background_size,
+                background_position,
+                background_repeat,
+                background_origin,
+                z_index: style.z_index,
+                repeat_on_each_page: false,
+                positioned_depth,
+                heading_level: heading_level(el.tag),
+            });
+        };
+
+        // Check if any child is a math element — if so, split at boundaries
+        let has_math_children = el.children.iter().any(|c| {
+            if let DomNode::Element(child) = c {
+                child.attributes.contains_key("data-math")
+            } else {
+                false
+            }
+        });
+
+        if has_math_children {
+            // Split mode: interleave TextBlocks and MathBlocks
+            for child in &el.children {
+                match child {
+                    DomNode::Element(child_el) if child_el.attributes.contains_key("data-math") => {
+                        // Flush accumulated text runs before math
+                        flush_runs(
+                            &mut runs,
+                            inner_width,
+                            &style,
+                            available_width,
+                            block_w,
+                            effective_height,
+                            auto_offset_left,
+                            el,
+                            output,
+                            fonts,
+                        );
+                        // Emit math block
+                        let tex = child_el.attributes.get("data-math").unwrap();
+                        let child_classes = child_el.class_list();
+                        let is_display = child_classes.contains(&"math-display");
+                        let ast = crate::parser::math::parse_math(tex);
+                        let math_layout =
+                            crate::layout::math::layout_math(&ast, style.font_size, is_display);
+                        output.push(LayoutElement::MathBlock {
+                            layout: math_layout,
+                            display: is_display,
+                            margin_top: 0.0,
+                            margin_bottom: 0.0,
+                        });
+                    }
+                    _ => {
+                        // Collect text from this child
+                        collect_text_runs(
+                            std::slice::from_ref(child),
+                            &style,
+                            &mut runs,
+                            None,
+                            rules,
+                            fonts,
+                            ancestors,
+                        );
+                    }
+                }
+            }
+            // Flush remaining text runs after math
+            flush_runs(
+                &mut runs,
+                inner_width,
+                &style,
+                available_width,
+                block_w,
+                effective_height,
+                auto_offset_left,
+                el,
+                output,
+                fonts,
+            );
+        } else {
+            collect_text_runs(
+                &el.children,
+                &style,
+                &mut runs,
+                None,
+                rules,
+                fonts,
+                ancestors,
+            );
+        }
         append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts);
 
-        let had_inline_runs = !runs.is_empty();
+        let had_inline_runs = !runs.is_empty() || has_math_children;
         let mut cb_info = None;
         if !runs.is_empty() {
             // When white-space: nowrap, prevent wrapping by using a huge width
@@ -5161,6 +5360,9 @@ fn collect_text_runs_inner(
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
                         });
+                    } else if el.attributes.contains_key("data-math") {
+                        // Skip math elements — they are rendered as MathBlock
+                        // by flatten_element, not as inline text runs.
                     } else {
                         let classes = el.class_list();
                         let selector_ctx = SelectorContext {
@@ -5833,6 +6035,12 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             margin_bottom,
             ..
         } => margin_top + height + flow_extra_bottom + margin_bottom,
+        LayoutElement::MathBlock {
+            layout,
+            margin_top,
+            margin_bottom,
+            ..
+        } => margin_top + layout.height() + margin_bottom,
         _ => 0.0,
     }
 }
@@ -6043,6 +6251,12 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 margin_bottom,
                 ..
             } => (*height, *margin_top, *margin_bottom),
+            LayoutElement::MathBlock {
+                layout,
+                margin_top,
+                margin_bottom,
+                ..
+            } => (layout.height(), *margin_top, *margin_bottom),
         };
 
         // Collapse margins: adjacent vertical margins merge (larger wins for positive,
