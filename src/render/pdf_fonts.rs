@@ -108,6 +108,19 @@ fn collect_font_usage_from_run(
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<String, FontUsage>,
 ) {
+    // Standard PDF font runs with non-WinAnsi text → collect under fallback font
+    if !matches!(&run.font_family, FontFamily::Custom(_)) {
+        if let Some((shaped_run, fallback_key, _)) =
+            crate::text::shape_with_unicode_fallback(run, custom_fonts)
+        {
+            let font_usage = usage.entry(fallback_key.to_string()).or_default();
+            for glyph in shaped_run.glyphs {
+                font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+            }
+        }
+        return;
+    }
+
     let FontFamily::Custom(name) = &run.font_family else {
         return;
     };

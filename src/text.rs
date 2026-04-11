@@ -61,6 +61,27 @@ pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) ->
     shape_text_with_font(&run.text, run.font_size, font)
 }
 
+/// Try to shape `run` with the Unicode fallback font.
+///
+/// Returns `Some((shaped_run, font_key))` when the run uses a standard PDF font,
+/// contains non-WinAnsi characters, and the fallback font is loaded and can shape
+/// the text.  The returned `font_key` is the key into the custom fonts map.
+pub(crate) fn shape_with_unicode_fallback<'a>(
+    run: &TextRun,
+    fonts: &'a HashMap<String, TtfFont>,
+) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
+    // Only apply to standard PDF font runs with non-WinAnsi text
+    if matches!(run.font_family, FontFamily::Custom(_)) {
+        return None;
+    }
+    if crate::render::pdf::is_winansi_encodable(&run.text) {
+        return None;
+    }
+    let (key, font) = fonts.get_key_value(crate::system_fonts::UNICODE_FALLBACK_KEY)?;
+    let shaped = shape_text_with_font(&run.text, run.font_size, font)?;
+    Some((shaped, key.as_str(), font))
+}
+
 fn shape_text_with_font(text: &str, font_size: f32, font: &TtfFont) -> Option<ShapedRun> {
     if text.is_empty() {
         return Some(ShapedRun {

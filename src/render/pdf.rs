@@ -1993,6 +1993,33 @@ fn render_run_text(
     prepared_custom_fonts: &PreparedCustomFonts,
 ) -> f32 {
     let (r, g, b) = run.color;
+
+    // Try Unicode fallback for standard-font runs with non-WinAnsi characters
+    if let Some((fallback_shaped, fallback_key, fallback_font)) =
+        crate::text::shape_with_unicode_fallback(run, custom_fonts)
+    {
+        let run_width = fallback_shaped.width;
+        let font_name = sanitize_pdf_name(fallback_key);
+        content.push_str(&format!("{r} {g} {b} rg\n"));
+        content.push_str("BT\n");
+        content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
+        let prepared_font = prepared_custom_fonts.get(fallback_key);
+        let render = ShapedTextRender::new(
+            PdfPoint::new(x, text_y),
+            run.font_size,
+            fallback_font,
+            &fallback_shaped,
+            prepared_font,
+        );
+        if render.has_complex_offsets() {
+            append_positioned_shaped_text(content, render);
+        } else {
+            append_tj_shaped_text(content, render);
+        }
+        content.push_str("ET\n");
+        return run_width;
+    }
+
     let shaped = crate::text::shape_text_run(run, custom_fonts);
     let run_width = shaped.as_ref().map_or_else(
         || estimate_run_width_with_fonts(run, custom_fonts),

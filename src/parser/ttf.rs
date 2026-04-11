@@ -151,20 +151,63 @@ struct TableRecord {
 }
 
 /// Parse a TrueType font from raw TTF data.
+/// Parse a TTF/TTC font, selecting a specific font by index within a collection.
+/// For plain TTF files, `face_index` is ignored (always index 0).
+pub fn parse_ttf_with_index(data: Vec<u8>, face_index: usize) -> Result<TtfFont, String> {
+    // Handle TrueType Collection (TTC) files
+    if data.len() >= 12 && &data[0..4] == b"ttcf" {
+        let num_fonts = read_u32(&data, 8) as usize;
+        if face_index >= num_fonts {
+            return Err(format!(
+                "TTC face index {face_index} out of range (collection has {num_fonts} fonts)"
+            ));
+        }
+        let offset_pos = 12 + face_index * 4;
+        if data.len() < offset_pos + 4 {
+            return Err("TTC offset table too short".to_string());
+        }
+        let font_offset = read_u32(&data, offset_pos) as usize;
+        if font_offset >= data.len() {
+            return Err("TTC font offset out of bounds".to_string());
+        }
+        return parse_ttf_at_offset(data, font_offset);
+    }
+
+    parse_ttf_at_offset(data, 0)
+}
+
 pub fn parse_ttf(data: Vec<u8>) -> Result<TtfFont, String> {
-    if data.len() < 12 {
+    // Handle TrueType Collection (TTC) files: extract the first font.
+    if data.len() >= 12 && &data[0..4] == b"ttcf" {
+        let num_fonts = read_u32(&data, 8);
+        if num_fonts == 0 || data.len() < 16 {
+            return Err("TTC contains no fonts".to_string());
+        }
+        let first_offset = read_u32(&data, 12) as usize;
+        if first_offset >= data.len() {
+            return Err("TTC first font offset out of bounds".to_string());
+        }
+        // Parse using the full data but starting at the first font's offset table.
+        return parse_ttf_at_offset(data, first_offset);
+    }
+
+    parse_ttf_at_offset(data, 0)
+}
+
+fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
+    if data.len() < base + 12 {
         return Err("TTF data too short for offset table".to_string());
     }
 
-    let num_tables = read_u16(&data, 4);
-    if data.len() < 12 + num_tables as usize * 16 {
+    let num_tables = read_u16(&data, base + 4);
+    if data.len() < base + 12 + num_tables as usize * 16 {
         return Err("TTF data too short for table directory".to_string());
     }
 
     // Parse table directory
     let mut tables: HashMap<[u8; 4], TableRecord> = HashMap::new();
     for i in 0..num_tables as usize {
-        let offset = 12 + i * 16;
+        let offset = base + 12 + i * 16;
         let mut tag = [0u8; 4];
         tag.copy_from_slice(&data[offset..offset + 4]);
         tables.insert(

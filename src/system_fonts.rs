@@ -1,6 +1,6 @@
 use crate::parser::css::{CssRule, CssValue, parse_inline_style};
 use crate::parser::dom::DomNode;
-use crate::parser::ttf::{TtfFont, parse_ttf};
+use crate::parser::ttf::{TtfFont, parse_ttf, parse_ttf_with_index};
 use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
@@ -188,12 +188,21 @@ pub(crate) const UNICODE_FALLBACK_KEY: &str = "__unicode_fallback";
 
 /// Candidate font families to try when looking for a Unicode fallback font.
 /// Ordered by breadth of Unicode coverage (CJK, symbols, etc.).
+/// Includes macOS-specific CJK fonts (Hiragino, PingFang, STHeiti) alongside
+/// cross-platform options (Noto Sans CJK, Arial Unicode MS, DejaVu Sans).
 const UNICODE_FALLBACK_FAMILIES: &[&str] = &[
     "Noto Sans CJK SC",
     "Noto Sans CJK",
     "Noto Sans SC",
-    "Noto Sans",
     "Arial Unicode MS",
+    // macOS CJK fonts
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic Pro",
+    "PingFang SC",
+    "Heiti SC",
+    "STHeiti",
+    // Linux / cross-platform
+    "Noto Sans",
     "DejaVu Sans",
     "Liberation Sans",
     "FreeSans",
@@ -393,7 +402,9 @@ fn query_fontdb_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Opti
         stretch: fontdb::Stretch::Normal,
         style: query.variant.style(),
     })?;
-    db.with_face_data(face_id, |data, _face_index| parse_ttf(data.to_vec()).ok())?
+    db.with_face_data(face_id, |data, face_index| {
+        parse_ttf_with_index(data.to_vec(), face_index as usize).ok()
+    })?
 }
 
 #[cfg(test)]
