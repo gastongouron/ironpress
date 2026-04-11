@@ -13,9 +13,9 @@
 
 Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies.
 
-**[Try it in your browser](https://gastongouron.github.io/ironpress/)** — the playground runs 100% client-side via WebAssembly.
+**[Try it in your browser](https://gastongouron.github.io/ironpress/)** - the playground runs 100% client-side via WebAssembly.
 
-**[Parity dashboard](https://gastongouron.github.io/ironpress/parity/)** — visual comparison of ironpress vs Chromium rendering across 24 test fixtures.
+**[Parity dashboard](https://gastongouron.github.io/ironpress/parity/)** - visual comparison of ironpress vs Chromium rendering across 24 test fixtures.
 
 Other Rust PDF crates shell out to headless Chrome or wkhtmltopdf. ironpress does it natively with a built-in layout engine. No C libraries, no binaries to install, just `cargo add ironpress`.
 
@@ -31,7 +31,7 @@ Benchmarked on Apple M4 (release build, `cargo bench`):
 | Table (5 rows, styled headers) | **341 us** | 2,900 |
 | Full report (tables, flex, progress bars) | **587 us** | 1,700 |
 
-For comparison, Chrome headless takes ~2,500 ms per page — **ironpress is 4,000x faster**.
+For comparison, Chrome headless takes ~2,500 ms per page - **ironpress is 4,000x faster**.
 
 ## Table of Contents
 
@@ -615,7 +615,7 @@ ironpress uses three layers of testing:
 
 - **Unit tests**: 1740+ tests covering parsing, style computation, layout, rendering, and CLI
 - **Property-based tests**: [proptest](https://crates.io/crates/proptest) verifies invariants across thousands of random inputs (no panics on arbitrary HTML/CSS/Markdown, valid PDF output, correct page structure)
-- **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets — HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
+- **Fuzz targets**: 6 [cargo-fuzz](https://rust-fuzz.github.io/book/cargo-fuzz.html) targets - HTML parser, CSS parser, Markdown parser, full pipeline, SVG, and table/flex layout (`cargo +nightly fuzz run fuzz_html`). All targets run in CI on every push.
 
 ## License
 
