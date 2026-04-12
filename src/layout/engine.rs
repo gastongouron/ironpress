@@ -2956,11 +2956,22 @@ fn flatten_element(
                     output,
                     fonts,
                 );
-                // Block children handled everything — skip normal processing
-                if style.page_break_after {
-                    output.push(LayoutElement::PageBreak);
+                // If the element has no visual properties (bg, border, shadow),
+                // we can return early. Otherwise fall through to needs_wrapper
+                // which emits a container TextBlock around the children.
+                let has_visual = has_background_paint(&style)
+                    || style.border.has_any()
+                    || style.border_radius > 0.0
+                    || style.box_shadow.is_some();
+                if !has_visual {
+                    if style.page_break_after {
+                        output.push(LayoutElement::PageBreak);
+                    }
+                    return;
                 }
-                return;
+                // Clear runs so the normal path treats this as no-inline-content
+                // and enters the needs_wrapper branch for visual properties.
+                runs.clear();
             } else {
                 collect_text_runs(
                     &el.children,
