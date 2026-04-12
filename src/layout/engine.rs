@@ -394,6 +394,7 @@ fn flush_inline_block_group(
             background_position: item.background_position,
             background_repeat: item.background_repeat,
             background_origin: item.background_origin,
+            nested_elements: Vec::new(),
         });
         x += item.width + item.margin_right;
         row_height = row_height.max(item.height);
@@ -994,6 +995,8 @@ pub struct FlexCell {
     pub background_position: BackgroundPosition,
     pub background_repeat: BackgroundRepeat,
     pub background_origin: BackgroundOrigin,
+    /// Nested layout elements for complex flex items (tables, images, etc.)
+    pub nested_elements: Vec<LayoutElement>,
 }
 
 #[derive(Debug, Clone)]
@@ -4440,10 +4443,28 @@ fn flatten_flex_container(
 
                         if !all_text_blocks {
                             // Mixed elements (e.g. TextBlock + TableRow):
-                            // emit them directly into output with position offset
-                            for elem in item.elements.clone() {
-                                output.push(elem);
-                            }
+                            // store in nested_elements for the renderer to handle
+                            flex_cells.push(FlexCell {
+                                lines: Vec::new(),
+                                x_offset: x,
+                                width: item.width,
+                                text_align: TextAlign::Left,
+                                background_color: None,
+                                padding_top: 0.0,
+                                padding_right: 0.0,
+                                padding_bottom: 0.0,
+                                padding_left: 0.0,
+                                border_radius: 0.0,
+                                background_gradient: None,
+                                background_radial_gradient: None,
+                                background_svg: None,
+                                background_blur_radius: 0.0,
+                                background_size: BackgroundSize::Auto,
+                                background_position: BackgroundPosition::default(),
+                                background_repeat: BackgroundRepeat::Repeat,
+                                background_origin: BackgroundOrigin::Padding,
+                                nested_elements: item.elements.clone(),
+                            });
                             x += item.width + gap;
                             continue;
                         }
@@ -4499,6 +4520,7 @@ fn flatten_flex_container(
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::Padding,
+                            nested_elements: Vec::new(),
                         });
                         x += item.width + gap;
                         continue;
@@ -4544,6 +4566,7 @@ fn flatten_flex_container(
                             background_position: *tb_bg_pos,
                             background_repeat: *tb_bg_repeat,
                             background_origin: *tb_bg_origin,
+                            nested_elements: Vec::new(),
                         });
                     }
 
