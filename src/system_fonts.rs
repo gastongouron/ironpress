@@ -319,7 +319,8 @@ fn load_system_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Optio
             .or_else(|| query_fontdb_font(db, query))
             .or_else(|| query_fontconfig_font(query))
     } else {
-        query_fontconfig_font(query).or_else(|| query_fontdb_font(db, query))
+        // Prefer fontdb (fast, no subprocess) over fontconfig (fc-match can hang)
+        query_fontdb_font(db, query).or_else(|| query_fontconfig_font(query))
     }
 }
 
@@ -346,8 +347,8 @@ fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
         .spawn()
         .ok()?;
 
-    // Timeout after 5 seconds to avoid blocking on slow/absent fontconfig.
-    let timeout = std::time::Duration::from_secs(5);
+    // Timeout after 1 second to avoid blocking on slow/absent fontconfig.
+    let timeout = std::time::Duration::from_secs(1);
     let start = std::time::Instant::now();
     loop {
         match child.try_wait() {
