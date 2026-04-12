@@ -12,6 +12,7 @@ use crate::types::{Color, EdgeSizes};
 pub enum Display {
     Block,
     Inline,
+    InlineBlock,
     Flex,
     Grid,
     None,
@@ -1427,17 +1428,33 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-top") {
-        style.margin.top = *v;
+    if let Some(val) = get_non_special(map, "margin-top") {
+        match val {
+            CssValue::Length(v) => style.margin.top = *v,
+            CssValue::Number(v) => style.margin.top = *v * style.font_size, // em
+            _ => {}
+        }
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-right") {
-        style.margin.right = *v;
+    if let Some(val) = get_non_special(map, "margin-right") {
+        match val {
+            CssValue::Length(v) => style.margin.right = *v,
+            CssValue::Number(v) => style.margin.right = *v * style.font_size,
+            _ => {}
+        }
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-bottom") {
-        style.margin.bottom = *v;
+    if let Some(val) = get_non_special(map, "margin-bottom") {
+        match val {
+            CssValue::Length(v) => style.margin.bottom = *v,
+            CssValue::Number(v) => style.margin.bottom = *v * style.font_size,
+            _ => {}
+        }
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-left") {
-        style.margin.left = *v;
+    if let Some(val) = get_non_special(map, "margin-left") {
+        match val {
+            CssValue::Length(v) => style.margin.left = *v,
+            CssValue::Number(v) => style.margin.left = *v * style.font_size,
+            _ => {}
+        }
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "padding-top") {
@@ -1483,6 +1500,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.display = match k.as_str() {
             "none" => Display::None,
             "inline" => Display::Inline,
+            "inline-block" => Display::InlineBlock,
             "block" => Display::Block,
             "flex" => Display::Flex,
             "grid" => Display::Grid,
@@ -2265,6 +2283,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             style.display = match kw.as_str() {
                 "none" => Display::None,
                 "inline" => Display::Inline,
+                "inline-block" => Display::InlineBlock,
                 "block" => Display::Block,
                 "flex" => Display::Flex,
                 "grid" => Display::Grid,

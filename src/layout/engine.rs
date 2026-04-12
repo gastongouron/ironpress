@@ -114,6 +114,317 @@ fn collects_as_inline_text(tag: HtmlTag) -> bool {
     tag != HtmlTag::Svg && tag.is_inline()
 }
 
+/// Check if an element computes to `display: inline-block` given parent style and CSS rules.
+fn element_is_inline_block(
+    el: &ElementNode,
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    child_index: usize,
+    sibling_count: usize,
+    preceding_siblings: &[(String, Vec<String>)],
+) -> bool {
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index,
+        sibling_count,
+        preceding_siblings: preceding_siblings.to_vec(),
+    };
+    let style = compute_style_with_context(
+        el.tag,
+        el.style_attr(),
+        parent_style,
+        rules,
+        el.tag_name(),
+        &classes,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+    );
+    // SVGs, elements with transforms, and elements with blur filters
+    // need individual block layout — FlexCell doesn't support these yet.
+    style.display == Display::InlineBlock
+        && style.transform.is_none()
+        && style.blur_radius == 0.0
+        && el.tag != HtmlTag::Svg
+        && !el
+            .children
+            .iter()
+            .any(|c| matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Svg))
+}
+
+/// Emit a `FlexRow` for a group of consecutive `display: inline-block` elements.
+///
+/// Each element is laid out independently into its own buffer, then positioned
+/// horizontally in a row, similar to how `flatten_flex_container` works.
+#[allow(clippy::too_many_arguments)]
+fn flush_inline_block_group(
+    elements: &[&ElementNode],
+    parent_style: &ComputedStyle,
+    available_width: f32,
+    _available_height: f32,
+    output: &mut Vec<LayoutElement>,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    _positioned_ancestor_depth: usize,
+    fonts: &HashMap<String, TtfFont>,
+    _counter_state: &mut CounterState,
+) {
+    if elements.is_empty() {
+        return;
+    }
+
+    // Lay out each inline-block element as a block to measure its size
+    struct InlineBlockItem {
+        width: f32,
+        height: f32,
+        lines: Vec<TextLine>,
+        background_color: Option<(f32, f32, f32, f32)>,
+        padding_top: f32,
+        padding_right: f32,
+        padding_bottom: f32,
+        padding_left: f32,
+        border_radius: f32,
+        background_gradient: Option<LinearGradient>,
+        background_radial_gradient: Option<RadialGradient>,
+        background_svg: Option<crate::parser::svg::SvgTree>,
+        background_blur_radius: f32,
+        background_size: BackgroundSize,
+        background_position: BackgroundPosition,
+        background_repeat: BackgroundRepeat,
+        background_origin: BackgroundOrigin,
+        text_align: TextAlign,
+        margin_left: f32,
+        margin_right: f32,
+    }
+
+    let mut items: Vec<InlineBlockItem> = Vec::new();
+    let child_count = elements.len();
+
+    for (idx, child_el) in elements.iter().enumerate() {
+        let classes = child_el.class_list();
+        let selector_ctx = SelectorContext {
+            ancestors: ancestors.to_vec(),
+            child_index: idx,
+            sibling_count: child_count,
+            preceding_siblings: Vec::new(),
+        };
+        let child_style = compute_style_with_context(
+            child_el.tag,
+            child_el.style_attr(),
+            parent_style,
+            rules,
+            child_el.tag_name(),
+            &classes,
+            child_el.id(),
+            &child_el.attributes,
+            &selector_ctx,
+        );
+
+        if child_style.display == Display::None {
+            continue;
+        }
+
+        // Determine the element width
+        let has_explicit_width = child_style.width.is_some();
+        let child_w = child_style.width.unwrap_or(0.0);
+        let child_h = child_style.height.unwrap_or(0.0);
+
+        let inner_width = if has_explicit_width {
+            if child_style.box_sizing == BoxSizing::BorderBox {
+                child_w
+                    - child_style.padding.left
+                    - child_style.padding.right
+                    - child_style.border.horizontal_width()
+            } else {
+                child_w
+            }
+            .max(0.0)
+        } else {
+            // No explicit width: use available width for shrink-to-fit
+            available_width
+        };
+
+        // Collect text runs from the inline-block element's children
+        let mut child_ancestors = ancestors.to_vec();
+        child_ancestors.push(AncestorInfo {
+            element: child_el,
+            child_index: idx,
+            sibling_count: child_count,
+            preceding_siblings: Vec::new(),
+        });
+        let mut runs = Vec::new();
+        FlexTextRunCollector {
+            runs: &mut runs,
+            rules,
+            fonts,
+        }
+        .collect(
+            &child_el.children,
+            &child_style,
+            None,
+            (0.0, 0.0),
+            &child_ancestors,
+        );
+
+        let lines = if !runs.is_empty() {
+            wrap_text_runs(
+                runs,
+                TextWrapOptions::new(
+                    inner_width.max(1.0),
+                    child_style.font_size,
+                    resolved_line_height_factor(&child_style, fonts),
+                    child_style.overflow_wrap,
+                ),
+                fonts,
+            )
+        } else {
+            Vec::new()
+        };
+
+        // Total element width including padding + border
+        let content_w = if has_explicit_width {
+            child_w
+        } else {
+            // Shrink-to-fit: use the widest line
+            lines
+                .iter()
+                .map(|l| {
+                    l.runs
+                        .iter()
+                        .map(|r| {
+                            crate::fonts::str_width(&r.text, r.font_size, &r.font_family, r.bold)
+                        })
+                        .sum::<f32>()
+                })
+                .fold(0.0f32, f32::max)
+        };
+        let total_w = if child_style.box_sizing == BoxSizing::BorderBox && has_explicit_width {
+            content_w
+        } else {
+            content_w
+                + child_style.padding.left
+                + child_style.padding.right
+                + child_style.border.horizontal_width()
+        };
+
+        // Total element height including padding + border
+        let text_height: f32 = lines.iter().map(|l| l.height).sum();
+        let content_h = if child_h > 0.0 { child_h } else { text_height };
+        let total_h = if child_style.box_sizing == BoxSizing::BorderBox {
+            content_h.max(child_h)
+        } else {
+            content_h
+                + child_style.padding.top
+                + child_style.padding.bottom
+                + child_style.border.vertical_width()
+        };
+
+        let bg = child_style
+            .background_color
+            .map(|c: crate::types::Color| c.to_f32_rgba());
+        let bg_fields = BackgroundFields::from_style(&child_style);
+
+        items.push(InlineBlockItem {
+            width: total_w,
+            height: total_h,
+            lines,
+            background_color: bg,
+            padding_top: child_style.padding.top,
+            padding_right: child_style.padding.right,
+            padding_bottom: child_style.padding.bottom,
+            padding_left: child_style.padding.left,
+            border_radius: child_style.border_radius,
+            background_gradient: bg_fields.gradient,
+            background_radial_gradient: bg_fields.radial_gradient,
+            background_svg: bg_fields.svg,
+            background_blur_radius: bg_fields.blur_radius,
+            background_size: bg_fields.size,
+            background_position: bg_fields.position,
+            background_repeat: bg_fields.repeat,
+            background_origin: bg_fields.origin,
+            text_align: child_style.text_align,
+            margin_left: child_style.margin.left,
+            margin_right: child_style.margin.right,
+        });
+    }
+
+    if items.is_empty() {
+        return;
+    }
+
+    // Position items horizontally, wrapping to new rows when they exceed available width
+    let mut rows: Vec<(Vec<FlexCell>, f32)> = Vec::new(); // (cells, row_height)
+    let mut current_cells: Vec<FlexCell> = Vec::new();
+    let mut x = 0.0f32;
+    let mut row_height = 0.0f32;
+
+    for item in &items {
+        let item_total_w = item.margin_left + item.width + item.margin_right;
+        // Wrap to new row if this item would overflow
+        if !current_cells.is_empty() && x + item_total_w > available_width + 0.01 {
+            rows.push((std::mem::take(&mut current_cells), row_height));
+            x = 0.0;
+            row_height = 0.0;
+        }
+
+        x += item.margin_left;
+        current_cells.push(FlexCell {
+            lines: item.lines.clone(),
+            x_offset: x,
+            width: item.width,
+            text_align: item.text_align,
+            background_color: item.background_color,
+            padding_top: item.padding_top,
+            padding_right: item.padding_right,
+            padding_bottom: item.padding_bottom,
+            padding_left: item.padding_left,
+            border_radius: item.border_radius,
+            background_gradient: item.background_gradient.clone(),
+            background_radial_gradient: item.background_radial_gradient.clone(),
+            background_svg: item.background_svg.clone(),
+            background_blur_radius: item.background_blur_radius,
+            background_size: item.background_size,
+            background_position: item.background_position,
+            background_repeat: item.background_repeat,
+            background_origin: item.background_origin,
+        });
+        x += item.width + item.margin_right;
+        row_height = row_height.max(item.height);
+    }
+    // Flush last row
+    if !current_cells.is_empty() {
+        rows.push((current_cells, row_height));
+    }
+
+    for (cells, rh) in rows {
+        output.push(LayoutElement::FlexRow {
+            cells,
+            row_height: rh,
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            background_color: None,
+            container_width: available_width,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            border_radius: 0.0,
+            box_shadow: None,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+        });
+    }
+}
+
 /// Counter state for CSS counters.
 #[derive(Debug, Default, Clone)]
 #[allow(dead_code)]
@@ -1134,10 +1445,64 @@ fn flatten_nodes(
     let mut element_index = 0;
     let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
 
+    // Accumulator for consecutive inline-block elements
+    let mut ib_group: Vec<&ElementNode> = Vec::new();
+
+    // Helper closure-like macro for flushing an inline-block group.
+    // We use a nested fn instead since closures can't borrow multiple fields.
+    #[allow(clippy::drain_collect)]
+    #[inline]
+    fn flush_ib(
+        group: &mut Vec<&ElementNode>,
+        parent_style: &ComputedStyle,
+        available_width: f32,
+        available_height: f32,
+        output: &mut Vec<LayoutElement>,
+        rules: &[CssRule],
+        ancestors: &[AncestorInfo],
+        positioned_ancestor_depth: usize,
+        fonts: &HashMap<String, TtfFont>,
+        counter_state: &mut CounterState,
+    ) {
+        if group.is_empty() {
+            return;
+        }
+        let taken: Vec<&ElementNode> = group.drain(..).collect();
+        flush_inline_block_group(
+            &taken,
+            parent_style,
+            available_width,
+            available_height,
+            output,
+            rules,
+            ancestors,
+            positioned_ancestor_depth,
+            fonts,
+            counter_state,
+        );
+    }
+
     for node in nodes {
         match node {
             DomNode::Text(text) => {
                 let trimmed = collapse_whitespace(text);
+                // Only flush inline-block group for non-whitespace text.
+                // Whitespace between consecutive inline-block elements must
+                // not break the group — they should stay on the same row.
+                if !trimmed.is_empty() {
+                    flush_ib(
+                        &mut ib_group,
+                        parent_style,
+                        available_width,
+                        available_height,
+                        output,
+                        list_ctx.map(|_| rules).unwrap_or(rules),
+                        ancestors,
+                        positioned_ancestor_depth,
+                        fonts,
+                        counter_state,
+                    );
+                }
                 if !trimmed.is_empty() {
                     let mut text_runs = Vec::new();
                     push_text_run_with_fallback(
@@ -1219,23 +1584,49 @@ fn flatten_nodes(
                 }
             }
             DomNode::Element(el) => {
-                flatten_element(
+                // Check if this element is inline-block
+                if element_is_inline_block(
                     el,
                     parent_style,
-                    available_width,
-                    available_height,
-                    output,
-                    list_ctx,
                     rules,
                     ancestors,
-                    positioned_ancestor_depth,
                     element_index,
                     element_count,
                     &preceding_siblings,
-                    fonts,
-                    abs_containing_block,
-                    counter_state,
-                );
+                ) {
+                    ib_group.push(el);
+                } else {
+                    // Flush any pending inline-block group
+                    flush_ib(
+                        &mut ib_group,
+                        parent_style,
+                        available_width,
+                        available_height,
+                        output,
+                        rules,
+                        ancestors,
+                        positioned_ancestor_depth,
+                        fonts,
+                        counter_state,
+                    );
+                    flatten_element(
+                        el,
+                        parent_style,
+                        available_width,
+                        available_height,
+                        output,
+                        list_ctx,
+                        rules,
+                        ancestors,
+                        positioned_ancestor_depth,
+                        element_index,
+                        element_count,
+                        &preceding_siblings,
+                        fonts,
+                        abs_containing_block,
+                        counter_state,
+                    );
+                }
                 // Track this element as a preceding sibling for the next element
                 preceding_siblings.push((
                     el.tag_name().to_string(),
@@ -1245,6 +1636,19 @@ fn flatten_nodes(
             }
         }
     }
+    // Flush any remaining inline-block group at end of nodes
+    flush_ib(
+        &mut ib_group,
+        parent_style,
+        available_width,
+        available_height,
+        output,
+        rules,
+        ancestors,
+        positioned_ancestor_depth,
+        fonts,
+        counter_state,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2171,7 +2575,7 @@ fn flatten_element(
         }
     }
 
-    if style.display == Display::Block {
+    if style.display == Display::Block || style.display == Display::InlineBlock {
         // Compute effective block width considering CSS width/max-width/min-width
         let mut block_w = available_width;
         if let Some(w) = style.width {
@@ -2616,29 +3020,78 @@ fn flatten_element(
             // Pre-flatten children to measure total height
             let mut child_elements = Vec::new();
             let mut child_el_idx = 0;
+            let mut ib_group_wrapper: Vec<&ElementNode> = Vec::new();
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
-                    if recurses_as_layout_child(child_el.tag) {
-                        flatten_element(
+                    if recurses_as_layout_child(child_el.tag)
+                        && element_is_inline_block(
                             child_el,
                             &style,
-                            inner_width,
-                            available_height,
-                            &mut child_elements,
-                            None,
                             rules,
                             &child_ancestors,
-                            positioned_depth,
                             child_el_idx,
                             child_el_count,
                             &[],
-                            fonts,
-                            None, // CB will be patched below after container_h is known
-                            counter_state,
-                        );
+                        )
+                    {
+                        ib_group_wrapper.push(child_el);
+                    } else {
+                        // Flush any pending inline-block group
+                        if !ib_group_wrapper.is_empty() {
+                            #[allow(clippy::drain_collect)]
+                            let taken: Vec<&ElementNode> = ib_group_wrapper.drain(..).collect();
+                            flush_inline_block_group(
+                                &taken,
+                                &style,
+                                inner_width,
+                                available_height,
+                                &mut child_elements,
+                                rules,
+                                &child_ancestors,
+                                positioned_depth,
+                                fonts,
+                                counter_state,
+                            );
+                        }
+                        if recurses_as_layout_child(child_el.tag) {
+                            flatten_element(
+                                child_el,
+                                &style,
+                                inner_width,
+                                available_height,
+                                &mut child_elements,
+                                None,
+                                rules,
+                                &child_ancestors,
+                                positioned_depth,
+                                child_el_idx,
+                                child_el_count,
+                                &[],
+                                fonts,
+                                None, // CB will be patched below after container_h is known
+                                counter_state,
+                            );
+                        }
                     }
                     child_el_idx += 1;
                 }
+            }
+            // Flush remaining inline-block group
+            if !ib_group_wrapper.is_empty() {
+                #[allow(clippy::drain_collect)]
+                let taken: Vec<&ElementNode> = ib_group_wrapper.drain(..).collect();
+                flush_inline_block_group(
+                    &taken,
+                    &style,
+                    inner_width,
+                    available_height,
+                    &mut child_elements,
+                    rules,
+                    &child_ancestors,
+                    positioned_depth,
+                    fonts,
+                    counter_state,
+                );
             }
             // Measure children total height
             let children_h: f32 = child_elements.iter().map(estimate_element_height).sum();
@@ -2880,29 +3333,78 @@ fn flatten_element(
                 cb_info = make_containing_block(h);
             }
             let mut child_el_idx = 0;
+            let mut ib_group: Vec<&ElementNode> = Vec::new();
             for child in &el.children {
                 if let DomNode::Element(child_el) = child {
-                    if recurses_as_layout_child(child_el.tag) {
-                        flatten_element(
+                    if recurses_as_layout_child(child_el.tag)
+                        && element_is_inline_block(
                             child_el,
                             &style,
-                            inner_width,
-                            available_height,
-                            output,
-                            None,
                             rules,
                             &child_ancestors,
-                            positioned_depth,
                             child_el_idx,
                             child_el_count,
                             &[],
-                            fonts,
-                            cb_info,
-                            counter_state,
-                        );
+                        )
+                    {
+                        ib_group.push(child_el);
+                    } else {
+                        // Flush any pending inline-block group
+                        if !ib_group.is_empty() {
+                            #[allow(clippy::drain_collect)]
+                            let taken: Vec<&ElementNode> = ib_group.drain(..).collect();
+                            flush_inline_block_group(
+                                &taken,
+                                &style,
+                                inner_width,
+                                available_height,
+                                output,
+                                rules,
+                                &child_ancestors,
+                                positioned_depth,
+                                fonts,
+                                counter_state,
+                            );
+                        }
+                        if recurses_as_layout_child(child_el.tag) {
+                            flatten_element(
+                                child_el,
+                                &style,
+                                inner_width,
+                                available_height,
+                                output,
+                                None,
+                                rules,
+                                &child_ancestors,
+                                positioned_depth,
+                                child_el_idx,
+                                child_el_count,
+                                &[],
+                                fonts,
+                                cb_info,
+                                counter_state,
+                            );
+                        }
                     }
                     child_el_idx += 1;
                 }
+            }
+            // Flush remaining inline-block group
+            if !ib_group.is_empty() {
+                #[allow(clippy::drain_collect)]
+                let taken: Vec<&ElementNode> = ib_group.drain(..).collect();
+                flush_inline_block_group(
+                    &taken,
+                    &style,
+                    inner_width,
+                    available_height,
+                    output,
+                    rules,
+                    &child_ancestors,
+                    positioned_depth,
+                    fonts,
+                    counter_state,
+                );
             }
         }
 
