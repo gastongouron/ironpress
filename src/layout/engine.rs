@@ -2946,13 +2946,157 @@ fn flatten_element(
                 || style.border_radius > 0.0
                 || style.box_shadow.is_some();
             let has_block_children = !parent_has_visual
-                && el
-                    .children
-                    .iter()
-                    .any(|c| matches!(c, DomNode::Element(e) if has_own_margins(e.tag)));
+                && el.children.iter().any(|c| {
+                    matches!(c, DomNode::Element(e)
+                        if has_own_margins(e.tag)
+                            || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
+                });
 
             if has_block_children {
-                // Mixed inline + block children: split at block boundaries
+                // For visual containers (border, background), emit a wrapper
+                // TextBlock first, then a pullback spacer so children render
+                // inside the wrapper's padding area.
+                let wrapper_output_idx = output.len();
+                if parent_has_visual {
+                    let bg = style
+                        .background_color
+                        .map(|c: crate::types::Color| c.to_f32_rgba());
+                    let BackgroundFields {
+                        gradient: bg_grad,
+                        radial_gradient: bg_rgrad,
+                        svg: bg_svg,
+                        blur_radius: bg_blur,
+                        size: bg_size,
+                        position: bg_pos,
+                        repeat: bg_repeat,
+                        origin: bg_origin,
+                    } = BackgroundFields::from_style(&style);
+                    // Wrapper height will be patched after children are processed.
+                    let wrapper_h = effective_height.map_or(0.0, |h| {
+                        resolve_padding_box_height(
+                            0.0,
+                            Some(h),
+                            style.padding.top,
+                            style.padding.bottom,
+                            style.border.vertical_width(),
+                            style.box_sizing,
+                        )
+                    });
+                    output.push(LayoutElement::TextBlock {
+                        lines: Vec::new(),
+                        margin_top: style.margin.top,
+                        margin_bottom: 0.0,
+                        text_align: style.text_align,
+                        background_color: bg,
+                        padding_top: 0.0,
+                        padding_bottom: 0.0,
+                        padding_left: style.padding.left,
+                        padding_right: style.padding.right,
+                        border: LayoutBorder::from_computed(&style.border),
+                        block_width: Some(block_w),
+                        block_height: effective_height.map(|_| wrapper_h),
+                        opacity: style.opacity,
+                        float: style.float,
+                        clear: style.clear,
+                        position: style.position,
+                        offset_top: style.top.unwrap_or(0.0),
+                        offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                        offset_bottom: style.bottom.unwrap_or(0.0),
+                        offset_right: style.right.unwrap_or(0.0),
+                        containing_block: None,
+                        clip_children_count: 0,
+                        box_shadow: style.box_shadow,
+                        visible: style.visibility == Visibility::Visible,
+                        clip_rect: if style.overflow == Overflow::Hidden {
+                            Some((0.0, 0.0, block_w, wrapper_h))
+                        } else {
+                            None
+                        },
+                        transform: style.transform,
+                        border_radius: style.border_radius,
+                        outline_width: style.outline_width,
+                        outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+                        text_indent: 0.0,
+                        letter_spacing: 0.0,
+                        word_spacing: 0.0,
+                        vertical_align: VerticalAlign::Baseline,
+                        background_gradient: bg_grad,
+                        background_radial_gradient: bg_rgrad,
+                        background_svg: bg_svg,
+                        background_blur_radius: bg_blur,
+                        background_size: bg_size,
+                        background_position: bg_pos,
+                        background_repeat: bg_repeat,
+                        background_origin: bg_origin,
+                        z_index: style.z_index,
+                        repeat_on_each_page: false,
+                        positioned_depth,
+                        heading_level: None,
+                    });
+                    // Pullback spacer
+                    let pullback = if effective_height.is_some() && wrapper_h > 0.0 {
+                        wrapper_h - style.padding.top
+                    } else {
+                        0.0
+                    };
+                    if pullback > 0.0 {
+                        output.push(LayoutElement::TextBlock {
+                            lines: Vec::new(),
+                            margin_top: -pullback,
+                            margin_bottom: 0.0,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: style.padding.left,
+                            padding_right: style.padding.right,
+                            border: LayoutBorder::default(),
+                            block_width: None,
+                            block_height: None,
+                            opacity: 1.0,
+                            float: Float::None,
+                            clear: Clear::None,
+                            position: Position::Static,
+                            offset_top: 0.0,
+                            offset_left: 0.0,
+                            offset_bottom: 0.0,
+                            offset_right: 0.0,
+                            containing_block: None,
+                            clip_children_count: 0,
+                            box_shadow: None,
+                            visible: true,
+                            clip_rect: None,
+                            transform: None,
+                            border_radius: 0.0,
+                            outline_width: 0.0,
+                            outline_color: None,
+                            text_indent: 0.0,
+                            letter_spacing: 0.0,
+                            word_spacing: 0.0,
+                            vertical_align: VerticalAlign::Baseline,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            z_index: 0,
+                            repeat_on_each_page: false,
+                            positioned_depth: 0,
+                            heading_level: None,
+                        });
+                    }
+                }
+
+                // Mixed inline + block children: split at block boundaries.
+                let mut block_child_buf: Vec<LayoutElement> = Vec::new();
+                let target: &mut Vec<LayoutElement> = if parent_has_visual {
+                    &mut block_child_buf
+                } else {
+                    output
+                };
                 for child in &el.children {
                     match child {
                         DomNode::Text(_) => {
@@ -2980,7 +3124,7 @@ fn flatten_element(
                                 effective_height,
                                 auto_offset_left,
                                 el,
-                                output,
+                                target,
                                 fonts,
                             );
                             // Recurse into block child
@@ -2994,7 +3138,7 @@ fn flatten_element(
                                 &style,
                                 inner_width,
                                 available_height,
-                                output,
+                                target,
                                 None,
                                 rules,
                                 &child_ancestors,
@@ -3031,11 +3175,98 @@ fn flatten_element(
                     effective_height,
                     auto_offset_left,
                     el,
-                    output,
+                    target,
                     fonts,
                 );
-                // has_block_children is only true when !parent_has_visual,
-                // so we always return early here.
+                // For visual containers, propagate parent padding to children
+                // so they render inside the padded area.
+                if parent_has_visual {
+                    if style.padding.left > 0.0 || style.padding.right > 0.0 {
+                        for elem in &mut block_child_buf {
+                            if let LayoutElement::TextBlock {
+                                padding_left,
+                                padding_right,
+                                ..
+                            } = elem
+                            {
+                                *padding_left += style.padding.left;
+                                *padding_right += style.padding.right;
+                            }
+                        }
+                    }
+                    output.extend(block_child_buf);
+
+                    // Patch wrapper block_height to cover all children
+                    if effective_height.is_none() {
+                        let children_total_h: f32 = output[wrapper_output_idx + 1..]
+                            .iter()
+                            .map(estimate_element_height)
+                            .sum();
+                        let patched_h = style.padding.top
+                            + children_total_h
+                            + style.padding.bottom
+                            + style.border.vertical_width();
+                        if let Some(LayoutElement::TextBlock { block_height, .. }) =
+                            output.get_mut(wrapper_output_idx)
+                        {
+                            *block_height = Some(patched_h);
+                        }
+                    }
+                }
+                // Add bottom spacer for visual containers
+                if parent_has_visual {
+                    let bottom_space =
+                        style.padding.bottom + style.border.vertical_width() + style.margin.bottom;
+                    if bottom_space > 0.0 {
+                        output.push(LayoutElement::TextBlock {
+                            lines: Vec::new(),
+                            margin_top: bottom_space,
+                            margin_bottom: 0.0,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: 0.0,
+                            padding_right: 0.0,
+                            border: LayoutBorder::default(),
+                            block_width: None,
+                            block_height: None,
+                            opacity: 1.0,
+                            float: Float::None,
+                            clear: Clear::None,
+                            position: Position::Static,
+                            offset_top: 0.0,
+                            offset_left: 0.0,
+                            offset_bottom: 0.0,
+                            offset_right: 0.0,
+                            containing_block: None,
+                            clip_children_count: 0,
+                            box_shadow: None,
+                            visible: true,
+                            clip_rect: None,
+                            transform: None,
+                            border_radius: 0.0,
+                            outline_width: 0.0,
+                            outline_color: None,
+                            text_indent: 0.0,
+                            letter_spacing: 0.0,
+                            word_spacing: 0.0,
+                            vertical_align: VerticalAlign::Baseline,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            z_index: 0,
+                            repeat_on_each_page: false,
+                            positioned_depth: 0,
+                            heading_level: None,
+                        });
+                    }
+                }
                 if style.page_break_after {
                     output.push(LayoutElement::PageBreak);
                 }
