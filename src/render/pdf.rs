@@ -178,7 +178,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
         let mut page_shadings: Vec<ShadingEntry> = Vec::new();
         let mut shading_counter: usize = 0;
 
+        // Track clip state: when a TextBlock has clip_children_count > 0,
+        // the clip context stays open for that many subsequent elements.
+        let mut clip_remaining: usize = 0;
+
         for (elem_idx, (y_pos, element)) in page.elements.iter().enumerate() {
+            // Close clip context when all clipped children have been rendered
+            if clip_remaining > 0 {
+                clip_remaining -= 1;
+                if clip_remaining == 0 {
+                    content.push_str("Q\n");
+                }
+            }
             match element {
                 LayoutElement::TextBlock {
                     lines,
@@ -217,6 +228,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     letter_spacing,
                     word_spacing: css_word_spacing,
                     heading_level,
+                    clip_children_count,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (but space is preserved)
@@ -821,9 +833,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("/GSDefault gs\n");
                     }
 
-                    // Restore clipping state
+                    // Restore clipping state.
+                    // If clip_children_count > 0, keep the clip open for
+                    // subsequent elements that are visually inside this container.
                     if needs_clip {
-                        content.push_str("Q\n");
+                        if *clip_children_count > 0 {
+                            clip_remaining = *clip_children_count;
+                        } else {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Restore transform state
@@ -1578,6 +1596,147 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
 
                             text_y -= metrics.descender + metrics.half_leading;
+                        }
+
+                        // Render nested elements (tables, images, etc. inside flex items)
+                        if !cell.nested_elements.is_empty() {
+                            let nested_x = cell_x;
+                            let mut nested_y = text_area_top;
+                            for nested_elem in &cell.nested_elements {
+                                match nested_elem {
+                                    LayoutElement::TextBlock {
+                                        lines: n_lines,
+                                        margin_top: n_mt,
+                                        padding_top: n_pt,
+                                        padding_bottom: n_pb,
+                                        background_color: n_bg,
+                                        block_width: n_bw,
+                                        block_height: n_bh,
+                                        border: n_border,
+                                        ..
+                                    } => {
+                                        nested_y -= n_mt;
+                                        let n_width = n_bw.unwrap_or(cell.width);
+                                        let text_h: f32 = n_lines.iter().map(|l| l.height).sum();
+                                        let total_h =
+                                            n_pt + text_h + n_pb + n_border.vertical_width();
+                                        let total_h = n_bh.map_or(total_h, |h| total_h.max(h));
+
+                                        if let Some((r, g, b, a)) = n_bg {
+                                            if *a >= 1.0 {
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                                                    x = nested_x,
+                                                    y = nested_y - total_h,
+                                                    w = n_width,
+                                                    h = total_h,
+                                                ));
+                                            }
+                                        }
+
+                                        let mut ty = nested_y - n_pt;
+                                        for line in n_lines {
+                                            let m = line_box_metrics(line, custom_fonts);
+                                            ty -= m.half_leading + m.ascender;
+                                            let merged = merge_runs(&line.runs);
+                                            let mut lx = nested_x + cell.padding_left;
+                                            for run in &merged {
+                                                let rw = render_run_text(
+                                                    &mut content,
+                                                    run,
+                                                    lx,
+                                                    ty,
+                                                    custom_fonts,
+                                                    &prepared_custom_fonts,
+                                                );
+                                                lx += rw;
+                                            }
+                                            ty -= m.descender + m.half_leading;
+                                        }
+                                        nested_y -= total_h;
+                                    }
+                                    LayoutElement::TableRow {
+                                        cells: t_cells,
+                                        col_widths,
+                                        ..
+                                    } => {
+                                        let t_row_h = compute_row_height(t_cells);
+                                        let mut tcx = nested_x;
+                                        for (i, t_cell) in t_cells.iter().enumerate() {
+                                            let tw = if i < col_widths.len() {
+                                                col_widths[i]
+                                            } else {
+                                                0.0
+                                            };
+                                            if let Some((r, g, b, _)) = t_cell.background_color {
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                                                    x = tcx,
+                                                    y = nested_y - t_row_h,
+                                                    w = tw,
+                                                    h = t_row_h,
+                                                ));
+                                            }
+                                            let mut ty = nested_y - t_cell.padding_top;
+                                            for line in &t_cell.lines {
+                                                let m = line_box_metrics(line, custom_fonts);
+                                                ty -= m.half_leading + m.ascender;
+                                                let merged = merge_runs(&line.runs);
+                                                let mut lx = tcx + t_cell.padding_left;
+                                                for run in &merged {
+                                                    let rw = render_run_text(
+                                                        &mut content,
+                                                        run,
+                                                        lx,
+                                                        ty,
+                                                        custom_fonts,
+                                                        &prepared_custom_fonts,
+                                                    );
+                                                    lx += rw;
+                                                }
+                                                ty -= m.descender + m.half_leading;
+                                            }
+                                            tcx += tw;
+                                        }
+                                        nested_y -= t_row_h;
+                                    }
+                                    LayoutElement::Svg {
+                                        tree,
+                                        width: svg_w,
+                                        height: svg_h,
+                                        margin_top: svg_mt,
+                                        ..
+                                    } => {
+                                        nested_y -= svg_mt;
+                                        let svg_x = nested_x;
+                                        let svg_y = nested_y - svg_h;
+                                        content.push_str("q\n");
+                                        content.push_str(&format!(
+                                            "{svg_w} 0 0 {svg_h} {svg_x} {svg_y} cm\n"
+                                        ));
+                                        {
+                                            let mut image_sink = SvgPageImageSink {
+                                                pdf_writer: &mut pdf_writer,
+                                                page_images: &mut page_images,
+                                            };
+                                            let mut resources =
+                                                crate::render::svg_to_pdf::SvgPdfResources {
+                                                    shadings: &mut page_shadings,
+                                                    shading_counter: &mut shading_counter,
+                                                    image_sink: Some(&mut image_sink),
+                                                };
+                                            crate::render::svg_to_pdf::render_svg_tree_with_resources(
+                                                tree,
+                                                &mut content,
+                                                &mut resources,
+                                            );
+                                        }
+                                        content.push_str("Q\n");
+                                        nested_y -= svg_h;
+                                    }
+                                    _ => {}
+                                }
+                            }
                         }
                     }
                 }
@@ -3744,6 +3903,7 @@ mod tests {
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         }
     }
 

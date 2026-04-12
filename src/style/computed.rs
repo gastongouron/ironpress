@@ -1428,17 +1428,28 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-top") {
-        style.margin.top = *v;
+    // Margins: resolve both Length (pt) and Number (em = multiplied by font_size).
+    // The CSS parser produces Number for em values (e.g. "2em" → Number(2.0))
+    // and our UA defaults use Number for em-based margins.
+    match get_non_special(map, "margin-top") {
+        Some(CssValue::Length(v)) => style.margin.top = *v,
+        Some(CssValue::Number(v)) => style.margin.top = *v * style.font_size,
+        _ => {}
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-right") {
-        style.margin.right = *v;
+    match get_non_special(map, "margin-right") {
+        Some(CssValue::Length(v)) => style.margin.right = *v,
+        Some(CssValue::Number(v)) => style.margin.right = *v * style.font_size,
+        _ => {}
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-bottom") {
-        style.margin.bottom = *v;
+    match get_non_special(map, "margin-bottom") {
+        Some(CssValue::Length(v)) => style.margin.bottom = *v,
+        Some(CssValue::Number(v)) => style.margin.bottom = *v * style.font_size,
+        _ => {}
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "margin-left") {
-        style.margin.left = *v;
+    match get_non_special(map, "margin-left") {
+        Some(CssValue::Length(v)) => style.margin.left = *v,
+        Some(CssValue::Number(v)) => style.margin.left = *v * style.font_size,
+        _ => {}
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "padding-top") {

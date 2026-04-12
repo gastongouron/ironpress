@@ -7,46 +7,48 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
     let mut style = StyleMap::new();
 
     match tag {
-        // Chrome UA margins pre-computed: em_ratio * default_font_size (in pt).
+        // Chrome UA margins use em units that scale with the element's font-size.
+        // CssValue::Number represents an em multiplier, resolved in apply_style_map
+        // by multiplying with the element's computed font_size.
         HtmlTag::H1 => {
             style.set("font-size", CssValue::Length(24.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(16.0));
-            style.set("margin-bottom", CssValue::Length(16.0));
+            style.set("margin-top", CssValue::Number(0.67));
+            style.set("margin-bottom", CssValue::Number(0.67));
         }
         HtmlTag::H2 => {
             style.set("font-size", CssValue::Length(20.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(16.6));
-            style.set("margin-bottom", CssValue::Length(16.6));
+            style.set("margin-top", CssValue::Number(0.83));
+            style.set("margin-bottom", CssValue::Number(0.83));
         }
         HtmlTag::H3 => {
             style.set("font-size", CssValue::Length(16.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(16.0));
-            style.set("margin-bottom", CssValue::Length(16.0));
+            style.set("margin-top", CssValue::Number(1.0));
+            style.set("margin-bottom", CssValue::Number(1.0));
         }
         HtmlTag::H4 => {
             style.set("font-size", CssValue::Length(14.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(18.6));
-            style.set("margin-bottom", CssValue::Length(18.6));
+            style.set("margin-top", CssValue::Number(1.33));
+            style.set("margin-bottom", CssValue::Number(1.33));
         }
         HtmlTag::H5 => {
             style.set("font-size", CssValue::Length(12.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(20.0));
-            style.set("margin-bottom", CssValue::Length(20.0));
+            style.set("margin-top", CssValue::Number(1.67));
+            style.set("margin-bottom", CssValue::Number(1.67));
         }
         HtmlTag::H6 => {
             style.set("font-size", CssValue::Length(10.0));
             style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-top", CssValue::Length(23.3));
-            style.set("margin-bottom", CssValue::Length(23.3));
+            style.set("margin-top", CssValue::Number(2.33));
+            style.set("margin-bottom", CssValue::Number(2.33));
         }
         HtmlTag::P => {
-            style.set("margin-top", CssValue::Length(12.0));
-            style.set("margin-bottom", CssValue::Length(12.0));
+            style.set("margin-top", CssValue::Number(1.0));
+            style.set("margin-bottom", CssValue::Number(1.0));
         }
         HtmlTag::Strong | HtmlTag::B => {
             style.set("font-weight", CssValue::Keyword("bold".into()));
@@ -73,8 +75,8 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
         }
         HtmlTag::Ul | HtmlTag::Ol => {
             // Chrome: margin 1em top/bottom, padding-left 40px
-            style.set("margin-top", CssValue::Length(12.0));
-            style.set("margin-bottom", CssValue::Length(12.0));
+            style.set("margin-top", CssValue::Number(1.0));
+            style.set("margin-bottom", CssValue::Number(1.0));
             style.set("margin-left", CssValue::Length(20.0));
         }
         HtmlTag::Dl => {
