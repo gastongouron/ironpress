@@ -762,6 +762,7 @@ mod tests {
         let element = LayoutElement::GridRow {
             cells: vec![empty_table_cell()],
             col_widths: vec![100.0],
+            gap: 0.0,
             margin_top: 0.0,
             margin_bottom: 0.0,
         };

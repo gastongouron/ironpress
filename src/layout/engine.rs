@@ -1188,6 +1188,7 @@ pub enum LayoutElement {
     GridRow {
         cells: Vec<TableCell>,
         col_widths: Vec<f32>,
+        gap: f32,
         margin_top: f32,
         margin_bottom: f32,
     },
@@ -2942,6 +2943,35 @@ fn flatten_element(
                         }
                     }
                 }
+                // Flush remaining inline runs after the last block child
+                flush_runs(
+                    &mut runs,
+                    inner_width,
+                    &style,
+                    available_width,
+                    block_w,
+                    effective_height,
+                    auto_offset_left,
+                    el,
+                    output,
+                    fonts,
+                );
+                // If the element has no visual properties (bg, border, shadow),
+                // we can return early. Otherwise fall through to needs_wrapper
+                // which emits a container TextBlock around the children.
+                let has_visual = has_background_paint(&style)
+                    || style.border.has_any()
+                    || style.border_radius > 0.0
+                    || style.box_shadow.is_some();
+                if !has_visual {
+                    if style.page_break_after {
+                        output.push(LayoutElement::PageBreak);
+                    }
+                    return;
+                }
+                // Clear runs so the normal path treats this as no-inline-content
+                // and enters the needs_wrapper branch for visual properties.
+                runs.clear();
             } else {
                 collect_text_runs(
                     &el.children,
@@ -4769,6 +4799,7 @@ fn flatten_grid_container(
         output.push(LayoutElement::GridRow {
             cells,
             col_widths: col_widths.clone(),
+            gap,
             margin_top,
             margin_bottom: 0.0,
         });

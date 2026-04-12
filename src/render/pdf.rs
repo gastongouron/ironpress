@@ -194,7 +194,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     opacity,
                     float,
                     position,
-                    offset_top,
+                    offset_top: _,
                     offset_left,
                     offset_bottom: _,
                     offset_right: _,
@@ -261,13 +261,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         },
                     };
                     // PDF y-axis is bottom-up.
-                    // For absolute positioning, use offset_top from page top.
-                    // For relative, shift by offset_top from normal flow position.
-                    let block_y = match position {
-                        Position::Absolute => page_size.height - margin.top - offset_top,
-                        Position::Relative => page_size.height - margin.top - y_pos - offset_top,
-                        Position::Static => page_size.height - margin.top - y_pos,
-                    };
+                    // y_pos already includes absolute/relative offsets from pagination.
+                    let block_y = page_size.height - margin.top - y_pos;
 
                     // Use explicit block_width if set, otherwise available_width
                     let render_width = block_width.unwrap_or(available_width);
@@ -991,7 +986,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
                 }
                 LayoutElement::GridRow {
-                    cells, col_widths, ..
+                    cells,
+                    col_widths,
+                    gap,
+                    ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
                     let row_height = compute_row_height(cells);
@@ -1058,12 +1056,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         cell_x += cell_w;
                         // Add gap between columns
                         if i + 1 < col_widths.len() {
-                            let total_col_width: f32 = col_widths.iter().sum();
-                            let total_gap = available_width - total_col_width;
-                            let num_gaps = col_widths.len().saturating_sub(1);
-                            if num_gaps > 0 {
-                                cell_x += total_gap / num_gaps as f32;
-                            }
+                            cell_x += gap;
                         }
                     }
                 }
