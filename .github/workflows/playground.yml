@@ -115,10 +115,18 @@ jobs:
               if (fs.existsSync(pdfPath)) {
                 entry.size_bytes = fs.statSync(pdfPath).size;
               }
-              // Pixel diff percentage
+              // Pixel diff percentage — resize to identical dimensions first
               try {
                 const chromPng = path.join(dir, name + '_chromium.png');
                 const ironPng = path.join(dir, name + '_ironpress.png');
+                const refDims = execSync(
+                  'identify -format \"%wx%h\" ' + chromPng,
+                  { encoding: 'utf8', timeout: 5000 }
+                ).trim();
+                if (refDims) {
+                  execSync('convert ' + ironPng + ' -resize ' + refDims + '! ' + ironPng,
+                    { timeout: 10000 });
+                }
                 const diffOut = execSync(
                   'compare -metric AE ' + chromPng + ' ' + ironPng + ' null: 2>&1 || true',
                   { encoding: 'utf8', timeout: 10000 }
@@ -129,7 +137,10 @@ jobs:
                   { encoding: 'utf8', timeout: 5000 }
                 ).trim();
                 const totalPixels = parseInt(totalOut) || 1;
-                entry.diff_pct = parseFloat(((diffPixels / totalPixels) * 100).toFixed(2));
+                entry.diff_pct = Math.min(
+                  parseFloat(((diffPixels / totalPixels) * 100).toFixed(2)),
+                  100
+                );
               } catch (e) {}
               results[key] = entry;
             }
