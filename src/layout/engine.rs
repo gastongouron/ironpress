@@ -7058,6 +7058,7 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             border,
             block_height,
             position,
+            clip_rect,
             ..
         } => {
             if *position == Position::Absolute {
@@ -7065,7 +7066,13 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             }
             let text_height: f32 = lines.iter().map(|l| l.height).sum();
             let content_h = padding_top + text_height + padding_bottom;
-            let effective_h = block_height.map_or(content_h, |h| content_h.max(h));
+            // When clipping (overflow:hidden), use the specified block_height
+            // instead of expanding to fit content.
+            let effective_h = if clip_rect.is_some() {
+                block_height.unwrap_or(content_h)
+            } else {
+                block_height.map_or(content_h, |h| content_h.max(h))
+            };
             margin_top + effective_h + margin_bottom + border.vertical_width()
         }
         LayoutElement::FlexRow {
@@ -7313,14 +7320,20 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 padding_bottom,
                 border,
                 block_height,
+                clip_rect,
                 ..
             } => {
                 let text_height: f32 = lines.iter().map(|l| l.height).sum();
                 let border_extra = border.vertical_width();
                 let content_h = padding_top + text_height + padding_bottom;
-                let effective_content_h = match block_height {
-                    Some(h) => content_h.max(*h),
-                    None => content_h,
+                let effective_content_h = if clip_rect.is_some() {
+                    // overflow:hidden — use specified height, don't expand
+                    block_height.unwrap_or(content_h)
+                } else {
+                    match block_height {
+                        Some(h) => content_h.max(*h),
+                        None => content_h,
+                    }
                 };
                 (
                     effective_content_h + border_extra,
