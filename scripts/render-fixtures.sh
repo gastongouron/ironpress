@@ -25,7 +25,7 @@ for layer in features combined edge-cases; do
         name=$(basename "$html_file" .html)
         output="$OUTPUT_DIR/$layer/$name.pdf"
         echo "  $layer/$name..."
-        "$CLI" --margin 0 "$html_file" "$output" 2>/dev/null || echo "    WARN: failed to render $layer/$name"
+        "$CLI" --margin 29 "$html_file" "$output" 2>/dev/null || echo "    WARN: failed to render $layer/$name"
     done
 done
 

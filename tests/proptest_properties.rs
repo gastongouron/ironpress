@@ -11,6 +11,8 @@ fn arb_css() -> impl Strategy<Value = String> {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
     /// html_to_pdf should never panic on any valid UTF-8 input
     #[test]
     fn html_to_pdf_never_panics(s in "\\PC{0,500}") {

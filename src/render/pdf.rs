@@ -194,7 +194,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     opacity,
                     float,
                     position,
-                    offset_top: _,
+                    offset_top,
                     offset_left,
                     offset_bottom: _,
                     offset_right: _,
@@ -260,8 +260,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             _ => margin.left,
                         },
                     };
-                    // PDF y-axis is bottom-up
-                    let block_y = page_size.height - margin.top - y_pos;
+                    // PDF y-axis is bottom-up.
+                    // For absolute positioning, use offset_top from page top.
+                    // For relative, shift by offset_top from normal flow position.
+                    let block_y = match position {
+                        Position::Absolute => page_size.height - margin.top - offset_top,
+                        Position::Relative => page_size.height - margin.top - y_pos - offset_top,
+                        Position::Static => page_size.height - margin.top - y_pos,
+                    };
 
                     // Use explicit block_width if set, otherwise available_width
                     let render_width = block_width.unwrap_or(available_width);

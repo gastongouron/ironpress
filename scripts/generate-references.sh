@@ -38,12 +38,10 @@ for layer in features combined edge-cases; do
         "$CHROME" --headless=new --disable-gpu --no-sandbox --disable-software-rasterizer \
             --print-to-pdf="$ref_pdf" \
             --no-pdf-header-footer \
-            --no-margins \
             "file://$html_file" 2>/dev/null || \
         "$CHROME" --headless --disable-gpu --no-sandbox \
             --print-to-pdf="$ref_pdf" \
             --no-pdf-header-footer \
-            --no-margins \
             "file://$html_file" 2>/dev/null || {
             echo "    WARN: failed to render $layer/$name"
             continue
