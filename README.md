@@ -1,4 +1,3 @@
-# ironpress
 <img width="2480" height="1333" alt="ironpress-logo" src="https://github.com/user-attachments/assets/f55ff64e-c77e-459e-8051-de0397b35735" />
 
 [![Crates.io](https://img.shields.io/crates/v/ironpress.svg)](https://crates.io/crates/ironpress)
