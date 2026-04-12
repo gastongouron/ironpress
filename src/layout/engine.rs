@@ -2894,7 +2894,7 @@ fn flatten_element(
                             );
                         }
                         DomNode::Element(child_el)
-                            if has_own_margins(child_el.tag)
+                            if child_el.tag.is_block()
                                 && !collects_as_inline_text(child_el.tag) =>
                         {
                             // Flush inline runs before block child
@@ -3816,7 +3816,6 @@ fn flatten_flex_container(
             child_w_initial
         };
 
-        // Collect text runs for this child, including from nested block elements.
         // Include the child element itself in the ancestor chain so that
         // descendant selectors like `.card h3` can match.
         let mut child_ancestors = ancestors.to_vec();
@@ -3826,6 +3825,100 @@ fn flatten_flex_container(
             sibling_count: child_count,
             preceding_siblings: Vec::new(),
         });
+
+        // Determine child width early so complex items can use it for layout.
+        // For flex-grow items without explicit width, use equal share as initial estimate.
+        // The actual width will be adjusted after grow distribution.
+        let child_w_for_layout =
+            child_style
+                .flex_basis
+                .or(child_style.width)
+                .unwrap_or_else(|| {
+                    if child_style.flex_grow > 0.0 {
+                        width_for_percentages / child_count as f32
+                    } else {
+                        width_for_percentages / child_count as f32
+                    }
+                });
+
+        // Check if this flex item has block-level children that need full layout
+        let item_has_block_children = child_el.children.iter().any(|c| {
+            matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
+        });
+
+        // For complex flex items (with block children like <h2>, <p>, <div>),
+        // use flatten_element to get a proper list of layout elements with
+        // margins and structure preserved.
+        if item_has_block_children {
+            let mut child_elements_buf = Vec::new();
+            let layout_height = 10000.0; // large enough to not constrain
+            flatten_element(
+                child_el,
+                style,
+                child_w_for_layout,
+                layout_height,
+                &mut child_elements_buf,
+                None,
+                rules,
+                &child_ancestors,
+                positioned_depth,
+                idx,
+                child_count,
+                &[],
+                fonts,
+                None,
+                counter_state,
+            );
+            let child_h = child_elements_buf
+                .iter()
+                .map(|el| match el {
+                    LayoutElement::TextBlock {
+                        lines,
+                        padding_top,
+                        padding_bottom,
+                        border,
+                        block_height,
+                        ..
+                    } => {
+                        let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                        let content =
+                            padding_top + text_h + padding_bottom + border.vertical_width();
+                        // Don't include margins here — they are added as spacer
+                        // lines in the merged FlexCell, so counting them would
+                        // double the vertical space.
+                        block_height.map_or(content, |h| content.max(h))
+                    }
+                    LayoutElement::FlexRow {
+                        cells,
+                        margin_top,
+                        margin_bottom,
+                        ..
+                    } => {
+                        let row_h = cells
+                            .iter()
+                            .map(|c| {
+                                let text_h: f32 = c.lines.iter().map(|l| l.height).sum();
+                                c.padding_top + text_h + c.padding_bottom
+                            })
+                            .fold(0.0f32, f32::max);
+                        margin_top + row_h + margin_bottom
+                    }
+                    _ => 0.0,
+                })
+                .sum::<f32>();
+
+            items.push(FlexItem {
+                elements: child_elements_buf,
+                width: child_w_for_layout,
+                base_width: child_w_for_layout,
+                flex_grow: child_style.flex_grow,
+                flex_shrink: child_style.flex_shrink,
+                height: child_h,
+            });
+            continue;
+        }
+
+        // Simple flex items: collect text runs and wrap
         let mut runs = Vec::new();
         FlexTextRunCollector {
             runs: &mut runs,
@@ -4286,12 +4379,79 @@ fn flatten_flex_container(
                     }
                 };
 
-                // Build FlexCells for this row line
+                // Build FlexCells for this row line.
                 let mut flex_cells = Vec::new();
                 for &item_idx in &line_items {
                     let item = &items[item_idx];
 
-                    // Extract text properties from the item's TextBlock
+                    // Complex items (multiple elements): merge all lines
+                    // into a single FlexCell, inserting margin spacing
+                    if item.elements.len() > 1 {
+                        let mut merged_lines = Vec::new();
+                        let mut first_bg = None;
+                        let mut first_pt = 0.0f32;
+                        let mut first_pb = 0.0f32;
+                        let mut first_pl = 0.0f32;
+                        let mut first_pr = 0.0f32;
+                        let mut first_br = 0.0f32;
+                        let mut is_first = true;
+                        for elem in &item.elements {
+                            if let LayoutElement::TextBlock {
+                                lines: tb_lines,
+                                margin_top,
+                                background_color: tb_bg,
+                                padding_top: tb_pt,
+                                padding_bottom: tb_pb,
+                                padding_left: tb_pl,
+                                padding_right: tb_pr,
+                                border_radius: tb_br,
+                                ..
+                            } = elem
+                            {
+                                if is_first {
+                                    first_bg = *tb_bg;
+                                    first_pt = *tb_pt;
+                                    first_pb = *tb_pb;
+                                    first_pl = *tb_pl;
+                                    first_pr = *tb_pr;
+                                    first_br = *tb_br;
+                                    is_first = false;
+                                }
+                                // Add margin spacing between sub-elements
+                                if !merged_lines.is_empty() && *margin_top > 0.0 {
+                                    merged_lines.push(TextLine {
+                                        runs: Vec::new(),
+                                        height: *margin_top,
+                                    });
+                                }
+                                merged_lines.extend(tb_lines.iter().cloned());
+                            }
+                        }
+                        flex_cells.push(FlexCell {
+                            lines: merged_lines,
+                            x_offset: x,
+                            width: item.width,
+                            text_align: TextAlign::Left,
+                            background_color: first_bg,
+                            padding_top: first_pt,
+                            padding_right: first_pr,
+                            padding_bottom: first_pb,
+                            padding_left: first_pl,
+                            border_radius: first_br,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                        });
+                        x += item.width + gap;
+                        continue;
+                    }
+
+                    // Simple items: extract into FlexCell
                     if let Some(LayoutElement::TextBlock {
                         lines: tb_lines,
                         text_align: tb_ta,
