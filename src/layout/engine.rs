@@ -154,13 +154,13 @@ fn flush_inline_block_group(
     elements: &[&ElementNode],
     parent_style: &ComputedStyle,
     available_width: f32,
-    available_height: f32,
+    _available_height: f32,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
-    positioned_ancestor_depth: usize,
+    _positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
-    counter_state: &mut CounterState,
+    _counter_state: &mut CounterState,
 ) {
     if elements.is_empty() {
         return;
