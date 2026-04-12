@@ -2421,8 +2421,8 @@ fn flatten_element(
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
                 offset_left: style.left.unwrap_or(0.0),
-                offset_bottom: 0.0,
-                offset_right: 0.0,
+                offset_bottom: style.bottom.unwrap_or(0.0),
+                offset_right: style.right.unwrap_or(0.0),
                 containing_block: None,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
@@ -2758,8 +2758,8 @@ fn flatten_element(
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
                 offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
-                offset_bottom: 0.0,
-                offset_right: 0.0,
+                offset_bottom: style.bottom.unwrap_or(0.0),
+                offset_right: style.right.unwrap_or(0.0),
                 containing_block: None,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
@@ -3101,8 +3101,8 @@ fn flatten_element(
                 position: style.position,
                 offset_top: resolved_top,
                 offset_left: resolved_left + auto_offset_left,
-                offset_bottom: 0.0,
-                offset_right: 0.0,
+                offset_bottom: style.bottom.unwrap_or(0.0),
+                offset_right: style.right.unwrap_or(0.0),
                 containing_block: elem_cb,
                 box_shadow: style.box_shadow,
                 visible: style.visibility == Visibility::Visible,
@@ -7032,10 +7032,37 @@ fn patch_absolute_children_containing_block(elements: &mut [LayoutElement], cb: 
         if let LayoutElement::TextBlock {
             position,
             containing_block,
+            offset_top,
+            offset_left,
+            offset_bottom,
+            offset_right,
+            block_width,
+            block_height,
+            lines,
+            padding_top,
+            padding_bottom,
+            padding_left,
+            padding_right,
+            border,
             ..
         } = element
         {
             if *position == Position::Absolute && containing_block.is_none() {
+                // Compute element dimensions for right/bottom resolution
+                let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                let elem_h = block_height
+                    .unwrap_or(*padding_top + text_h + *padding_bottom + border.vertical_width());
+                let elem_w = block_width.unwrap_or(0.0);
+
+                // Resolve right → left
+                if *offset_left == 0.0 && *offset_right > 0.0 {
+                    *offset_left = cb.width - elem_w - *offset_right;
+                }
+                // Resolve bottom → top
+                if *offset_top == 0.0 && *offset_bottom > 0.0 {
+                    *offset_top = cb.height - elem_h - *offset_bottom;
+                }
+
                 *containing_block = Some(cb);
             }
         }
