@@ -41,7 +41,9 @@ jobs:
 
       # Generate parity comparison images for the dashboard
       - name: Install parity dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils imagemagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-cjk
 
       - name: Build ironpress release
         run: cargo build --release

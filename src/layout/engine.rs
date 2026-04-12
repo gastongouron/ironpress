@@ -2942,6 +2942,24 @@ fn flatten_element(
                         }
                     }
                 }
+                // Flush remaining inline runs after the last block child
+                flush_runs(
+                    &mut runs,
+                    inner_width,
+                    &style,
+                    available_width,
+                    block_w,
+                    effective_height,
+                    auto_offset_left,
+                    el,
+                    output,
+                    fonts,
+                );
+                // Block children handled everything — skip normal processing
+                if style.page_break_after {
+                    output.push(LayoutElement::PageBreak);
+                }
+                return;
             } else {
                 collect_text_runs(
                     &el.children,
