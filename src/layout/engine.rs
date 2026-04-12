@@ -1188,6 +1188,7 @@ pub enum LayoutElement {
     GridRow {
         cells: Vec<TableCell>,
         col_widths: Vec<f32>,
+        gap: f32,
         margin_top: f32,
         margin_bottom: f32,
     },
@@ -4787,6 +4788,7 @@ fn flatten_grid_container(
         output.push(LayoutElement::GridRow {
             cells,
             col_widths: col_widths.clone(),
+            gap,
             margin_top,
             margin_bottom: 0.0,
         });

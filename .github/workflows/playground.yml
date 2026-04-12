@@ -43,7 +43,7 @@ jobs:
       - name: Install parity dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-cjk
+          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-cjk fonts-noto-color-emoji
 
       - name: Build ironpress release
         run: cargo build --release

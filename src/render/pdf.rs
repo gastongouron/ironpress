@@ -986,7 +986,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
                 }
                 LayoutElement::GridRow {
-                    cells, col_widths, ..
+                    cells,
+                    col_widths,
+                    gap,
+                    ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
                     let row_height = compute_row_height(cells);
@@ -1053,12 +1056,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         cell_x += cell_w;
                         // Add gap between columns
                         if i + 1 < col_widths.len() {
-                            let total_col_width: f32 = col_widths.iter().sum();
-                            let total_gap = available_width - total_col_width;
-                            let num_gaps = col_widths.len().saturating_sub(1);
-                            if num_gaps > 0 {
-                                cell_x += total_gap / num_gaps as f32;
-                            }
+                            cell_x += gap;
                         }
                     }
                 }
