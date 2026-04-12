@@ -2868,10 +2868,15 @@ fn flatten_element(
                         | HtmlTag::Table
                 )
             }
-            let has_block_children = el
-                .children
-                .iter()
-                .any(|c| matches!(c, DomNode::Element(e) if has_own_margins(e.tag)));
+            let parent_has_visual = has_background_paint(&style)
+                || style.border.has_any()
+                || style.border_radius > 0.0
+                || style.box_shadow.is_some();
+            let has_block_children = !parent_has_visual
+                && el
+                    .children
+                    .iter()
+                    .any(|c| matches!(c, DomNode::Element(e) if has_own_margins(e.tag)));
 
             if has_block_children {
                 // Mixed inline + block children: split at block boundaries
@@ -2956,73 +2961,8 @@ fn flatten_element(
                     output,
                     fonts,
                 );
-                // If the element has visual properties (bg, border, shadow),
-                // emit an empty wrapper TextBlock so those visuals are drawn.
-                let has_visual = has_background_paint(&style)
-                    || style.border.has_any()
-                    || style.border_radius > 0.0
-                    || style.box_shadow.is_some();
-                if has_visual {
-                    let bg = style
-                        .background_color
-                        .map(|c: crate::types::Color| c.to_f32_rgba());
-                    let BackgroundFields {
-                        gradient: background_gradient,
-                        radial_gradient: background_radial_gradient,
-                        svg: background_svg,
-                        blur_radius: background_blur_radius,
-                        size: background_size,
-                        position: background_position,
-                        repeat: background_repeat,
-                        origin: background_origin,
-                    } = BackgroundFields::from_style(&style);
-                    output.push(LayoutElement::TextBlock {
-                        lines: Vec::new(),
-                        margin_top: style.margin.top,
-                        margin_bottom: 0.0,
-                        text_align: style.text_align,
-                        background_color: bg,
-                        padding_top: style.padding.top,
-                        padding_bottom: style.padding.bottom,
-                        padding_left: style.padding.left,
-                        padding_right: style.padding.right,
-                        border: LayoutBorder::from_computed(&style.border),
-                        block_width: Some(block_w),
-                        block_height: effective_height,
-                        opacity: style.opacity,
-                        float: Float::None,
-                        clear: style.clear,
-                        position: style.position,
-                        offset_top: style.top.unwrap_or(0.0),
-                        offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
-                        offset_bottom: 0.0,
-                        offset_right: 0.0,
-                        containing_block: None,
-                        box_shadow: style.box_shadow,
-                        visible: style.visibility == Visibility::Visible,
-                        clip_rect: None,
-                        transform: style.transform,
-                        border_radius: style.border_radius,
-                        outline_width: style.outline_width,
-                        outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
-                        text_indent: 0.0,
-                        letter_spacing: 0.0,
-                        word_spacing: 0.0,
-                        vertical_align: VerticalAlign::Baseline,
-                        background_gradient,
-                        background_radial_gradient,
-                        background_svg,
-                        background_blur_radius,
-                        background_size,
-                        background_position,
-                        background_repeat,
-                        background_origin,
-                        z_index: style.z_index,
-                        repeat_on_each_page: false,
-                        positioned_depth,
-                        heading_level: None,
-                    });
-                }
+                // has_block_children is only true when !parent_has_visual,
+                // so we always return early here.
                 if style.page_break_after {
                     output.push(LayoutElement::PageBreak);
                 }
