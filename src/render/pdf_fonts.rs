@@ -341,6 +341,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            nested_elements: Vec::new(),
         }
     }
 
