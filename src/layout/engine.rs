@@ -651,7 +651,6 @@ fn build_pseudo_block(
     counter_state: &CounterState,
 ) -> LayoutElement {
     let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
-
     let mut block_w = available_width;
     if let Some(cb) = containing_block_info
         && let Some(percent) = pseudo_style.percentage_sizing.width
@@ -2327,21 +2326,74 @@ fn flatten_element(
 
     // Li handling — prepend bullet/number marker
     if el.tag == HtmlTag::Li {
+        // counter_state resets/increments already applied at top of flatten_element
+
         let inner_width = available_width - style.padding.left - style.padding.right;
         let mut runs = Vec::new();
 
-        // Add list marker using list-style-type from computed style
-        let marker = match list_ctx {
-            Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
-            Some(ListContext::Ordered { index, .. }) => {
-                let lst = if style.list_style_type == ListStyleType::Disc {
-                    ListStyleType::Decimal
-                } else {
-                    style.list_style_type
-                };
-                format_list_marker(lst, *index)
+        // Check for ::before pseudo-element with custom content (e.g. CSS counters).
+        // If present, use it instead of the default list marker.
+        let class_list = el.class_list();
+        let classes: Vec<&str> = class_list.iter().map(|s| s.as_ref()).collect();
+        let li_selector_ctx = SelectorContext {
+            ancestors: ancestors.to_vec(),
+            child_index,
+            sibling_count,
+            preceding_siblings: preceding_siblings.to_vec(),
+        };
+        let li_before = compute_pseudo_element_style(
+            &style,
+            rules,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &li_selector_ctx,
+            PseudoElement::Before,
+        );
+        let has_custom_before = li_before.as_ref().is_some_and(|s| !s.content.is_empty());
+        if has_custom_before {
+            let ps = li_before.as_ref().unwrap();
+            let content_text = resolve_content(&ps.content, &el.attributes, counter_state);
+            if !content_text.is_empty() {
+                push_text_run_with_fallback(
+                    TextRun {
+                        text: content_text,
+                        font_size: ps.font_size,
+                        bold: ps.font_weight == FontWeight::Bold,
+                        italic: ps.font_style == FontStyle::Italic,
+                        underline: ps.text_decoration_underline,
+                        line_through: ps.text_decoration_line_through,
+                        color: ps.color.to_f32_rgb(),
+                        link_url: None,
+                        font_family: resolve_style_font_family(ps, fonts),
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
+                    },
+                    &mut runs,
+                    fonts,
+                );
             }
-            None => format_list_marker(style.list_style_type, 0),
+        }
+
+        // Add list marker using list-style-type from computed style
+        // (only if no custom ::before content)
+        let marker = if has_custom_before {
+            String::new()
+        } else {
+            match list_ctx {
+                Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
+                Some(ListContext::Ordered { index, .. }) => {
+                    let lst = if style.list_style_type == ListStyleType::Disc {
+                        ListStyleType::Decimal
+                    } else {
+                        style.list_style_type
+                    };
+                    format_list_marker(lst, *index)
+                }
+                None => format_list_marker(style.list_style_type, 0),
+            }
         };
         let list_indent = if style.list_style_position == ListStylePosition::Inside {
             0.0

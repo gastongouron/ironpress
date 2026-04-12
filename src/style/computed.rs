@@ -2332,10 +2332,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.content = parse_content_value(k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-reset") {
-        style.counter_reset = parse_counter_directive(k);
+        style.counter_reset = parse_counter_directive(k, 0);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-increment") {
-        style.counter_increment = parse_counter_directive(k);
+        style.counter_increment = parse_counter_directive(k, 1);
     }
 }
 
@@ -2419,7 +2419,7 @@ fn parse_content_function<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &
     rest.strip_prefix(prefix)?.split_once(')')
 }
 
-fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
+fn parse_counter_directive(raw: &str, default_value: i32) -> Vec<(String, i32)> {
     let s = raw.trim();
     if s == "none" {
         return Vec::new();
@@ -2433,7 +2433,7 @@ fn parse_counter_directive(raw: &str) -> Vec<(String, i32)> {
             .inspect(|_| {
                 let _ = tokens.next();
             })
-            .unwrap_or(0);
+            .unwrap_or(default_value);
         result.push((name.to_string(), val));
     }
     result
