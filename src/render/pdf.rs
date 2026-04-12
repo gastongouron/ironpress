@@ -178,7 +178,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
         let mut page_shadings: Vec<ShadingEntry> = Vec::new();
         let mut shading_counter: usize = 0;
 
+        // Track clip state: when a TextBlock has clip_children_count > 0,
+        // the clip context stays open for that many subsequent elements.
+        let mut clip_remaining: usize = 0;
+
         for (elem_idx, (y_pos, element)) in page.elements.iter().enumerate() {
+            // Close clip context when all clipped children have been rendered
+            if clip_remaining > 0 {
+                clip_remaining -= 1;
+                if clip_remaining == 0 {
+                    content.push_str("Q\n");
+                }
+            }
             match element {
                 LayoutElement::TextBlock {
                     lines,
@@ -217,6 +228,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     letter_spacing,
                     word_spacing: css_word_spacing,
                     heading_level,
+                    clip_children_count,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (but space is preserved)
@@ -821,9 +833,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("/GSDefault gs\n");
                     }
 
-                    // Restore clipping state
+                    // Restore clipping state.
+                    // If clip_children_count > 0, keep the clip open for
+                    // subsequent elements that are visually inside this container.
                     if needs_clip {
-                        content.push_str("Q\n");
+                        if *clip_children_count > 0 {
+                            clip_remaining = *clip_children_count;
+                        } else {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Restore transform state

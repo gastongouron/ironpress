@@ -881,6 +881,7 @@ fn build_pseudo_block(
             positioned_ancestor_depth
         },
         heading_level: None,
+        clip_children_count: 0,
     }
 }
 
@@ -1155,6 +1156,10 @@ pub enum LayoutElement {
         /// Containing block for `position: absolute` elements.
         /// When `Some`, offsets are relative to this block instead of the page.
         containing_block: Option<ContainingBlock>,
+        /// Number of elements that follow this one in the output list and should
+        /// be rendered within this element's clip rect (overflow: hidden).
+        /// The renderer keeps the clipping path active for this many elements.
+        clip_children_count: usize,
         box_shadow: Option<BoxShadow>,
         visible: bool,
         clip_rect: Option<(f32, f32, f32, f32)>,
@@ -1404,6 +1409,7 @@ pub fn layout_with_rules_and_fonts(
             repeat_on_each_page: true,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
     }
 
@@ -1585,6 +1591,7 @@ fn flatten_nodes(
                             repeat_on_each_page: false,
                             positioned_depth: 0,
                             heading_level: None,
+                            clip_children_count: 0,
                         });
                     }
                 }
@@ -1817,6 +1824,7 @@ fn flatten_element(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
         return;
     }
@@ -2005,6 +2013,7 @@ fn flatten_element(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
         return;
     }
@@ -2149,6 +2158,7 @@ fn flatten_element(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
         return;
     }
@@ -2437,6 +2447,7 @@ fn flatten_element(
                 repeat_on_each_page: false,
                 positioned_depth: 0,
                 heading_level: block_heading_level,
+                clip_children_count: 0,
             });
         }
 
@@ -2773,6 +2784,7 @@ fn flatten_element(
                 repeat_on_each_page: false,
                 positioned_depth,
                 heading_level: heading_level(el.tag),
+                clip_children_count: 0,
             });
         };
 
@@ -3115,6 +3127,7 @@ fn flatten_element(
                 repeat_on_each_page: false,
                 positioned_depth,
                 heading_level: heading_level(el.tag),
+                clip_children_count: 0,
             });
             push_block_pseudo(
                 output,
@@ -3268,6 +3281,7 @@ fn flatten_element(
             let (wrapper_cb, wrapper_top, wrapper_left) =
                 resolve_abs_containing_block(&style, abs_containing_block, container_h, block_w);
             // Emit wrapper with visual properties
+            let wrapper_output_idx = output.len();
             output.push(LayoutElement::TextBlock {
                 lines: Vec::new(),
                 margin_top: style.margin.top,
@@ -3319,6 +3333,7 @@ fn flatten_element(
                 repeat_on_each_page: false,
                 positioned_depth,
                 heading_level: None,
+                clip_children_count: 0,
             });
             push_block_pseudo(
                 output,
@@ -3380,6 +3395,7 @@ fn flatten_element(
                 repeat_on_each_page: false,
                 positioned_depth: 0,
                 heading_level: None,
+                clip_children_count: 0,
             });
             // Add the parent's left/right padding to children so they render
             // inside the padded area, not at the page left margin.
@@ -3446,7 +3462,20 @@ fn flatten_element(
                     repeat_on_each_page: false,
                     positioned_depth: 0,
                     heading_level: None,
+                    clip_children_count: 0,
                 });
+            }
+            // Patch the wrapper's clip_children_count so the renderer keeps
+            // the clipping path active for all children emitted inside it.
+            if style.overflow == Overflow::Hidden {
+                let children_after_wrapper = output.len() - wrapper_output_idx - 1;
+                if let Some(LayoutElement::TextBlock {
+                    clip_children_count,
+                    ..
+                }) = output.get_mut(wrapper_output_idx)
+                {
+                    *clip_children_count = children_after_wrapper;
+                }
             }
         } else {
             if no_inline_content {
@@ -3718,6 +3747,7 @@ fn flatten_flex_container(
                 repeat_on_each_page: false,
                 positioned_depth,
                 heading_level: None,
+                clip_children_count: 0,
             });
 
             if before_abs {
@@ -4068,6 +4098,7 @@ fn flatten_flex_container(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         };
 
         items.push(FlexItem {
@@ -4261,6 +4292,7 @@ fn flatten_flex_container(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
         // Pull y back so children flow inside the container background
         let BackgroundFields {
@@ -4318,6 +4350,7 @@ fn flatten_flex_container(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
     }
 
@@ -4690,6 +4723,7 @@ fn flatten_flex_container(
                                 repeat_on_each_page: false,
                                 positioned_depth: 0,
                                 heading_level: None,
+                                clip_children_count: 0,
                             });
                         }
                     }
@@ -4754,6 +4788,7 @@ fn flatten_flex_container(
             repeat_on_each_page: false,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         });
     }
 }
@@ -10916,6 +10951,7 @@ mod tests {
                 repeat_on_each_page,
                 positioned_depth: 0,
                 heading_level: None,
+                clip_children_count: 0,
             };
 
         let pages = paginate(
@@ -11043,6 +11079,7 @@ mod tests {
             repeat_on_each_page,
             positioned_depth: 0,
             heading_level: None,
+            clip_children_count: 0,
         };
 
         let pages = paginate(vec![make_block(-1, true), make_block(-2, false)], 200.0);
@@ -14969,6 +15006,7 @@ mod _removed {
                 el,
                 LayoutElement::TextBlock {
                     heading_level: Some(2),
+                    clip_children_count: 0,
                     ..
                 }
             )
@@ -14989,6 +15027,7 @@ mod _removed {
                 el,
                 LayoutElement::TextBlock {
                     heading_level: Some(_),
+                    clip_children_count: 0,
                     ..
                 }
             )
