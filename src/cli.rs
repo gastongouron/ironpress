@@ -87,6 +87,13 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                     .map_err(|_| format!("--margin requires a number, got: {val}"))?;
                 opts.margin = Margin::uniform(pt);
             }
+            "--margin-top" => {
+                i += 1;
+                let val = args.get(i).ok_or("--margin-top requires a value")?;
+                opts.margin.top = val
+                    .parse()
+                    .map_err(|_| format!("--margin-top requires a number, got: {val}"))?;
+            }
             "--header" => {
                 i += 1;
                 opts.header = Some(args.get(i).ok_or("--header requires a value")?.clone());
