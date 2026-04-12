@@ -2839,19 +2839,98 @@ fn flatten_element(
                 fonts,
             );
         } else {
-            collect_text_runs(
-                &el.children,
-                &style,
-                &mut runs,
-                None,
-                rules,
-                fonts,
-                ancestors,
-            );
+            // Check if children contain block-level elements (e.g. <p>, <div>, <h2>).
+            // If so, split: collect inline text runs between block children,
+            // flush as TextBlock, then recurse into each block child.
+            let has_block_children = el.children.iter().any(|c| {
+                matches!(c, DomNode::Element(e) if recurses_as_layout_child(e.tag) && !collects_as_inline_text(e.tag))
+            });
+
+            if has_block_children {
+                // Mixed inline + block children: split at block boundaries
+                for child in &el.children {
+                    match child {
+                        DomNode::Text(_) => {
+                            collect_text_runs(
+                                std::slice::from_ref(child),
+                                &style,
+                                &mut runs,
+                                None,
+                                rules,
+                                fonts,
+                                ancestors,
+                            );
+                        }
+                        DomNode::Element(child_el)
+                            if recurses_as_layout_child(child_el.tag)
+                                && !collects_as_inline_text(child_el.tag) =>
+                        {
+                            // Flush inline runs before block child
+                            flush_runs(
+                                &mut runs,
+                                inner_width,
+                                &style,
+                                available_width,
+                                block_w,
+                                effective_height,
+                                auto_offset_left,
+                                el,
+                                output,
+                                fonts,
+                            );
+                            // Recurse into block child
+                            let n_children = el
+                                .children
+                                .iter()
+                                .filter(|c| matches!(c, DomNode::Element(_)))
+                                .count();
+                            flatten_element(
+                                child_el,
+                                &style,
+                                inner_width,
+                                available_height,
+                                output,
+                                None,
+                                rules,
+                                &child_ancestors,
+                                positioned_depth,
+                                0,
+                                n_children,
+                                &[],
+                                fonts,
+                                None,
+                                counter_state,
+                            );
+                        }
+                        DomNode::Element(_) => {
+                            // Inline element: collect as text runs
+                            collect_text_runs(
+                                std::slice::from_ref(child),
+                                &style,
+                                &mut runs,
+                                None,
+                                rules,
+                                fonts,
+                                ancestors,
+                            );
+                        }
+                    }
+                }
+            } else {
+                collect_text_runs(
+                    &el.children,
+                    &style,
+                    &mut runs,
+                    None,
+                    rules,
+                    fonts,
+                    ancestors,
+                );
+            }
         }
         append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts, counter_state);
 
-        let had_inline_runs = !runs.is_empty() || has_math_children;
+        let had_inline_runs = runs.iter().any(|r| !r.text.trim().is_empty()) || has_math_children;
         let mut cb_info = None;
         if !runs.is_empty() {
             // When white-space: nowrap, prevent wrapping by using a huge width
@@ -7034,7 +7113,7 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
         } else {
             margin_top_val + prev_margin_bottom
         };
-        let margin_top_val = collapsed_margin - prev_margin_bottom;
+        let margin_top_val = collapsed_margin;
         let element_height = margin_top_val + content_h_val + margin_bottom_val;
 
         // Handle position: absolute -- place at fixed position, don't affect flow
