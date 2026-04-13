@@ -2064,13 +2064,25 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             page_ext_gstates.push((gs_name.clone(), *a));
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
-                        content.push_str(&format!(
-                            "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
-                            x = container_x,
-                            y = container_y_top - total_h,
-                            w = container_w,
-                            h = total_h,
-                        ));
+                        content.push_str(&format!("{r} {g} {b} rg\n"));
+                        if *c_border_radius > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                        } else {
+                            content.push_str(&format!(
+                                "{x} {y} {w} {h} re\n",
+                                x = container_x,
+                                y = container_y_top - total_h,
+                                w = container_w,
+                                h = total_h,
+                            ));
+                        }
+                        content.push_str("f\n");
                         if needs_alpha {
                             content.push_str("/GSDefault gs\n");
                         }
@@ -2078,6 +2090,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw all 4 borders
                     if border.has_any() {
+                        if *c_border_radius > 0.0 {
+                            // Use uniform border color/width with rounded rect stroke
+                            let bw = border.top.width.max(border.right.width)
+                                .max(border.bottom.width)
+                                .max(border.left.width);
+                            let (r, g, b) = border.top.color;
+                            content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("S\n");
+                        } else {
                         let bx1 = container_x;
                         let bx2 = container_x + container_w;
                         let by1 = container_y_top;
@@ -2122,6 +2150,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 y = by2 + border.bottom.width * 0.5
                             ));
                         }
+                        } // else (non-rounded borders)
                     }
 
                     // Apply clip if overflow:hidden
