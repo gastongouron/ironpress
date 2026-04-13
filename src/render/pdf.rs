@@ -2563,6 +2563,19 @@ fn render_container_children(
                 let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
                 let child_h = block_height.map_or(child_h, |h| child_h.max(h));
 
+                // Apply position:relative offset (visual only, flow unaffected)
+                let render_x = if *position == Position::Relative {
+                    x + offset_left
+                } else {
+                    x
+                };
+                let render_y = if *position == Position::Relative {
+                    y - offset_top
+                } else {
+                    y
+                };
+                let render_w = tb_block_width.unwrap_or(width);
+
                 // Draw child background
                 if let Some((r, g, b, a)) = background_color {
                     let needs_alpha = *a < 1.0;
@@ -2574,9 +2587,9 @@ fn render_container_children(
                     }
                     content.push_str(&format!(
                         "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
-                        cx = x,
-                        cy = y - child_h,
-                        cw = width,
+                        cx = render_x,
+                        cy = render_y - child_h,
+                        cw = render_w,
                         ch = child_h,
                     ));
                     if needs_alpha {
@@ -2585,7 +2598,7 @@ fn render_container_children(
                 }
 
                 // Draw child text
-                let mut text_y = y - padding_top;
+                let mut text_y = render_y - padding_top;
                 for line in lines {
                     let metrics = line_box_metrics(line, custom_fonts);
                     text_y -= metrics.half_leading + metrics.ascender;
@@ -2595,9 +2608,9 @@ fn render_container_children(
                         .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
                         .sum();
                     let text_x = match text_align {
-                        TextAlign::Right => x + (width - line_width).max(0.0),
-                        TextAlign::Center => x + (width - line_width).max(0.0) / 2.0,
-                        _ => x,
+                        TextAlign::Right => render_x + (render_w - line_width).max(0.0),
+                        TextAlign::Center => render_x + (render_w - line_width).max(0.0) / 2.0,
+                        _ => render_x,
                     };
                     let mut lx = text_x;
                     for run in &merged {
