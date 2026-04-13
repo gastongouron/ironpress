@@ -2049,7 +2049,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         .map(crate::layout::engine::estimate_element_height)
                         .sum();
                     let content_h = c_pt + children_h + c_pb + border.vertical_width();
-                    let total_h = c_block_height.map_or(content_h, |h| content_h.max(h));
+                    let total_h = if *c_overflow == Overflow::Hidden {
+                        // When clipping, use declared height to constrain the box
+                        c_block_height.unwrap_or(content_h)
+                    } else {
+                        c_block_height.map_or(content_h, |h| content_h.max(h))
+                    };
 
                     // Draw background
                     if let Some((r, g, b, a)) = background_color {
