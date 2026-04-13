@@ -1745,7 +1745,7 @@ fn flatten_element(
         sibling_count,
         preceding_siblings: preceding_siblings.to_vec(),
     };
-    let style = compute_style_with_context(
+    let mut style = compute_style_with_context(
         el.tag,
         el.style_attr(),
         parent_style,
@@ -2754,6 +2754,16 @@ fn flatten_element(
             block_w - style.padding.left - style.padding.right
         };
         let inner_width = inner_width.max(0.0);
+
+        // Resolve percentage border-radius against element dimensions
+        if let Some(pct) = style.border_radius_pct {
+            let dim = if let Some(h) = effective_height {
+                block_w.min(h)
+            } else {
+                block_w
+            };
+            style.border_radius = dim * pct / 100.0;
+        }
 
         let positioned_container =
             style.position == Position::Relative || style.position == Position::Absolute;
@@ -4032,6 +4042,14 @@ fn flatten_flex_container(
 
     let inner_width = block_w - style.padding.left - style.padding.right;
 
+    // Resolve percentage border-radius for flex containers
+    let resolved_border_radius = if let Some(pct) = style.border_radius_pct {
+        let dim = style.height.map_or(block_w, |h| block_w.min(h));
+        dim * pct / 100.0
+    } else {
+        style.border_radius
+    };
+
     // Collect child elements and lay each one out into a temporary buffer
     let child_elements: Vec<&ElementNode> = el
         .children
@@ -4055,7 +4073,7 @@ fn flatten_flex_container(
         });
         if has_background_paint(style)
             || style.border.has_any()
-            || style.border_radius > 0.0
+            || resolved_border_radius > 0.0
             || style.box_shadow.is_some()
             || style.aspect_ratio.is_some()
             || style.height.is_some()
@@ -4121,7 +4139,7 @@ fn flatten_flex_container(
                     None
                 },
                 transform: style.transform,
-                border_radius: style.border_radius,
+                border_radius: resolved_border_radius,
                 outline_width: style.outline_width,
                 outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
                 text_indent: 0.0,
