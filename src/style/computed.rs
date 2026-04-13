@@ -552,6 +552,8 @@ pub struct PercentageInsets {
 pub struct ComputedStyle {
     pub font_size: f32,
     pub root_font_size: f32,
+    pub viewport_width: f32,
+    pub viewport_height: f32,
     pub font_weight: FontWeight,
     pub font_style: FontStyle,
     pub font_family: FontFamily,
@@ -647,6 +649,8 @@ impl Default for ComputedStyle {
         Self {
             font_size: 12.0,
             root_font_size: 12.0,
+            viewport_width: 595.28,
+            viewport_height: 841.89,
             font_weight: FontWeight::Normal,
             font_style: FontStyle::Normal,
             font_family: FontFamily::Helvetica,
@@ -1345,10 +1349,12 @@ fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
 }
 
 pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedStyle) {
-    let length_context = crate::style::resolve::LengthResolutionContext::pdf_with_font_sizes(
-        parent.width.unwrap_or(595.28),
+    let length_context = crate::style::resolve::LengthResolutionContext::new(
+        parent.width.unwrap_or(parent.viewport_width),
         style.font_size,
         parent.root_font_size,
+        parent.viewport_width,
+        parent.viewport_height,
     );
 
     // Handle inherit, initial, unset keywords before normal property application

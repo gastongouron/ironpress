@@ -1457,6 +1457,8 @@ pub fn layout_with_rules_and_fonts(
     let content_height = page_size.height - margin.top - margin.bottom;
     parent_style.width = Some(available_width);
     parent_style.root_font_size = parent_style.font_size;
+    parent_style.viewport_width = page_size.width;
+    parent_style.viewport_height = page_size.height;
 
     // First, flatten DOM into layout elements
     let mut elements = Vec::new();
@@ -15362,6 +15364,30 @@ line 3</pre>
             has_container_bg,
             "Container should have background_color from rgba stylesheet"
         );
+    }
+
+    #[test]
+    fn vw_unit_resolves_against_actual_page_size() {
+        // 50vw on Letter (612pt wide) should produce ~306pt, not ~297pt (A4)
+        let html = r#"<div style="width:50vw;background:red">test</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::LETTER, Margin::default());
+        let expected = PageSize::LETTER.width / 2.0; // 306pt
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock {
+                block_width: Some(w),
+                background_color: Some(_),
+                ..
+            } = el
+            {
+                assert!(
+                    (*w - expected).abs() < 1.0,
+                    "50vw on Letter should be ~{expected}pt, got {w}pt"
+                );
+                return;
+            }
+        }
+        panic!("expected a TextBlock with explicit width from 50vw");
     }
 
     // ---- LayoutContext tests ----

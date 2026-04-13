@@ -60,6 +60,18 @@ impl LengthResolutionContext {
     }
 }
 
+impl From<&crate::layout::engine::LayoutContext> for LengthResolutionContext {
+    fn from(ctx: &crate::layout::engine::LayoutContext) -> Self {
+        Self {
+            parent_width: ctx.parent.content_width,
+            font_size: ctx.parent.font_size,
+            root_font_size: ctx.root_font_size,
+            page_width: ctx.viewport.width,
+            page_height: ctx.viewport.height,
+        }
+    }
+}
+
 /// Resolve a calc() expression given resolution context.
 pub fn resolve_calc(
     tokens: &[CalcToken],
