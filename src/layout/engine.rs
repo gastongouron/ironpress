@@ -3053,8 +3053,11 @@ fn flatten_element(
                         false
                     }
                 });
+            let has_abs_pseudo_early =
+                positioned_container && (before_is_abs || after_is_abs);
             let has_block_children = !parent_has_visual
                 && !early_has_abs_children
+                && !has_abs_pseudo_early
                 && el.children.iter().any(|c| {
                     matches!(c, DomNode::Element(e)
                         if (has_own_margins(e.tag)
@@ -3679,7 +3682,10 @@ fn flatten_element(
             || has_abs_children;
         let no_inline_content = !had_inline_runs;
 
-        if (no_inline_content || has_block_kids_for_wrapper) && needs_wrapper && nesting_depth < 40
+        let has_abs_pseudo = positioned_container && (before_is_abs || after_is_abs);
+        if (no_inline_content || has_block_kids_for_wrapper || has_abs_pseudo)
+            && needs_wrapper
+            && nesting_depth < 40
         {
             // Pre-flatten children to measure total height.
             // If there's saved inline content, include it as the first child.
