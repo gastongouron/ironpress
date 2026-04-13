@@ -1086,6 +1086,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         // Draw cell background
+                        let cell_content_h = compute_row_height(cells);
                         if let Some((r, g, b, a)) = cell.background_color {
                             let needs_grid_bg_alpha = a < 1.0;
                             if needs_grid_bg_alpha {
@@ -1096,9 +1097,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!(
                                 "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
                                 x = cell_x,
-                                y = row_y - row_height,
+                                y = cell_row_y - cell_content_h,
                                 w = cell_w,
-                                h = row_height,
+                                h = cell_content_h,
                             ));
                             if needs_grid_bg_alpha {
                                 content.push_str("/GSDefault gs\n");
@@ -1122,12 +1123,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             cell,
                             TableCellRenderBox::new(
                                 cell_x,
-                                row_y,
+                                cell_row_y,
                                 cell_w,
-                                row_height,
+                                cell_content_h,
                                 NestedLayoutFrame::new(
                                     cell_x,
-                                    row_y,
+                                    cell_row_y,
                                     margin.left,
                                     page_size.height - margin.top,
                                     cell_w,
