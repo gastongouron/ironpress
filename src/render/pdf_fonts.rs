@@ -778,6 +778,10 @@ mod tests {
             margin_top: 0.0,
             margin_bottom: 0.0,
             border: crate::layout::engine::LayoutBorder::default(),
+            padding_left: 0.0,
+            padding_right: 0.0,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();

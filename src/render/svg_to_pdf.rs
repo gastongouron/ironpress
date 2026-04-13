@@ -1180,17 +1180,36 @@ fn emit_polyline(points: &[(f32, f32)], close: bool, out: &mut String) {
 }
 
 fn emit_path(commands: &[PathCommand], out: &mut String) {
+    let mut cur_x = 0.0_f32;
+    let mut cur_y = 0.0_f32;
     for cmd in commands {
         match cmd {
-            PathCommand::MoveTo(x, y) => out.push_str(&format!("{x} {y} m\n")),
-            PathCommand::LineTo(x, y) => out.push_str(&format!("{x} {y} l\n")),
+            PathCommand::MoveTo(x, y) => {
+                out.push_str(&format!("{x} {y} m\n"));
+                cur_x = *x;
+                cur_y = *y;
+            }
+            PathCommand::LineTo(x, y) => {
+                out.push_str(&format!("{x} {y} l\n"));
+                cur_x = *x;
+                cur_y = *y;
+            }
             PathCommand::CubicTo(x1, y1, x2, y2, x, y) => {
                 out.push_str(&format!("{x1} {y1} {x2} {y2} {x} {y} c\n"));
+                cur_x = *x;
+                cur_y = *y;
             }
-            PathCommand::QuadTo(_cx, _cy, x, y) => {
-                // Convert quadratic to cubic bezier (would need current point tracking)
-                // For simplicity, approximate as line to endpoint
-                out.push_str(&format!("{x} {y} l\n"));
+            PathCommand::QuadTo(cx, cy, x, y) => {
+                // Convert quadratic bezier to cubic: Q(cx,cy,x,y) from (px,py)
+                // CP1 = px + 2/3*(cx-px), py + 2/3*(cy-py)
+                // CP2 = x  + 2/3*(cx-x),  y  + 2/3*(cy-y)
+                let cp1x = cur_x + 2.0 / 3.0 * (cx - cur_x);
+                let cp1y = cur_y + 2.0 / 3.0 * (cy - cur_y);
+                let cp2x = x + 2.0 / 3.0 * (cx - x);
+                let cp2y = y + 2.0 / 3.0 * (cy - y);
+                out.push_str(&format!("{cp1x} {cp1y} {cp2x} {cp2y} {x} {y} c\n"));
+                cur_x = *x;
+                cur_y = *y;
             }
             PathCommand::ClosePath => out.push_str("h\n"),
         }
@@ -2417,10 +2436,15 @@ mod tests {
         }]);
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
-        // QuadTo is approximated as lineto to endpoint
+        // QuadTo is converted to cubic bezier
         assert!(
-            out.contains("10 10 l\n"),
-            "QuadTo should approximate as lineto"
+            out.contains("c\n"),
+            "QuadTo should convert to cubic bezier (c operator)"
+        );
+        // Endpoint should be 10,10
+        assert!(
+            out.contains("10 10 c\n"),
+            "QuadTo cubic should end at the QuadTo endpoint"
         );
     }
 
@@ -2458,7 +2482,7 @@ mod tests {
         assert!(out.contains("0 0 m\n"));
         assert!(out.contains("10 0 l\n"));
         assert!(out.contains("20 0 20 10 10 10 c\n"));
-        assert!(out.contains("0 10 l\n")); // QuadTo approximated
+        assert!(out.contains("0 10 c\n")); // QuadTo converted to cubic
         assert!(out.contains("h\n"));
         assert!(out.contains("f\n"));
     }

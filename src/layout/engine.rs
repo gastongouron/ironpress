@@ -1209,6 +1209,10 @@ pub enum LayoutElement {
         margin_top: f32,
         margin_bottom: f32,
         border: LayoutBorder,
+        padding_left: f32,
+        padding_right: f32,
+        padding_top: f32,
+        padding_bottom: f32,
     },
     /// An embedded image.
     Image {
@@ -1745,7 +1749,7 @@ fn flatten_element(
         sibling_count,
         preceding_siblings: preceding_siblings.to_vec(),
     };
-    let style = compute_style_with_context(
+    let mut style = compute_style_with_context(
         el.tag,
         el.style_attr(),
         parent_style,
@@ -2755,6 +2759,16 @@ fn flatten_element(
         };
         let inner_width = inner_width.max(0.0);
 
+        // Resolve percentage border-radius against element dimensions
+        if let Some(pct) = style.border_radius_pct {
+            let dim = if let Some(h) = effective_height {
+                block_w.min(h)
+            } else {
+                block_w
+            };
+            style.border_radius = dim * pct / 100.0;
+        }
+
         let positioned_container =
             style.position == Position::Relative || style.position == Position::Absolute;
         let make_containing_block = |padding_box_height: f32| {
@@ -2799,11 +2813,18 @@ fn flatten_element(
             }
         }
 
+        // When the element has absolute pseudo-elements, skip inline text
+        // collection. The wrapper path will handle all children via
+        // flatten_element, avoiding double-rendering of text.
+        let skip_inline_collection = positioned_container && (before_is_abs || after_is_abs);
+
         // Collect inline content as text runs, splitting at math elements.
         // When a math span is encountered, flush accumulated text runs as a
         // TextBlock, emit a MathBlock, then continue collecting.
         let mut runs = Vec::new();
-        append_pseudo_inline_run(&mut runs, before_style.as_ref(), el, fonts, counter_state);
+        if !skip_inline_collection {
+            append_pseudo_inline_run(&mut runs, before_style.as_ref(), el, fonts, counter_state);
+        }
 
         // Helper closure: flush accumulated runs as a TextBlock
         let flush_runs = |runs: &mut Vec<TextRun>,
@@ -2837,11 +2858,44 @@ fn flatten_element(
             if lines.is_empty() {
                 return;
             }
+            // For inline-block without explicit width, shrink-to-fit
+            let render_w = if style.display == Display::InlineBlock
+                && style.width.is_none()
+                && style.percentage_sizing.width.is_none()
+            {
+                let max_line_w: f32 = lines
+                    .iter()
+                    .map(|l| {
+                        l.runs
+                            .iter()
+                            .map(|r| {
+                                crate::fonts::str_width(
+                                    &r.text,
+                                    r.font_size,
+                                    &r.font_family,
+                                    r.bold,
+                                )
+                            })
+                            .sum::<f32>()
+                    })
+                    .fold(0.0f32, f32::max);
+                let shrink_w = max_line_w
+                    + style.padding.left
+                    + style.padding.right
+                    + style.border.horizontal_width();
+                shrink_w.min(block_w)
+            } else {
+                block_w
+            };
+
             let bg = style
                 .background_color
                 .map(|c: crate::types::Color| c.to_f32_rgba());
-            let explicit_width = if block_w < available_width || style.min_width.is_some() {
-                Some(block_w)
+            let explicit_width = if render_w < available_width
+                || style.min_width.is_some()
+                || style.display == Display::InlineBlock
+            {
+                Some(render_w)
             } else {
                 None
             };
@@ -3065,7 +3119,11 @@ fn flatten_element(
                                 e, &style, rules, &child_ancestors, 0, 0, &[]))
                 });
 
-            if has_block_children {
+            if skip_inline_collection {
+                // All content will be handled by the wrapper path below.
+                // Don't collect inline text — the <p> children will be
+                // processed via flatten_element in the Container wrapper.
+            } else if has_block_children {
                 // For visual containers (border, background), emit a wrapper
                 // TextBlock first, then a pullback spacer so children render
                 // inside the wrapper's padding area.
@@ -3465,7 +3523,9 @@ fn flatten_element(
                 );
             }
         }
-        append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts, counter_state);
+        if !skip_inline_collection {
+            append_pseudo_inline_run(&mut runs, after_style.as_ref(), el, fonts, counter_state);
+        }
 
         let had_inline_runs = runs.iter().any(|r| !r.text.trim().is_empty()) || has_math_children;
         let mut cb_info = None;
@@ -3617,7 +3677,24 @@ fn flatten_element(
                 heading_level: heading_level(el.tag),
                 clip_children_count: 0,
             };
+            // Compute needs_wrapper early so we know whether to push the
+            // TextBlock or save it for the Container wrapper path.
+            let early_has_visual_for_wrapper = has_background_paint(&style)
+                || style.border.has_any()
+                || style.border_radius > 0.0
+                || style.box_shadow.is_some();
+            let early_needs_wrapper = early_has_visual_for_wrapper
+                || style.aspect_ratio.is_some()
+                || style.height.is_some()
+                || (positioned_container && (before_is_abs || after_is_abs))
+                || skip_inline_collection;
+            let early_no_inline = !had_inline_runs;
+
             if has_block_kids_for_wrapper {
+                saved_inline_element = Some(inline_tb);
+            } else if early_no_inline && early_needs_wrapper {
+                // Don't push empty TextBlock — the wrapper path will
+                // create a Container with the correct block_width.
                 saved_inline_element = Some(inline_tb);
             } else {
                 output.push(inline_tb);
@@ -3741,7 +3818,18 @@ fn flatten_element(
                                 child_el_count,
                                 &[],
                                 fonts,
-                                None, // CB will be patched below after container_h is known
+                                // Pass containing block for percentage height resolution
+                                // when parent has an explicit height.
+                                if effective_height.is_some() {
+                                    Some(ContainingBlock {
+                                        x: 0.0,
+                                        width: inner_width,
+                                        height: effective_height.unwrap_or(0.0),
+                                        depth: positioned_depth,
+                                    })
+                                } else {
+                                    None
+                                },
                                 counter_state,
                             );
                         }
@@ -4032,6 +4120,14 @@ fn flatten_flex_container(
 
     let inner_width = block_w - style.padding.left - style.padding.right;
 
+    // Resolve percentage border-radius for flex containers
+    let resolved_border_radius = if let Some(pct) = style.border_radius_pct {
+        let dim = style.height.map_or(block_w, |h| block_w.min(h));
+        dim * pct / 100.0
+    } else {
+        style.border_radius
+    };
+
     // Collect child elements and lay each one out into a temporary buffer
     let child_elements: Vec<&ElementNode> = el
         .children
@@ -4055,7 +4151,7 @@ fn flatten_flex_container(
         });
         if has_background_paint(style)
             || style.border.has_any()
-            || style.border_radius > 0.0
+            || resolved_border_radius > 0.0
             || style.box_shadow.is_some()
             || style.aspect_ratio.is_some()
             || style.height.is_some()
@@ -4121,7 +4217,7 @@ fn flatten_flex_container(
                     None
                 },
                 transform: style.transform,
-                border_radius: style.border_radius,
+                border_radius: resolved_border_radius,
                 outline_width: style.outline_width,
                 outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
                 text_indent: 0.0,
@@ -4254,13 +4350,23 @@ fn flatten_flex_container(
             preceding_siblings: Vec::new(),
         });
 
-        // Determine child width early so complex items can use it for layout.
-        // For flex-grow items without explicit width, use equal share as initial estimate.
-        // The actual width will be adjusted after grow distribution.
-        let child_w_for_layout = child_style
+        // Two widths: child_w_for_flex is the CSS flex-basis for wrapping
+        // decisions, child_w_for_layout is the width used to lay out children
+        // (inflated for flex-grow items so percentage children resolve correctly).
+        let child_w_for_flex = child_style
             .flex_basis
             .or(child_style.width)
             .unwrap_or(width_for_percentages / child_count as f32);
+        let child_w_for_layout = if child_style.flex_grow > 0.0
+            && child_style.flex_basis == Some(0.0)
+            && child_style.width.is_none()
+        {
+            // Use full available width for child percentage resolution,
+            // but flex wrapping uses the actual basis (child_w_for_flex).
+            width_for_percentages
+        } else {
+            child_w_for_flex
+        };
 
         // Check if this flex item has block-level children that need full layout
         let item_has_block_children = child_el.children.iter().any(|c| {
@@ -4330,8 +4436,8 @@ fn flatten_flex_container(
 
             items.push(FlexItem {
                 elements: child_elements_buf,
-                width: child_w_for_layout,
-                base_width: child_w_for_layout,
+                width: child_w_for_flex,
+                base_width: child_w_for_flex,
                 flex_grow: child_style.flex_grow,
                 flex_shrink: child_style.flex_shrink,
                 height: child_h,
@@ -4781,6 +4887,54 @@ fn flatten_flex_container(
                         }
                     }
                     free_space = 0.0;
+                }
+
+                // Second pass: re-layout flex-grow items whose width changed
+                // significantly. This ensures percentage-width children inside
+                // flex items resolve against the final cell width, not the
+                // initial estimate.
+                for &i in &line_items {
+                    if items[i].flex_grow > 0.0
+                        && (items[i].width - items[i].base_width).abs() > 1.0
+                    {
+                        let final_w = items[i].width;
+                        let child_el = child_elements[i];
+                        let has_block_kids = child_el.children.iter().any(|c| {
+                            matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
+                        });
+                        if has_block_kids {
+                            let mut relayout_buf = Vec::new();
+                            let mut relayout_ancestors = ancestors.to_vec();
+                            relayout_ancestors.push(AncestorInfo {
+                                element: el,
+                                child_index: 0,
+                                sibling_count: 0,
+                                preceding_siblings: Vec::new(),
+                            });
+                            flatten_element(
+                                child_el,
+                                style,
+                                final_w,
+                                10000.0,
+                                &mut relayout_buf,
+                                None,
+                                rules,
+                                &relayout_ancestors,
+                                positioned_depth,
+                                i,
+                                child_count,
+                                &[],
+                                fonts,
+                                None,
+                                counter_state,
+                            );
+                            if !relayout_buf.is_empty() {
+                                items[i].elements = relayout_buf;
+                                items[i].height =
+                                    items[i].elements.iter().map(estimate_element_height).sum();
+                            }
+                        }
+                    }
                 }
 
                 let free_space = free_space.max(0.0);
@@ -5350,6 +5504,7 @@ fn flatten_grid_container(
     // Lay out children into grid cells, row by row
     let mut child_idx = 0;
     let mut is_first_row = true;
+    let mut grid_children: Vec<LayoutElement> = Vec::new();
 
     while child_idx < children.len() {
         let row_end = (child_idx + num_cols).min(children.len());
@@ -5443,29 +5598,70 @@ fn flatten_grid_container(
             });
         }
 
-        let margin_top = if is_first_row { style.margin.top } else { gap };
+        let margin_top = if is_first_row { 0.0 } else { gap };
 
-        output.push(LayoutElement::GridRow {
+        grid_children.push(LayoutElement::GridRow {
             cells,
             col_widths: col_widths.clone(),
             gap,
             margin_top,
             margin_bottom: 0.0,
-            border: if is_first_row {
-                LayoutBorder::from_computed(&style.border)
-            } else {
-                LayoutBorder::default()
-            },
+            border: LayoutBorder::default(),
+            padding_left: 0.0,
+            padding_right: 0.0,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
         });
 
         is_first_row = false;
         child_idx = row_end;
     }
 
-    // Add bottom margin after the last row
-    if let Some(LayoutElement::GridRow { margin_bottom, .. }) = output.last_mut() {
-        *margin_bottom = style.margin.bottom;
-    }
+    // Wrap all grid rows in a Container that carries the border, padding,
+    // and background of the grid container element.
+    let bg = style
+        .background_color
+        .map(|c: crate::types::Color| c.to_f32_rgba());
+    let BackgroundFields {
+        gradient: background_gradient,
+        radial_gradient: background_radial_gradient,
+        svg: background_svg,
+        blur_radius: background_blur_radius,
+        size: background_size,
+        position: background_position,
+        repeat: background_repeat,
+        origin: background_origin,
+    } = BackgroundFields::from_style(style);
+    output.push(LayoutElement::Container {
+        children: grid_children,
+        background_color: bg,
+        border: LayoutBorder::from_computed(&style.border),
+        border_radius: style.border_radius,
+        padding_top: style.padding.top,
+        padding_bottom: style.padding.bottom,
+        padding_left: style.padding.left,
+        padding_right: style.padding.right,
+        margin_top: style.margin.top,
+        margin_bottom: style.margin.bottom,
+        block_width: Some(inner_width + style.padding.left + style.padding.right),
+        block_height: None,
+        opacity: style.opacity,
+        position: style.position,
+        offset_top: 0.0,
+        offset_left: 0.0,
+        overflow: style.overflow,
+        transform: style.transform,
+        box_shadow: style.box_shadow,
+        background_gradient,
+        background_radial_gradient,
+        background_svg,
+        background_blur_radius,
+        background_size,
+        background_position,
+        background_repeat,
+        background_origin,
+        z_index: style.z_index,
+    });
 }
 
 /// Parse a width for a `<col>` / `<colgroup>` element.
@@ -7667,13 +7863,15 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             cells,
             margin_top,
             margin_bottom,
+            padding_top,
+            padding_bottom,
             ..
         } => {
             let row_h = cells
                 .iter()
                 .map(table_cell_content_height)
                 .fold(0.0f32, f32::max);
-            margin_top + row_h + margin_bottom
+            margin_top + padding_top + row_h + padding_bottom + margin_bottom
         }
         LayoutElement::Image {
             height,
@@ -11009,6 +11207,21 @@ mod tests {
 
     // --- CSS Grid tests ---
 
+    /// Helper: extract GridRow elements from inside a Container child on page 0.
+    fn extract_grid_rows(pages: &[Page]) -> Vec<&LayoutElement> {
+        let mut rows = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::Container { children, .. } = el {
+                for child in children {
+                    if matches!(child, LayoutElement::GridRow { .. }) {
+                        rows.push(child);
+                    }
+                }
+            }
+        }
+        rows
+    }
+
     #[test]
     fn grid_three_column_places_items_correctly() {
         let html = r#"<div style="display: grid; grid-template-columns: 1fr 1fr 1fr">
@@ -11022,10 +11235,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow {
                     cells, col_widths, ..
                 } = el
@@ -11067,10 +11280,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow {
                     cells, col_widths, ..
                 } = el
@@ -11113,10 +11326,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow { col_widths, .. } = el {
                     Some(col_widths)
                 } else {
@@ -11148,10 +11361,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow {
                     col_widths,
                     margin_top,
@@ -11198,10 +11411,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow { cells, .. } = el {
                     Some(cells)
                 } else {
@@ -11259,10 +11472,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow { margin_top, .. } = el {
                     Some(*margin_top)
                 } else {
@@ -11289,10 +11502,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow {
                     cells, col_widths, ..
                 } = el
@@ -11325,10 +11538,10 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
 
-        let grid_rows: Vec<_> = pages[0]
-            .elements
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
             .iter()
-            .filter_map(|(_, el)| {
+            .filter_map(|el| {
                 if let LayoutElement::GridRow {
                     cells, col_widths, ..
                 } = el
@@ -13072,14 +13285,19 @@ mod tests {
         let html = r#"<div class="grid"><div>A</div><div>B</div><div>C</div><div>D</div></div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let grid_rows: Vec<_> = pages[0]
-            .elements
-            .iter()
-            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
-            .collect();
+        // Grid rows are now inside a Container wrapper
+        let has_grid_container = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::Container { children, .. } = el {
+                children
+                    .iter()
+                    .any(|c| matches!(c, LayoutElement::GridRow { .. }))
+            } else {
+                false
+            }
+        });
         assert!(
-            !grid_rows.is_empty(),
-            "Expected GridRow elements from display: grid layout"
+            has_grid_container,
+            "Expected Container with GridRow children from display: grid layout"
         );
     }
 
@@ -13194,18 +13412,11 @@ mod tests {
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
         assert_eq!(pages.len(), 1);
-        let grid_rows: Vec<_> = pages[0]
-            .elements
-            .iter()
-            .filter(|(_, el)| matches!(el, LayoutElement::GridRow { .. }))
-            .collect();
+        let grid_rows = extract_grid_rows(&pages);
         assert!(
             !grid_rows.is_empty(),
             "Expected GridRow elements from grid layout"
         );
-        for (y, _) in &grid_rows {
-            assert!(*y >= 0.0, "Grid row y position should be non-negative");
-        }
     }
 
     #[test]

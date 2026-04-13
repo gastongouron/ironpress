@@ -603,6 +603,8 @@ pub struct ComputedStyle {
     pub grid_template_columns: Vec<GridTrack>,
     pub grid_gap: f32,
     pub border_radius: f32,
+    /// Percentage-based border-radius (e.g. 50% for circles). Resolved in layout.
+    pub border_radius_pct: Option<f32>,
     pub outline_width: f32,
     pub outline_color: Option<Color>,
     pub box_sizing: BoxSizing,
@@ -695,6 +697,7 @@ impl Default for ComputedStyle {
             grid_template_columns: Vec::new(),
             grid_gap: 0.0,
             border_radius: 0.0,
+            border_radius_pct: None,
             outline_width: 0.0,
             outline_color: None,
             box_sizing: BoxSizing::ContentBox,
@@ -1881,8 +1884,16 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     // Border-radius (single value shorthand)
-    if let Some(CssValue::Length(v)) = get_non_special(map, "border-radius") {
-        style.border_radius = *v;
+    match get_non_special(map, "border-radius") {
+        Some(CssValue::Length(v)) => style.border_radius = *v,
+        Some(CssValue::Percentage(pct)) => {
+            // Resolve percentage border-radius against the smaller dimension.
+            // Use width if available, otherwise store a sentinel that the
+            // layout engine resolves later.  For the common `50%` case on a
+            // square element this produces a perfect circle.
+            style.border_radius_pct = Some(*pct);
+        }
+        _ => {}
     }
 
     // Outline shorthand: "2px solid red"

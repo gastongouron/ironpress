@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate Chromium reference PDFs and convert page 1 to PNG for comparison.
+# Generate Chromium reference PDFs and convert ALL pages to PNG for comparison.
 # Uses --print-to-pdf so Chrome applies the same A4 page constraints as ironpress.
 set -euo pipefail
 
@@ -30,7 +30,6 @@ for layer in features combined edge-cases; do
         [ -f "$html_file" ] || continue
         name=$(basename "$html_file" .html)
         ref_pdf="$REF_DIR/$layer/$name.pdf"
-        ref_png="$REF_DIR/$layer/$name.png"
 
         echo "  $layer/$name..."
 
@@ -47,19 +46,35 @@ for layer in features combined edge-cases; do
             continue
         }
 
-        # Convert page 1 of reference PDF to PNG at 150 DPI
-        if [ -f "$ref_pdf" ]; then
-            pdftoppm -r 150 -png -f 1 -l 1 "$ref_pdf" "$REF_DIR/$layer/$name" 2>/dev/null
-            # Rename to consistent name (pdftoppm adds -1 or -01 suffix)
-            for candidate in "$REF_DIR/$layer/${name}-1.png" "$REF_DIR/$layer/${name}-01.png" "$REF_DIR/$layer/${name}-001.png"; do
+        if [ ! -f "$ref_pdf" ]; then
+            continue
+        fi
+
+        # Get page count
+        page_count=$(pdftoppm -r 10 -png "$ref_pdf" /tmp/ref_count_ 2>/dev/null; ls /tmp/ref_count_*.png 2>/dev/null | wc -l; rm -f /tmp/ref_count_*.png)
+        [ "$page_count" -lt 1 ] && page_count=1
+
+        # Convert each page to PNG at 150 DPI
+        for page in $(seq 1 "$page_count"); do
+            if [ "$page" -eq 1 ]; then
+                out_base="$name"
+            else
+                out_base="${name}-p${page}"
+            fi
+            ref_png="$REF_DIR/$layer/${out_base}.png"
+
+            pdftoppm -r 150 -png -f "$page" -l "$page" "$ref_pdf" "$REF_DIR/$layer/${out_base}" 2>/dev/null
+            # Rename from pdftoppm's suffix format to clean name
+            for candidate in "$REF_DIR/$layer/${out_base}-${page}.png" "$REF_DIR/$layer/${out_base}-0${page}.png" "$REF_DIR/$layer/${out_base}-00${page}.png"; do
                 if [ -f "$candidate" ]; then
                     mv "$candidate" "$ref_png"
                     break
                 fi
             done
-            rm -f "$ref_pdf"  # Clean up intermediate PDF
             [ -f "$ref_png" ] && count=$((count + 1))
-        fi
+        done
+
+        rm -f "$ref_pdf"  # Clean up intermediate PDF
     done
 done
 
