@@ -320,6 +320,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             crate::style::computed::Transform::Translate(tx, ty) => {
                                 content.push_str(&format!("1 0 0 1 {tx} {ty} cm\n",));
                             }
+                            crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
+                                // Pre-composed matrix — apply around element centre.
+                                // T(cx,cy) · M · T(-cx,-cy)
+                                let ne =
+                                    a * (-cx) + c * (-cy) + e + cx;
+                                let nf =
+                                    b * (-cx) + d * (-cy) + f + cy;
+                                content.push_str(&format!(
+                                    "{a} {b} {c} {d} {ne} {nf} cm\n"
+                                ));
+                            }
                         }
                     }
 
@@ -1409,6 +1420,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 }
                                 crate::style::computed::Transform::Translate(dx, dy) => {
                                     content.push_str(&format!("1 0 0 1 {dx} {} cm\n", -dy));
+                                }
+                                crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
+                                    let ne =
+                                        a * (-cx) + c * (-cy) + e + cx;
+                                    let nf =
+                                        b * (-cx) + d * (-cy) + f + cy;
+                                    content.push_str(&format!(
+                                        "{a} {b} {c} {d} {ne} {nf} cm\n"
+                                    ));
                                 }
                             }
                         }
