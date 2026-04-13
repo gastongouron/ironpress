@@ -3751,7 +3751,18 @@ fn flatten_element(
                                 child_el_count,
                                 &[],
                                 fonts,
-                                None, // CB will be patched below after container_h is known
+                                // Pass containing block for percentage height resolution
+                                // when parent has an explicit height.
+                                if effective_height.is_some() {
+                                    Some(ContainingBlock {
+                                        x: 0.0,
+                                        width: inner_width,
+                                        height: effective_height.unwrap_or(0.0),
+                                        depth: positioned_depth,
+                                    })
+                                } else {
+                                    None
+                                },
                                 counter_state,
                             );
                         }
@@ -4273,12 +4284,20 @@ fn flatten_flex_container(
         });
 
         // Determine child width early so complex items can use it for layout.
-        // For flex-grow items without explicit width, use equal share as initial estimate.
-        // The actual width will be adjusted after grow distribution.
-        let child_w_for_layout = child_style
-            .flex_basis
-            .or(child_style.width)
-            .unwrap_or(width_for_percentages / child_count as f32);
+        // For flex-grow items with flex-basis: 0 (from `flex: 1`), use the
+        // parent's full available width so percentage children resolve correctly.
+        // The actual cell width is adjusted after flex-grow distribution.
+        let child_w_for_layout = if child_style.flex_grow > 0.0
+            && child_style.flex_basis == Some(0.0)
+            && child_style.width.is_none()
+        {
+            width_for_percentages
+        } else {
+            child_style
+                .flex_basis
+                .or(child_style.width)
+                .unwrap_or(width_for_percentages / child_count as f32)
+        };
 
         // Check if this flex item has block-level children that need full layout
         let item_has_block_children = child_el.children.iter().any(|c| {

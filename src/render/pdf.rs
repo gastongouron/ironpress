@@ -337,9 +337,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let pf = -f;
                                 let ne = pa * (-cx) + pc * (-cy) + pe + cx;
                                 let nf = pb * (-cx) + pd * (-cy) + pf + cy;
-                                content.push_str(&format!(
-                                    "{pa} {pb} {pc} {pd} {ne} {nf} cm\n"
-                                ));
+                                content.push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
                             }
                         }
                     }
@@ -1441,9 +1439,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let pf = -f;
                                     let ne = pa * (-cx) + pc * (-cy) + pe + cx;
                                     let nf = pb * (-cx) + pd * (-cy) + pf + cy;
-                                    content.push_str(&format!(
-                                        "{pa} {pb} {pc} {pd} {ne} {nf} cm\n"
-                                    ));
+                                    content
+                                        .push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
                                 }
                             }
                         }
