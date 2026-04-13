@@ -40,10 +40,23 @@ jobs:
           cp pkg/ironpress_bg.wasm playground/
 
       # Generate parity comparison images for the dashboard
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-cache
+          key: apt-parity-${{ runner.os }}-v2
       - name: Install parity dependencies
+        timeout-minutes: 10
         run: |
+          # Restore cached .deb packages if available
+          if [ -d ~/apt-cache ]; then
+            sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          fi
           sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto fonts-noto-cjk fonts-noto-color-emoji
+          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-core fonts-noto-color-emoji
+          # Cache downloaded .deb files for next run
+          mkdir -p ~/apt-cache
+          cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
 
       - name: Build ironpress release
         run: cargo build --release
