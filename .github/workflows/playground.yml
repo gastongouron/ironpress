@@ -70,51 +70,46 @@ jobs:
         run: bash scripts/generate-references.sh
 
       - name: Generate comparison images
+        shell: bash
         run: |
+          set +e  # compare/grep return non-zero normally
           mkdir -p playground/parity/images
           REFS_DIR=tests/fixtures/references
           for layer in features combined edge-cases; do
-            mkdir -p playground/parity/images/$layer
+            mkdir -p "playground/parity/images/$layer"
             for ref_png in "$REFS_DIR/$layer"/*.png; do
               [ -f "$ref_png" ] || continue
               base=$(basename "$ref_png" .png)
-              # Strip page suffix to get fixture name (e.g. "grid-p2" → "grid")
               name=$(echo "$base" | sed 's/-p[0-9]*$//')
-              page_suffix=$(echo "$base" | grep -o '\-p[0-9]*$' || echo "")
+              page_suffix=$(echo "$base" | grep -o '\-p[0-9]*$' || true)
               pdf_file="/tmp/parity-pdfs/$layer/$name.pdf"
               [ -f "$pdf_file" ] || continue
 
-              # Determine page number (default 1, or from -pN suffix)
               if [ -n "$page_suffix" ]; then
                 page_num=$(echo "$page_suffix" | sed 's/-p//')
               else
                 page_num=1
               fi
 
-              # Convert ironpress PDF specific page to PNG
-              pdftoppm -r 150 -png -f "$page_num" -l "$page_num" "$pdf_file" "/tmp/ironpress_${base}" 2>/dev/null
+              pdftoppm -r 150 -png -f "$page_num" -l "$page_num" "$pdf_file" "/tmp/ironpress_${base}" 2>/dev/null || true
               iron_png=""
               for c in "/tmp/ironpress_${base}-${page_num}.png" "/tmp/ironpress_${base}-0${page_num}.png" "/tmp/ironpress_${base}-00${page_num}.png"; do
                 [ -f "$c" ] && iron_png="$c" && break
               done
               [ -z "$iron_png" ] && continue
 
-              # Resize to match reference
-              ref_dims=$(identify -format "%wx%h" "$ref_png" 2>/dev/null || echo "")
-              [ -n "$ref_dims" ] && convert "$iron_png" -resize "$ref_dims!" "$iron_png" 2>/dev/null
+              ref_dims=$(identify -format "%wx%h" "$ref_png" 2>/dev/null || true)
+              [ -n "$ref_dims" ] && convert "$iron_png" -resize "${ref_dims}!" "$iron_png" 2>/dev/null || true
 
-              # Copy reference and ironpress renders
               cp "$ref_png" "playground/parity/images/$layer/${base}_chromium.png"
               cp "$iron_png" "playground/parity/images/$layer/${base}_ironpress.png"
 
-              # Generate visual diff image (red = different pixels, white = same)
-              # compare exits 1 when images differ (normal), only fall back on actual errors (exit 2+)
               compare "$ref_png" "$iron_png" -compose src -highlight-color red -lowlight-color white \
-                "playground/parity/images/$layer/${base}_diff.png" 2>/dev/null
-              cmp_exit=$?
-              if [ "$cmp_exit" -gt 1 ] || [ ! -f "playground/parity/images/$layer/${base}_diff.png" ]; then
-                convert -size "$(identify -format '%wx%h' "$ref_png" 2>/dev/null || echo '800x1132')" xc:gray \
-                  "playground/parity/images/$layer/${base}_diff.png" 2>/dev/null
+                "playground/parity/images/$layer/${base}_diff.png" 2>/dev/null || true
+              if [ ! -f "playground/parity/images/$layer/${base}_diff.png" ]; then
+                ref_size=$(identify -format '%wx%h' "$ref_png" 2>/dev/null || echo '800x1132')
+                convert -size "$ref_size" xc:gray \
+                  "playground/parity/images/$layer/${base}_diff.png" 2>/dev/null || true
               fi
             done
           done
