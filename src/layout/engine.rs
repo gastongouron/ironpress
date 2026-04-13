@@ -1787,19 +1787,20 @@ fn heading_level(tag: HtmlTag) -> Option<u8> {
 fn layout_block_element(
     el: &ElementNode,
     style: &mut ComputedStyle,
-    available_width: f32,
-    available_height: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
     child_ancestors: &[AncestorInfo],
     positioned_depth: usize,
     fonts: &HashMap<String, TtfFont>,
-    abs_containing_block: Option<ContainingBlock>,
     counter_state: &mut CounterState,
     before_style: Option<ComputedStyle>,
     after_style: Option<ComputedStyle>,
 ) -> bool {
+    let available_width = ctx.available_width();
+    let available_height = ctx.available_height();
+    let abs_containing_block = ctx.containing_block;
     // Compute effective block width considering CSS width/max-width/min-width
     let mut block_w = available_width;
     if let Some(w) = style.width {
@@ -1874,21 +1875,7 @@ fn layout_block_element(
 
     let style = &*style;
 
-    // Transitional LayoutContext for inline-block group calls.
-    // Will be replaced when layout_block_element takes &LayoutContext directly.
-    let ib_ctx = LayoutContext {
-        viewport: Viewport {
-            width: available_width,
-            height: available_height,
-        },
-        parent: ParentBox {
-            content_width: inner_width,
-            content_height: Some(available_height),
-            font_size: style.font_size,
-        },
-        containing_block: abs_containing_block,
-        root_font_size: style.root_font_size,
-    };
+    let ib_ctx = ctx.with_parent(inner_width, ctx.parent.content_height, style.font_size);
 
     let positioned_container =
         style.position == Position::Relative || style.position == Position::Absolute;
@@ -4201,15 +4188,13 @@ fn route_element(
         let early_exit = layout_block_element(
             el,
             style,
-            available_width,
-            available_height,
+            &layout_ctx,
             output,
             rules,
             ancestors,
             child_ancestors,
             positioned_depth,
             fonts,
-            abs_containing_block,
             counter_state,
             before_style,
             after_style,
