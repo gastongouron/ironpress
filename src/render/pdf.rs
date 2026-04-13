@@ -323,13 +323,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
                                 // Pre-composed matrix — apply around element centre.
                                 // T(cx,cy) · M · T(-cx,-cy)
-                                let ne =
-                                    a * (-cx) + c * (-cy) + e + cx;
-                                let nf =
-                                    b * (-cx) + d * (-cy) + f + cy;
-                                content.push_str(&format!(
-                                    "{a} {b} {c} {d} {ne} {nf} cm\n"
-                                ));
+                                let ne = a * (-cx) + c * (-cy) + e + cx;
+                                let nf = b * (-cx) + d * (-cy) + f + cy;
+                                content.push_str(&format!("{a} {b} {c} {d} {ne} {nf} cm\n"));
                             }
                         }
                     }
@@ -1422,13 +1418,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     content.push_str(&format!("1 0 0 1 {dx} {} cm\n", -dy));
                                 }
                                 crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
-                                    let ne =
-                                        a * (-cx) + c * (-cy) + e + cx;
-                                    let nf =
-                                        b * (-cx) + d * (-cy) + f + cy;
-                                    content.push_str(&format!(
-                                        "{a} {b} {c} {d} {ne} {nf} cm\n"
-                                    ));
+                                    let ne = a * (-cx) + c * (-cy) + e + cx;
+                                    let nf = b * (-cx) + d * (-cy) + f + cy;
+                                    content.push_str(&format!("{a} {b} {c} {d} {ne} {nf} cm\n"));
                                 }
                             }
                         }
@@ -2092,7 +2084,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     if border.has_any() {
                         if *c_border_radius > 0.0 {
                             // Use uniform border color/width with rounded rect stroke
-                            let bw = border.top.width.max(border.right.width)
+                            let bw = border
+                                .top
+                                .width
+                                .max(border.right.width)
                                 .max(border.bottom.width)
                                 .max(border.left.width);
                             let (r, g, b) = border.top.color;
@@ -2106,50 +2101,50 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                             content.push_str("S\n");
                         } else {
-                        let bx1 = container_x;
-                        let bx2 = container_x + container_w;
-                        let by1 = container_y_top;
-                        let by2 = container_y_top - total_h;
-                        if border.left.width > 0.0 {
-                            let (r, g, b) = border.left.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                bw = border.left.width,
-                                x = bx1 + border.left.width * 0.5,
-                                y1 = by1,
-                                y2 = by2
-                            ));
-                        }
-                        if border.right.width > 0.0 {
-                            let (r, g, b) = border.right.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                bw = border.right.width,
-                                x = bx2 - border.right.width * 0.5,
-                                y1 = by1,
-                                y2 = by2
-                            ));
-                        }
-                        if border.top.width > 0.0 {
-                            let (r, g, b) = border.top.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                bw = border.top.width,
-                                x1 = bx1,
-                                x2 = bx2,
-                                y = by1 - border.top.width * 0.5
-                            ));
-                        }
-                        if border.bottom.width > 0.0 {
-                            let (r, g, b) = border.bottom.color;
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                bw = border.bottom.width,
-                                x1 = bx1,
-                                x2 = bx2,
-                                y = by2 + border.bottom.width * 0.5
-                            ));
-                        }
+                            let bx1 = container_x;
+                            let bx2 = container_x + container_w;
+                            let by1 = container_y_top;
+                            let by2 = container_y_top - total_h;
+                            if border.left.width > 0.0 {
+                                let (r, g, b) = border.left.color;
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                    bw = border.left.width,
+                                    x = bx1 + border.left.width * 0.5,
+                                    y1 = by1,
+                                    y2 = by2
+                                ));
+                            }
+                            if border.right.width > 0.0 {
+                                let (r, g, b) = border.right.color;
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                    bw = border.right.width,
+                                    x = bx2 - border.right.width * 0.5,
+                                    y1 = by1,
+                                    y2 = by2
+                                ));
+                            }
+                            if border.top.width > 0.0 {
+                                let (r, g, b) = border.top.color;
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                    bw = border.top.width,
+                                    x1 = bx1,
+                                    x2 = bx2,
+                                    y = by1 - border.top.width * 0.5
+                                ));
+                            }
+                            if border.bottom.width > 0.0 {
+                                let (r, g, b) = border.bottom.color;
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                    bw = border.bottom.width,
+                                    x1 = bx1,
+                                    x2 = bx2,
+                                    y = by2 + border.bottom.width * 0.5
+                                ));
+                            }
                         } // else (non-rounded borders)
                     }
 
@@ -3068,7 +3063,8 @@ fn render_container_children(
                                 "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                 bw = cell.border.left.width,
                                 x = bx1 + cell.border.left.width * 0.5,
-                                y1 = by1, y2 = by2
+                                y1 = by1,
+                                y2 = by2
                             ));
                         }
                         if cell.border.right.width > 0.0 {
@@ -3077,7 +3073,8 @@ fn render_container_children(
                                 "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                 bw = cell.border.right.width,
                                 x = bx2 - cell.border.right.width * 0.5,
-                                y1 = by1, y2 = by2
+                                y1 = by1,
+                                y2 = by2
                             ));
                         }
                         if cell.border.top.width > 0.0 {
@@ -3085,7 +3082,8 @@ fn render_container_children(
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                 bw = cell.border.top.width,
-                                x1 = bx1, x2 = bx2,
+                                x1 = bx1,
+                                x2 = bx2,
                                 y = by1 - cell.border.top.width * 0.5
                             ));
                         }
@@ -3094,7 +3092,8 @@ fn render_container_children(
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                 bw = cell.border.bottom.width,
-                                x1 = bx1, x2 = bx2,
+                                x1 = bx1,
+                                x2 = bx2,
                                 y = by2 + cell.border.bottom.width * 0.5
                             ));
                         }

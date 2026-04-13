@@ -2780,10 +2780,7 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         }
     }
 
-    if let Some(inner) = val
-        .strip_prefix("skew(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
+    if let Some(inner) = val.strip_prefix("skew(").and_then(|s| s.strip_suffix(')')) {
         let parts: Vec<&str> = inner.split(',').collect();
         let ax = parts
             .first()?
@@ -2804,10 +2801,7 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         return Some(Transform::Matrix(1.0, tan_y, tan_x, 1.0, 0.0, 0.0));
     }
 
-    if let Some(inner) = val
-        .strip_prefix("skewX(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
+    if let Some(inner) = val.strip_prefix("skewX(").and_then(|s| s.strip_suffix(')')) {
         let deg = inner
             .trim()
             .strip_suffix("deg")
@@ -2816,10 +2810,7 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         return Some(Transform::Matrix(1.0, 0.0, tan_x, 1.0, 0.0, 0.0));
     }
 
-    if let Some(inner) = val
-        .strip_prefix("skewY(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
+    if let Some(inner) = val.strip_prefix("skewY(").and_then(|s| s.strip_suffix(')')) {
         let deg = inner
             .trim()
             .strip_suffix("deg")

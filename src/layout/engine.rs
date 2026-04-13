@@ -3053,8 +3053,7 @@ fn flatten_element(
                         false
                     }
                 });
-            let has_abs_pseudo_early =
-                positioned_container && (before_is_abs || after_is_abs);
+            let has_abs_pseudo_early = positioned_container && (before_is_abs || after_is_abs);
             let has_block_children = !parent_has_visual
                 && !early_has_abs_children
                 && !has_abs_pseudo_early

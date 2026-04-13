@@ -374,11 +374,11 @@ fn helvetica_char_afm(ch: char, bold: bool) -> u16 {
     } else if (0x2000..=0x206F).contains(&code) {
         // General punctuation (em dash, en dash, etc.)
         match code {
-            0x2013 => 500, // en-dash
-            0x2014 => 1000, // em-dash
+            0x2013 => 500,          // en-dash
+            0x2014 => 1000,         // em-dash
             0x2018 | 0x2019 => 222, // single quotes
             0x201C | 0x201D => 333, // double quotes
-            0x2026 => 1000, // ellipsis
+            0x2026 => 1000,         // ellipsis
             _ => DEFAULT_WIDTH,
         }
     } else if (0x2500..=0x257F).contains(&code) {

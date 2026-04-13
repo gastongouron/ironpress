@@ -1716,7 +1716,7 @@ mod tests {
             font_family: Some("Helvetica".to_string()),
             font_bold: Some(false),
             font_italic: Some(false),
-                text_anchor: SvgTextAnchor::Start,
+            text_anchor: SvgTextAnchor::Start,
             content: text.to_string(),
             style: SvgStyle {
                 clip_path: Some("clip".to_string()),
@@ -3044,7 +3044,7 @@ mod tests {
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
-                text_anchor: SvgTextAnchor::Start,
+                    text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
                         fill: SvgPaint::CurrentColor,
@@ -3134,7 +3134,7 @@ mod tests {
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
-                text_anchor: SvgTextAnchor::Start,
+                    text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
                         fill: SvgPaint::CurrentColor,
