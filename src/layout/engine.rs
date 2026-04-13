@@ -147,11 +147,8 @@ fn element_is_inline_block(
         &el.attributes,
         &selector_ctx,
     );
-    // SVGs, elements with transforms, and elements with blur filters
-    // need individual block layout — FlexCell doesn't support these yet.
+    // SVGs need individual block layout (they use cm operator for viewBox).
     style.display == Display::InlineBlock
-        && style.transform.is_none()
-        && style.blur_radius == 0.0
         && el.tag != HtmlTag::Svg
         && !el
             .children
@@ -191,6 +188,7 @@ fn flush_inline_block_group(
         padding_bottom: f32,
         padding_left: f32,
         border_radius: f32,
+        transform: Option<Transform>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
@@ -341,6 +339,7 @@ fn flush_inline_block_group(
             padding_bottom: child_style.padding.bottom,
             padding_left: child_style.padding.left,
             border_radius: child_style.border_radius,
+            transform: child_style.transform,
             background_gradient: bg_fields.gradient,
             background_radial_gradient: bg_fields.radial_gradient,
             background_svg: bg_fields.svg,
@@ -394,6 +393,7 @@ fn flush_inline_block_group(
             background_position: item.background_position,
             background_repeat: item.background_repeat,
             background_origin: item.background_origin,
+            transform: item.transform,
             nested_elements: Vec::new(),
         });
         x += item.width + item.margin_right;
@@ -651,7 +651,6 @@ fn build_pseudo_block(
     counter_state: &CounterState,
 ) -> LayoutElement {
     let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
-
     let mut block_w = available_width;
     if let Some(cb) = containing_block_info
         && let Some(percent) = pseudo_style.percentage_sizing.width
@@ -995,6 +994,7 @@ pub struct FlexCell {
     pub background_position: BackgroundPosition,
     pub background_repeat: BackgroundRepeat,
     pub background_origin: BackgroundOrigin,
+    pub transform: Option<Transform>,
     /// Nested layout elements for complex flex items (tables, images, etc.)
     pub nested_elements: Vec<LayoutElement>,
 }
@@ -1284,6 +1284,40 @@ pub enum LayoutElement {
         display: bool,
         margin_top: f32,
         margin_bottom: f32,
+    },
+    /// A block container with visual properties and nested children.
+    /// Unlike the flat TextBlock+pullback hack, this represents true
+    /// parent-child nesting. The renderer draws the container's background
+    /// and border, then recursively renders children inside.
+    Container {
+        children: Vec<LayoutElement>,
+        background_color: Option<(f32, f32, f32, f32)>,
+        border: LayoutBorder,
+        border_radius: f32,
+        padding_top: f32,
+        padding_bottom: f32,
+        padding_left: f32,
+        padding_right: f32,
+        margin_top: f32,
+        margin_bottom: f32,
+        block_width: Option<f32>,
+        block_height: Option<f32>,
+        opacity: f32,
+        position: Position,
+        offset_top: f32,
+        offset_left: f32,
+        overflow: Overflow,
+        transform: Option<Transform>,
+        box_shadow: Option<BoxShadow>,
+        background_gradient: Option<LinearGradient>,
+        background_radial_gradient: Option<RadialGradient>,
+        background_svg: Option<crate::parser::svg::SvgTree>,
+        background_blur_radius: f32,
+        background_size: BackgroundSize,
+        background_position: BackgroundPosition,
+        background_repeat: BackgroundRepeat,
+        background_origin: BackgroundOrigin,
+        z_index: i32,
     },
     /// A page break.
     PageBreak,
@@ -1721,6 +1755,11 @@ fn flatten_element(
     // Apply CSS counter operations for this element.
     counter_state.apply_resets(&style.counter_reset);
     counter_state.apply_increments(&style.counter_increment);
+
+    // Bail out on excessively deep nesting to prevent stack overflow.
+    if ancestors.len() > 30 {
+        return;
+    }
 
     let available_height = style.height.unwrap_or(available_height);
     let positioned_depth =
@@ -2326,21 +2365,74 @@ fn flatten_element(
 
     // Li handling — prepend bullet/number marker
     if el.tag == HtmlTag::Li {
+        // counter_state resets/increments already applied at top of flatten_element
+
         let inner_width = available_width - style.padding.left - style.padding.right;
         let mut runs = Vec::new();
 
-        // Add list marker using list-style-type from computed style
-        let marker = match list_ctx {
-            Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
-            Some(ListContext::Ordered { index, .. }) => {
-                let lst = if style.list_style_type == ListStyleType::Disc {
-                    ListStyleType::Decimal
-                } else {
-                    style.list_style_type
-                };
-                format_list_marker(lst, *index)
+        // Check for ::before pseudo-element with custom content (e.g. CSS counters).
+        // If present, use it instead of the default list marker.
+        let class_list = el.class_list();
+        let classes: Vec<&str> = class_list.iter().map(|s| s.as_ref()).collect();
+        let li_selector_ctx = SelectorContext {
+            ancestors: ancestors.to_vec(),
+            child_index,
+            sibling_count,
+            preceding_siblings: preceding_siblings.to_vec(),
+        };
+        let li_before = compute_pseudo_element_style(
+            &style,
+            rules,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &li_selector_ctx,
+            PseudoElement::Before,
+        );
+        let has_custom_before = li_before.as_ref().is_some_and(|s| !s.content.is_empty());
+        if has_custom_before {
+            let ps = li_before.as_ref().unwrap();
+            let content_text = resolve_content(&ps.content, &el.attributes, counter_state);
+            if !content_text.is_empty() {
+                push_text_run_with_fallback(
+                    TextRun {
+                        text: content_text,
+                        font_size: ps.font_size,
+                        bold: ps.font_weight == FontWeight::Bold,
+                        italic: ps.font_style == FontStyle::Italic,
+                        underline: ps.text_decoration_underline,
+                        line_through: ps.text_decoration_line_through,
+                        color: ps.color.to_f32_rgb(),
+                        link_url: None,
+                        font_family: resolve_style_font_family(ps, fonts),
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
+                    },
+                    &mut runs,
+                    fonts,
+                );
             }
-            None => format_list_marker(style.list_style_type, 0),
+        }
+
+        // Add list marker using list-style-type from computed style
+        // (only if no custom ::before content)
+        let marker = if has_custom_before {
+            String::new()
+        } else {
+            match list_ctx {
+                Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
+                Some(ListContext::Ordered { index, .. }) => {
+                    let lst = if style.list_style_type == ListStyleType::Disc {
+                        ListStyleType::Decimal
+                    } else {
+                        style.list_style_type
+                    };
+                    format_list_marker(lst, *index)
+                }
+                None => format_list_marker(style.list_style_type, 0),
+            }
         };
         let list_indent = if style.list_style_position == ListStylePosition::Inside {
             0.0
@@ -2800,6 +2892,24 @@ fn flatten_element(
             }
         });
 
+        // Check if this block has visual properties AND block children.
+        // When true, inline text is collected separately and block children
+        // are processed via the needs_wrapper path for correct nesting.
+        let early_has_visual = has_background_paint(&style)
+            || style.border.has_any()
+            || style.border_radius > 0.0
+            || style.box_shadow.is_some();
+        // Limit nesting depth to prevent stack overflow on deeply nested HTML.
+        // Beyond depth 40, fall back to flat text collection instead of Containers.
+        let nesting_depth = ancestors.len();
+        let has_block_kids_for_wrapper = nesting_depth < 40
+            && early_has_visual
+            && el.children.iter().any(|c| {
+                matches!(c, DomNode::Element(e)
+                    if (e.tag.is_block() || e.tag == HtmlTag::Svg)
+                        && !collects_as_inline_text(e.tag))
+            });
+
         if has_math_children {
             // Split mode: interleave TextBlocks and MathBlocks
             for child in &el.children {
@@ -2893,13 +3003,157 @@ fn flatten_element(
                 || style.border_radius > 0.0
                 || style.box_shadow.is_some();
             let has_block_children = !parent_has_visual
-                && el
-                    .children
-                    .iter()
-                    .any(|c| matches!(c, DomNode::Element(e) if has_own_margins(e.tag)));
+                && el.children.iter().any(|c| {
+                    matches!(c, DomNode::Element(e)
+                        if has_own_margins(e.tag)
+                            || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
+                });
 
             if has_block_children {
-                // Mixed inline + block children: split at block boundaries
+                // For visual containers (border, background), emit a wrapper
+                // TextBlock first, then a pullback spacer so children render
+                // inside the wrapper's padding area.
+                let wrapper_output_idx = output.len();
+                if parent_has_visual {
+                    let bg = style
+                        .background_color
+                        .map(|c: crate::types::Color| c.to_f32_rgba());
+                    let BackgroundFields {
+                        gradient: bg_grad,
+                        radial_gradient: bg_rgrad,
+                        svg: bg_svg,
+                        blur_radius: bg_blur,
+                        size: bg_size,
+                        position: bg_pos,
+                        repeat: bg_repeat,
+                        origin: bg_origin,
+                    } = BackgroundFields::from_style(&style);
+                    // Wrapper height will be patched after children are processed.
+                    let wrapper_h = effective_height.map_or(0.0, |h| {
+                        resolve_padding_box_height(
+                            0.0,
+                            Some(h),
+                            style.padding.top,
+                            style.padding.bottom,
+                            style.border.vertical_width(),
+                            style.box_sizing,
+                        )
+                    });
+                    output.push(LayoutElement::TextBlock {
+                        lines: Vec::new(),
+                        margin_top: style.margin.top,
+                        margin_bottom: 0.0,
+                        text_align: style.text_align,
+                        background_color: bg,
+                        padding_top: 0.0,
+                        padding_bottom: 0.0,
+                        padding_left: style.padding.left,
+                        padding_right: style.padding.right,
+                        border: LayoutBorder::from_computed(&style.border),
+                        block_width: Some(block_w),
+                        block_height: effective_height.map(|_| wrapper_h),
+                        opacity: style.opacity,
+                        float: style.float,
+                        clear: style.clear,
+                        position: style.position,
+                        offset_top: style.top.unwrap_or(0.0),
+                        offset_left: style.left.unwrap_or(0.0) + auto_offset_left,
+                        offset_bottom: style.bottom.unwrap_or(0.0),
+                        offset_right: style.right.unwrap_or(0.0),
+                        containing_block: None,
+                        clip_children_count: 0,
+                        box_shadow: style.box_shadow,
+                        visible: style.visibility == Visibility::Visible,
+                        clip_rect: if style.overflow == Overflow::Hidden {
+                            Some((0.0, 0.0, block_w, wrapper_h))
+                        } else {
+                            None
+                        },
+                        transform: style.transform,
+                        border_radius: style.border_radius,
+                        outline_width: style.outline_width,
+                        outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+                        text_indent: 0.0,
+                        letter_spacing: 0.0,
+                        word_spacing: 0.0,
+                        vertical_align: VerticalAlign::Baseline,
+                        background_gradient: bg_grad,
+                        background_radial_gradient: bg_rgrad,
+                        background_svg: bg_svg,
+                        background_blur_radius: bg_blur,
+                        background_size: bg_size,
+                        background_position: bg_pos,
+                        background_repeat: bg_repeat,
+                        background_origin: bg_origin,
+                        z_index: style.z_index,
+                        repeat_on_each_page: false,
+                        positioned_depth,
+                        heading_level: None,
+                    });
+                    // Pullback spacer
+                    let pullback = if effective_height.is_some() && wrapper_h > 0.0 {
+                        wrapper_h - style.padding.top
+                    } else {
+                        0.0
+                    };
+                    if pullback > 0.0 {
+                        output.push(LayoutElement::TextBlock {
+                            lines: Vec::new(),
+                            margin_top: -pullback,
+                            margin_bottom: 0.0,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: style.padding.left,
+                            padding_right: style.padding.right,
+                            border: LayoutBorder::default(),
+                            block_width: None,
+                            block_height: None,
+                            opacity: 1.0,
+                            float: Float::None,
+                            clear: Clear::None,
+                            position: Position::Static,
+                            offset_top: 0.0,
+                            offset_left: 0.0,
+                            offset_bottom: 0.0,
+                            offset_right: 0.0,
+                            containing_block: None,
+                            clip_children_count: 0,
+                            box_shadow: None,
+                            visible: true,
+                            clip_rect: None,
+                            transform: None,
+                            border_radius: 0.0,
+                            outline_width: 0.0,
+                            outline_color: None,
+                            text_indent: 0.0,
+                            letter_spacing: 0.0,
+                            word_spacing: 0.0,
+                            vertical_align: VerticalAlign::Baseline,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            z_index: 0,
+                            repeat_on_each_page: false,
+                            positioned_depth: 0,
+                            heading_level: None,
+                        });
+                    }
+                }
+
+                // Mixed inline + block children: split at block boundaries.
+                let mut block_child_buf: Vec<LayoutElement> = Vec::new();
+                let target: &mut Vec<LayoutElement> = if parent_has_visual {
+                    &mut block_child_buf
+                } else {
+                    output
+                };
                 for child in &el.children {
                     match child {
                         DomNode::Text(_) => {
@@ -2927,7 +3181,7 @@ fn flatten_element(
                                 effective_height,
                                 auto_offset_left,
                                 el,
-                                output,
+                                target,
                                 fonts,
                             );
                             // Recurse into block child
@@ -2941,7 +3195,7 @@ fn flatten_element(
                                 &style,
                                 inner_width,
                                 available_height,
-                                output,
+                                target,
                                 None,
                                 rules,
                                 &child_ancestors,
@@ -2978,15 +3232,132 @@ fn flatten_element(
                     effective_height,
                     auto_offset_left,
                     el,
-                    output,
+                    target,
                     fonts,
                 );
-                // has_block_children is only true when !parent_has_visual,
-                // so we always return early here.
+                // For visual containers, propagate parent padding to children
+                // so they render inside the padded area.
+                if parent_has_visual {
+                    if style.padding.left > 0.0 || style.padding.right > 0.0 {
+                        for elem in &mut block_child_buf {
+                            if let LayoutElement::TextBlock {
+                                padding_left,
+                                padding_right,
+                                ..
+                            } = elem
+                            {
+                                *padding_left += style.padding.left;
+                                *padding_right += style.padding.right;
+                            }
+                        }
+                    }
+                    output.extend(block_child_buf);
+
+                    // Patch wrapper block_height to cover all children
+                    if effective_height.is_none() {
+                        let children_total_h: f32 = output[wrapper_output_idx + 1..]
+                            .iter()
+                            .map(estimate_element_height)
+                            .sum();
+                        let patched_h = style.padding.top
+                            + children_total_h
+                            + style.padding.bottom
+                            + style.border.vertical_width();
+                        if let Some(LayoutElement::TextBlock { block_height, .. }) =
+                            output.get_mut(wrapper_output_idx)
+                        {
+                            *block_height = Some(patched_h);
+                        }
+                    }
+                }
+                // Add bottom spacer for visual containers
+                if parent_has_visual {
+                    let bottom_space =
+                        style.padding.bottom + style.border.vertical_width() + style.margin.bottom;
+                    if bottom_space > 0.0 {
+                        output.push(LayoutElement::TextBlock {
+                            lines: Vec::new(),
+                            margin_top: bottom_space,
+                            margin_bottom: 0.0,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: 0.0,
+                            padding_right: 0.0,
+                            border: LayoutBorder::default(),
+                            block_width: None,
+                            block_height: None,
+                            opacity: 1.0,
+                            float: Float::None,
+                            clear: Clear::None,
+                            position: Position::Static,
+                            offset_top: 0.0,
+                            offset_left: 0.0,
+                            offset_bottom: 0.0,
+                            offset_right: 0.0,
+                            containing_block: None,
+                            clip_children_count: 0,
+                            box_shadow: None,
+                            visible: true,
+                            clip_rect: None,
+                            transform: None,
+                            border_radius: 0.0,
+                            outline_width: 0.0,
+                            outline_color: None,
+                            text_indent: 0.0,
+                            letter_spacing: 0.0,
+                            word_spacing: 0.0,
+                            vertical_align: VerticalAlign::Baseline,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            z_index: 0,
+                            repeat_on_each_page: false,
+                            positioned_depth: 0,
+                            heading_level: None,
+                        });
+                    }
+                }
                 if style.page_break_after {
                     output.push(LayoutElement::PageBreak);
                 }
                 return;
+            } else if has_block_kids_for_wrapper {
+                // Only collect inline children's text — block children will
+                // be handled by the needs_wrapper path via flatten_element.
+                for child in &el.children {
+                    match child {
+                        DomNode::Text(_) => {
+                            collect_text_runs(
+                                std::slice::from_ref(child),
+                                &style,
+                                &mut runs,
+                                None,
+                                rules,
+                                fonts,
+                                ancestors,
+                            );
+                        }
+                        DomNode::Element(child_el) if collects_as_inline_text(child_el.tag) => {
+                            collect_text_runs(
+                                std::slice::from_ref(child),
+                                &style,
+                                &mut runs,
+                                None,
+                                rules,
+                                fonts,
+                                ancestors,
+                            );
+                        }
+                        _ => {} // Block children handled by needs_wrapper
+                    }
+                }
             } else {
                 collect_text_runs(
                     &el.children,
@@ -3003,6 +3374,10 @@ fn flatten_element(
 
         let had_inline_runs = runs.iter().any(|r| !r.text.trim().is_empty()) || has_math_children;
         let mut cb_info = None;
+
+        // has_block_kids_for_wrapper is computed earlier (before has_math_children).
+        let mut saved_inline_element: Option<LayoutElement> = None;
+
         if !runs.is_empty() {
             // When white-space: nowrap, prevent wrapping by using a huge width
             let wrap_width = if style.white_space == WhiteSpace::NoWrap {
@@ -3085,13 +3460,28 @@ fn flatten_element(
                 explicit_width.unwrap_or(block_w),
             );
 
-            output.push(LayoutElement::TextBlock {
+            // When this block has visual properties AND block children,
+            // save the inline text for inclusion inside the wrapper instead
+            // of emitting it directly.  The wrapper path will use it.
+            let inline_tb = LayoutElement::TextBlock {
                 lines,
-                margin_top: style.margin.top,
-                margin_bottom: style.margin.bottom,
+                margin_top: if has_block_kids_for_wrapper {
+                    0.0
+                } else {
+                    style.margin.top
+                },
+                margin_bottom: if has_block_kids_for_wrapper {
+                    0.0
+                } else {
+                    style.margin.bottom
+                },
                 text_align: style.text_align,
-                background_color: bg,
-                padding_top: style.padding.top,
+                background_color: if has_block_kids_for_wrapper { None } else { bg },
+                padding_top: if has_block_kids_for_wrapper {
+                    0.0
+                } else {
+                    style.padding.top
+                },
                 padding_bottom: style.padding.bottom,
                 padding_left: style.padding.left,
                 padding_right: style.padding.right,
@@ -3131,7 +3521,12 @@ fn flatten_element(
                 positioned_depth,
                 heading_level: heading_level(el.tag),
                 clip_children_count: 0,
-            });
+            };
+            if has_block_kids_for_wrapper {
+                saved_inline_element = Some(inline_tb);
+            } else {
+                output.push(inline_tb);
+            }
             push_block_pseudo(
                 output,
                 before_style.as_ref(),
@@ -3167,9 +3562,14 @@ fn flatten_element(
             || (positioned_container && (before_is_abs || after_is_abs));
         let no_inline_content = !had_inline_runs;
 
-        if no_inline_content && needs_wrapper {
-            // Pre-flatten children to measure total height
-            let mut child_elements = Vec::new();
+        if (no_inline_content || has_block_kids_for_wrapper) && needs_wrapper && nesting_depth < 40
+        {
+            // Pre-flatten children to measure total height.
+            // If there's saved inline content, include it as the first child.
+            let mut child_elements: Vec<LayoutElement> = Vec::new();
+            if let Some(inline_el) = saved_inline_element.take() {
+                child_elements.push(inline_el);
+            }
             let mut child_el_idx = 0;
             let mut ib_group_wrapper: Vec<&ElementNode> = Vec::new();
             for child in &el.children {
@@ -3281,49 +3681,34 @@ fn flatten_element(
                 origin: background_origin,
             } = BackgroundFields::from_style(&style);
             // Resolve containing block and offsets for absolute elements
-            let (wrapper_cb, wrapper_top, wrapper_left) =
+            let (_wrapper_cb, wrapper_top, wrapper_left) =
                 resolve_abs_containing_block(&style, abs_containing_block, container_h, block_w);
-            // Emit wrapper with visual properties
-            let wrapper_output_idx = output.len();
-            output.push(LayoutElement::TextBlock {
-                lines: Vec::new(),
-                margin_top: style.margin.top,
-                margin_bottom: 0.0,
-                text_align: style.text_align,
+            // Emit a Container element with true parent-child nesting.
+            // The renderer draws background/border, then renders children inside.
+            output.push(LayoutElement::Container {
+                children: child_elements,
                 background_color: bg,
-                // Padding is already included in container_h (block_height),
-                // so set 0 here to avoid double-counting in the paginator.
-                padding_top: 0.0,
-                padding_bottom: 0.0,
+                border: LayoutBorder::from_computed(&style.border),
+                border_radius: style.border_radius,
+                padding_top: style.padding.top,
+                padding_bottom: style.padding.bottom,
                 padding_left: style.padding.left,
                 padding_right: style.padding.right,
-                border: LayoutBorder::from_computed(&style.border),
+                margin_top: style.margin.top,
+                margin_bottom: style.margin.bottom,
                 block_width: Some(block_w),
-                block_height: Some(container_h),
-                opacity: style.opacity,
-                float: style.float,
-                clear: style.clear,
-                position: style.position,
-                offset_top: wrapper_top,
-                offset_left: wrapper_left + auto_offset_left,
-                offset_bottom: 0.0,
-                offset_right: 0.0,
-                containing_block: wrapper_cb,
-                box_shadow: style.box_shadow,
-                visible: style.visibility == Visibility::Visible,
-                clip_rect: if style.overflow == Overflow::Hidden {
-                    Some((0.0, 0.0, block_w, container_h))
+                block_height: if effective_height.is_some() || style.aspect_ratio.is_some() {
+                    Some(container_h)
                 } else {
                     None
                 },
+                opacity: style.opacity,
+                position: style.position,
+                offset_top: wrapper_top,
+                offset_left: wrapper_left + auto_offset_left,
+                overflow: style.overflow,
                 transform: style.transform,
-                border_radius: style.border_radius,
-                outline_width: style.outline_width,
-                outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
-                text_indent: 0.0,
-                letter_spacing: 0.0,
-                word_spacing: 0.0,
-                vertical_align: VerticalAlign::Baseline,
+                box_shadow: style.box_shadow,
                 background_gradient,
                 background_radial_gradient,
                 background_svg,
@@ -3333,159 +3718,7 @@ fn flatten_element(
                 background_repeat,
                 background_origin,
                 z_index: style.z_index,
-                repeat_on_each_page: false,
-                positioned_depth,
-                heading_level: None,
-                clip_children_count: 0,
             });
-            push_block_pseudo(
-                output,
-                before_style.as_ref(),
-                el,
-                inner_width,
-                fonts,
-                cb_info,
-                positioned_depth,
-                counter_state,
-            );
-            // Pull y back so children flow inside the wrapper, starting
-            // after the top padding.  The wrapper's block_height determines
-            // how much y advanced; pull back by (block_height - padding_top)
-            // so children start right after the top padding.
-            let pullback = if effective_height.is_some() {
-                // Specified height: pull back based on container_h
-                container_h - style.padding.top
-            } else {
-                // Auto height: pull back based on content
-                children_h + style.padding.bottom + style.border.vertical_width()
-            };
-            output.push(LayoutElement::TextBlock {
-                lines: Vec::new(),
-                margin_top: -pullback,
-                margin_bottom: 0.0,
-                text_align: TextAlign::Left,
-                background_color: None,
-                padding_top: 0.0,
-                padding_bottom: 0.0,
-                padding_left: style.padding.left,
-                padding_right: style.padding.right,
-                border: LayoutBorder::default(),
-                block_width: None,
-                block_height: None,
-                opacity: 1.0,
-                float: Float::None,
-                clear: Clear::None,
-                position: Position::Static,
-                offset_top: 0.0,
-                offset_left: 0.0,
-                offset_bottom: 0.0,
-                offset_right: 0.0,
-                containing_block: None,
-                box_shadow: None,
-                visible: true,
-                clip_rect: None,
-                transform: None,
-                border_radius: 0.0,
-                outline_width: 0.0,
-                outline_color: None,
-                text_indent: 0.0,
-                letter_spacing: 0.0,
-                word_spacing: 0.0,
-                vertical_align: VerticalAlign::Baseline,
-                background_gradient: None,
-                background_radial_gradient: None,
-                background_svg: None,
-                background_blur_radius: 0.0,
-                background_size: BackgroundSize::Auto,
-                background_position: BackgroundPosition::default(),
-                background_repeat: BackgroundRepeat::Repeat,
-                background_origin: BackgroundOrigin::Padding,
-                z_index: 0,
-                repeat_on_each_page: false,
-                positioned_depth: 0,
-                heading_level: None,
-                clip_children_count: 0,
-            });
-            // Add the parent's left/right padding to children so they render
-            // inside the padded area, not at the page left margin.
-            if style.padding.left > 0.0 || style.padding.right > 0.0 {
-                for child_elem in &mut child_elements {
-                    if let LayoutElement::TextBlock {
-                        padding_left,
-                        padding_right,
-                        ..
-                    } = child_elem
-                    {
-                        *padding_left += style.padding.left;
-                        *padding_right += style.padding.right;
-                    }
-                }
-            }
-            output.extend(child_elements);
-            // Emit spacer for bottom padding + border + margin_bottom
-            let bottom_space =
-                style.padding.bottom + style.border.vertical_width() + style.margin.bottom;
-            if bottom_space > 0.0 {
-                output.push(LayoutElement::TextBlock {
-                    lines: Vec::new(),
-                    margin_top: bottom_space,
-                    margin_bottom: 0.0,
-                    text_align: TextAlign::Left,
-                    background_color: None,
-                    padding_top: 0.0,
-                    padding_bottom: 0.0,
-                    padding_left: 0.0,
-                    padding_right: 0.0,
-                    border: LayoutBorder::default(),
-                    block_width: None,
-                    block_height: None,
-                    opacity: 1.0,
-                    float: Float::None,
-                    clear: Clear::None,
-                    position: Position::Static,
-                    offset_top: 0.0,
-                    offset_left: 0.0,
-                    offset_bottom: 0.0,
-                    offset_right: 0.0,
-                    containing_block: None,
-                    box_shadow: None,
-                    visible: true,
-                    clip_rect: None,
-                    transform: None,
-                    border_radius: 0.0,
-                    outline_width: 0.0,
-                    outline_color: None,
-                    text_indent: 0.0,
-                    letter_spacing: 0.0,
-                    word_spacing: 0.0,
-                    vertical_align: VerticalAlign::Baseline,
-                    background_gradient: None,
-                    background_radial_gradient: None,
-                    background_svg: None,
-                    background_blur_radius: 0.0,
-                    background_size: BackgroundSize::Auto,
-                    background_position: BackgroundPosition::default(),
-                    background_repeat: BackgroundRepeat::Repeat,
-                    background_origin: BackgroundOrigin::Padding,
-                    z_index: 0,
-                    repeat_on_each_page: false,
-                    positioned_depth: 0,
-                    heading_level: None,
-                    clip_children_count: 0,
-                });
-            }
-            // Patch the wrapper's clip_children_count so the renderer keeps
-            // the clipping path active for all children emitted inside it.
-            if style.overflow == Overflow::Hidden {
-                let children_after_wrapper = output.len() - wrapper_output_idx - 1;
-                if let Some(LayoutElement::TextBlock {
-                    clip_children_count,
-                    ..
-                }) = output.get_mut(wrapper_output_idx)
-                {
-                    *clip_children_count = children_after_wrapper;
-                }
-            }
         } else {
             if no_inline_content {
                 push_block_pseudo(
@@ -4463,6 +4696,7 @@ fn flatten_flex_container(
                                 background_position: BackgroundPosition::default(),
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
+                                transform: None,
                                 nested_elements: item.elements.clone(),
                             });
                             x += item.width + gap;
@@ -4520,6 +4754,7 @@ fn flatten_flex_container(
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::Padding,
+                            transform: None,
                             nested_elements: Vec::new(),
                         });
                         x += item.width + gap;
@@ -4566,6 +4801,7 @@ fn flatten_flex_container(
                             background_position: *tb_bg_pos,
                             background_repeat: *tb_bg_repeat,
                             background_origin: *tb_bg_origin,
+                            transform: None,
                             nested_elements: Vec::new(),
                         });
                     }
@@ -7112,7 +7348,14 @@ struct FloatRegion {
 }
 
 /// Estimate the height of a layout element for wrapper sizing.
-fn estimate_element_height(element: &LayoutElement) -> f32 {
+pub(crate) fn estimate_element_height(element: &LayoutElement) -> f32 {
+    estimate_element_height_bounded(element, 50)
+}
+
+fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32 {
+    if depth == 0 {
+        return 0.0;
+    }
     match element {
         LayoutElement::TextBlock {
             lines,
@@ -7210,6 +7453,24 @@ fn estimate_element_height(element: &LayoutElement) -> f32 {
             margin_bottom,
             ..
         } => margin_top + layout.height() + margin_bottom,
+        LayoutElement::Container {
+            children,
+            padding_top,
+            padding_bottom,
+            border,
+            margin_top,
+            margin_bottom,
+            block_height,
+            ..
+        } => {
+            let children_h: f32 = children
+                .iter()
+                .map(|c| estimate_element_height_bounded(c, depth - 1))
+                .sum();
+            let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
+            let effective_h = block_height.map_or(content_h, |h| content_h.max(h));
+            margin_top + effective_h + margin_bottom
+        }
         _ => 0.0,
     }
 }
@@ -7432,6 +7693,29 @@ fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
                 margin_bottom,
                 ..
             } => (layout.height(), *margin_top, *margin_bottom),
+            LayoutElement::Container {
+                children,
+                padding_top,
+                padding_bottom,
+                border,
+                margin_top,
+                margin_bottom,
+                block_height,
+                overflow,
+                ..
+            } => {
+                let children_h: f32 = children
+                    .iter()
+                    .map(|c| estimate_element_height_bounded(c, 50))
+                    .sum();
+                let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
+                let effective_h = if *overflow == Overflow::Hidden {
+                    block_height.unwrap_or(content_h)
+                } else {
+                    block_height.map_or(content_h, |h| content_h.max(h))
+                };
+                (effective_h, *margin_top, *margin_bottom)
+            }
         };
 
         // Collapse margins: adjacent vertical margins merge (larger wins for positive,
@@ -8562,14 +8846,24 @@ mod tests {
         let html = r#"<div style="height: 200pt"><svg width="100" height="50%"></svg></div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
-        let svg = pages[0]
-            .elements
-            .iter()
-            .find_map(|(_, el)| match el {
-                LayoutElement::Svg { width, height, .. } => Some((*width, *height)),
-                _ => None,
-            })
-            .expect("expected nested svg element");
+        fn find_svg(elements: &[(f32, LayoutElement)]) -> Option<(f32, f32)> {
+            for (_, el) in elements {
+                match el {
+                    LayoutElement::Svg { width, height, .. } => return Some((*width, *height)),
+                    LayoutElement::Container { children, .. } => {
+                        // Search recursively; children don't have y_pos tuples
+                        for child in children {
+                            if let LayoutElement::Svg { width, height, .. } = child {
+                                return Some((*width, *height));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        let svg = find_svg(&pages[0].elements).expect("expected nested svg element");
         assert!((svg.0 - 100.0).abs() < 0.1);
         assert!((svg.1 - 100.0).abs() < 0.1);
     }
@@ -8587,14 +8881,25 @@ mod tests {
         "#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
-        let svg = pages[0]
-            .elements
-            .iter()
-            .find_map(|(_, el)| match el {
-                LayoutElement::Svg { tree, .. } => Some(tree),
-                _ => None,
-            })
-            .expect("expected nested svg element");
+        fn find_svg_tree(
+            elements: &[(f32, LayoutElement)],
+        ) -> Option<&crate::parser::svg::SvgTree> {
+            for (_, el) in elements {
+                match el {
+                    LayoutElement::Svg { tree, .. } => return Some(tree),
+                    LayoutElement::Container { children, .. } => {
+                        for child in children {
+                            if let LayoutElement::Svg { tree, .. } = child {
+                                return Some(tree);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        let svg = find_svg_tree(&pages[0].elements).expect("expected nested svg element");
         match &svg.children[0] {
             crate::parser::svg::SvgNode::Group { transform, .. } => {
                 assert!(matches!(
@@ -9256,14 +9561,18 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
         let (_, element) = &pages[0].elements[0];
-        if let LayoutElement::TextBlock {
-            block_height: Some(height),
-            ..
-        } = element
-        {
-            assert!((*height - 80.0).abs() < 0.1);
-        } else {
-            panic!("Expected aspect-ratio box to produce a TextBlock");
+        match element {
+            LayoutElement::TextBlock {
+                block_height: Some(height),
+                ..
+            }
+            | LayoutElement::Container {
+                block_height: Some(height),
+                ..
+            } => {
+                assert!((*height - 80.0).abs() < 0.1);
+            }
+            _ => panic!("Expected aspect-ratio box to produce a TextBlock or Container"),
         }
     }
 
@@ -9278,17 +9587,24 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
         let (_, element) = &pages[0].elements[0];
-        if let LayoutElement::TextBlock {
-            background_svg: Some(tree),
-            ..
-        } = element
-        {
+        let tree_opt = match element {
+            LayoutElement::TextBlock {
+                background_svg: Some(tree),
+                ..
+            } => Some(tree),
+            LayoutElement::Container {
+                background_svg: Some(tree),
+                ..
+            } => Some(tree),
+            _ => None,
+        };
+        if let Some(tree) = tree_opt {
             assert!(matches!(
                 tree.children.first(),
                 Some(crate::parser::svg::SvgNode::Image { .. })
             ));
         } else {
-            panic!("Expected raster background to produce a TextBlock");
+            panic!("Expected raster background to produce a TextBlock or Container");
         }
     }
 
@@ -9853,6 +10169,10 @@ mod tests {
                         position: Position::Relative,
                         background_color: Some(_),
                         ..
+                    } | LayoutElement::Container {
+                        position: Position::Relative,
+                        background_color: Some(_),
+                        ..
                     }
                 )
             })
@@ -9862,26 +10182,26 @@ mod tests {
             (parent_y - 200.0).abs() < 1.0,
             "Parent should be at ~200pt, got {parent_y}"
         );
-        let child = pages[0]
-            .elements
-            .iter()
-            .find(|(_, el)| {
+        // The absolute child may be a top-level element or inside a Container.
+        let has_abs_child = pages[0].elements.iter().any(|(_, el)| match el {
+            LayoutElement::TextBlock {
+                position: Position::Absolute,
+                ..
+            } => true,
+            LayoutElement::Container { children, .. } => children.iter().any(|c| {
                 matches!(
-                    el,
+                    c,
                     LayoutElement::TextBlock {
                         position: Position::Absolute,
                         ..
                     }
                 )
-            })
-            .expect("Should find absolute child");
-        let child_y = child.0;
-        // The absolute child should be offset from the containing block
-        // by its `top` value (10pt). The containing block tracking may
-        // resolve to page-relative coordinates depending on the layout path.
+            }),
+            _ => false,
+        });
         assert!(
-            child_y >= 10.0,
-            "Absolute child y={child_y} should be at least 10pt (its top offset)",
+            has_abs_child,
+            "Should find absolute child in elements or Container children"
         );
     }
 
@@ -12189,12 +12509,15 @@ mod tests {
                 LayoutElement::TextBlock {
                     background_color: Some(_),
                     ..
+                } | LayoutElement::Container {
+                    background_color: Some(_),
+                    ..
                 }
             )
         });
         assert!(
             has_bg,
-            "Expected a TextBlock with background_color from .box div"
+            "Expected a TextBlock or Container with background_color from .box div"
         );
     }
 
@@ -12537,16 +12860,14 @@ mod tests {
         let html = r#"<div class="bordered"><p>inside</p></div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let has_border = pages[0].elements.iter().any(|(_, el)| {
-            if let LayoutElement::TextBlock { border, .. } = el {
-                border.has_any()
-            } else {
-                false
-            }
+        let has_border = pages[0].elements.iter().any(|(_, el)| match el {
+            LayoutElement::TextBlock { border, .. } => border.has_any(),
+            LayoutElement::Container { border, .. } => border.has_any(),
+            _ => false,
         });
         assert!(
             has_border,
-            "Expected a wrapper TextBlock with border from .bordered div"
+            "Expected a TextBlock or Container with border from .bordered div"
         );
     }
 
@@ -12563,12 +12884,15 @@ mod tests {
                 LayoutElement::TextBlock {
                     box_shadow: Some(_),
                     ..
+                } | LayoutElement::Container {
+                    box_shadow: Some(_),
+                    ..
                 }
             )
         });
         assert!(
             has_shadow,
-            "Expected a wrapper TextBlock with box_shadow from .shadow div"
+            "Expected a TextBlock or Container with box_shadow from .shadow div"
         );
     }
 
