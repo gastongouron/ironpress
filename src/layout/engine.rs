@@ -3005,8 +3005,10 @@ fn flatten_element(
             let has_block_children = !parent_has_visual
                 && el.children.iter().any(|c| {
                     matches!(c, DomNode::Element(e)
-                        if has_own_margins(e.tag)
+                        if (has_own_margins(e.tag)
                             || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
+                            && !element_is_inline_block(
+                                e, &style, rules, &child_ancestors, 0, 0, &[]))
                 });
 
             if has_block_children {
