@@ -188,13 +188,16 @@ pub(crate) const UNICODE_FALLBACK_KEY: &str = "__unicode_fallback";
 pub(crate) const EMOJI_FALLBACK_KEY: &str = "__emoji_fallback";
 
 /// Candidate font families for emoji rendering.
+/// Prefer vector/outline fonts (Noto Emoji, Symbola) over bitmap fonts
+/// (Apple Color Emoji, Noto Color Emoji) since our TTF parser doesn't
+/// support CBDT/CBLC bitmap tables.
 const EMOJI_FALLBACK_FAMILIES: &[&str] = &[
-    "Apple Color Emoji",
-    "Noto Color Emoji",
     "Noto Emoji",
-    "Segoe UI Emoji",
-    "Segoe UI Symbol",
     "Symbola",
+    "Segoe UI Symbol",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    "Apple Color Emoji",
     "EmojiOne",
     "Twitter Color Emoji",
 ];
