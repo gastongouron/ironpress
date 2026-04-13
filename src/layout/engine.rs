@@ -1901,12 +1901,7 @@ fn layout_block_element(
                     l.runs
                         .iter()
                         .map(|r| {
-                            crate::fonts::str_width(
-                                &r.text,
-                                r.font_size,
-                                &r.font_family,
-                                r.bold,
-                            )
+                            crate::fonts::str_width(&r.text, r.font_size, &r.font_family, r.bold)
                         })
                         .sum::<f32>()
                 })
