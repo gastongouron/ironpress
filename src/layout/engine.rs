@@ -1522,18 +1522,29 @@ pub fn layout_with_rules_and_fonts(
 
     let ancestors: Vec<AncestorInfo> = Vec::new();
     let mut counter_state = CounterState::default();
+    let root_ctx = LayoutContext {
+        viewport: Viewport {
+            width: available_width,
+            height: content_height,
+        },
+        parent: ParentBox {
+            content_width: available_width,
+            content_height: Some(content_height),
+            font_size: parent_style.font_size,
+        },
+        containing_block: None,
+        root_font_size: parent_style.root_font_size,
+    };
     flatten_nodes(
         nodes,
         &parent_style,
-        available_width,
-        content_height,
+        &root_ctx,
         &mut elements,
         None,
         rules,
         &ancestors,
         0,
         custom_fonts,
-        None,
         &mut counter_state,
     );
 
@@ -1545,32 +1556,16 @@ pub fn layout_with_rules_and_fonts(
 fn flatten_nodes(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
-    available_width: f32,
-    available_height: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
     positioned_ancestor_depth: usize,
     fonts: &HashMap<String, TtfFont>,
-    abs_containing_block: Option<ContainingBlock>,
     counter_state: &mut CounterState,
 ) {
-    // Transitional LayoutContext — will be replaced when flatten_nodes
-    // is migrated to receive &LayoutContext directly.
-    let ib_ctx = LayoutContext {
-        viewport: Viewport {
-            width: available_width,
-            height: available_height,
-        },
-        parent: ParentBox {
-            content_width: available_width,
-            content_height: Some(available_height),
-            font_size: parent_style.font_size,
-        },
-        containing_block: abs_containing_block,
-        root_font_size: parent_style.root_font_size,
-    };
+    let ib_ctx = *ctx;
 
     // Count element children for sibling context
     let element_count = nodes
@@ -1644,7 +1639,7 @@ fn flatten_nodes(
                     let lines = wrap_text_runs(
                         text_runs,
                         TextWrapOptions::new(
-                            available_width,
+                            ctx.available_width(),
                             parent_style.font_size,
                             resolved_line_height_factor(parent_style, fonts),
                             parent_style.overflow_wrap,
@@ -1728,8 +1723,7 @@ fn flatten_nodes(
                     flatten_element(
                         el,
                         parent_style,
-                        available_width,
-                        available_height,
+                        &ib_ctx,
                         output,
                         list_ctx,
                         rules,
@@ -1739,7 +1733,6 @@ fn flatten_nodes(
                         element_count,
                         &preceding_siblings,
                         fonts,
-                        abs_containing_block,
                         counter_state,
                     );
                 }
@@ -2410,8 +2403,8 @@ fn layout_block_element(
                         flatten_element(
                             child_el,
                             style,
-                            inner_width,
-                            available_height,
+                            &ctx.with_parent(inner_width, Some(available_height), style.font_size)
+                                .with_containing_block(None),
                             target,
                             None,
                             rules,
@@ -2421,7 +2414,6 @@ fn layout_block_element(
                             n_children,
                             &[],
                             fonts,
-                            None,
                             counter_state,
                         );
                     }
@@ -2904,11 +2896,21 @@ fn layout_block_element(
                         );
                     }
                     if recurses_as_layout_child(child_el.tag) {
+                        let child_cb = if effective_height.is_some() {
+                            Some(ContainingBlock {
+                                x: 0.0,
+                                width: inner_width,
+                                height: effective_height.unwrap_or(0.0),
+                                depth: positioned_depth,
+                            })
+                        } else {
+                            None
+                        };
                         flatten_element(
                             child_el,
                             style,
-                            inner_width,
-                            available_height,
+                            &ctx.with_parent(inner_width, Some(available_height), style.font_size)
+                                .with_containing_block(child_cb),
                             &mut child_elements,
                             None,
                             rules,
@@ -2918,18 +2920,6 @@ fn layout_block_element(
                             child_el_count,
                             &[],
                             fonts,
-                            // Pass containing block for percentage height resolution
-                            // when parent has an explicit height.
-                            if effective_height.is_some() {
-                                Some(ContainingBlock {
-                                    x: 0.0,
-                                    width: inner_width,
-                                    height: effective_height.unwrap_or(0.0),
-                                    depth: positioned_depth,
-                                })
-                            } else {
-                                None
-                            },
                             counter_state,
                         );
                     }
@@ -3109,8 +3099,8 @@ fn layout_block_element(
                         flatten_element(
                             child_el,
                             style,
-                            inner_width,
-                            available_height,
+                            &ctx.with_parent(inner_width, Some(available_height), style.font_size)
+                                .with_containing_block(cb_info),
                             output,
                             None,
                             rules,
@@ -3120,7 +3110,6 @@ fn layout_block_element(
                             child_el_count,
                             &[],
                             fonts,
-                            cb_info,
                             counter_state,
                         );
                     }
@@ -3162,8 +3151,7 @@ fn layout_block_element(
 fn flatten_element(
     el: &ElementNode,
     parent_style: &ComputedStyle,
-    available_width: f32,
-    available_height: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     list_ctx: Option<&ListContext>,
     rules: &[CssRule],
@@ -3173,9 +3161,12 @@ fn flatten_element(
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
     fonts: &HashMap<String, TtfFont>,
-    abs_containing_block: Option<ContainingBlock>,
     counter_state: &mut CounterState,
 ) {
+    let layout_ctx = *ctx;
+    let available_width = ctx.available_width();
+    let available_height = ctx.available_height();
+    let abs_containing_block = ctx.containing_block;
     let classes = el.class_list();
     let selector_ctx = SelectorContext {
         ancestors: ancestors.to_vec(),
@@ -3205,6 +3196,12 @@ fn flatten_element(
     }
 
     let available_height = style.height.unwrap_or(available_height);
+    // Update context when element narrows the available height.
+    let layout_ctx = if style.height.is_some() {
+        ctx.with_parent(available_width, Some(available_height), style.font_size)
+    } else {
+        *ctx
+    };
     let positioned_depth =
         if style.position == Position::Relative || style.position == Position::Absolute {
             positioned_ancestor_depth + 1
@@ -3761,11 +3758,13 @@ fn flatten_element(
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
                 if child_el.tag == HtmlTag::Li {
+                    let child_ctx = layout_ctx
+                        .with_parent(inner_width, Some(available_height), style.font_size)
+                        .with_containing_block(None);
                     flatten_element(
                         child_el,
                         &style,
-                        inner_width,
-                        available_height,
+                        &child_ctx,
                         output,
                         Some(&ctx),
                         rules,
@@ -3775,18 +3774,19 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
-                        None,
                         counter_state,
                     );
                     if let ListContext::Ordered { index, .. } = &mut ctx {
                         *index += 1;
                     }
                 } else {
+                    let child_ctx = layout_ctx
+                        .with_parent(inner_width, Some(available_height), style.font_size)
+                        .with_containing_block(None);
                     flatten_element(
                         child_el,
                         &style,
-                        inner_width,
-                        available_height,
+                        &child_ctx,
                         output,
                         None,
                         rules,
@@ -3796,7 +3796,6 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
-                        None,
                         counter_state,
                     );
                 }
@@ -3999,11 +3998,13 @@ fn flatten_element(
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
                 if child_el.tag == HtmlTag::Ul || child_el.tag == HtmlTag::Ol {
+                    let child_ctx = layout_ctx
+                        .with_parent(inner_width, Some(available_height), style.font_size)
+                        .with_containing_block(None);
                     flatten_element(
                         child_el,
                         &style,
-                        inner_width,
-                        available_height,
+                        &child_ctx,
                         output,
                         list_ctx,
                         rules,
@@ -4013,15 +4014,16 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
-                        None,
                         counter_state,
                     );
                 } else if recurses_as_layout_child(child_el.tag) {
+                    let child_ctx = layout_ctx
+                        .with_parent(available_width, Some(available_height), style.font_size)
+                        .with_containing_block(None);
                     flatten_element(
                         child_el,
                         &style,
-                        available_width,
-                        available_height,
+                        &child_ctx,
                         output,
                         None,
                         rules,
@@ -4031,7 +4033,6 @@ fn flatten_element(
                         child_el_count,
                         &[],
                         fonts,
-                        None,
                         counter_state,
                     );
                 }
@@ -4065,23 +4066,10 @@ fn flatten_element(
         PseudoElement::After,
     );
 
-    let route_ctx = LayoutContext {
-        viewport: Viewport {
-            width: available_width,
-            height: available_height,
-        },
-        parent: ParentBox {
-            content_width: available_width,
-            content_height: Some(available_height),
-            font_size: style.font_size,
-        },
-        containing_block: abs_containing_block,
-        root_font_size: style.root_font_size,
-    };
     route_element(
         el,
         &mut style,
-        &route_ctx,
+        &layout_ctx,
         output,
         rules,
         ancestors,
@@ -4203,15 +4191,13 @@ fn route_element(
         flatten_nodes(
             &el.children,
             style,
-            layout_ctx.available_width(),
-            layout_ctx.available_height(),
+            &layout_ctx,
             output,
             None,
             rules,
             child_ancestors,
             positioned_depth,
             fonts,
-            layout_ctx.containing_block,
             counter_state,
         );
     }
@@ -4514,11 +4500,13 @@ fn layout_flex_container(
         if item_has_block_children {
             let mut child_elements_buf = Vec::new();
             let layout_height = 10000.0; // large enough to not constrain
+            let child_ctx = ctx
+                .with_parent(child_w_for_layout, Some(layout_height), style.font_size)
+                .with_containing_block(None);
             flatten_element(
                 child_el,
                 style,
-                child_w_for_layout,
-                layout_height,
+                &child_ctx,
                 &mut child_elements_buf,
                 None,
                 rules,
@@ -4528,7 +4516,6 @@ fn layout_flex_container(
                 child_count,
                 &[],
                 fonts,
-                None,
                 counter_state,
             );
             let child_h = child_elements_buf
@@ -5046,11 +5033,13 @@ fn layout_flex_container(
                                 sibling_count: 0,
                                 preceding_siblings: Vec::new(),
                             });
+                            let relayout_ctx = ctx
+                                .with_parent(final_w, Some(10000.0), style.font_size)
+                                .with_containing_block(None);
                             flatten_element(
                                 child_el,
                                 style,
-                                final_w,
-                                10000.0,
+                                &relayout_ctx,
                                 &mut relayout_buf,
                                 None,
                                 rules,
@@ -5060,7 +5049,6 @@ fn layout_flex_container(
                                 child_count,
                                 &[],
                                 fonts,
-                                None,
                                 counter_state,
                             );
                             if !relayout_buf.is_empty() {
@@ -7457,11 +7445,23 @@ fn collect_table_cell_content_inner(
                             || style.height.is_some()
                             || style.width.is_some()))
                 {
+                    let cell_ctx = LayoutContext {
+                        viewport: Viewport {
+                            width: available_width,
+                            height: f32::INFINITY,
+                        },
+                        parent: ParentBox {
+                            content_width: available_width,
+                            content_height: None,
+                            font_size: parent_style.font_size,
+                        },
+                        containing_block: None,
+                        root_font_size: parent_style.root_font_size,
+                    };
                     flatten_element(
                         el,
                         parent_style,
-                        available_width,
-                        f32::INFINITY,
+                        &cell_ctx,
                         nested_rows,
                         None,
                         rules,
@@ -7471,7 +7471,6 @@ fn collect_table_cell_content_inner(
                         element_sibling_count,
                         &selector_ctx.preceding_siblings,
                         fonts,
-                        None,
                         counter_state,
                     );
                 } else if recurse_blocks || collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br
