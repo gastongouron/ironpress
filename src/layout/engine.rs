@@ -3017,8 +3017,15 @@ fn flatten_element(
                         let cls = e.class_list();
                         let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
                         let cs = compute_style_with_context(
-                            e.tag, e.style_attr(), &style, rules, e.tag_name(),
-                            &cls_refs, e.id(), &e.attributes, &SelectorContext::default(),
+                            e.tag,
+                            e.style_attr(),
+                            &style,
+                            rules,
+                            e.tag_name(),
+                            &cls_refs,
+                            e.id(),
+                            &e.attributes,
+                            &SelectorContext::default(),
                         );
                         cs.position == Position::Absolute
                     } else {
@@ -3754,7 +3761,13 @@ fn flatten_element(
             if let Some(ref ps) = before_style {
                 if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
                     child_elements.push(build_pseudo_block(
-                        ps, el, inner_width, fonts, cb_info, positioned_depth, counter_state,
+                        ps,
+                        el,
+                        inner_width,
+                        fonts,
+                        cb_info,
+                        positioned_depth,
+                        counter_state,
                     ));
                 }
             }
@@ -3762,7 +3775,13 @@ fn flatten_element(
             if let Some(ref ps) = after_style {
                 if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
                     child_elements.push(build_pseudo_block(
-                        ps, el, inner_width, fonts, cb_info, positioned_depth, counter_state,
+                        ps,
+                        el,
+                        inner_width,
+                        fonts,
+                        cb_info,
+                        positioned_depth,
+                        counter_state,
                     ));
                 }
             }
@@ -6927,7 +6946,9 @@ fn collect_table_cell_content_inner(
                         let mut prev_is_space = true;
                         for c in processed.chars() {
                             if prev_is_space && c.is_alphabetic() {
-                                for uc in c.to_uppercase() { result.push(uc); }
+                                for uc in c.to_uppercase() {
+                                    result.push(uc);
+                                }
                             } else {
                                 result.push(c);
                             }
@@ -9071,7 +9092,7 @@ mod tests {
             None
         }
         let svg = find_svg(&pages[0].elements).expect("expected nested svg element");
-        assert!((svg.0 - 75.0).abs() < 0.1);  // 100px = 75pt
+        assert!((svg.0 - 75.0).abs() < 0.1); // 100px = 75pt
         assert!((svg.1 - 100.0).abs() < 0.1); // 50% of 200pt = 100pt
     }
 
@@ -9138,8 +9159,8 @@ mod tests {
                 _ => None,
             })
             .expect("expected svg layout element");
-        assert_eq!(svg.1, 150.0);  // 200px = 150pt
-        assert_eq!(svg.2, 75.0);   // 100px = 75pt
+        assert_eq!(svg.1, 150.0); // 200px = 150pt
+        assert_eq!(svg.2, 75.0); // 100px = 75pt
         assert!(
             svg.0.view_box.is_some(),
             "renderer should keep viewBox metadata"
@@ -14905,9 +14926,18 @@ line 3</pre>
         let rules = crate::parser::css::parse_stylesheet(&result.stylesheets.join("\n"));
         let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
         let has_container_bg = pages[0].elements.iter().any(|(_, el)| {
-            matches!(el, LayoutElement::Container { background_color: Some(_), .. })
+            matches!(
+                el,
+                LayoutElement::Container {
+                    background_color: Some(_),
+                    ..
+                }
+            )
         });
-        assert!(has_container_bg, "Container should have background_color from rgba stylesheet");
+        assert!(
+            has_container_bg,
+            "Container should have background_color from rgba stylesheet"
+        );
     }
 }
 
@@ -15861,5 +15891,4 @@ mod _removed {
             assert_eq!(r.color, (1.0, 0.0, 0.0));
         }
     }
-
 }

@@ -1779,10 +1779,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     } => {
                                         nested_y -= cont_mt;
                                         let cont_w = cont_bw.unwrap_or(cell.width);
-                                        let cont_children_h: f32 = cont_kids.iter()
+                                        let cont_children_h: f32 = cont_kids
+                                            .iter()
                                             .map(crate::layout::engine::estimate_element_height)
                                             .sum();
-                                        let cont_h = cont_pt + cont_children_h + cont_pb
+                                        let cont_h = cont_pt
+                                            + cont_children_h
+                                            + cont_pb
                                             + cont_border.vertical_width();
 
                                         // Draw container background
@@ -1794,17 +1797,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                 page_ext_gstates.push((gs_name.clone(), *a));
                                                 content.push_str(&format!("/{gs_name} gs\n"));
                                             }
-                                            content.push_str(&format!(
-                                                "{r} {g} {b} rg\n"));
+                                            content.push_str(&format!("{r} {g} {b} rg\n"));
                                             if *cont_br > 0.0 {
                                                 content.push_str(&rounded_rect_path(
-                                                    nested_x, nested_y - cont_h, cont_w, cont_h, *cont_br));
+                                                    nested_x,
+                                                    nested_y - cont_h,
+                                                    cont_w,
+                                                    cont_h,
+                                                    *cont_br,
+                                                ));
                                                 content.push_str("\nf\n");
                                             } else {
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
-                                                    x = nested_x, y = nested_y - cont_h,
-                                                    w = cont_w, h = cont_h,
+                                                    x = nested_x,
+                                                    y = nested_y - cont_h,
+                                                    w = cont_w,
+                                                    h = cont_h,
                                                 ));
                                             }
                                             if needs_alpha {
@@ -1823,32 +1832,44 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.left.width,
-                                                    bx1 + cont_border.left.width * 0.5, by1,
-                                                    bx1 + cont_border.left.width * 0.5, by2));
+                                                    bx1 + cont_border.left.width * 0.5,
+                                                    by1,
+                                                    bx1 + cont_border.left.width * 0.5,
+                                                    by2
+                                                ));
                                             }
                                             if cont_border.right.width > 0.0 {
                                                 let (r, g, b) = cont_border.right.color;
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.right.width,
-                                                    bx2 - cont_border.right.width * 0.5, by1,
-                                                    bx2 - cont_border.right.width * 0.5, by2));
+                                                    bx2 - cont_border.right.width * 0.5,
+                                                    by1,
+                                                    bx2 - cont_border.right.width * 0.5,
+                                                    by2
+                                                ));
                                             }
                                             if cont_border.top.width > 0.0 {
                                                 let (r, g, b) = cont_border.top.color;
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.top.width,
-                                                    bx1, by1 - cont_border.top.width * 0.5,
-                                                    bx2, by1 - cont_border.top.width * 0.5));
+                                                    bx1,
+                                                    by1 - cont_border.top.width * 0.5,
+                                                    bx2,
+                                                    by1 - cont_border.top.width * 0.5
+                                                ));
                                             }
                                             if cont_border.bottom.width > 0.0 {
                                                 let (r, g, b) = cont_border.bottom.color;
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.bottom.width,
-                                                    bx1, by2 + cont_border.bottom.width * 0.5,
-                                                    bx2, by2 + cont_border.bottom.width * 0.5));
+                                                    bx1,
+                                                    by2 + cont_border.bottom.width * 0.5,
+                                                    bx2,
+                                                    by2 + cont_border.bottom.width * 0.5
+                                                ));
                                             }
                                         }
 
@@ -1858,17 +1879,29 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             content.push_str("q\n");
                                             content.push_str(&format!(
                                                 "{} {} {} {} re W n\n",
-                                                nested_x, nested_y - cont_h, cont_w, cont_h));
+                                                nested_x,
+                                                nested_y - cont_h,
+                                                cont_w,
+                                                cont_h
+                                            ));
                                         }
                                         let inner_x = nested_x + cont_pl + cont_border.left.width;
-                                        let inner_w = (cont_w - cont_pl - cont_pr
-                                            - cont_border.horizontal_width()).max(0.0);
+                                        let inner_w = (cont_w
+                                            - cont_pl
+                                            - cont_pr
+                                            - cont_border.horizontal_width())
+                                        .max(0.0);
                                         let inner_y = nested_y - cont_pt - cont_border.top.width;
                                         render_container_children(
-                                            &mut content, cont_kids,
-                                            inner_x, inner_y, inner_w,
-                                            custom_fonts, &prepared_custom_fonts,
-                                            &mut page_ext_gstates, &mut bg_alpha_counter,
+                                            &mut content,
+                                            cont_kids,
+                                            inner_x,
+                                            inner_y,
+                                            inner_w,
+                                            custom_fonts,
+                                            &prepared_custom_fonts,
+                                            &mut page_ext_gstates,
+                                            &mut bg_alpha_counter,
                                         );
                                         if clip {
                                             content.push_str("Q\n");
@@ -2439,6 +2472,7 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
 }
 
 /// Recursively render a Container element and all its children.
+#[allow(clippy::too_many_arguments)]
 fn render_container_children(
     content: &mut String,
     children: &[LayoutElement],
@@ -2546,8 +2580,12 @@ fn render_container_children(
                         let mut lx = text_x;
                         for run in &merged {
                             let rw = render_run_text(
-                                content, run, lx, text_y_abs,
-                                custom_fonts, prepared_custom_fonts,
+                                content,
+                                run,
+                                lx,
+                                text_y_abs,
+                                custom_fonts,
+                                prepared_custom_fonts,
                             );
                             lx += rw;
                         }
@@ -2654,8 +2692,7 @@ fn render_container_children(
                     .sum();
                 let nk_content_h =
                     padding_top + nk_children_h + padding_bottom + border.vertical_width();
-                let nk_total_h =
-                    nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h));
+                let nk_total_h = nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h));
 
                 // Draw background with proper alpha support
                 if let Some((r, g, b, a)) = background_color {
@@ -2730,7 +2767,11 @@ fn render_container_children(
                     content.push_str("q\n");
                     if *cont_br > 0.0 {
                         content.push_str(&rounded_rect_path(
-                            x, y - nk_total_h, nk_w, nk_total_h, *cont_br,
+                            x,
+                            y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                            *cont_br,
                         ));
                         content.push_str("\nW n\n");
                     } else {
@@ -2779,20 +2820,18 @@ fn render_container_children(
                 let svg_y = y - svg_h;
                 content.push_str("q\n");
                 // Position on page with Y-flip (SVG y-axis is top-down, PDF is bottom-up)
-                content.push_str(&format!(
-                    "1 0 0 -1 {svg_x} {} cm\n",
-                    svg_y + svg_h
-                ));
+                content.push_str(&format!("1 0 0 -1 {svg_x} {} cm\n", svg_y + svg_h));
                 // Apply viewBox scaling via compute_svg_placement
-                if let Some(placement) =
-                    crate::render::svg_geometry::compute_svg_placement(
-                        tree,
-                        crate::render::svg_geometry::SvgPlacementRequest::from_rect(
-                            0.0, 0.0, *svg_w, *svg_h,
-                            tree.preserve_aspect_ratio,
-                        ),
-                    )
-                {
+                if let Some(placement) = crate::render::svg_geometry::compute_svg_placement(
+                    tree,
+                    crate::render::svg_geometry::SvgPlacementRequest::from_rect(
+                        0.0,
+                        0.0,
+                        *svg_w,
+                        *svg_h,
+                        tree.preserve_aspect_ratio,
+                    ),
+                ) {
                     content.push_str("q\n");
                     content.push_str(&placement.viewport.clip_path());
                     content.push_str(&format!(
@@ -2839,9 +2878,8 @@ fn render_container_children(
             } => {
                 cursor_y -= flex_mt;
                 y = cursor_y;
-                let row_h = crate::layout::engine::estimate_element_height(child)
-                    - flex_mt
-                    - flex_mb;
+                let row_h =
+                    crate::layout::engine::estimate_element_height(child) - flex_mt - flex_mb;
 
                 // Draw flex row background
                 if let Some((r, g, b, a)) = background_color {
@@ -2901,9 +2939,7 @@ fn render_container_children(
                             .sum();
                         let text_x = match cell.text_align {
                             TextAlign::Right => cell_x + (cell_w - line_width).max(0.0),
-                            TextAlign::Center => {
-                                cell_x + (cell_w - line_width).max(0.0) / 2.0
-                            }
+                            TextAlign::Center => cell_x + (cell_w - line_width).max(0.0) / 2.0,
                             _ => cell_x,
                         };
                         let mut lx = text_x;
@@ -2981,6 +3017,7 @@ fn render_container_children(
 }
 
 /// Render TableRow/GridRow elements that appear as children of a Container.
+#[allow(clippy::too_many_arguments)]
 fn render_nested_table_rows(
     content: &mut String,
     elements: &[LayoutElement],
@@ -3112,18 +3149,19 @@ fn render_nested_table_rows(
                             // Inline background (for status badges etc.)
                             if let Some((br, bg_c, bb, _ba)) = run.background_color {
                                 let (pad_h, pad_v) = run.padding;
-                                let run_w =
-                                    estimate_run_width_with_fonts(run, custom_fonts);
+                                let run_w = estimate_run_width_with_fonts(run, custom_fonts);
                                 let rx = lx - pad_h;
                                 let ry = text_y - 2.0 - pad_v;
                                 let rw2 = run_w + pad_h * 2.0;
                                 let rh = run.font_size + 2.0 + pad_v * 2.0;
-                                content.push_str(&format!(
-                                    "{br} {bg_c} {bb} rg\n"
-                                ));
+                                content.push_str(&format!("{br} {bg_c} {bb} rg\n"));
                                 if run.border_radius > 0.0 {
                                     content.push_str(&rounded_rect_path(
-                                        rx, ry, rw2, rh, run.border_radius,
+                                        rx,
+                                        ry,
+                                        rw2,
+                                        rh,
+                                        run.border_radius,
                                     ));
                                     content.push_str("\nf\n");
                                 } else {
@@ -3131,7 +3169,12 @@ fn render_nested_table_rows(
                                 }
                             }
                             let rw = render_run_text(
-                                content, run, lx, text_y, custom_fonts, prepared_custom_fonts,
+                                content,
+                                run,
+                                lx,
+                                text_y,
+                                custom_fonts,
+                                prepared_custom_fonts,
                             );
                             lx += rw;
                         }
