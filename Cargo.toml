@@ -43,6 +43,7 @@ ureq = { version = "3", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 getrandom = { version = "0.3", optional = true }
+unicode-bidi = "0.3.18"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

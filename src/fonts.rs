@@ -410,7 +410,7 @@ fn is_fullwidth_char(code: u32) -> bool {
 }
 
 /// Returns true for emoji codepoints.
-fn is_emoji_char(code: u32) -> bool {
+pub(crate) fn is_emoji_char(code: u32) -> bool {
     matches!(code,
         0x1F600..=0x1F64F   // Emoticons
         | 0x1F300..=0x1F5FF // Misc Symbols and Pictographs

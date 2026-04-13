@@ -6935,38 +6935,59 @@ fn push_text_run_with_fallback(
         return;
     }
 
-    // Split text into contiguous segments of WinAnsi / non-WinAnsi characters.
-    let fallback_family = FontFamily::Custom(crate::system_fonts::UNICODE_FALLBACK_KEY.to_string());
+    // Split text into contiguous segments by font category:
+    // - WinAnsi: standard PDF font (Helvetica, etc.)
+    // - Emoji: emoji fallback font (Apple Color Emoji, Noto Color Emoji)
+    // - Unicode: unicode fallback font (Noto Sans CJK, etc.)
+    let unicode_family = FontFamily::Custom(crate::system_fonts::UNICODE_FALLBACK_KEY.to_string());
+    let has_emoji_font = fonts.contains_key(crate::system_fonts::EMOJI_FALLBACK_KEY);
+    let emoji_family = FontFamily::Custom(crate::system_fonts::EMOJI_FALLBACK_KEY.to_string());
+
+    #[derive(PartialEq, Clone, Copy)]
+    enum CharCategory {
+        WinAnsi,
+        Emoji,
+        Unicode,
+    }
+
+    let categorize = |ch: char| -> CharCategory {
+        if crate::render::pdf::is_winansi_char(ch) {
+            CharCategory::WinAnsi
+        } else if has_emoji_font && crate::fonts::is_emoji_char(ch as u32) {
+            CharCategory::Emoji
+        } else {
+            CharCategory::Unicode
+        }
+    };
+
+    let family_for = |cat: CharCategory| -> FontFamily {
+        match cat {
+            CharCategory::WinAnsi => run.font_family.clone(),
+            CharCategory::Emoji => emoji_family.clone(),
+            CharCategory::Unicode => unicode_family.clone(),
+        }
+    };
+
     let mut current = String::new();
-    let mut current_is_winansi = true;
+    let mut current_cat = CharCategory::WinAnsi;
 
     for ch in run.text.chars() {
-        let ch_winansi = crate::render::pdf::is_winansi_char(ch);
-        if ch_winansi != current_is_winansi && !current.is_empty() {
-            let family = if current_is_winansi {
-                run.font_family.clone()
-            } else {
-                fallback_family.clone()
-            };
+        let cat = categorize(ch);
+        if cat != current_cat && !current.is_empty() {
             runs.push(TextRun {
                 text: std::mem::take(&mut current),
-                font_family: family,
+                font_family: family_for(current_cat),
                 ..run.clone()
             });
         }
-        current_is_winansi = ch_winansi;
+        current_cat = cat;
         current.push(ch);
     }
 
     if !current.is_empty() {
-        let family = if current_is_winansi {
-            run.font_family.clone()
-        } else {
-            fallback_family
-        };
         runs.push(TextRun {
             text: current,
-            font_family: family,
+            font_family: family_for(current_cat),
             ..run
         });
     }
@@ -7459,6 +7480,16 @@ fn wrap_text_runs(
     let mut current_runs: Vec<TextRun> = Vec::new();
     let mut current_width: f32 = 0.0;
     let mut line_height = options.default_font_size * line_height_factor;
+
+    // Apply BiDi reordering if the text contains RTL characters.
+    // This reorders runs into visual order so RTL segments display correctly
+    // in the left-to-right PDF rendering context.
+    let full_text: String = runs.iter().map(|r| r.text.as_str()).collect();
+    let runs = if crate::bidi::has_rtl_chars(&full_text) {
+        crate::bidi::reorder_runs_bidi(&runs, false)
+    } else {
+        runs
+    };
 
     // Concatenate all text then re-split by words, preserving run styles.
     // For text containing \n (white-space: pre), split on newlines first,

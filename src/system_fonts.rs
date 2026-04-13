@@ -185,6 +185,22 @@ pub(crate) fn resolve_font_family(
 
 /// Key used to store the Unicode fallback font in the font map.
 pub(crate) const UNICODE_FALLBACK_KEY: &str = "__unicode_fallback";
+pub(crate) const EMOJI_FALLBACK_KEY: &str = "__emoji_fallback";
+
+/// Candidate font families for emoji rendering.
+/// Prefer vector/outline fonts (Noto Emoji, Symbola) over bitmap fonts
+/// (Apple Color Emoji, Noto Color Emoji) since our TTF parser doesn't
+/// support CBDT/CBLC bitmap tables.
+const EMOJI_FALLBACK_FAMILIES: &[&str] = &[
+    "Noto Emoji",
+    "Symbola",
+    "Segoe UI Symbol",
+    "Segoe UI Emoji",
+    "Noto Color Emoji",
+    "Apple Color Emoji",
+    "EmojiOne",
+    "Twitter Color Emoji",
+];
 
 /// Candidate font families to try when looking for a Unicode fallback font.
 /// Ordered by breadth of Unicode coverage (CJK, symbols, etc.).
@@ -229,6 +245,47 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
             fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
             return;
         }
+    }
+}
+
+/// Load an emoji font for emoji character rendering.
+/// Prefers the bundled Noto Emoji (monochrome, vector outlines, 295KB)
+/// which works everywhere. Falls back to system fonts only if the
+/// bundled font fails to parse.
+pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
+    if fonts.contains_key(EMOJI_FALLBACK_KEY) {
+        return;
+    }
+
+    // Always use the bundled Noto Emoji first — it has vector outlines
+    // that our TTF parser can read. System emoji fonts (Apple Color Emoji,
+    // Noto Color Emoji) use bitmap tables (CBDT/CBLC) which we can't parse.
+    load_bundled_emoji_font(fonts);
+    if fonts.contains_key(EMOJI_FALLBACK_KEY) {
+        return;
+    }
+
+    // Fallback: try system fonts (may be bitmap-only)
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+    for family in EMOJI_FALLBACK_FAMILIES {
+        let query = SystemFontQuery::new(family, FontVariant::new(false, false));
+        if let Some(font) = query_fontdb_font(&db, &query).or_else(|| query_fontconfig_font(&query))
+        {
+            fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
+            return;
+        }
+    }
+}
+
+/// Load the bundled Noto Emoji font (monochrome, vector outlines).
+/// This ensures emoji rendering works on all platforms without requiring
+/// a system emoji font to be installed.
+fn load_bundled_emoji_font(fonts: &mut HashMap<String, TtfFont>) {
+    static NOTO_EMOJI_DATA: &[u8] = include_bytes!("../assets/NotoEmoji-Regular.ttf");
+
+    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_EMOJI_DATA.to_vec()) {
+        fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
     }
 }
 

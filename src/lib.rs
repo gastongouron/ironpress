@@ -65,11 +65,12 @@
 //!     .unwrap();
 //! ```
 
+/// Adobe Font Metrics for standard PDF fonts (Helvetica, Times, Courier).
+pub(crate) mod bidi;
 /// CLI argument parsing and conversion logic.
 pub mod cli;
 /// Error types for conversion failures.
 pub mod error;
-/// Adobe Font Metrics for standard PDF fonts (Helvetica, Times, Courier).
 pub(crate) mod fonts;
 pub(crate) mod layout;
 pub(crate) mod parser;
@@ -465,6 +466,7 @@ impl HtmlConverter {
 
         system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
+        system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
 
         // Step 5: Layout
         let pages = layout::engine::layout_with_rules_and_fonts(
