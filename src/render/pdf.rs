@@ -2370,8 +2370,69 @@ fn render_container_children(
                 block_height,
                 background_color,
                 text_align,
+                position,
+                offset_top,
+                offset_left,
+                block_width: tb_block_width,
                 ..
             } => {
+                // Absolute-positioned children render at offset from container origin
+                if *position == Position::Absolute {
+                    let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                    let abs_h = padding_top + text_h + padding_bottom + border.vertical_width();
+                    let abs_h = block_height.map_or(abs_h, |h| abs_h.max(h));
+                    let abs_w = tb_block_width.unwrap_or(width);
+                    let abs_x = x + offset_left;
+                    let abs_y = y - offset_top;
+
+                    if let Some((r, g, b, a)) = background_color {
+                        let needs_alpha = *a < 1.0;
+                        if needs_alpha {
+                            let gs_name = format!("GScca{bg_alpha_counter}");
+                            *bg_alpha_counter += 1;
+                            page_ext_gstates.push((gs_name.clone(), *a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
+                        content.push_str(&format!(
+                            "{r} {g} {b} rg\n{ax} {ay} {aw} {ah} re\nf\n",
+                            ax = abs_x,
+                            ay = abs_y - abs_h,
+                            aw = abs_w,
+                            ah = abs_h,
+                        ));
+                        if needs_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
+                    }
+                    // Render text for absolute-positioned children
+                    let mut text_y_abs = abs_y - padding_top;
+                    for line in lines {
+                        let metrics = line_box_metrics(line, custom_fonts);
+                        text_y_abs -= metrics.half_leading + metrics.ascender;
+                        let merged = merge_runs(&line.runs);
+                        let line_width: f32 = merged
+                            .iter()
+                            .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
+                            .sum();
+                        let text_x = match text_align {
+                            TextAlign::Right => abs_x + (abs_w - line_width).max(0.0),
+                            TextAlign::Center => abs_x + (abs_w - line_width).max(0.0) / 2.0,
+                            _ => abs_x,
+                        };
+                        let mut lx = text_x;
+                        for run in &merged {
+                            let rw = render_run_text(
+                                content, run, lx, text_y_abs,
+                                custom_fonts, prepared_custom_fonts,
+                            );
+                            lx += rw;
+                        }
+                        text_y_abs -= metrics.descender + metrics.half_leading;
+                    }
+                    // Don't advance cursor_y for absolute elements
+                    continue;
+                }
+
                 cursor_y -= margin_top;
                 y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();

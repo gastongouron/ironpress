@@ -3326,6 +3326,45 @@ fn flatten_element(
                         });
                     }
                 }
+                // Emit absolute-positioned ::before / ::after pseudo-elements
+                if positioned_container && (before_is_abs || after_is_abs) {
+                    // Compute containing block from children height
+                    let children_h: f32 = output[wrapper_output_idx..]
+                        .iter()
+                        .map(estimate_element_height)
+                        .sum();
+                    let pseudo_cb = Some(ContainingBlock {
+                        x: 0.0,
+                        width: block_w,
+                        height: children_h,
+                        depth: positioned_depth,
+                    });
+                    if before_is_abs {
+                        push_block_pseudo(
+                            output,
+                            before_style.as_ref(),
+                            el,
+                            inner_width,
+                            fonts,
+                            pseudo_cb,
+                            positioned_depth,
+                            counter_state,
+                        );
+                    }
+                    if after_is_abs {
+                        push_block_pseudo(
+                            output,
+                            after_style.as_ref(),
+                            el,
+                            inner_width,
+                            fonts,
+                            pseudo_cb,
+                            positioned_depth,
+                            counter_state,
+                        );
+                    }
+                }
+
                 if style.page_break_after {
                     output.push(LayoutElement::PageBreak);
                 }
@@ -3662,6 +3701,23 @@ fn flatten_element(
                 container_h = container_h.max(aspect_h);
             }
             cb_info = make_containing_block(container_h);
+
+            // Add absolute-positioned ::before pseudo-element as a Container child.
+            if let Some(ref ps) = before_style {
+                if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
+                    child_elements.push(build_pseudo_block(
+                        ps, el, inner_width, fonts, cb_info, positioned_depth, counter_state,
+                    ));
+                }
+            }
+            // Add absolute-positioned ::after pseudo-element as a Container child.
+            if let Some(ref ps) = after_style {
+                if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
+                    child_elements.push(build_pseudo_block(
+                        ps, el, inner_width, fonts, cb_info, positioned_depth, counter_state,
+                    ));
+                }
+            }
 
             // Patch absolute children with the now-known containing block,
             // and resolve bottom/right offsets into top/left.
