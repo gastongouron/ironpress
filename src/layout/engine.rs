@@ -14683,6 +14683,25 @@ line 3</pre>
             );
         }
     }
+
+    #[test]
+    fn nested_div_container_has_background_color() {
+        let html = r#"
+        <style>
+            .d1 { border-left: 2px solid #ef4444; background-color: rgba(239,68,68,0.05); padding: 4px; }
+        </style>
+        <div class="d1"><span>Level 1</span>
+            <div class="d2"><span>Level 2</span><p>Block child</p></div>
+        </div>
+        "#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules = crate::parser::css::parse_stylesheet(&result.stylesheets.join("\n"));
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let has_container_bg = pages[0].elements.iter().any(|(_, el)| {
+            matches!(el, LayoutElement::Container { background_color: Some(_), .. })
+        });
+        assert!(has_container_bg, "Container should have background_color from rgba stylesheet");
+    }
 }
 
 // (end of file -- debug tests removed)
@@ -15635,4 +15654,5 @@ mod _removed {
             assert_eq!(r.color, (1.0, 0.0, 0.0));
         }
     }
+
 }

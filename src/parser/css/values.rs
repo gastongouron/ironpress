@@ -421,16 +421,32 @@ fn named_color(name: &str) -> Option<Color> {
 fn parse_hex_color(hex: &str) -> Option<CssValue> {
     let bytes = hex.as_bytes();
     match bytes {
+        // #rgb
         [r, g, b] => Some(CssValue::Color(Color::rgb(
             hex_digit(*r)? * 17,
             hex_digit(*g)? * 17,
             hex_digit(*b)? * 17,
         ))),
+        // #rgba
+        [r, g, b, a] => Some(CssValue::Color(Color {
+            r: hex_digit(*r)? * 17,
+            g: hex_digit(*g)? * 17,
+            b: hex_digit(*b)? * 17,
+            a: hex_digit(*a)? * 17,
+        })),
+        // #rrggbb
         [r1, r2, g1, g2, b1, b2] => Some(CssValue::Color(Color::rgb(
             hex_pair(*r1, *r2)?,
             hex_pair(*g1, *g2)?,
             hex_pair(*b1, *b2)?,
         ))),
+        // #rrggbbaa
+        [r1, r2, g1, g2, b1, b2, a1, a2] => Some(CssValue::Color(Color {
+            r: hex_pair(*r1, *r2)?,
+            g: hex_pair(*g1, *g2)?,
+            b: hex_pair(*b1, *b2)?,
+            a: hex_pair(*a1, *a2)?,
+        })),
         _ => None,
     }
 }
