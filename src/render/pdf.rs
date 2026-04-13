@@ -1890,7 +1890,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     children,
                     background_color,
                     border,
-                    border_radius: _,
+                    border_radius: c_border_radius,
                     padding_top: c_pt,
                     padding_bottom: c_pb,
                     padding_left: c_pl,
@@ -1994,13 +1994,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let needs_clip = *c_overflow == Overflow::Hidden;
                     if needs_clip {
                         content.push_str("q\n");
-                        content.push_str(&format!(
-                            "{x} {y} {w} {h} re W n\n",
-                            x = container_x,
-                            y = container_y_top - total_h,
-                            w = container_w,
-                            h = total_h,
-                        ));
+                        if *c_border_radius > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("\nW n\n");
+                        } else {
+                            content.push_str(&format!(
+                                "{x} {y} {w} {h} re W n\n",
+                                x = container_x,
+                                y = container_y_top - total_h,
+                                w = container_w,
+                                h = total_h,
+                            ));
+                        }
                     }
 
                     // Render children recursively
@@ -2608,6 +2619,7 @@ fn render_container_children(
                 children: nested_kids,
                 background_color,
                 border,
+                border_radius: cont_br,
                 padding_top,
                 padding_bottom,
                 padding_left,
@@ -2695,17 +2707,24 @@ fn render_container_children(
                     ));
                 }
 
-                // Clip if overflow:hidden
+                // Clip if overflow:hidden (use rounded rect when border-radius > 0)
                 let clip = *overflow == Overflow::Hidden;
                 if clip {
                     content.push_str("q\n");
-                    content.push_str(&format!(
-                        "{cx} {cy} {cw} {ch} re W n\n",
-                        cx = x,
-                        cy = y - nk_total_h,
-                        cw = nk_w,
-                        ch = nk_total_h,
-                    ));
+                    if *cont_br > 0.0 {
+                        content.push_str(&rounded_rect_path(
+                            x, y - nk_total_h, nk_w, nk_total_h, *cont_br,
+                        ));
+                        content.push_str("\nW n\n");
+                    } else {
+                        content.push_str(&format!(
+                            "{cx} {cy} {cw} {ch} re W n\n",
+                            cx = x,
+                            cy = y - nk_total_h,
+                            cw = nk_w,
+                            ch = nk_total_h,
+                        ));
+                    }
                 }
 
                 // Recurse into nested children
