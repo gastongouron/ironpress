@@ -1794,6 +1794,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                 page_ext_gstates.push((gs_name.clone(), *a));
                                                 content.push_str(&format!("/{gs_name} gs\n"));
                                             }
+                                            content.push_str(&format!(
+                                                "{r} {g} {b} rg\n"));
                                             if *cont_br > 0.0 {
                                                 content.push_str(&rounded_rect_path(
                                                     nested_x, nested_y - cont_h, cont_w, cont_h, *cont_br));
