@@ -4065,18 +4065,29 @@ fn flatten_element(
         PseudoElement::After,
     );
 
+    let route_ctx = LayoutContext {
+        viewport: Viewport {
+            width: available_width,
+            height: available_height,
+        },
+        parent: ParentBox {
+            content_width: available_width,
+            content_height: Some(available_height),
+            font_size: style.font_size,
+        },
+        containing_block: abs_containing_block,
+        root_font_size: style.root_font_size,
+    };
     route_element(
         el,
         &mut style,
-        available_width,
-        available_height,
+        &route_ctx,
         output,
         rules,
         ancestors,
         &child_ancestors,
         positioned_depth,
         fonts,
-        abs_containing_block,
         counter_state,
         before_style,
         after_style,
@@ -4091,33 +4102,18 @@ fn flatten_element(
 fn route_element(
     el: &ElementNode,
     style: &mut ComputedStyle,
-    available_width: f32,
-    available_height: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
     child_ancestors: &[AncestorInfo],
     positioned_depth: usize,
     fonts: &HashMap<String, TtfFont>,
-    abs_containing_block: Option<ContainingBlock>,
     counter_state: &mut CounterState,
     before_style: Option<ComputedStyle>,
     after_style: Option<ComputedStyle>,
 ) {
-    // Transitional LayoutContext for child layout calls.
-    let layout_ctx = LayoutContext {
-        viewport: Viewport {
-            width: available_width,
-            height: available_height,
-        },
-        parent: ParentBox {
-            content_width: available_width,
-            content_height: Some(available_height),
-            font_size: style.font_size,
-        },
-        containing_block: abs_containing_block,
-        root_font_size: style.root_font_size,
-    };
+    let layout_ctx = *ctx;
 
     // Flex container handling
     if style.display == Display::Flex {
@@ -4207,15 +4203,15 @@ fn route_element(
         flatten_nodes(
             &el.children,
             style,
-            available_width,
-            available_height,
+            layout_ctx.available_width(),
+            layout_ctx.available_height(),
             output,
             None,
             rules,
             child_ancestors,
             positioned_depth,
             fonts,
-            None,
+            layout_ctx.containing_block,
             counter_state,
         );
     }
