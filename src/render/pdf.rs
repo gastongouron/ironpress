@@ -1763,6 +1763,116 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         content.push_str("Q\n");
                                         nested_y -= svg_h;
                                     }
+                                    LayoutElement::Container {
+                                        children: cont_kids,
+                                        background_color: cont_bg,
+                                        border: cont_border,
+                                        padding_top: cont_pt,
+                                        padding_bottom: cont_pb,
+                                        padding_left: cont_pl,
+                                        padding_right: cont_pr,
+                                        margin_top: cont_mt,
+                                        block_width: cont_bw,
+                                        border_radius: cont_br,
+                                        overflow: cont_overflow,
+                                        ..
+                                    } => {
+                                        nested_y -= cont_mt;
+                                        let cont_w = cont_bw.unwrap_or(cell.width);
+                                        let cont_children_h: f32 = cont_kids.iter()
+                                            .map(crate::layout::engine::estimate_element_height)
+                                            .sum();
+                                        let cont_h = cont_pt + cont_children_h + cont_pb
+                                            + cont_border.vertical_width();
+
+                                        // Draw container background
+                                        if let Some((r, g, b, a)) = cont_bg {
+                                            let needs_alpha = *a < 1.0;
+                                            if needs_alpha {
+                                                let gs_name = format!("GSba{bg_alpha_counter}");
+                                                bg_alpha_counter += 1;
+                                                page_ext_gstates.push((gs_name.clone(), *a));
+                                                content.push_str(&format!("/{gs_name} gs\n"));
+                                            }
+                                            if *cont_br > 0.0 {
+                                                content.push_str(&rounded_rect_path(
+                                                    nested_x, nested_y - cont_h, cont_w, cont_h, *cont_br));
+                                                content.push_str("\nf\n");
+                                            } else {
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                                                    x = nested_x, y = nested_y - cont_h,
+                                                    w = cont_w, h = cont_h,
+                                                ));
+                                            }
+                                            if needs_alpha {
+                                                content.push_str("/GSDefault gs\n");
+                                            }
+                                        }
+
+                                        // Draw container borders
+                                        if cont_border.has_any() {
+                                            let bx1 = nested_x;
+                                            let bx2 = nested_x + cont_w;
+                                            let by1 = nested_y;
+                                            let by2 = nested_y - cont_h;
+                                            if cont_border.left.width > 0.0 {
+                                                let (r, g, b) = cont_border.left.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.left.width,
+                                                    bx1 + cont_border.left.width * 0.5, by1,
+                                                    bx1 + cont_border.left.width * 0.5, by2));
+                                            }
+                                            if cont_border.right.width > 0.0 {
+                                                let (r, g, b) = cont_border.right.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.right.width,
+                                                    bx2 - cont_border.right.width * 0.5, by1,
+                                                    bx2 - cont_border.right.width * 0.5, by2));
+                                            }
+                                            if cont_border.top.width > 0.0 {
+                                                let (r, g, b) = cont_border.top.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.top.width,
+                                                    bx1, by1 - cont_border.top.width * 0.5,
+                                                    bx2, by1 - cont_border.top.width * 0.5));
+                                            }
+                                            if cont_border.bottom.width > 0.0 {
+                                                let (r, g, b) = cont_border.bottom.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.bottom.width,
+                                                    bx1, by2 + cont_border.bottom.width * 0.5,
+                                                    bx2, by2 + cont_border.bottom.width * 0.5));
+                                            }
+                                        }
+
+                                        // Clip and render children
+                                        let clip = *cont_overflow == Overflow::Hidden;
+                                        if clip {
+                                            content.push_str("q\n");
+                                            content.push_str(&format!(
+                                                "{} {} {} {} re W n\n",
+                                                nested_x, nested_y - cont_h, cont_w, cont_h));
+                                        }
+                                        let inner_x = nested_x + cont_pl + cont_border.left.width;
+                                        let inner_w = (cont_w - cont_pl - cont_pr
+                                            - cont_border.horizontal_width()).max(0.0);
+                                        let inner_y = nested_y - cont_pt - cont_border.top.width;
+                                        render_container_children(
+                                            &mut content, cont_kids,
+                                            inner_x, inner_y, inner_w,
+                                            custom_fonts, &prepared_custom_fonts,
+                                            &mut page_ext_gstates, &mut bg_alpha_counter,
+                                        );
+                                        if clip {
+                                            content.push_str("Q\n");
+                                        }
+                                        nested_y -= cont_h;
+                                    }
                                     _ => {}
                                 }
                             }

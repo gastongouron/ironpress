@@ -4279,7 +4279,7 @@ fn flatten_flex_container(
                             .fold(0.0f32, f32::max);
                         margin_top + row_h + margin_bottom
                     }
-                    _ => 0.0,
+                    other => estimate_element_height(other),
                 })
                 .sum::<f32>();
 
@@ -4909,6 +4909,31 @@ fn flatten_flex_container(
                             background_origin: *tb_bg_origin,
                             transform: None,
                             nested_elements: Vec::new(),
+                        });
+                    } else {
+                        // Single non-TextBlock element (e.g. Container): store
+                        // in nested_elements for the renderer to handle.
+                        flex_cells.push(FlexCell {
+                            lines: Vec::new(),
+                            x_offset: x,
+                            width: item.width,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_right: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: 0.0,
+                            border_radius: 0.0,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            transform: None,
+                            nested_elements: item.elements.clone(),
                         });
                     }
 
