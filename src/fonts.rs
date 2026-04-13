@@ -359,9 +359,71 @@ fn helvetica_char_afm(ch: char, bold: bool) -> u16 {
         } else {
             HELVETICA_WIDTHS[idx]
         }
+    } else if is_cjk_char(code) || is_fullwidth_char(code) {
+        // CJK ideographs and fullwidth characters are approximately 1em wide
+        1000
+    } else if is_emoji_char(code) {
+        // Emoji are typically rendered at full-width
+        1000
+    } else if (0x0590..=0x08FF).contains(&code) {
+        // Hebrew, Arabic, and related scripts — proportional widths
+        if bold { 600 } else { 556 }
+    } else if (0x0370..=0x03FF).contains(&code) {
+        // Greek characters — similar to Latin proportions
+        if bold { 600 } else { 556 }
+    } else if (0x2000..=0x206F).contains(&code) {
+        // General punctuation (em dash, en dash, etc.)
+        match code {
+            0x2013 => 500, // en-dash
+            0x2014 => 1000, // em-dash
+            0x2018 | 0x2019 => 222, // single quotes
+            0x201C | 0x201D => 333, // double quotes
+            0x2026 => 1000, // ellipsis
+            _ => DEFAULT_WIDTH,
+        }
+    } else if (0x2500..=0x257F).contains(&code) {
+        // Box drawing characters — monospaced
+        600
     } else {
         DEFAULT_WIDTH
     }
+}
+
+/// Returns true for CJK Unified Ideographs and common CJK ranges.
+fn is_cjk_char(code: u32) -> bool {
+    matches!(code,
+        0x4E00..=0x9FFF       // CJK Unified Ideographs
+        | 0x3400..=0x4DBF     // CJK Unified Ideographs Extension A
+        | 0x3000..=0x303F     // CJK Symbols and Punctuation
+        | 0x3040..=0x309F     // Hiragana
+        | 0x30A0..=0x30FF     // Katakana
+        | 0x31F0..=0x31FF     // Katakana Phonetic Extensions
+        | 0xAC00..=0xD7AF     // Hangul Syllables
+        | 0xF900..=0xFAFF     // CJK Compatibility Ideographs
+        | 0x20000..=0x2A6DF   // CJK Extension B
+    )
+}
+
+/// Returns true for fullwidth forms.
+fn is_fullwidth_char(code: u32) -> bool {
+    (0xFF01..=0xFF60).contains(&code) || (0xFFE0..=0xFFE6).contains(&code)
+}
+
+/// Returns true for emoji codepoints.
+fn is_emoji_char(code: u32) -> bool {
+    matches!(code,
+        0x1F600..=0x1F64F   // Emoticons
+        | 0x1F300..=0x1F5FF // Misc Symbols and Pictographs
+        | 0x1F680..=0x1F6FF // Transport and Map
+        | 0x1F1E0..=0x1F1FF // Flags (regional indicators)
+        | 0x2600..=0x26FF   // Misc symbols
+        | 0x2700..=0x27BF   // Dingbats
+        | 0x1F900..=0x1F9FF // Supplemental Symbols
+        | 0x1FA00..=0x1FA6F // Chess Symbols
+        | 0x1FA70..=0x1FAFF // Symbols and Pictographs Extended-A
+        | 0xFE00..=0xFE0F   // Variation Selectors
+        | 0x200D            // ZWJ
+    )
 }
 
 #[cfg(test)]

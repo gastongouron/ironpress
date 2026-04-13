@@ -561,6 +561,8 @@ pub struct ComputedStyle {
     pub margin: EdgeSizes,
     pub padding: EdgeSizes,
     pub text_align: TextAlign,
+    /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
+    pub direction_rtl: bool,
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
     pub line_height: f32,
@@ -652,6 +654,7 @@ impl Default for ComputedStyle {
             margin: EdgeSizes::default(),
             padding: EdgeSizes::default(),
             text_align: TextAlign::Left,
+            direction_rtl: false,
             text_decoration_underline: false,
             text_decoration_line_through: false,
             line_height: f32::NAN,
@@ -893,6 +896,23 @@ pub fn compute_style_with_context(
     // Apply tag defaults
     let defaults = default_style(tag);
     apply_style_map(&mut style, &defaults, parent);
+
+    // Handle HTML dir attribute (inheritable, overrides CSS direction)
+    if let Some(dir) = attributes.get("dir") {
+        match dir.as_str() {
+            "rtl" => {
+                style.direction_rtl = true;
+                // RTL elements default to right-aligned text
+                if style.text_align == TextAlign::Left {
+                    style.text_align = TextAlign::Right;
+                }
+            }
+            "ltr" => {
+                style.direction_rtl = false;
+            }
+            _ => {}
+        }
+    }
 
     // Apply stylesheet rules (between defaults and inline).
     // Skip pseudo-element rules — they target ::before/::after, not the element itself.
