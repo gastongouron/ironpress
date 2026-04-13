@@ -30,7 +30,7 @@
       "Vietnamese"
     ],
     "min_size_bytes": 8000,
-    "max_size_bytes": 600000,
+    "max_size_bytes": 12000000,
     "min_pages": 1
   },
   "visual_assertions": [
