@@ -3002,11 +3002,44 @@ fn flatten_element(
                 || style.border.has_any()
                 || style.border_radius > 0.0
                 || style.box_shadow.is_some();
+            // Check early if this positioned container has absolute children.
+            // When true, skip the has_block_children fast path so we use the
+            // Container/wrapper path instead, preserving the containing block.
+            let early_has_abs_children = positioned_container
+                && el.children.iter().any(|c| {
+                    if let DomNode::Element(e) = c {
+                        // Quick inline style check
+                        let s = e.style_attr().unwrap_or("");
+                        if s.contains("absolute") {
+                            return true;
+                        }
+                        // Check stylesheet rules
+                        let cls = e.class_list();
+                        let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
+                        let cs = compute_style_with_context(
+                            e.tag,
+                            e.style_attr(),
+                            &style,
+                            rules,
+                            e.tag_name(),
+                            &cls_refs,
+                            e.id(),
+                            &e.attributes,
+                            &SelectorContext::default(),
+                        );
+                        cs.position == Position::Absolute
+                    } else {
+                        false
+                    }
+                });
             let has_block_children = !parent_has_visual
+                && !early_has_abs_children
                 && el.children.iter().any(|c| {
                     matches!(c, DomNode::Element(e)
-                        if has_own_margins(e.tag)
+                        if (has_own_margins(e.tag)
                             || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
+                            && !element_is_inline_block(
+                                e, &style, rules, &child_ancestors, 0, 0, &[]))
                 });
 
             if has_block_children {
@@ -3324,6 +3357,45 @@ fn flatten_element(
                         });
                     }
                 }
+                // Emit absolute-positioned ::before / ::after pseudo-elements
+                if positioned_container && (before_is_abs || after_is_abs) {
+                    // Compute containing block from children height
+                    let children_h: f32 = output[wrapper_output_idx..]
+                        .iter()
+                        .map(estimate_element_height)
+                        .sum();
+                    let pseudo_cb = Some(ContainingBlock {
+                        x: 0.0,
+                        width: block_w,
+                        height: children_h,
+                        depth: positioned_depth,
+                    });
+                    if before_is_abs {
+                        push_block_pseudo(
+                            output,
+                            before_style.as_ref(),
+                            el,
+                            inner_width,
+                            fonts,
+                            pseudo_cb,
+                            positioned_depth,
+                            counter_state,
+                        );
+                    }
+                    if after_is_abs {
+                        push_block_pseudo(
+                            output,
+                            after_style.as_ref(),
+                            el,
+                            inner_width,
+                            fonts,
+                            pseudo_cb,
+                            positioned_depth,
+                            counter_state,
+                        );
+                    }
+                }
+
                 if style.page_break_after {
                     output.push(LayoutElement::PageBreak);
                 }
@@ -3556,10 +3628,34 @@ fn flatten_element(
             || style.border.has_any()
             || style.border_radius > 0.0
             || style.box_shadow.is_some();
+        // A positioned container (position: relative/absolute) needs the
+        // Container element to establish a containing block for absolute children.
+        let has_abs_children = positioned_container
+            && el.children.iter().any(|c| {
+                if let DomNode::Element(e) = c {
+                    let cls = e.class_list();
+                    let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
+                    let child_style = compute_style_with_context(
+                        e.tag,
+                        e.style_attr(),
+                        &style,
+                        rules,
+                        e.tag_name(),
+                        &cls_refs,
+                        e.id(),
+                        &e.attributes,
+                        &SelectorContext::default(),
+                    );
+                    child_style.position == Position::Absolute
+                } else {
+                    false
+                }
+            });
         let needs_wrapper = has_visual
             || style.aspect_ratio.is_some()
             || style.height.is_some()
-            || (positioned_container && (before_is_abs || after_is_abs));
+            || (positioned_container && (before_is_abs || after_is_abs))
+            || has_abs_children;
         let no_inline_content = !had_inline_runs;
 
         if (no_inline_content || has_block_kids_for_wrapper) && needs_wrapper && nesting_depth < 40
@@ -3660,6 +3756,35 @@ fn flatten_element(
                 container_h = container_h.max(aspect_h);
             }
             cb_info = make_containing_block(container_h);
+
+            // Add absolute-positioned ::before pseudo-element as a Container child.
+            if let Some(ref ps) = before_style {
+                if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
+                    child_elements.push(build_pseudo_block(
+                        ps,
+                        el,
+                        inner_width,
+                        fonts,
+                        cb_info,
+                        positioned_depth,
+                        counter_state,
+                    ));
+                }
+            }
+            // Add absolute-positioned ::after pseudo-element as a Container child.
+            if let Some(ref ps) = after_style {
+                if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
+                    child_elements.push(build_pseudo_block(
+                        ps,
+                        el,
+                        inner_width,
+                        fonts,
+                        cb_info,
+                        positioned_depth,
+                        counter_state,
+                    ));
+                }
+            }
 
             // Patch absolute children with the now-known containing block,
             // and resolve bottom/right offsets into top/left.
@@ -4173,7 +4298,7 @@ fn flatten_flex_container(
                             .fold(0.0f32, f32::max);
                         margin_top + row_h + margin_bottom
                     }
-                    _ => 0.0,
+                    other => estimate_element_height(other),
                 })
                 .sum::<f32>();
 
@@ -4803,6 +4928,31 @@ fn flatten_flex_container(
                             background_origin: *tb_bg_origin,
                             transform: None,
                             nested_elements: Vec::new(),
+                        });
+                    } else {
+                        // Single non-TextBlock element (e.g. Container): store
+                        // in nested_elements for the renderer to handle.
+                        flex_cells.push(FlexCell {
+                            lines: Vec::new(),
+                            x_offset: x,
+                            width: item.width,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_right: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: 0.0,
+                            border_radius: 0.0,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            transform: None,
+                            nested_elements: item.elements.clone(),
                         });
                     }
 
@@ -6384,6 +6534,31 @@ impl<'a> FlexTextRunCollector<'a> {
                     } else {
                         collapse_whitespace(text)
                     };
+                    // Apply CSS text-transform
+                    let processed = match parent_style.text_transform {
+                        crate::style::computed::TextTransform::Uppercase => {
+                            processed.to_uppercase()
+                        }
+                        crate::style::computed::TextTransform::Lowercase => {
+                            processed.to_lowercase()
+                        }
+                        crate::style::computed::TextTransform::Capitalize => {
+                            let mut result = String::with_capacity(processed.len());
+                            let mut prev_is_space = true;
+                            for c in processed.chars() {
+                                if prev_is_space && c.is_alphabetic() {
+                                    for uc in c.to_uppercase() {
+                                        result.push(uc);
+                                    }
+                                } else {
+                                    result.push(c);
+                                }
+                                prev_is_space = c.is_whitespace();
+                            }
+                            result
+                        }
+                        crate::style::computed::TextTransform::None => processed,
+                    };
                     if !processed.is_empty() {
                         push_text_run_with_fallback(
                             TextRun {
@@ -6612,6 +6787,27 @@ fn collect_text_runs_inner(
                 } else {
                     collapse_whitespace(text)
                 };
+                // Apply CSS text-transform
+                let processed = match parent_style.text_transform {
+                    crate::style::computed::TextTransform::Uppercase => processed.to_uppercase(),
+                    crate::style::computed::TextTransform::Lowercase => processed.to_lowercase(),
+                    crate::style::computed::TextTransform::Capitalize => {
+                        let mut result = String::with_capacity(processed.len());
+                        let mut prev_is_space = true;
+                        for c in processed.chars() {
+                            if prev_is_space && c.is_alphabetic() {
+                                for uc in c.to_uppercase() {
+                                    result.push(uc);
+                                }
+                            } else {
+                                result.push(c);
+                            }
+                            prev_is_space = c.is_whitespace();
+                        }
+                        result
+                    }
+                    crate::style::computed::TextTransform::None => processed,
+                };
                 if !processed.is_empty() {
                     // Only propagate background_color when the immediate
                     // parent is an inline element (e.g. <span>).  Block-level
@@ -6740,6 +6936,27 @@ fn collect_table_cell_content_inner(
                     text.clone()
                 } else {
                     collapse_whitespace(text)
+                };
+                // Apply CSS text-transform
+                let processed = match parent_style.text_transform {
+                    crate::style::computed::TextTransform::Uppercase => processed.to_uppercase(),
+                    crate::style::computed::TextTransform::Lowercase => processed.to_lowercase(),
+                    crate::style::computed::TextTransform::Capitalize => {
+                        let mut result = String::with_capacity(processed.len());
+                        let mut prev_is_space = true;
+                        for c in processed.chars() {
+                            if prev_is_space && c.is_alphabetic() {
+                                for uc in c.to_uppercase() {
+                                    result.push(uc);
+                                }
+                            } else {
+                                result.push(c);
+                            }
+                            prev_is_space = c.is_whitespace();
+                        }
+                        result
+                    }
+                    crate::style::computed::TextTransform::None => processed,
                 };
                 if !processed.is_empty() {
                     let (bg, pad, br) = if (inline_parent || recurse_blocks) && !preserve_ws {
@@ -8328,8 +8545,19 @@ fn resolve_svg_dimension(
         return None;
     }
 
+    // SVG width/height attributes are in CSS px by default.
+    // Values with explicit "pt" suffix stay as-is; otherwise convert px→pt.
+    if raw.ends_with("pt") {
+        let value = crate::parser::svg::parse_length(raw)?;
+        return if value >= 0.0 { Some(value) } else { None };
+    }
     let value = crate::parser::svg::parse_length(raw)?;
-    if value >= 0.0 { Some(value) } else { None }
+    if value >= 0.0 {
+        // Convert px to pt (1px = 0.75pt)
+        Some(value * 0.75)
+    } else {
+        None
+    }
 }
 
 fn sync_svg_tree_to_layout_box(tree: &mut crate::parser::svg::SvgTree, width: f32, height: f32) {
@@ -8717,7 +8945,7 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, false, false),
-            (120.0, 60.0)
+            (90.0, 45.0)
         );
     }
 
@@ -8743,7 +8971,7 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, false, false),
-            (120.0, 60.0)
+            (90.0, 45.0)
         );
     }
 
@@ -8769,7 +8997,7 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, false, false),
-            (120.0, 60.0)
+            (90.0, 45.0)
         );
     }
 
@@ -8795,7 +9023,7 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, false, false),
-            (120.0, 60.0)
+            (90.0, 45.0)
         );
     }
 
@@ -8837,7 +9065,7 @@ mod tests {
 
         assert_eq!(
             resolve_svg_size(&tree, 400.0, 400.0, true, false),
-            (120.0, 60.0)
+            (120.0, 60.0) // falls back to intrinsic size (already in pt)
         );
     }
 
@@ -8864,8 +9092,8 @@ mod tests {
             None
         }
         let svg = find_svg(&pages[0].elements).expect("expected nested svg element");
-        assert!((svg.0 - 100.0).abs() < 0.1);
-        assert!((svg.1 - 100.0).abs() < 0.1);
+        assert!((svg.0 - 75.0).abs() < 0.1); // 100px = 75pt
+        assert!((svg.1 - 100.0).abs() < 0.1); // 50% of 200pt = 100pt
     }
 
     #[test]
@@ -8931,8 +9159,8 @@ mod tests {
                 _ => None,
             })
             .expect("expected svg layout element");
-        assert_eq!(svg.1, 200.0);
-        assert_eq!(svg.2, 100.0);
+        assert_eq!(svg.1, 150.0); // 200px = 150pt
+        assert_eq!(svg.2, 75.0); // 100px = 75pt
         assert!(
             svg.0.view_box.is_some(),
             "renderer should keep viewBox metadata"
@@ -14682,6 +14910,34 @@ line 3</pre>
                 y_positions[i].1,
             );
         }
+    }
+
+    #[test]
+    fn nested_div_container_has_background_color() {
+        let html = r#"
+        <style>
+            .d1 { border-left: 2px solid #ef4444; background-color: rgba(239,68,68,0.05); padding: 4px; }
+        </style>
+        <div class="d1"><span>Level 1</span>
+            <div class="d2"><span>Level 2</span><p>Block child</p></div>
+        </div>
+        "#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules = crate::parser::css::parse_stylesheet(&result.stylesheets.join("\n"));
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let has_container_bg = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::Container {
+                    background_color: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_container_bg,
+            "Container should have background_color from rgba stylesheet"
+        );
     }
 }
 

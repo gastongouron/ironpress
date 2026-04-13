@@ -1763,6 +1763,151 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         content.push_str("Q\n");
                                         nested_y -= svg_h;
                                     }
+                                    LayoutElement::Container {
+                                        children: cont_kids,
+                                        background_color: cont_bg,
+                                        border: cont_border,
+                                        padding_top: cont_pt,
+                                        padding_bottom: cont_pb,
+                                        padding_left: cont_pl,
+                                        padding_right: cont_pr,
+                                        margin_top: cont_mt,
+                                        block_width: cont_bw,
+                                        border_radius: cont_br,
+                                        overflow: cont_overflow,
+                                        ..
+                                    } => {
+                                        nested_y -= cont_mt;
+                                        let cont_w = cont_bw.unwrap_or(cell.width);
+                                        let cont_children_h: f32 = cont_kids
+                                            .iter()
+                                            .map(crate::layout::engine::estimate_element_height)
+                                            .sum();
+                                        let cont_h = cont_pt
+                                            + cont_children_h
+                                            + cont_pb
+                                            + cont_border.vertical_width();
+
+                                        // Draw container background
+                                        if let Some((r, g, b, a)) = cont_bg {
+                                            let needs_alpha = *a < 1.0;
+                                            if needs_alpha {
+                                                let gs_name = format!("GSba{bg_alpha_counter}");
+                                                bg_alpha_counter += 1;
+                                                page_ext_gstates.push((gs_name.clone(), *a));
+                                                content.push_str(&format!("/{gs_name} gs\n"));
+                                            }
+                                            content.push_str(&format!("{r} {g} {b} rg\n"));
+                                            if *cont_br > 0.0 {
+                                                content.push_str(&rounded_rect_path(
+                                                    nested_x,
+                                                    nested_y - cont_h,
+                                                    cont_w,
+                                                    cont_h,
+                                                    *cont_br,
+                                                ));
+                                                content.push_str("\nf\n");
+                                            } else {
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                                                    x = nested_x,
+                                                    y = nested_y - cont_h,
+                                                    w = cont_w,
+                                                    h = cont_h,
+                                                ));
+                                            }
+                                            if needs_alpha {
+                                                content.push_str("/GSDefault gs\n");
+                                            }
+                                        }
+
+                                        // Draw container borders
+                                        if cont_border.has_any() {
+                                            let bx1 = nested_x;
+                                            let bx2 = nested_x + cont_w;
+                                            let by1 = nested_y;
+                                            let by2 = nested_y - cont_h;
+                                            if cont_border.left.width > 0.0 {
+                                                let (r, g, b) = cont_border.left.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.left.width,
+                                                    bx1 + cont_border.left.width * 0.5,
+                                                    by1,
+                                                    bx1 + cont_border.left.width * 0.5,
+                                                    by2
+                                                ));
+                                            }
+                                            if cont_border.right.width > 0.0 {
+                                                let (r, g, b) = cont_border.right.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.right.width,
+                                                    bx2 - cont_border.right.width * 0.5,
+                                                    by1,
+                                                    bx2 - cont_border.right.width * 0.5,
+                                                    by2
+                                                ));
+                                            }
+                                            if cont_border.top.width > 0.0 {
+                                                let (r, g, b) = cont_border.top.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.top.width,
+                                                    bx1,
+                                                    by1 - cont_border.top.width * 0.5,
+                                                    bx2,
+                                                    by1 - cont_border.top.width * 0.5
+                                                ));
+                                            }
+                                            if cont_border.bottom.width > 0.0 {
+                                                let (r, g, b) = cont_border.bottom.color;
+                                                content.push_str(&format!(
+                                                    "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
+                                                    cont_border.bottom.width,
+                                                    bx1,
+                                                    by2 + cont_border.bottom.width * 0.5,
+                                                    bx2,
+                                                    by2 + cont_border.bottom.width * 0.5
+                                                ));
+                                            }
+                                        }
+
+                                        // Clip and render children
+                                        let clip = *cont_overflow == Overflow::Hidden;
+                                        if clip {
+                                            content.push_str("q\n");
+                                            content.push_str(&format!(
+                                                "{} {} {} {} re W n\n",
+                                                nested_x,
+                                                nested_y - cont_h,
+                                                cont_w,
+                                                cont_h
+                                            ));
+                                        }
+                                        let inner_x = nested_x + cont_pl + cont_border.left.width;
+                                        let inner_w = (cont_w
+                                            - cont_pl
+                                            - cont_pr
+                                            - cont_border.horizontal_width())
+                                        .max(0.0);
+                                        let inner_y = nested_y - cont_pt - cont_border.top.width;
+                                        render_container_children(
+                                            &mut content,
+                                            cont_kids,
+                                            inner_x,
+                                            inner_y,
+                                            inner_w,
+                                            custom_fonts,
+                                            &prepared_custom_fonts,
+                                            &mut page_ext_gstates,
+                                            &mut bg_alpha_counter,
+                                        );
+                                        if clip {
+                                            content.push_str("Q\n");
+                                        }
+                                        nested_y -= cont_h;
+                                    }
                                     _ => {}
                                 }
                             }
@@ -1778,7 +1923,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     children,
                     background_color,
                     border,
-                    border_radius: _,
+                    border_radius: c_border_radius,
                     padding_top: c_pt,
                     padding_bottom: c_pb,
                     padding_left: c_pl,
@@ -1786,7 +1931,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     margin_top: _,
                     margin_bottom: _,
                     block_width,
-                    block_height: _,
+                    block_height: c_block_height,
                     opacity: _,
                     position: _,
                     offset_top: _,
@@ -1803,12 +1948,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let container_y_top = page_size.height - margin.top - y_pos;
                     let container_w = block_width.unwrap_or(available_width);
 
-                    // Compute content height from children
+                    // Use explicit block_height if set, otherwise compute from children
                     let children_h: f32 = children
                         .iter()
                         .map(crate::layout::engine::estimate_element_height)
                         .sum();
-                    let total_h = c_pt + children_h + c_pb + border.vertical_width();
+                    let content_h = c_pt + children_h + c_pb + border.vertical_width();
+                    let total_h = c_block_height.map_or(content_h, |h| content_h.max(h));
 
                     // Draw background
                     if let Some((r, g, b, a)) = background_color {
@@ -1882,13 +2028,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let needs_clip = *c_overflow == Overflow::Hidden;
                     if needs_clip {
                         content.push_str("q\n");
-                        content.push_str(&format!(
-                            "{x} {y} {w} {h} re W n\n",
-                            x = container_x,
-                            y = container_y_top - total_h,
-                            w = container_w,
-                            h = total_h,
-                        ));
+                        if *c_border_radius > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("\nW n\n");
+                        } else {
+                            content.push_str(&format!(
+                                "{x} {y} {w} {h} re W n\n",
+                                x = container_x,
+                                y = container_y_top - total_h,
+                                w = container_w,
+                                h = total_h,
+                            ));
+                        }
                     }
 
                     // Render children recursively
@@ -1903,6 +2060,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         inner_w,
                         custom_fonts,
                         &prepared_custom_fonts,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
                     );
 
                     // Restore clip
@@ -2313,6 +2472,7 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
 }
 
 /// Recursively render a Container element and all its children.
+#[allow(clippy::too_many_arguments)]
 fn render_container_children(
     content: &mut String,
     children: &[LayoutElement],
@@ -2321,8 +2481,43 @@ fn render_container_children(
     width: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
 ) {
+    // Separate children into those handled by render_nested_table_rows
+    // (TableRow, TextBlock) and those handled directly (Container, Svg, etc.).
+    // We process all children in order, flushing accumulated nested-layout
+    // batches when we hit a directly-handled type.
+    let mut nested_batch: Vec<&LayoutElement> = Vec::new();
+    let mut cursor_y = y;
+
     for child in children {
+        let handled_by_nested = matches!(
+            child,
+            LayoutElement::TableRow { .. } | LayoutElement::GridRow { .. }
+        );
+        if handled_by_nested {
+            nested_batch.push(child);
+            cursor_y -= crate::layout::engine::estimate_element_height(child);
+            continue;
+        }
+
+        // Flush any accumulated nested batch before handling this element
+        if !nested_batch.is_empty() {
+            let batch: Vec<LayoutElement> = nested_batch.drain(..).cloned().collect();
+            render_nested_table_rows(
+                content,
+                &batch,
+                x,
+                y,
+                page_ext_gstates,
+                bg_alpha_counter,
+                custom_fonts,
+                prepared_custom_fonts,
+            );
+            y = cursor_y;
+        }
+
         match child {
             LayoutElement::TextBlock {
                 lines,
@@ -2333,26 +2528,115 @@ fn render_container_children(
                 block_height,
                 background_color,
                 text_align,
+                position,
+                offset_top,
+                offset_left,
+                block_width: tb_block_width,
                 ..
             } => {
-                y -= margin_top;
+                // Absolute-positioned children render at offset from container origin
+                if *position == Position::Absolute {
+                    let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                    let abs_h = padding_top + text_h + padding_bottom + border.vertical_width();
+                    let abs_h = block_height.map_or(abs_h, |h| abs_h.max(h));
+                    let abs_w = tb_block_width.unwrap_or(width);
+                    let abs_x = x + offset_left;
+                    let abs_y = y - offset_top;
+
+                    if let Some((r, g, b, a)) = background_color {
+                        let needs_alpha = *a < 1.0;
+                        if needs_alpha {
+                            let gs_name = format!("GScca{bg_alpha_counter}");
+                            *bg_alpha_counter += 1;
+                            page_ext_gstates.push((gs_name.clone(), *a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
+                        content.push_str(&format!(
+                            "{r} {g} {b} rg\n{ax} {ay} {aw} {ah} re\nf\n",
+                            ax = abs_x,
+                            ay = abs_y - abs_h,
+                            aw = abs_w,
+                            ah = abs_h,
+                        ));
+                        if needs_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
+                    }
+                    // Render text for absolute-positioned children
+                    let mut text_y_abs = abs_y - padding_top;
+                    for line in lines {
+                        let metrics = line_box_metrics(line, custom_fonts);
+                        text_y_abs -= metrics.half_leading + metrics.ascender;
+                        let merged = merge_runs(&line.runs);
+                        let line_width: f32 = merged
+                            .iter()
+                            .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
+                            .sum();
+                        let text_x = match text_align {
+                            TextAlign::Right => abs_x + (abs_w - line_width).max(0.0),
+                            TextAlign::Center => abs_x + (abs_w - line_width).max(0.0) / 2.0,
+                            _ => abs_x,
+                        };
+                        let mut lx = text_x;
+                        for run in &merged {
+                            let rw = render_run_text(
+                                content,
+                                run,
+                                lx,
+                                text_y_abs,
+                                custom_fonts,
+                                prepared_custom_fonts,
+                            );
+                            lx += rw;
+                        }
+                        text_y_abs -= metrics.descender + metrics.half_leading;
+                    }
+                    // Don't advance cursor_y for absolute elements
+                    continue;
+                }
+
+                cursor_y -= margin_top;
+                y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();
                 let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
                 let child_h = block_height.map_or(child_h, |h| child_h.max(h));
 
+                // Apply position:relative offset (visual only, flow unaffected)
+                let render_x = if *position == Position::Relative {
+                    x + offset_left
+                } else {
+                    x
+                };
+                let render_y = if *position == Position::Relative {
+                    y - offset_top
+                } else {
+                    y
+                };
+                let render_w = tb_block_width.unwrap_or(width);
+
                 // Draw child background
-                if let Some((r, g, b, _)) = background_color {
+                if let Some((r, g, b, a)) = background_color {
+                    let needs_alpha = *a < 1.0;
+                    if needs_alpha {
+                        let gs_name = format!("GScca{bg_alpha_counter}");
+                        *bg_alpha_counter += 1;
+                        page_ext_gstates.push((gs_name.clone(), *a));
+                        content.push_str(&format!("/{gs_name} gs\n"));
+                    }
                     content.push_str(&format!(
                         "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
-                        cx = x,
-                        cy = y - child_h,
-                        cw = width,
+                        cx = render_x,
+                        cy = render_y - child_h,
+                        cw = render_w,
                         ch = child_h,
                     ));
+                    if needs_alpha {
+                        content.push_str("/GSDefault gs\n");
+                    }
                 }
 
                 // Draw child text
-                let mut text_y = y - padding_top;
+                let mut text_y = render_y - padding_top;
                 for line in lines {
                     let metrics = line_box_metrics(line, custom_fonts);
                     text_y -= metrics.half_leading + metrics.ascender;
@@ -2362,9 +2646,9 @@ fn render_container_children(
                         .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
                         .sum();
                     let text_x = match text_align {
-                        TextAlign::Right => x + (width - line_width).max(0.0),
-                        TextAlign::Center => x + (width - line_width).max(0.0) / 2.0,
-                        _ => x,
+                        TextAlign::Right => render_x + (render_w - line_width).max(0.0),
+                        TextAlign::Center => render_x + (render_w - line_width).max(0.0) / 2.0,
+                        _ => render_x,
                     };
                     let mut lx = text_x;
                     for run in &merged {
@@ -2380,12 +2664,14 @@ fn render_container_children(
                     }
                     text_y -= metrics.descender + metrics.half_leading;
                 }
-                y -= child_h;
+                cursor_y -= child_h;
+                y = cursor_y;
             }
             LayoutElement::Container {
                 children: nested_kids,
                 background_color,
                 border,
+                border_radius: cont_br,
                 padding_top,
                 padding_bottom,
                 padding_left,
@@ -2393,23 +2679,30 @@ fn render_container_children(
                 margin_top,
                 margin_bottom,
                 block_width,
+                block_height: nk_block_height,
                 overflow,
                 ..
             } => {
-                y -= margin_top;
+                cursor_y -= margin_top;
+                y = cursor_y;
                 let nk_w = block_width.unwrap_or(width);
                 let nk_children_h: f32 = nested_kids
                     .iter()
                     .map(crate::layout::engine::estimate_element_height)
                     .sum();
-                let nk_total_h =
+                let nk_content_h =
                     padding_top + nk_children_h + padding_bottom + border.vertical_width();
+                let nk_total_h = nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h));
 
-                // Draw background.
-                // TODO: pass page_ext_gstates for proper alpha support.
-                // For now, draw at full opacity (the colors are very light
-                // by design in the fixture's rgba values).
-                if let Some((r, g, b, _a)) = background_color {
+                // Draw background with proper alpha support
+                if let Some((r, g, b, a)) = background_color {
+                    let needs_alpha = *a < 1.0;
+                    if needs_alpha {
+                        let gs_name = format!("GScca{bg_alpha_counter}");
+                        *bg_alpha_counter += 1;
+                        page_ext_gstates.push((gs_name.clone(), *a));
+                        content.push_str(&format!("/{gs_name} gs\n"));
+                    }
                     content.push_str(&format!(
                         "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
                         cx = x,
@@ -2417,6 +2710,9 @@ fn render_container_children(
                         cw = nk_w,
                         ch = nk_total_h,
                     ));
+                    if needs_alpha {
+                        content.push_str("/GSDefault gs\n");
+                    }
                 }
 
                 // Draw all 4 borders
@@ -2465,17 +2761,28 @@ fn render_container_children(
                     ));
                 }
 
-                // Clip if overflow:hidden
+                // Clip if overflow:hidden (use rounded rect when border-radius > 0)
                 let clip = *overflow == Overflow::Hidden;
                 if clip {
                     content.push_str("q\n");
-                    content.push_str(&format!(
-                        "{cx} {cy} {cw} {ch} re W n\n",
-                        cx = x,
-                        cy = y - nk_total_h,
-                        cw = nk_w,
-                        ch = nk_total_h,
-                    ));
+                    if *cont_br > 0.0 {
+                        content.push_str(&rounded_rect_path(
+                            x,
+                            y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                            *cont_br,
+                        ));
+                        content.push_str("\nW n\n");
+                    } else {
+                        content.push_str(&format!(
+                            "{cx} {cy} {cw} {ch} re W n\n",
+                            cx = x,
+                            cy = y - nk_total_h,
+                            cw = nk_w,
+                            ch = nk_total_h,
+                        ));
+                    }
                 }
 
                 // Recurse into nested children
@@ -2490,12 +2797,15 @@ fn render_container_children(
                     inner_w,
                     custom_fonts,
                     prepared_custom_fonts,
+                    page_ext_gstates,
+                    bg_alpha_counter,
                 );
 
                 if clip {
                     content.push_str("Q\n");
                 }
-                y -= nk_total_h + margin_bottom;
+                cursor_y -= nk_total_h + margin_bottom;
+                y = cursor_y;
             }
             LayoutElement::Svg {
                 tree,
@@ -2504,13 +2814,45 @@ fn render_container_children(
                 margin_top: svg_mt,
                 ..
             } => {
-                y -= svg_mt;
+                cursor_y -= svg_mt;
+                y = cursor_y;
                 let svg_x = x;
                 let svg_y = y - svg_h;
                 content.push_str("q\n");
-                content.push_str(&format!("{svg_w} 0 0 {svg_h} {svg_x} {svg_y} cm\n"));
-                // Simple SVG rendering without shading/image resources
-                {
+                // Position on page with Y-flip (SVG y-axis is top-down, PDF is bottom-up)
+                content.push_str(&format!("1 0 0 -1 {svg_x} {} cm\n", svg_y + svg_h));
+                // Apply viewBox scaling via compute_svg_placement
+                if let Some(placement) = crate::render::svg_geometry::compute_svg_placement(
+                    tree,
+                    crate::render::svg_geometry::SvgPlacementRequest::from_rect(
+                        0.0,
+                        0.0,
+                        *svg_w,
+                        *svg_h,
+                        tree.preserve_aspect_ratio,
+                    ),
+                ) {
+                    content.push_str("q\n");
+                    content.push_str(&placement.viewport.clip_path());
+                    content.push_str(&format!(
+                        "{sx} 0 0 {sy} {tx} {ty} cm\n",
+                        sx = placement.scale_x,
+                        sy = placement.scale_y,
+                        tx = placement.translate_x,
+                        ty = placement.translate_y,
+                    ));
+                    {
+                        let mut res = crate::render::svg_to_pdf::SvgPdfResources {
+                            shadings: &mut Vec::new(),
+                            shading_counter: &mut 0,
+                            image_sink: None,
+                        };
+                        crate::render::svg_to_pdf::render_svg_tree_with_resources(
+                            tree, content, &mut res,
+                        );
+                    }
+                    content.push_str("Q\n");
+                } else {
                     let mut res = crate::render::svg_to_pdf::SvgPdfResources {
                         shadings: &mut Vec::new(),
                         shading_counter: &mut 0,
@@ -2521,10 +2863,330 @@ fn render_container_children(
                     );
                 }
                 content.push_str("Q\n");
-                y -= svg_h;
+                cursor_y -= svg_h;
+                y = cursor_y;
+            }
+            LayoutElement::FlexRow {
+                cells,
+                margin_top: flex_mt,
+                margin_bottom: flex_mb,
+                background_color,
+                border,
+                padding_top: flex_pt,
+                padding_left: flex_pl,
+                ..
+            } => {
+                cursor_y -= flex_mt;
+                y = cursor_y;
+                let row_h =
+                    crate::layout::engine::estimate_element_height(child) - flex_mt - flex_mb;
+
+                // Draw flex row background
+                if let Some((r, g, b, a)) = background_color {
+                    let needs_alpha = *a < 1.0;
+                    if needs_alpha {
+                        let gs_name = format!("GScca{bg_alpha_counter}");
+                        *bg_alpha_counter += 1;
+                        page_ext_gstates.push((gs_name.clone(), *a));
+                        content.push_str(&format!("/{gs_name} gs\n"));
+                    }
+                    content.push_str(&format!(
+                        "{r} {g} {b} rg\n{fx} {fy} {fw} {fh} re\nf\n",
+                        fx = x,
+                        fy = y - row_h,
+                        fw = width,
+                        fh = row_h,
+                    ));
+                    if needs_alpha {
+                        content.push_str("/GSDefault gs\n");
+                    }
+                }
+
+                // Render flex cells
+                let mut cell_x = x + flex_pl + border.left.width;
+                let content_y = y - flex_pt - border.top.width;
+                for cell in cells {
+                    let cell_w = cell.width;
+                    // Draw cell background
+                    if let Some((cr, cg, cb, ca)) = cell.background_color {
+                        let needs_alpha = ca < 1.0;
+                        if needs_alpha {
+                            let gs_name = format!("GScca{bg_alpha_counter}");
+                            *bg_alpha_counter += 1;
+                            page_ext_gstates.push((gs_name.clone(), ca));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
+                        content.push_str(&format!(
+                            "{cr} {cg} {cb} rg\n{cx} {cy} {cw} {ch} re\nf\n",
+                            cx = cell_x,
+                            cy = y - row_h,
+                            cw = cell_w,
+                            ch = row_h,
+                        ));
+                        if needs_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
+                    }
+                    // Draw cell text
+                    let mut text_y = content_y;
+                    for line in &cell.lines {
+                        let metrics = line_box_metrics(line, custom_fonts);
+                        text_y -= metrics.half_leading + metrics.ascender;
+                        let merged = merge_runs(&line.runs);
+                        let line_width: f32 = merged
+                            .iter()
+                            .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
+                            .sum();
+                        let text_x = match cell.text_align {
+                            TextAlign::Right => cell_x + (cell_w - line_width).max(0.0),
+                            TextAlign::Center => cell_x + (cell_w - line_width).max(0.0) / 2.0,
+                            _ => cell_x,
+                        };
+                        let mut lx = text_x;
+                        for run in &merged {
+                            let rw = render_run_text(
+                                content,
+                                run,
+                                lx,
+                                text_y,
+                                custom_fonts,
+                                prepared_custom_fonts,
+                            );
+                            lx += rw;
+                        }
+                        text_y -= metrics.descender + metrics.half_leading;
+                    }
+                    // Render nested elements in flex cells (tables, containers)
+                    if !cell.nested_elements.is_empty() {
+                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+                        let nested_y = content_y - text_h;
+                        render_container_children(
+                            content,
+                            &cell.nested_elements,
+                            cell_x,
+                            nested_y,
+                            cell_w,
+                            custom_fonts,
+                            prepared_custom_fonts,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                        );
+                    }
+                    cell_x += cell_w;
+                }
+                cursor_y -= row_h + flex_mb;
+                y = cursor_y;
+            }
+            LayoutElement::HorizontalRule {
+                margin_top: rule_mt,
+                margin_bottom: rule_mb,
+            } => {
+                cursor_y -= rule_mt;
+                y = cursor_y;
+                // Default rule: gray line across container width
+                content.push_str(&format!(
+                    "0.8 0.8 0.8 RG\n0.75 w\n{x} {ry} m {x2} {ry} l\nS\n",
+                    ry = y - 0.5,
+                    x2 = x + width,
+                ));
+                cursor_y -= 1.0 + rule_mb;
+                y = cursor_y;
             }
             _ => {
-                y -= crate::layout::engine::estimate_element_height(child);
+                let h = crate::layout::engine::estimate_element_height(child);
+                cursor_y -= h;
+                y = cursor_y;
+            }
+        }
+    }
+
+    // Flush any remaining nested batch
+    if !nested_batch.is_empty() {
+        let batch: Vec<LayoutElement> = nested_batch.drain(..).cloned().collect();
+        render_nested_table_rows(
+            content,
+            &batch,
+            x,
+            y,
+            page_ext_gstates,
+            bg_alpha_counter,
+            custom_fonts,
+            prepared_custom_fonts,
+        );
+    }
+}
+
+/// Render TableRow/GridRow elements that appear as children of a Container.
+#[allow(clippy::too_many_arguments)]
+fn render_nested_table_rows(
+    content: &mut String,
+    elements: &[LayoutElement],
+    origin_x: f32,
+    mut cursor_y: f32,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+) {
+    for element in elements {
+        match element {
+            LayoutElement::TableRow {
+                cells,
+                col_widths,
+                border_collapse,
+                border_spacing,
+                margin_top,
+                ..
+            } => {
+                cursor_y -= margin_top;
+                let spacing = if *border_collapse == BorderCollapse::Collapse {
+                    0.0
+                } else {
+                    *border_spacing
+                };
+                let row_y = cursor_y;
+                let row_height = compute_row_height(cells);
+
+                let mut col_pos: usize = 0;
+                for cell in cells {
+                    if cell.rowspan == 0 {
+                        col_pos += cell.colspan;
+                        continue;
+                    }
+                    let (cell_x, cell_w) =
+                        table_cell_geometry(col_widths, col_pos, cell.colspan, spacing, origin_x);
+
+                    // Draw cell background
+                    if let Some((r, g, b, a)) = cell.background_color {
+                        let needs_alpha = a < 1.0;
+                        if needs_alpha {
+                            let gs_name = format!("GScca{bg_alpha_counter}");
+                            *bg_alpha_counter += 1;
+                            page_ext_gstates.push((gs_name.clone(), a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
+                        content.push_str(&format!(
+                            "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
+                            x = cell_x,
+                            y = row_y - row_height,
+                            w = cell_w,
+                            h = row_height,
+                        ));
+                        if needs_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
+                    }
+
+                    // Draw cell borders
+                    if cell.border.has_any() {
+                        let x1 = cell_x;
+                        let x2 = cell_x + cell_w;
+                        let y_top = row_y;
+                        let y_bottom = row_y - row_height;
+                        if cell.border.top.width > 0.0 {
+                            let (r, g, b) = cell.border.top.color;
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
+                                cell.border.top.width
+                            ));
+                        }
+                        if cell.border.right.width > 0.0 {
+                            let (r, g, b) = cell.border.right.color;
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
+                                cell.border.right.width
+                            ));
+                        }
+                        if cell.border.bottom.width > 0.0 {
+                            let (r, g, b) = cell.border.bottom.color;
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
+                                cell.border.bottom.width
+                            ));
+                        }
+                        if cell.border.left.width > 0.0 {
+                            let (r, g, b) = cell.border.left.color;
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
+                                cell.border.left.width
+                            ));
+                        }
+                    }
+
+                    // Compute cell content top (simplified vertical alignment)
+                    let content_top = row_y - cell.padding_top;
+                    let cell_inner_w = cell_w - cell.padding_left - cell.padding_right;
+                    let mut text_y = content_top;
+                    for line in &cell.lines {
+                        let metrics = line_box_metrics(line, custom_fonts);
+                        text_y -= metrics.half_leading + metrics.ascender;
+                        let text_content: String =
+                            line.runs.iter().map(|run| run.text.as_str()).collect();
+                        if text_content.is_empty() {
+                            continue;
+                        }
+                        let merged = merge_runs(&line.runs);
+                        let line_width: f32 = merged
+                            .iter()
+                            .map(|run| estimate_run_width_with_fonts(run, custom_fonts))
+                            .sum();
+                        let text_x = match cell.text_align {
+                            TextAlign::Right => {
+                                cell_x + cell.padding_left + (cell_inner_w - line_width).max(0.0)
+                            }
+                            TextAlign::Center => {
+                                cell_x
+                                    + cell.padding_left
+                                    + ((cell_inner_w - line_width) / 2.0).max(0.0)
+                            }
+                            _ => cell_x + cell.padding_left,
+                        };
+                        let mut lx = text_x;
+                        for run in &merged {
+                            if run.text.is_empty() {
+                                continue;
+                            }
+                            // Inline background (for status badges etc.)
+                            if let Some((br, bg_c, bb, _ba)) = run.background_color {
+                                let (pad_h, pad_v) = run.padding;
+                                let run_w = estimate_run_width_with_fonts(run, custom_fonts);
+                                let rx = lx - pad_h;
+                                let ry = text_y - 2.0 - pad_v;
+                                let rw2 = run_w + pad_h * 2.0;
+                                let rh = run.font_size + 2.0 + pad_v * 2.0;
+                                content.push_str(&format!("{br} {bg_c} {bb} rg\n"));
+                                if run.border_radius > 0.0 {
+                                    content.push_str(&rounded_rect_path(
+                                        rx,
+                                        ry,
+                                        rw2,
+                                        rh,
+                                        run.border_radius,
+                                    ));
+                                    content.push_str("\nf\n");
+                                } else {
+                                    content.push_str(&format!("{rx} {ry} {rw2} {rh} re\nf\n"));
+                                }
+                            }
+                            let rw = render_run_text(
+                                content,
+                                run,
+                                lx,
+                                text_y,
+                                custom_fonts,
+                                prepared_custom_fonts,
+                            );
+                            lx += rw;
+                        }
+                        text_y -= metrics.descender + metrics.half_leading;
+                    }
+
+                    col_pos += cell.colspan;
+                }
+                cursor_y -= row_height;
+            }
+            _ => {
+                cursor_y -= crate::layout::engine::estimate_element_height(element);
             }
         }
     }

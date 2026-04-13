@@ -85,6 +85,14 @@ fn collect_font_usage_from_element(
         LayoutElement::FlexRow { cells, .. } => {
             for cell in cells {
                 collect_font_usage_from_lines(&cell.lines, custom_fonts, usage);
+                for nested in &cell.nested_elements {
+                    collect_font_usage_from_element(nested, custom_fonts, usage);
+                }
+            }
+        }
+        LayoutElement::Container { children, .. } => {
+            for child in children {
+                collect_font_usage_from_element(child, custom_fonts, usage);
             }
         }
         _ => {}
