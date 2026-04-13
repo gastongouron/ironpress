@@ -4117,12 +4117,27 @@ fn route_element(
     before_style: Option<ComputedStyle>,
     after_style: Option<ComputedStyle>,
 ) {
+    // Transitional LayoutContext for child layout calls.
+    let layout_ctx = LayoutContext {
+        viewport: Viewport {
+            width: available_width,
+            height: available_height,
+        },
+        parent: ParentBox {
+            content_width: available_width,
+            content_height: Some(available_height),
+            font_size: style.font_size,
+        },
+        containing_block: abs_containing_block,
+        root_font_size: style.root_font_size,
+    };
+
     // Flex container handling
     if style.display == Display::Flex {
         layout_flex_container(
             el,
             style,
-            available_width,
+            &layout_ctx,
             output,
             rules,
             child_ancestors,
@@ -4144,7 +4159,7 @@ fn route_element(
         layout_grid_container(
             el,
             style,
-            available_width,
+            &layout_ctx,
             output,
             rules,
             child_ancestors,
@@ -4168,7 +4183,7 @@ fn route_element(
             layout_grid_container(
                 el,
                 &col_style,
-                available_width,
+                &layout_ctx,
                 output,
                 rules,
                 child_ancestors,
@@ -4238,7 +4253,7 @@ fn route_element(
 fn layout_flex_container(
     el: &ElementNode,
     style: &ComputedStyle,
-    available_width: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
@@ -4248,6 +4263,7 @@ fn layout_flex_container(
     positioned_depth: usize,
     counter_state: &mut CounterState,
 ) {
+    let available_width = ctx.available_width();
     let mut block_w = available_width;
     if let Some(w) = style.width {
         block_w = w.min(available_width);
@@ -5603,12 +5619,13 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
 fn layout_grid_container(
     el: &ElementNode,
     style: &ComputedStyle,
-    available_width: f32,
+    ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
+    let available_width = ctx.available_width();
     let inner_width = available_width - style.padding.left - style.padding.right;
     let gap = style.grid_gap;
 
