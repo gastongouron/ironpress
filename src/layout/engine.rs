@@ -6612,6 +6612,27 @@ fn collect_text_runs_inner(
                 } else {
                     collapse_whitespace(text)
                 };
+                // Apply CSS text-transform
+                let processed = match parent_style.text_transform {
+                    crate::style::computed::TextTransform::Uppercase => processed.to_uppercase(),
+                    crate::style::computed::TextTransform::Lowercase => processed.to_lowercase(),
+                    crate::style::computed::TextTransform::Capitalize => {
+                        let mut result = String::with_capacity(processed.len());
+                        let mut prev_is_space = true;
+                        for c in processed.chars() {
+                            if prev_is_space && c.is_alphabetic() {
+                                for uc in c.to_uppercase() {
+                                    result.push(uc);
+                                }
+                            } else {
+                                result.push(c);
+                            }
+                            prev_is_space = c.is_whitespace();
+                        }
+                        result
+                    }
+                    crate::style::computed::TextTransform::None => processed,
+                };
                 if !processed.is_empty() {
                     // Only propagate background_color when the immediate
                     // parent is an inline element (e.g. <span>).  Block-level
