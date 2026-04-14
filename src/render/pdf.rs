@@ -741,7 +741,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // string, preventing viewers from dropping them.
                         let merged = merge_runs(&line.runs);
                         let mut x = text_x;
-                        for run in &merged {
+                        for (run_idx, run) in merged.iter().enumerate() {
                             if run.text.is_empty() {
                                 continue;
                             }
@@ -788,6 +788,20 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 }
                             }
 
+                            // Only advance by left padding when entering a new
+                            // background group, not between words in the same span.
+                            let pad_h = run.padding.0;
+                            let prev_bg = if run_idx > 0 {
+                                merged.get(run_idx - 1).and_then(|r| r.background_color)
+                            } else {
+                                None
+                            };
+                            let entering_bg =
+                                run.background_color.is_some() && prev_bg != run.background_color;
+                            if pad_h > 0.0 && entering_bg {
+                                x += pad_h;
+                            }
+
                             render_run_text(
                                 &mut content,
                                 run,
@@ -831,7 +845,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 annotations.push(annotation);
                             }
 
+                            // Only advance by right padding when leaving a bg group
+                            let next_bg = merged.get(run_idx + 1).and_then(|r| r.background_color);
+                            let leaving_bg =
+                                run.background_color.is_some() && next_bg != run.background_color;
                             x += run_width;
+                            if pad_h > 0.0 && leaving_bg {
+                                x += pad_h;
+                            }
                         }
 
                         // Reset letter spacing after line

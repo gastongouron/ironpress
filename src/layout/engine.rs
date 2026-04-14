@@ -8273,6 +8273,39 @@ line 3</pre>
     }
 
     #[test]
+    fn debug_inline_raw_and_wrapped_runs() {
+        let html = r#"<html><head><style>
+            body { font-family: Georgia, serif; font-size: 15px; line-height: 1.8; }
+            .hl { background-color: #fef3c7; padding: 2px 4px; }
+        </style></head><body>
+            <p>AAA <span class="hl">BBB</span> CCC</p>
+            <p>What was once dominated by heavyweight Java libraries is now seeing a new wave of <span class="hl">high-performance native renderers</span> that promise faster output.</p>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for (li, line) in lines.iter().enumerate() {
+                    for (ri, run) in line.runs.iter().enumerate() {
+                        eprintln!(
+                            "line{li} run{ri}: text={:?} pad=({:.1},{:.1}) bg={:?}",
+                            run.text,
+                            run.padding.0,
+                            run.padding.1,
+                            run.background_color.is_some()
+                        );
+                    }
+                }
+            }
+        }
+        assert!(true);
+    }
+
+    #[test]
     fn debug_float_right_structure() {
         let html = r#"<html><head><style>
             .container { width: 400px; border: 1px solid #ccc; padding: 10px; }

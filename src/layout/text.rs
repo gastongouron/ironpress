@@ -313,8 +313,39 @@ pub(crate) fn wrap_text_runs(
             line_height = options.default_font_size * line_height_factor;
         }
 
-        let text = if current_width > 0.0 && !preserve_spacing {
-            format!(" {word}")
+        // When transitioning between runs with different backgrounds,
+        // emit the inter-word space as a separate unstyled run so the
+        // background doesn't bleed from a highlighted span into plain text.
+        let needs_space = current_width > 0.0 && !preserve_spacing;
+        let prev_bg = current_runs
+            .last()
+            .and_then(|r: &TextRun| r.background_color);
+        let bg_changed = prev_bg != template.background_color;
+
+        let text = if needs_space {
+            if bg_changed && template.background_color.is_some() {
+                // Emit space as separate unstyled run
+                let space = " ".to_string();
+                let sw = estimate_word_width(
+                    &space,
+                    template.font_size,
+                    &template.font_family,
+                    template.bold,
+                    template.italic,
+                    fonts,
+                );
+                current_width += sw;
+                current_runs.push(TextRun {
+                    text: space,
+                    background_color: None,
+                    padding: (0.0, 0.0),
+                    border_radius: 0.0,
+                    ..template.clone()
+                });
+                word
+            } else {
+                format!(" {word}")
+            }
         } else {
             word
         };
