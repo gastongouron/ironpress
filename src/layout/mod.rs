@@ -1,3 +1,4 @@
+pub(crate) mod block;
 pub mod context;
 pub mod engine;
 pub(crate) mod flex;
