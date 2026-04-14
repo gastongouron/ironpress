@@ -8,3 +8,5 @@ fuzz/corpus/
 fuzz/artifacts/
 fuzz/target/
 tests/fixtures/references/**/*.png
+bindings/python/target/
+bindings/ruby/target/
