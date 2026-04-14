@@ -4337,6 +4337,7 @@ fn tile_offsets(origin: f32, step: f32, extent: f32) -> Vec<f32> {
 /// When `blur > 0`, draws multiple concentric semi-transparent layers that
 /// expand outward from the shadow box, creating a smooth falloff. When
 /// `blur == 0`, draws a single solid shadow rectangle.
+#[allow(clippy::too_many_arguments)]
 fn render_box_shadow(
     content: &mut String,
     shadow: &crate::style::computed::BoxShadow,
