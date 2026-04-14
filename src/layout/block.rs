@@ -44,12 +44,16 @@ pub(crate) fn layout_block_element(
     let available_width = ctx.available_width();
     let available_height = ctx.available_height();
     let abs_containing_block = ctx.containing_block;
-    // Compute effective block width considering CSS width/max-width/min-width
+    // Compute effective block width considering CSS width/max-width/min-width.
+    // Block elements without explicit width shrink by their horizontal margins.
+    let margin_h = style.margin.left + style.margin.right;
     let mut block_w = available_width;
     if let Some(w) = style.width {
         block_w = w.min(available_width);
     } else if let Some(pct) = style.percentage_sizing.width {
         block_w = (pct / 100.0 * available_width).min(available_width);
+    } else if margin_h > 0.0 {
+        block_w = (available_width - margin_h).max(0.0);
     }
     if let Some(mw) = style.max_width {
         block_w = block_w.min(mw);
@@ -90,10 +94,10 @@ pub(crate) fn layout_block_element(
         } else if style.margin_left_auto {
             available_width - block_w
         } else {
-            0.0
+            style.margin.left
         }
     } else {
-        0.0
+        style.margin.left
     };
 
     // Adjust for box-sizing: border-box

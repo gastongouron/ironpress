@@ -8157,6 +8157,119 @@ line 3</pre>
         }
         panic!("did not find any element with float:right");
     }
+
+    // --- Issue #103: horizontal separators via border-bottom ---
+
+    #[test]
+    fn h1_border_bottom_produces_visible_border() {
+        let html = r#"<html><head><style>
+            h1 { border-bottom: 3px solid #1e40af; padding-bottom: 8px; }
+        </style></head><body><h1>Title</h1></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut found_border = false;
+        for (_, el) in &pages[0].elements {
+            match el {
+                LayoutElement::TextBlock { border, .. } if border.bottom.width > 0.0 => {
+                    found_border = true;
+                }
+                LayoutElement::Container { border, .. } if border.bottom.width > 0.0 => {
+                    found_border = true;
+                }
+                _ => {}
+            }
+        }
+        assert!(
+            found_border,
+            "h1 with border-bottom:3px should produce a visible bottom border"
+        );
+    }
+
+    // --- Issue #102: margin collapse between adjacent blocks ---
+
+    #[test]
+    fn adjacent_block_margins_collapse() {
+        let html = r#"<html><head><style>
+            .a { margin-bottom: 20px; background: #ddd; }
+            .b { margin-top: 10px; background: #ddd; }
+        </style></head><body>
+            <div class="a">A</div>
+            <div class="b">B</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        // Find positions of the two divs
+        let mut positions: Vec<f32> = Vec::new();
+        for (y, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for line in lines {
+                    for run in &line.runs {
+                        if run.text.trim() == "A" || run.text.trim() == "B" {
+                            positions.push(*y);
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            positions.len() >= 2,
+            "should find both divs, got {} positions",
+            positions.len()
+        );
+        // The gap between A's bottom and B's top should reflect collapsed margin
+        // max(20px, 10px) = 20px = 15pt, NOT 20+10=30px=22.5pt
+        let gap = positions[1] - positions[0];
+        // Rough check: gap should be less than what non-collapsed margins would produce
+        // With font height ~12pt + 15pt margin: gap ~27pt
+        // Without collapse: ~12pt + 22.5pt = 34.5pt
+        assert!(
+            gap < 32.0,
+            "margins should collapse: gap={gap}pt (expected ~27pt, not ~34pt)"
+        );
+    }
+    #[test]
+    fn block_margin_left_reduces_content_width() {
+        let html = r#"<html><head><style>
+            .m { margin-left: 40px; margin-right: 40px; background: #ddd; }
+        </style></head><body><div class="m">Indented</div></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let page_width = PageSize::A4.width - Margin::default().left - Margin::default().right;
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock {
+                lines, block_width, ..
+            } = el
+            {
+                let has_indented = lines
+                    .iter()
+                    .any(|l| l.runs.iter().any(|r| r.text.contains("Indented")));
+                if has_indented {
+                    if let Some(w) = block_width {
+                        // 40px = 30pt each side → block should be ~60pt narrower
+                        assert!(
+                            *w < page_width - 40.0,
+                            "block with margin-left/right should be narrower than page: w={w}, page={page_width}"
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+        // If no explicit width, the block fills the page — that's the bug
+        panic!("block with margin-left/right should have reduced width");
+    }
 }
 
 // (end of file -- debug tests removed)
