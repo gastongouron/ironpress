@@ -10,46 +10,64 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build wheels - ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    name: Build wheels - Linux ${{ matrix.target }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-
+        target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install fonts (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji
-
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist --find-interpreter
+          manylinux: auto
           working-directory: bindings/python
-
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.target }}
+          name: wheels-linux-${{ matrix.target }}
+          path: bindings/python/dist/*.whl
+
+  build-macos:
+    name: Build wheels - macOS ${{ matrix.target }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          working-directory: bindings/python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.target }}
+          path: bindings/python/dist/*.whl
+
+  build-windows:
+    name: Build wheels - Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          args: --release --out dist --find-interpreter
+          working-directory: bindings/python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows
           path: bindings/python/dist/*.whl
 
   sdist:
@@ -70,7 +88,7 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: [build, sdist]
+    needs: [build-linux, build-macos, build-windows, sdist]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     environment: release

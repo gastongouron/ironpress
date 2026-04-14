@@ -22,7 +22,7 @@ jobs:
           - os: macos-latest
             platform: arm64-darwin
             ruby: "3.3"
-          - os: macos-13
+          - os: macos-latest
             platform: x86_64-darwin
             ruby: "3.3"
 
