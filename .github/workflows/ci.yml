@@ -4,8 +4,22 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/workflows/python.yml'
+      - '.github/workflows/ruby.yml'
+      - '.github/workflows/playground.yml'
+      - 'bindings/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/workflows/python.yml'
+      - '.github/workflows/ruby.yml'
+      - '.github/workflows/playground.yml'
+      - 'bindings/**'
 
 # Restrict default permissions to read-only for all jobs.
 # Jobs that need more (benchmarks, publish) override below.
