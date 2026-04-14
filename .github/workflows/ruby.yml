@@ -1,0 +1,82 @@
+name: Ruby Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build gem - ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: x86_64-linux
+            ruby: "3.3"
+          - os: macos-latest
+            platform: arm64-darwin
+            ruby: "3.3"
+          - os: macos-13
+            platform: x86_64-darwin
+            ruby: "3.3"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install fonts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji
+
+      - name: Install rb_sys
+        run: gem install rb_sys rake-compiler
+
+      - name: Build native gem
+        working-directory: bindings/ruby
+        run: |
+          gem build ironpress.gemspec
+          mkdir -p pkg
+          mv ironpress-*.gem pkg/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gem-${{ matrix.platform }}
+          path: bindings/ruby/pkg/*.gem
+
+  publish:
+    name: Publish to RubyGems
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gem-*
+          merge-multiple: true
+          path: pkg
+
+      - name: Publish to RubyGems
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_TOKEN }}
+        run: |
+          mkdir -p ~/.gem
+          echo "---" > ~/.gem/credentials
+          echo ":rubygems_api_key: ${GEM_HOST_API_KEY}" >> ~/.gem/credentials
+          chmod 0600 ~/.gem/credentials
+          for gem in pkg/*.gem; do
+            gem push "$gem" || true
+          done

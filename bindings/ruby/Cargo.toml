@@ -1,0 +1,13 @@
+[package]
+name = "ironpress-ruby"
+version = "1.4.1"
+edition = "2024"
+publish = false
+
+[lib]
+name = "ironpress_ruby"
+crate-type = ["cdylib"]
+
+[dependencies]
+ironpress-core = { path = "../..", package = "ironpress" }
+magnus = "0.7"

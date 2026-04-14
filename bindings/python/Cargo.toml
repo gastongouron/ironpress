@@ -1,0 +1,13 @@
+[package]
+name = "ironpress-python"
+version = "1.4.1"
+edition = "2024"
+publish = false
+
+[lib]
+name = "ironpress"
+crate-type = ["cdylib"]
+
+[dependencies]
+ironpress-core = { path = "../..", package = "ironpress" }
+pyo3 = { version = "0.23", features = ["extension-module"] }

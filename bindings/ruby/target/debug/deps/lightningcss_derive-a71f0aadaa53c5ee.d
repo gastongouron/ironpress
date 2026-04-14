@@ -1,0 +1,8 @@
+/Users/workstation/workspace/rust/ironpress/bindings/ruby/target/debug/deps/lightningcss_derive-a71f0aadaa53c5ee.d: /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/lib.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/parse.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/to_css.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/visit.rs
+
+/Users/workstation/workspace/rust/ironpress/bindings/ruby/target/debug/deps/liblightningcss_derive-a71f0aadaa53c5ee.dylib: /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/lib.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/parse.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/to_css.rs /Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/visit.rs
+
+/Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/lib.rs:
+/Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/parse.rs:
+/Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/to_css.rs:
+/Users/workstation/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lightningcss-derive-1.0.0-alpha.43/src/visit.rs:

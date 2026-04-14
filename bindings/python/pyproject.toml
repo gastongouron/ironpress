@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ironpress"
+version = "1.4.1"
+description = "Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Markup :: HTML",
+]
+keywords = ["pdf", "html", "css", "markdown", "converter"]
+
+[project.urls]
+Homepage = "https://github.com/gastongouron/ironpress"
+Repository = "https://github.com/gastongouron/ironpress"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
