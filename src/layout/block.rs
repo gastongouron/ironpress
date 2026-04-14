@@ -378,7 +378,7 @@ pub(crate) fn layout_block_element(
                         None,
                         env.rules,
                         env.fonts,
-                        ancestors,
+                        child_ancestors,
                     );
                 }
             }
@@ -630,7 +630,7 @@ pub(crate) fn layout_block_element(
                             None,
                             env.rules,
                             env.fonts,
-                            ancestors,
+                            child_ancestors,
                         );
                     }
                     DomNode::Element(child_el)
@@ -680,7 +680,7 @@ pub(crate) fn layout_block_element(
                             None,
                             env.rules,
                             env.fonts,
-                            ancestors,
+                            child_ancestors,
                         );
                     }
                 }
@@ -843,7 +843,7 @@ pub(crate) fn layout_block_element(
                             None,
                             env.rules,
                             env.fonts,
-                            ancestors,
+                            child_ancestors,
                         );
                     }
                     DomNode::Element(child_el) if collects_as_inline_text(child_el.tag) => {
@@ -854,7 +854,7 @@ pub(crate) fn layout_block_element(
                             None,
                             env.rules,
                             env.fonts,
-                            ancestors,
+                            child_ancestors,
                         );
                     }
                     _ => {} // Block children handled by needs_wrapper
@@ -868,7 +868,7 @@ pub(crate) fn layout_block_element(
                 None,
                 env.rules,
                 env.fonts,
-                ancestors,
+                child_ancestors,
             );
         }
     }

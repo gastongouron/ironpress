@@ -8049,6 +8049,114 @@ line 3</pre>
             "BiDi should preserve Latin text"
         );
     }
+
+    // --- Issue #99: pre code color inheritance ---
+
+    #[test]
+    fn pre_code_inherits_color_from_pre_not_code_default() {
+        let html = r#"<html><head><style>
+            code { color: #be123c; }
+            pre { color: #e2e8f0; background-color: #1e293b; }
+            pre code { color: inherit; }
+        </style></head><body>
+        <pre><code>Hello World</code></pre>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        // Find the text — may be in TextBlock or Container
+        fn find_hello_color(elements: &[(f32, LayoutElement)]) -> Option<(f32, f32, f32)> {
+            for (_, el) in elements {
+                match el {
+                    LayoutElement::TextBlock { lines, .. } => {
+                        for line in lines {
+                            for run in &line.runs {
+                                if run.text.contains("Hello") {
+                                    return Some(run.color);
+                                }
+                            }
+                        }
+                    }
+                    LayoutElement::Container { children, .. } => {
+                        for child in children {
+                            if let LayoutElement::TextBlock { lines, .. } = child {
+                                for line in lines {
+                                    for run in &line.runs {
+                                        if run.text.contains("Hello") {
+                                            return Some(run.color);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        let color = find_hello_color(&pages[0].elements).expect("should find 'Hello World' text");
+        // pre code { color: inherit } should give #e2e8f0 (0.886, 0.910, 0.941)
+        // NOT #be123c (code default red = 0.745, 0.071, 0.235)
+        assert!(
+            color.0 > 0.7 && color.1 > 0.7,
+            "pre>code text should inherit light color from pre, got ({:.3}, {:.3}, {:.3})",
+            color.0,
+            color.1,
+            color.2
+        );
+    }
+
+    // --- Issue #101: float right positioning (layout side) ---
+    // Note: float positioning is handled by the renderer, not the layout engine.
+    // This test documents the current limitation: offset_left is 0 from layout.
+
+    #[test]
+    #[ignore] // TODO: fix float:right layout positioning (#101)
+    fn float_right_positions_at_right_edge() {
+        let html = r#"
+        <div style="width: 400px">
+            <div style="float: right; width: 100px; height: 50px; background: pink">Float</div>
+            <p>Text should wrap around the float.</p>
+        </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        // Find the floated element (pink background)
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock {
+                float: Float::Right,
+                offset_left,
+                block_width: Some(w),
+                ..
+            } = el
+            {
+                // Float right should have offset_left > 0 (pushed right)
+                // In a 400px (300pt) container with a 100px (75pt) float,
+                // the float should be near the right edge
+                assert!(
+                    *offset_left > 50.0,
+                    "float:right should be positioned rightward, got offset_left={offset_left}"
+                );
+                return;
+            }
+        }
+        // Float right may not produce offset_left — the renderer handles it.
+        // Just verify the float property is preserved.
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock {
+                float: Float::Right,
+                ..
+            } = el
+            {
+                return; // Float property is at least preserved
+            }
+        }
+        panic!("did not find any element with float:right");
+    }
 }
 
 // (end of file -- debug tests removed)

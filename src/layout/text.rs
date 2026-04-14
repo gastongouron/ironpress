@@ -659,6 +659,13 @@ fn collect_text_runs_inner(
                         } else {
                             link_url
                         };
+                        let mut child_ancestors = ancestors.to_vec();
+                        child_ancestors.push(AncestorInfo {
+                            element: el,
+                            child_index: 0,
+                            sibling_count: nodes.len(),
+                            preceding_siblings: Vec::new(),
+                        });
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -667,7 +674,7 @@ fn collect_text_runs_inner(
                             rules,
                             fonts,
                             true,
-                            ancestors,
+                            &child_ancestors,
                         );
                     }
                 }
