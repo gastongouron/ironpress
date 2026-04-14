@@ -175,6 +175,58 @@ mod tests {
     }
 
     #[test]
+    fn parse_stylesheet_media_screen_excluded() {
+        let rules = parse_stylesheet("@media screen { .hidden { display: none } }");
+        assert!(
+            rules.is_empty(),
+            "screen-only rules should be excluded for print context"
+        );
+    }
+
+    #[test]
+    fn parse_stylesheet_media_print_included() {
+        let rules = parse_stylesheet("@media print { .visible { color: blue } }");
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].selector, ".visible");
+    }
+
+    #[test]
+    fn parse_stylesheet_media_min_width_with_context() {
+        use super::super::MediaContext;
+        use super::parse_stylesheet_with_context;
+        // Page width 595pt > 400pt, so min-width: 400pt should match
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let rules = parse_stylesheet_with_context(
+            "@media (min-width: 400pt) { .wide { font-size: 20pt } }",
+            Some(ctx),
+        );
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].selector, ".wide");
+    }
+
+    #[test]
+    fn parse_stylesheet_media_max_width_excludes_wide() {
+        use super::super::MediaContext;
+        use super::parse_stylesheet_with_context;
+        // Page width 595pt > 300pt, so max-width: 300pt should NOT match
+        let ctx = MediaContext {
+            width: 595.0,
+            height: 842.0,
+        };
+        let rules = parse_stylesheet_with_context(
+            "@media (max-width: 300pt) { .narrow { font-size: 10pt } }",
+            Some(ctx),
+        );
+        assert!(
+            rules.is_empty(),
+            "max-width: 300pt should not match a 595pt page"
+        );
+    }
+
+    #[test]
     fn parse_stylesheet_malformed_css() {
         // Missing closing brace should not panic
         let rules = parse_stylesheet("p { color: red");

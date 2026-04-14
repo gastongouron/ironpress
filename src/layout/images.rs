@@ -975,4 +975,143 @@ mod tests {
             (120.0, 60.0) // falls back to intrinsic size (already in pt)
         );
     }
+
+    #[test]
+    fn try_parse_svg_bytes_rejects_binary_data() {
+        let raw = &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46];
+        assert!(
+            try_parse_svg_bytes(raw).is_none(),
+            "JPEG binary data should not parse as SVG"
+        );
+    }
+
+    #[test]
+    fn try_parse_svg_bytes_accepts_xml_declaration() {
+        let raw = b"<?xml version=\"1.0\"?><svg width=\"10\" height=\"10\"></svg>";
+        let tree = try_parse_svg_bytes(raw).expect("XML declaration SVG should parse");
+        assert_eq!(tree.width, 10.0);
+    }
+
+    #[test]
+    fn try_parse_svg_bytes_accepts_comment_prefix() {
+        let raw = b"<!-- comment --><svg width=\"30\" height=\"15\"></svg>";
+        let tree = try_parse_svg_bytes(raw).expect("Comment-prefixed SVG should parse");
+        assert_eq!(tree.width, 30.0);
+    }
+
+    #[test]
+    fn try_parse_svg_bytes_rejects_comment_without_svg() {
+        let raw = b"<!-- just a comment, no SVG here -->";
+        assert!(
+            try_parse_svg_bytes(raw).is_none(),
+            "Comment without <svg> should return None"
+        );
+    }
+
+    #[test]
+    fn constrain_replaced_image_size_within_available_width() {
+        // Image 200x100 in 150 available width => scale down to 150x75
+        let (w, h) = constrain_replaced_image_size(200.0, 100.0, 150.0, None, None);
+        assert!((w - 150.0).abs() < 0.01);
+        assert!((h - 75.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn constrain_replaced_image_size_with_max_width() {
+        // Image 200x100, available 300, max_width 100 => scale to 100x50
+        let (w, h) = constrain_replaced_image_size(200.0, 100.0, 300.0, Some(100.0), None);
+        assert!((w - 100.0).abs() < 0.01);
+        assert!((h - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn constrain_replaced_image_size_with_max_height() {
+        // Image 200x100, max_height 40 => scale to 80x40
+        let (w, h) = constrain_replaced_image_size(200.0, 100.0, 500.0, None, Some(40.0));
+        assert!((w - 80.0).abs() < 0.01);
+        assert!((h - 40.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn constrain_replaced_image_size_zero_dimensions() {
+        // Zero width/height should return (0, 0)
+        let (w, h) = constrain_replaced_image_size(0.0, 100.0, 500.0, None, None);
+        assert_eq!(w, 0.0);
+        assert_eq!(h, 100.0);
+    }
+
+    #[test]
+    fn constrain_replaced_image_size_no_scaling_needed() {
+        // Image fits within available width, no max constraints
+        let (w, h) = constrain_replaced_image_size(100.0, 50.0, 500.0, None, None);
+        assert_eq!(w, 100.0);
+        assert_eq!(h, 50.0);
+    }
+
+    #[test]
+    fn percent_decode_basic() {
+        assert_eq!(percent_decode("%3Csvg%3E"), "<svg>");
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("no%encoding"), "no%encoding");
+    }
+
+    #[test]
+    fn parse_html_image_dimension_with_px_suffix() {
+        assert_eq!(
+            parse_html_image_dimension(Some(&"200px".to_string())),
+            Some(150.0) // 200 * 0.75
+        );
+    }
+
+    #[test]
+    fn parse_html_image_dimension_without_suffix() {
+        assert_eq!(
+            parse_html_image_dimension(Some(&"100".to_string())),
+            Some(75.0) // 100 * 0.75
+        );
+    }
+
+    #[test]
+    fn parse_html_image_dimension_none_input() {
+        assert_eq!(parse_html_image_dimension(None), None);
+    }
+
+    #[test]
+    fn parse_html_image_dimension_invalid() {
+        assert_eq!(parse_html_image_dimension(Some(&"abc".to_string())), None);
+    }
+
+    #[test]
+    fn svg_natural_ratio_from_viewbox() {
+        let vb = crate::parser::svg::ViewBox {
+            min_x: 0.0,
+            min_y: 0.0,
+            width: 200.0,
+            height: 100.0,
+        };
+        let ratio = svg_natural_ratio(None, None, None, None, Some(vb));
+        assert!((ratio.unwrap() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn svg_natural_ratio_from_explicit_dimensions() {
+        let ratio = svg_natural_ratio(Some(100.0), Some(50.0), None, None, None);
+        assert!((ratio.unwrap() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn contain_default_object_size_tall_ratio() {
+        // ratio > default_ratio (0.5): height-constrained
+        let (w, h) = contain_default_object_size(2.0);
+        assert!((h - 150.0).abs() < 0.01);
+        assert!((w - 75.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn contain_default_object_size_wide_ratio() {
+        // ratio < default_ratio (0.5): width-constrained
+        let (w, h) = contain_default_object_size(0.25);
+        assert!((w - 300.0).abs() < 0.01);
+        assert!((h - 75.0).abs() < 0.01);
+    }
 }

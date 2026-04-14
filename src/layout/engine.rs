@@ -8385,6 +8385,840 @@ line 3</pre>
         // Just verify structure — we want to see the debug output
         assert!(!pages[0].elements.is_empty());
     }
+
+    // ---------------------------------------------------------------
+    // Block layout coverage tests (src/layout/block.rs uncovered paths)
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn block_percentage_max_width() {
+        let html = r#"<html><head><style>
+            .clamped { max-width: 50%; }
+        </style></head><body>
+            <div class="clamped">Narrow</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        let found = pages[0].elements.iter().any(|(_, el)| {
+            if let LayoutElement::TextBlock {
+                block_width: Some(w),
+                ..
+            } = el
+            {
+                *w < 300.0
+            } else {
+                false
+            }
+        });
+        assert!(found, "Expected a block clamped by max-width: 50%");
+    }
+
+    #[test]
+    fn block_percentage_min_width() {
+        let html = r#"<html><head><style>
+            .wide { min-width: 80%; width: 50pt; }
+        </style></head><body>
+            <div class="wide">Wide</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_percentage_height_resolves_against_containing_block() {
+        let html = r#"<div style="height: 400pt; position: relative">
+            <div style="height: 50%">Half</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_pct_border_radius_with_height() {
+        let html = r#"<html><head><style>
+            .pill { border-radius: 50%; width: 100pt; height: 100pt; background: red; }
+        </style></head><body>
+            <div class="pill">Round</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        let has_radius = pages[0].elements.iter().any(|(_, el)| match el {
+            LayoutElement::TextBlock { border_radius, .. } => *border_radius > 0.0,
+            LayoutElement::Container { border_radius, .. } => *border_radius > 0.0,
+            _ => false,
+        });
+        assert!(has_radius, "Expected border_radius resolved from 50%");
+    }
+
+    #[test]
+    fn block_pct_border_radius_without_height() {
+        let html = r#"<html><head><style>
+            .rounded { border-radius: 50%; width: 80pt; background: blue; }
+        </style></head><body>
+            <div class="rounded">No height</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_before_pseudo_block_like() {
+        let html = r#"<html><head><style>
+            .banner::before {
+                content: "PREFIX";
+                display: block;
+                background: green;
+            }
+        </style></head><body>
+            <div class="banner"><p>Content</p></div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_white_space_nowrap_flush_runs() {
+        let html = r#"<html><head><style>
+            .nowrap { white-space: nowrap; width: 50pt; overflow: hidden; }
+        </style></head><body>
+            <div class="nowrap">This text should not wrap at all even though narrow</div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_inline_block_shrink_to_fit() {
+        let html = r#"<html><head><style>
+            .ib { display: inline-block; }
+        </style></head><body>
+            <div><span class="ib">Short</span></div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_visual_parent_with_block_children() {
+        let html = r#"<html><head><style>
+            .box { background: #ff0000; padding: 10pt; border: 1pt solid black; }
+        </style></head><body>
+            <div class="box">
+                <p>First paragraph</p>
+                <p>Second paragraph</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        let has_visual = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    background_color: Some(_),
+                    ..
+                } | LayoutElement::Container {
+                    background_color: Some(_),
+                    ..
+                }
+            )
+        });
+        assert!(
+            has_visual,
+            "Expected wrapper with background from visual parent"
+        );
+    }
+
+    #[test]
+    fn block_visual_wrapper_with_fixed_height() {
+        let html = r#"<html><head><style>
+            .fixed { background: blue; height: 200pt; padding: 10pt; }
+        </style></head><body>
+            <div class="fixed">
+                <p>Inside fixed height</p>
+                <p>Second child</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_overflow_hidden_visual_wrapper_clip() {
+        let html = r#"<html><head><style>
+            .clip { overflow: hidden; background: gray; width: 150pt; height: 100pt; }
+        </style></head><body>
+            <div class="clip">
+                <p>Clipped paragraph one</p>
+                <p>Clipped paragraph two</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_visual_wrapper_padding_propagation() {
+        let html = r#"<html><head><style>
+            .padded { background: yellow; padding: 20pt 15pt; }
+        </style></head><body>
+            <div class="padded">
+                <p>Child with propagated padding</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_visual_wrapper_patches_auto_height() {
+        let html = r#"<html><head><style>
+            .autoheight { background: orange; padding: 5pt; border: 2pt solid red; }
+        </style></head><body>
+            <div class="autoheight">
+                <h2>Heading</h2>
+                <p>Body text</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_abs_pseudo_before_after_in_block() {
+        let html = r#"<html><head><style>
+            .rel { position: relative; }
+            .rel::before {
+                content: "B";
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            .rel::after {
+                content: "A";
+                display: block;
+                position: absolute;
+                bottom: 0;
+                right: 0;
+            }
+        </style></head><body>
+            <div class="rel">
+                <p>Main content</p>
+                <p>More content</p>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_container_wrapper_aspect_ratio() {
+        let html = r#"<html><head><style>
+            .aspect { aspect-ratio: 16 / 9; width: 320pt; background: purple; }
+        </style></head><body>
+            <div class="aspect"><p>Aspect ratio box</p></div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        let has_container = pages[0]
+            .elements
+            .iter()
+            .any(|(_, el)| matches!(el, LayoutElement::Container { .. }));
+        assert!(
+            has_container,
+            "aspect-ratio should produce a Container element"
+        );
+    }
+
+    #[test]
+    fn block_wrapper_inline_block_children() {
+        let html = r#"<html><head><style>
+            .parent { background: cyan; height: 60pt; }
+            .child { display: inline-block; width: 40pt; }
+        </style></head><body>
+            <div class="parent">
+                <span class="child">A</span>
+                <span class="child">B</span>
+                <span class="child">C</span>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_positioned_container_cb_non_wrapper() {
+        let html = r#"<div style="position: relative">
+            <span>Inline text only</span>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_inline_block_flush_at_block_break() {
+        let html = r#"<html><head><style>
+            .ib { display: inline-block; width: 50pt; }
+        </style></head><body>
+            <div>
+                <span class="ib">X</span>
+                <span class="ib">Y</span>
+                <div>Block break</div>
+                <span class="ib">Z</span>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+    }
+
+    #[test]
+    fn block_no_inline_visual_wrapper_path() {
+        let html = r#"<html><head><style>
+            .visual { background: lime; border: 1pt solid black; }
+        </style></head><body>
+            <div class="visual">
+                <div>Only block children, no inline text</div>
+            </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        assert!(!pages[0].elements.is_empty());
+        let has_container_or_bg = pages[0].elements.iter().any(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::Container { .. }
+                    | LayoutElement::TextBlock {
+                        background_color: Some(_),
+                        ..
+                    }
+            )
+        });
+        assert!(
+            has_container_or_bg,
+            "Expected Container or TextBlock with visual properties"
+        );
+    }
+    // -----------------------------------------------------------------------
+    // helpers.rs coverage tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn helpers_resolve_padding_box_height_border_box() {
+        use crate::layout::helpers::resolve_padding_box_height;
+        use crate::style::computed::BoxSizing;
+
+        let h =
+            resolve_padding_box_height(50.0, Some(200.0), 10.0, 10.0, 20.0, BoxSizing::BorderBox);
+        assert!((h - 180.0).abs() < 0.01);
+
+        let h2 = resolve_padding_box_height(50.0, Some(10.0), 5.0, 5.0, 30.0, BoxSizing::BorderBox);
+        assert!((h2 - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn helpers_pseudo_block_display_block_renders() {
+        let html = r#"<html><head><style>
+            p::before {
+                content: "PREFIX";
+                display: block;
+                padding: 5pt;
+                background-color: #eee;
+            }
+        </style></head><body><p>Main text</p></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let t: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    texts.push(t);
+                }
+            }
+        }
+        assert!(
+            texts.iter().any(|t| t.contains("PREFIX")),
+            "expected block ::before with 'PREFIX', got: {:?}",
+            texts
+        );
+    }
+
+    #[test]
+    fn helpers_pseudo_block_absolute_positioned() {
+        let html = r#"<html><head><style>
+            .container {
+                position: relative;
+                width: 300pt;
+                height: 200pt;
+            }
+            .container::after {
+                content: "ABS";
+                position: absolute;
+                top: 10pt;
+                left: 20pt;
+                padding: 4pt;
+            }
+        </style></head><body><div class="container">Content</div></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let abs_el = pages[0].elements.iter().find(|(_, el)| {
+            matches!(
+                el,
+                LayoutElement::TextBlock {
+                    position: Position::Absolute,
+                    ..
+                }
+            )
+        });
+        assert!(
+            abs_el.is_some(),
+            "expected an absolute-positioned pseudo TextBlock"
+        );
+        if let Some((
+            _,
+            LayoutElement::TextBlock {
+                offset_top,
+                offset_left,
+                ..
+            },
+        )) = abs_el
+        {
+            assert!(
+                (*offset_top - 10.0).abs() < 1.0,
+                "offset_top={}",
+                offset_top
+            );
+            assert!(
+                (*offset_left - 20.0).abs() < 1.0,
+                "offset_left={}",
+                offset_left
+            );
+        }
+    }
+
+    #[test]
+    fn helpers_pseudo_block_absolute_bottom_right() {
+        let html = r#"<html><head><style>
+            .box {
+                position: relative;
+                width: 400pt;
+                height: 300pt;
+            }
+            .box::before {
+                content: "BR";
+                position: absolute;
+                bottom: 10pt;
+                right: 20pt;
+            }
+        </style></head><body><div class="box">Hello</div></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        fn find_abs_br(elements: &[(f32, LayoutElement)]) -> Option<(f32, f32)> {
+            for (_, el) in elements {
+                match el {
+                    LayoutElement::TextBlock {
+                        position: Position::Absolute,
+                        offset_top,
+                        offset_left,
+                        lines,
+                        ..
+                    } if lines
+                        .iter()
+                        .flat_map(|l| l.runs.iter())
+                        .any(|r| r.text.contains("BR")) =>
+                    {
+                        return Some((*offset_top, *offset_left));
+                    }
+                    LayoutElement::Container { children, .. } => {
+                        for child in children {
+                            if let LayoutElement::TextBlock {
+                                position: Position::Absolute,
+                                offset_top,
+                                offset_left,
+                                lines,
+                                ..
+                            } = child
+                            {
+                                if lines
+                                    .iter()
+                                    .flat_map(|l| l.runs.iter())
+                                    .any(|r| r.text.contains("BR"))
+                                {
+                                    return Some((*offset_top, *offset_left));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        let abs_el = find_abs_br(&pages[0].elements);
+        assert!(
+            abs_el.is_some(),
+            "expected absolute pseudo with bottom/right resolved"
+        );
+        let (top, left) = abs_el.unwrap();
+        assert!(top > 0.0, "bottom should resolve to positive top: {}", top);
+        assert!(
+            left > 0.0,
+            "right should resolve to positive left: {}",
+            left
+        );
+    }
+
+    #[test]
+    fn helpers_resolve_abs_cb_bottom_right_only() {
+        use crate::layout::helpers::resolve_abs_containing_block;
+        use crate::style::computed::ComputedStyle;
+
+        let mut style = ComputedStyle::default();
+        style.position = Position::Absolute;
+        style.top = None;
+        style.left = None;
+        style.bottom = Some(10.0);
+        style.right = Some(20.0);
+
+        let cb = ContainingBlock {
+            x: 0.0,
+            width: 500.0,
+            height: 400.0,
+            depth: 0,
+        };
+
+        let (resolved_cb, top, left) = resolve_abs_containing_block(&style, Some(cb), 50.0, 100.0);
+        assert!(resolved_cb.is_some());
+        assert!((top - 340.0).abs() < 0.01, "top={}", top);
+        assert!((left - 380.0).abs() < 0.01, "left={}", left);
+    }
+
+    #[test]
+    fn helpers_resolve_abs_cb_none() {
+        use crate::layout::helpers::resolve_abs_containing_block;
+        use crate::style::computed::ComputedStyle;
+
+        let mut style = ComputedStyle::default();
+        style.position = Position::Absolute;
+        style.top = Some(15.0);
+        style.left = Some(25.0);
+
+        let (resolved_cb, top, left) = resolve_abs_containing_block(&style, None, 50.0, 100.0);
+        assert!(resolved_cb.is_none());
+        assert!((top - 15.0).abs() < 0.01);
+        assert!((left - 25.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn helpers_patch_abs_children_cb_resolves_offsets() {
+        use crate::layout::helpers::patch_absolute_children_containing_block;
+
+        let cb = ContainingBlock {
+            x: 0.0,
+            width: 600.0,
+            height: 400.0,
+            depth: 1,
+        };
+
+        let mut elements = vec![LayoutElement::TextBlock {
+            lines: vec![],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: Some(100.0),
+            block_height: Some(50.0),
+            opacity: 1.0,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Absolute,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 30.0,
+            offset_right: 40.0,
+            containing_block: None,
+            clip_children_count: 0,
+            box_shadow: None,
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            border_radius: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+            z_index: 0,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: None,
+        }];
+
+        patch_absolute_children_containing_block(&mut elements, cb);
+
+        if let LayoutElement::TextBlock {
+            offset_top,
+            offset_left,
+            containing_block,
+            ..
+        } = &elements[0]
+        {
+            assert!(containing_block.is_some(), "containing_block should be set");
+            assert!(
+                (*offset_left - 460.0).abs() < 0.01,
+                "offset_left={}",
+                offset_left
+            );
+            assert!(
+                (*offset_top - 320.0).abs() < 0.01,
+                "offset_top={}",
+                offset_top
+            );
+        } else {
+            panic!("expected TextBlock");
+        }
+    }
+
+    #[test]
+    fn helpers_aspect_ratio_height_computed() {
+        use crate::layout::helpers::aspect_ratio_height;
+        use crate::style::computed::ComputedStyle;
+
+        let mut style = ComputedStyle::default();
+        assert!(aspect_ratio_height(200.0, &style).is_none());
+
+        style.aspect_ratio = Some(2.0);
+        let h = aspect_ratio_height(200.0, &style);
+        assert!(h.is_some());
+        assert!((h.unwrap() - 100.0).abs() < 0.01);
+
+        style.aspect_ratio = Some(0.0);
+        assert!(aspect_ratio_height(200.0, &style).is_none());
+    }
+
+    #[test]
+    fn helpers_format_list_marker_roman_large() {
+        use crate::layout::helpers::format_list_marker;
+        use crate::style::computed::ListStyleType;
+
+        assert_eq!(
+            format_list_marker(ListStyleType::UpperRoman, 2024),
+            "MMXXIV. "
+        );
+        assert_eq!(
+            format_list_marker(ListStyleType::LowerRoman, 999),
+            "cmxcix. "
+        );
+        assert_eq!(format_list_marker(ListStyleType::UpperRoman, 49), "XLIX. ");
+        assert_eq!(
+            format_list_marker(ListStyleType::LowerRoman, 444),
+            "cdxliv. "
+        );
+    }
+
+    #[test]
+    fn helpers_pseudo_block_with_min_height() {
+        let html = r#"<html><head><style>
+            p::before {
+                content: "X";
+                display: block;
+                min-height: 50pt;
+            }
+        </style></head><body><p>Text</p></body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+
+        let pseudo = pages[0].elements.iter().find_map(|(_, el)| match el {
+            LayoutElement::TextBlock {
+                lines,
+                block_height,
+                ..
+            } if lines
+                .iter()
+                .flat_map(|l| l.runs.iter())
+                .any(|r| r.text.contains("X")) =>
+            {
+                Some(block_height)
+            }
+            _ => None,
+        });
+        assert!(pseudo.is_some(), "expected pseudo-block with min-height");
+        if let Some(Some(h)) = pseudo {
+            assert!(
+                *h >= 50.0,
+                "min-height should enforce at least 50pt, got {}",
+                h
+            );
+        }
+    }
+
+    #[test]
+    fn helpers_resolve_content_counters_in_layout() {
+        let html = r#"<html><head><style>
+            ol { counter-reset: item; list-style-type: none; }
+            ol li { counter-increment: item; }
+            ol li::before { content: counters(item, ".") " "; display: block; }
+        </style></head><body>
+            <ol>
+                <li>A
+                    <ol>
+                        <li>B</li>
+                    </ol>
+                </li>
+            </ol>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        let mut texts: Vec<String> = Vec::new();
+        for (_, el) in &pages[0].elements {
+            if let LayoutElement::TextBlock { lines, .. } = el {
+                for l in lines {
+                    let t: String = l.runs.iter().map(|r| r.text.as_str()).collect();
+                    if !t.trim().is_empty() {
+                        texts.push(t);
+                    }
+                }
+            }
+        }
+        let has_nested = texts.iter().any(|t| t.contains("1.1"));
+        assert!(
+            has_nested,
+            "expected nested counter '1.1' from counters(), got: {:?}",
+            texts
+        );
+    }
+
+    #[test]
+    fn helpers_background_svg_for_style_raster() {
+        use crate::layout::helpers::background_svg_for_style;
+        use crate::style::computed::ComputedStyle;
+
+        let mut style = ComputedStyle::default();
+        assert!(background_svg_for_style(&style).is_none());
+
+        style.background_image = Some(TEST_JPEG_DATA_URI.to_string());
+        let _ = background_svg_for_style(&style);
+    }
 }
 
 // (end of file -- debug tests removed)

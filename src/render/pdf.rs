@@ -10751,4 +10751,168 @@ mod tests {
         assert!(text.contains("%PDF"));
         assert!(text.contains("%%EOF"));
     }
+
+    #[test]
+    fn render_box_shadow_no_blur() {
+        let html = r#"<div style="width: 100pt; height: 50pt; box-shadow: 5px 5px 0px rgba(0,0,0,0.5)">Shadow</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // No-blur shadow should draw a solid rect fill
+        assert!(
+            content.contains("re\nf\n"),
+            "Box shadow without blur should produce a filled rectangle"
+        );
+    }
+
+    #[test]
+    fn render_box_shadow_with_blur() {
+        let html = r#"<div style="width: 100pt; height: 50pt; box-shadow: 3px 3px 10px rgba(0,0,0,0.4)">Blurred shadow</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Blur shadow draws multiple layers with ExtGState for alpha
+        assert!(
+            content.contains("gs\n"),
+            "Blurred box shadow should use graphics state for alpha layers"
+        );
+    }
+
+    #[test]
+    fn render_container_with_background_and_border() {
+        let html = r#"
+            <div style="background-color: #ccc; border: 2px solid blue; padding: 10px">
+                <p>Inside container</p>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Container background fill
+        assert!(
+            content.contains("rg\n"),
+            "Container should have background color fill"
+        );
+        // Container border stroke
+        assert!(
+            content.contains("RG\n"),
+            "Container should have border stroke color"
+        );
+        assert!(
+            content.contains("Inside container"),
+            "Container children text should be rendered"
+        );
+    }
+
+    #[test]
+    fn render_flexbox_with_border() {
+        let html = r#"
+            <div style="display: flex; border: 1px solid red; padding: 5px">
+                <div style="flex: 1">Left</div>
+                <div style="flex: 1">Right</div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Flex container border: red = 1 0 0 RG
+        assert!(
+            content.contains("1 0 0 RG"),
+            "FlexRow border should use red stroke color"
+        );
+    }
+
+    #[test]
+    fn render_flexbox_with_background_color() {
+        let html = r#"
+            <div style="display: flex; background-color: yellow; padding: 8px">
+                <div style="flex: 1">A</div>
+                <div style="flex: 1">B</div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Yellow bg = 1 1 0 rg
+        assert!(
+            content.contains("1 1 0 rg"),
+            "FlexRow should render yellow background"
+        );
+    }
+
+    #[test]
+    fn render_transform_skew_matrix_in_pdf() {
+        // skew() produces a Transform::Matrix variant, exercising the Matrix arm
+        let html = r#"<div style="transform: skew(10deg); width: 50pt; height: 30pt; background: red">Skewed</div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // skew(10deg) produces a Matrix transform which emits a cm operator
+        assert!(
+            content.contains("cm\n"),
+            "CSS transform: skew() should produce a cm (concat matrix) operator in PDF"
+        );
+    }
+
+    #[test]
+    fn render_grid_row_with_border() {
+        let html = r#"
+            <div style="display: grid; grid-template-columns: 1fr 1fr; border: 2px solid green; gap: 4px">
+                <div>Cell A</div>
+                <div>Cell B</div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            pdf.starts_with(b"%PDF"),
+            "Grid with border should produce valid PDF"
+        );
+        // Green border: 0 0.50196... 0 RG (CSS green = #008000)
+        assert!(
+            content.contains("RG\n"),
+            "Grid border should produce stroke color"
+        );
+    }
+
+    #[test]
+    fn render_container_with_border_radius() {
+        let html = r#"
+            <div style="background-color: blue; border-radius: 10px; width: 100pt; height: 60pt; padding: 10px">
+                <p>Rounded</p>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Rounded rect uses Bezier curves (c operator)
+        assert!(
+            content.contains(" c\n"),
+            "Border radius should produce Bezier curve operators"
+        );
+    }
+
+    #[test]
+    fn render_pdf_to_writer_produces_same_output() {
+        let nodes = parse_html("<p>Writer test</p>").unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf_bytes = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let mut writer_buf = Vec::new();
+        render_pdf_to_writer(&pages, PageSize::A4, Margin::default(), &mut writer_buf).unwrap();
+        assert_eq!(
+            pdf_bytes.len(),
+            writer_buf.len(),
+            "render_pdf and render_pdf_to_writer should produce identical output"
+        );
+        assert_eq!(pdf_bytes, writer_buf);
+    }
 }

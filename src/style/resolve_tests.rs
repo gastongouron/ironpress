@@ -343,3 +343,77 @@ fn try_resolve_var_to_keyword_undefined_no_fallback() {
     let val = CssValue::Var("--missing".to_string(), None);
     assert!(try_resolve_var_to_keyword(&val, &HashMap::new()).is_none());
 }
+
+#[test]
+fn resolve_calc_with_rem_and_subtraction() {
+    // calc(3rem - 10pt) with root_font_size=16 => 3*16 - 10 = 38
+    let tokens = vec![
+        CalcToken::Rem(3.0),
+        CalcToken::Op(CalcOp::Sub),
+        CalcToken::Length(10.0),
+    ];
+    assert!((resolve_calc(&tokens, 400.0, 12.0, 16.0, 595.28, 841.89) - 38.0).abs() < 0.01);
+}
+
+#[test]
+fn resolve_calc_with_vw_and_vh_mixed() {
+    // calc(50vw + 25vh) => 595.28*50/100 + 841.89*25/100 = 297.64 + 210.4725 = 508.1125
+    let tokens = vec![
+        CalcToken::Vw(50.0),
+        CalcToken::Op(CalcOp::Add),
+        CalcToken::Vh(25.0),
+    ];
+    let result = resolve_calc(&tokens, 400.0, 12.0, 12.0, 595.28, 841.89);
+    assert!((result - 508.1125).abs() < 0.01);
+}
+
+#[test]
+fn resolve_var_resolves_to_calc_value() {
+    let mut props = HashMap::new();
+    props.insert("--gap".to_string(), "calc(100% - 20pt)".to_string());
+    let val = CssValue::Var("--gap".to_string(), None);
+    // parent_width=400 => 100%=400, so calc(400-20) = 380
+    let result = resolve_length_value(&val, 400.0, 12.0, 595.28, 841.89, &props);
+    assert_eq!(result, Some(380.0));
+}
+
+#[test]
+fn try_resolve_to_length_uses_pdf_defaults() {
+    let val = CssValue::Percentage(50.0);
+    // parent_width_hint=200 => 50% of 200 = 100
+    assert_eq!(
+        try_resolve_to_length(&val, &HashMap::new(), 200.0),
+        Some(100.0)
+    );
+}
+
+#[test]
+fn try_resolve_to_length_with_font_size_uses_custom_em() {
+    let val = CssValue::Calc(vec![
+        CalcToken::Em(2.0),
+        CalcToken::Op(CalcOp::Add),
+        CalcToken::Rem(1.0),
+    ]);
+    // font_size=18, root_font_size=14 => 2*18 + 1*14 = 50
+    let result =
+        try_resolve_to_length_with_font_size(&val, &HashMap::new(), 400.0, 18.0, 14.0).unwrap();
+    assert!((result - 50.0).abs() < 0.01);
+}
+
+#[test]
+fn pdf_defaults_context_has_correct_values() {
+    let ctx = LengthResolutionContext::pdf_defaults(300.0);
+    assert_eq!(ctx.parent_width, 300.0);
+    assert_eq!(ctx.font_size, DEFAULT_FONT_SIZE);
+    assert_eq!(ctx.root_font_size, DEFAULT_FONT_SIZE);
+    assert_eq!(ctx.page_width, DEFAULT_PAGE_WIDTH);
+    assert_eq!(ctx.page_height, DEFAULT_PAGE_HEIGHT);
+}
+
+#[test]
+fn pdf_with_font_sizes_context_has_correct_values() {
+    let ctx = LengthResolutionContext::pdf_with_font_sizes(250.0, 20.0, 18.0);
+    assert_eq!(ctx.parent_width, 250.0);
+    assert_eq!(ctx.font_size, 20.0);
+    assert_eq!(ctx.root_font_size, 18.0);
+}
