@@ -415,6 +415,7 @@ pub enum LayoutElement {
         block_width: Option<f32>,
         block_height: Option<f32>,
         opacity: f32,
+        float: Float,
         position: Position,
         offset_top: f32,
         offset_left: f32,
@@ -8269,6 +8270,86 @@ line 3</pre>
         }
         // If no explicit width, the block fills the page — that's the bug
         panic!("block with margin-left/right should have reduced width");
+    }
+
+    #[test]
+    fn debug_float_right_structure() {
+        let html = r#"<html><head><style>
+            .container { width: 400px; border: 1px solid #ccc; padding: 10px; }
+            .float-right { float: right; width: 100px; height: 80px; background-color: #f472b6; }
+        </style></head><body>
+        <div class="container">
+            <div class="float-right">FR</div>
+            <p>Text</p>
+        </div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let mut rules = Vec::new();
+        for css in &result.stylesheets {
+            rules.extend(parse_stylesheet(css));
+        }
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        fn dump(elements: &[(f32, LayoutElement)], indent: &str) {
+            for (y, el) in elements {
+                match el {
+                    LayoutElement::Container {
+                        float,
+                        block_width,
+                        children,
+                        ..
+                    } => {
+                        eprintln!(
+                            "{indent}Container y={y} float={float:?} w={block_width:?} kids={}",
+                            children.len()
+                        );
+                        for child in children {
+                            match child {
+                                LayoutElement::Container {
+                                    float, block_width, ..
+                                } => {
+                                    eprintln!(
+                                        "{indent}  Container float={float:?} w={block_width:?}"
+                                    );
+                                }
+                                LayoutElement::TextBlock {
+                                    float,
+                                    block_width,
+                                    lines,
+                                    ..
+                                } => {
+                                    let text: String = lines
+                                        .iter()
+                                        .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                                        .collect();
+                                    eprintln!(
+                                        "{indent}  TextBlock float={float:?} w={block_width:?} text={text:?}"
+                                    );
+                                }
+                                other => eprintln!("{indent}  {:?}", std::mem::discriminant(other)),
+                            }
+                        }
+                    }
+                    LayoutElement::TextBlock {
+                        float,
+                        block_width,
+                        lines,
+                        ..
+                    } => {
+                        let text: String = lines
+                            .iter()
+                            .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
+                            .collect();
+                        eprintln!(
+                            "{indent}TextBlock y={y} float={float:?} w={block_width:?} text={text:?}"
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+        dump(&pages[0].elements, "");
+        // Just verify structure — we want to see the debug output
+        assert!(!pages[0].elements.is_empty());
     }
 }
 

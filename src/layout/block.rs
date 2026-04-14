@@ -1293,6 +1293,7 @@ pub(crate) fn layout_block_element(
                 None
             },
             opacity: style.opacity,
+            float: style.float,
             position: style.position,
             offset_top: wrapper_top,
             offset_left: wrapper_left + auto_offset_left,

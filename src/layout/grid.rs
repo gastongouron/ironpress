@@ -256,6 +256,7 @@ pub(crate) fn layout_grid_container(
         block_width: Some(inner_width + style.padding.left + style.padding.right),
         block_height: None,
         opacity: style.opacity,
+        float: style.float,
         position: style.position,
         offset_top: 0.0,
         offset_left: 0.0,

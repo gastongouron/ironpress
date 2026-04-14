@@ -2160,6 +2160,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     block_width,
                     block_height: c_block_height,
                     opacity: _,
+                    float: c_float,
                     position: _,
                     offset_top: _,
                     offset_left: c_offset_left,
@@ -2171,9 +2172,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     z_index: _,
                     ..
                 } => {
-                    let container_x = margin.left + c_offset_left;
-                    let container_y_top = page_size.height - margin.top - y_pos;
                     let container_w = block_width.unwrap_or(available_width);
+                    let container_x = match c_float {
+                        Float::Right => margin.left + available_width - container_w,
+                        _ => margin.left + c_offset_left,
+                    };
+                    let container_y_top = page_size.height - margin.top - y_pos;
 
                     // Use explicit block_height if set, otherwise compute from children
                     let children_h: f32 = children
@@ -2805,6 +2809,7 @@ fn render_container_children(
                 block_height,
                 background_color,
                 text_align,
+                float: tb_float,
                 position,
                 offset_top,
                 offset_left,
@@ -2880,18 +2885,24 @@ fn render_container_children(
                 let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
                 let child_h = block_height.map_or(child_h, |h| child_h.max(h));
 
-                // Apply position:relative offset (visual only, flow unaffected)
-                let render_x = if *position == Position::Relative {
-                    x + offset_left
-                } else {
-                    x
+                let render_w = tb_block_width.unwrap_or(width);
+
+                // Apply float/position offset
+                let render_x = match tb_float {
+                    Float::Right => x + width - render_w,
+                    _ => {
+                        if *position == Position::Relative {
+                            x + offset_left
+                        } else {
+                            x
+                        }
+                    }
                 };
                 let render_y = if *position == Position::Relative {
                     y - offset_top
                 } else {
                     y
                 };
-                let render_w = tb_block_width.unwrap_or(width);
 
                 // Draw child background
                 if let Some((r, g, b, a)) = background_color {
@@ -2995,12 +3006,17 @@ fn render_container_children(
                 margin_bottom,
                 block_width,
                 block_height: nk_block_height,
+                float: nk_float,
                 overflow,
                 ..
             } => {
                 cursor_y -= margin_top;
                 y = cursor_y;
                 let nk_w = block_width.unwrap_or(width);
+                let nk_x = match nk_float {
+                    Float::Right => x + width - nk_w,
+                    _ => x,
+                };
                 let nk_children_h: f32 = nested_kids
                     .iter()
                     .map(crate::layout::engine::estimate_element_height)
@@ -3020,7 +3036,7 @@ fn render_container_children(
                     }
                     content.push_str(&format!(
                         "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
-                        cx = x,
+                        cx = nk_x,
                         cy = y - nk_total_h,
                         cw = nk_w,
                         ch = nk_total_h,
@@ -3031,8 +3047,8 @@ fn render_container_children(
                 }
 
                 // Draw all 4 borders
-                let bx1 = x;
-                let bx2 = x + nk_w;
+                let bx1 = nk_x;
+                let bx2 = nk_x + nk_w;
                 let by1 = y;
                 let by2 = y - nk_total_h;
                 if border.left.width > 0.0 {
@@ -3082,7 +3098,7 @@ fn render_container_children(
                     content.push_str("q\n");
                     if *cont_br > 0.0 {
                         content.push_str(&rounded_rect_path(
-                            x,
+                            nk_x,
                             y - nk_total_h,
                             nk_w,
                             nk_total_h,
@@ -3092,7 +3108,7 @@ fn render_container_children(
                     } else {
                         content.push_str(&format!(
                             "{cx} {cy} {cw} {ch} re W n\n",
-                            cx = x,
+                            cx = nk_x,
                             cy = y - nk_total_h,
                             cw = nk_w,
                             ch = nk_total_h,
@@ -3101,7 +3117,7 @@ fn render_container_children(
                 }
 
                 // Recurse into nested children
-                let inner_x = x + padding_left + border.left.width;
+                let inner_x = nk_x + padding_left + border.left.width;
                 let inner_w = nk_w - padding_left - padding_right - border.horizontal_width();
                 let inner_y = y - padding_top - border.top.width;
                 render_container_children(
