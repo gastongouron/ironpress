@@ -305,6 +305,20 @@ fn render_node(
                 return;
             }
 
+            // Apply clip-path on shapes (rect, circle, path, etc.)
+            if let Some(clip_id) = style.clip_path.as_deref() {
+                out.push_str("q\n");
+                let (shadings, shading_counter) = resources.shading_state();
+                render_clip_path(
+                    clip_id,
+                    defs,
+                    shadings,
+                    shading_counter,
+                    node_object_bounding_box(node, text_ctx),
+                    out,
+                );
+            }
+
             match &style.fill {
                 SvgPaint::Url(id) => {
                     out.push_str(&path);
@@ -343,6 +357,11 @@ fn render_node(
                     out.push_str(&path);
                     paint(&style, out);
                 }
+            }
+
+            // Close clip-path save state
+            if style.clip_path.is_some() {
+                out.push_str("Q\n");
             }
         }
         SvgNode::Line { .. } | SvgNode::Polyline { .. } => {
