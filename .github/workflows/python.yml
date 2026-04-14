@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+
 jobs:
   build-linux:
     name: Build wheels - Linux ${{ matrix.target }}
@@ -18,11 +21,14 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.12
           manylinux: auto
           working-directory: bindings/python
       - uses: actions/upload-artifact@v4
@@ -45,7 +51,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.12
           working-directory: bindings/python
       - uses: actions/upload-artifact@v4
         with:
@@ -63,7 +69,7 @@ jobs:
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.12
           working-directory: bindings/python
       - uses: actions/upload-artifact@v4
         with:
