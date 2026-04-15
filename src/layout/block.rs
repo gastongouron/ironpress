@@ -12,7 +12,7 @@ use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{LayoutBorder, LayoutElement, TextRun, flatten_element};
 use super::helpers::{
     BackgroundFields, append_pseudo_inline_run, aspect_ratio_height, build_pseudo_block,
-    collects_as_inline_text, css_forces_block, has_background_paint, heading_level,
+    collects_as_inline_text, has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_padding_box_height,
 };
@@ -339,8 +339,7 @@ pub(crate) fn layout_block_element(
         && early_has_visual
         && el.children.iter().any(|c| {
             matches!(c, DomNode::Element(e)
-                if (e.tag.is_block() || e.tag == HtmlTag::Svg
-                    || css_forces_block(e, style, env.rules, child_ancestors))
+                if (e.tag.is_block() || e.tag == HtmlTag::Svg)
                     && !collects_as_inline_text(e.tag))
         });
 
@@ -473,8 +472,7 @@ pub(crate) fn layout_block_element(
             && el.children.iter().any(|c| {
                 matches!(c, DomNode::Element(e)
                     if (has_own_margins(e.tag)
-                        || (e.tag.is_block() && !collects_as_inline_text(e.tag))
-                        || css_forces_block(e, style, env.rules, child_ancestors))
+                        || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
                         && !element_is_inline_block(
                             e, style, env.rules, child_ancestors, 0, 0, &[]))
             });
@@ -642,8 +640,7 @@ pub(crate) fn layout_block_element(
                         );
                     }
                     DomNode::Element(child_el)
-                        if (child_el.tag.is_block() || child_el.tag == HtmlTag::Svg
-                            || css_forces_block(child_el, style, env.rules, child_ancestors))
+                        if (child_el.tag.is_block() || child_el.tag == HtmlTag::Svg)
                             && !collects_as_inline_text(child_el.tag) =>
                     {
                         // Flush inline runs before block child
@@ -866,15 +863,7 @@ pub(crate) fn layout_block_element(
                             child_ancestors,
                         );
                     }
-                    DomNode::Element(child_el)
-                        if collects_as_inline_text(child_el.tag)
-                            && !css_forces_block(
-                                child_el,
-                                style,
-                                env.rules,
-                                child_ancestors,
-                            ) =>
-                    {
+                    DomNode::Element(child_el) if collects_as_inline_text(child_el.tag) => {
                         collect_text_runs(
                             std::slice::from_ref(child),
                             style,

@@ -53,39 +53,6 @@ pub(crate) fn collects_as_inline_text(tag: HtmlTag) -> bool {
     tag != HtmlTag::Svg && tag.is_inline()
 }
 
-/// Check if an inline element has been styled with `display: block` via CSS
-/// rules. This is used to detect cases like `<cite>` with `display: block`
-/// where the tag is natively inline but CSS overrides it to block.
-pub(crate) fn css_forces_block(
-    el: &crate::parser::dom::ElementNode,
-    parent_style: &crate::style::computed::ComputedStyle,
-    rules: &[crate::parser::css::CssRule],
-    ancestors: &[crate::parser::css::AncestorInfo],
-) -> bool {
-    if el.tag.is_block() {
-        return true;
-    }
-    let classes = el.class_list();
-    let ctx = crate::parser::css::SelectorContext {
-        ancestors: ancestors.to_vec(),
-        child_index: 0,
-        sibling_count: 0,
-        preceding_siblings: Vec::new(),
-    };
-    let child_style = crate::style::computed::compute_style_with_context(
-        el.tag,
-        el.style_attr(),
-        parent_style,
-        rules,
-        el.tag_name(),
-        &classes,
-        el.id(),
-        &el.attributes,
-        &ctx,
-    );
-    child_style.display == crate::style::computed::Display::Block
-}
-
 // ---------------------------------------------------------------------------
 // Group 3 — List marker formatting
 // ---------------------------------------------------------------------------
