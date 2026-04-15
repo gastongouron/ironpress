@@ -168,11 +168,30 @@ pub(crate) fn resolve_font_family(
             FontFamily::Custom(name) if find_font(fonts, name, bold, italic).is_some() => {
                 return FontFamily::Custom(name.clone());
             }
-            FontFamily::Helvetica | FontFamily::TimesRoman | FontFamily::Courier => {
-                return family.clone();
+            FontFamily::TimesRoman => {
+                if find_font(fonts, "Liberation Serif", bold, italic).is_some() {
+                    return FontFamily::Custom("Liberation Serif".to_string());
+                }
+                return FontFamily::TimesRoman;
+            }
+            FontFamily::Helvetica => {
+                if find_font(fonts, "Liberation Sans", bold, italic).is_some() {
+                    return FontFamily::Custom("Liberation Sans".to_string());
+                }
+                return FontFamily::Helvetica;
+            }
+            FontFamily::Courier => {
+                if find_font(fonts, "Liberation Mono", bold, italic).is_some() {
+                    return FontFamily::Custom("Liberation Mono".to_string());
+                }
+                return FontFamily::Courier;
             }
             FontFamily::Custom(_) => {}
         }
+    }
+
+    if find_font(fonts, "Liberation Sans", bold, italic).is_some() {
+        return FontFamily::Custom("Liberation Sans".to_string());
     }
 
     stack
@@ -286,6 +305,75 @@ fn load_bundled_emoji_font(fonts: &mut HashMap<String, TtfFont>) {
 
     if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_EMOJI_DATA.to_vec()) {
         fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
+    }
+}
+
+struct BundledFont {
+    key: &'static str,
+    data: &'static [u8],
+}
+
+static LIBERATION_FONTS: &[BundledFont] = &[
+    BundledFont {
+        key: "Liberation Serif",
+        data: include_bytes!("../assets/LiberationSerif-Regular.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Serif Bold",
+        data: include_bytes!("../assets/LiberationSerif-Bold.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Serif Italic",
+        data: include_bytes!("../assets/LiberationSerif-Italic.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Serif Bold Italic",
+        data: include_bytes!("../assets/LiberationSerif-BoldItalic.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Sans",
+        data: include_bytes!("../assets/LiberationSans-Regular.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Sans Bold",
+        data: include_bytes!("../assets/LiberationSans-Bold.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Sans Italic",
+        data: include_bytes!("../assets/LiberationSans-Italic.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Sans Bold Italic",
+        data: include_bytes!("../assets/LiberationSans-BoldItalic.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Mono",
+        data: include_bytes!("../assets/LiberationMono-Regular.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Mono Bold",
+        data: include_bytes!("../assets/LiberationMono-Bold.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Mono Italic",
+        data: include_bytes!("../assets/LiberationMono-Italic.ttf"),
+    },
+    BundledFont {
+        key: "Liberation Mono Bold Italic",
+        data: include_bytes!("../assets/LiberationMono-BoldItalic.ttf"),
+    },
+];
+
+/// Load bundled Liberation fonts as the default serif/sans-serif/monospace.
+/// Liberation fonts are metrically identical to Times New Roman, Arial, and
+/// Courier New, ensuring ironpress output matches Chromium rendering exactly.
+pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+    for bundled in LIBERATION_FONTS {
+        if !fonts.contains_key(bundled.key) {
+            if let Ok(font) = crate::parser::ttf::parse_ttf(bundled.data.to_vec()) {
+                fonts.insert(bundled.key.to_string(), font);
+            }
+        }
     }
 }
 

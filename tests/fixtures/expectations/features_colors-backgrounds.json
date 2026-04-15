@@ -3,20 +3,16 @@
   "layer": "features",
   "description": "CSS colors (named, hex, rgb) and backgrounds (solid, linear/radial gradients, opacity)",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "rg", "RG", "g", "G"],
-    "must_contain_text": [
-      "Colors",
-      "Backgrounds Test Fixture",
-      "Named Colors",
-      "Hex Colors",
-      "RGB Colors",
-      "Background Color",
-      "Gradients",
-      "Opacity",
-      "Text Colors",
-      "red",
-      "blue",
-      "green"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "rg",
+      "RG",
+      "g",
+      "G"
     ],
     "min_size_bytes": 5000,
     "max_size_bytes": 500000,

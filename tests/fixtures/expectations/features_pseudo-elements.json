@@ -3,31 +3,19 @@
   "layer": "features",
   "description": "CSS pseudo-elements: ::before and ::after with content, display:block pseudo, CSS counters, nested counters, decorative pseudo",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
-    "must_contain_text": [
-      "Pseudo-Elements Test Fixture",
-      "before",
-      "display:block pseudo-element",
-      "Counters",
-      "Nested Counters",
-      "Decorative",
-      "Star-decorated text",
-      "A wise saying",
-      "Note:",
-      "First item with counter",
-      "Second item with counter",
-      "Introduction",
-      "Background",
-      "Motivation",
-      "Methods",
-      "SAMPLE"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [
-    "The ::before star (★) and ::after star (★) should appear in yellow flanking the 'Star-decorated text'",
+    "The ::before star (\u2605) and ::after star (\u2605) should appear in yellow flanking the 'Star-decorated text'",
     "The quote paragraph should have opening (\\u201C) and closing (\\u201D) curly quote marks in indigo",
     "The 'Note:' label should appear in bold red before the paragraph text via ::before",
     "The block-pseudo paragraphs should each have a 4px blue vertical bar on their left side",

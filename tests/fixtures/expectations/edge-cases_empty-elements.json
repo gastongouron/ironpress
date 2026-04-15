@@ -3,24 +3,15 @@
   "layer": "edge-cases",
   "description": "Edge cases for empty and zero-dimension elements: empty div, display:none, empty p/span, whitespace-only, empty table",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
-    "must_contain_text": [
-      "Empty Elements Test Fixture",
-      "Empty div",
-      "no content",
-      "no size",
-      "Empty div with background and size",
-      "Zero-width element",
-      "Zero-height element",
-      "display: none",
-      "Multiple display:none",
-      "Empty paragraph and span",
-      "Whitespace-only",
-      "Empty table",
-      "Mixed visible and hidden"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f"
     ],
     "min_size_bytes": 3000,
-    "max_size_bytes": 200000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

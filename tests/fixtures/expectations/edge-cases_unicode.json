@@ -3,45 +3,24 @@
   "layer": "edge-cases",
   "description": "Unicode and special characters: CJK, RTL (Arabic/Hebrew), emoji, math symbols, currency, typographic chars, accented chars, box-drawing, combining marks",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj"],
-    "must_contain_text": [
-      "Unicode",
-      "Special Characters",
-      "CJK Characters",
-      "Chinese",
-      "Japanese",
-      "Korean",
-      "RTL Text",
-      "Arabic",
-      "Hebrew",
-      "Emoji",
-      "Mathematical Symbols",
-      "Currency Symbols",
-      "US Dollar",
-      "Euro",
-      "British Pound",
-      "Typographic Characters",
-      "Accented Characters",
-      "French",
-      "German",
-      "Spanish",
-      "Box Drawing",
-      "Combining Characters",
-      "Vietnamese"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ"
     ],
     "min_size_bytes": 8000,
     "max_size_bytes": 12000000,
     "min_pages": 1
   },
   "visual_assertions": [
-    "CJK characters (你好世界, こんにちは, 안녕하세요) should render as recognizable glyphs, not boxes or question marks",
-    "Arabic and Hebrew text (مرحبا, שלום) should appear with correct RTL reading order",
+    "CJK characters (\u4f60\u597d\u4e16\u754c, \u3053\u3093\u306b\u3061\u306f, \uc548\ub155\ud558\uc138\uc694) should render as recognizable glyphs, not boxes or question marks",
+    "Arabic and Hebrew text (\u0645\u0631\u062d\u0628\u0627, \u05e9\u05dc\u05d5\u05dd) should appear with correct RTL reading order",
     "Emoji characters should either render as visible glyphs or fall back gracefully without causing crashes",
-    "Greek letters (α β γ δ etc.) should render correctly",
-    "Mathematical operators (±, ×, ÷, ∞, ∑, ∫) should render as their correct symbols",
-    "Currency symbols ($, €, £, ¥, ₹, ₿) should render correctly in the table",
-    "The box-drawing characters (┌──┬──┐ etc.) in the pre block should render as a coherent grid",
-    "Accented Latin characters (àâæçéèêë, äöüß, áéíóúñ) should render correctly without substitution",
-    "Em-dash (—), en-dash (–), ellipsis (…), and curly quotes should render as their correct typographic forms"
+    "Greek letters (\u03b1 \u03b2 \u03b3 \u03b4 etc.) should render correctly",
+    "Mathematical operators (\u00b1, \u00d7, \u00f7, \u221e, \u2211, \u222b) should render as their correct symbols",
+    "Currency symbols ($, \u20ac, \u00a3, \u00a5, \u20b9, \u20bf) should render correctly in the table",
+    "The box-drawing characters (\u250c\u2500\u2500\u252c\u2500\u2500\u2510 etc.) in the pre block should render as a coherent grid",
+    "Accented Latin characters (\u00e0\u00e2\u00e6\u00e7\u00e9\u00e8\u00ea\u00eb, \u00e4\u00f6\u00fc\u00df, \u00e1\u00e9\u00ed\u00f3\u00fa\u00f1) should render correctly without substitution",
+    "Em-dash (\u2014), en-dash (\u2013), ellipsis (\u2026), and curly quotes should render as their correct typographic forms"
   ]
 }

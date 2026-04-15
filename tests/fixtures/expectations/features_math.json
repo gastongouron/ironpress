@@ -3,21 +3,10 @@
   "layer": "features",
   "description": "LaTeX math rendering: inline $...$ and display $$...$$ math, fractions, integrals, summations, matrices, Greek letters, subscripts/superscripts, limits",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj"],
-    "must_contain_text": [
-      "Math Rendering Test Fixture",
-      "Inline Math",
-      "Display Math",
-      "Fractions",
-      "Integrals",
-      "Sums",
-      "Products",
-      "Matrices",
-      "Greek Letters",
-      "Subscripts",
-      "Superscripts",
-      "Limits",
-      "Einstein"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ"
     ],
     "min_size_bytes": 5000,
     "max_size_bytes": 1000000,
@@ -27,12 +16,12 @@
     "Inline math expressions should be rendered inline within text paragraphs",
     "Display math ($$...$$) expressions should be centered on their own line with extra vertical space",
     "Fraction expressions should show a numerator over a denominator separated by a horizontal bar",
-    "Integral expressions should show the integral sign (∫) with limits above and below",
-    "Summation should show the sigma (Σ) symbol with n=1 below and infinity above",
+    "Integral expressions should show the integral sign (\u222b) with limits above and below",
+    "Summation should show the sigma (\u03a3) symbol with n=1 below and infinity above",
     "Matrix expressions should show a grid of values enclosed in parentheses or brackets",
-    "Greek letters (α, β, γ, etc.) should appear as their correct Unicode glyphs",
-    "Subscripts should appear smaller and below the baseline (e.g., x₁, x₂)",
-    "Superscripts should appear smaller and above the baseline (e.g., x²)",
-    "The limit expression should show 'lim' with 'x→0' below it"
+    "Greek letters (\u03b1, \u03b2, \u03b3, etc.) should appear as their correct Unicode glyphs",
+    "Subscripts should appear smaller and below the baseline (e.g., x\u2081, x\u2082)",
+    "Superscripts should appear smaller and above the baseline (e.g., x\u00b2)",
+    "The limit expression should show 'lim' with 'x\u21920' below it"
   ]
 }

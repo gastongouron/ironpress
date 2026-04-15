@@ -5235,10 +5235,14 @@ mod tests {
         }
     }
 
-    /// Helper: extract all Tj strings from a PDF byte vector.
+    /// Helper: extract all text strings from a PDF byte vector.
+    /// Handles both WinAnsi Tj strings and CID TJ arrays with ToUnicode CMap.
     fn extract_tj_strings(pdf: &[u8]) -> Vec<String> {
         let pdf_str = String::from_utf8_lossy(pdf);
-        pdf_str
+        let content: &str = pdf_str.as_ref();
+
+        // Try WinAnsi Tj path first
+        let winans: Vec<String> = content
             .lines()
             .filter_map(|line| {
                 let trimmed = line.trim();
@@ -5248,7 +5252,77 @@ mod tests {
                     None
                 }
             })
-            .collect()
+            .collect();
+        if !winans.is_empty() {
+            return winans;
+        }
+
+        // CID path: parse ToUnicode CMap to build glyph→char map
+        let mut glyph_to_char: std::collections::HashMap<String, char> =
+            std::collections::HashMap::new();
+        let mut pos = 0;
+        while let Some(start) = content[pos..].find("beginbfchar") {
+            let block_start = pos + start + 11;
+            let block_end = content[block_start..]
+                .find("endbfchar")
+                .map(|e| block_start + e)
+                .unwrap_or(content.len());
+            for line in content[block_start..block_end].lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let parts: Vec<&str> = line
+                    .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if parts.len() >= 2 {
+                    let glyph_hex = parts[0].to_uppercase();
+                    let unicode_hex = parts[1];
+                    if let Ok(cp) = u32::from_str_radix(unicode_hex, 16) {
+                        if let Some(ch) = char::from_u32(cp) {
+                            glyph_to_char.insert(glyph_hex, ch);
+                        }
+                    }
+                }
+            }
+            pos = block_end;
+        }
+
+        if glyph_to_char.is_empty() {
+            return Vec::new();
+        }
+
+        // Parse TJ arrays: [...] TJ
+        let mut results = Vec::new();
+        let mut search_pos = 0;
+        while let Some(tj_end) = content[search_pos..].find("] TJ") {
+            let tj_end_abs = search_pos + tj_end;
+            if let Some(tj_start) = content[..tj_end_abs].rfind('[') {
+                let array_content = &content[tj_start + 1..tj_end_abs];
+                let mut decoded = String::new();
+                let mut apos = 0;
+                while let Some(open) = array_content[apos..].find('<') {
+                    let open_abs = apos + open;
+                    if let Some(close) = array_content[open_abs..].find('>') {
+                        let hex_str = array_content[open_abs + 1..open_abs + close]
+                            .trim()
+                            .to_uppercase();
+                        if let Some(&ch) = glyph_to_char.get(&hex_str) {
+                            decoded.push(ch);
+                        }
+                        apos = open_abs + close + 1;
+                    } else {
+                        break;
+                    }
+                }
+                if !decoded.is_empty() {
+                    results.push(decoded);
+                }
+            }
+            search_pos = tj_end_abs + 4;
+        }
+        results
     }
 
     #[test]

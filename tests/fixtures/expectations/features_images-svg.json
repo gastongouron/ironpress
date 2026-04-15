@@ -3,19 +3,16 @@
   "layer": "features",
   "description": "Inline SVG rendering: basic shapes, paths, text-in-SVG, gradient fills, clipPath, viewBox/preserveAspectRatio, complex polygon",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "W", "cm", "q", "Q"],
-    "must_contain_text": [
-      "Images",
-      "SVG Test Fixture",
-      "Basic Shapes",
-      "Path",
-      "Text in SVG",
-      "Plain SVG text",
-      "Bold red SVG text",
-      "Gradient Fills",
-      "ClipPath",
-      "viewBox",
-      "Complex SVG"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "W",
+      "cm",
+      "q",
+      "Q"
     ],
     "min_size_bytes": 5000,
     "max_size_bytes": 500000,

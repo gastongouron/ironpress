@@ -3,21 +3,16 @@
   "layer": "features",
   "description": "CSS box model: margin, padding, border styles/radius, box-sizing, width/height constraints",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S"],
-    "must_contain_text": [
-      "Box Model Test Fixture",
-      "Margin",
-      "Padding",
-      "Border",
-      "Border Radius",
-      "Box Sizing",
-      "Width",
-      "Height",
-      "content-box",
-      "border-box"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "S"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

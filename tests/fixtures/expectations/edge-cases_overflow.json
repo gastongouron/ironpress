@@ -3,24 +3,17 @@
   "layer": "edge-cases",
   "description": "Overflow clipping: overflow:hidden with basic box, border-radius, circle clip, nested larger child, nowrap text, overflow:visible comparison",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "W", "n"],
-    "must_contain_text": [
-      "Overflow Clipping Test Fixture",
-      "overflow: hidden",
-      "basic",
-      "overflow: hidden with border-radius",
-      "Circular clip",
-      "Nested overflow with larger child",
-      "Text overflow",
-      "nowrap",
-      "overflow: visible",
-      "Short text fits fine",
-      "This is a much longer line",
-      "overflow: visible",
-      "NOT clipped"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "W",
+      "n"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

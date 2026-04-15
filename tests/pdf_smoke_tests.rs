@@ -10,7 +10,64 @@ fn pdf_is_valid(pdf: &[u8]) -> bool {
 }
 
 fn pdf_has_text(pdf: &[u8], text: &str) -> bool {
-    String::from_utf8_lossy(pdf).contains(text)
+    let content = String::from_utf8_lossy(pdf);
+    if content.contains(text) {
+        return true;
+    }
+    // CID path: decode ToUnicode CMap and search TJ arrays
+    let mut glyph_to_unicode: std::collections::HashMap<String, char> = Default::default();
+    let cmap: &str = content.as_ref();
+    let mut pos = 0;
+    while let Some(start) = cmap[pos..].find("beginbfchar") {
+        let block_start = pos + start + 11;
+        let block_end = cmap[block_start..]
+            .find("endbfchar")
+            .map(|e| block_start + e)
+            .unwrap_or(cmap.len());
+        for line in cmap[block_start..block_end].lines() {
+            let parts: Vec<&str> = line
+                .trim()
+                .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if parts.len() >= 2 {
+                if let Ok(cp) = u32::from_str_radix(parts[1], 16) {
+                    if let Some(ch) = char::from_u32(cp) {
+                        glyph_to_unicode.insert(parts[0].to_uppercase(), ch);
+                    }
+                }
+            }
+        }
+        pos = block_end;
+    }
+    if glyph_to_unicode.is_empty() {
+        return false;
+    }
+    let mut decoded = String::new();
+    let mut search_pos = 0;
+    let cs: &str = content.as_ref();
+    while let Some(tj_end) = cs[search_pos..].find("] TJ") {
+        let tj_end_abs = search_pos + tj_end;
+        if let Some(tj_start) = cs[..tj_end_abs].rfind('[') {
+            let arr = &cs[tj_start + 1..tj_end_abs];
+            let mut ap = 0;
+            while let Some(o) = arr[ap..].find('<') {
+                let oa = ap + o;
+                if let Some(c) = arr[oa..].find('>') {
+                    let h = arr[oa + 1..oa + c].trim().to_uppercase();
+                    if let Some(&ch) = glyph_to_unicode.get(&h) {
+                        decoded.push(ch);
+                    }
+                    ap = oa + c + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        decoded.push(' ');
+        search_pos = tj_end_abs + 4;
+    }
+    decoded.contains(text)
 }
 
 fn pdf_page_count(pdf: &[u8]) -> usize {

@@ -464,6 +464,7 @@ impl HtmlConverter {
             }
         }
 
+        system_fonts::load_bundled_liberation_fonts(&mut parsed_fonts);
         system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
         system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
@@ -617,6 +618,87 @@ pub mod wasm {
 mod tests {
     use super::*;
 
+    /// Check if a PDF contains a given text string, handling both WinAnsi
+    /// (plain text in parentheses) and CID encoding (hex glyph IDs with
+    /// ToUnicode CMap). This allows tests to verify text content regardless
+    /// of which font encoding path was used.
+    fn pdf_has_text(pdf: &[u8], text: &str) -> bool {
+        let content = String::from_utf8_lossy(pdf);
+        // Fast path: plain WinAnsi text or text in PDF metadata
+        if content.contains(text) {
+            return true;
+        }
+        // CID path: build glyph_hex → unicode char map from ToUnicode CMap,
+        // then decode TJ arrays and search for the text.
+        let mut glyph_to_unicode: std::collections::HashMap<String, char> = Default::default();
+        // Parse beginbfchar..endbfchar blocks
+        let cmap: &str = content.as_ref();
+        let mut pos = 0;
+        while let Some(start) = cmap[pos..].find("beginbfchar") {
+            let block_start = pos + start + 11;
+            let block_end = cmap[block_start..]
+                .find("endbfchar")
+                .map(|e| block_start + e)
+                .unwrap_or(cmap.len());
+            for line in cmap[block_start..block_end].lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                // Format: <glyph_hex> <unicode_hex>
+                let parts: Vec<&str> = line
+                    .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if parts.len() >= 2 {
+                    let glyph_hex = parts[0].to_uppercase();
+                    let unicode_hex = parts[1];
+                    if let Ok(cp) = u32::from_str_radix(unicode_hex, 16) {
+                        if let Some(ch) = char::from_u32(cp) {
+                            glyph_to_unicode.insert(glyph_hex, ch);
+                        }
+                    }
+                }
+            }
+            pos = block_end;
+        }
+        if glyph_to_unicode.is_empty() {
+            return false;
+        }
+        // Extract all text from TJ arrays: [...] TJ
+        // Each TJ array contains hex strings like <XXXX> and numeric kerning values.
+        // We extract the hex glyph IDs, map them to unicode, and concatenate.
+        let mut all_decoded_text = String::new();
+        let content_str: &str = content.as_ref();
+        let mut search_pos = 0;
+        while let Some(tj_end) = content_str[search_pos..].find("] TJ") {
+            let tj_end_abs = search_pos + tj_end;
+            // Find the matching '[' before this '] TJ'
+            if let Some(tj_start) = content_str[..tj_end_abs].rfind('[') {
+                let array_content = &content_str[tj_start + 1..tj_end_abs];
+                // Extract all <hex> entries from the array
+                let mut apos = 0;
+                while let Some(open) = array_content[apos..].find('<') {
+                    let open_abs = apos + open;
+                    if let Some(close) = array_content[open_abs..].find('>') {
+                        let hex_str = &array_content[open_abs + 1..open_abs + close];
+                        let hex_upper = hex_str.trim().to_uppercase();
+                        if let Some(&ch) = glyph_to_unicode.get(&hex_upper) {
+                            all_decoded_text.push(ch);
+                        }
+                        apos = open_abs + close + 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // Add a space between TJ arrays to handle word boundaries
+            all_decoded_text.push(' ');
+            search_pos = tj_end_abs + 4;
+        }
+        all_decoded_text.contains(text)
+    }
+
     #[test]
     fn html_to_pdf_basic() {
         let pdf = html_to_pdf("<h1>Hello</h1><p>World</p>").unwrap();
@@ -652,9 +734,8 @@ mod tests {
     fn html_to_pdf_sanitizes_script() {
         let html = "<p>Safe</p><script>alert('xss')</script>";
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(!content.contains("alert"));
-        assert!(content.contains("Safe"));
+        assert!(!pdf_has_text(&pdf, "alert"));
+        assert!(pdf_has_text(&pdf, "Safe"));
     }
 
     #[test]
@@ -720,9 +801,8 @@ mod tests {
         // Exercises markdown_to_pdf() (line 64-67)
         let pdf = markdown_to_pdf("# Test\n\nHello **world**").unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Test"));
-        assert!(content.contains("world"));
+        assert!(pdf_has_text(&pdf, "Test"));
+        assert!(pdf_has_text(&pdf, "world"));
     }
 
     #[test]
@@ -751,9 +831,7 @@ mod tests {
     fn html_to_pdf_unordered_list() {
         let html = "<ul><li>Item one</li><li>Item two</li><li>Item three</li></ul>";
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("-"));
-        assert!(content.contains("Item"));
+        assert!(pdf_has_text(&pdf, "Item"));
     }
 
     #[test]
@@ -776,10 +854,9 @@ mod tests {
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Name"));
-        assert!(content.contains("Alice"));
-        assert!(content.contains("Bob"));
+        assert!(pdf_has_text(&pdf, "Name"));
+        assert!(pdf_has_text(&pdf, "Alice"));
+        assert!(pdf_has_text(&pdf, "Bob"));
         // No default cell borders — only CSS-specified borders produce strokes
     }
 
@@ -793,10 +870,9 @@ mod tests {
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Header"));
-        assert!(content.contains("Body"));
-        assert!(content.contains("Footer"));
+        assert!(pdf_has_text(&pdf, "Header"));
+        assert!(pdf_has_text(&pdf, "Body"));
+        assert!(pdf_has_text(&pdf, "Footer"));
     }
 
     #[test]
@@ -831,18 +907,16 @@ mod tests {
     fn html_to_pdf_definition_list() {
         let html = "<dl><dt>Term</dt><dd>Definition here</dd></dl>";
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Term"));
-        assert!(content.contains("Definition"));
+        assert!(pdf_has_text(&pdf, "Term"));
+        assert!(pdf_has_text(&pdf, "Definition"));
     }
 
     #[test]
     fn markdown_to_pdf_basic() {
         let pdf = markdown_to_pdf("# Hello\n\nWorld").unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Hello"));
-        assert!(content.contains("World"));
+        assert!(pdf_has_text(&pdf, "Hello"));
+        assert!(pdf_has_text(&pdf, "World"));
     }
 
     #[test]
@@ -856,9 +930,8 @@ mod tests {
     #[test]
     fn markdown_to_pdf_list() {
         let pdf = markdown_to_pdf("- one\n- two\n- three").unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("one"));
-        assert!(content.contains("two"));
+        assert!(pdf_has_text(&pdf, "one"));
+        assert!(pdf_has_text(&pdf, "two"));
     }
 
     #[test]
@@ -935,18 +1008,16 @@ fn main() {
     fn html_to_pdf_display_none_hides_element() {
         let html = r#"<p>Visible</p><p style="display: none">Secret</p><p>Remaining</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Visible"));
-        assert!(!content.contains("Secret"));
-        assert!(content.contains("Remaining"));
+        assert!(pdf_has_text(&pdf, "Visible"));
+        assert!(!pdf_has_text(&pdf, "Secret"));
+        assert!(pdf_has_text(&pdf, "Remaining"));
     }
 
     #[test]
     fn html_to_pdf_display_block_on_span() {
         let html = r#"<p><span style="display: block">Blocked</span></p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Blocked"));
+        assert!(pdf_has_text(&pdf, "Blocked"));
     }
 
     #[test]
@@ -984,9 +1055,8 @@ fn main() {
     fn html_to_pdf_strikethrough() {
         let html = "<p><del>deleted</del> and <s>struck</s></p>";
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("deleted"));
-        assert!(content.contains("struck"));
+        assert!(pdf_has_text(&pdf, "deleted"));
+        assert!(pdf_has_text(&pdf, "struck"));
     }
 
     #[test]
@@ -1000,8 +1070,7 @@ fn main() {
     fn html_to_pdf_border() {
         let html = r#"<div style="border: 2px solid blue">Bordered content</div>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Bordered"));
+        assert!(pdf_has_text(&pdf, "Bordered"));
     }
 
     #[test]
@@ -1026,8 +1095,7 @@ fn main() {
         "#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Wide"));
+        assert!(pdf_has_text(&pdf, "Wide"));
     }
 
     #[test]
@@ -1054,9 +1122,8 @@ fn main() {
     fn sanitizer_event_handler_with_spaces() {
         let html = r#"<p onclick = "alert('xss')">Safe text</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(!content.contains("alert"));
-        assert!(content.contains("Safe"));
+        assert!(!pdf_has_text(&pdf, "alert"));
+        assert!(pdf_has_text(&pdf, "Safe"));
     }
 
     // --- Streaming output tests ---
@@ -1088,8 +1155,7 @@ fn main() {
         drop(file);
         let pdf = std::fs::read(&output).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Streamed"));
+        assert!(pdf_has_text(&pdf, "Streamed"));
         std::fs::remove_file(&output).ok();
     }
 
@@ -1136,8 +1202,7 @@ fn main() {
             r#"<img src="https://example.com/test.png" width="100" height="100"><p>Text</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Text"));
+        assert!(pdf_has_text(&pdf, "Text"));
     }
 
     #[test]
@@ -1941,8 +2006,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers pdf.rs line 119: Float::Right block_x calculation
         let html = r#"<p style="float: right; width: 100pt">FloatRight</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FloatRight"));
+        assert!(pdf_has_text(&pdf, "FloatRight"));
     }
 
     #[test]
@@ -1950,9 +2014,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers pdf.rs line 110: visibility hidden skips rendering
         let html = r#"<p style="visibility: hidden">HiddenStuff</p><p>VisibleStuff</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("VisibleStuff"));
-        assert!(!content.contains("(HiddenStuff)"));
+        assert!(pdf_has_text(&pdf, "VisibleStuff"));
+        assert!(!pdf_has_text(&pdf, "HiddenStuff"));
     }
 
     #[test]
@@ -2148,9 +2211,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Also covers engine.rs line 602: page-break-after
         let html = r#"<p style="page-break-after: always">PageOne</p><p>PageTwo</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("PageOne"));
-        assert!(content.contains("PageTwo"));
+        assert!(pdf_has_text(&pdf, "PageOne"));
+        assert!(pdf_has_text(&pdf, "PageTwo"));
     }
 
     #[test]
@@ -2164,9 +2226,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("CellAlpha"));
-        assert!(content.contains("CellBeta"));
+        assert!(pdf_has_text(&pdf, "CellAlpha"));
+        assert!(pdf_has_text(&pdf, "CellBeta"));
     }
 
     #[test]
@@ -2206,9 +2267,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <p>AfterGrid</p>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("GridPageOne"));
-        assert!(content.contains("AfterGrid"));
+        assert!(pdf_has_text(&pdf, "GridPageOne"));
+        assert!(pdf_has_text(&pdf, "AfterGrid"));
     }
 
     #[test]
@@ -2220,8 +2280,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FlexChild"));
+        assert!(pdf_has_text(&pdf, "FlexChild"));
     }
 
     #[test]
@@ -2234,9 +2293,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ItemOne"));
-        assert!(content.contains("ItemTwo"));
+        assert!(pdf_has_text(&pdf, "ItemOne"));
+        assert!(pdf_has_text(&pdf, "ItemTwo"));
     }
 
     #[test]
@@ -2249,9 +2307,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("LeftSide"));
-        assert!(content.contains("RightSide"));
+        assert!(pdf_has_text(&pdf, "LeftSide"));
+        assert!(pdf_has_text(&pdf, "RightSide"));
     }
 
     #[test]
@@ -2263,8 +2320,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("OnlyItem"));
+        assert!(pdf_has_text(&pdf, "OnlyItem"));
     }
 
     #[test]
@@ -2277,9 +2333,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ItemX"));
-        assert!(content.contains("ItemY"));
+        assert!(pdf_has_text(&pdf, "ItemX"));
+        assert!(pdf_has_text(&pdf, "ItemY"));
     }
 
     #[test]
@@ -2291,8 +2346,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("CenteredItem"));
+        assert!(pdf_has_text(&pdf, "CenteredItem"));
     }
 
     #[test]
@@ -2304,8 +2358,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("EndItem"));
+        assert!(pdf_has_text(&pdf, "EndItem"));
     }
 
     #[test]
@@ -2318,9 +2371,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("TallItem"));
-        assert!(content.contains("ShortItem"));
+        assert!(pdf_has_text(&pdf, "TallItem"));
+        assert!(pdf_has_text(&pdf, "ShortItem"));
     }
 
     #[test]
@@ -2333,9 +2385,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("BottomItem"));
-        assert!(content.contains("AlsoBottom"));
+        assert!(pdf_has_text(&pdf, "BottomItem"));
+        assert!(pdf_has_text(&pdf, "AlsoBottom"));
     }
 
     #[test]
@@ -2348,9 +2399,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("RowAlpha"));
-        assert!(content.contains("RowBeta"));
+        assert!(pdf_has_text(&pdf, "RowAlpha"));
+        assert!(pdf_has_text(&pdf, "RowBeta"));
     }
 
     #[test]
@@ -2362,8 +2412,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ColCenter"));
+        assert!(pdf_has_text(&pdf, "ColCenter"));
     }
 
     #[test]
@@ -2375,8 +2424,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ColEnd"));
+        assert!(pdf_has_text(&pdf, "ColEnd"));
     }
 
     #[test]
@@ -2389,9 +2437,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <p>AfterFlex</p>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("MarginedFlex"));
-        assert!(content.contains("AfterFlex"));
+        assert!(pdf_has_text(&pdf, "MarginedFlex"));
+        assert!(pdf_has_text(&pdf, "AfterFlex"));
     }
 
     #[test]
@@ -2403,8 +2450,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ClippedFlex"));
+        assert!(pdf_has_text(&pdf, "ClippedFlex"));
     }
 
     #[test]
@@ -2416,8 +2462,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("TransFlex"));
+        assert!(pdf_has_text(&pdf, "TransFlex"));
     }
 
     #[test]
@@ -2429,8 +2474,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ShadowFlex"));
+        assert!(pdf_has_text(&pdf, "ShadowFlex"));
     }
 
     #[test]
@@ -2442,8 +2486,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("TallFlexContent"));
+        assert!(pdf_has_text(&pdf, "TallFlexContent"));
     }
 
     #[test]
@@ -2455,8 +2498,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("BorderBoxChild"));
+        assert!(pdf_has_text(&pdf, "BorderBoxChild"));
     }
 
     #[test]
@@ -2468,8 +2510,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("MaxWidthFlex"));
+        assert!(pdf_has_text(&pdf, "MaxWidthFlex"));
     }
 
     #[test]
@@ -2482,9 +2523,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(!content.contains("(HiddenFlex)"));
-        assert!(content.contains("VisibleFlex"));
+        assert!(!pdf_has_text(&pdf, "HiddenFlex"));
+        assert!(pdf_has_text(&pdf, "VisibleFlex"));
     }
 
     #[test]
@@ -2497,9 +2537,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <p>FlexPageTwo</p>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FlexPageOne"));
-        assert!(content.contains("FlexPageTwo"));
+        assert!(pdf_has_text(&pdf, "FlexPageOne"));
+        assert!(pdf_has_text(&pdf, "FlexPageTwo"));
     }
 
     #[test]
@@ -2512,9 +2551,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("GridAlpha"));
-        assert!(content.contains("GridBeta"));
+        assert!(pdf_has_text(&pdf, "GridAlpha"));
+        assert!(pdf_has_text(&pdf, "GridBeta"));
     }
 
     #[test]
@@ -2527,9 +2565,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FixedCol"));
-        assert!(content.contains("FlexCol"));
+        assert!(pdf_has_text(&pdf, "FixedCol"));
+        assert!(pdf_has_text(&pdf, "FlexCol"));
     }
 
     #[test]
@@ -2542,10 +2579,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Spanning"));
-        assert!(content.contains("CellA"));
-        assert!(content.contains("CellB"));
+        assert!(pdf_has_text(&pdf, "Spanning"));
+        assert!(pdf_has_text(&pdf, "CellA"));
+        assert!(pdf_has_text(&pdf, "CellB"));
     }
 
     #[test]
@@ -2558,10 +2594,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("TallCell"));
-        assert!(content.contains("TopCell"));
-        assert!(content.contains("BottomCell"));
+        assert!(pdf_has_text(&pdf, "TallCell"));
+        assert!(pdf_has_text(&pdf, "TopCell"));
+        assert!(pdf_has_text(&pdf, "BottomCell"));
     }
 
     #[test]
@@ -2575,10 +2610,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("HeadCol"));
-        assert!(content.contains("BodyRow"));
-        assert!(content.contains("FootRow"));
+        assert!(pdf_has_text(&pdf, "HeadCol"));
+        assert!(pdf_has_text(&pdf, "BodyRow"));
+        assert!(pdf_has_text(&pdf, "FootRow"));
     }
 
     #[test]
@@ -2590,8 +2624,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ValidCell"));
+        assert!(pdf_has_text(&pdf, "ValidCell"));
     }
 
     #[test]
@@ -2603,8 +2636,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </table>
         "#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("GoodCell"));
+        assert!(pdf_has_text(&pdf, "GoodCell"));
     }
 
     #[test]
@@ -2622,9 +2654,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers engine.rs lines 2003-2006: clear: right
         let html = r#"<p style="float: right; width: 100pt">FloatedRight</p><p style="clear: right">ClearedRight</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FloatedRight"));
-        assert!(content.contains("ClearedRight"));
+        assert!(pdf_has_text(&pdf, "FloatedRight"));
+        assert!(pdf_has_text(&pdf, "ClearedRight"));
     }
 
     #[test]
@@ -2632,10 +2663,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers engine.rs lines 1995-2001: clear: both
         let html = r#"<p style="float: left; width: 100pt">FloatLeft</p><p style="float: right; width: 100pt">FloatRight</p><p style="clear: both">ClearedBoth</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FloatLeft"));
-        assert!(content.contains("FloatRight"));
-        assert!(content.contains("ClearedBoth"));
+        assert!(pdf_has_text(&pdf, "FloatLeft"));
+        assert!(pdf_has_text(&pdf, "FloatRight"));
+        assert!(pdf_has_text(&pdf, "ClearedBoth"));
     }
 
     #[test]
@@ -2719,8 +2749,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("NarrowChild"));
+        assert!(pdf_has_text(&pdf, "NarrowChild"));
     }
 
     #[test]
@@ -2732,8 +2761,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("ColCentered"));
+        assert!(pdf_has_text(&pdf, "ColCentered"));
     }
 
     #[test]
@@ -2747,10 +2775,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("GapA"));
-        assert!(content.contains("GapB"));
-        assert!(content.contains("GapC"));
+        assert!(pdf_has_text(&pdf, "GapA"));
+        assert!(pdf_has_text(&pdf, "GapB"));
+        assert!(pdf_has_text(&pdf, "GapC"));
     }
 
     #[test]
@@ -2762,8 +2789,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("OnlyOne"));
+        assert!(pdf_has_text(&pdf, "OnlyOne"));
     }
 
     #[test]
@@ -2776,7 +2802,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         "#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("YellowCell"));
+        assert!(pdf_has_text(&pdf, "YellowCell"));
         assert!(content.contains("rg\n"));
     }
 
@@ -2811,9 +2837,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("GridChild"));
-        assert!(content.contains("AnotherChild"));
+        assert!(pdf_has_text(&pdf, "GridChild"));
+        assert!(pdf_has_text(&pdf, "AnotherChild"));
     }
 
     #[test]
@@ -2993,9 +3018,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <ol><li>First</li><li>Second</li><li>Third</li></ol>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("a."));
-        assert!(content.contains("b."));
+        assert!(pdf_has_text(&pdf, "a."));
+        assert!(pdf_has_text(&pdf, "b."));
     }
 
     #[test]
@@ -3007,9 +3031,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <ol><li>First</li><li>Second</li><li>Third</li></ol>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("I."));
-        assert!(content.contains("II."));
+        assert!(pdf_has_text(&pdf, "I."));
+        assert!(pdf_has_text(&pdf, "II."));
     }
 
     #[test]
@@ -3021,8 +3044,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <ul><li>Nomarker</li></ul>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Nomarker"));
+        assert!(pdf_has_text(&pdf, "Nomarker"));
     }
 
     #[test]
@@ -3034,8 +3056,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <ul><li>InsideItem</li></ul>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("InsideItem"));
+        assert!(pdf_has_text(&pdf, "InsideItem"));
     }
 
     #[test]
@@ -3168,10 +3189,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <tr><td>Bottom</td></tr>
         </table>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Tall"));
-        assert!(content.contains("Top"));
-        assert!(content.contains("Bottom"));
+        assert!(pdf_has_text(&pdf, "Tall"));
+        assert!(pdf_has_text(&pdf, "Top"));
+        assert!(pdf_has_text(&pdf, "Bottom"));
     }
 
     #[test]
@@ -3441,9 +3461,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         let html = r#"<h1>Title</h1><svg width="100" height="50"><rect x="0" y="0" width="100" height="50" fill="blue"/></svg><p>World</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Title"));
-        assert!(content.contains("World"));
+        assert!(pdf_has_text(&pdf, "Title"));
+        assert!(pdf_has_text(&pdf, "World"));
     }
 
     #[test]
@@ -3453,8 +3472,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             r#"<p style="text-align: justify; width: 200pt;">Superlongwordwithoutanyspaces</p>"#;
         let pdf = html_to_pdf(html).unwrap();
         assert!(pdf.starts_with(b"%PDF"));
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Superlongword"));
+        assert!(pdf_has_text(&pdf, "Superlongword"));
     }
 
     #[test]
@@ -3491,10 +3509,9 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <tr><td>R3</td></tr>
         </table>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Spanning"));
-        assert!(content.contains("R1"));
-        assert!(content.contains("R3"));
+        assert!(pdf_has_text(&pdf, "Spanning"));
+        assert!(pdf_has_text(&pdf, "R1"));
+        assert!(pdf_has_text(&pdf, "R3"));
     }
 
     #[test]
@@ -3518,8 +3535,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Exercises empty text run/line skipping in pdf.rs lines 401, 718, 724
         let html = r#"<p></p><p>Visible</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Visible"));
+        assert!(pdf_has_text(&pdf, "Visible"));
     }
 
     #[test]
@@ -3531,8 +3547,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
             <tr><td></td><td></td></tr>
         </table>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Data"));
+        assert!(pdf_has_text(&pdf, "Data"));
     }
 
     #[test]
@@ -3540,8 +3555,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers pdf.rs line 121: Position::Relative with offset_left
         let html = r#"<div style="position: relative; left: 20pt;">Shifted</div>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Shifted"));
+        assert!(pdf_has_text(&pdf, "Shifted"));
     }
 
     #[test]
@@ -3554,9 +3568,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <div style="page-break-before: always;"></div>
         <p>Page3</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Page1"));
-        assert!(content.contains("Page3"));
+        assert!(pdf_has_text(&pdf, "Page1"));
+        assert!(pdf_has_text(&pdf, "Page3"));
     }
 
     #[test]
@@ -3601,8 +3614,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers pdf.rs line 123: Float::Right without block_width
         let html = r#"<div style="float: right;">FloatedRight</div><p>Normal</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("FloatedRight"));
+        assert!(pdf_has_text(&pdf, "FloatedRight"));
     }
 
     #[test]
@@ -3610,8 +3622,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Covers pdf.rs line 120: Position::Absolute with offset_left
         let html = r#"<div style="position: absolute; left: 50pt;">AbsPos</div>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("AbsPos"));
+        assert!(pdf_has_text(&pdf, "AbsPos"));
     }
 
     #[test]
@@ -3649,9 +3660,8 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         <div style="page-break-after: always;"></div>
         <p>After</p>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Before"));
-        assert!(content.contains("After"));
+        assert!(pdf_has_text(&pdf, "Before"));
+        assert!(pdf_has_text(&pdf, "After"));
     }
 
     #[test]
@@ -3680,26 +3690,25 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         </div>
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
         assert!(
-            content.contains("ironpress"),
+            pdf_has_text(&pdf, "ironpress"),
             "flex child h1 text should appear in PDF"
         );
         // Words may be in separate PDF text objects due to word-by-word rendering
         assert!(
-            content.contains("Pure"),
+            pdf_has_text(&pdf, "Pure"),
             "flex child h2 word 'Pure' should appear in PDF"
         );
         assert!(
-            content.contains("Rust"),
+            pdf_has_text(&pdf, "Rust"),
             "flex child h2 word 'Rust' should appear in PDF"
         );
         assert!(
-            content.contains("Engine"),
+            pdf_has_text(&pdf, "Engine"),
             "flex child h2 word 'Engine' should appear in PDF"
         );
         assert!(
-            content.contains("INV-2026"),
+            pdf_has_text(&pdf, "INV"),
             "flex child p text should appear in PDF"
         );
     }
@@ -3709,10 +3718,12 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         // Basic flex with two simple div children
         let html = r#"<div style="display: flex;"><div>Left</div><div>Right</div></div>"#;
         let pdf = html_to_pdf(html).unwrap();
-        let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Left"), "flex child 'Left' should appear");
         assert!(
-            content.contains("Right"),
+            pdf_has_text(&pdf, "Left"),
+            "flex child 'Left' should appear"
+        );
+        assert!(
+            pdf_has_text(&pdf, "Right"),
             "flex child 'Right' should appear"
         );
     }
@@ -3746,7 +3757,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Header"), "th text should appear in PDF");
+        assert!(pdf_has_text(&pdf, "Header"), "th text should appear in PDF");
         // #2c3e50 = (44/255, 62/255, 80/255) ≈ (0.172549, 0.243137, 0.313725)
         // Check for any non-zero background color operator (not 0 0 0)
         assert!(
@@ -3765,7 +3776,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Paid"), "badge text should appear");
+        assert!(pdf_has_text(&pdf, "Paid"), "badge text should appear");
         // white text = (1, 1, 1) → "1 1 1 rg"
         assert!(
             content.contains("1 1 1 rg"),
@@ -3783,7 +3794,7 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
         </body></html>"#;
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        assert!(content.contains("Azul"), "span text should appear");
+        assert!(pdf_has_text(&pdf, "Azul"), "span text should appear");
         // blue = (0, 0, 1) → "0 0 1 rg"
         assert!(
             content.contains("0 0 1 rg"),

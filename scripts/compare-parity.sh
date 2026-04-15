@@ -46,22 +46,32 @@ for layer in features combined edge-cases; do
 
     for ref_png in "$ref_layer_dir"/*.png; do
         [ -f "$ref_png" ] || continue
-        name=$(basename "$ref_png" .png)
+        ref_base=$(basename "$ref_png" .png)
+
+        # Determine the PDF file and page number from the reference name.
+        # Multi-page references use the suffix "-p2", "-p3", etc.
+        if [[ "$ref_base" =~ ^(.*)-p([0-9]+)$ ]]; then
+            name="${BASH_REMATCH[1]}"
+            page="${BASH_REMATCH[2]}"
+        else
+            name="$ref_base"
+            page=1
+        fi
         pdf_file="$PDF_DIR/$layer/$name.pdf"
 
         if [ ! -f "$pdf_file" ]; then
-            echo "| $name | $layer | - | - | - | MISSING PDF |"
+            echo "| $ref_base | $layer | - | - | - | MISSING PDF |"
             continue
         fi
 
         any_result=1
 
-        # Convert PDF page 1 to PNG at 150 DPI
-        render_prefix="$TMPDIR_WORK/${layer}_${name}"
-        pdftoppm -r 150 -png -f 1 -l 1 "$pdf_file" "$render_prefix" 2>/dev/null
-        # pdftoppm names output -1.png or -01.png depending on page count
+        # Convert the target page to PNG at 150 DPI
+        render_prefix="$TMPDIR_WORK/${layer}_${ref_base}"
+        pdftoppm -r 150 -png -f "$page" -l "$page" "$pdf_file" "$render_prefix" 2>/dev/null
+        # pdftoppm names output -N.png or -0N.png depending on page count
         render_png=""
-        for candidate in "${render_prefix}-1.png" "${render_prefix}-01.png" "${render_prefix}-001.png"; do
+        for candidate in "${render_prefix}-${page}.png" "${render_prefix}-0${page}.png" "${render_prefix}-00${page}.png"; do
             if [ -f "$candidate" ]; then
                 render_png="$candidate"
                 break
@@ -69,7 +79,7 @@ for layer in features combined edge-cases; do
         done
 
         if [ -z "$render_png" ]; then
-            echo "| $name | $layer | - | - | - | RENDER FAILED |"
+            echo "| $ref_base | $layer | - | - | - | RENDER FAILED |"
             continue
         fi
 
@@ -127,7 +137,7 @@ for layer in features combined edge-cases; do
             failed=1
         fi
 
-        echo "| $name | $layer | $diff_pixels | $total_pixels | ${diff_pct}% | $status |"
+        echo "| $ref_base | $layer | $diff_pixels | $total_pixels | ${diff_pct}% | $status |"
     done
 done
 
