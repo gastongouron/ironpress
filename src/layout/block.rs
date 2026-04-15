@@ -932,10 +932,10 @@ pub(crate) fn layout_block_element(
             None
         };
 
-        // Compute clip rect before moving lines
+        // Compute clip rect before moving lines - clip to content area (exclude padding)
         let clip_rect = if style.overflow == Overflow::Hidden {
             let text_height: f32 = lines.iter().map(|l| l.height).sum();
-            let total_h = resolve_padding_box_height(
+            let padding_box_h = resolve_padding_box_height(
                 text_height,
                 effective_height,
                 style.padding.top,
@@ -943,7 +943,12 @@ pub(crate) fn layout_block_element(
                 style.border.vertical_width(),
                 style.box_sizing,
             );
-            Some((0.0, 0.0, block_w, total_h))
+            // Clip to content area: exclude padding from the clip rect
+            let content_x = style.padding.left;
+            let content_y = style.padding.top;
+            let content_w = (block_w - style.padding.left - style.padding.right).max(0.0);
+            let content_h = (padding_box_h - style.padding.top - style.padding.bottom - style.border.vertical_width()).max(0.0);
+            Some((content_x, content_y, content_w, content_h))
         } else {
             None
         };
