@@ -16,7 +16,9 @@ use super::helpers::{
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_padding_box_height,
 };
-use super::inline::{element_is_inline_block, layout_inline_block_group};
+use super::inline::{
+    element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
+};
 use super::paginate::estimate_element_height;
 use super::text::{
     TextWrapOptions, apply_text_overflow_ellipsis, collect_text_runs, resolved_line_height_factor,
@@ -472,7 +474,8 @@ pub(crate) fn layout_block_element(
             && el.children.iter().any(|c| {
                 matches!(c, DomNode::Element(e)
                     if (has_own_margins(e.tag)
-                        || (e.tag.is_block() && !collects_as_inline_text(e.tag)))
+                        || (e.tag.is_block() && !collects_as_inline_text(e.tag))
+                        || element_has_css_display_block(e, style, env.rules, child_ancestors))
                         && !element_is_inline_block(
                             e, style, env.rules, child_ancestors, 0, 0, &[]))
             });
@@ -640,7 +643,8 @@ pub(crate) fn layout_block_element(
                         );
                     }
                     DomNode::Element(child_el)
-                        if (child_el.tag.is_block() || child_el.tag == HtmlTag::Svg)
+                        if (child_el.tag.is_block() || child_el.tag == HtmlTag::Svg
+                            || element_has_css_display_block(child_el, style, env.rules, child_ancestors))
                             && !collects_as_inline_text(child_el.tag) =>
                     {
                         // Flush inline runs before block child
@@ -863,7 +867,15 @@ pub(crate) fn layout_block_element(
                             child_ancestors,
                         );
                     }
-                    DomNode::Element(child_el) if collects_as_inline_text(child_el.tag) => {
+                    DomNode::Element(child_el)
+                        if collects_as_inline_text(child_el.tag)
+                            && !element_has_css_display_block(
+                                child_el,
+                                style,
+                                env.rules,
+                                child_ancestors,
+                            ) =>
+                    {
                         collect_text_runs(
                             std::slice::from_ref(child),
                             style,

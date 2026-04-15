@@ -51,6 +51,7 @@ pub enum HtmlTag {
     Ins,
     Mark,
     Abbr,
+    Cite,
     Section,
     Article,
     Nav,
@@ -125,6 +126,7 @@ impl HtmlTag {
             "ins" => Self::Ins,
             "mark" => Self::Mark,
             "abbr" => Self::Abbr,
+            "cite" => Self::Cite,
             "section" => Self::Section,
             "article" => Self::Article,
             "nav" => Self::Nav,
@@ -213,6 +215,7 @@ impl HtmlTag {
                 | Self::Ins
                 | Self::Mark
                 | Self::Abbr
+                | Self::Cite
                 | Self::Img
                 | Self::Svg
                 | Self::Input
@@ -326,6 +329,7 @@ impl ElementNode {
             HtmlTag::Ins => "ins",
             HtmlTag::Mark => "mark",
             HtmlTag::Abbr => "abbr",
+            HtmlTag::Cite => "cite",
             HtmlTag::Section => "section",
             HtmlTag::Article => "article",
             HtmlTag::Nav => "nav",
@@ -516,6 +520,7 @@ mod tests {
             (HtmlTag::Ins, "ins"),
             (HtmlTag::Mark, "mark"),
             (HtmlTag::Abbr, "abbr"),
+            (HtmlTag::Cite, "cite"),
             (HtmlTag::Section, "section"),
             (HtmlTag::Article, "article"),
             (HtmlTag::Nav, "nav"),
