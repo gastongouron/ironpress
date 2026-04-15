@@ -93,9 +93,23 @@ pub(crate) fn shape_with_unicode_fallback<'a>(
     } else if crate::render::pdf::is_winansi_encodable(&run.text) {
         return None;
     }
-    let (key, font) = fonts.get_key_value(crate::system_fonts::UNICODE_FALLBACK_KEY)?;
-    let shaped = shape_text_with_font(&run.text, run.font_size, font)?;
-    Some((shaped, key.as_str(), font))
+    // Try script-specific fallback fonts, then generic unicode fallback.
+    let fallback_keys = [
+        crate::system_fonts::ARABIC_FALLBACK_KEY,
+        crate::system_fonts::EMOJI_FALLBACK_KEY,
+        crate::system_fonts::UNICODE_FALLBACK_KEY,
+    ];
+    for fk in fallback_keys {
+        if let Some((key, font)) = fonts.get_key_value(fk) {
+            if let Some(shaped) = shape_text_with_font(&run.text, run.font_size, font) {
+                let has_real_glyphs = shaped.glyphs.iter().any(|g| g.glyph_id != 0);
+                if has_real_glyphs {
+                    return Some((shaped, key.as_str(), font));
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Check if a run needs unicode fallback (has characters the primary font can't cover).

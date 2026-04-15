@@ -52,6 +52,7 @@ pub(crate) fn prepare_custom_fonts(
     for fallback_key in [
         crate::system_fonts::UNICODE_FALLBACK_KEY,
         crate::system_fonts::EMOJI_FALLBACK_KEY,
+        crate::system_fonts::ARABIC_FALLBACK_KEY,
     ] {
         if let Some(fallback_font) = custom_fonts.get(fallback_key) {
             if !usage.contains_key(fallback_key) {
