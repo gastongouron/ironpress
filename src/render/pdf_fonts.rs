@@ -334,6 +334,7 @@ mod tests {
             lines: vec![],
             x_offset: 0.0,
             width: 100.0,
+            natural_height: 0.0,
             text_align: TextAlign::Left,
             background_color: None,
             padding_top: 0.0,

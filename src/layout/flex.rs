@@ -192,6 +192,7 @@ pub(crate) fn layout_flex_container(
     }
 
     // Lay out each child into its own set of elements to measure sizes
+    #[allow(dead_code)]
     struct FlexItem {
         elements: Vec<LayoutElement>,
         width: f32,

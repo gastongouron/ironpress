@@ -947,7 +947,11 @@ pub(crate) fn layout_block_element(
             let content_x = style.padding.left;
             let content_y = style.padding.top;
             let content_w = (block_w - style.padding.left - style.padding.right).max(0.0);
-            let content_h = (padding_box_h - style.padding.top - style.padding.bottom - style.border.vertical_width()).max(0.0);
+            let content_h = (padding_box_h
+                - style.padding.top
+                - style.padding.bottom
+                - style.border.vertical_width())
+            .max(0.0);
             Some((content_x, content_y, content_w, content_h))
         } else {
             None

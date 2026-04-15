@@ -10355,7 +10355,7 @@ mod tests {
             NestedLayoutFrame::new(10.0, 200.0, 10.0, 200.0, 300.0),
         );
         // The absolute element should have a blur_canvas_box derived from the containing block
-        let abs_planned = planned.iter().find(|p| {
+        let _abs_planned = planned.iter().find(|p| {
             if let LayoutElement::TextBlock { .. } = p.element {
                 // The second element (absolute) should have blur_canvas_box set when
                 // its containing_block refers to a depth that has been registered

@@ -167,7 +167,10 @@ pub(crate) fn wrap_text_runs(
     let mut current_runs: Vec<TextRun> = Vec::new();
     let mut current_width: f32 = 0.0;
     // Start with line height based on max font size in this line (typography alignment)
-    let base_font_size = runs.iter().map(|r| r.font_size).fold(options.default_font_size, f32::max);
+    let base_font_size = runs
+        .iter()
+        .map(|r| r.font_size)
+        .fold(options.default_font_size, f32::max);
     let mut line_height = base_font_size * line_height_factor;
 
     // Apply BiDi reordering if the text contains RTL characters.
