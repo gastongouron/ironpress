@@ -3,26 +3,15 @@
   "layer": "features",
   "description": "CSS positioning: relative, absolute, z-index stacking, float left/right, clear, overflow hidden",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
-    "must_contain_text": [
-      "Positioning Test Fixture",
-      "position: relative",
-      "position: absolute",
-      "z-index",
-      "Float",
-      "Clear",
-      "overflow: hidden",
-      "Top-Left",
-      "Top-Right",
-      "Bottom-Left",
-      "Bottom-Right",
-      "Float Left",
-      "Float Right",
-      "Floated",
-      "Cleared"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

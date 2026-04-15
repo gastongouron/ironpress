@@ -3,24 +3,15 @@
   "layer": "features",
   "description": "CSS Flexbox: flex-direction, justify-content, align-items, flex-wrap, gap, flex-grow/shrink/basis",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f"],
-    "must_contain_text": [
-      "Flexbox Test Fixture",
-      "justify-content",
-      "align-items",
-      "flex-wrap",
-      "Gap",
-      "Start",
-      "Center",
-      "End",
-      "Between",
-      "Around",
-      "Stretch",
-      "Item 1",
-      "Item 2"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

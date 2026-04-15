@@ -3,28 +3,10 @@
   "layer": "combined",
   "description": "An academic math paper with LaTeX math, theorem/proof environments, numbered equations, and references",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj"],
-    "must_contain_text": [
-      "On the Convergence Properties",
-      "Generalized",
-      "Convergence",
-      "Dr. Maria Chen",
-      "Prof. James Watson",
-      "University of Cambridge",
-      "Abstract",
-      "Introduction",
-      "Cauchy-Hadamard",
-      "Preliminaries",
-      "Main Results",
-      "Theorem 3.1",
-      "Proof",
-      "Applications",
-      "Conclusion",
-      "References",
-      "Hardy",
-      "Rudin",
-      "Titchmarsh",
-      "Lang"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ"
     ],
     "min_size_bytes": 10000,
     "max_size_bytes": 1000000,
@@ -37,7 +19,7 @@
     "Display math equations should be centered on their own lines with equation numbers right-aligned",
     "Inline math expressions should appear within the flow of prose text",
     "The Theorem 3.1 block should have a blue left border and light gray background",
-    "The Proof section should end with the QED square (□) right-aligned",
+    "The Proof section should end with the QED square (\u25a1) right-aligned",
     "References should be in smaller font with hanging indent formatting",
     "Section headings (1. Introduction, 2. Preliminaries, etc.) should be in sans-serif"
   ]

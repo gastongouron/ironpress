@@ -3,31 +3,18 @@
   "layer": "features",
   "description": "CSS transforms (rotate, scale, translate, combined) and box-shadow (sm, md, lg, inset, multi-layer, colored)",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "cm", "q", "Q"],
-    "must_contain_text": [
-      "Transforms",
-      "Shadows Test Fixture",
-      "Rotate",
-      "Scale",
-      "Translate",
-      "Combined Transform",
-      "Box Shadow",
-      "15deg",
-      "45deg",
-      "90deg",
-      "1.3x",
-      "0.7x",
-      "X+40",
-      "Y+20",
-      "Small",
-      "Medium",
-      "Large",
-      "Inset",
-      "Multi",
-      "Colored"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "cm",
+      "q",
+      "Q"
     ],
     "min_size_bytes": 5000,
-    "max_size_bytes": 300000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

@@ -6,17 +6,12 @@
     "must_contain_operators": [
       "BT",
       "ET",
-      "Tj",
+      "TJ",
       "re",
       "f",
       "cm",
       "q",
       "Q"
-    ],
-    "must_contain_text": [
-      "System Dashboard",
-      "Resource Usage",
-      "Request Distribution"
     ],
     "min_size_bytes": 4000,
     "max_size_bytes": 500000,

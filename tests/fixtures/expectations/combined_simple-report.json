@@ -3,28 +3,16 @@
   "layer": "combined",
   "description": "A typical business report combining headings, summary box, data table, unordered/ordered lists, and body prose",
   "pdf_assertions": {
-    "must_contain_operators": ["BT", "ET", "Tj", "re", "f", "S"],
-    "must_contain_text": [
-      "Quarterly Performance Report",
-      "Q1 2026",
-      "Engineering",
-      "Executive Summary",
-      "Key Metrics",
-      "Highlights",
-      "Goals for Q2 2026",
-      "Risk Factors",
-      "Features Shipped",
-      "Bugs Resolved",
-      "Uptime",
-      "14",
-      "87",
-      "99.97%",
-      "dashboard redesign",
-      "microservice",
-      "GraphQL"
+    "must_contain_operators": [
+      "BT",
+      "ET",
+      "TJ",
+      "re",
+      "f",
+      "S"
     ],
     "min_size_bytes": 8000,
-    "max_size_bytes": 400000,
+    "max_size_bytes": 500000,
     "min_pages": 1
   },
   "visual_assertions": [

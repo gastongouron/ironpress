@@ -464,6 +464,7 @@ impl HtmlConverter {
             }
         }
 
+        system_fonts::load_bundled_liberation_fonts(&mut parsed_fonts);
         system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
         system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
