@@ -1060,16 +1060,20 @@ pub(crate) fn layout_block_element(
         } else {
             output.push(inline_tb);
         }
-        push_block_pseudo(
-            output,
-            before_style.as_ref(),
-            el,
-            inner_width,
-            env.fonts,
-            cb_info,
-            positioned_depth,
-            env.counter_state,
-        );
+        // Only emit non-absolute before pseudo-elements here.
+        // Absolute positioned ::before will be emitted after children processing.
+        if !before_is_abs {
+            push_block_pseudo(
+                output,
+                before_style.as_ref(),
+                el,
+                inner_width,
+                env.fonts,
+                cb_info,
+                positioned_depth,
+                env.counter_state,
+            );
+        }
     }
 
     // Also process block children recursively, using inner_width
