@@ -502,9 +502,22 @@ fn shape_path_string(node: &SvgNode) -> Option<String> {
             y,
             width,
             height,
+            rx,
+            ry,
             ..
         } => {
-            out.push_str(&format!("{x} {y} {width} {height} re\n"));
+            let r = if *rx > 0.0 {
+                *rx
+            } else if *ry > 0.0 {
+                *ry
+            } else {
+                0.0
+            };
+            if r > 0.0 {
+                out.push_str(&emit_rounded_rect(*x, *y, *width, *height, r));
+            } else {
+                out.push_str(&format!("{x} {y} {width} {height} re\n"));
+            }
         }
         SvgNode::Circle { cx, cy, r, .. } => {
             emit_circle(*cx, *cy, *r, &mut out);
@@ -1129,6 +1142,32 @@ fn base_family_from_pdf_name(name: &str) -> &str {
     } else {
         "Helvetica"
     }
+}
+
+/// Emit a rounded rectangle path in SVG coordinate space (Y-down).
+fn emit_rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
+    let r = r.min(w / 2.0).min(h / 2.0);
+    let k = r * 0.552_284_8;
+    format!(
+        "{x0} {y0} m\n\
+         {x1} {y0} l {x2} {y0} {x3} {y3} {x3} {y4} c\n\
+         {x3} {y5} l {x3} {y6} {x2} {y7} {x1} {y7} c\n\
+         {x0} {y7} l {x8} {y7} {x9} {y6} {x9} {y5} c\n\
+         {x9} {y4} l {x9} {y3} {x8} {y0} {x0} {y0} c\n\
+         h\n",
+        x0 = x + r,
+        x1 = x + w - r,
+        x2 = x + w - r + k,
+        x3 = x + w,
+        x8 = x + r - k,
+        x9 = x,
+        y0 = y,
+        y3 = y + r - k,
+        y4 = y + r,
+        y5 = y + h - r,
+        y6 = y + h - r + k,
+        y7 = y + h,
+    )
 }
 
 // Emit a circle approximation using 4 cubic bezier curves

@@ -2,11 +2,11 @@ use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse,
-    BorderSides, BoxShadow, Clear, ComputedStyle, Display, Float, FontFamily, FontStyle,
-    FontWeight, GridTrack, LinearGradient, ListStylePosition, ListStyleType, Overflow, Position,
-    RadialGradient, TextAlign, Transform, VerticalAlign, Visibility, compute_pseudo_element_style,
-    compute_style_with_context,
+    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, Display, Float, FontFamily,
+    FontStyle, FontWeight, GridTrack, LinearGradient, ListStylePosition, ListStyleType, Overflow,
+    Position, RadialGradient, TextAlign, Transform, VerticalAlign, Visibility,
+    compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -374,6 +374,7 @@ pub enum LayoutElement {
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        align_items: AlignItems,
     },
     /// A progress bar or meter element.
     ProgressBar {

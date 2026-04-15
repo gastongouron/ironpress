@@ -51,6 +51,38 @@ pub(crate) fn element_is_inline_block(
             .any(|c| matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Svg))
 }
 
+/// Check if a natively-inline element has been styled with `display: block`
+/// via CSS rules, making it a block-level element for layout purposes.
+pub(crate) fn element_has_css_display_block(
+    el: &ElementNode,
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+) -> bool {
+    if el.tag.is_block() {
+        return false; // already block by default
+    }
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: 0,
+        sibling_count: 0,
+        preceding_siblings: Vec::new(),
+    };
+    let style = compute_style_with_context(
+        el.tag,
+        el.style_attr(),
+        parent_style,
+        rules,
+        el.tag_name(),
+        &classes,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+    );
+    style.display == Display::Block
+}
+
 /// Lay out a group of consecutive `display: inline-block` elements as `FlexRow`s.
 ///
 /// Each element is laid out independently into its own buffer, then positioned
@@ -324,6 +356,7 @@ pub(crate) fn layout_inline_block_group(
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            align_items: crate::style::computed::AlignItems::Stretch,
         });
     }
 }

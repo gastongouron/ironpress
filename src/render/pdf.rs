@@ -15,9 +15,9 @@ use crate::render::shading::{
 };
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse,
-    BorderStyle, Float, FontFamily, LinearGradient, Overflow, Position, RadialGradient, TextAlign,
-    VerticalAlign,
+    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BorderCollapse, BorderStyle, Float, FontFamily, LinearGradient, Overflow, Position,
+    RadialGradient, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -1158,6 +1158,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_position: flex_bg_pos,
                     background_repeat: flex_bg_repeat,
                     background_origin: flex_bg_origin,
+                    align_items,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
@@ -1408,6 +1409,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cell_x = margin.left + padding_left + cell.x_offset;
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
 
+                        // Compute per-cell height and vertical offset based on align-items.
+                        // For stretch: use full row_height (default CSS behavior).
+                        // For flex-start/center/flex-end: use the cell's natural_height.
+                        let (cell_render_h, cell_y_shift) = match align_items {
+                            AlignItems::Stretch => (*row_height, 0.0),
+                            AlignItems::FlexStart => (cell.natural_height, 0.0),
+                            AlignItems::FlexEnd => {
+                                let h = cell.natural_height;
+                                (h, *row_height - h)
+                            }
+                            AlignItems::Center => {
+                                let h = cell.natural_height;
+                                (h, (*row_height - h) / 2.0)
+                            }
+                        };
+
                         // Apply cell transform if set (rotate, scale, translate)
                         let cell_needs_transform = cell.transform.is_some();
                         if let Some(t) = &cell.transform {
@@ -1453,7 +1470,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Draw cell background
                         if let Some((r, g, b, a)) = cell.background_color {
                             let bg_x = margin.left + padding_left + cell.x_offset;
-                            let bg_y = text_area_top - row_height;
+                            let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let needs_fcell_bg_alpha = a < 1.0;
                             if needs_fcell_bg_alpha {
                                 let gs_name = format!("GSfcbg{bg_alpha_counter}");
@@ -1467,7 +1484,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     bg_x,
                                     bg_y,
                                     cell.width,
-                                    *row_height,
+                                    cell_render_h,
                                     cell.border_radius,
                                 ));
                                 content.push_str("f\n");
@@ -1475,7 +1492,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str(&format!(
                                     "{bg_x} {bg_y} {w} {h} re\nf\n",
                                     w = cell.width,
-                                    h = *row_height,
+                                    h = cell_render_h,
                                 ));
                             }
                             if needs_fcell_bg_alpha {
@@ -1491,17 +1508,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
                                 content.push_str(&rounded_rect_path(
                                     cell_x,
-                                    text_area_top - row_height,
+                                    text_area_top - cell_y_shift - cell_render_h,
                                     cell.width,
-                                    *row_height,
+                                    cell_render_h,
                                     cell.border_radius,
                                 ));
                                 content.push_str("S\n");
                             } else {
                                 let bx1 = cell_x;
                                 let bx2 = cell_x + cell.width;
-                                let by1 = text_area_top;
-                                let by2 = text_area_top - row_height;
+                                let by1 = text_area_top - cell_y_shift;
+                                let by2 = text_area_top - cell_y_shift - cell_render_h;
                                 if cell.border.top.width > 0.0 {
                                     let (r, g, b) = cell.border.top.color;
                                     content.push_str(&format!(
@@ -1536,14 +1553,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Draw cell linear gradient
                         if let Some(gradient) = &cell.background_gradient {
                             let bg_x = margin.left + padding_left + cell.x_offset;
-                            let bg_y = text_area_top - row_height;
+                            let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
                                 content.push_str(&rounded_rect_path(
                                     bg_x,
                                     bg_y,
                                     cell.width,
-                                    *row_height,
+                                    cell_render_h,
                                     cell.border_radius,
                                 ));
                                 content.push_str("W n\n");
@@ -1554,7 +1571,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 bg_x,
                                 bg_y,
                                 cell.width,
-                                *row_height,
+                                cell_render_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
                             );
@@ -1566,14 +1583,14 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Draw cell radial gradient
                         if let Some(gradient) = &cell.background_radial_gradient {
                             let bg_x = margin.left + padding_left + cell.x_offset;
-                            let bg_y = text_area_top - row_height;
+                            let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
                                 content.push_str(&rounded_rect_path(
                                     bg_x,
                                     bg_y,
                                     cell.width,
-                                    *row_height,
+                                    cell_render_h,
                                     cell.border_radius,
                                 ));
                                 content.push_str("W n\n");
@@ -1584,7 +1601,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 bg_x,
                                 bg_y,
                                 cell.width,
-                                *row_height,
+                                cell_render_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
                             );
@@ -1595,16 +1612,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         if let Some(svg_tree) = &cell.background_svg {
                             let bg_x = margin.left + padding_left + cell.x_offset;
-                            let bg_y = text_area_top - row_height;
+                            let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let (ref_x, ref_y, ref_w, ref_h) = match cell.background_origin {
                                 BackgroundOrigin::Content => (
                                     bg_x + cell.padding_left,
                                     bg_y + cell.padding_bottom,
                                     (cell.width - cell.padding_left - cell.padding_right).max(0.0),
-                                    (row_height - cell.padding_top - cell.padding_bottom).max(0.0),
+                                    (cell_render_h - cell.padding_top - cell.padding_bottom)
+                                        .max(0.0),
                                 ),
                                 BackgroundOrigin::Border | BackgroundOrigin::Padding => {
-                                    (bg_x, bg_y, cell.width, *row_height)
+                                    (bg_x, bg_y, cell.width, cell_render_h)
                                 }
                             };
                             render_svg_background(
@@ -1616,7 +1634,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut shading_counter,
                                 BackgroundPaintContext::new(
                                     SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                    SvgViewportBox::new(bg_x, bg_y, cell.width, *row_height),
+                                    SvgViewportBox::new(bg_x, bg_y, cell.width, cell_render_h),
                                     cell.border_radius,
                                     cell.background_blur_radius,
                                     cell.background_size,
@@ -1627,7 +1645,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Render cell text
-                        let mut text_y = text_area_top - cell.padding_top;
+                        let mut text_y = text_area_top - cell_y_shift - cell.padding_top;
                         for line in &cell.lines {
                             let metrics = line_box_metrics(line, custom_fonts);
                             text_y -= metrics.half_leading + metrics.ascender;
@@ -1756,7 +1774,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Render nested elements (tables, images, etc. inside flex items)
                         if !cell.nested_elements.is_empty() {
                             let nested_x = cell_x;
-                            let mut nested_y = text_area_top;
+                            let mut nested_y = text_area_top - cell_y_shift;
                             for nested_elem in &cell.nested_elements {
                                 match nested_elem {
                                     LayoutElement::TextBlock {
@@ -4142,7 +4160,10 @@ fn render_svg_background(
             let s = (paint.reference_box.width / vb_w).min(paint.reference_box.height / vb_h);
             (vb_w * s, vb_h * s)
         }
-        BackgroundSize::Auto => (vb_w, vb_h),
+        BackgroundSize::Auto => {
+            // SVG dimensions are in CSS pixels; convert to points (1px = 0.75pt)
+            (intrinsic_width * 0.75, intrinsic_height * 0.75)
+        }
         BackgroundSize::Explicit {
             width: explicit_width,
             height: explicit_height,
@@ -4383,8 +4404,10 @@ fn render_box_shadow(
     content.push_str(&format!("{sr} {sg} {sb} rg\n"));
     for i in (0..layers).rev() {
         let t = (i as f32 + 1.0) / layers as f32;
-        // Smooth falloff: each layer contributes a fraction of the base alpha
-        let alpha = base_alpha * (1.0 - t) / layers as f32;
+        // Gaussian-like falloff: use exp(-k*t^2) to produce smooth shadow.
+        // Each layer's alpha is the differential contribution at that radius.
+        let gaussian = (-3.0 * t * t).exp();
+        let alpha = (base_alpha * gaussian * 0.4).min(base_alpha);
 
         let expand = blur * t;
         let gs_name = format!("GSbs{}", *gs_counter);

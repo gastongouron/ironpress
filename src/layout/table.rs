@@ -2,8 +2,8 @@ use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    ComputedStyle, Display, FontStyle, FontWeight, TableLayout, TextAlign, VerticalAlign,
-    WhiteSpace, compute_style_with_context,
+    BorderCollapse, ComputedStyle, Display, FontStyle, FontWeight, TableLayout, TextAlign,
+    VerticalAlign, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -1031,7 +1031,13 @@ pub(crate) fn flatten_table(
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
-                margin_top: if is_first { style.margin.top } else { 0.0 },
+                margin_top: if is_first {
+                    style.margin.top
+                } else if style.border_collapse == BorderCollapse::Separate {
+                    style.border_spacing
+                } else {
+                    0.0
+                },
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
                 border_spacing: style.border_spacing,

@@ -1142,6 +1142,7 @@ pub(crate) fn layout_flex_container(
                     } else {
                         BackgroundOrigin::Padding
                     },
+                    align_items: align,
                 });
             }
             FlexDirection::Column => {

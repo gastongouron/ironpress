@@ -1872,6 +1872,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Length(v)) = get_non_special(map, "column-gap") {
         style.column_gap = *v;
     }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "row-gap") {
+        style.row_gap = *v;
+    }
 
     // Overflow
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow") {

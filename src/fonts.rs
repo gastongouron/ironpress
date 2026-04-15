@@ -466,7 +466,14 @@ pub(crate) fn normal_line_height_factor(
         return (ascender + descender).max(1.0);
     }
 
-    1.2
+    // Chromium computes line-height:normal from the font's OS/2 table
+    // metrics (usWinAscent + usWinDescent) / unitsPerEm.  Match those
+    // effective values per font family for visual parity.
+    match font_family {
+        FontFamily::TimesRoman => 1.25,
+        FontFamily::Courier => 1.2,
+        FontFamily::Helvetica | FontFamily::Custom(_) => 1.15,
+    }
 }
 
 /// Courier character width (all glyphs are the same in a monospace font).
@@ -486,11 +493,105 @@ pub(crate) fn char_width(ch: char, font_size: f32, font_family: &FontFamily, bol
     afm as f32 / 1000.0 * font_size
 }
 
-/// Return the total width (in points) of a string using AFM metrics.
+/// Return the total width (in points) of a string using AFM metrics,
+/// including pair-wise kerning adjustments.
 pub(crate) fn str_width(s: &str, font_size: f32, font_family: &FontFamily, bold: bool) -> f32 {
-    s.chars()
-        .map(|c| char_width(c, font_size, font_family, bold))
-        .sum()
+    let chars: Vec<char> = s.chars().collect();
+    let mut width = 0.0f32;
+    for (i, &ch) in chars.iter().enumerate() {
+        width += char_width(ch, font_size, font_family, bold);
+        if i + 1 < chars.len() {
+            width += kern_adjustment(ch, chars[i + 1], font_size, font_family);
+        }
+    }
+    width
+}
+
+/// Return the kerning adjustment (in points) between two adjacent characters.
+/// Negative values tighten spacing (most common). Based on Adobe AFM kern
+/// pair data for the most impactful pairs.
+pub(crate) fn kern_adjustment(
+    left: char,
+    right: char,
+    font_size: f32,
+    font_family: &FontFamily,
+) -> f32 {
+    let kern = match font_family {
+        FontFamily::Courier => return 0.0, // monospace: no kerning
+        FontFamily::Helvetica | FontFamily::Custom(_) => helvetica_kern(left, right),
+        FontFamily::TimesRoman => times_kern(left, right),
+    };
+    kern as f32 / 1000.0 * font_size
+}
+
+/// Helvetica kern pairs from Adobe AFM data (most impactful pairs).
+fn helvetica_kern(left: char, right: char) -> i16 {
+    match (left, right) {
+        ('A', 'V') | ('A', 'W') => -80,
+        ('A', 'T') | ('A', 'Y') => -90,
+        ('A', 'v') | ('A', 'w') | ('A', 'y') => -40,
+        ('F', 'a') | ('F', 'o') | ('F', 'e') => -30,
+        ('F', '.') | ('F', ',') => -100,
+        ('L', 'T') | ('L', 'V') | ('L', 'W') | ('L', 'Y') => -100,
+        ('L', 'y') => -30,
+        ('L', '\'') | ('L', '\u{201D}') => -140,
+        ('P', 'a') | ('P', 'e') | ('P', 'o') => -40,
+        ('P', '.') | ('P', ',') => -120,
+        ('R', 'V') | ('R', 'W') | ('R', 'Y') => -40,
+        ('T', 'a') | ('T', 'e') | ('T', 'o') | ('T', 'u') => -80,
+        ('T', 'r') | ('T', 'y') => -60,
+        ('T', 'i') | ('T', 's') => -40,
+        ('T', '.') | ('T', ',') | ('T', ':') | ('T', ';') => -80,
+        ('V', 'a') | ('V', 'e') | ('V', 'o') | ('V', 'u') => -60,
+        ('V', 'i') => -20,
+        ('V', '.') | ('V', ',') => -120,
+        ('W', 'a') | ('W', 'e') | ('W', 'o') | ('W', 'u') => -40,
+        ('W', '.') | ('W', ',') => -80,
+        ('Y', 'a') | ('Y', 'e') | ('Y', 'o') | ('Y', 'u') => -90,
+        ('Y', 'i') => -20,
+        ('Y', '.') | ('Y', ',') => -100,
+        ('f', 'f') | ('f', 'i') => -20,
+        ('r', '.') | ('r', ',') => -40,
+        ('v', '.') | ('v', ',') => -80,
+        ('w', '.') | ('w', ',') => -40,
+        ('y', '.') | ('y', ',') => -80,
+        _ => 0,
+    }
+}
+
+/// Times-Roman kern pairs from Adobe AFM data (most impactful pairs).
+fn times_kern(left: char, right: char) -> i16 {
+    match (left, right) {
+        ('A', 'V') | ('A', 'W') => -80,
+        ('A', 'T') | ('A', 'Y') => -55,
+        ('A', 'v') | ('A', 'w') | ('A', 'y') => -55,
+        ('F', 'a') | ('F', 'o') | ('F', 'e') => -25,
+        ('F', '.') | ('F', ',') => -100,
+        ('L', 'T') | ('L', 'V') | ('L', 'W') | ('L', 'Y') => -92,
+        ('L', 'y') => -30,
+        ('L', '\'') | ('L', '\u{201D}') => -140,
+        ('P', 'a') | ('P', 'e') | ('P', 'o') => -40,
+        ('P', '.') | ('P', ',') => -120,
+        ('R', 'V') | ('R', 'W') | ('R', 'Y') => -40,
+        ('T', 'a') | ('T', 'e') | ('T', 'o') | ('T', 'u') => -80,
+        ('T', 'r') | ('T', 'y') => -35,
+        ('T', 'i') | ('T', 's') => -35,
+        ('T', '.') | ('T', ',') | ('T', ':') | ('T', ';') => -74,
+        ('V', 'a') | ('V', 'e') | ('V', 'o') | ('V', 'u') => -65,
+        ('V', 'i') => -20,
+        ('V', '.') | ('V', ',') => -129,
+        ('W', 'a') | ('W', 'e') | ('W', 'o') | ('W', 'u') => -40,
+        ('W', '.') | ('W', ',') => -92,
+        ('Y', 'a') | ('Y', 'e') | ('Y', 'o') | ('Y', 'u') => -85,
+        ('Y', 'i') => -20,
+        ('Y', '.') | ('Y', ',') => -92,
+        ('f', 'f') | ('f', 'i') => -20,
+        ('r', '.') | ('r', ',') => -55,
+        ('v', '.') | ('v', ',') => -80,
+        ('w', '.') | ('w', ',') => -55,
+        ('y', '.') | ('y', ',') => -80,
+        _ => 0,
+    }
 }
 
 /// Return the standard PDF font name for a given base family, weight, and style.
@@ -820,40 +921,33 @@ mod tests {
     /// Helvetica/Arial, matching Chrome's measured value.  A smaller constant
     /// (e.g. 1.0) would produce tighter text than browsers render.
     #[test]
-    fn normal_line_height_factor_helvetica_is_1_2() {
+    fn normal_line_height_factor_helvetica() {
         let custom_fonts = HashMap::new();
         let factor = normal_line_height_factor(&FontFamily::Helvetica, false, false, &custom_fonts);
         assert!(
-            (factor - 1.2).abs() < 0.001,
-            "Helvetica normal line-height should be 1.2 (Chrome parity), got {factor}"
+            (factor - 1.15).abs() < 0.001,
+            "Helvetica normal line-height should be 1.15 (Chrome parity), got {factor}"
         );
     }
 
     #[test]
-    fn normal_line_height_factor_helvetica_bold_is_1_2() {
+    fn normal_line_height_factor_times() {
         let custom_fonts = HashMap::new();
-        let factor = normal_line_height_factor(&FontFamily::Helvetica, true, false, &custom_fonts);
+        let factor =
+            normal_line_height_factor(&FontFamily::TimesRoman, false, false, &custom_fonts);
+        assert!(
+            (factor - 1.25).abs() < 0.001,
+            "TimesRoman normal line-height should be 1.25 (Chrome parity), got {factor}"
+        );
+    }
+
+    #[test]
+    fn normal_line_height_factor_courier() {
+        let custom_fonts = HashMap::new();
+        let factor = normal_line_height_factor(&FontFamily::Courier, false, false, &custom_fonts);
         assert!(
             (factor - 1.2).abs() < 0.001,
-            "Helvetica-Bold normal line-height should be 1.2, got {factor}"
+            "Courier normal line-height should be 1.2 (Chrome parity), got {factor}"
         );
-    }
-
-    #[test]
-    fn normal_line_height_factor_standard_fonts_all_1_2() {
-        let custom_fonts = HashMap::new();
-        for family in &[
-            FontFamily::Helvetica,
-            FontFamily::TimesRoman,
-            FontFamily::Courier,
-        ] {
-            for bold in [false, true] {
-                let factor = normal_line_height_factor(family, bold, false, &custom_fonts);
-                assert!(
-                    (factor - 1.2).abs() < 0.001,
-                    "{family:?} bold={bold} normal line-height should be 1.2, got {factor}"
-                );
-            }
-        }
     }
 }
