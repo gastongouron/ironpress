@@ -166,7 +166,9 @@ pub(crate) fn wrap_text_runs(
     let mut lines: Vec<TextLine> = Vec::new();
     let mut current_runs: Vec<TextRun> = Vec::new();
     let mut current_width: f32 = 0.0;
-    let mut line_height = options.default_font_size * line_height_factor;
+    // Start with line height based on max font size in this line (typography alignment)
+    let base_font_size = runs.iter().map(|r| r.font_size).fold(options.default_font_size, f32::max);
+    let mut line_height = base_font_size * line_height_factor;
 
     // Apply BiDi reordering if the text contains RTL characters.
     // This reorders runs into visual order so RTL segments display correctly
@@ -238,7 +240,7 @@ pub(crate) fn wrap_text_runs(
                 height: line_height,
             });
             current_width = 0.0;
-            line_height = options.default_font_size * line_height_factor;
+            line_height = template.font_size * line_height_factor;
             continue;
         }
 
@@ -298,7 +300,7 @@ pub(crate) fn wrap_text_runs(
                     height: line_height,
                 });
                 current_width = 0.0;
-                line_height = options.default_font_size * line_height_factor;
+                line_height = template.font_size * line_height_factor;
                 queue.push_front((remainder, template, false));
                 continue;
             }
@@ -310,7 +312,7 @@ pub(crate) fn wrap_text_runs(
                 height: line_height,
             });
             current_width = 0.0;
-            line_height = options.default_font_size * line_height_factor;
+            line_height = template.font_size * line_height_factor;
         }
 
         // When transitioning between runs with different backgrounds,
