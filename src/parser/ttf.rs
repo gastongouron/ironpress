@@ -310,14 +310,18 @@ fn parse_os2_typographic_metrics(
 ) -> Option<FontVerticalMetrics> {
     let os2 = os2?;
     let os2_off = os2.offset as usize;
-    if data.len() < os2_off + 74 {
+    if data.len() < os2_off + 78 {
         return None;
     }
 
-    let ascent = read_i16(data, os2_off + 68);
-    let descent = read_i16(data, os2_off + 70);
-    let line_gap = read_i16(data, os2_off + 72);
-    Some(FontVerticalMetrics::new(ascent, descent, line_gap))
+    // Chromium uses usWinAscent/usWinDescent (not sTypo*) for
+    // line-height:normal unless USE_TYPO_METRICS bit is set in fsSelection.
+    // Match this behavior for visual parity.
+    let win_ascent = read_u16(data, os2_off + 74) as i16;
+    let win_descent = read_u16(data, os2_off + 76) as i16;
+    // Use line_gap=0 with usWin metrics (Chrome doesn't add sTypoLineGap
+    // when using usWin metrics).
+    Some(FontVerticalMetrics::new(win_ascent, -win_descent, 0))
 }
 
 /// Parse the cmap table. Prefers format 12 (full Unicode including astral
@@ -1148,18 +1152,23 @@ mod tests {
         let cmap = make_cmap_format4(65, 65, -64); // char 65 -> glyph 1
         let name = make_name_table_ascii(1, b"Test");
 
-        let mut os2 = vec![0u8; 74];
+        let mut os2 = vec![0u8; 78];
         // sTypoAscender at offset 68
         os2[68..70].copy_from_slice(&900i16.to_be_bytes());
         // sTypoDescender at offset 70
         os2[70..72].copy_from_slice(&(-300i16).to_be_bytes());
         // sTypoLineGap at offset 72
         os2[72..74].copy_from_slice(&50i16.to_be_bytes());
+        // usWinAscent at offset 74
+        os2[74..76].copy_from_slice(&950u16.to_be_bytes());
+        // usWinDescent at offset 76
+        os2[76..78].copy_from_slice(&350u16.to_be_bytes());
 
         let data = build_full_ttf(&head, &hhea, &maxp, &hmtx, &cmap, &name, Some(&os2));
         let font = parse_ttf(data).unwrap();
         assert_eq!(font.pdf_metrics, FontVerticalMetrics::new(800, -200, 0));
-        assert_eq!(font.layout_metrics, FontVerticalMetrics::new(900, -300, 50));
+        // layout_metrics uses usWinAscent/usWinDescent for Chrome parity
+        assert_eq!(font.layout_metrics, FontVerticalMetrics::new(950, -350, 0));
     }
 
     #[test]

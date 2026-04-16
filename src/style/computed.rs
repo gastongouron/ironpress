@@ -579,6 +579,7 @@ pub struct ComputedStyle {
     pub direction_rtl: bool,
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
+    pub text_decoration_overline: bool,
     pub line_height: f32,
     pub page_break_before: bool,
     pub page_break_after: bool,
@@ -676,6 +677,7 @@ impl Default for ComputedStyle {
             direction_rtl: false,
             text_decoration_underline: false,
             text_decoration_line_through: false,
+            text_decoration_overline: false,
             line_height: f32::NAN,
             page_break_before: false,
             page_break_after: false,
@@ -1524,6 +1526,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-decoration") {
         style.text_decoration_underline = k == "underline";
         style.text_decoration_line_through = k == "line-through";
+        style.text_decoration_overline = k == "overline";
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-height") {

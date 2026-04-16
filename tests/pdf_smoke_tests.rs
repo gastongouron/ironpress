@@ -14,17 +14,19 @@ fn pdf_has_text(pdf: &[u8], text: &str) -> bool {
     if content.contains(text) {
         return true;
     }
-    // CID path: decode ToUnicode CMap and search TJ arrays
-    let mut glyph_to_unicode: std::collections::HashMap<String, char> = Default::default();
-    let cmap: &str = content.as_ref();
+    // CID path: each font has its own ToUnicode CMap. Parse each separately
+    // to avoid glyph ID collisions between different fonts.
+    let cmap_str: &str = content.as_ref();
+    let mut cmaps: Vec<std::collections::HashMap<String, char>> = Vec::new();
     let mut pos = 0;
-    while let Some(start) = cmap[pos..].find("beginbfchar") {
+    while let Some(start) = cmap_str[pos..].find("beginbfchar") {
         let block_start = pos + start + 11;
-        let block_end = cmap[block_start..]
+        let block_end = cmap_str[block_start..]
             .find("endbfchar")
             .map(|e| block_start + e)
-            .unwrap_or(cmap.len());
-        for line in cmap[block_start..block_end].lines() {
+            .unwrap_or(cmap_str.len());
+        let mut map = std::collections::HashMap::new();
+        for line in cmap_str[block_start..block_end].lines() {
             let parts: Vec<&str> = line
                 .trim()
                 .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
@@ -33,34 +35,46 @@ fn pdf_has_text(pdf: &[u8], text: &str) -> bool {
             if parts.len() >= 2 {
                 if let Ok(cp) = u32::from_str_radix(parts[1], 16) {
                     if let Some(ch) = char::from_u32(cp) {
-                        glyph_to_unicode.insert(parts[0].to_uppercase(), ch);
+                        map.insert(parts[0].to_uppercase(), ch);
                     }
                 }
             }
         }
+        if !map.is_empty() {
+            cmaps.push(map);
+        }
         pos = block_end;
     }
-    if glyph_to_unicode.is_empty() {
+    if cmaps.is_empty() {
         return false;
     }
     let mut decoded = String::new();
     let mut search_pos = 0;
-    let cs: &str = content.as_ref();
-    while let Some(tj_end) = cs[search_pos..].find("] TJ") {
+    while let Some(tj_end) = cmap_str[search_pos..].find("] TJ") {
         let tj_end_abs = search_pos + tj_end;
-        if let Some(tj_start) = cs[..tj_end_abs].rfind('[') {
-            let arr = &cs[tj_start + 1..tj_end_abs];
-            let mut ap = 0;
-            while let Some(o) = arr[ap..].find('<') {
-                let oa = ap + o;
-                if let Some(c) = arr[oa..].find('>') {
-                    let h = arr[oa + 1..oa + c].trim().to_uppercase();
-                    if let Some(&ch) = glyph_to_unicode.get(&h) {
-                        decoded.push(ch);
+        if let Some(tj_start) = cmap_str[..tj_end_abs].rfind('[') {
+            let arr = &cmap_str[tj_start + 1..tj_end_abs];
+            let hexes: Vec<String> = {
+                let mut v = Vec::new();
+                let mut ap = 0;
+                while let Some(o) = arr[ap..].find('<') {
+                    let oa = ap + o;
+                    if let Some(c) = arr[oa..].find('>') {
+                        v.push(arr[oa + 1..oa + c].trim().to_uppercase());
+                        ap = oa + c + 1;
+                    } else {
+                        break;
                     }
-                    ap = oa + c + 1;
-                } else {
-                    break;
+                }
+                v
+            };
+            for cmap in &cmaps {
+                let d: String = hexes
+                    .iter()
+                    .filter_map(|h| cmap.get(h.as_str()).copied())
+                    .collect();
+                if !d.is_empty() {
+                    decoded.push_str(&d);
                 }
             }
         }

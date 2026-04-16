@@ -629,71 +629,80 @@ mod tests {
         if content.contains(text) {
             return true;
         }
-        // CID path: build glyph_hex → unicode char map from ToUnicode CMap,
-        // then decode TJ arrays and search for the text.
-        let mut glyph_to_unicode: std::collections::HashMap<String, char> = Default::default();
-        // Parse beginbfchar..endbfchar blocks
-        let cmap: &str = content.as_ref();
+        // CID path: each font has its own ToUnicode CMap. Parse all CMaps
+        // indexed by their PDF object number, then decode TJ arrays using
+        // the active font's CMap.
+        let cmap_str: &str = content.as_ref();
+
+        // Build per-font CMap: find "/ToUnicode N 0 R" references and
+        // associate each font's CMap entries. Since we can't easily track
+        // object IDs, we collect ALL bfchar entries into separate maps
+        // keyed by their position in the PDF (each beginbfchar block
+        // corresponds to a different font).
+        let mut cmaps: Vec<std::collections::HashMap<String, char>> = Vec::new();
         let mut pos = 0;
-        while let Some(start) = cmap[pos..].find("beginbfchar") {
+        while let Some(start) = cmap_str[pos..].find("beginbfchar") {
             let block_start = pos + start + 11;
-            let block_end = cmap[block_start..]
+            let block_end = cmap_str[block_start..]
                 .find("endbfchar")
                 .map(|e| block_start + e)
-                .unwrap_or(cmap.len());
-            for line in cmap[block_start..block_end].lines() {
-                let line = line.trim();
-                if line.is_empty() {
-                    continue;
-                }
-                // Format: <glyph_hex> <unicode_hex>
+                .unwrap_or(cmap_str.len());
+            let mut map = std::collections::HashMap::new();
+            for line in cmap_str[block_start..block_end].lines() {
                 let parts: Vec<&str> = line
+                    .trim()
                     .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
                     .filter(|s| !s.is_empty())
                     .collect();
                 if parts.len() >= 2 {
-                    let glyph_hex = parts[0].to_uppercase();
-                    let unicode_hex = parts[1];
-                    if let Ok(cp) = u32::from_str_radix(unicode_hex, 16) {
+                    if let Ok(cp) = u32::from_str_radix(parts[1], 16) {
                         if let Some(ch) = char::from_u32(cp) {
-                            glyph_to_unicode.insert(glyph_hex, ch);
+                            map.insert(parts[0].to_uppercase(), ch);
                         }
                     }
                 }
+            }
+            if !map.is_empty() {
+                cmaps.push(map);
             }
             pos = block_end;
         }
-        if glyph_to_unicode.is_empty() {
+        if cmaps.is_empty() {
             return false;
         }
-        // Extract all text from TJ arrays: [...] TJ
-        // Each TJ array contains hex strings like <XXXX> and numeric kerning values.
-        // We extract the hex glyph IDs, map them to unicode, and concatenate.
+
+        // Decode TJ arrays, trying each CMap until one decodes all glyphs
         let mut all_decoded_text = String::new();
-        let content_str: &str = content.as_ref();
         let mut search_pos = 0;
-        while let Some(tj_end) = content_str[search_pos..].find("] TJ") {
+        while let Some(tj_end) = cmap_str[search_pos..].find("] TJ") {
             let tj_end_abs = search_pos + tj_end;
-            // Find the matching '[' before this '] TJ'
-            if let Some(tj_start) = content_str[..tj_end_abs].rfind('[') {
-                let array_content = &content_str[tj_start + 1..tj_end_abs];
-                // Extract all <hex> entries from the array
-                let mut apos = 0;
-                while let Some(open) = array_content[apos..].find('<') {
-                    let open_abs = apos + open;
-                    if let Some(close) = array_content[open_abs..].find('>') {
-                        let hex_str = &array_content[open_abs + 1..open_abs + close];
-                        let hex_upper = hex_str.trim().to_uppercase();
-                        if let Some(&ch) = glyph_to_unicode.get(&hex_upper) {
-                            all_decoded_text.push(ch);
+            if let Some(tj_start) = cmap_str[..tj_end_abs].rfind('[') {
+                let array_content = &cmap_str[tj_start + 1..tj_end_abs];
+                let hexes: Vec<String> = {
+                    let mut v = Vec::new();
+                    let mut ap = 0;
+                    while let Some(o) = array_content[ap..].find('<') {
+                        let oa = ap + o;
+                        if let Some(c) = array_content[oa..].find('>') {
+                            v.push(array_content[oa + 1..oa + c].trim().to_uppercase());
+                            ap = oa + c + 1;
+                        } else {
+                            break;
                         }
-                        apos = open_abs + close + 1;
-                    } else {
-                        break;
+                    }
+                    v
+                };
+                // Try each CMap to decode this TJ array
+                for cmap in &cmaps {
+                    let decoded: String = hexes
+                        .iter()
+                        .filter_map(|h| cmap.get(h.as_str()).copied())
+                        .collect();
+                    if !decoded.is_empty() {
+                        all_decoded_text.push_str(&decoded);
                     }
                 }
             }
-            // Add a space between TJ arrays to handle word boundaries
             all_decoded_text.push(' ');
             search_pos = tj_end_abs + 4;
         }

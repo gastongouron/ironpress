@@ -132,6 +132,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             link_url: None,
             font_family: FontFamily::Helvetica,

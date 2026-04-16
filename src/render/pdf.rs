@@ -807,6 +807,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 ));
                             }
 
+                            // Draw overline
+                            if run.overline {
+                                let oy = text_y + run.font_size;
+                                let thickness = (run.font_size * 0.07).max(0.5);
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{thickness} w\n{bg_x} {oy} m {x2} {oy} l\nS\n",
+                                    x2 = bg_x + run_width,
+                                ));
+                            }
+
                             // Track link annotation
                             if let Some(annotation) =
                                 text_run_link_annotation(run, bg_x, run_width, line_annotation_box)
@@ -1755,6 +1765,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
+                                        x2 = x + rw,
+                                    ));
+                                }
+
+                                // Draw overline
+                                if run.overline {
+                                    let oy = text_y + run.font_size;
+                                    let thickness = (run.font_size * 0.07).max(0.5);
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{thickness} w\n{x} {oy} m {x2} {oy} l\nS\n",
                                         x2 = x + rw,
                                     ));
                                 }
@@ -5643,6 +5663,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -7246,6 +7267,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -7260,6 +7282,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -7342,6 +7365,7 @@ mod tests {
             italic: true,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -7358,6 +7382,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -7374,6 +7399,7 @@ mod tests {
             italic: true,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -8776,6 +8802,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -8830,6 +8857,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -8844,6 +8872,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -9758,6 +9787,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -9862,6 +9892,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -9944,6 +9975,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -10053,6 +10085,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -10140,6 +10173,7 @@ mod tests {
             italic: false,
             underline: true,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -10154,6 +10188,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: true,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -10223,6 +10258,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (1.0, 1.0, 1.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -10285,6 +10321,7 @@ mod tests {
             italic: false,
             underline: false,
             line_through: false,
+            overline: false,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
