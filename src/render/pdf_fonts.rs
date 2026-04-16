@@ -49,28 +49,30 @@ pub(crate) fn prepare_custom_fonts(
     // runs in the layout for non-WinAnsi characters and register only
     // the glyphs actually needed (subsetting for size efficiency).
     let non_winansi_chars = collect_non_winansi_chars(pages, custom_fonts);
-    for fallback_key in [
-        crate::system_fonts::UNICODE_FALLBACK_KEY,
-        crate::system_fonts::EMOJI_FALLBACK_KEY,
-        crate::system_fonts::ARABIC_FALLBACK_KEY,
-        crate::system_fonts::MULTILINGUAL_FALLBACK_KEY,
-    ] {
-        if let Some(fallback_font) = custom_fonts.get(fallback_key) {
-            if !usage.contains_key(fallback_key) {
-                let mut fu = FontUsage::default();
-                // Register ALL glyphs from the fallback font — subsetting
-                // fallback fonts causes glyph ID mismatches with rustybuzz
-                // shaping output. The full font is embedded but only the
-                // actually-used glyphs appear in the PDF content stream.
-                for (&ch, &gid) in &fallback_font.cmap {
-                    // Encode as UTF-16 for the ToUnicode CMap
-                    let unicode: Vec<u16> = char::from_u32(ch)
-                        .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
-                        .unwrap_or_else(|| vec![ch as u16]);
-                    fu.record_glyph(gid, unicode);
-                }
-                if !fu.glyphs.is_empty() {
-                    usage.insert(fallback_key.to_string(), fu);
+    // Only prepare fallback fonts if the document actually has characters
+    // that need them. This avoids embedding large system fonts (e.g. 11MB
+    // ArialUnicodeMS) for documents that only use Latin text.
+    if !non_winansi_chars.is_empty() {
+        for fallback_key in [
+            crate::system_fonts::UNICODE_FALLBACK_KEY,
+            crate::system_fonts::EMOJI_FALLBACK_KEY,
+            crate::system_fonts::ARABIC_FALLBACK_KEY,
+            crate::system_fonts::MULTILINGUAL_FALLBACK_KEY,
+        ] {
+            if let Some(fallback_font) = custom_fonts.get(fallback_key) {
+                if !usage.contains_key(fallback_key) {
+                    let mut fu = FontUsage::default();
+                    // Register ALL glyphs — subsetting causes glyph ID
+                    // mismatches with rustybuzz shaping output.
+                    for (&ch, &gid) in &fallback_font.cmap {
+                        let unicode: Vec<u16> = char::from_u32(ch)
+                            .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
+                            .unwrap_or_else(|| vec![ch as u16]);
+                        fu.record_glyph(gid, unicode);
+                    }
+                    if !fu.glyphs.is_empty() {
+                        usage.insert(fallback_key.to_string(), fu);
+                    }
                 }
             }
         }
