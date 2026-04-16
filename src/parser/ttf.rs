@@ -68,8 +68,9 @@ pub struct TtfFont {
     pub num_h_metrics: u16,
     /// Font flags for the PDF FontDescriptor.
     pub flags: u32,
-    /// Raw TTF data for embedding.
-    pub data: Vec<u8>,
+    /// Raw TTF data for embedding. Wrapped in Arc so cloning a TtfFont
+    /// (e.g. from the bundled font cache) is O(1) instead of copying ~400KB.
+    pub data: std::sync::Arc<Vec<u8>>,
 }
 
 impl TtfFont {
@@ -299,7 +300,7 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         glyph_widths,
         num_h_metrics,
         flags,
-        data,
+        data: std::sync::Arc::new(data),
     })
 }
 

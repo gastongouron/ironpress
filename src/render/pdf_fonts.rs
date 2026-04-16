@@ -295,7 +295,7 @@ fn subset_font(
 fn fallback_font(ttf: &TtfFont) -> PreparedCustomFont {
     PreparedCustomFont {
         base_font_name: sanitize_pdf_font_name(&ttf.font_name),
-        font_data: ttf.data.clone(),
+        font_data: (*ttf.data).clone(),
         widths: (0..ttf.glyph_widths.len())
             .map(|glyph_id| ttf.glyph_width_pdf_value(glyph_id as u16))
             .collect(),

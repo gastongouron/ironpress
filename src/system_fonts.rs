@@ -381,26 +381,33 @@ pub(crate) const MULTILINGUAL_FALLBACK_KEY: &str = "__multilingual_fallback";
 /// Liberation fonts are metrically identical to Times New Roman, Arial, and
 /// Courier New, ensuring ironpress output matches Chromium rendering exactly.
 /// Also loads Noto Sans as a multilingual fallback for Arabic, Hebrew, etc.
-pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+/// Cached parsed bundled fonts — parsed once on first use, then cloned
+/// into each conversion's font map. This avoids re-parsing ~5MB of TTF
+/// data on every `html_to_pdf()` call.
+static BUNDLED_FONTS_CACHE: std::sync::OnceLock<Vec<(String, TtfFont)>> =
+    std::sync::OnceLock::new();
+
+fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
+    let mut result = Vec::new();
     for bundled in LIBERATION_FONTS {
-        if !fonts.contains_key(bundled.key) {
-            if let Ok(font) = crate::parser::ttf::parse_ttf(bundled.data.to_vec()) {
-                fonts.insert(bundled.key.to_string(), font);
-            }
+        if let Ok(font) = crate::parser::ttf::parse_ttf(bundled.data.to_vec()) {
+            result.push((bundled.key.to_string(), font));
         }
     }
-    // Load bundled Noto Sans for scripts not covered by system fonts
-    // (Hebrew, Greek, Cyrillic, etc.). Uses its own key so it doesn't
-    // block the system CJK font from being loaded as UNICODE_FALLBACK.
-    if !fonts.contains_key(MULTILINGUAL_FALLBACK_KEY) {
-        if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_SANS_DATA.to_vec()) {
-            fonts.insert(MULTILINGUAL_FALLBACK_KEY.to_string(), font);
-        }
+    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_SANS_DATA.to_vec()) {
+        result.push((MULTILINGUAL_FALLBACK_KEY.to_string(), font));
     }
-    // Load bundled Noto Sans Arabic for Arabic script.
-    if !fonts.contains_key(ARABIC_FALLBACK_KEY) {
-        if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_ARABIC_DATA.to_vec()) {
-            fonts.insert(ARABIC_FALLBACK_KEY.to_string(), font);
+    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_ARABIC_DATA.to_vec()) {
+        result.push((ARABIC_FALLBACK_KEY.to_string(), font));
+    }
+    result
+}
+
+pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+    let cached = BUNDLED_FONTS_CACHE.get_or_init(parse_all_bundled_fonts);
+    for (key, font) in cached {
+        if !fonts.contains_key(key) {
+            fonts.insert(key.clone(), font.clone());
         }
     }
 }
