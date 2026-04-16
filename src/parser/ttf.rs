@@ -59,16 +59,18 @@ pub struct TtfFont {
     /// Vertical metrics used for CSS layout, sourced from `OS/2 sTypo*`
     /// when available and falling back to `hhea`.
     pub layout_metrics: FontVerticalMetrics,
-    /// Character code to glyph ID mapping from the `cmap` table.
-    pub cmap: HashMap<u16, u16>,
+    /// Character code (Unicode codepoint) to glyph ID mapping from the `cmap` table.
+    /// Uses u32 keys to support astral plane characters (emoji, CJK extensions).
+    pub cmap: HashMap<u32, u16>,
     /// Advance width for each glyph ID from the `hmtx` table.
     pub glyph_widths: Vec<u16>,
     /// Number of horizontal metrics entries (from `hhea`).
     pub num_h_metrics: u16,
     /// Font flags for the PDF FontDescriptor.
     pub flags: u32,
-    /// Raw TTF data for embedding.
-    pub data: Vec<u8>,
+    /// Raw TTF data for embedding. Wrapped in Arc so cloning a TtfFont
+    /// (e.g. from the bundled font cache) is O(1) instead of copying ~400KB.
+    pub data: std::sync::Arc<Vec<u8>>,
 }
 
 impl TtfFont {
@@ -92,7 +94,7 @@ impl TtfFont {
     /// Get the advance width for a character code, in font units.
     #[cfg(test)]
     pub fn char_width(&self, ch: u16) -> u16 {
-        let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
+        let glyph_id = self.cmap.get(&(ch as u32)).copied().unwrap_or(0);
         self.glyph_width(glyph_id)
     }
 
@@ -137,7 +139,7 @@ impl TtfFont {
     /// Get the advance width scaled to a given font size in points.
     #[cfg(test)]
     pub fn char_width_scaled(&self, ch: u16, font_size: f32) -> f32 {
-        let glyph_id = self.cmap.get(&ch).copied().unwrap_or(0);
+        let glyph_id = self.cmap.get(&(ch as u32)).copied().unwrap_or(0);
         self.glyph_width_scaled(glyph_id, font_size)
     }
 }
@@ -298,7 +300,7 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         glyph_widths,
         num_h_metrics,
         flags,
-        data,
+        data: std::sync::Arc::new(data),
     })
 }
 
@@ -318,16 +320,17 @@ fn parse_os2_typographic_metrics(
     Some(FontVerticalMetrics::new(ascent, descent, line_gap))
 }
 
-/// Parse the cmap table, looking for a format 4 (BMP Unicode) subtable.
-fn parse_cmap(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, String> {
+/// Parse the cmap table. Prefers format 12 (full Unicode including astral
+/// plane) over format 4 (BMP only) for emoji and extended CJK support.
+fn parse_cmap(data: &[u8], offset: usize) -> Result<HashMap<u32, u16>, String> {
     if data.len() < offset + 4 {
         return Err("cmap table too short".to_string());
     }
     let num_subtables = read_u16(data, offset + 2);
 
-    // Find a platform 3 (Windows) encoding 1 (Unicode BMP) or
-    // platform 0 (Unicode) subtable
-    let mut subtable_offset = None;
+    // Scan all subtables — prefer format 12 (full Unicode) over format 4 (BMP).
+    let mut bmp_offset = None;
+    let mut full_offset = None;
     for i in 0..num_subtables as usize {
         let record_off = offset + 4 + i * 8;
         if data.len() < record_off + 8 {
@@ -336,17 +339,29 @@ fn parse_cmap(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, String> {
         let platform_id = read_u16(data, record_off);
         let encoding_id = read_u16(data, record_off + 2);
         let sub_offset = read_u32(data, record_off + 4) as usize;
+        let abs_off = offset + sub_offset;
 
-        if (platform_id == 3 && encoding_id == 1) || (platform_id == 0) {
-            subtable_offset = Some(offset + sub_offset);
-            // Prefer Windows platform
-            if platform_id == 3 {
-                break;
+        // Platform 3 encoding 10 = Windows full Unicode (format 12)
+        if platform_id == 3 && encoding_id == 10 {
+            full_offset = Some(abs_off);
+        }
+        // Platform 3 encoding 1 = Windows BMP, or Platform 0 = Unicode
+        if ((platform_id == 3 && encoding_id == 1) || platform_id == 0) && bmp_offset.is_none() {
+            bmp_offset = Some(abs_off);
+        }
+    }
+
+    // Try format 12 first (full Unicode), fall back to format 4 (BMP)
+    if let Some(off) = full_offset {
+        if data.len() > off + 2 {
+            let format = read_u16(data, off);
+            if format == 12 {
+                return parse_cmap_format12(data, off);
             }
         }
     }
 
-    let sub_off = subtable_offset.ok_or("No suitable cmap subtable found")?;
+    let sub_off = bmp_offset.ok_or("No suitable cmap subtable found")?;
     if data.len() < sub_off + 2 {
         return Err("cmap subtable too short".to_string());
     }
@@ -355,20 +370,17 @@ fn parse_cmap(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, String> {
     match format {
         4 => parse_cmap_format4(data, sub_off),
         0 => parse_cmap_format0(data, sub_off),
-        _ => {
-            // Return an empty map for unsupported formats rather than failing
-            Ok(HashMap::new())
-        }
+        _ => Ok(HashMap::new()),
     }
 }
 
 /// Parse cmap format 0 (byte encoding table).
-fn parse_cmap_format0(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, String> {
+fn parse_cmap_format0(data: &[u8], offset: usize) -> Result<HashMap<u32, u16>, String> {
     if data.len() < offset + 262 {
         return Err("cmap format 0 table too short".to_string());
     }
     let mut map = HashMap::new();
-    for i in 0..256u16 {
+    for i in 0..256u32 {
         let glyph_id = data[offset + 6 + i as usize] as u16;
         if glyph_id != 0 {
             map.insert(i, glyph_id);
@@ -377,8 +389,34 @@ fn parse_cmap_format0(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, S
     Ok(map)
 }
 
+/// Parse cmap format 12 (segmented coverage for full Unicode).
+fn parse_cmap_format12(data: &[u8], offset: usize) -> Result<HashMap<u32, u16>, String> {
+    // Format 12 header: format(2) + reserved(2) + length(4) + language(4) + nGroups(4)
+    if data.len() < offset + 16 {
+        return Err("cmap format 12 table too short".to_string());
+    }
+    let n_groups = read_u32(data, offset + 12) as usize;
+    let mut map = HashMap::new();
+    for i in 0..n_groups {
+        let group_off = offset + 16 + i * 12;
+        if data.len() < group_off + 12 {
+            break;
+        }
+        let start_char = read_u32(data, group_off);
+        let end_char = read_u32(data, group_off + 4);
+        let start_glyph = read_u32(data, group_off + 8);
+        for ch in start_char..=end_char {
+            let glyph_id = (start_glyph + (ch - start_char)) as u16;
+            if glyph_id != 0 {
+                map.insert(ch, glyph_id);
+            }
+        }
+    }
+    Ok(map)
+}
+
 /// Parse cmap format 4 (segment mapping to delta values).
-fn parse_cmap_format4(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, String> {
+fn parse_cmap_format4(data: &[u8], offset: usize) -> Result<HashMap<u32, u16>, String> {
     if data.len() < offset + 14 {
         return Err("cmap format 4 header too short".to_string());
     }
@@ -430,7 +468,7 @@ fn parse_cmap_format4(data: &[u8], offset: usize) -> Result<HashMap<u16, u16>, S
                 }
             };
             if glyph_id != 0 {
-                map.insert(c, glyph_id);
+                map.insert(c as u32, glyph_id);
             }
         }
     }
@@ -744,11 +782,11 @@ mod tests {
         let data = build_test_ttf();
         let font = parse_ttf(data).unwrap();
         // char 32 (space) -> glyph 1
-        assert_eq!(font.cmap.get(&32), Some(&1));
+        assert_eq!(font.cmap.get(&32u32), Some(&1));
         // char 65 (A) -> glyph 2
-        assert_eq!(font.cmap.get(&65), Some(&2));
+        assert_eq!(font.cmap.get(&65u32), Some(&2));
         // unmapped char should not exist
-        assert_eq!(font.cmap.get(&90), None);
+        assert_eq!(font.cmap.get(&90u32), None);
     }
 
     #[test]
@@ -832,7 +870,7 @@ mod tests {
             glyph_widths: vec![500, 700],
             num_h_metrics: 2,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 700); // last width
     }
@@ -846,11 +884,11 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: HashMap::new(),
+            cmap: HashMap::<u32, u16>::new(),
             glyph_widths: vec![],
             num_h_metrics: 0,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 0);
     }
@@ -1344,9 +1382,9 @@ mod tests {
         let data = build_full_ttf(&head, &hhea, &maxp, &hmtx, &cmap_data, &name, None);
         let font = parse_ttf(data).unwrap();
         // char 65 -> glyph 10, char 66 -> glyph 20, char 67 -> glyph 0 (not inserted)
-        assert_eq!(font.cmap.get(&65), Some(&10));
-        assert_eq!(font.cmap.get(&66), Some(&20));
-        assert_eq!(font.cmap.get(&67), None); // glyph_id 0 not inserted
+        assert_eq!(font.cmap.get(&65u32), Some(&10));
+        assert_eq!(font.cmap.get(&66u32), Some(&20));
+        assert_eq!(font.cmap.get(&67u32), None); // glyph_id 0 not inserted
     }
 
     #[test]
@@ -1567,7 +1605,7 @@ mod tests {
             glyph_widths: vec![u16::MAX], // 65535 — would overflow u32 with * 1000
             num_h_metrics: 1,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         // Should not panic; 65535 * 1000 / 1000 = 65535
         let w = font.char_width_pdf(65);
@@ -1590,7 +1628,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width_scaled(65, 12.0), 0.0);
         assert_eq!(font.char_width_pdf(65), 0);

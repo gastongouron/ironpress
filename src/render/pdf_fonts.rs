@@ -42,7 +42,43 @@ pub(crate) fn prepare_custom_fonts(
     pages: &[Page],
     custom_fonts: &HashMap<String, TtfFont>,
 ) -> PreparedCustomFonts {
-    collect_font_usage(pages, custom_fonts)
+    let mut usage = collect_font_usage(pages, custom_fonts);
+
+    // Ensure the unicode fallback and emoji fallback fonts are prepared
+    // for characters that the primary fonts can't render. Scan all text
+    // runs in the layout for non-WinAnsi characters and register only
+    // the glyphs actually needed (subsetting for size efficiency).
+    let non_winansi_chars = collect_non_winansi_chars(pages, custom_fonts);
+    // Only prepare fallback fonts if the document actually has characters
+    // that need them. This avoids embedding large system fonts (e.g. 11MB
+    // ArialUnicodeMS) for documents that only use Latin text.
+    if !non_winansi_chars.is_empty() {
+        for fallback_key in [
+            crate::system_fonts::UNICODE_FALLBACK_KEY,
+            crate::system_fonts::EMOJI_FALLBACK_KEY,
+            crate::system_fonts::ARABIC_FALLBACK_KEY,
+            crate::system_fonts::MULTILINGUAL_FALLBACK_KEY,
+        ] {
+            if let Some(fallback_font) = custom_fonts.get(fallback_key) {
+                if !usage.contains_key(fallback_key) {
+                    let mut fu = FontUsage::default();
+                    // Register ALL glyphs — subsetting causes glyph ID
+                    // mismatches with rustybuzz shaping output.
+                    for (&ch, &gid) in &fallback_font.cmap {
+                        let unicode: Vec<u16> = char::from_u32(ch)
+                            .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
+                            .unwrap_or_else(|| vec![ch as u16]);
+                        fu.record_glyph(gid, unicode);
+                    }
+                    if !fu.glyphs.is_empty() {
+                        usage.insert(fallback_key.to_string(), fu);
+                    }
+                }
+            }
+        }
+    }
+
+    usage
         .into_iter()
         .filter_map(|(resolved_name, usage)| {
             custom_fonts
@@ -50,6 +86,70 @@ pub(crate) fn prepare_custom_fonts(
                 .map(|ttf| (resolved_name, prepare_font(ttf, &usage)))
         })
         .collect()
+}
+
+/// Collect all non-WinAnsi characters from text runs in layout pages.
+/// These characters will need the unicode/emoji fallback font.
+fn collect_non_winansi_chars(
+    pages: &[Page],
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> BTreeSet<char> {
+    let mut chars = BTreeSet::new();
+    for page in pages {
+        for (_, element) in &page.elements {
+            collect_non_winansi_from_element(element, custom_fonts, &mut chars);
+        }
+    }
+    chars
+}
+
+fn collect_non_winansi_from_element(
+    element: &LayoutElement,
+    custom_fonts: &HashMap<String, TtfFont>,
+    chars: &mut BTreeSet<char>,
+) {
+    match element {
+        LayoutElement::TextBlock { lines, .. } => {
+            for line in lines {
+                for run in &line.runs {
+                    for ch in run.text.chars() {
+                        if !crate::render::pdf::is_winansi_char(ch) {
+                            chars.insert(ch);
+                        } else if let FontFamily::Custom(name) = &run.font_family {
+                            // Check if the primary custom font covers this char
+                            if let Some((_, font)) =
+                                crate::system_fonts::find_font(custom_fonts, name, false, false)
+                            {
+                                let cp = ch as u32;
+                                if !font.cmap.contains_key(&cp) {
+                                    chars.insert(ch);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        LayoutElement::FlexRow { cells, .. } => {
+            for cell in cells {
+                for line in &cell.lines {
+                    for run in &line.runs {
+                        for ch in run.text.chars() {
+                            if !crate::render::pdf::is_winansi_char(ch) {
+                                chars.insert(ch);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        LayoutElement::Container { children, .. } => {
+            for child in children {
+                collect_non_winansi_from_element(child, custom_fonts, chars);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_font_usage(
@@ -146,9 +246,10 @@ fn collect_font_usage_from_run(
         return;
     }
 
-    for codepoint in run.text.encode_utf16() {
-        if let Some(glyph_id) = ttf.cmap.get(&codepoint).copied() {
-            font_usage.record_glyph(glyph_id, vec![codepoint]);
+    for ch in run.text.chars() {
+        if let Some(glyph_id) = ttf.cmap.get(&(ch as u32)).copied() {
+            let unicode: Vec<u16> = ch.encode_utf16(&mut [0; 2]).to_vec();
+            font_usage.record_glyph(glyph_id, unicode);
         }
     }
 }
@@ -194,7 +295,7 @@ fn subset_font(
 fn fallback_font(ttf: &TtfFont) -> PreparedCustomFont {
     PreparedCustomFont {
         base_font_name: sanitize_pdf_font_name(&ttf.font_name),
-        font_data: ttf.data.clone(),
+        font_data: (*ttf.data).clone(),
         widths: (0..ttf.glyph_widths.len())
             .map(|glyph_id| ttf.glyph_width_pdf_value(glyph_id as u16))
             .collect(),
@@ -222,7 +323,10 @@ fn to_unicode_map_for_full_font(ttf: &TtfFont) -> ToUnicodeMap {
     let mut mappings = BTreeMap::new();
     for (&char_code, &glyph_id) in &ttf.cmap {
         if glyph_id != 0 {
-            mappings.entry(glyph_id).or_insert_with(|| vec![char_code]);
+            let unicode: Vec<u16> = char::from_u32(char_code)
+                .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
+                .unwrap_or_else(|| vec![char_code as u16]);
+            mappings.entry(glyph_id).or_insert(unicode);
         }
     }
     mappings.into_iter().collect()
@@ -285,11 +389,11 @@ mod tests {
             glyph_widths: vec![0, 500, 600],
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(), // empty ⟹ subsetting always fails → fallback_font path
+            data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
         }
     }
 
-    fn make_ttf_with_cmap(cmap: HashMap<u16, u16>, widths: Vec<u16>) -> TtfFont {
+    fn make_ttf_with_cmap(cmap: HashMap<u32, u16>, widths: Vec<u16>) -> TtfFont {
         TtfFont {
             font_name: "TestFont".into(),
             units_per_em: 1000,
@@ -300,7 +404,7 @@ mod tests {
             glyph_widths: widths,
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(),
+            data: std::sync::Arc::new(Vec::new()),
         }
     }
 
@@ -580,8 +684,8 @@ mod tests {
     #[test]
     fn to_unicode_map_for_full_font_maps_cmap_entries() {
         let mut cmap = HashMap::new();
-        cmap.insert(0x0041u16, 1u16); // 'A' → glyph 1
-        cmap.insert(0x0042u16, 2u16); // 'B' → glyph 2
+        cmap.insert(0x0041u32, 1u16); // 'A' → glyph 1
+        cmap.insert(0x0042u32, 2u16); // 'B' → glyph 2
         let ttf = make_ttf_with_cmap(cmap, vec![0, 500, 500]);
         let map = to_unicode_map_for_full_font(&ttf);
         // The map is collected from a BTreeMap, so entries are sorted by glyph_id.
@@ -597,8 +701,8 @@ mod tests {
     fn to_unicode_map_for_full_font_skips_glyph_zero() {
         // cmap entries that map to glyph ID 0 (.notdef) must not appear in the map.
         let mut cmap = HashMap::new();
-        cmap.insert(0x0020u16, 0u16); // space → .notdef (should be skipped)
-        cmap.insert(0x0041u16, 1u16); // 'A' → glyph 1
+        cmap.insert(0x0020u32, 0u16); // space → .notdef (should be skipped)
+        cmap.insert(0x0041u32, 1u16); // 'A' → glyph 1
         let ttf = make_ttf_with_cmap(cmap, vec![0, 500]);
         let map = to_unicode_map_for_full_font(&ttf);
         assert!(
@@ -619,8 +723,8 @@ mod tests {
     fn to_unicode_map_for_full_font_first_codepoint_wins_for_same_glyph() {
         // Two codepoints map to the same glyph — only the first insertion should survive.
         let mut cmap = HashMap::new();
-        cmap.insert(0x0041u16, 5u16);
-        cmap.insert(0x0061u16, 5u16); // same glyph
+        cmap.insert(0x0041u32, 5u16);
+        cmap.insert(0x0061u32, 5u16); // same glyph
         let ttf = make_ttf_with_cmap(cmap, vec![0, 0, 0, 0, 0, 500]);
         let map = to_unicode_map_for_full_font(&ttf);
         let entry = map.iter().find(|(gid, _)| *gid == 5);
@@ -693,7 +797,7 @@ mod tests {
     fn fallback_font_uses_full_font_data() {
         let ttf = make_stub_ttf();
         let prepared = fallback_font(&ttf);
-        assert_eq!(prepared.font_data, ttf.data);
+        assert_eq!(prepared.font_data, *ttf.data);
     }
 
     #[test]
@@ -725,7 +829,7 @@ mod tests {
     fn prepare_font_falls_back_when_data_empty() {
         // Empty font data causes subsetter::subset to fail, so prepare_font
         // must call fallback_font instead of subset_font.
-        let ttf = make_stub_ttf(); // data: Vec::new()
+        let ttf = make_stub_ttf(); // data: std::sync::Arc::new(Vec::new())
         let mut usage = FontUsage::default();
         usage.record_glyph(1, vec![0x0041]);
         let prepared = prepare_font(&ttf, &usage);

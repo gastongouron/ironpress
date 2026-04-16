@@ -364,15 +364,50 @@ static LIBERATION_FONTS: &[BundledFont] = &[
     },
 ];
 
+/// Bundled Noto Sans for multilingual fallback (Hebrew, Greek, Cyrillic, etc.)
+static NOTO_SANS_DATA: &[u8] = include_bytes!("../assets/NotoSans-Regular.ttf");
+
+/// Bundled Noto Sans Arabic for Arabic script fallback.
+static NOTO_ARABIC_DATA: &[u8] = include_bytes!("../assets/NotoSansArabic-Regular.ttf");
+
+/// Key for the Arabic fallback font.
+pub(crate) const ARABIC_FALLBACK_KEY: &str = "__arabic_fallback";
+
+/// Key for the multilingual (Noto Sans) fallback font — covers Hebrew,
+/// Greek, Cyrillic, and other non-CJK/non-Arabic scripts.
+pub(crate) const MULTILINGUAL_FALLBACK_KEY: &str = "__multilingual_fallback";
+
 /// Load bundled Liberation fonts as the default serif/sans-serif/monospace.
 /// Liberation fonts are metrically identical to Times New Roman, Arial, and
 /// Courier New, ensuring ironpress output matches Chromium rendering exactly.
-pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+/// Also loads Noto Sans as a multilingual fallback for Arabic, Hebrew, etc.
+/// Cached parsed bundled fonts — parsed once on first use, then cloned
+/// into each conversion's font map. This avoids re-parsing ~5MB of TTF
+/// data on every `html_to_pdf()` call.
+static BUNDLED_FONTS_CACHE: std::sync::OnceLock<Vec<(String, TtfFont)>> =
+    std::sync::OnceLock::new();
+
+fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
+    let mut result = Vec::new();
     for bundled in LIBERATION_FONTS {
-        if !fonts.contains_key(bundled.key) {
-            if let Ok(font) = crate::parser::ttf::parse_ttf(bundled.data.to_vec()) {
-                fonts.insert(bundled.key.to_string(), font);
-            }
+        if let Ok(font) = crate::parser::ttf::parse_ttf(bundled.data.to_vec()) {
+            result.push((bundled.key.to_string(), font));
+        }
+    }
+    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_SANS_DATA.to_vec()) {
+        result.push((MULTILINGUAL_FALLBACK_KEY.to_string(), font));
+    }
+    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_ARABIC_DATA.to_vec()) {
+        result.push((ARABIC_FALLBACK_KEY.to_string(), font));
+    }
+    result
+}
+
+pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+    let cached = BUNDLED_FONTS_CACHE.get_or_init(parse_all_bundled_fonts);
+    for (key, font) in cached {
+        if !fonts.contains_key(key) {
+            fonts.insert(key.clone(), font.clone());
         }
     }
 }
@@ -571,7 +606,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 0,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         }
     }
 

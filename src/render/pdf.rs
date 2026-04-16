@@ -269,7 +269,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let render_w = block_width.unwrap_or(available_width);
                                 margin.left + available_width - render_w
                             }
-                            _ => margin.left,
+                            _ => margin.left + offset_left,
                         },
                     };
                     // PDF y-axis is bottom-up.
@@ -3777,30 +3777,56 @@ fn render_run_text(
 ) -> f32 {
     let (r, g, b) = run.color;
 
-    // Try Unicode fallback for standard-font runs with non-WinAnsi characters
-    if let Some((fallback_shaped, fallback_key, fallback_font)) =
-        crate::text::shape_with_unicode_fallback(run, custom_fonts)
-    {
-        let run_width = fallback_shaped.width;
-        let font_name = sanitize_pdf_name(fallback_key);
-        content.push_str(&format!("{r} {g} {b} rg\n"));
-        content.push_str("BT\n");
-        content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
-        let prepared_font = prepared_custom_fonts.get(fallback_key);
-        let render = ShapedTextRender::new(
-            PdfPoint::new(x, text_y),
-            run.font_size,
-            fallback_font,
-            &fallback_shaped,
-            prepared_font,
-        );
-        if render.has_complex_offsets() {
-            append_positioned_shaped_text(content, render);
-        } else {
-            append_tj_shaped_text(content, render);
+    // For runs with mixed scripts (e.g. "Chinese: 你好世界"), split into
+    // segments and render each with the appropriate font: primary font for
+    // characters it covers, fallback font for the rest.
+    if crate::text::needs_unicode_fallback(run, custom_fonts) {
+        let segments = crate::text::split_run_by_font_coverage(run, custom_fonts);
+        let mut total_width = 0.0f32;
+        let mut cur_x = x;
+        for (segment_text, use_fallback) in &segments {
+            let mut sub_run = run.clone();
+            sub_run.text = segment_text.clone();
+            if *use_fallback {
+                if let Some((fallback_shaped, fallback_key, fallback_font)) =
+                    crate::text::shape_with_unicode_fallback(&sub_run, custom_fonts)
+                {
+                    let w = fallback_shaped.width;
+                    let font_name = sanitize_pdf_name(fallback_key);
+                    content.push_str(&format!("{r} {g} {b} rg\n"));
+                    content.push_str("BT\n");
+                    content.push_str(&format!("/{font_name} {} Tf\n", sub_run.font_size));
+                    let prepared_font = prepared_custom_fonts.get(fallback_key);
+                    let render = ShapedTextRender::new(
+                        PdfPoint::new(cur_x, text_y),
+                        sub_run.font_size,
+                        fallback_font,
+                        &fallback_shaped,
+                        prepared_font,
+                    );
+                    if render.has_complex_offsets() {
+                        append_positioned_shaped_text(content, render);
+                    } else {
+                        append_tj_shaped_text(content, render);
+                    }
+                    content.push_str("ET\n");
+                    cur_x += w;
+                    total_width += w;
+                }
+            } else {
+                let w = render_run_text(
+                    content,
+                    &sub_run,
+                    cur_x,
+                    text_y,
+                    custom_fonts,
+                    prepared_custom_fonts,
+                );
+                cur_x += w;
+                total_width += w;
+            }
         }
-        content.push_str("ET\n");
-        return run_width;
+        return total_width;
     }
 
     let shaped = crate::text::shape_text_run(run, custom_fonts);
@@ -8878,8 +8904,8 @@ mod tests {
         // Covers lines 1628-1657: TTF font objects in PDF
         use crate::parser::ttf::TtfFont;
         let mut cmap = HashMap::new();
-        for c in 32u16..=126 {
-            cmap.insert(c, c - 31);
+        for c in 32u32..=126 {
+            cmap.insert(c, (c - 31) as u16);
         }
         let ttf = TtfFont {
             font_name: "TestFont".to_string(),
@@ -8891,7 +8917,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
-            data: vec![0u8; 64], // Minimal dummy font data
+            data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
         };
         let mut fonts = HashMap::new();
         fonts.insert("TestFont".to_string(), ttf);
@@ -8940,8 +8966,8 @@ mod tests {
         use crate::parser::ttf::TtfFont;
 
         let mut cmap = HashMap::new();
-        for c in 32u16..=126 {
-            cmap.insert(c, c - 31);
+        for c in 32u32..=126 {
+            cmap.insert(c, (c - 31) as u16);
         }
         let ttf = TtfFont {
             font_name: "TestFont".to_string(),
@@ -8953,7 +8979,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
-            data: vec![0u8; 64],
+            data: std::sync::Arc::new(vec![0u8; 64]),
         };
         let mut fonts = HashMap::new();
         fonts.insert(
@@ -8992,7 +9018,7 @@ mod tests {
             glyph_widths: vec![0, 500, 500],
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(),
+            data: std::sync::Arc::new(Vec::new()),
         };
         let shaped = crate::text::ShapedRun {
             glyphs: vec![

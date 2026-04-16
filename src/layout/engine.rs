@@ -869,20 +869,20 @@ pub(crate) fn flatten_element(
     // Math elements: <span class="math-inline"> or <div class="math-display">
     if let Some(tex) = el.attributes.get("data-math") {
         let is_display = classes.contains(&"math-display");
-        let ast = crate::parser::math::parse_math(tex);
-        let math_layout = crate::layout::math::layout_math(&ast, style.font_size, is_display);
-        let (mt, mb) = if is_display {
-            (style.margin.top.max(6.0), style.margin.bottom.max(6.0))
-        } else {
-            (0.0, 0.0)
-        };
-        output.push(LayoutElement::MathBlock {
-            layout: math_layout,
-            display: is_display,
-            margin_top: mt,
-            margin_bottom: mb,
-        });
-        return;
+        if is_display {
+            let ast = crate::parser::math::parse_math(tex);
+            let math_layout = crate::layout::math::layout_math(&ast, style.font_size, is_display);
+            output.push(LayoutElement::MathBlock {
+                layout: math_layout,
+                display: true,
+                margin_top: style.margin.top.max(6.0),
+                margin_bottom: style.margin.bottom.max(6.0),
+            });
+            return;
+        }
+        // Inline math: fall through to normal inline text collection.
+        // The <span> children contain the raw LaTeX text which is rendered
+        // as italic text in the surrounding paragraph flow.
     }
 
     if el.tag == HtmlTag::Br {

@@ -108,6 +108,18 @@ pub enum FontFamily {
     Custom(String),
 }
 
+impl FontFamily {
+    /// Return the font family name as a string slice.
+    pub fn name(&self) -> &str {
+        match self {
+            FontFamily::Helvetica => "Helvetica",
+            FontFamily::TimesRoman => "Times-Roman",
+            FontFamily::Courier => "Courier",
+            FontFamily::Custom(name) => name,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FontStack {
     families: Vec<FontFamily>,
