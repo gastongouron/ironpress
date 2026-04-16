@@ -573,6 +573,15 @@ pub struct ComputedStyle {
     pub color: Color,
     pub background_color: Option<Color>,
     pub margin: EdgeSizes,
+    /// Unresolved em multipliers for each margin side, retained from the cascade
+    /// so that em-based margins re-resolve against the element's final font-size
+    /// rather than whatever `style.font_size` happened to be when the margin
+    /// declaration was applied. `None` means the side was set via an absolute
+    /// length (or never touched) and should not be re-resolved.
+    pub margin_em_top: Option<f32>,
+    pub margin_em_right: Option<f32>,
+    pub margin_em_bottom: Option<f32>,
+    pub margin_em_left: Option<f32>,
     pub padding: EdgeSizes,
     pub text_align: TextAlign,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
@@ -672,6 +681,10 @@ impl Default for ComputedStyle {
             color: Color::BLACK,
             background_color: None,
             margin: EdgeSizes::default(),
+            margin_em_top: None,
+            margin_em_right: None,
+            margin_em_bottom: None,
+            margin_em_left: None,
             padding: EdgeSizes::default(),
             text_align: TextAlign::Left,
             direction_rtl: false,
@@ -848,6 +861,10 @@ pub fn compute_style_with_context(
     // Reset block-level properties that don't inherit
     if tag.is_block() {
         style.margin = EdgeSizes::default();
+        style.margin_em_top = None;
+        style.margin_em_right = None;
+        style.margin_em_bottom = None;
+        style.margin_em_left = None;
         style.padding = EdgeSizes::default();
         style.background_color = None;
         style.clear_background_images();
@@ -962,6 +979,23 @@ pub fn compute_style_with_context(
         apply_style_map(&mut style, &inline, parent);
     }
 
+    // Now that the cascade is finalized, re-resolve em-based margins against
+    // the element's *final* font-size. Earlier apply_style_map calls resolve
+    // em-factors eagerly against whatever font_size was current at that layer,
+    // which is wrong if a later layer changes font-size.
+    if let Some(em) = style.margin_em_top {
+        style.margin.top = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_right {
+        style.margin.right = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_bottom {
+        style.margin.bottom = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_left {
+        style.margin.left = em * style.font_size;
+    }
+
     style
 }
 
@@ -1008,6 +1042,10 @@ pub fn compute_pseudo_element_style(
 
     // Reset non-inherited properties (pseudo-elements are generated boxes)
     style.margin = EdgeSizes::default();
+    style.margin_em_top = None;
+    style.margin_em_right = None;
+    style.margin_em_bottom = None;
+    style.margin_em_left = None;
     style.padding = EdgeSizes::default();
     style.reset_background();
     style.border = BorderSides::default();
@@ -1070,6 +1108,21 @@ pub fn compute_pseudo_element_style(
         return None;
     }
 
+    // Re-resolve em-based margins against the pseudo-element's final font-size.
+    // See the same fixup in `compute_style_with_context` for rationale.
+    if let Some(em) = style.margin_em_top {
+        style.margin.top = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_right {
+        style.margin.right = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_bottom {
+        style.margin.bottom = em * style.font_size;
+    }
+    if let Some(em) = style.margin_em_left {
+        style.margin.left = em * style.font_size;
+    }
+
     Some(style)
 }
 
@@ -1122,10 +1175,22 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "letter-spacing" => style.letter_spacing = default.letter_spacing,
         "word-spacing" => style.word_spacing = default.word_spacing,
         "background-color" => style.background_color = default.background_color,
-        "margin-top" => style.margin.top = default.margin.top,
-        "margin-right" => style.margin.right = default.margin.right,
-        "margin-bottom" => style.margin.bottom = default.margin.bottom,
-        "margin-left" => style.margin.left = default.margin.left,
+        "margin-top" => {
+            style.margin.top = default.margin.top;
+            style.margin_em_top = None;
+        }
+        "margin-right" => {
+            style.margin.right = default.margin.right;
+            style.margin_em_right = None;
+        }
+        "margin-bottom" => {
+            style.margin.bottom = default.margin.bottom;
+            style.margin_em_bottom = None;
+        }
+        "margin-left" => {
+            style.margin.left = default.margin.left;
+            style.margin_em_left = None;
+        }
         "padding-top" => style.padding.top = default.padding.top,
         "padding-right" => style.padding.right = default.padding.right,
         "padding-bottom" => style.padding.bottom = default.padding.bottom,
@@ -1246,10 +1311,22 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "letter-spacing" => style.letter_spacing = parent.letter_spacing,
         "word-spacing" => style.word_spacing = parent.word_spacing,
         "background-color" => style.background_color = parent.background_color,
-        "margin-top" => style.margin.top = parent.margin.top,
-        "margin-right" => style.margin.right = parent.margin.right,
-        "margin-bottom" => style.margin.bottom = parent.margin.bottom,
-        "margin-left" => style.margin.left = parent.margin.left,
+        "margin-top" => {
+            style.margin.top = parent.margin.top;
+            style.margin_em_top = None;
+        }
+        "margin-right" => {
+            style.margin.right = parent.margin.right;
+            style.margin_em_right = None;
+        }
+        "margin-bottom" => {
+            style.margin.bottom = parent.margin.bottom;
+            style.margin_em_bottom = None;
+        }
+        "margin-left" => {
+            style.margin.left = parent.margin.left;
+            style.margin_em_left = None;
+        }
         "padding-top" => style.padding.top = parent.padding.top,
         "padding-right" => style.padding.right = parent.padding.right,
         "padding-bottom" => style.padding.bottom = parent.padding.bottom,
@@ -1480,24 +1557,56 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Margins: resolve both Length (pt) and Number (em = multiplied by font_size).
     // The CSS parser produces Number for em values (e.g. "2em" → Number(2.0))
     // and our UA defaults use Number for em-based margins.
+    //
+    // Em values must be resolved against the element's *final* font-size (per CSS
+    // spec), but `style.font_size` at this point is whatever it was when the
+    // current cascade layer was applied — the next layer may still override it.
+    // So we save the em multiplier and re-resolve after the whole cascade runs
+    // (see the em-fixup block at the end of `compute_style_with_context`).
+    // Length (absolute) sets the margin and clears the em factor so later
+    // re-resolution doesn't clobber the explicit value.
     match get_non_special(map, "margin-top") {
-        Some(CssValue::Length(v)) => style.margin.top = *v,
-        Some(CssValue::Number(v)) => style.margin.top = *v * style.font_size,
+        Some(CssValue::Length(v)) => {
+            style.margin.top = *v;
+            style.margin_em_top = None;
+        }
+        Some(CssValue::Number(v)) => {
+            style.margin.top = *v * style.font_size;
+            style.margin_em_top = Some(*v);
+        }
         _ => {}
     }
     match get_non_special(map, "margin-right") {
-        Some(CssValue::Length(v)) => style.margin.right = *v,
-        Some(CssValue::Number(v)) => style.margin.right = *v * style.font_size,
+        Some(CssValue::Length(v)) => {
+            style.margin.right = *v;
+            style.margin_em_right = None;
+        }
+        Some(CssValue::Number(v)) => {
+            style.margin.right = *v * style.font_size;
+            style.margin_em_right = Some(*v);
+        }
         _ => {}
     }
     match get_non_special(map, "margin-bottom") {
-        Some(CssValue::Length(v)) => style.margin.bottom = *v,
-        Some(CssValue::Number(v)) => style.margin.bottom = *v * style.font_size,
+        Some(CssValue::Length(v)) => {
+            style.margin.bottom = *v;
+            style.margin_em_bottom = None;
+        }
+        Some(CssValue::Number(v)) => {
+            style.margin.bottom = *v * style.font_size;
+            style.margin_em_bottom = Some(*v);
+        }
         _ => {}
     }
     match get_non_special(map, "margin-left") {
-        Some(CssValue::Length(v)) => style.margin.left = *v,
-        Some(CssValue::Number(v)) => style.margin.left = *v * style.font_size,
+        Some(CssValue::Length(v)) => {
+            style.margin.left = *v;
+            style.margin_em_left = None;
+        }
+        Some(CssValue::Number(v)) => {
+            style.margin.left = *v * style.font_size;
+            style.margin_em_left = Some(*v);
+        }
         _ => {}
     }
 
