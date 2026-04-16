@@ -464,6 +464,7 @@ impl HtmlConverter {
             }
         }
 
+        system_fonts::load_system_default_fonts(&mut parsed_fonts);
         system_fonts::load_bundled_liberation_fonts(&mut parsed_fonts);
         system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
         // Load system CJK font BEFORE bundled fallbacks so it gets UNICODE_FALLBACK_KEY

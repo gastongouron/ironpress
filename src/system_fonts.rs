@@ -169,18 +169,29 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::Custom(name.clone());
             }
             FontFamily::TimesRoman => {
+                // Prefer system Times New Roman (exact Chromium match),
+                // fall back to bundled Liberation Serif.
+                if find_font(fonts, "Times New Roman", bold, italic).is_some() {
+                    return FontFamily::Custom("Times New Roman".to_string());
+                }
                 if find_font(fonts, "Liberation Serif", bold, italic).is_some() {
                     return FontFamily::Custom("Liberation Serif".to_string());
                 }
                 return FontFamily::TimesRoman;
             }
             FontFamily::Helvetica => {
+                if find_font(fonts, "Arial", bold, italic).is_some() {
+                    return FontFamily::Custom("Arial".to_string());
+                }
                 if find_font(fonts, "Liberation Sans", bold, italic).is_some() {
                     return FontFamily::Custom("Liberation Sans".to_string());
                 }
                 return FontFamily::Helvetica;
             }
             FontFamily::Courier => {
+                if find_font(fonts, "Courier New", bold, italic).is_some() {
+                    return FontFamily::Custom("Courier New".to_string());
+                }
                 if find_font(fonts, "Liberation Mono", bold, italic).is_some() {
                     return FontFamily::Custom("Liberation Mono".to_string());
                 }
@@ -402,6 +413,34 @@ fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
         result.push((ARABIC_FALLBACK_KEY.to_string(), font));
     }
     result
+}
+
+/// Try to load the system's actual serif/sans-serif/monospace fonts
+/// (Times New Roman, Arial, Courier New) so the output matches Chromium
+/// exactly. Falls through to bundled Liberation fonts when unavailable.
+pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
+    let families = [
+        ("Times New Roman", "serif"),
+        ("Arial", "sans-serif"),
+        ("Courier New", "monospace"),
+    ];
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+
+    for (family, _generic) in &families {
+        for variant in FONT_VARIANTS {
+            let query = SystemFontQuery::new(family, *variant);
+            let key = query.variant_key();
+            if fonts.contains_key(&key) {
+                continue;
+            }
+            if let Some(font) =
+                query_fontdb_font(&db, &query).or_else(|| query_fontconfig_font(&query))
+            {
+                fonts.insert(key, font);
+            }
+        }
+    }
 }
 
 pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
