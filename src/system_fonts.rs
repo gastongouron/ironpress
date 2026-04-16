@@ -606,7 +606,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 0,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         }
     }
 

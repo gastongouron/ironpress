@@ -870,7 +870,7 @@ mod tests {
             glyph_widths: vec![500, 700],
             num_h_metrics: 2,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 700); // last width
     }
@@ -884,11 +884,11 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: HashMap::new(),
+            cmap: HashMap::<u32, u16>::new(),
             glyph_widths: vec![],
             num_h_metrics: 0,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 0);
     }
@@ -1605,7 +1605,7 @@ mod tests {
             glyph_widths: vec![u16::MAX], // 65535 — would overflow u32 with * 1000
             num_h_metrics: 1,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         // Should not panic; 65535 * 1000 / 1000 = 65535
         let w = font.char_width_pdf(65);
@@ -1628,7 +1628,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 32,
-            data: vec![],
+            data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width_scaled(65, 12.0), 0.0);
         assert_eq!(font.char_width_pdf(65), 0);

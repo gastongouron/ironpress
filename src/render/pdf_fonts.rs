@@ -389,7 +389,7 @@ mod tests {
             glyph_widths: vec![0, 500, 600],
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(), // empty ⟹ subsetting always fails → fallback_font path
+            data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
         }
     }
 
@@ -404,7 +404,7 @@ mod tests {
             glyph_widths: widths,
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(),
+            data: std::sync::Arc::new(Vec::new()),
         }
     }
 
@@ -797,7 +797,7 @@ mod tests {
     fn fallback_font_uses_full_font_data() {
         let ttf = make_stub_ttf();
         let prepared = fallback_font(&ttf);
-        assert_eq!(prepared.font_data, ttf.data);
+        assert_eq!(prepared.font_data, *ttf.data);
     }
 
     #[test]
@@ -829,7 +829,7 @@ mod tests {
     fn prepare_font_falls_back_when_data_empty() {
         // Empty font data causes subsetter::subset to fail, so prepare_font
         // must call fallback_font instead of subset_font.
-        let ttf = make_stub_ttf(); // data: Vec::new()
+        let ttf = make_stub_ttf(); // data: std::sync::Arc::new(Vec::new())
         let mut usage = FontUsage::default();
         usage.record_glyph(1, vec![0x0041]);
         let prepared = prepare_font(&ttf, &usage);

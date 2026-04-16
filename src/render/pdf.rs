@@ -8917,7 +8917,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
-            data: vec![0u8; 64], // Minimal dummy font data
+            data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
         };
         let mut fonts = HashMap::new();
         fonts.insert("TestFont".to_string(), ttf);
@@ -8979,7 +8979,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
-            data: vec![0u8; 64],
+            data: std::sync::Arc::new(vec![0u8; 64]),
         };
         let mut fonts = HashMap::new();
         fonts.insert(
@@ -9018,7 +9018,7 @@ mod tests {
             glyph_widths: vec![0, 500, 500],
             num_h_metrics: 3,
             flags: 32,
-            data: Vec::new(),
+            data: std::sync::Arc::new(Vec::new()),
         };
         let shaped = crate::text::ShapedRun {
             glyphs: vec![
