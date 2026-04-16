@@ -269,7 +269,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let render_w = block_width.unwrap_or(available_width);
                                 margin.left + available_width - render_w
                             }
-                            _ => margin.left,
+                            _ => margin.left + offset_left,
                         },
                     };
                     // PDF y-axis is bottom-up.
