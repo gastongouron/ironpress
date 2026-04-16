@@ -313,53 +313,54 @@ struct BundledFont {
     data: &'static [u8],
 }
 
+// Keys must match font_variant_key() format: lowercase + __bold/__italic/__bold_italic
 static LIBERATION_FONTS: &[BundledFont] = &[
     BundledFont {
-        key: "Liberation Serif",
+        key: "liberation serif",
         data: include_bytes!("../assets/LiberationSerif-Regular.ttf"),
     },
     BundledFont {
-        key: "Liberation Serif Bold",
+        key: "liberation serif__bold",
         data: include_bytes!("../assets/LiberationSerif-Bold.ttf"),
     },
     BundledFont {
-        key: "Liberation Serif Italic",
+        key: "liberation serif__italic",
         data: include_bytes!("../assets/LiberationSerif-Italic.ttf"),
     },
     BundledFont {
-        key: "Liberation Serif Bold Italic",
+        key: "liberation serif__bold_italic",
         data: include_bytes!("../assets/LiberationSerif-BoldItalic.ttf"),
     },
     BundledFont {
-        key: "Liberation Sans",
+        key: "liberation sans",
         data: include_bytes!("../assets/LiberationSans-Regular.ttf"),
     },
     BundledFont {
-        key: "Liberation Sans Bold",
+        key: "liberation sans__bold",
         data: include_bytes!("../assets/LiberationSans-Bold.ttf"),
     },
     BundledFont {
-        key: "Liberation Sans Italic",
+        key: "liberation sans__italic",
         data: include_bytes!("../assets/LiberationSans-Italic.ttf"),
     },
     BundledFont {
-        key: "Liberation Sans Bold Italic",
+        key: "liberation sans__bold_italic",
         data: include_bytes!("../assets/LiberationSans-BoldItalic.ttf"),
     },
     BundledFont {
-        key: "Liberation Mono",
+        key: "liberation mono",
         data: include_bytes!("../assets/LiberationMono-Regular.ttf"),
     },
     BundledFont {
-        key: "Liberation Mono Bold",
+        key: "liberation mono__bold",
         data: include_bytes!("../assets/LiberationMono-Bold.ttf"),
     },
     BundledFont {
-        key: "Liberation Mono Italic",
+        key: "liberation mono__italic",
         data: include_bytes!("../assets/LiberationMono-Italic.ttf"),
     },
     BundledFont {
-        key: "Liberation Mono Bold Italic",
+        key: "liberation mono__bold_italic",
         data: include_bytes!("../assets/LiberationMono-BoldItalic.ttf"),
     },
 ];

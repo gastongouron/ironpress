@@ -310,14 +310,18 @@ fn parse_os2_typographic_metrics(
 ) -> Option<FontVerticalMetrics> {
     let os2 = os2?;
     let os2_off = os2.offset as usize;
-    if data.len() < os2_off + 74 {
+    if data.len() < os2_off + 78 {
         return None;
     }
 
-    let ascent = read_i16(data, os2_off + 68);
-    let descent = read_i16(data, os2_off + 70);
-    let line_gap = read_i16(data, os2_off + 72);
-    Some(FontVerticalMetrics::new(ascent, descent, line_gap))
+    // Chromium uses usWinAscent/usWinDescent (not sTypo*) for
+    // line-height:normal unless USE_TYPO_METRICS bit is set in fsSelection.
+    // Match this behavior for visual parity.
+    let win_ascent = read_u16(data, os2_off + 74) as i16;
+    let win_descent = read_u16(data, os2_off + 76) as i16;
+    // Use line_gap=0 with usWin metrics (Chrome doesn't add sTypoLineGap
+    // when using usWin metrics).
+    Some(FontVerticalMetrics::new(win_ascent, -win_descent, 0))
 }
 
 /// Parse the cmap table. Prefers format 12 (full Unicode including astral

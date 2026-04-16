@@ -807,6 +807,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 ));
                             }
 
+                            // Draw overline
+                            if run.overline {
+                                let oy = text_y + run.font_size;
+                                let thickness = (run.font_size * 0.07).max(0.5);
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{thickness} w\n{bg_x} {oy} m {x2} {oy} l\nS\n",
+                                    x2 = bg_x + run_width,
+                                ));
+                            }
+
                             // Track link annotation
                             if let Some(annotation) =
                                 text_run_link_annotation(run, bg_x, run_width, line_annotation_box)
@@ -1755,6 +1765,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
+                                        x2 = x + rw,
+                                    ));
+                                }
+
+                                // Draw overline
+                                if run.overline {
+                                    let oy = text_y + run.font_size;
+                                    let thickness = (run.font_size * 0.07).max(0.5);
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{thickness} w\n{x} {oy} m {x2} {oy} l\nS\n",
                                         x2 = x + rw,
                                     ));
                                 }
