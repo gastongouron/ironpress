@@ -3213,9 +3213,8 @@ fn render_container_children(
                     let bg_y = y - nk_total_h;
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
-                        content.push_str(&rounded_rect_path(
-                            bg_x, bg_y, nk_w, nk_total_h, *cont_br,
-                        ));
+                        content
+                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
                         content.push_str("W n\n");
                     }
                     render_linear_gradient(
@@ -3239,9 +3238,8 @@ fn render_container_children(
                     let bg_y = y - nk_total_h;
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
-                        content.push_str(&rounded_rect_path(
-                            bg_x, bg_y, nk_w, nk_total_h, *cont_br,
-                        ));
+                        content
+                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
                         content.push_str("W n\n");
                     }
                     render_radial_gradient(
@@ -4318,6 +4316,7 @@ fn render_radial_gradient(
     content.push_str("Q\n");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_svg_background(
     content: &mut String,
     tree: &crate::parser::svg::SvgTree,

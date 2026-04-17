@@ -1275,10 +1275,7 @@ pub(crate) fn layout_block_element(
         let cb_height = if effective_height.is_some() {
             container_h
         } else {
-            cb_children_h
-                .max(
-                    aspect_ratio_height(block_w, style).unwrap_or(0.0),
-                )
+            cb_children_h.max(aspect_ratio_height(block_w, style).unwrap_or(0.0))
         };
         cb_info = make_containing_block(cb_height);
 
