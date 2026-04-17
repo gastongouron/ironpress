@@ -437,6 +437,18 @@ impl HtmlConverter {
             ));
         }
 
+        // Step 3d: Fold body/html/:root margin into the effective page margin.
+        // Chrome's default UA sheet sets `body { margin: 8px }`, and author
+        // stylesheets frequently override it. Ironpress applies body styles
+        // to the root `ComputedStyle` for inheritance purposes but previously
+        // dropped the margin, leaving the first line flush against the page
+        // margin regardless of what the CSS requested.
+        let body_margin = layout::engine::compute_root_margin(&rules, effective_page_size);
+        effective_margin.top += body_margin.top;
+        effective_margin.right += body_margin.right;
+        effective_margin.bottom += body_margin.bottom;
+        effective_margin.left += body_margin.left;
+
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 

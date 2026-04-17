@@ -466,6 +466,37 @@ pub fn layout(nodes: &[DomNode], page_size: PageSize, margin: Margin) -> Vec<Pag
     layout_with_rules(nodes, page_size, margin, &[])
 }
 
+/// Resolve the margin declared on `body`, `html`, or `:root` selectors against
+/// the given page size. The result is additive to the caller-supplied page
+/// margin — Chrome treats the body margin as shrinking the printable area
+/// inside the page margin, so both offsets stack.
+///
+/// Returns zeros when no matching rule declares a margin.
+pub fn compute_root_margin(rules: &[CssRule], page_size: PageSize) -> Margin {
+    let mut style = ComputedStyle::default();
+    let parent = ComputedStyle {
+        viewport_width: page_size.width,
+        viewport_height: page_size.height,
+        root_font_size: style.font_size,
+        width: Some(page_size.width),
+        ..ComputedStyle::default()
+    };
+
+    for rule in rules {
+        let sel = rule.selector.trim();
+        if sel == "body" || sel == "html" || sel == ":root" {
+            crate::style::computed::apply_style_map(&mut style, &rule.declarations, &parent);
+        }
+    }
+
+    Margin {
+        top: style.margin.top,
+        right: style.margin.right,
+        bottom: style.margin.bottom,
+        left: style.margin.left,
+    }
+}
+
 /// Lay out the DOM nodes into pages with stylesheet rules.
 #[allow(dead_code)]
 pub fn layout_with_rules(
@@ -9320,6 +9351,35 @@ line 3</pre>
 
         style.background_image = Some(TEST_JPEG_DATA_URI.to_string());
         let _ = background_svg_for_style(&style);
+    }
+
+    #[test]
+    fn compute_root_margin_resolves_body_margin() {
+        // body { margin: 40px } → 40 CSS px = 30pt on each side.
+        let rules = parse_stylesheet("body { margin: 40px; }");
+        let m = compute_root_margin(&rules, PageSize::LETTER);
+        assert!((m.top - 30.0).abs() < 0.01, "top = {}", m.top);
+        assert!((m.right - 30.0).abs() < 0.01, "right = {}", m.right);
+        assert!((m.bottom - 30.0).abs() < 0.01, "bottom = {}", m.bottom);
+        assert!((m.left - 30.0).abs() < 0.01, "left = {}", m.left);
+    }
+
+    #[test]
+    fn compute_root_margin_zero_when_no_body_rule() {
+        let rules = parse_stylesheet("p { margin: 40px; }");
+        let m = compute_root_margin(&rules, PageSize::A4);
+        assert_eq!(m.top, 0.0);
+        assert_eq!(m.right, 0.0);
+        assert_eq!(m.bottom, 0.0);
+        assert_eq!(m.left, 0.0);
+    }
+
+    #[test]
+    fn compute_root_margin_accepts_html_and_root_selectors() {
+        let rules = parse_stylesheet(":root { margin-top: 20pt; } html { margin-left: 10pt; }");
+        let m = compute_root_margin(&rules, PageSize::A4);
+        assert!((m.top - 20.0).abs() < 0.01);
+        assert!((m.left - 10.0).abs() < 0.01);
     }
 }
 
