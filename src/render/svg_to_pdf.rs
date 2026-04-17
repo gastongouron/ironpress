@@ -1119,7 +1119,11 @@ fn apply_style(style: &ResolvedStyle, out: &mut String) {
 /// Emit `/GSxx gs` for the node's effective opacity when it's < 1.0.
 /// Returns `true` when a gs operator was emitted, so the caller can balance
 /// a surrounding `q ... Q` pair that isolates the opacity state.
-fn push_opacity_gstate(style: &ResolvedStyle, resources: &mut SvgPdfResources, out: &mut String) -> bool {
+fn push_opacity_gstate(
+    style: &ResolvedStyle,
+    resources: &mut SvgPdfResources,
+    out: &mut String,
+) -> bool {
     if style.opacity >= 1.0 {
         return false;
     }
