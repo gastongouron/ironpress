@@ -818,15 +818,14 @@ pub(crate) fn layout_block_element(
                 // containing block and shouldn't inflate height:100% pseudos.
                 let children_slice = &output[wrapper_output_idx..];
                 let children_h_raw: f32 = children_slice.iter().map(estimate_element_height).sum();
-                let first_mt = children_slice.first().map_or(0.0, |e| match e {
-                    LayoutElement::TextBlock { margin_top, .. } => *margin_top,
-                    _ => 0.0,
-                });
-                let last_mb = children_slice.last().map_or(0.0, |e| match e {
-                    LayoutElement::TextBlock { margin_bottom, .. } => *margin_bottom,
-                    _ => 0.0,
-                });
-                let children_h = (children_h_raw - first_mt - last_mb).max(0.0);
+                let children_h = crate::layout::helpers::collapse_outer_child_margins(
+                    children_slice,
+                    children_h_raw,
+                    style.padding.top,
+                    style.padding.bottom,
+                    style.border.top.width,
+                    style.border.bottom.width,
+                );
                 let pseudo_cb = Some(ContainingBlock {
                     x: 0.0,
                     width: block_w,
@@ -1246,9 +1245,9 @@ pub(crate) fn layout_block_element(
             );
         }
         // Measure children total height
-        let children_h: f32 = child_elements.iter().map(estimate_element_height).sum();
+        let children_h_raw: f32 = child_elements.iter().map(estimate_element_height).sum();
         let mut container_h = resolve_padding_box_height(
-            children_h,
+            children_h_raw,
             effective_height,
             style.padding.top,
             style.padding.bottom,
@@ -1260,7 +1259,28 @@ pub(crate) fn layout_block_element(
         {
             container_h = container_h.max(aspect_h);
         }
-        cb_info = make_containing_block(container_h);
+        // For pseudo-element containing block sizing (abs children with
+        // height:100%), collapse the first/last children's outer margins
+        // through the parent when no padding/border blocks them. The
+        // rendered container height still uses the raw sum so surrounding
+        // flow layout is unchanged.
+        let cb_children_h = crate::layout::helpers::collapse_outer_child_margins(
+            &child_elements,
+            children_h_raw,
+            style.padding.top,
+            style.padding.bottom,
+            style.border.top.width,
+            style.border.bottom.width,
+        );
+        let cb_height = if effective_height.is_some() {
+            container_h
+        } else {
+            cb_children_h
+                .max(
+                    aspect_ratio_height(block_w, style).unwrap_or(0.0),
+                )
+        };
+        cb_info = make_containing_block(cb_height);
 
         // Add absolute-positioned ::before pseudo-element as a Container child.
         if let Some(ref ps) = before_style {
