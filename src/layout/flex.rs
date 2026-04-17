@@ -639,6 +639,10 @@ pub(crate) fn layout_flex_container(
         Some(h) => container_h.max(h),
         None => container_h,
     };
+    let container_h = match style.min_height {
+        Some(min_h) => container_h.max(min_h),
+        None => container_h,
+    };
     let bg = style
         .background_color
         .map(|color: crate::types::Color| color.to_f32_rgba());
@@ -1080,6 +1084,13 @@ pub(crate) fn layout_flex_container(
                     x += item.width + gap + extra_gap;
                 }
 
+                // For the first emitted row in a multi-line wrap, extend the
+                // background/border drawing to cover every wrapped line.
+                let wrap_container_content_height = if cross_offset == 0.0 && lines.len() > 1 {
+                    Some(total_cross)
+                } else {
+                    None
+                };
                 output.push(LayoutElement::FlexRow {
                     cells: flex_cells,
                     row_height: line.cross_size,
@@ -1143,6 +1154,7 @@ pub(crate) fn layout_flex_container(
                         BackgroundOrigin::Padding
                     },
                     align_items: align,
+                    wrap_container_content_height,
                 });
             }
             FlexDirection::Column => {

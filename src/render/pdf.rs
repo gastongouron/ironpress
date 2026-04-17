@@ -1169,11 +1169,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_repeat: flex_bg_repeat,
                     background_origin: flex_bg_origin,
                     align_items,
+                    wrap_container_content_height,
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
-                    let full_height =
-                        padding_top + row_height + padding_bottom + border.vertical_width();
+                    let effective_content_height =
+                        wrap_container_content_height.unwrap_or(*row_height);
+                    let full_height = padding_top
+                        + effective_content_height
+                        + padding_bottom
+                        + border.vertical_width();
 
                     // Draw box shadow with blur
                     if let Some(shadow) = box_shadow {
