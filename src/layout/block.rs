@@ -1279,10 +1279,26 @@ pub(crate) fn layout_block_element(
         };
         cb_info = make_containing_block(cb_height);
 
+        // When the first/last child's outer margins collapse through this
+        // container (no padding/border blocks them), the containing-block
+        // origin used for abs pseudos shifts down by the first child's
+        // margin-top so `top:0` aligns with the child's content top — matching
+        // Chrome's margin-collapse-through behavior.
+        let abs_origin_shift = if effective_height.is_none()
+            && style.padding.top == 0.0
+            && style.border.top.width == 0.0
+        {
+            child_elements
+                .first()
+                .map_or(0.0, crate::layout::helpers::outer_margin_top)
+        } else {
+            0.0
+        };
+
         // Add absolute-positioned ::before pseudo-element as a Container child.
         if let Some(ref ps) = before_style {
             if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
-                child_elements.push(build_pseudo_block(
+                let mut pseudo = build_pseudo_block(
                     ps,
                     el,
                     inner_width,
@@ -1290,13 +1306,19 @@ pub(crate) fn layout_block_element(
                     cb_info,
                     positioned_depth,
                     env.counter_state,
-                ));
+                );
+                if abs_origin_shift > 0.0
+                    && let LayoutElement::TextBlock { offset_top, .. } = &mut pseudo
+                {
+                    *offset_top += abs_origin_shift;
+                }
+                child_elements.push(pseudo);
             }
         }
         // Add absolute-positioned ::after pseudo-element as a Container child.
         if let Some(ref ps) = after_style {
             if pseudo_is_block_like(ps) && ps.position == Position::Absolute {
-                child_elements.push(build_pseudo_block(
+                let mut pseudo = build_pseudo_block(
                     ps,
                     el,
                     inner_width,
@@ -1304,7 +1326,13 @@ pub(crate) fn layout_block_element(
                     cb_info,
                     positioned_depth,
                     env.counter_state,
-                ));
+                );
+                if abs_origin_shift > 0.0
+                    && let LayoutElement::TextBlock { offset_top, .. } = &mut pseudo
+                {
+                    *offset_top += abs_origin_shift;
+                }
+                child_elements.push(pseudo);
             }
         }
 
