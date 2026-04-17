@@ -25,8 +25,10 @@ for layer in features combined edge-cases; do
         name=$(basename "$html_file" .html)
         output="$OUTPUT_DIR/$layer/$name.pdf"
         echo "  $layer/$name..."
-        # Chromium --print-to-pdf defaults to 0.8in (57.6pt) on all sides.
-        "$CLI" --margin 57.6 "$html_file" "$output" 2>/dev/null || echo "    WARN: failed to render $layer/$name"
+        # Match Chromium --print-to-pdf defaults: Letter page, 0.4in (28.8pt) margins.
+        # Ironpress defaults to A4 + 72pt margins which produces a different raster
+        # size than the reference PDFs and creates spurious parity regressions.
+        "$CLI" --page-size letter --margin 28.8 "$html_file" "$output" 2>/dev/null || echo "    WARN: failed to render $layer/$name"
     done
 done
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Generate Chromium reference PDFs and convert ALL pages to PNG for comparison.
-# Uses --print-to-pdf so Chrome applies the same A4 page constraints as ironpress.
+# Uses --print-to-pdf with Chrome's defaults (Letter, 0.4in margins). The parity
+# render script in scripts/render-fixtures.sh passes the matching flags so the
+# two rasters land on the same page geometry.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -33,7 +35,8 @@ for layer in features combined edge-cases; do
 
         echo "  $layer/$name..."
 
-        # Print to PDF with A4 page size (same as ironpress default)
+        # Print to PDF using Chrome's defaults (Letter, 0.4in margins).
+        # scripts/render-fixtures.sh aligns ironpress with --page-size letter --margin 28.8.
         "$CHROME" --headless=new --disable-gpu --no-sandbox --disable-software-rasterizer \
             --print-to-pdf="$ref_pdf" \
             --no-pdf-header-footer \
