@@ -376,6 +376,14 @@ pub enum LayoutElement {
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
         align_items: AlignItems,
+        /// For `flex-wrap: wrap` with multiple lines: the *first* emitted row
+        /// carries the full cross-axis content height of the container (sum of
+        /// all lines + inter-line gaps) so that the border/background drawing
+        /// extends around every wrapped line. `None` (the default) means the
+        /// row is alone and `row_height` already represents the whole content.
+        /// Used ONLY for background/border/box-shadow sizing — pagination and
+        /// flow still use `row_height`.
+        wrap_container_content_height: Option<f32>,
     },
     /// A progress bar or meter element.
     ProgressBar {

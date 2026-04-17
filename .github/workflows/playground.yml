@@ -8,6 +8,7 @@ on:
       - 'src/**'
       - 'playground/**'
       - 'tests/fixtures/**'
+      - 'scripts/**'
       - 'Cargo.toml'
       - '.github/workflows/playground.yml'
 
@@ -55,7 +56,7 @@ jobs:
             sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
           fi
           sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-core fonts-noto-color-emoji
+          sudo apt-get install -y -qq poppler-utils imagemagick fonts-noto-core fonts-noto-color-emoji fonts-noto-cjk
           # Cache downloaded .deb files for next run
           mkdir -p ~/apt-cache
           cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
@@ -116,10 +117,11 @@ jobs:
 
       - name: Collect render times
         run: |
-          # Run the benchmark report to collect render times, then parse them
+          # Run the benchmark and extract raw microsecond values. The human
+          # table rounds to 1 decimal place (1.1 s bucket = 1050-1149 ms), so
+          # we parse the machine-readable BENCH_US lines instead.
           cargo test --test parity_tests --release -- --ignored parity_benchmark_report --nocapture 2>&1 | \
-            grep '|' | grep -v 'Fixture\|---\|TOTAL' | \
-            awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); gsub(/^[ \t]+|[ \t]+$/, "", $5); if ($2 != "" && $5 != "") print $2 " " $5}' \
+            awk '/^BENCH_US / {print $2 " " $3}' \
             > /tmp/render_times.txt || true
           cat /tmp/render_times.txt
 
@@ -166,12 +168,14 @@ jobs:
                   'compare -metric AE ' + chromPng + ' ' + ironPng + ' null: 2>&1 || true',
                   { encoding: 'utf8', timeout: 10000 }
                 ).trim();
-                const diffPixels = parseInt(diffOut) || 0;
+                // parseFloat handles both '453785' and '2.10375e+06' notation;
+                // parseInt would truncate scientific notation to '2'.
+                const diffPixels = parseFloat(diffOut) || 0;
                 const totalOut = execSync(
-                  'identify -format \"%[fx:w*h]\" ' + chromPng,
+                  'identify -format \"%[fx:int(w*h)]\" ' + chromPng,
                   { encoding: 'utf8', timeout: 5000 }
                 ).trim();
-                const totalPixels = parseInt(totalOut) || 1;
+                const totalPixels = parseFloat(totalOut) || 1;
                 entry.diff_pct = Math.min(
                   parseFloat(((diffPixels / totalPixels) * 100).toFixed(2)),
                   100
@@ -180,23 +184,18 @@ jobs:
               results[key] = entry;
             }
           }
-          // Read render times from benchmark output
+          // Read render times from benchmark output (raw microseconds:
+          // '<fixture-key> <us>' per line).
           try {
             const timesRaw = fs.readFileSync('/tmp/render_times.txt', 'utf8');
             for (const line of timesRaw.split('\\n')) {
               const parts = line.trim().split(/\\s+/);
-              if (parts.length >= 2) {
+              if (parts.length === 2) {
                 const key = parts[0];
-                const timeStr = parts.slice(1).join(' ');
-                // Parse time value: '1.2 ms' -> 1200, '500 us' -> 500
-                let us = 0;
-                const msMatch = timeStr.match(/([\\d.]+)\\s*ms/);
-                const usMatch = timeStr.match(/([\\d.]+)\\s*us/);
-                const sMatch = timeStr.match(/([\\d.]+)\\s*s$/);
-                if (msMatch) us = parseFloat(msMatch[1]) * 1000;
-                else if (usMatch) us = parseFloat(usMatch[1]);
-                else if (sMatch) us = parseFloat(sMatch[1]) * 1000000;
-                if (results[key]) results[key].render_time_us = Math.round(us);
+                const us = parseInt(parts[1], 10);
+                if (!isNaN(us) && results[key]) {
+                  results[key].render_time_us = us;
+                }
               }
             }
           } catch (e) {}

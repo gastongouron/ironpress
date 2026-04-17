@@ -602,10 +602,25 @@ pub(crate) fn flatten_table(
         }
     }
     let has_explicit_widths = explicit_col_widths.iter().any(|width| width.is_some());
+    // When `border-collapse: separate`, horizontal `border-spacing` is drawn between
+    // every pair of adjacent cells AND on the outer edges, so the space available for
+    // the N columns is `inner_width - (N+1) * border_spacing`. Without this reduction
+    // the columns are distributed across the full width and the table overflows by
+    // exactly `(N+1) * border_spacing` on the right.
+    let columns_width = if matches!(
+        style.border_collapse,
+        crate::style::computed::BorderCollapse::Separate
+    ) && style.border_spacing > 0.0
+        && num_cols > 0
+    {
+        (inner_width - (num_cols as f32 + 1.0) * style.border_spacing).max(0.0)
+    } else {
+        inner_width
+    };
     let col_widths: Vec<f32> = if uses_fixed_table_layout(style) {
         resolve_fixed_table_columns(
             style,
-            inner_width,
+            columns_width,
             &rows,
             &row_section_indices,
             &row_section_sizes,
@@ -787,14 +802,14 @@ pub(crate) fn flatten_table(
                 .zip(explicit_col_widths.iter())
                 .map(|(preferred, explicit)| {
                     explicit
-                        .map(|width| width.resolve(inner_width).max(min_col_width))
+                        .map(|width| width.resolve(columns_width).max(min_col_width))
                         .unwrap_or_else(|| preferred.max(min_col_width))
                 })
                 .collect()
         } else {
             let total_preferred: f32 = preferred_widths.iter().sum();
-            if total_preferred <= inner_width {
-                let extra = inner_width - total_preferred;
+            if total_preferred <= columns_width {
+                let extra = columns_width - total_preferred;
                 if total_preferred > 0.0 && extra > 0.0 {
                     preferred_widths
                         .iter()
@@ -804,7 +819,7 @@ pub(crate) fn flatten_table(
                     preferred_widths
                 }
             } else {
-                let scale = inner_width / total_preferred;
+                let scale = columns_width / total_preferred;
                 preferred_widths
                     .iter()
                     .map(|width| (width * scale).max(min_col_width))
