@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "ironpress"
-version = "1.4.1"
+version = "1.4.2"
 description = "Pure Rust HTML/CSS/Markdown to PDF converter. No browser, no system dependencies."
 readme = "README.md"
 license = "MIT"
