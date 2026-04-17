@@ -4617,14 +4617,19 @@ fn render_box_shadow(
 
     // Multi-layer blur approximation: draw concentric rects from outside
     // (most transparent) to inside (most opaque), simulating Gaussian falloff.
+    // Per-layer alpha is tuned so that under PDF source-over compositing, the
+    // cumulative opacity at the box edge (where all 10 layers overlap) closely
+    // matches `base_alpha`. With M≈0.22, cumulative ≈ base for typical
+    // shadow alpha values (0.1..0.5). Higher values darken to black like Chrome
+    // can't produce; the old 0.4 factor produced pure-black edges.
     let layers: usize = 10;
+    const ALPHA_NORMALIZER: f32 = 0.22;
     content.push_str(&format!("{sr} {sg} {sb} rg\n"));
     for i in (0..layers).rev() {
         let t = (i as f32 + 1.0) / layers as f32;
         // Gaussian-like falloff: use exp(-k*t^2) to produce smooth shadow.
-        // Each layer's alpha is the differential contribution at that radius.
         let gaussian = (-3.0 * t * t).exp();
-        let alpha = (base_alpha * gaussian * 0.4).min(base_alpha);
+        let alpha = (base_alpha * gaussian * ALPHA_NORMALIZER).min(base_alpha);
 
         let expand = blur * t;
         let gs_name = format!("GSbs{}", *gs_counter);
