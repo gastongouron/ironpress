@@ -1089,6 +1089,10 @@ fn cubic_bezier_extrema(p0: f32, p1: f32, p2: f32, p3: f32) -> Vec<f32> {
 }
 
 fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
+    // Font sizes stay in SVG user units so that the viewport `cm` transform
+    // (user-units → PDF pt) applied at the call site produces the same scale
+    // for text as for other geometry. Unitless and `px` values are user units
+    // directly; `pt` is converted to user units (1pt = 4/3 px).
     let raw = raw.trim();
     if let Some(pct) = raw.strip_suffix('%') {
         let pct = pct.trim().parse::<f32>().ok()?;
@@ -1099,13 +1103,12 @@ fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
         return Some(inherited_size * em);
     }
     if let Some(px) = raw.strip_suffix("px") {
-        let px = px.trim().parse::<f32>().ok()?;
-        return Some(px * 0.75);
+        return px.trim().parse::<f32>().ok();
     }
     if let Some(pt) = raw.strip_suffix("pt") {
-        return pt.trim().parse::<f32>().ok();
+        return pt.trim().parse::<f32>().ok().map(|pt| pt * 4.0 / 3.0);
     }
-    raw.parse::<f32>().ok().map(|px| px * 0.75)
+    raw.parse::<f32>().ok()
 }
 
 fn apply_style(style: &ResolvedStyle, out: &mut String) {
@@ -3165,8 +3168,9 @@ mod tests {
         let mut out = String::new();
         render_svg_tree(&tree, &mut out);
         assert!(
-            out.contains("/Helvetica 9 Tf\n"),
-            "unitless SVG font-size should resolve like px"
+            out.contains("/Helvetica 12 Tf\n"),
+            "unitless SVG font-size should stay in user units (1px = 1 user unit), \
+             so cm scaling at the call site applies once"
         );
     }
 
