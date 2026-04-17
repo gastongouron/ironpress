@@ -72,7 +72,7 @@ pub(crate) fn collapse_outer_child_margins(
     (children_height - first_mt - last_mb).max(0.0)
 }
 
-fn outer_margin_top(el: &LayoutElement) -> f32 {
+pub(crate) fn outer_margin_top(el: &LayoutElement) -> f32 {
     match el {
         LayoutElement::TextBlock { margin_top, .. }
         | LayoutElement::Container { margin_top, .. }
@@ -86,7 +86,7 @@ fn outer_margin_top(el: &LayoutElement) -> f32 {
     }
 }
 
-fn outer_margin_bottom(el: &LayoutElement) -> f32 {
+pub(crate) fn outer_margin_bottom(el: &LayoutElement) -> f32 {
     match el {
         LayoutElement::TextBlock { margin_bottom, .. }
         | LayoutElement::Container { margin_bottom, .. }
