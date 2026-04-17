@@ -318,6 +318,9 @@ pub enum LayoutElement {
         margin_bottom: f32,
         border_collapse: BorderCollapse,
         border_spacing: f32,
+        /// Row belongs to a `<thead>`; pagination re-emits it on every page
+        /// the parent table spans (mirroring Chrome's behavior).
+        is_header: bool,
     },
     /// A grid row with cells of varying widths.
     GridRow {

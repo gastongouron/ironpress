@@ -10022,6 +10022,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -10104,6 +10105,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -10208,6 +10210,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
