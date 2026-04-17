@@ -648,8 +648,7 @@ pub(crate) fn layout_flex_container(
     // stretch to (align-items: stretch) and what flex-end/center measure
     // against — otherwise a tall `min-height` container collapses visually
     // to the natural item height.
-    let inner_cross_size =
-        (container_h - style.padding.top - style.padding.bottom).max(0.0);
+    let inner_cross_size = (container_h - style.padding.top - style.padding.bottom).max(0.0);
     if direction == FlexDirection::Row && lines.len() == 1 {
         if let Some(line) = lines.first_mut() {
             line.cross_size = line.cross_size.max(inner_cross_size);
