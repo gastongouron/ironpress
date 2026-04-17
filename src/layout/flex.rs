@@ -648,13 +648,32 @@ pub(crate) fn layout_flex_container(
         FlexDirection::Column => total_main,
     };
 
+    // `container_h` is the padding-box height (content + vertical padding).
+    // `height` / `min-height` are defined against the content box in
+    // `box-sizing: content-box` and against the border box in
+    // `box-sizing: border-box`. Translate both to a padding-box comparand so
+    // the max() here honors Chrome's semantics.
+    let pad_v = style.padding.top + style.padding.bottom;
+    let border_v = style.border.vertical_width();
     let container_h = style.padding.top + container_height + style.padding.bottom;
     let container_h = match style.height {
-        Some(h) => container_h.max(h),
+        Some(h) => {
+            let target = match style.box_sizing {
+                BoxSizing::ContentBox => h + pad_v,
+                BoxSizing::BorderBox => (h - border_v).max(0.0),
+            };
+            container_h.max(target)
+        }
         None => container_h,
     };
     let container_h = match style.min_height {
-        Some(min_h) => container_h.max(min_h),
+        Some(min_h) => {
+            let target = match style.box_sizing {
+                BoxSizing::ContentBox => min_h + pad_v,
+                BoxSizing::BorderBox => (min_h - border_v).max(0.0),
+            };
+            container_h.max(target)
+        }
         None => container_h,
     };
     // Cross-axis inner size once height/min-height have been honored. For

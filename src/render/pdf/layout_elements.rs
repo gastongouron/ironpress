@@ -407,6 +407,7 @@ pub(super) fn render_nested_text_block(
             ctx.page_images,
             ctx.shadings,
             ctx.shading_counter,
+            Some(ctx.page_ext_gstates),
             BackgroundPaintContext::new(
                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
                 SvgViewportBox::new(

@@ -1043,6 +1043,9 @@ pub(crate) fn flatten_table(
         }
 
         if !cells.is_empty() {
+            let is_header = row_section_elements[row_idx]
+                .map(|s| s.tag == HtmlTag::Thead)
+                .unwrap_or(false);
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
@@ -1056,6 +1059,7 @@ pub(crate) fn flatten_table(
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
                 border_spacing: style.border_spacing,
+                is_header,
             });
             is_first = false;
         }

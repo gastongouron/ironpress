@@ -318,6 +318,9 @@ pub enum LayoutElement {
         margin_bottom: f32,
         border_collapse: BorderCollapse,
         border_spacing: f32,
+        /// Row belongs to a `<thead>`; pagination re-emits it on every page
+        /// the parent table spans (mirroring Chrome's behavior).
+        is_header: bool,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -1615,10 +1618,10 @@ pub(crate) fn flatten_element(
                 margin_bottom: style.margin.bottom,
                 text_align: style.text_align,
                 background_color: None,
-                padding_top: 0.0,
-                padding_bottom: 0.0,
-                padding_left: list_indent,
-                padding_right: 0.0,
+                padding_top: style.padding.top,
+                padding_bottom: style.padding.bottom,
+                padding_left: list_indent + style.padding.left,
+                padding_right: style.padding.right,
                 border: LayoutBorder::default(),
                 block_width: None,
                 block_height: None,

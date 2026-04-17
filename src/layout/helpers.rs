@@ -41,6 +41,65 @@ pub(crate) fn resolve_padding_box_height(
     }
 }
 
+/// Strip the first child's top margin and the last child's bottom margin when
+/// they would otherwise collapse through the parent (no top/bottom padding or
+/// border). Returns the adjusted children-area height.
+///
+/// This mirrors CSS margin-collapsing and is used to compute the containing
+/// block height for absolute-positioned descendants (e.g. ::before/::after
+/// bars): their `height: 100%` should match the parent's content-box
+/// excluding collapsed outer margins, not the padded wrapper height.
+pub(crate) fn collapse_outer_child_margins(
+    children: &[LayoutElement],
+    children_height: f32,
+    padding_top: f32,
+    padding_bottom: f32,
+    border_top: f32,
+    border_bottom: f32,
+) -> f32 {
+    let strip_top = padding_top == 0.0 && border_top == 0.0;
+    let strip_bottom = padding_bottom == 0.0 && border_bottom == 0.0;
+    let first_mt = if strip_top {
+        children.first().map_or(0.0, outer_margin_top)
+    } else {
+        0.0
+    };
+    let last_mb = if strip_bottom {
+        children.last().map_or(0.0, outer_margin_bottom)
+    } else {
+        0.0
+    };
+    (children_height - first_mt - last_mb).max(0.0)
+}
+
+fn outer_margin_top(el: &LayoutElement) -> f32 {
+    match el {
+        LayoutElement::TextBlock { margin_top, .. }
+        | LayoutElement::Container { margin_top, .. }
+        | LayoutElement::FlexRow { margin_top, .. }
+        | LayoutElement::GridRow { margin_top, .. }
+        | LayoutElement::TableRow { margin_top, .. }
+        | LayoutElement::Image { margin_top, .. }
+        | LayoutElement::Svg { margin_top, .. }
+        | LayoutElement::MathBlock { margin_top, .. } => *margin_top,
+        _ => 0.0,
+    }
+}
+
+fn outer_margin_bottom(el: &LayoutElement) -> f32 {
+    match el {
+        LayoutElement::TextBlock { margin_bottom, .. }
+        | LayoutElement::Container { margin_bottom, .. }
+        | LayoutElement::FlexRow { margin_bottom, .. }
+        | LayoutElement::GridRow { margin_bottom, .. }
+        | LayoutElement::TableRow { margin_bottom, .. }
+        | LayoutElement::Image { margin_bottom, .. }
+        | LayoutElement::Svg { margin_bottom, .. }
+        | LayoutElement::MathBlock { margin_bottom, .. } => *margin_bottom,
+        _ => 0.0,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Group 6 — Element classification
 // ---------------------------------------------------------------------------

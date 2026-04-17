@@ -516,6 +516,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_images,
                             &mut page_shadings,
                             &mut shading_counter,
+                            Some(&mut page_ext_gstates),
                             BackgroundPaintContext::new(
                                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
                                 SvgViewportBox::new(
@@ -1313,6 +1314,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_images,
                             &mut page_shadings,
                             &mut shading_counter,
+                            Some(&mut page_ext_gstates),
                             BackgroundPaintContext::new(
                                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
                                 SvgViewportBox::new(
@@ -1670,6 +1672,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut page_images,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                                Some(&mut page_ext_gstates),
                                 BackgroundPaintContext::new(
                                     SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
                                     SvgViewportBox::new(bg_x, bg_y, cell.width, cell_render_h),
@@ -2191,6 +2194,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             &prepared_custom_fonts,
                                             &mut page_ext_gstates,
                                             &mut bg_alpha_counter,
+                                            &mut page_shadings,
+                                            &mut shading_counter,
                                             *cont_pl + cont_border.left.width,
                                             *cont_pt + cont_border.top.width,
                                         );
@@ -2411,6 +2416,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &prepared_custom_fonts,
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
+                        &mut page_shadings,
+                        &mut shading_counter,
                         *c_pl + border.left.width,
                         *c_pt + border.top.width,
                     );
@@ -2839,6 +2846,8 @@ fn render_container_children(
     prepared_custom_fonts: &PreparedCustomFonts,
     page_ext_gstates: &mut Vec<(String, f32)>,
     bg_alpha_counter: &mut usize,
+    page_shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
     abs_pad_left: f32,
     abs_pad_top: f32,
 ) {
@@ -2886,8 +2895,11 @@ fn render_container_children(
                 padding_top,
                 padding_bottom,
                 border,
+                border_radius: tb_border_radius,
                 block_height,
                 background_color,
+                background_gradient: tb_bg_gradient,
+                background_radial_gradient: tb_bg_radial,
                 text_align,
                 float: tb_float,
                 position,
@@ -3005,6 +3017,66 @@ fn render_container_children(
                     }
                 }
 
+                // Draw linear gradient background
+                if let Some(gradient) = tb_bg_gradient {
+                    let bg_x = render_x;
+                    let bg_y = render_y - child_h;
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("q\n");
+                        content.push_str(&rounded_rect_path(
+                            bg_x,
+                            bg_y,
+                            render_w,
+                            child_h,
+                            *tb_border_radius,
+                        ));
+                        content.push_str("W n\n");
+                    }
+                    render_linear_gradient(
+                        content,
+                        gradient,
+                        bg_x,
+                        bg_y,
+                        render_w,
+                        child_h,
+                        page_shadings,
+                        shading_counter,
+                    );
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                }
+
+                // Draw radial gradient background
+                if let Some(gradient) = tb_bg_radial {
+                    let bg_x = render_x;
+                    let bg_y = render_y - child_h;
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("q\n");
+                        content.push_str(&rounded_rect_path(
+                            bg_x,
+                            bg_y,
+                            render_w,
+                            child_h,
+                            *tb_border_radius,
+                        ));
+                        content.push_str("W n\n");
+                    }
+                    render_radial_gradient(
+                        content,
+                        gradient,
+                        bg_x,
+                        bg_y,
+                        render_w,
+                        child_h,
+                        page_shadings,
+                        shading_counter,
+                    );
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                }
+
                 // Draw child borders
                 if border.has_any() {
                     let bx1 = render_x;
@@ -3076,6 +3148,8 @@ fn render_container_children(
             LayoutElement::Container {
                 children: nested_kids,
                 background_color,
+                background_gradient,
+                background_radial_gradient,
                 border,
                 border_radius: cont_br,
                 padding_top,
@@ -3103,7 +3177,14 @@ fn render_container_children(
                     .sum();
                 let nk_content_h =
                     padding_top + nk_children_h + padding_bottom + border.vertical_width();
-                let nk_total_h = nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h));
+                // When an explicit block_height is given, use it directly so that
+                // overflow:hidden clips to the declared box (rather than expanding
+                // to fit oversized children and leaving them visible).
+                let nk_total_h = if *overflow == Overflow::Hidden {
+                    nk_block_height.unwrap_or(nk_content_h)
+                } else {
+                    nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h))
+                };
 
                 // Draw background with proper alpha support
                 if let Some((r, g, b, a)) = background_color {
@@ -3123,6 +3204,56 @@ fn render_container_children(
                     ));
                     if needs_alpha {
                         content.push_str("/GSDefault gs\n");
+                    }
+                }
+
+                // Draw linear gradient
+                if let Some(gradient) = background_gradient {
+                    let bg_x = nk_x;
+                    let bg_y = y - nk_total_h;
+                    if *cont_br > 0.0 {
+                        content.push_str("q\n");
+                        content
+                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
+                        content.push_str("W n\n");
+                    }
+                    render_linear_gradient(
+                        content,
+                        gradient,
+                        bg_x,
+                        bg_y,
+                        nk_w,
+                        nk_total_h,
+                        page_shadings,
+                        shading_counter,
+                    );
+                    if *cont_br > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                }
+
+                // Draw radial gradient
+                if let Some(gradient) = background_radial_gradient {
+                    let bg_x = nk_x;
+                    let bg_y = y - nk_total_h;
+                    if *cont_br > 0.0 {
+                        content.push_str("q\n");
+                        content
+                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
+                        content.push_str("W n\n");
+                    }
+                    render_radial_gradient(
+                        content,
+                        gradient,
+                        bg_x,
+                        bg_y,
+                        nk_w,
+                        nk_total_h,
+                        page_shadings,
+                        shading_counter,
+                    );
+                    if *cont_br > 0.0 {
+                        content.push_str("Q\n");
                     }
                 }
 
@@ -3210,6 +3341,8 @@ fn render_container_children(
                     prepared_custom_fonts,
                     page_ext_gstates,
                     bg_alpha_counter,
+                    page_shadings,
+                    shading_counter,
                     *padding_left + border.left.width,
                     *padding_top + border.top.width,
                 );
@@ -3459,6 +3592,8 @@ fn render_container_children(
                             prepared_custom_fonts,
                             page_ext_gstates,
                             bg_alpha_counter,
+                            page_shadings,
+                            shading_counter,
                             0.0, // flex cells don't have separate padding for abs children
                             0.0,
                         );
@@ -4181,6 +4316,7 @@ fn render_radial_gradient(
     content.push_str("Q\n");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_svg_background(
     content: &mut String,
     tree: &crate::parser::svg::SvgTree,
@@ -4188,6 +4324,7 @@ fn render_svg_background(
     page_images: &mut Vec<ImageRef>,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
+    mut ext_gstates: Option<&mut Vec<(String, f32)>>,
     paint: BackgroundPaintContext,
 ) {
     // SVG image resources frequently omit explicit width/height and only provide
@@ -4388,7 +4525,7 @@ fn render_svg_background(
                     let mut resources = crate::render::svg_to_pdf::SvgPdfResources {
                         shadings,
                         shading_counter,
-                        ext_gstates: None,
+                        ext_gstates: ext_gstates.as_deref_mut(),
                         image_sink: Some(&mut image_sink),
                     };
                     crate::render::svg_to_pdf::render_svg_tree_with_resources(
@@ -4479,14 +4616,19 @@ fn render_box_shadow(
 
     // Multi-layer blur approximation: draw concentric rects from outside
     // (most transparent) to inside (most opaque), simulating Gaussian falloff.
+    // Per-layer alpha is tuned so that under PDF source-over compositing, the
+    // cumulative opacity at the box edge (where all 10 layers overlap) closely
+    // matches `base_alpha`. With M≈0.22, cumulative ≈ base for typical
+    // shadow alpha values (0.1..0.5). Higher values darken to black like Chrome
+    // can't produce; the old 0.4 factor produced pure-black edges.
     let layers: usize = 10;
+    const ALPHA_NORMALIZER: f32 = 0.22;
     content.push_str(&format!("{sr} {sg} {sb} rg\n"));
     for i in (0..layers).rev() {
         let t = (i as f32 + 1.0) / layers as f32;
         // Gaussian-like falloff: use exp(-k*t^2) to produce smooth shadow.
-        // Each layer's alpha is the differential contribution at that radius.
         let gaussian = (-3.0 * t * t).exp();
-        let alpha = (base_alpha * gaussian * 0.4).min(base_alpha);
+        let alpha = (base_alpha * gaussian * ALPHA_NORMALIZER).min(base_alpha);
 
         let expand = blur * t;
         let gs_name = format!("GSbs{}", *gs_counter);
@@ -7832,6 +7974,7 @@ mod tests {
             &mut page_images,
             &mut shadings,
             &mut shading_counter,
+            None,
             BackgroundPaintContext::new(
                 SvgViewportBox::new(0.0, 0.0, 200.0, 100.0),
                 SvgViewportBox::new(0.0, 0.0, 200.0, 100.0),
@@ -7894,6 +8037,7 @@ mod tests {
             &mut page_images,
             &mut shadings,
             &mut shading_counter,
+            None,
             BackgroundPaintContext::new(
                 SvgViewportBox::new(0.0, 0.0, 200.0, 100.0),
                 SvgViewportBox::new(0.0, 0.0, 200.0, 100.0),
@@ -7952,6 +8096,7 @@ mod tests {
             &mut page_images,
             &mut shadings,
             &mut shading_counter,
+            None,
             BackgroundPaintContext::new(
                 SvgViewportBox::new(20.0, 10.0, 160.0, 80.0),
                 SvgViewportBox::new(0.0, 0.0, 200.0, 100.0),
@@ -9876,6 +10021,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -9958,6 +10104,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -10062,6 +10209,7 @@ mod tests {
             margin_bottom: 0.0,
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
+            is_header: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();

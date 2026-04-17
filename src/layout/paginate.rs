@@ -187,7 +187,31 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
     // resolve against the nearest positioned ancestor rather than the most recent one.
     let mut positioned_y_by_depth: HashMap<usize, f32> = HashMap::new();
 
+    // Track the header rows of the currently-active table so pagination can
+    // re-emit them at the top of each page the table spans (Chrome parity).
+    // Cleared as soon as a non-TableRow element is encountered.
+    let mut pending_table_headers: Vec<LayoutElement> = Vec::new();
+    #[allow(unused_assignments)]
+    let mut in_table_body = false;
+
     for element in elements {
+        // Track <thead> header rows so we can repeat them across page breaks
+        // that occur mid-table. Reset when leaving the table.
+        match &element {
+            LayoutElement::TableRow { is_header, .. } => {
+                if *is_header {
+                    pending_table_headers.push(element.clone());
+                    in_table_body = false;
+                } else {
+                    in_table_body = true;
+                }
+            }
+            _ => {
+                pending_table_headers.clear();
+                in_table_body = false;
+            }
+        }
+
         // Extract float/clear/position info from TextBlock elements
         let (
             elem_float,
@@ -450,6 +474,21 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
                 &mut positioned_y_by_depth,
                 consumed_height,
             );
+            // Re-emit <thead> rows at the top of the new page if we're in the
+            // middle of a table body (Chrome parity for long tables).
+            if in_table_body && !pending_table_headers.is_empty() {
+                for header in pending_table_headers.clone() {
+                    let header_h = match &header {
+                        LayoutElement::TableRow { cells, .. } => cells
+                            .iter()
+                            .map(table_cell_content_height)
+                            .fold(0.0f32, f32::max),
+                        _ => 0.0,
+                    };
+                    current_elements.push((y, header));
+                    y += header_h;
+                }
+            }
         }
 
         // After potential page break, recompute effective margin_top
