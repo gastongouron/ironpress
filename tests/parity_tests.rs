@@ -468,6 +468,15 @@ fn parity_benchmark_report() {
     );
     println!();
 
+    // Machine-readable section for CI: raw microsecond values without the
+    // precision loss of the human-format roundtrip (1050us..1149us all show
+    // as "1.1 s" and parse back to a single bucket).
+    println!("## Raw microseconds");
+    for r in &results {
+        println!("BENCH_US {} {}", r.fixture, r.render_time_us);
+    }
+    println!();
+
     // Print baseline info.
     println!("Baseline: {}", baseline_summary(&baseline));
     println!(
