@@ -265,12 +265,11 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         return;
     }
 
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    let db = system_fontdb();
 
     for family in UNICODE_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = query_fontdb_font(&db, &query).or_else(|| query_fontconfig_font(&query))
+        if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
         {
             fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
             return;
@@ -296,11 +295,10 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     }
 
     // Fallback: try system fonts (may be bitmap-only)
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    let db = system_fontdb();
     for family in EMOJI_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = query_fontdb_font(&db, &query).or_else(|| query_fontconfig_font(&query))
+        if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
         {
             fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
             return;
@@ -399,6 +397,21 @@ pub(crate) const MULTILINGUAL_FALLBACK_KEY: &str = "__multilingual_fallback";
 static BUNDLED_FONTS_CACHE: std::sync::OnceLock<Vec<(String, TtfFont)>> =
     std::sync::OnceLock::new();
 
+/// Shared fontdb database of system fonts. `db.load_system_fonts()` walks the
+/// filesystem (/usr/share/fonts, ~/Library/Fonts, etc.) which can take
+/// hundreds of ms on Linux CI runners with many font packages installed.
+/// Loading once per process — instead of per `html_to_pdf()` call — shaves
+/// ~300-400 ms per render on Ubuntu CI.
+static SYSTEM_FONTDB_CACHE: std::sync::OnceLock<fontdb::Database> = std::sync::OnceLock::new();
+
+fn system_fontdb() -> &'static fontdb::Database {
+    SYSTEM_FONTDB_CACHE.get_or_init(|| {
+        let mut db = fontdb::Database::new();
+        db.load_system_fonts();
+        db
+    })
+}
+
 fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
     let mut result = Vec::new();
     for bundled in LIBERATION_FONTS {
@@ -424,8 +437,7 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
         ("Arial", "sans-serif"),
         ("Courier New", "monospace"),
     ];
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    let db = system_fontdb();
 
     for (family, _generic) in &families {
         for variant in FONT_VARIANTS {
@@ -435,7 +447,7 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
                 continue;
             }
             if let Some(font) =
-                query_fontdb_font(&db, &query).or_else(|| query_fontconfig_font(&query))
+                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
             {
                 fonts.insert(key, font);
             }
@@ -462,11 +474,10 @@ pub(crate) fn load_requested_system_fonts(
         return;
     }
 
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
+    let db = system_fontdb();
 
     for family in requested {
-        load_family_variants(&db, &family, fonts);
+        load_family_variants(db, &family, fonts);
     }
 }
 
