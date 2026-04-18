@@ -170,15 +170,28 @@ pub(crate) fn table_row_content_width(element: &LayoutElement) -> f32 {
     }
 }
 
-pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec<Page> {
+pub(crate) fn paginate(
+    elements: Vec<LayoutElement>,
+    content_height: f32,
+    root_margin_top: f32,
+) -> Vec<Page> {
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
-    let mut y = 0.0;
+    // Page 1 starts with body/html margin-top applied; continuation pages
+    // start flush against the page margin (Chrome's print-model: body margin
+    // opens the document, not every page).
+    let mut y: f32 = root_margin_top;
 
     // Track active float regions for simplified float/clear behavior
     let mut left_floats: Vec<FloatRegion> = Vec::new();
     let mut right_floats: Vec<FloatRegion> = Vec::new();
     let mut prev_margin_bottom: f32 = 0.0;
+    // CSS margin-collapse-through-root: the first in-flow block on a page has
+    // its margin-top collapse with the body margin on page 1. On continuation
+    // pages (after page break), the first block's margin-top applies as-is
+    // because body is mid-flow and doesn't collapse with the viewport anymore.
+    let mut first_on_page: bool = true;
+    let mut on_first_page: bool = true;
 
     // Collect synthetic full-page background elements that should be repeated
     // across every page during pagination.
@@ -290,6 +303,8 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
                 }
                 y = 0.0;
                 prev_margin_bottom = 0.0;
+                first_on_page = true;
+                on_first_page = false;
                 left_floats.clear();
                 right_floats.clear();
                 advance_positioned_ancestors_after_page_break(
@@ -427,6 +442,17 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
         } else {
             margin_top_val + prev_margin_bottom
         };
+        // CSS margin collapse through the root applies ONLY on page 1 (where
+        // body opens). On page 1, the first block's margin-top collapses with
+        // body.margin.top: since paginate pre-seeded `y = root_margin_top`,
+        // the *extra* to add is `(block_mt - root_mt).max(0)`. On continuation
+        // pages (page 2+), body is already mid-flow — no collapse with root,
+        // and no body margin-top at all.
+        let collapsed_margin = if first_on_page && on_first_page {
+            (collapsed_margin - root_margin_top).max(0.0)
+        } else {
+            collapsed_margin
+        };
         let margin_top_val = collapsed_margin;
         let element_height = margin_top_val + content_h_val + margin_bottom_val;
 
@@ -457,7 +483,8 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
             continue;
         }
 
-        if y + element_height > content_height && y > 0.0 {
+        let page_broke_mid_loop = y + element_height > content_height && y > 0.0;
+        if page_broke_mid_loop {
             let consumed_height = y;
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
@@ -467,7 +494,9 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
                 current_elements.push(bg.clone());
             }
             y = 0.0;
-            prev_margin_bottom = 0.0;
+            on_first_page = false;
+            // prev_margin_bottom and first_on_page are reset at the bottom of
+            // this iteration (float or normal-flow branch overwrites both).
             left_floats.clear();
             right_floats.clear();
             advance_positioned_ancestors_after_page_break(
@@ -491,13 +520,11 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
             }
         }
 
-        // After potential page break, recompute effective margin_top
-        // (on a fresh page, prev_margin_bottom is 0 so no collapsing needed).
-        let effective_margin_top = if prev_margin_bottom == 0.0 {
-            collapsed_margin
-        } else {
-            margin_top_val
-        };
+        // After a mid-loop page break, the current element is now the first
+        // in-flow block on a continuation page. Its margin-top applies as-is
+        // (no collapse with root — body is mid-flow across the page break).
+        let effective_margin_top = margin_top_val;
+        let _ = page_broke_mid_loop;
 
         // Handle floated elements (floats don't participate in margin collapsing)
         if elem_float != Float::None {
@@ -515,6 +542,7 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
             }
             current_elements.push((y, element));
             prev_margin_bottom = 0.0;
+            first_on_page = false;
             continue;
         }
 
@@ -537,6 +565,7 @@ pub(crate) fn paginate(elements: Vec<LayoutElement>, content_height: f32) -> Vec
         current_elements.push((effective_y, element));
         y += content_h_val;
         prev_margin_bottom = margin_bottom_val;
+        first_on_page = false;
     }
 
     if !current_elements.is_empty() {

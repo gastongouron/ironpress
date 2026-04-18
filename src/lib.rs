@@ -443,10 +443,16 @@ impl HtmlConverter {
         // to the root `ComputedStyle` for inheritance purposes but previously
         // dropped the margin, leaving the first line flush against the page
         // margin regardless of what the CSS requested.
+        //
+        // Only left/right are folded uniformly: they apply to every page
+        // (body wraps each page's content horizontally). Top/bottom are NOT
+        // folded — Chrome's print model applies body margin-top only on the
+        // very first page and margin-bottom only on the last page. The
+        // paginate step injects body.margin.top before the first block on
+        // page 1 so continuation pages start flush against the page margin,
+        // matching Chrome.
         let body_margin = layout::engine::compute_root_margin(&rules, effective_page_size);
-        effective_margin.top += body_margin.top;
         effective_margin.right += body_margin.right;
-        effective_margin.bottom += body_margin.bottom;
         effective_margin.left += body_margin.left;
 
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
