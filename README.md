@@ -93,7 +93,7 @@ let pdf = HtmlConverter::new()
 | **Images** | JPEG + PNG, data URIs, local files, remote URLs (`remote` feature) | [Architecture](../../wiki/Architecture) |
 | **PDF** | PDF 1.4, bookmarks, link annotations, headers/footers, gradients, streaming output | [PDF Rendering](../../wiki/PDF-Rendering) |
 | **WASM** | `npm install ironpress` - runs 100% client-side in the browser | [WASM & Playground](../../wiki/WASM-Playground) |
-| **Testing** | 2100+ unit tests, property-based tests, 6 fuzz targets, parity dashboard | [Testing Strategy](../../wiki/Testing-Strategy) |
+| **Testing** | 2200+ unit tests, property-based tests, 6 fuzz targets, parity dashboard | [Testing Strategy](../../wiki/Testing-Strategy) |
 
 ## Custom fonts
 
@@ -115,6 +115,26 @@ $$\sum_{k=1}^{n} k = \frac{n(n+1)}{2}$$
 ```
 
 Full LaTeX support: fractions, roots, matrices, Greek letters, operators, delimiters, accents. See [Math Engine](../../wiki/Math-Engine).
+
+## Python / Ruby
+
+```bash
+pip install ironpress
+```
+
+```python
+import ironpress
+pdf = ironpress.html_to_pdf("<h1>Hello</h1>")
+```
+
+```bash
+gem install ironpress
+```
+
+```ruby
+require "ironpress"
+pdf = Ironpress.html_to_pdf("<h1>Hello</h1>")
+```
 
 ## WASM
 
