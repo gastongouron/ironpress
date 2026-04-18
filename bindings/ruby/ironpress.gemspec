@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "ironpress"
-  spec.version       = "1.4.2"
+  spec.version       = "1.4.3"
   spec.authors       = ["Paul Gaston Gouron"]
   spec.summary       = "Pure Rust HTML/CSS/Markdown to PDF converter"
   spec.description   = "Convert HTML, CSS, and Markdown to PDF with no browser or system dependencies. Native Rust extension for maximum performance."

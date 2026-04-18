@@ -1,6 +1,6 @@
 [package]
 name = "ironpress"
-version = "1.4.2"
+version = "1.4.3"
 edition = "2024"
 rust-version = "1.85"
 description = "Pure Rust HTML/CSS/Markdown to PDF converter with layout engine, LaTeX math, tables, images, custom fonts, and streaming output. No browser, no system dependencies."
