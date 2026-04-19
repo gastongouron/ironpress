@@ -4086,12 +4086,80 @@ mod tests {
         assert_eq!(grid_rows.len(), 1);
         let widths = grid_rows[0];
         assert_eq!(widths.len(), 2);
-        // Auto columns should be equal width, sharing available space
+        // Per CSS Grid: auto columns take their max-content intrinsic width,
+        // then split the remaining free space EQUALLY. "Left" and "Right"
+        // have slightly different measured widths, so the columns differ by
+        // exactly that content-width delta (small, a few points) — they are
+        // NOT forced to equal width.
+        let available = PageSize::A4.width - Margin::default().left - Margin::default().right;
+        let sum = widths[0] + widths[1];
         assert!(
-            (widths[0] - widths[1]).abs() < 0.1,
-            "Auto columns should be equal: {} vs {}",
+            (sum - available).abs() < 1.0,
+            "Auto columns should fill available: sum {} vs available {}",
+            sum,
+            available
+        );
+        assert!(
+            (widths[0] - widths[1]).abs() < 30.0,
+            "Auto columns should be close (differ by at most content delta): {} vs {}",
             widths[0],
             widths[1]
+        );
+    }
+
+    #[test]
+    fn grid_auto_fr_auto_does_not_collapse_to_equal_columns() {
+        // Regression for parity bug #145: `auto 1fr auto` was being treated
+        // as three equal tracks (auto == 1fr semantically). Correct behavior:
+        // auto columns size to their max-content intrinsic width, and the fr
+        // track swallows the remaining space.
+        let html = r#"<div style="display: grid; grid-template-columns: auto 1fr auto">
+            <div>L</div>
+            <div>middle</div>
+            <div>R</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
+            .iter()
+            .filter_map(|el| {
+                if let LayoutElement::GridRow { col_widths, .. } = el {
+                    Some(col_widths)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(grid_rows.len(), 1);
+        let widths = grid_rows[0];
+        assert_eq!(widths.len(), 3);
+
+        let available = PageSize::A4.width - Margin::default().left - Margin::default().right;
+        let sum = widths[0] + widths[1] + widths[2];
+        assert!(
+            (sum - available).abs() < 1.0,
+            "Grid columns should fill available: sum {} vs {}",
+            sum,
+            available
+        );
+        // Auto columns ("L"/"R") must be much narrower than the 1fr column.
+        // If the old bug resurfaces, all three would be ~equal (≈available/3).
+        assert!(
+            widths[1] > widths[0] * 3.0,
+            "1fr column ({}) should dwarf auto columns ({}, {})",
+            widths[1],
+            widths[0],
+            widths[2]
+        );
+        assert!(
+            widths[1] > widths[2] * 3.0,
+            "1fr column ({}) should dwarf auto columns ({}, {})",
+            widths[1],
+            widths[0],
+            widths[2]
         );
     }
 

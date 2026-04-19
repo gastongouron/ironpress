@@ -12,7 +12,26 @@ use super::text::{
 };
 
 /// Resolve grid column widths from track definitions.
-fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) -> Vec<f32> {
+///
+/// CSS Grid track-sizing semantics:
+/// - Fixed(v): uses `v` directly.
+/// - Auto: sized to the column's max-content intrinsic width (passed in via
+///   `auto_intrinsic_widths`, indexed by track). When the sum of fixed + auto
+///   exceeds the available space, auto columns shrink proportionally.
+/// - Fr(v): distributes remaining space proportional to `v` after fixed + auto
+///   are resolved. If no Fr tracks exist and slack remains, Auto columns
+///   absorb it (so `auto auto` fills the row like Chrome does).
+/// - Minmax(min, max): treated as min + fr share, clamped to [min, max].
+///
+/// `auto_intrinsic_widths` must have length == tracks.len(); the value at
+/// each Auto track index is that column's max-content width. Non-Auto
+/// entries are ignored.
+fn resolve_grid_columns(
+    tracks: &[GridTrack],
+    available_width: f32,
+    gap: f32,
+    auto_intrinsic_widths: &[f32],
+) -> Vec<f32> {
     if tracks.is_empty() {
         return vec![available_width];
     }
@@ -22,19 +41,23 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
     } else {
         0.0
     };
-    let space = available_width - num_gaps;
+    let space = (available_width - num_gaps).max(0.0);
 
-    // First pass: consume fixed-width columns
+    // First pass: bucket totals.
     let mut fixed_total: f32 = 0.0;
     let mut fr_total: f32 = 0.0;
+    let mut auto_total: f32 = 0.0;
     let mut auto_count: usize = 0;
     let mut minmax_count: usize = 0;
 
-    for track in tracks {
+    for (i, track) in tracks.iter().enumerate() {
         match track {
             GridTrack::Fixed(v) => fixed_total += *v,
             GridTrack::Fr(v) => fr_total += *v,
-            GridTrack::Auto => auto_count += 1,
+            GridTrack::Auto => {
+                auto_total += auto_intrinsic_widths.get(i).copied().unwrap_or(0.0);
+                auto_count += 1;
+            }
             GridTrack::Minmax(min, _) => {
                 fixed_total += min;
                 minmax_count += 1;
@@ -42,24 +65,53 @@ fn resolve_grid_columns(tracks: &[GridTrack], available_width: f32, gap: f32) ->
         }
     }
 
-    let remaining = (space - fixed_total).max(0.0);
+    let after_fixed = (space - fixed_total).max(0.0);
+    let has_fr = fr_total + minmax_count as f32 > 0.0;
 
-    // Auto columns are treated like 1fr each for distribution purposes
-    let effective_fr_total = fr_total + auto_count as f32 + minmax_count as f32;
-    let per_fr = if effective_fr_total > 0.0 {
-        remaining / effective_fr_total
+    // Two regimes:
+    // * Fr peers exist → auto tracks size to their intrinsic max-content
+    //   width; remaining space goes entirely to fr/minmax tracks.
+    // * No fr peers → auto tracks take their intrinsic width, then split the
+    //   remaining space EQUALLY among themselves (additive), matching
+    //   Chrome's track-sizing algorithm for `auto auto` layouts.
+    let (auto_extra, fr_per, auto_shrink_scale) = if has_fr {
+        let remaining_after_auto = (after_fixed - auto_total).max(0.0);
+        let per = remaining_after_auto / (fr_total + minmax_count as f32);
+        let shrink = if auto_total > after_fixed && auto_total > 0.0 {
+            after_fixed / auto_total
+        } else {
+            1.0
+        };
+        (0.0, per, shrink)
+    } else if auto_count > 0 {
+        let slack = after_fixed - auto_total;
+        if slack >= 0.0 {
+            (slack / auto_count as f32, 0.0, 1.0)
+        } else {
+            // Overflow — shrink auto tracks proportionally so the row fits.
+            let scale = if auto_total > 0.0 {
+                after_fixed / auto_total
+            } else {
+                0.0
+            };
+            (0.0, 0.0, scale)
+        }
     } else {
-        0.0
+        (0.0, 0.0, 1.0)
     };
 
     tracks
         .iter()
-        .map(|track| match track {
+        .enumerate()
+        .map(|(i, track)| match track {
             GridTrack::Fixed(v) => *v,
-            GridTrack::Fr(v) => per_fr * *v,
-            GridTrack::Auto => per_fr,
+            GridTrack::Fr(v) => fr_per * *v,
+            GridTrack::Auto => {
+                let intrinsic = auto_intrinsic_widths.get(i).copied().unwrap_or(0.0);
+                intrinsic * auto_shrink_scale + auto_extra
+            }
             GridTrack::Minmax(min, max) => {
-                let desired = min + per_fr;
+                let desired = min + fr_per;
                 if *max < f32::MAX {
                     desired.clamp(*min, *max)
                 } else {
@@ -85,20 +137,17 @@ pub(crate) fn layout_grid_container(
     let column_gap = style.column_gap;
     let row_gap = style.row_gap;
 
-    let col_widths = resolve_grid_columns(&style.grid_template_columns, inner_width, column_gap);
-    let num_cols = col_widths.len();
+    // Number of columns is determined by the track list. Fall back to one
+    // column when no explicit track definition exists.
+    let num_cols = if style.grid_template_columns.is_empty() {
+        1
+    } else {
+        style.grid_template_columns.len()
+    };
 
-    // Build ancestors list for children of this element
-    let mut child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
-    child_ancestors.push(AncestorInfo {
-        element: el,
-        child_index: 0,
-        sibling_count: 0,
-        preceding_siblings: Vec::new(),
-    });
-
-    // Collect element children (skip text nodes)
-    let children: Vec<&ElementNode> = el
+    // Collect element children (skip text nodes) so we can measure intrinsic
+    // widths per column before resolving track sizes.
+    let element_children: Vec<&ElementNode> = el
         .children
         .iter()
         .filter_map(|child| {
@@ -110,6 +159,80 @@ pub(crate) fn layout_grid_container(
         })
         .collect();
 
+    // Measure max-content width per Auto track: for each column index, find
+    // the widest rendered child content among rows that land in that column.
+    // For non-Auto tracks the value is 0.0 (ignored by resolve_grid_columns).
+    let mut auto_intrinsic_widths = vec![0.0_f32; num_cols];
+    for (i, track) in style.grid_template_columns.iter().enumerate() {
+        if !matches!(track, GridTrack::Auto) {
+            continue;
+        }
+        let mut max_w: f32 = 0.0;
+        let mut idx = i;
+        while idx < element_children.len() {
+            let child_el = element_children[idx];
+            let classes = child_el.class_list();
+            let selector_ctx = SelectorContext {
+                ancestors: ancestors.to_vec(),
+                child_index: idx,
+                sibling_count: element_children.len(),
+                preceding_siblings: Vec::new(),
+            };
+            let child_style = compute_style_with_context(
+                child_el.tag,
+                child_el.style_attr(),
+                style,
+                env.rules,
+                child_el.tag_name(),
+                &classes,
+                child_el.id(),
+                &child_el.attributes,
+                &selector_ctx,
+            );
+            let mut runs = Vec::new();
+            FlexTextRunCollector {
+                runs: &mut runs,
+                rules: env.rules,
+                fonts: env.fonts,
+            }
+            .collect(
+                &child_el.children,
+                &child_style,
+                None,
+                (0.0, 0.0),
+                ancestors,
+            );
+            let text_w = super::helpers::measure_runs_width(&runs, env.fonts);
+            let cell_w = text_w
+                + child_style.padding.left
+                + child_style.padding.right
+                + child_style.border.left.width
+                + child_style.border.right.width;
+            if cell_w > max_w {
+                max_w = cell_w;
+            }
+            idx += num_cols;
+        }
+        auto_intrinsic_widths[i] = max_w;
+    }
+
+    let col_widths = resolve_grid_columns(
+        &style.grid_template_columns,
+        inner_width,
+        column_gap,
+        &auto_intrinsic_widths,
+    );
+
+    // Build ancestors list for children of this element
+    let mut child_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
+    child_ancestors.push(AncestorInfo {
+        element: el,
+        child_index: 0,
+        sibling_count: 0,
+        preceding_siblings: Vec::new(),
+    });
+
+    let children = &element_children;
     let child_count = children.len();
 
     // Lay out children into grid cells, row by row
