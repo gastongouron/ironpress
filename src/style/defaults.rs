@@ -113,6 +113,7 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("font-style", CssValue::Keyword("italic".into()));
         }
         HtmlTag::Pre => {
+            style.set("font-family", CssValue::Keyword("monospace".into()));
             style.set("font-size", CssValue::Length(10.0));
             style.set("margin-top", CssValue::Length(8.0));
             style.set("margin-bottom", CssValue::Length(8.0));
@@ -127,6 +128,7 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("white-space", CssValue::Keyword("pre".into()));
         }
         HtmlTag::Code => {
+            style.set("font-family", CssValue::Keyword("monospace".into()));
             style.set("font-size", CssValue::Length(10.0));
             style.set(
                 "background-color",

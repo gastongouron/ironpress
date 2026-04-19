@@ -205,7 +205,8 @@ pub(crate) fn layout_inline_block_group(
                     child_style.font_size,
                     resolved_line_height_factor(&child_style, fonts),
                     child_style.overflow_wrap,
-                ),
+                )
+                .with_rtl(child_style.direction_rtl),
                 fonts,
             )
         } else {

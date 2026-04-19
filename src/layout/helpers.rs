@@ -347,7 +347,8 @@ pub(crate) fn build_pseudo_block(
                 pseudo_style.font_size,
                 resolved_line_height_factor(pseudo_style, fonts),
                 pseudo_style.overflow_wrap,
-            ),
+            )
+            .with_rtl(pseudo_style.direction_rtl),
             fonts,
         );
     }

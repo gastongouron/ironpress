@@ -440,7 +440,8 @@ pub(crate) fn layout_flex_container(
                     child_style.font_size,
                     resolved_line_height_factor(&child_style, env.fonts),
                     child_style.overflow_wrap,
-                ),
+                )
+                .with_rtl(child_style.direction_rtl),
                 env.fonts,
             )
         } else {

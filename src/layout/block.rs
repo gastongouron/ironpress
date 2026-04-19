@@ -224,7 +224,8 @@ pub(crate) fn layout_block_element(
                 style.font_size,
                 resolved_line_height_factor(style, fonts),
                 style.overflow_wrap,
-            ),
+            )
+            .with_rtl(style.direction_rtl),
             fonts,
         );
         if lines.is_empty() {
@@ -942,7 +943,8 @@ pub(crate) fn layout_block_element(
                 style.font_size,
                 resolved_line_height_factor(style, env.fonts),
                 style.overflow_wrap,
-            ),
+            )
+            .with_rtl(style.direction_rtl),
             env.fonts,
         );
 

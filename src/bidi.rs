@@ -5,8 +5,12 @@ use unicode_bidi::{BidiInfo, Level};
 
 /// Reorder text runs according to the Unicode Bidirectional Algorithm.
 ///
-/// Takes a list of text runs in logical order and returns them in visual
-/// order. RTL segments are reversed for correct display in a LTR PDF context.
+/// Takes a list of text runs in logical order and returns them split into
+/// one run per level-run, arranged in visual left-to-right order. Each
+/// resulting run's text is kept in LOGICAL order (not pre-reversed) so that
+/// the downstream text shaper (rustybuzz, via `guess_segment_properties`)
+/// can apply the correct RTL shaping itself. Pre-reversing here would cause
+/// rustybuzz to reverse a second time, undoing the bidi reorder.
 pub(crate) fn reorder_runs_bidi(runs: &[TextRun], paragraph_rtl: bool) -> Vec<TextRun> {
     if runs.is_empty() {
         return Vec::new();
@@ -31,12 +35,19 @@ pub(crate) fn reorder_runs_bidi(runs: &[TextRun], paragraph_rtl: bool) -> Vec<Te
     let para = &bidi_info.paragraphs[0];
     let line = para.range.clone();
 
-    // Get visual runs: each is a (byte_range, level) indicating a segment
-    // that should be displayed contiguously, with RTL segments reversed.
+    // Get visual runs: `vis_levels` is per-byte resolved levels; `vis_ranges`
+    // are byte ranges already in visual (left-to-right) order. We look up a
+    // run's level via its starting byte.
     let (vis_levels, vis_ranges) = bidi_info.visual_runs(para, line);
 
     // Check if purely LTR — return unchanged
-    if vis_ranges.len() == 1 && vis_levels[0].is_ltr() {
+    if vis_ranges.len() == 1
+        && vis_ranges[0]
+            .start
+            .lt(&vis_levels.len())
+            .then(|| vis_levels[vis_ranges[0].start].is_ltr())
+            .unwrap_or(false)
+    {
         return runs.to_vec();
     }
 
@@ -52,20 +63,20 @@ pub(crate) fn reorder_runs_bidi(runs: &[TextRun], paragraph_rtl: bool) -> Vec<Te
 
     let mut result: Vec<TextRun> = Vec::new();
 
-    for (idx, byte_range) in vis_ranges.iter().enumerate() {
-        let level = &vis_levels[idx];
-        // Find chars in this byte range
-        let mut segment_chars: Vec<(char, usize)> = char_info
+    for byte_range in vis_ranges.iter() {
+        // Each visual run's characters remain in *logical* order inside the
+        // run — the shaper (rustybuzz) will flip RTL glyphs itself. Only the
+        // *order of runs* is visual (left-to-right on the page).
+        let _level = vis_levels
+            .get(byte_range.start)
+            .copied()
+            .unwrap_or_else(|| if paragraph_rtl { Level::rtl() } else { Level::ltr() });
+        // Find chars in this byte range (already in logical order).
+        let segment_chars: Vec<(char, usize)> = char_info
             .iter()
             .filter(|(_, bo, _)| byte_range.contains(bo))
             .map(|(ch, _, ri)| (*ch, *ri))
             .collect();
-
-        // RTL segments: characters are already in logical order,
-        // reverse them for visual display
-        if level.is_rtl() {
-            segment_chars.reverse();
-        }
 
         // Group consecutive chars by run index and emit
         let mut current_text = String::new();

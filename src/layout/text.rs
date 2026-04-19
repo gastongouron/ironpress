@@ -99,6 +99,9 @@ pub(crate) struct TextWrapOptions {
     pub(crate) default_font_size: f32,
     pub(crate) line_height_factor: f32,
     pub(crate) overflow_wrap: OverflowWrap,
+    /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
+    /// when the containing block has `direction: rtl` (or `dir="rtl"`).
+    pub(crate) paragraph_rtl: bool,
 }
 
 impl TextWrapOptions {
@@ -113,7 +116,13 @@ impl TextWrapOptions {
             default_font_size,
             line_height_factor,
             overflow_wrap,
+            paragraph_rtl: false,
         }
+    }
+
+    pub(crate) const fn with_rtl(mut self, rtl: bool) -> Self {
+        self.paragraph_rtl = rtl;
+        self
     }
 }
 
@@ -173,12 +182,12 @@ pub(crate) fn wrap_text_runs(
         .fold(options.default_font_size, f32::max);
     let mut line_height = base_font_size * line_height_factor;
 
-    // Apply BiDi reordering if the text contains RTL characters.
-    // This reorders runs into visual order so RTL segments display correctly
-    // in the left-to-right PDF rendering context.
+    // Apply BiDi reordering if the paragraph direction is RTL or the text
+    // contains RTL characters. This reorders runs into visual order so
+    // RTL/LTR segments display correctly in the left-to-right PDF context.
     let full_text: String = runs.iter().map(|r| r.text.as_str()).collect();
-    let runs = if crate::bidi::has_rtl_chars(&full_text) {
-        crate::bidi::reorder_runs_bidi(&runs, false)
+    let runs = if options.paragraph_rtl || crate::bidi::has_rtl_chars(&full_text) {
+        crate::bidi::reorder_runs_bidi(&runs, options.paragraph_rtl)
     } else {
         runs
     };

@@ -4210,6 +4210,12 @@ fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
                 && prev.background_color == run.background_color
                 && prev.padding == run.padding
                 && prev.border_radius == run.border_radius
+                // Don't merge across an RTL <-> LTR boundary: the bidi pass
+                // split these into separate runs in visual order, and merging
+                // would give the shaper a mixed-script buffer whose guessed
+                // direction flips glyph order for one side. See #139.
+                && crate::bidi::has_rtl_chars(&prev.text)
+                    == crate::bidi::has_rtl_chars(&run.text)
         } else {
             false
         };

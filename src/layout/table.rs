@@ -1005,7 +1005,8 @@ pub(crate) fn flatten_table(
                     cell_style.font_size,
                     resolved_line_height_factor(&cell_style, fonts),
                     cell_style.overflow_wrap,
-                ),
+                )
+                .with_rtl(cell_style.direction_rtl),
                 fonts,
             );
 

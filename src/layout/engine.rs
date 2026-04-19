@@ -735,7 +735,8 @@ fn flatten_nodes(
                             parent_style.font_size,
                             resolved_line_height_factor(parent_style, env.fonts),
                             parent_style.overflow_wrap,
-                        ),
+                        )
+                        .with_rtl(parent_style.direction_rtl),
                         env.fonts,
                     );
                     if !lines.is_empty() {
@@ -1137,7 +1138,8 @@ pub(crate) fn flatten_element(
                     style.font_size,
                     resolved_line_height_factor(&style, env.fonts),
                     style.overflow_wrap,
-                ),
+                )
+                .with_rtl(style.direction_rtl),
                 env.fonts,
             );
         }
@@ -1291,7 +1293,8 @@ pub(crate) fn flatten_element(
                 style.font_size,
                 resolved_line_height_factor(&style, env.fonts),
                 style.overflow_wrap,
-            ),
+            )
+            .with_rtl(style.direction_rtl),
             env.fonts,
         );
 
@@ -1611,6 +1614,7 @@ pub(crate) fn flatten_element(
             );
         }
 
+        let runs_before_inline = runs.len();
         collect_text_runs(
             &el.children,
             &style,
@@ -1620,6 +1624,68 @@ pub(crate) fn flatten_element(
             env.fonts,
             ancestors,
         );
+
+        // "Loose" list items (Markdown with blank lines between items) wrap each
+        // item's content in a <p>. When the <li> has no direct inline content
+        // but its first block child is a <p>, inline that <p>'s runs so the
+        // marker sits on the same baseline as the first line of text (matching
+        // Chrome), and apply the <p>'s vertical margins on the combined block
+        // so consecutive loose items are separated as paragraphs.
+        let mut consumed_p_idx: Option<usize> = None;
+        let mut extra_margin_top: f32 = 0.0;
+        let mut extra_margin_bottom: f32 = 0.0;
+        let li_child_el_count = el
+            .children
+            .iter()
+            .filter(|c| matches!(c, DomNode::Element(_)))
+            .count();
+        if runs.len() == runs_before_inline {
+            // No direct inline content — look for first block <p> child
+            let mut child_el_ordinal = 0usize;
+            for (raw_idx, child) in el.children.iter().enumerate() {
+                if let DomNode::Element(child_el) = child {
+                    if child_el.tag == HtmlTag::P {
+                        // Inline this <p>'s runs
+                        let p_cls: Vec<&str> = child_el.class_list();
+                        let p_selector_ctx = SelectorContext {
+                            ancestors: child_ancestors.to_vec(),
+                            child_index: child_el_ordinal,
+                            sibling_count: li_child_el_count,
+                            preceding_siblings: Vec::new(),
+                        };
+                        let p_style = compute_style_with_context(
+                            child_el.tag,
+                            child_el.style_attr(),
+                            &style,
+                            env.rules,
+                            child_el.tag_name(),
+                            &p_cls,
+                            child_el.id(),
+                            &child_el.attributes,
+                            &p_selector_ctx,
+                        );
+                        collect_text_runs(
+                            &child_el.children,
+                            &p_style,
+                            &mut runs,
+                            None,
+                            env.rules,
+                            env.fonts,
+                            &child_ancestors,
+                        );
+                        extra_margin_top = p_style.margin.top;
+                        extra_margin_bottom = p_style.margin.bottom;
+                        consumed_p_idx = Some(raw_idx);
+                        break;
+                    }
+                    child_el_ordinal += 1;
+                    // Stop looking after first block-level non-<p> sibling
+                    if recurses_as_layout_child(child_el.tag) {
+                        break;
+                    }
+                }
+            }
+        }
 
         let block_heading_level = heading_level(el.tag);
 
@@ -1631,7 +1697,8 @@ pub(crate) fn flatten_element(
                     style.font_size,
                     resolved_line_height_factor(&style, env.fonts),
                     style.overflow_wrap,
-                ),
+                )
+                .with_rtl(style.direction_rtl),
                 env.fonts,
             );
             let BackgroundFields {
@@ -1646,8 +1713,8 @@ pub(crate) fn flatten_element(
             } = BackgroundFields::from_style(&style);
             output.push(LayoutElement::TextBlock {
                 lines,
-                margin_top: style.margin.top,
-                margin_bottom: style.margin.bottom,
+                margin_top: style.margin.top + extra_margin_top,
+                margin_bottom: style.margin.bottom + extra_margin_bottom,
                 text_align: style.text_align,
                 background_color: None,
                 padding_top: style.padding.top,
@@ -1700,7 +1767,12 @@ pub(crate) fn flatten_element(
             .filter(|c| matches!(c, DomNode::Element(_)))
             .count();
         let mut child_el_idx = 0;
-        for child in &el.children {
+        for (raw_idx, child) in el.children.iter().enumerate() {
+            if Some(raw_idx) == consumed_p_idx {
+                // This <p> was inlined into the li's TextBlock above — skip.
+                child_el_idx += 1;
+                continue;
+            }
             if let DomNode::Element(child_el) = child {
                 if child_el.tag == HtmlTag::Ul || child_el.tag == HtmlTag::Ol {
                     let child_ctx = layout_ctx

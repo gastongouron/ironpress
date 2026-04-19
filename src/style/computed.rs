@@ -2074,6 +2074,24 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
     }
 
+    // CSS `direction` property. Inheritable. `dir=` attribute wins over CSS
+    // but is applied earlier in compute_style_with_context; here we only set
+    // from CSS when present.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "direction") {
+        match k.as_str() {
+            "rtl" => {
+                style.direction_rtl = true;
+                if style.text_align == TextAlign::Left {
+                    style.text_align = TextAlign::Right;
+                }
+            }
+            "ltr" => {
+                style.direction_rtl = false;
+            }
+            _ => {}
+        }
+    }
+
     // Text-transform
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-transform") {
         style.text_transform = match k.as_str() {
