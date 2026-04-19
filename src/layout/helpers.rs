@@ -100,6 +100,113 @@ pub(crate) fn outer_margin_bottom(el: &LayoutElement) -> f32 {
     }
 }
 
+/// True for flow-participating block children. Absolute/fixed/float elements
+/// don't participate in margin collapsing.
+fn is_in_flow_block(el: &LayoutElement) -> bool {
+    match el {
+        LayoutElement::TextBlock {
+            position, float, ..
+        }
+        | LayoutElement::Container {
+            position, float, ..
+        } => *position != Position::Absolute && *float == crate::style::computed::Float::None,
+        LayoutElement::FlexRow { .. }
+        | LayoutElement::GridRow { .. }
+        | LayoutElement::TableRow { .. }
+        | LayoutElement::Image { .. }
+        | LayoutElement::Svg { .. }
+        | LayoutElement::MathBlock { .. } => true,
+        _ => false,
+    }
+}
+
+/// Return the index of the first/last in-flow child that participates in
+/// margin collapsing. Skips absolute/fixed/float children.
+pub(crate) fn first_in_flow_idx(children: &[LayoutElement]) -> Option<usize> {
+    children.iter().position(is_in_flow_block)
+}
+
+pub(crate) fn last_in_flow_idx(children: &[LayoutElement]) -> Option<usize> {
+    children.iter().rposition(is_in_flow_block)
+}
+
+/// Take the element's margin-top (and clear it), skipping elements that
+/// don't participate in margin collapsing.
+pub(crate) fn take_margin_top(el: &mut LayoutElement) -> f32 {
+    match el {
+        LayoutElement::TextBlock { margin_top, .. }
+        | LayoutElement::Container { margin_top, .. }
+        | LayoutElement::FlexRow { margin_top, .. }
+        | LayoutElement::GridRow { margin_top, .. }
+        | LayoutElement::TableRow { margin_top, .. }
+        | LayoutElement::Image { margin_top, .. }
+        | LayoutElement::Svg { margin_top, .. }
+        | LayoutElement::MathBlock { margin_top, .. } => {
+            let m = *margin_top;
+            *margin_top = 0.0;
+            m
+        }
+        _ => 0.0,
+    }
+}
+
+pub(crate) fn take_margin_bottom(el: &mut LayoutElement) -> f32 {
+    match el {
+        LayoutElement::TextBlock { margin_bottom, .. }
+        | LayoutElement::Container { margin_bottom, .. }
+        | LayoutElement::FlexRow { margin_bottom, .. }
+        | LayoutElement::GridRow { margin_bottom, .. }
+        | LayoutElement::TableRow { margin_bottom, .. }
+        | LayoutElement::Image { margin_bottom, .. }
+        | LayoutElement::Svg { margin_bottom, .. }
+        | LayoutElement::MathBlock { margin_bottom, .. } => {
+            let m = *margin_bottom;
+            *margin_bottom = 0.0;
+            m
+        }
+        _ => 0.0,
+    }
+}
+
+/// Collapse the first in-flow child's margin-top into `container_margin_top`,
+/// and the last in-flow child's margin-bottom into `container_margin_bottom`,
+/// whenever there is no top/bottom padding or border to block the collapse.
+///
+/// This mirrors CSS 2.1 § 8.3.1: the top margin of a block box collapses with
+/// the margin of its first in-flow child if the box has no border/padding/line
+/// boxes above it, and symmetrically for the bottom margin.
+///
+/// The child's margin is zeroed so that flow layout (pagination and
+/// `render_container_children`) doesn't double-count it.
+pub(crate) fn collapse_margins_through_parent(
+    children: &mut [LayoutElement],
+    container_margin_top: &mut f32,
+    container_margin_bottom: &mut f32,
+    padding_top: f32,
+    padding_bottom: f32,
+    border_top: f32,
+    border_bottom: f32,
+) {
+    if padding_top == 0.0
+        && border_top == 0.0
+        && let Some(i) = first_in_flow_idx(children)
+    {
+        let child_mt = take_margin_top(&mut children[i]);
+        if child_mt > *container_margin_top {
+            *container_margin_top = child_mt;
+        }
+    }
+    if padding_bottom == 0.0
+        && border_bottom == 0.0
+        && let Some(i) = last_in_flow_idx(children)
+    {
+        let child_mb = take_margin_bottom(&mut children[i]);
+        if child_mb > *container_margin_bottom {
+            *container_margin_bottom = child_mb;
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Group 6 — Element classification
 // ---------------------------------------------------------------------------

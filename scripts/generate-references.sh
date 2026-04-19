@@ -10,8 +10,19 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 FIXTURES_DIR="$REPO_DIR/tests/fixtures"
 REF_DIR="$FIXTURES_DIR/references"
 
-# Find Chrome
+# Find Chrome — check PATH first, then common macOS app bundle locations.
 CHROME=$(command -v google-chrome-stable || command -v google-chrome || command -v chromium || command -v chromium-browser || echo "")
+if [ -z "$CHROME" ]; then
+    for candidate in \
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+        "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+        "$HOME/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
+        if [ -x "$candidate" ]; then
+            CHROME="$candidate"
+            break
+        fi
+    done
+fi
 if [ -z "$CHROME" ]; then
     echo "Warning: Chrome/Chromium not found — skipping reference generation"
     exit 0

@@ -497,6 +497,82 @@ pub fn compute_root_margin(rules: &[CssRule], page_size: PageSize) -> Margin {
     }
 }
 
+/// Compute the extra horizontal gutter that body's `max-width` plus
+/// `margin: auto` produces. This pattern (`body { max-width: 640px;
+/// margin: 40px auto; }`) centers the body content within the page's
+/// printable area. Since ironpress strips the `<body>` element before
+/// layout, we emulate the centering by folding the remainder width
+/// `(printable - max_width) / 2` into the effective page margin.
+///
+/// `printable_width` is the page width minus existing left/right margins
+/// (including any previously folded body margin/padding). Returns the
+/// half-gutter width to add on BOTH sides, or 0 if the body doesn't
+/// declare a max-width or both margins aren't auto.
+pub fn compute_root_body_centering_gutter(
+    rules: &[CssRule],
+    page_size: PageSize,
+    printable_width: f32,
+) -> f32 {
+    let mut style = ComputedStyle::default();
+    let parent = ComputedStyle {
+        viewport_width: page_size.width,
+        viewport_height: page_size.height,
+        root_font_size: style.font_size,
+        width: Some(page_size.width),
+        ..ComputedStyle::default()
+    };
+    for rule in rules {
+        let sel = rule.selector.trim();
+        if sel == "body" || sel == "html" || sel == ":root" {
+            crate::style::computed::apply_style_map(&mut style, &rule.declarations, &parent);
+        }
+    }
+    // Require BOTH left and right margin: auto (centering) plus a max-width.
+    if !(style.margin_left_auto && style.margin_right_auto) {
+        return 0.0;
+    }
+    let max_w = match (style.max_width, style.percentage_sizing.max_width) {
+        (Some(w), _) => w,
+        (None, Some(pct)) => pct / 100.0 * printable_width,
+        _ => return 0.0,
+    };
+    if max_w <= 0.0 || max_w >= printable_width {
+        return 0.0;
+    }
+    (printable_width - max_w) / 2.0
+}
+
+/// Resolve the padding declared on `body`, `html`, or `:root` selectors against
+/// the given page size. Chrome treats body padding as shrinking the printable
+/// area inside the page margin (like an inner gutter), so we fold it into the
+/// effective page margin alongside `compute_root_margin`.
+///
+/// Returns zeros when no matching rule declares padding.
+pub fn compute_root_padding(rules: &[CssRule], page_size: PageSize) -> (f32, f32, f32, f32) {
+    let mut style = ComputedStyle::default();
+    let parent = ComputedStyle {
+        viewport_width: page_size.width,
+        viewport_height: page_size.height,
+        root_font_size: style.font_size,
+        width: Some(page_size.width),
+        ..ComputedStyle::default()
+    };
+
+    for rule in rules {
+        let sel = rule.selector.trim();
+        if sel == "body" || sel == "html" || sel == ":root" {
+            crate::style::computed::apply_style_map(&mut style, &rule.declarations, &parent);
+        }
+    }
+
+    (
+        style.padding.top,
+        style.padding.right,
+        style.padding.bottom,
+        style.padding.left,
+    )
+}
+
 /// Lay out the DOM nodes into pages with stylesheet rules.
 #[allow(dead_code)]
 pub fn layout_with_rules(
@@ -543,6 +619,14 @@ pub fn layout_with_rules_and_fonts(
 
     // If the body/html has a background SVG (or gradient/color), emit a full-content-area
     // background block at the very start so it renders behind all content.
+    //
+    // Chrome's print model paints body background across the entire body box —
+    // including through the body padding, up to the body border edge (i.e. the
+    // page margin edge). Since `compute_root_padding` folded the body padding
+    // into the effective page margin, `available_width`/`content_height` here
+    // describe only the inner content area AFTER padding. We extend the bg
+    // block outward by the body padding so it visually fills the padding zone
+    // too — matching Chrome's behaviour.
     let has_body_bg = has_background_paint(&parent_style);
     if has_body_bg {
         let BackgroundFields {
@@ -555,6 +639,10 @@ pub fn layout_with_rules_and_fonts(
             repeat: background_repeat,
             origin: background_origin,
         } = BackgroundFields::from_style(&parent_style);
+        let bp_left = parent_style.padding.left;
+        let bp_right = parent_style.padding.right;
+        let bp_top = parent_style.padding.top;
+        let bp_bottom = parent_style.padding.bottom;
         elements.push(LayoutElement::TextBlock {
             lines: vec![],
             margin_top: 0.0,
@@ -566,14 +654,14 @@ pub fn layout_with_rules_and_fonts(
             padding_left: 0.0,
             padding_right: 0.0,
             border: LayoutBorder::default(),
-            block_width: Some(available_width),
-            block_height: Some(content_height),
+            block_width: Some(available_width + bp_left + bp_right),
+            block_height: Some(content_height + bp_top + bp_bottom),
             opacity: 1.0,
             float: Float::None,
             clear: Clear::None,
             position: Position::Absolute,
-            offset_top: 0.0,
-            offset_left: 0.0,
+            offset_top: -bp_top,
+            offset_left: -bp_left,
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
@@ -635,9 +723,14 @@ pub fn layout_with_rules_and_fonts(
         &mut env,
     );
 
-    // Then paginate. Pass the body/html margin-top so the first in-flow block
-    // on each page can collapse through the root (Chrome parity).
-    super::paginate::paginate(elements, content_height, parent_style.margin.top)
+    // Then paginate. Pass the body/html margin-top (plus padding-top, which
+    // acts as an additional inner gutter on page 1 when the body has padding)
+    // so the first in-flow block on each page can collapse through the root.
+    super::paginate::paginate(
+        elements,
+        content_height,
+        parent_style.margin.top + parent_style.padding.top,
+    )
 }
 
 /// Flatten a list of DOM nodes into layout elements.
@@ -4050,12 +4143,80 @@ mod tests {
         assert_eq!(grid_rows.len(), 1);
         let widths = grid_rows[0];
         assert_eq!(widths.len(), 2);
-        // Auto columns should be equal width, sharing available space
+        // Per CSS Grid: auto columns take their max-content intrinsic width,
+        // then split the remaining free space EQUALLY. "Left" and "Right"
+        // have slightly different measured widths, so the columns differ by
+        // exactly that content-width delta (small, a few points) — they are
+        // NOT forced to equal width.
+        let available = PageSize::A4.width - Margin::default().left - Margin::default().right;
+        let sum = widths[0] + widths[1];
         assert!(
-            (widths[0] - widths[1]).abs() < 0.1,
-            "Auto columns should be equal: {} vs {}",
+            (sum - available).abs() < 1.0,
+            "Auto columns should fill available: sum {} vs available {}",
+            sum,
+            available
+        );
+        assert!(
+            (widths[0] - widths[1]).abs() < 30.0,
+            "Auto columns should be close (differ by at most content delta): {} vs {}",
             widths[0],
             widths[1]
+        );
+    }
+
+    #[test]
+    fn grid_auto_fr_auto_does_not_collapse_to_equal_columns() {
+        // Regression for parity bug #145: `auto 1fr auto` was being treated
+        // as three equal tracks (auto == 1fr semantically). Correct behavior:
+        // auto columns size to their max-content intrinsic width, and the fr
+        // track swallows the remaining space.
+        let html = r#"<div style="display: grid; grid-template-columns: auto 1fr auto">
+            <div>L</div>
+            <div>middle</div>
+            <div>R</div>
+        </div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+
+        let rows = extract_grid_rows(&pages);
+        let grid_rows: Vec<_> = rows
+            .iter()
+            .filter_map(|el| {
+                if let LayoutElement::GridRow { col_widths, .. } = el {
+                    Some(col_widths)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(grid_rows.len(), 1);
+        let widths = grid_rows[0];
+        assert_eq!(widths.len(), 3);
+
+        let available = PageSize::A4.width - Margin::default().left - Margin::default().right;
+        let sum = widths[0] + widths[1] + widths[2];
+        assert!(
+            (sum - available).abs() < 1.0,
+            "Grid columns should fill available: sum {} vs {}",
+            sum,
+            available
+        );
+        // Auto columns ("L"/"R") must be much narrower than the 1fr column.
+        // If the old bug resurfaces, all three would be ~equal (≈available/3).
+        assert!(
+            widths[1] > widths[0] * 3.0,
+            "1fr column ({}) should dwarf auto columns ({}, {})",
+            widths[1],
+            widths[0],
+            widths[2]
+        );
+        assert!(
+            widths[1] > widths[2] * 3.0,
+            "1fr column ({}) should dwarf auto columns ({}, {})",
+            widths[1],
+            widths[0],
+            widths[2]
         );
     }
 
@@ -6368,6 +6529,75 @@ mod tests {
         // With collapsing: first_content_height + 30
         // The gap should be smaller than content + 50
         assert!(gap > 0.0, "Second block should be below first");
+    }
+
+    #[test]
+    fn margin_collapse_through_container() {
+        // CSS 2.1 § 8.3.1: the top margin of a parent with no padding/border
+        // collapses with the margin-top of its first in-flow child (and same
+        // for margin-bottom / last child). This mirrors the .block-pseudo
+        // fixture where two sibling containers each wrap a <p> whose default
+        // 1em margins should collapse through the container — not stack.
+        let html = r#"<html><head><style>
+            .wrap { position: relative; margin-bottom: 12pt; }
+            .wrap::before { content: ""; display: block; position: absolute;
+                left: 0; top: 0; width: 4pt; height: 100%; background: #3b82f6; }
+            .wrap p { margin-top: 16pt; margin-bottom: 16pt; }
+        </style></head><body>
+        <div class="wrap"><p>one</p></div>
+        <div class="wrap"><p>two</p></div>
+        </body></html>"#;
+        let result = parse_html_with_styles(html).unwrap();
+        let rules: Vec<_> = result
+            .stylesheets
+            .iter()
+            .flat_map(|css| parse_stylesheet(css))
+            .collect();
+        let pages = layout_with_rules(&result.nodes, PageSize::A4, Margin::default(), &rules);
+        // Collect the y-positions of the two <p> text blocks (one inside
+        // each .wrap Container).
+        let mut text_ys: Vec<f32> = Vec::new();
+        fn collect_text_ys(elements: &[(f32, LayoutElement)], out: &mut Vec<f32>) {
+            for (y, el) in elements {
+                match el {
+                    LayoutElement::TextBlock { lines, .. } if !lines.is_empty() => {
+                        out.push(*y);
+                    }
+                    LayoutElement::Container { children, .. } => {
+                        let pairs: Vec<(f32, LayoutElement)> =
+                            children.iter().map(|c| (*y, c.clone())).collect();
+                        collect_text_ys(&pairs, out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        collect_text_ys(&pages[0].elements, &mut text_ys);
+        assert_eq!(text_ys.len(), 2, "expected 2 text blocks");
+        // Without collapse: gap = 16 (p.mb) + 12 (div.mb) + 16 (p.mt) = 44pt
+        //                         plus text height of first <p>
+        // With collapse:   gap = max(16, 12, 16) = 16pt + text height
+        // The container y is the same as child y since margins collapsed in.
+        // We can't reliably inspect inner text y without deeper traversal,
+        // but we can check the Container y positions instead.
+        let container_ys: Vec<f32> = pages[0]
+            .elements
+            .iter()
+            .filter_map(|(y, el)| match el {
+                LayoutElement::Container { .. } => Some(*y),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(container_ys.len(), 2, "expected 2 wrap containers");
+        let gap = container_ys[1] - container_ys[0];
+        // Expected: 16pt (collapsed) + height of <p> text (~16pt at 16pt
+        // font with 1.5 line-height ≈ 24pt). Total ≈ 40pt.
+        // Without collapse this would be ~68pt (44 + 24).
+        assert!(
+            gap < 50.0,
+            "Containers should be tight (margin-collapse-through-parent), got {}pt",
+            gap
+        );
     }
 
     #[test]

@@ -66,9 +66,12 @@ for layer in features combined edge-cases; do
 
         any_result=1
 
-        # Convert the target page to PNG at 150 DPI
+        # Convert the target page to PNG at 150 DPI. pdftoppm exits non-zero when
+        # the requested page doesn't exist (e.g. Chrome reference has 3 pages
+        # but our output has 2). Swallow that error so the loop continues —
+        # the missing render is reported as RENDER FAILED below.
         render_prefix="$TMPDIR_WORK/${layer}_${ref_base}"
-        pdftoppm -r 150 -png -f "$page" -l "$page" "$pdf_file" "$render_prefix" 2>/dev/null
+        pdftoppm -r 150 -png -f "$page" -l "$page" "$pdf_file" "$render_prefix" 2>/dev/null || true
         # pdftoppm names output -N.png or -0N.png depending on page count
         render_png=""
         for candidate in "${render_prefix}-${page}.png" "${render_prefix}-0${page}.png" "${render_prefix}-00${page}.png"; do

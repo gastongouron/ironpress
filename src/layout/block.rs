@@ -1246,6 +1246,24 @@ pub(crate) fn layout_block_element(
                 env.fonts,
             );
         }
+        // CSS 2.1 § 8.3.1: margins of a block and its first/last in-flow
+        // children collapse when no padding/border/line box separates them.
+        // Absorb the child margins into the container's own so that flow
+        // layout (paginate + render_container_children) doesn't double-count
+        // them. Applies only when we're actually building a Container (this
+        // wrapper branch); inline/split text blocks are handled by paginate.
+        let mut wrapper_margin_top = style.margin.top;
+        let mut wrapper_margin_bottom = style.margin.bottom;
+        crate::layout::helpers::collapse_margins_through_parent(
+            &mut child_elements,
+            &mut wrapper_margin_top,
+            &mut wrapper_margin_bottom,
+            style.padding.top,
+            style.padding.bottom,
+            style.border.top.width,
+            style.border.bottom.width,
+        );
+
         // Measure children total height
         let children_h_raw: f32 = child_elements.iter().map(estimate_element_height).sum();
         let mut container_h = resolve_padding_box_height(
@@ -1371,8 +1389,8 @@ pub(crate) fn layout_block_element(
             padding_bottom: style.padding.bottom,
             padding_left: style.padding.left,
             padding_right: style.padding.right,
-            margin_top: style.margin.top,
-            margin_bottom: style.margin.bottom,
+            margin_top: wrapper_margin_top,
+            margin_bottom: wrapper_margin_bottom,
             block_width: Some(block_w),
             block_height: if effective_height.is_some() || style.aspect_ratio.is_some() {
                 Some(container_h)

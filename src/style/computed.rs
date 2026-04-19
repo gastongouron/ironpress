@@ -462,7 +462,9 @@ pub struct BoxShadow {
     pub offset_x: f32,
     pub offset_y: f32,
     pub blur: f32,
+    pub spread: f32,
     pub color: Color,
+    pub inset: bool,
 }
 
 /// Border line style.
@@ -1444,6 +1446,14 @@ fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
 }
 
 pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedStyle) {
+    // `parent_width_known` tells us whether the `parent_width` we feed into
+    // the length-resolution context is a real, layout-driven parent width
+    // (Some) or a viewport-width fallback (None). For width-family percentage
+    // properties we must NOT eagerly resolve against the viewport fallback,
+    // because the result silently diverges from the actual containing-block
+    // width and clamps to available_width at layout time, yielding a full-
+    // width element (e.g. a `width: 95%` inner bar looking 100% wide).
+    let parent_width_known = parent.width.is_some();
     let length_context = crate::style::resolve::LengthResolutionContext::new(
         parent.width.unwrap_or(parent.viewport_width),
         style.font_size,
@@ -2265,6 +2275,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     ];
     for &(prop_name, setter) in inline_length_props {
         if let Some(val) = get_non_special(map, prop_name) {
+            // For width/max-width/min-width percentages, only pre-resolve when
+            // parent.width is actually known. Otherwise the value resolves
+            // against viewport_width and produces an oversized result that
+            // clamps to 100% at layout time. The percentage_sizing.width
+            // hint (set below) is the correct late-bound fallback.
+            let is_width_prop = matches!(prop_name, "width" | "max-width" | "min-width");
+            if is_width_prop && !parent_width_known && matches!(val, CssValue::Percentage(_)) {
+                continue;
+            }
             match val {
                 CssValue::Percentage(_)
                 | CssValue::Rem(_)
@@ -2801,17 +2820,28 @@ fn is_background_position_keyword(token: &str) -> bool {
 
 /// Parse a `box-shadow` shorthand value.
 ///
-/// Supports formats like:
-/// - `2px 2px black`
-/// - `2px 2px 4px black`
-/// - `2px 2px 4px rgba(0,0,0,0.3)`  (alpha is ignored in PDF)
+/// Supports CSS syntax:
+/// - `[inset]? <offset-x> <offset-y> [<blur> [<spread>]] [<color>]`
+/// - `inset 0 2px 8px rgba(0,0,0,0.3)`
+/// - `4px 4px 8px 2px #ccc`  (with spread)
+/// - Multiple shadows separated by commas — only the first is retained.
 fn parse_box_shadow(val: &str) -> Option<BoxShadow> {
     let val = val.trim();
     if val == "none" {
         return None;
     }
 
-    // Split into tokens, but handle rgba(...) as a single token
+    // If the input has top-level commas (outside parens), split and take
+    // the first shadow. Chromium layers multiple shadows, but ironpress
+    // currently renders one; first is the most visible in common cases.
+    let first = split_top_level_comma(val)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| val.to_string());
+    let val = first.trim();
+
+    // Tokenize: spaces delimit tokens, but rgba(...) / rgb(...) / hsl(...)
+    // and keyword `inset` are each a single token.
     let mut tokens: Vec<String> = Vec::new();
     let mut chars = val.chars().peekable();
     let mut current = String::new();
@@ -2835,25 +2865,45 @@ fn parse_box_shadow(val: &str) -> Option<BoxShadow> {
         tokens.push(current);
     }
 
-    if tokens.len() < 3 {
+    // Pull out `inset` keyword wherever it appears (CSS allows it at either
+    // end of the declaration).
+    let mut inset = false;
+    tokens.retain(|t| {
+        if t.eq_ignore_ascii_case("inset") {
+            inset = true;
+            false
+        } else {
+            true
+        }
+    });
+
+    if tokens.len() < 2 {
         return None;
     }
 
     let offset_x = parse_shadow_length(&tokens[0])?;
     let offset_y = parse_shadow_length(&tokens[1])?;
 
-    let (blur, color_start) = if tokens.len() >= 4 {
-        if let Some(b) = parse_shadow_length(&tokens[2]) {
-            (b, 3)
-        } else {
-            (0.0, 2)
+    // Tokens after offsets may be: [blur [spread]] [color]. Lengths parse
+    // numerically; colors don't. Walk forward consuming up to 2 lengths.
+    let mut idx = 2;
+    let mut blur = 0.0;
+    let mut spread = 0.0;
+    if idx < tokens.len() {
+        if let Some(b) = parse_shadow_length(&tokens[idx]) {
+            blur = b;
+            idx += 1;
+            if idx < tokens.len()
+                && let Some(s) = parse_shadow_length(&tokens[idx])
+            {
+                spread = s;
+                idx += 1;
+            }
         }
-    } else {
-        (0.0, 2)
-    };
+    }
 
-    let color = if color_start < tokens.len() {
-        parse_border_color(&tokens[color_start]).unwrap_or(Color::BLACK)
+    let color = if idx < tokens.len() {
+        parse_border_color(&tokens[idx]).unwrap_or(Color::BLACK)
     } else {
         Color::BLACK
     };
@@ -2862,8 +2912,38 @@ fn parse_box_shadow(val: &str) -> Option<BoxShadow> {
         offset_x,
         offset_y,
         blur,
+        spread,
         color,
+        inset,
     })
+}
+
+/// Split on top-level commas (commas not enclosed in parens). Used for the
+/// comma-separated list syntax of several CSS properties.
+fn split_top_level_comma(val: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut current = String::new();
+    for ch in val.chars() {
+        match ch {
+            '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                depth -= 1;
+                current.push(ch);
+            }
+            ',' if depth <= 0 => {
+                parts.push(std::mem::take(&mut current));
+            }
+            _ => current.push(ch),
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
 }
 
 /// Parse a length value for box-shadow (px or pt or bare number).
@@ -4244,7 +4324,9 @@ mod tests {
             offset_x: 3.0,
             offset_y: 3.0,
             blur: 0.0,
+            spread: 0.0,
             color: Color::BLACK,
+            inset: false,
         });
         let style = compute_style(HtmlTag::Div, None, &parent);
         assert!(style.box_shadow.is_none());
@@ -5268,7 +5350,9 @@ mod tests {
             offset_x: 1.0,
             offset_y: 2.0,
             blur: 3.0,
+            spread: 0.0,
             color: Color::BLACK,
+            inset: false,
         });
         let style = compute_style(HtmlTag::Div, Some("box-shadow: inherit"), &parent);
         assert!(style.box_shadow.is_some());
@@ -5665,8 +5749,43 @@ mod tests {
 
     #[test]
     fn parse_box_shadow_too_few_tokens() {
+        // CSS allows just offset-x + offset-y (no blur/spread/color). Should parse.
         let shadow = parse_box_shadow("2px 2px");
-        assert!(shadow.is_none());
+        assert!(shadow.is_some());
+        let s = shadow.unwrap();
+        assert!((s.blur - 0.0).abs() < 0.1);
+        assert!((s.spread - 0.0).abs() < 0.1);
+        assert!(!s.inset);
+
+        // Single token is not enough.
+        assert!(parse_box_shadow("2px").is_none());
+    }
+
+    #[test]
+    fn parse_box_shadow_inset_keyword() {
+        let shadow = parse_box_shadow("inset 2px 2px 4px rgba(0,0,0,0.3)");
+        assert!(shadow.is_some());
+        let s = shadow.unwrap();
+        assert!(s.inset);
+        assert!((s.blur - 3.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_box_shadow_with_spread() {
+        let shadow = parse_box_shadow("4px 4px 8px 2px #000");
+        assert!(shadow.is_some());
+        let s = shadow.unwrap();
+        assert!((s.blur - 6.0).abs() < 0.1); // 8px * 0.75
+        assert!((s.spread - 1.5).abs() < 0.1); // 2px * 0.75
+    }
+
+    #[test]
+    fn parse_box_shadow_multi_takes_first() {
+        let shadow = parse_box_shadow("2px 2px 4px black, 0 0 8px red");
+        assert!(shadow.is_some());
+        let s = shadow.unwrap();
+        assert!((s.blur - 3.0).abs() < 0.1);
+        assert_eq!(s.color.r, 0);
     }
 
     #[test]
@@ -7262,16 +7381,30 @@ mod tests {
 
     #[test]
     fn max_width_from_percentage() {
-        let parent = ComputedStyle::default();
+        // With a known parent width, percentage resolves eagerly.
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(400.0);
         let s = compute_style(HtmlTag::Div, Some("max-width: 50%"), &parent);
         assert!(s.max_width.is_some());
+        // Without a known parent width, percentage defers to layout time via
+        // percentage_sizing hint (avoids bogus resolution against viewport).
+        let parent_unknown = ComputedStyle::default();
+        let s2 = compute_style(HtmlTag::Div, Some("max-width: 50%"), &parent_unknown);
+        assert!(s2.max_width.is_none());
+        assert_eq!(s2.percentage_sizing.max_width, Some(50.0));
     }
 
     #[test]
     fn min_width_from_percentage() {
-        let parent = ComputedStyle::default();
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(400.0);
         let s = compute_style(HtmlTag::Div, Some("min-width: 25%"), &parent);
         assert!(s.min_width.is_some());
+        // Layout-time deferral when parent width is unknown.
+        let parent_unknown = ComputedStyle::default();
+        let s2 = compute_style(HtmlTag::Div, Some("min-width: 25%"), &parent_unknown);
+        assert!(s2.min_width.is_none());
+        assert_eq!(s2.percentage_sizing.min_width, Some(25.0));
     }
 
     #[test]

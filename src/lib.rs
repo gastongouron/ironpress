@@ -455,6 +455,33 @@ impl HtmlConverter {
         effective_margin.right += body_margin.right;
         effective_margin.left += body_margin.left;
 
+        // Body padding acts as an additional inner gutter in Chrome's print
+        // model. Since ironpress strips the <body> element before layout, we
+        // fold its horizontal padding into the page margin too, so content
+        // inside the body is offset by `page_margin + body_margin + body_padding`
+        // on every page — matching Chrome's rendering of e.g.
+        // `body { padding: 40px }`.
+        let (_bp_top, bp_right, _bp_bottom, bp_left) =
+            layout::engine::compute_root_padding(&rules, effective_page_size);
+        effective_margin.right += bp_right;
+        effective_margin.left += bp_left;
+
+        // Body max-width + margin:auto centers body content within the page's
+        // printable area (e.g. `body { max-width: 640px; margin: auto; }` on
+        // a typical article). Ironpress strips <body> before layout, so we
+        // emulate the centering by folding a half-remainder gutter into each
+        // horizontal page margin. Must run AFTER body margin/padding folding
+        // so `printable_width` reflects the already-narrowed area.
+        let printable_w =
+            effective_page_size.width - effective_margin.left - effective_margin.right;
+        let body_center_gutter = layout::engine::compute_root_body_centering_gutter(
+            &rules,
+            effective_page_size,
+            printable_w,
+        );
+        effective_margin.left += body_center_gutter;
+        effective_margin.right += body_center_gutter;
+
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 

@@ -484,6 +484,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
                     }
 
+                    // Draw inset box-shadow (after backgrounds, before content).
+                    if let Some(shadow) = box_shadow
+                        && shadow.inset
+                    {
+                        render_box_shadow_inset(
+                            &mut content,
+                            shadow,
+                            block_x,
+                            block_bottom,
+                            render_width,
+                            total_h,
+                            *border_radius,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
+                        );
+                    }
+
                     // Draw SVG background image if specified
                     if let Some(svg_tree) = background_svg {
                         let text_height: f32 = lines.iter().map(|l| l.height).sum();
@@ -1285,6 +1302,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
                     }
 
+                    // Draw inset box-shadow for flex container (after backgrounds).
+                    if let Some(shadow) = box_shadow
+                        && shadow.inset
+                    {
+                        render_box_shadow_inset(
+                            &mut content,
+                            shadow,
+                            margin.left,
+                            row_y - full_height,
+                            *container_width,
+                            full_height,
+                            *border_radius,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
+                        );
+                    }
+
                     // Draw SVG background image for flex container
                     if let Some(svg_tree) = background_svg {
                         let bg_x = margin.left;
@@ -1538,6 +1572,25 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             if needs_fcell_bg_alpha {
                                 content.push_str("/GSDefault gs\n");
                             }
+                        }
+
+                        // Draw inset box-shadow (after cell background, before borders).
+                        if let Some(shadow) = &cell.box_shadow
+                            && shadow.inset
+                        {
+                            let cell_bg_x = margin.left + padding_left + cell.x_offset;
+                            let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
+                            render_box_shadow_inset(
+                                &mut content,
+                                shadow,
+                                cell_bg_x,
+                                cell_bg_y,
+                                cell.width,
+                                cell_render_h,
+                                cell.border_radius,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                            );
                         }
 
                         // Draw cell borders
@@ -2308,6 +2361,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
                     }
 
+                    // Draw inset box-shadow (after container background, before borders).
+                    if let Some(shadow) = c_box_shadow
+                        && shadow.inset
+                    {
+                        render_box_shadow_inset(
+                            &mut content,
+                            shadow,
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                            *c_border_radius,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
+                        );
+                    }
+
                     // Draw all 4 borders
                     if border.has_any() {
                         if *c_border_radius > 0.0 {
@@ -2905,6 +2975,7 @@ fn render_container_children(
                 position,
                 offset_top,
                 offset_left,
+                opacity: tb_opacity,
                 block_width: tb_block_width,
                 ..
             } => {
@@ -2919,12 +2990,25 @@ fn render_container_children(
                     let abs_x = (x - abs_pad_left) + offset_left;
                     let abs_y = (container_top_y + abs_pad_top) - offset_top;
 
+                    // Apply element opacity (e.g. `.z-back { opacity: 0.8 }`)
+                    // for the entire absolute element (background + text). The
+                    // PDF graphics-state name is unique per alpha counter so it
+                    // doesn't collide with other elements' ExtGState entries.
+                    let needs_opacity = *tb_opacity < 1.0;
+                    if needs_opacity {
+                        let gs_name = format!("GSabs{bg_alpha_counter}");
+                        *bg_alpha_counter += 1;
+                        page_ext_gstates.push((gs_name.clone(), *tb_opacity));
+                        content.push_str(&format!("/{gs_name} gs\n"));
+                    }
+
                     if let Some((r, g, b, a)) = background_color {
-                        let needs_alpha = *a < 1.0;
+                        let effective_alpha = *a * *tb_opacity;
+                        let needs_alpha = effective_alpha < 1.0;
                         if needs_alpha {
                             let gs_name = format!("GScca{bg_alpha_counter}");
                             *bg_alpha_counter += 1;
-                            page_ext_gstates.push((gs_name.clone(), *a));
+                            page_ext_gstates.push((gs_name.clone(), effective_alpha));
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
                         content.push_str(&format!(
@@ -2935,7 +3019,14 @@ fn render_container_children(
                             ah = abs_h,
                         ));
                         if needs_alpha {
-                            content.push_str("/GSDefault gs\n");
+                            // Restore the element-level opacity (if any) so
+                            // subsequent text also gets alpha-composited.
+                            if needs_opacity {
+                                let gs_name = format!("GSabs{}", *bg_alpha_counter - 2);
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            } else {
+                                content.push_str("/GSDefault gs\n");
+                            }
                         }
                     }
                     // Render text for absolute-positioned children
@@ -2966,6 +3057,10 @@ fn render_container_children(
                             lx += rw;
                         }
                         text_y_abs -= metrics.descender + metrics.half_leading;
+                    }
+                    // Reset the graphics state if we applied element opacity.
+                    if needs_opacity {
+                        content.push_str("/GSDefault gs\n");
                     }
                     // Don't advance cursor_y for absolute elements
                     continue;
@@ -4594,10 +4689,27 @@ fn render_box_shadow(
 ) {
     let (sr, sg, sb, base_alpha) = shadow.color.to_f32_rgba();
     let blur = shadow.blur;
+    let spread = shadow.spread;
     // CSS: positive offset_y = shadow below element.
     // PDF: Y increases upward, so negate offset_y.
-    let sx = box_x + shadow.offset_x;
-    let sy = box_y_bottom - shadow.offset_y;
+    let layers: usize = 10;
+    // Per-layer alpha multiplier, tuned so cumulative edge opacity under PDF
+    // source-over compositing matches base_alpha roughly. Halved from 0.22
+    // to 0.11 because parity testing showed shadows were still ~2× too dark
+    // vs. Chromium at typical base_alpha values (0.2–0.5).
+    const ALPHA_NORMALIZER: f32 = 0.11;
+
+    if shadow.inset {
+        // Inset shadows are drawn separately via render_box_shadow_inset()
+        // AFTER the element background, so skip here.
+        return;
+    }
+
+    // Outset shadow: position = box shifted by offset, expanded uniformly by spread.
+    let sx = box_x + shadow.offset_x - spread;
+    let sy = box_y_bottom - shadow.offset_y - spread;
+    let sw = box_w + spread * 2.0;
+    let sh = box_h + spread * 2.0;
 
     if blur <= 0.5 {
         // No blur — solid shadow
@@ -4609,10 +4721,10 @@ fn render_box_shadow(
         }
         content.push_str(&format!("{sr} {sg} {sb} rg\n"));
         if border_radius > 0.0 {
-            content.push_str(&rounded_rect_path(sx, sy, box_w, box_h, border_radius));
+            content.push_str(&rounded_rect_path(sx, sy, sw, sh, border_radius));
             content.push_str("\nf\n");
         } else {
-            content.push_str(&format!("{sx} {sy} {box_w} {box_h} re\nf\n"));
+            content.push_str(&format!("{sx} {sy} {sw} {sh} re\nf\n"));
         }
         if base_alpha < 1.0 {
             content.push_str("/GSDefault gs\n");
@@ -4622,13 +4734,6 @@ fn render_box_shadow(
 
     // Multi-layer blur approximation: draw concentric rects from outside
     // (most transparent) to inside (most opaque), simulating Gaussian falloff.
-    // Per-layer alpha is tuned so that under PDF source-over compositing, the
-    // cumulative opacity at the box edge (where all 10 layers overlap) closely
-    // matches `base_alpha`. With M≈0.22, cumulative ≈ base for typical
-    // shadow alpha values (0.1..0.5). Higher values darken to black like Chrome
-    // can't produce; the old 0.4 factor produced pure-black edges.
-    let layers: usize = 10;
-    const ALPHA_NORMALIZER: f32 = 0.22;
     content.push_str(&format!("{sr} {sg} {sb} rg\n"));
     for i in (0..layers).rev() {
         let t = (i as f32 + 1.0) / layers as f32;
@@ -4644,8 +4749,8 @@ fn render_box_shadow(
 
         let rx = sx - expand;
         let ry = sy - expand;
-        let rw = box_w + expand * 2.0;
-        let rh = box_h + expand * 2.0;
+        let rw = sw + expand * 2.0;
+        let rh = sh + expand * 2.0;
         let r = if border_radius > 0.0 {
             border_radius + expand
         } else {
@@ -4659,6 +4764,115 @@ fn render_box_shadow(
             content.push_str(&format!("{rx} {ry} {rw} {rh} re\nf\n"));
         }
     }
+    content.push_str("/GSDefault gs\n");
+}
+
+/// Render an inset box-shadow: shadow appears inside the box edges, fading
+/// toward the center. Uses PDF clipping to constrain shadow to the box,
+/// then draws rings of the shadow color via even-odd fill, with alpha
+/// graded so edges accumulate maximum darkness.
+///
+/// Call this AFTER the element's background so the shadow isn't painted
+/// over. The outset variant (render_box_shadow) is called before the
+/// background.
+#[allow(clippy::too_many_arguments)]
+fn render_box_shadow_inset(
+    content: &mut String,
+    shadow: &crate::style::computed::BoxShadow,
+    box_x: f32,
+    box_y_bottom: f32,
+    box_w: f32,
+    box_h: f32,
+    border_radius: f32,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    gs_counter: &mut usize,
+) {
+    if !shadow.inset {
+        return;
+    }
+    let (sr, sg, sb, base_alpha) = shadow.color.to_f32_rgba();
+    let blur = shadow.blur;
+    let spread = shadow.spread;
+    let offset_x = shadow.offset_x;
+    let offset_y = shadow.offset_y;
+    let layers: usize = 10;
+    let alpha_normalizer: f32 = 0.11;
+    // Save gfx state, clip to box path.
+    content.push_str("q\n");
+    if border_radius > 0.5 {
+        content.push_str(&rounded_rect_path(
+            box_x,
+            box_y_bottom,
+            box_w,
+            box_h,
+            border_radius,
+        ));
+        content.push('\n');
+    } else {
+        content.push_str(&format!("{box_x} {box_y_bottom} {box_w} {box_h} re\n"));
+    }
+    content.push_str("W n\n");
+
+    content.push_str(&format!("{sr} {sg} {sb} rg\n"));
+
+    // Outer bounds for even-odd fill — large enough to guarantee full
+    // coverage of the clipped region.
+    let ox = box_x - blur - spread.abs() - 2.0;
+    let oy = box_y_bottom - blur - spread.abs() - 2.0;
+    let ow = box_w + (blur + spread.abs()) * 2.0 + 4.0;
+    let oh = box_h + (blur + spread.abs()) * 2.0 + 4.0;
+
+    if blur <= 0.5 {
+        // No blur: single solid fill of the "ring" area.
+        if base_alpha < 1.0 {
+            let gs_name = format!("GSbs{}", *gs_counter);
+            *gs_counter += 1;
+            page_ext_gstates.push((gs_name.clone(), base_alpha));
+            content.push_str(&format!("/{gs_name} gs\n"));
+        }
+        let hx = box_x + offset_x + spread;
+        let hy = box_y_bottom - offset_y + spread;
+        let hw = box_w - spread * 2.0;
+        let hh = box_h - spread * 2.0;
+        content.push_str(&format!("{ox} {oy} {ow} {oh} re\n"));
+        if hw > 0.0 && hh > 0.0 {
+            content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+        }
+        content.push_str("f*\n");
+        content.push_str("Q\n");
+        if base_alpha < 1.0 {
+            content.push_str("/GSDefault gs\n");
+        }
+        return;
+    }
+
+    for i in (0..layers).rev() {
+        let t = (i as f32 + 1.0) / layers as f32;
+        let gaussian = (-3.0 * t * t).exp();
+        let alpha = (base_alpha * gaussian * alpha_normalizer).min(base_alpha);
+        let expand = blur * t;
+
+        let gs_name = format!("GSbs{}", *gs_counter);
+        *gs_counter += 1;
+        page_ext_gstates.push((gs_name.clone(), alpha));
+        content.push_str(&format!("/{gs_name} gs\n"));
+
+        // Inner "hole": shifted by shadow offset, contracted by (spread + expand).
+        let total_inset = expand + spread;
+        let hx = box_x + offset_x + total_inset;
+        let hy = box_y_bottom - offset_y + total_inset;
+        let hw = box_w - total_inset * 2.0;
+        let hh = box_h - total_inset * 2.0;
+
+        // Draw outer rect + inner rect, fill with even-odd → ring of shadow color.
+        content.push_str(&format!("{ox} {oy} {ow} {oh} re\n"));
+        if hw > 0.0 && hh > 0.0 {
+            content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+        }
+        content.push_str("f*\n");
+    }
+
+    content.push_str("Q\n");
     content.push_str("/GSDefault gs\n");
 }
 
