@@ -275,6 +275,30 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
             return;
         }
     }
+
+    // In WASM builds there are no system fonts available via fontdb —
+    // fall back to a bundled Noto Sans CJK subset so Chinese/Japanese
+    // kanji + kana at least render. Not bundled in native builds to keep
+    // the CLI binary small (users have access to real system CJK fonts).
+    #[cfg(feature = "wasm")]
+    load_bundled_cjk_font(fonts);
+}
+
+/// Bundled Noto Sans CJK subset (~1.4 MB TTF) — covers CJK Unified Ideographs
+/// U+4E00-5FFF (most common ~4k Chinese characters / Japanese kanji),
+/// Hiragana, Katakana, CJK Symbols/Punctuation, and Halfwidth/Fullwidth
+/// Forms. Korean Hangul is **not** included to stay within WASM bundle
+/// size budget; users needing Hangul should register a custom font via
+/// `HtmlConverter::add_font`.
+///
+/// Stored as glyf-based TTF (not CFF-based OTF) so ironpress's built-in
+/// TTF parser can decode it.
+#[cfg(feature = "wasm")]
+fn load_bundled_cjk_font(fonts: &mut HashMap<String, TtfFont>) {
+    static CJK_SUBSET_DATA: &[u8] = include_bytes!("../assets/NotoSansCJK-Subset.ttf");
+    if let Ok(font) = crate::parser::ttf::parse_ttf(CJK_SUBSET_DATA.to_vec()) {
+        fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
+    }
 }
 
 /// Load an emoji font for emoji character rendering.
