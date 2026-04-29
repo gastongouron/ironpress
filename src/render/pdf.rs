@@ -7318,9 +7318,8 @@ mod tests {
             pixels.extend_from_slice(&[v, (v.wrapping_add(8))]);
         }
 
-        let buffer =
-            image::ImageBuffer::from_raw(width, height, pixels)
-                .expect("luma+alpha buffer should be valid");
+        let buffer = image::ImageBuffer::from_raw(width, height, pixels)
+            .expect("luma+alpha buffer should be valid");
 
         let mut encoded = Vec::new();
         image::DynamicImage::ImageLumaA8(buffer)
