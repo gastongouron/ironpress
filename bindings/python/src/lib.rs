@@ -43,6 +43,10 @@ fn markdown_to_pdf(markdown: &str) -> PyResult<Vec<u8>> {
 struct HtmlConverter {
     page_size: ironpress_core::types::PageSize,
     margin: ironpress_core::types::Margin,
+    header: Option<String>,
+    footer: Option<String>,
+    fonts: Vec<(String, Vec<u8>)>,
+    base_path: Option<String>
 }
 
 #[pymethods]
@@ -52,12 +56,21 @@ impl HtmlConverter {
         HtmlConverter {
             page_size: ironpress_core::types::PageSize::A4,
             margin: ironpress_core::types::Margin::default(),
+            header: None,
+            footer: None,
+            fonts: Vec::new(),
+            base_path: None
         }
     }
 
     /// Set uniform margin in points (72 points = 1 inch).
     fn margin(&mut self, points: f32) {
         self.margin = ironpress_core::types::Margin::uniform(points);
+    }
+
+    /// Set margins with individual values for each side (72 points = 1 inch).
+    fn margin_sides(&mut self, top: f32, right: f32, bottom: f32, left: f32) {
+        self.margin = ironpress_core::types::Margin::new(top, right, bottom, left);
     }
 
     /// Set page size by name ("A4", "Letter", "Legal").
@@ -71,24 +84,92 @@ impl HtmlConverter {
         Ok(())
     }
 
+    /// Set a header text rendered at the top of each page (in the top margin area).
+    fn header(&mut self, header: &str) -> PyResult<()> {
+        self.header = Some(String::from(header));
+        Ok(())
+    }
+
+    /// Set a footer text rendered at the bottom of each page (in the bottom margin area).
+    ///
+    /// Use `{page}` for the current page number and `{pages}` for the total page count.
+    /// For example: `"Page {page} of {pages}"`.
+    fn footer(&mut self, footer: &str) -> PyResult<()> {
+        self.footer = Some(String::from(footer));
+        Ok(())
+    }
+
+    /// Register a custom TrueType font.
+    ///
+    /// The `name` should match the `font-family` value used in CSS.
+    /// The `ttf_data` is the raw contents of a `.ttf` file.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// import ironpress
+    ///
+    /// ttf_data = open('MyFont.ttf', 'rb').read()
+    /// converter = ironpress.HtmlConverter()
+    /// converter.add_font('MyFont', ttf_data)
+    /// pdf = converter.convert('<p style="font-family: MyFont">Custom text</p>')
+    /// ```
+    fn add_font(&mut self, name: &str, ttf_data: Vec<u8>) -> PyResult<()> {
+        self.fonts.push((name.to_string(), ttf_data));
+        Ok(())
+    }
+
+    /// Set the base directory for resolving relative paths in CSS `@import`
+    /// and `@font-face` rules.
+    ///
+    /// When set, `@import "styles.css"` will resolve the path relative to
+    /// this directory, and `@font-face { src: url("fonts/MyFont.ttf") }` will
+    /// load the font file from this directory.
+    ///
+    /// Only local file paths are supported. Remote URLs (http/https) are
+    /// rejected for security.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// import ironpress
+    /// conv = ironpress.HtmlConverter()
+    /// conv.base_path('/path/to/project')
+    /// pdf = conv.convert('<style>@import "styles.css";</style><p>Hello</p>')
+    /// ```
+    fn base_path(&mut self, path: &str) {
+        self.base_path = Some(path.to_string());
+    }
+
     /// Convert HTML to PDF bytes.
     fn convert(&self, html: &str) -> PyResult<Vec<u8>> {
-        let converter = ironpress_core::HtmlConverter::new()
-            .page_size(self.page_size)
-            .margin(self.margin);
-        converter
+        self.build_core_converter()
             .convert(html)
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     /// Convert Markdown to PDF bytes.
     fn convert_markdown(&self, markdown: &str) -> PyResult<Vec<u8>> {
-        let converter = ironpress_core::HtmlConverter::new()
-            .page_size(self.page_size)
-            .margin(self.margin);
-        converter
+        self.build_core_converter()
             .convert_markdown(markdown)
             .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+impl HtmlConverter {
+    fn build_core_converter(&self) -> ironpress_core::HtmlConverter {
+        let mut converter = ironpress_core::HtmlConverter::new()
+            .page_size(self.page_size)
+            .margin(self.margin);
+
+        if let Some(h) = self.header.as_deref() { converter = converter.header(h); }
+        if let Some(f) = self.footer.as_deref() { converter = converter.footer(f); }
+        if let Some(bp) = self.base_path.as_deref() { converter = converter.base_path(bp.as_ref()); }
+
+        for (name, data) in &self.fonts {
+            converter = converter.add_font(name, data.clone());
+        }
+        converter
     }
 }
 
