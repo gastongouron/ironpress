@@ -2512,6 +2512,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         image.source_height,
                         image.format,
                         image.png_metadata.as_ref(),
+                        image.alpha_mask.as_deref(),
                     );
                     let img_name = format!("Im{img_obj_id}");
                     content.push_str(&format!(
@@ -5184,6 +5185,10 @@ impl PdfWriter {
     }
 
     /// Add an image as a PDF XObject and return its object ID.
+    ///
+    /// When `alpha_mask` is `Some`, `data` is treated as a FlateDecode-compressed
+    /// raw color stream (no PNG predictor) and a separate `/SMask` XObject is
+    /// emitted carrying the grayscale alpha channel.
     fn add_image_object(
         &mut self,
         data: &[u8],
@@ -5191,7 +5196,19 @@ impl PdfWriter {
         height: u32,
         format: ImageFormat,
         png_metadata: Option<&PngMetadata>,
+        alpha_mask: Option<&[u8]>,
     ) -> usize {
+        let smask_id = alpha_mask.map(|alpha| {
+            let id = self.next_id();
+            let header = format!(
+                "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length {len} >>\nstream\n",
+                len = alpha.len(),
+            );
+            self.objects.push(header);
+            self.binary_objects.insert(id, alpha.to_vec());
+            id
+        });
+
         let id = self.next_id();
         let header = match format {
             ImageFormat::Jpeg => {
@@ -5206,12 +5223,23 @@ impl PdfWriter {
                     1 | 2 => "/DeviceGray",
                     _ => "/DeviceRGB",
                 };
-                format!(
-                    "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len} >>\nstream\n",
-                    bpc = meta.bit_depth,
-                    channels = meta.channels,
-                    len = data.len(),
-                )
+                let smask_entry = smask_id
+                    .map(|sid| format!(" /SMask {sid} 0 R"))
+                    .unwrap_or_default();
+                if alpha_mask.is_some() {
+                    // Pre-decoded color stream: raw samples, no PNG predictor.
+                    format!(
+                        "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent 8 /Filter /FlateDecode /Length {len}{smask_entry} >>\nstream\n",
+                        len = data.len(),
+                    )
+                } else {
+                    format!(
+                        "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len}{smask_entry} >>\nstream\n",
+                        bpc = meta.bit_depth,
+                        channels = meta.channels,
+                        len = data.len(),
+                    )
+                }
             }
         };
         self.objects.push(header);
@@ -5299,7 +5327,7 @@ impl PdfWriter {
         }
 
         let (width, height) = crate::parser::jpeg::parse_jpeg_dimensions(raw_image)?;
-        Some(self.add_image_object(raw_image, width, height, ImageFormat::Jpeg, None))
+        Some(self.add_image_object(raw_image, width, height, ImageFormat::Jpeg, None, None))
     }
 
     /// Embed a TrueType font and return the PDF resource name to reference it.

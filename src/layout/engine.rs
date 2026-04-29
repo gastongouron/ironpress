@@ -248,6 +248,7 @@ pub struct RasterImageAsset {
     pub source_height: u32,
     pub format: ImageFormat,
     pub png_metadata: Option<PngMetadata>,
+    pub alpha_mask: Option<Vec<u8>>,
 }
 
 pub use super::context::*;
