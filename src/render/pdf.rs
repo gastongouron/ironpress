@@ -2512,6 +2512,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         image.source_height,
                         image.format,
                         image.png_metadata.as_ref(),
+                        image.alpha_mask.as_deref(),
                     );
                     let img_name = format!("Im{img_obj_id}");
                     content.push_str(&format!(
@@ -5184,6 +5185,10 @@ impl PdfWriter {
     }
 
     /// Add an image as a PDF XObject and return its object ID.
+    ///
+    /// When `alpha_mask` is `Some`, `data` is treated as a FlateDecode-compressed
+    /// raw color stream (no PNG predictor) and a separate `/SMask` XObject is
+    /// emitted carrying the grayscale alpha channel.
     fn add_image_object(
         &mut self,
         data: &[u8],
@@ -5191,7 +5196,19 @@ impl PdfWriter {
         height: u32,
         format: ImageFormat,
         png_metadata: Option<&PngMetadata>,
+        alpha_mask: Option<&[u8]>,
     ) -> usize {
+        let smask_id = alpha_mask.map(|alpha| {
+            let id = self.next_id();
+            let header = format!(
+                "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length {len} >>\nstream\n",
+                len = alpha.len(),
+            );
+            self.objects.push(header);
+            self.binary_objects.insert(id, alpha.to_vec());
+            id
+        });
+
         let id = self.next_id();
         let header = match format {
             ImageFormat::Jpeg => {
@@ -5206,12 +5223,23 @@ impl PdfWriter {
                     1 | 2 => "/DeviceGray",
                     _ => "/DeviceRGB",
                 };
-                format!(
-                    "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len} >>\nstream\n",
-                    bpc = meta.bit_depth,
-                    channels = meta.channels,
-                    len = data.len(),
-                )
+                let smask_entry = smask_id
+                    .map(|sid| format!(" /SMask {sid} 0 R"))
+                    .unwrap_or_default();
+                if alpha_mask.is_some() {
+                    // Pre-decoded color stream: raw samples, no PNG predictor.
+                    format!(
+                        "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent 8 /Filter /FlateDecode /Length {len}{smask_entry} >>\nstream\n",
+                        len = data.len(),
+                    )
+                } else {
+                    format!(
+                        "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len}{smask_entry} >>\nstream\n",
+                        bpc = meta.bit_depth,
+                        channels = meta.channels,
+                        len = data.len(),
+                    )
+                }
             }
         };
         self.objects.push(header);
@@ -5299,7 +5327,7 @@ impl PdfWriter {
         }
 
         let (width, height) = crate::parser::jpeg::parse_jpeg_dimensions(raw_image)?;
-        Some(self.add_image_object(raw_image, width, height, ImageFormat::Jpeg, None))
+        Some(self.add_image_object(raw_image, width, height, ImageFormat::Jpeg, None, None))
     }
 
     /// Embed a TrueType font and return the PDF resource name to reference it.
@@ -7205,6 +7233,102 @@ mod tests {
         assert!(content.contains("/Filter /FlateDecode"));
         assert!(content.contains("/ColorSpace /DeviceGray"));
         assert!(content.contains("/Colors 1"));
+    }
+
+    #[test]
+    fn render_rgba_png_image_emits_smask() {
+        let png_bytes = build_test_rgba_png(2, 2);
+        let b64 = simple_base64_encode_test(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}" width="40" height="40">"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+
+        let image_objects = content.matches("/Subtype /Image").count();
+        assert_eq!(
+            image_objects, 2,
+            "RGBA PNG should produce a color XObject and a separate alpha XObject"
+        );
+        assert!(
+            content.contains("/SMask "),
+            "RGBA PNG color XObject should reference an /SMask"
+        );
+        assert!(
+            content.contains("/ColorSpace /DeviceRGB"),
+            "Color XObject should use DeviceRGB"
+        );
+        assert!(
+            content.contains("/ColorSpace /DeviceGray"),
+            "Alpha XObject should use DeviceGray"
+        );
+        assert!(
+            !content.contains("/Colors 4"),
+            "RGBA must not be embedded as a 4-channel DeviceRGB stream"
+        );
+    }
+
+    #[test]
+    fn render_grayscale_alpha_png_image_emits_smask() {
+        let png_bytes = build_test_grayscale_alpha_png(2, 2);
+        let b64 = simple_base64_encode_test(&png_bytes);
+        let html = format!(r#"<img src="data:image/png;base64,{b64}" width="40" height="40">"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+
+        assert_eq!(
+            content.matches("/Subtype /Image").count(),
+            2,
+            "Grayscale+Alpha PNG should produce two image XObjects"
+        );
+        assert!(content.contains("/SMask "));
+        assert!(
+            !content.contains("/Colors 2"),
+            "Grayscale+Alpha must not be embedded as a 2-channel DeviceGray stream"
+        );
+    }
+
+    fn build_test_rgba_png(width: u32, height: u32) -> Vec<u8> {
+        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+        for i in 0..(width * height) {
+            let v = (i * 32) as u8;
+            pixels.extend_from_slice(&[v, 255 - v, 128, (v.wrapping_add(16))]);
+        }
+
+        let buffer = image::ImageBuffer::from_raw(width, height, pixels)
+            .expect("rgba buffer should be valid");
+
+        let mut encoded = Vec::new();
+        image::DynamicImage::ImageRgba8(buffer)
+            .write_to(
+                &mut std::io::Cursor::new(&mut encoded),
+                image::ImageFormat::Png,
+            )
+            .expect("png encode");
+        encoded
+    }
+
+    fn build_test_grayscale_alpha_png(width: u32, height: u32) -> Vec<u8> {
+        let mut pixels = Vec::with_capacity((width * height * 2) as usize);
+
+        for i in 0..(width * height) {
+            let v = (i * 32) as u8;
+            pixels.extend_from_slice(&[v, (v.wrapping_add(8))]);
+        }
+
+        let buffer = image::ImageBuffer::from_raw(width, height, pixels)
+            .expect("luma+alpha buffer should be valid");
+
+        let mut encoded = Vec::new();
+        image::DynamicImage::ImageLumaA8(buffer)
+            .write_to(
+                &mut std::io::Cursor::new(&mut encoded),
+                image::ImageFormat::Png,
+            )
+            .expect("png encode");
+        encoded
     }
 
     /// Build a minimal valid PNG (1x1 RGB, 8-bit).

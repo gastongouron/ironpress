@@ -75,6 +75,15 @@ pub(crate) fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgT
 pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
     if png::is_png(&raw) {
         let png_info = png::parse_png(&raw)?;
+
+        if png_info.has_alpha() {
+            // PDF can't decode raw PNG IDAT into a color stream + alpha mask in
+            // a single pass: alpha must live in a separate `/SMask` XObject. We
+            // decode the PNG once here, split color/alpha and FlateDecode each
+            // half so the renderer can embed both streams without further work.
+            return decode_png_with_alpha(&raw);
+        }
+
         let metadata = PngMetadata {
             channels: png_info.channels,
             bit_depth: png_info.bit_depth,
@@ -85,6 +94,7 @@ pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
             source_height: png_info.height,
             format: ImageFormat::Png,
             png_metadata: Some(metadata),
+            alpha_mask: None,
         })
     } else if raw.starts_with(&[0xFF, 0xD8]) {
         let (source_width, source_height) = crate::parser::jpeg::parse_jpeg_dimensions(&raw)?;
@@ -94,10 +104,66 @@ pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
             source_height,
             format: ImageFormat::Jpeg,
             png_metadata: None,
+            alpha_mask: None,
         })
     } else {
         None
     }
+}
+
+fn decode_png_with_alpha(raw: &[u8]) -> Option<RasterImageAsset> {
+    let mut decoder = png_decoder::Decoder::new(std::io::Cursor::new(raw));
+    decoder.ignore_checksums(true);
+    let mut reader = decoder.read_info().ok()?;
+    let output_size = reader.output_buffer_size()?;
+    let mut buffer = vec![0; output_size];
+    let info = reader.next_frame(&mut buffer).ok()?;
+    let pixels = buffer.get(..info.buffer_size())?;
+
+    let pixel_count = (info.width as usize).checked_mul(info.height as usize)?;
+    let mut color_data = Vec::new();
+    let mut alpha_data = Vec::with_capacity(pixel_count);
+    let color_channels = match info.color_type {
+        png_decoder::ColorType::Rgba => {
+            color_data.reserve(pixel_count * 3);
+            for chunk in pixels.chunks_exact(4) {
+                color_data.extend_from_slice(&chunk[..3]);
+                alpha_data.push(chunk[3]);
+            }
+            3
+        }
+        png_decoder::ColorType::GrayscaleAlpha => {
+            color_data.reserve(pixel_count);
+            for chunk in pixels.chunks_exact(2) {
+                color_data.push(chunk[0]);
+                alpha_data.push(chunk[1]);
+            }
+            1
+        }
+        _ => return None,
+    };
+
+    let color_compressed = flate_compress(&color_data)?;
+    let alpha_compressed = flate_compress(&alpha_data)?;
+
+    Some(RasterImageAsset {
+        data: color_compressed,
+        source_width: info.width,
+        source_height: info.height,
+        format: ImageFormat::Png,
+        png_metadata: Some(PngMetadata {
+            channels: color_channels,
+            bit_depth: 8,
+        }),
+        alpha_mask: Some(alpha_compressed),
+    })
+}
+
+fn flate_compress(data: &[u8]) -> Option<Vec<u8>> {
+    use std::io::Write;
+    let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(data).ok()?;
+    encoder.finish().ok()
 }
 
 /// Load image data from an <img> element and return a LayoutElement.
@@ -642,6 +708,7 @@ pub(crate) fn blur_image_bytes(raw: &[u8], blur_radius: f32) -> Option<RasterIma
         source_height: decoded.height(),
         format: ImageFormat::Jpeg,
         png_metadata: None,
+        alpha_mask: None,
     })
 }
 
