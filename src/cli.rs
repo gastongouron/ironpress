@@ -23,6 +23,8 @@ pub struct CliOptions {
     pub sanitize: bool,
     /// Read from stdin instead of a file.
     pub from_stdin: bool,
+    /// Path to an extra CSS file to inject before document styles (useful for .md).
+    pub css: Option<String>,
     /// Positional arguments (input, output).
     pub positional: Vec<String>,
     /// Print help and exit.
@@ -41,6 +43,7 @@ impl Default for CliOptions {
             footer: None,
             sanitize: true,
             from_stdin: false,
+            css: None,
             positional: Vec::new(),
             help: false,
             version: false,
@@ -108,6 +111,10 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                 opts.sanitize = val != "false" && val != "0";
             }
             "--stdin" => opts.from_stdin = true,
+            "--css" => {
+                i += 1;
+                opts.css = Some(args.get(i).ok_or("--css requires a value")?.clone());
+            }
             arg if arg.starts_with('-') => {
                 return Err(format!("Unknown option: {arg}"));
             }
@@ -119,8 +126,7 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
     Ok(opts)
 }
 
-/// Run the conversion with parsed options and input content.
-pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError> {
+fn build_converter(opts: &CliOptions) -> Result<HtmlConverter, IronpressError> {
     let mut page_size = opts.page_size;
     if opts.landscape {
         page_size = PageSize::new(page_size.height, page_size.width);
@@ -137,30 +143,22 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
     if let Some(ref f) = opts.footer {
         converter = converter.footer(f.as_str());
     }
+    if let Some(ref path) = opts.css {
+        let css = std::fs::read_to_string(path)?;
+        converter = converter.extra_css(css);
+    }
 
-    converter.convert(html)
+    Ok(converter)
+}
+
+/// Run the conversion with parsed options and input content.
+pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError> {
+    build_converter(opts)?.convert(html)
 }
 
 /// Run the markdown conversion with parsed options.
 pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, IronpressError> {
-    let mut page_size = opts.page_size;
-    if opts.landscape {
-        page_size = PageSize::new(page_size.height, page_size.width);
-    }
-
-    let mut converter = HtmlConverter::new()
-        .page_size(page_size)
-        .margin(opts.margin)
-        .sanitize(opts.sanitize);
-
-    if let Some(ref h) = opts.header {
-        converter = converter.header(h.as_str());
-    }
-    if let Some(ref f) = opts.footer {
-        converter = converter.footer(f.as_str());
-    }
-
-    converter.convert_markdown(md)
+    build_converter(opts)?.convert_markdown(md)
 }
 
 /// Help text.
@@ -182,6 +180,7 @@ OPTIONS:
     --header <TEXT>         Header text on each page
     --footer <TEXT>         Footer text ({page} and {pages} for numbering)
     --sanitize <BOOL>       Enable/disable HTML sanitization (default: true)
+    --css <FILE>            Extra CSS file to inject before document styles
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version
     --help                  Print this help
@@ -351,6 +350,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_css() {
+        let opts = parse_args(&args("--css style.css input.html out.pdf")).unwrap();
+        assert_eq!(opts.css.as_deref(), Some("style.css"));
+    }
+
+    #[test]
+    fn parse_css_missing_value() {
+        let result = parse_args(&args("--css"));
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn parse_unknown_option() {
         let result = parse_args(&args("--bogus input.html out.pdf"));
         assert!(result.is_err());
@@ -452,6 +463,27 @@ mod tests {
         };
         let pdf = convert(&opts, "<p>Tight margins</p>").unwrap();
         assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn convert_with_css_file() {
+        let path = std::env::temp_dir().join("ironpress_test_extra.css");
+        std::fs::write(&path, "p { color: red; }").unwrap();
+        let opts = CliOptions {
+            css: Some(path.to_str().unwrap().to_string()),
+            ..Default::default()
+        };
+        let pdf = convert(&opts, "<p>Styled</p>").unwrap();
+        assert!(pdf.starts_with(b"%PDF"));
+    }
+
+    #[test]
+    fn convert_with_css_file_not_found() {
+        let opts = CliOptions {
+            css: Some("/nonexistent/path/style.css".into()),
+            ..Default::default()
+        };
+        assert!(convert(&opts, "<p>Hi</p>").is_err());
     }
 
     #[test]
