@@ -242,6 +242,8 @@ pub struct HtmlConverter {
     /// Optional footer text rendered at the bottom of each page.
     /// Use `{page}` for current page number and `{pages}` for total page count.
     footer: Option<String>,
+    /// Extra CSS injected before any stylesheet in the document (useful for .md, or specify default CSS).
+    extra_css: Option<String>,
 }
 
 impl HtmlConverter {
@@ -255,6 +257,7 @@ impl HtmlConverter {
             base_path: None,
             header: None,
             footer: None,
+            extra_css: None,
         }
     }
 
@@ -339,6 +342,12 @@ impl HtmlConverter {
         self
     }
 
+    /// Inject extra CSS that is applied before any stylesheet in the document.
+    pub fn extra_css(mut self, css: impl Into<String>) -> Self {
+        self.extra_css = Some(css.into());
+        self
+    }
+
     /// Convert a Markdown string to PDF bytes.
     ///
     /// The Markdown is first converted to HTML using the built-in parser,
@@ -382,7 +391,7 @@ impl HtmlConverter {
         let result = parser::html::parse_html_with_styles(&html)?;
 
         // Step 2b: Resolve @import rules in stylesheets (if base_path is set)
-        let stylesheets: Vec<String> = if let Some(ref base) = self.base_path {
+        let mut stylesheets: Vec<String> = if let Some(ref base) = self.base_path {
             result
                 .stylesheets
                 .iter()
@@ -391,6 +400,11 @@ impl HtmlConverter {
         } else {
             result.stylesheets
         };
+
+        // Step 2c: Insert extra CSS (from --css flag) so it applies before document styles.
+        if let Some(ref css) = self.extra_css {
+            stylesheets.insert(0, css.clone());
+        }
 
         // Step 3: Parse @page rules first (they affect page dimensions for media queries)
         let mut page_rules = Vec::new();
