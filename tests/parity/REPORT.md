@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 8.96%  (PASS 16 · PARTIAL 30 · FAIL 300 · UNKNOWN 0 · total 346)
+Overall: 9.25%  (PASS 17 · PARTIAL 30 · FAIL 299 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -30,24 +30,23 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 15.75 | backgrounds-borders | background-color | rgba-alpha | background-color-rgba |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 13.72 | backgrounds-borders | border | solid-width | border-solid-width |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 13.05 | backgrounds-borders | border-radius | uniform | border-radius-uniform |  |
-| FAIL | CONFOUNDED: border (`probe-border-box`) | 100.00 | backgrounds-borders | border-radius | x-linear-gradient | border-radius-x-linear-gradient |  |
+| FAIL | CONFOUNDED: border (`probe-border-box`) | 22.40 | backgrounds-borders | border-radius | x-linear-gradient | border-radius-x-linear-gradient |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 16.20 | backgrounds-borders | border-style | dashed | border-style-dashed |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 15.38 | backgrounds-borders | border-style | dotted | border-style-dotted |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 29.71 | backgrounds-borders | border-style | double | border-style-double |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 33.74 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 33.78 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
-| FAIL | REAL | 100.00 | backgrounds-borders | linear-gradient | to-right | background-linear-gradient |  |
-| FAIL | REAL | 100.00 | backgrounds-borders | linear-gradient | 45deg-diagonal | background-linear-gradient-diagonal |  |
+| FAIL | REAL | 22.55 | backgrounds-borders | linear-gradient | to-right | background-linear-gradient |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 32.27 | backgrounds-borders | outline | solid-offset | outline-solid |  |
-| FAIL | REAL | 100.00 | backgrounds-borders | radial-gradient | circle-center | background-radial-gradient |  |
+| FAIL | REAL | 22.64 | backgrounds-borders | radial-gradient | circle-center | background-radial-gradient |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 17.27 | backgrounds-gradients | background-origin | content-box | background-origin-content-box |  |
 | FAIL | CONFOUNDED: image (`probe-image-render`) | 17.02 | backgrounds-gradients | background-size | contain | background-size-contain |  |
 | FAIL | CONFOUNDED: image (`probe-image-render`) | 30.65 | backgrounds-gradients | background-size | cover | background-size-cover |  |
 | FAIL | CONFOUNDED: image (`probe-image-render`) | 12.20 | backgrounds-gradients | background-size | explicit-length | background-size-length |  |
-| FAIL | REAL | 100.00 | backgrounds-gradients | linear-gradient | angle-90deg | linear-gradient-angle-90deg |  |
-| FAIL | REAL | 100.00 | backgrounds-gradients | linear-gradient | three-stops-percent | linear-gradient-multi-stop |  |
-| FAIL | REAL | 100.00 | backgrounds-gradients | linear-gradient | to-bottom-right | linear-gradient-to-corner |  |
-| FAIL | REAL | 100.00 | backgrounds-gradients | radial-gradient | circle-at-center | radial-gradient-circle-center |  |
+| FAIL | REAL | 24.80 | backgrounds-gradients | linear-gradient | angle-90deg | linear-gradient-angle-90deg |  |
+| FAIL | REAL | 18.01 | backgrounds-gradients | linear-gradient | three-stops-percent | linear-gradient-multi-stop |  |
+| FAIL | REAL | 16.85 | backgrounds-gradients | linear-gradient | to-bottom-right | linear-gradient-to-corner |  |
+| FAIL | REAL | 24.38 | backgrounds-gradients | radial-gradient | circle-at-center | radial-gradient-circle-center |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 24.99 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 19.92 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
 | FAIL | REAL | 17.68 | block-box-model | box-sizing | content-box | block-box-sizing-content-box |  |
@@ -269,7 +268,7 @@ None — every fixture's HTML matches `refs.lock`.
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 20.59% | 3 | 1 | 13 | 0 |
+| backgrounds-borders | 26.47% | 4 | 1 | 12 | 0 |
 | backgrounds-gradients | 3.57% | 0 | 1 | 13 | 0 |
 | block-box-model | 0.00% | 0 | 0 | 15 | 0 |
 | clip-mask | 0.00% | 0 | 0 | 8 | 0 |
@@ -304,7 +303,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 38.21 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 17.16 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
 | unsupported | FAIL | 19.22 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
-| partial | FAIL | 100.00 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
+| partial | FAIL | 20.91 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | FAIL | 23.44 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | FAIL | 22.50 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
 | unsupported | FAIL | 21.46 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
@@ -411,7 +410,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 16.30 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 20.59%
+### backgrounds-borders — 26.47%
 - **background-color** — 50.00%
   - FAIL 15.75% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 6.48% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
@@ -422,7 +421,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 6.67% border-radius=50pct-circle — `border-radius-circle` — Square box turned into a filled circle via border-radius 50%.
   - PASS 6.04% border-radius=per-corner — `border-radius-per-corner` — Filled box with two rounded corners and two square corners.
   - FAIL 13.05% border-radius=uniform — `border-radius-uniform` — Filled box with a uniform 24px border-radius and a solid border.
-  - FAIL 100.00% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
+  - FAIL 22.40% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
 - **border-style** — 0.00%
   - FAIL 16.20% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
   - FAIL 15.38% border-style=dotted — `border-style-dotted` — Box with a 6px dotted border.
@@ -430,13 +429,13 @@ None — every fixture's HTML matches `refs.lock`.
 - **box-shadow** — 0.00%
   - FAIL 33.74% box-shadow=hard-offset — `border-box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.
   - FAIL 33.78% box-shadow=x-border — `border-x-box-shadow` — Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).
-- **linear-gradient** — 0.00%
-  - FAIL 100.00% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
-  - FAIL 100.00% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
+- **linear-gradient** — 50.00%
+  - FAIL 22.55% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
+  - PASS 4.56% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
 - **outline** — 0.00%
   - FAIL 32.27% outline=solid-offset — `outline-solid` — Box with a solid outline drawn outside its border via outline-offset.
 - **radial-gradient** — 0.00%
-  - FAIL 100.00% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
+  - FAIL 22.64% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
 
 ### backgrounds-gradients — 3.57%
 - **background-clip** — 0.00%
@@ -452,14 +451,14 @@ None — every fixture's HTML matches `refs.lock`.
 - **conic-gradient** — 0.00%
   - FAIL 17.16% conic-gradient=four-quadrant-sweep — `conic-gradient-basic` — Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture.
 - **linear-gradient** — 0.00%
-  - FAIL 100.00% linear-gradient=angle-90deg — `linear-gradient-angle-90deg` — Two-stop linear-gradient using an explicit 90deg angle (paints left-to-right).
-  - FAIL 100.00% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
-  - FAIL 100.00% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
+  - FAIL 24.80% linear-gradient=angle-90deg — `linear-gradient-angle-90deg` — Two-stop linear-gradient using an explicit 90deg angle (paints left-to-right).
+  - FAIL 18.01% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
+  - FAIL 16.85% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
 - **multiple-backgrounds** — 0.00%
   - FAIL 19.22% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
 - **radial-gradient** — 0.00%
-  - FAIL 100.00% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
-  - FAIL 100.00% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
+  - FAIL 24.38% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
+  - FAIL 20.91% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - FAIL 23.44% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
 ### block-box-model — 0.00%

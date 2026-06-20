@@ -2289,8 +2289,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     overflow: c_overflow,
                     transform: _,
                     box_shadow: c_box_shadow,
-                    background_gradient: _,
-                    background_radial_gradient: _,
+                    background_gradient: c_bg_gradient,
+                    background_radial_gradient: c_bg_radial,
                     z_index: _,
                     ..
                 } => {
@@ -2358,6 +2358,64 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("f\n");
                         if needs_alpha {
                             content.push_str("/GSDefault gs\n");
+                        }
+                    }
+
+                    // Draw container linear gradient
+                    if let Some(gradient) = c_bg_gradient {
+                        let bg_y = container_y_top - total_h;
+                        if *c_border_radius > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                bg_y,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_linear_gradient(
+                            &mut content,
+                            gradient,
+                            container_x,
+                            bg_y,
+                            container_w,
+                            total_h,
+                            &mut page_shadings,
+                            &mut shading_counter,
+                        );
+                        if *c_border_radius > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw container radial gradient
+                    if let Some(gradient) = c_bg_radial {
+                        let bg_y = container_y_top - total_h;
+                        if *c_border_radius > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                bg_y,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_radial_gradient(
+                            &mut content,
+                            gradient,
+                            container_x,
+                            bg_y,
+                            container_w,
+                            total_h,
+                            &mut page_shadings,
+                            &mut shading_counter,
+                        );
+                        if *c_border_radius > 0.0 {
+                            content.push_str("Q\n");
                         }
                     }
 

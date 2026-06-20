@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 8.96,
-    "pass": 16,
+    "score_pct": 9.25,
+    "pass": 17,
     "partial": 30,
-    "fail": 300,
+    "fail": 299,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -18,11 +18,11 @@
   "categories": [
     {
       "category": "backgrounds-borders",
-      "score_pct": 20.59,
+      "score_pct": 26.47,
       "counts": {
-        "pass": 3,
+        "pass": 4,
         "partial": 1,
-        "fail": 13,
+        "fail": 12,
         "unknown": 0
       },
       "features": [
@@ -215,7 +215,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 22.3972,
               "weight": 1.0,
               "description": "Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).",
               "note": "",
@@ -362,11 +362,11 @@
         },
         {
           "feature": "linear-gradient",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -378,7 +378,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 22.5466,
               "weight": 1.0,
               "description": "Horizontal two-stop linear-gradient background.",
               "note": "",
@@ -398,8 +398,8 @@
               "subfeature": "45deg-diagonal",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 4.5647,
               "weight": 1.0,
               "description": "Diagonal 45deg two-stop linear-gradient background on a square box.",
               "note": "",
@@ -409,7 +409,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "feb189036526afdf2ee804994775e1d6490add7bfa88902fad2f2f1bde0a6c24"
             }
           ]
@@ -465,7 +465,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 22.6364,
               "weight": 1.0,
               "description": "Centered circular two-stop radial-gradient background on a square box.",
               "note": "",
@@ -724,7 +724,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 24.7984,
               "weight": 1.0,
               "description": "Two-stop linear-gradient using an explicit 90deg angle (paints left-to-right).",
               "note": "",
@@ -745,7 +745,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 18.0061,
               "weight": 1.0,
               "description": "Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.",
               "note": "",
@@ -766,7 +766,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 16.8498,
               "weight": 1.0,
               "description": "Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.",
               "note": "",
@@ -833,7 +833,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 24.3846,
               "weight": 1.0,
               "description": "Centered circular two-stop radial-gradient (the shape ironpress natively supports).",
               "note": "",
@@ -854,7 +854,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 20.9075,
               "weight": 1.0,
               "description": "Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.",
               "note": "",
