@@ -49,6 +49,15 @@ pub(crate) fn layout_block_element(
     // Compute effective block width considering CSS width/max-width/min-width.
     // Block elements without explicit width shrink by their horizontal margins.
     let margin_h = style.margin.left + style.margin.right;
+    // For `box-sizing: content-box` the declared width is the *content* width,
+    // so the outer (border-box) width that `block_w` represents is the declared
+    // width plus horizontal padding and border. For `border-box` the declared
+    // width already is the border-box width.
+    let content_box_extra = if style.box_sizing == BoxSizing::ContentBox {
+        style.padding.left + style.padding.right + style.border.horizontal_width()
+    } else {
+        0.0
+    };
     let mut block_w = available_width;
     if let Some(w) = style.width {
         // style.width is the resolved width — for percentages this was already
@@ -57,12 +66,12 @@ pub(crate) fn layout_block_element(
         // container inner width, which differs from the per-slot
         // `available_width` passed to this block layout). Prefer it over the
         // late-bound `percentage_sizing.width` hint when both are set.
-        block_w = w.min(available_width);
+        block_w = (w + content_box_extra).min(available_width);
     } else if let Some(pct) = style.percentage_sizing.width {
         // Fallback: style.width was not resolved at style time (for example,
         // because the style-time parent width was unknown). Resolve the
         // late-bound percentage against the actual layout parent width.
-        block_w = (pct / 100.0 * available_width).min(available_width);
+        block_w = (pct / 100.0 * available_width + content_box_extra).min(available_width);
     } else if margin_h > 0.0 {
         block_w = (available_width - margin_h).max(0.0);
     }
@@ -111,14 +120,11 @@ pub(crate) fn layout_block_element(
         style.margin.left
     };
 
-    // Adjust for box-sizing: border-box
-    // When border-box, the specified width includes padding and border,
-    // so the content area is width minus padding and border.
-    let inner_width = if style.box_sizing == BoxSizing::BorderBox {
-        block_w - style.padding.left - style.padding.right - style.border.horizontal_width()
-    } else {
-        block_w - style.padding.left - style.padding.right
-    };
+    // `block_w` is now the border-box (outer) width for both box-sizing modes
+    // (content-box added padding+border above), so the content area is always
+    // the outer width minus horizontal padding and border.
+    let inner_width =
+        block_w - style.padding.left - style.padding.right - style.border.horizontal_width();
     let inner_width = inner_width.max(0.0);
 
     // Resolve percentage border-radius against element dimensions
@@ -139,11 +145,10 @@ pub(crate) fn layout_block_element(
         style.position == Position::Relative || style.position == Position::Absolute;
     let make_containing_block = |padding_box_height: f32| {
         if positioned_container {
-            let cb_width = if style.box_sizing == BoxSizing::BorderBox {
-                block_w - style.border.horizontal_width()
-            } else {
-                block_w + style.padding.left + style.padding.right
-            };
+            // `block_w` is the border-box width for both box-sizing modes, so the
+            // padding box (containing block for absolute children) is the
+            // border-box width minus horizontal border.
+            let cb_width = block_w - style.border.horizontal_width();
             Some(ContainingBlock {
                 x: style.left.unwrap_or(0.0)
                     + auto_offset_left

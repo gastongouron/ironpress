@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 59.1,
-    "pass": 155,
+    "score_pct": 59.68,
+    "pass": 157,
     "partial": 99,
-    "fail": 92,
+    "fail": 90,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -510,7 +510,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 30.5595,
+              "diff_pct": 30.3864,
               "weight": 1.0,
               "description": "background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.",
               "note": "",
@@ -894,11 +894,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 56.67,
+      "score_pct": 70.0,
       "counts": {
-        "pass": 8,
+        "pass": 10,
         "partial": 1,
-        "fail": 6,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -937,11 +937,11 @@
         },
         {
           "feature": "box-sizing",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -972,8 +972,8 @@
               "subfeature": "content-box",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 29.3842,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.",
               "note": "",
@@ -982,7 +982,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "18b7a49090b102da2c2a8c3f3e17c4b450285b72162f4fa62efe5ae2352afcc6"
             }
           ]
@@ -1217,11 +1217,11 @@
         },
         {
           "feature": "padding",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1232,8 +1232,8 @@
               "subfeature": "uniform",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 23.55,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "content-box container with 30px padding on all sides framing an inner box; verifies padding insets content equally.",
               "note": "",
@@ -1243,7 +1243,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e97f800f1ecf9e39a733d26b2d2a2d422375f7f679c7ad6f6a6661ef9a61d2e8"
             }
           ]
@@ -10562,15 +10562,6 @@
       "confounded_count": 1,
       "confounded_ids": [
         "block-percentage-height-x-nested-containers"
-      ]
-    },
-    {
-      "id": "block-padding-all-sides",
-      "feature": "padding",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "interactions-positioning-absolute-x-box-model-padding"
       ]
     },
     {

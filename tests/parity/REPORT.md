@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 59.10%  (PASS 155 · PARTIAL 99 · FAIL 92 · UNKNOWN 0 · total 346)
+Overall: 59.68%  (PASS 157 · PARTIAL 99 · FAIL 90 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -32,10 +32,8 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 15.76 | backgrounds-borders | outline | solid-offset | outline-solid |  |
 | FAIL | REAL | 33.00 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
-| FAIL | REAL | 29.38 | block-box-model | box-sizing | content-box | block-box-sizing-content-box |  |
 | FAIL | REAL | 25.88 | block-box-model | margin | collapse-adjacent | block-margin-collapse-adjacent |  |
 | FAIL | REAL | 34.24 | block-box-model | nested-block-flow | containment | block-nested-containment |  |
-| FAIL | REAL | 23.55 | block-box-model | padding | uniform | block-padding-all-sides |  |
 | FAIL | REAL | 29.44 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
 | FAIL | REAL | 13.18 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 53.74 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
@@ -99,19 +97,18 @@ None — every fixture's HTML matches `refs.lock`.
 | 7 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
 | 8 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
 | 9 | `block-nested-containment` | nested-block-flow | FAIL | 1 | block-percentage-height-x-nested-containers |
-| 10 | `block-padding-all-sides` | padding | FAIL | 1 | interactions-positioning-absolute-x-box-model-padding |
-| 11 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 12 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 13 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 14 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 15 | `positioning-z-index-stacking` | z-index | FAIL | 1 | positioning-zindex-x-transforms-rotate |
+| 10 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 11 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 12 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
+| 13 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 14 | `positioning-z-index-stacking` | z-index | FAIL | 1 | positioning-zindex-x-transforms-rotate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
 | backgrounds-gradients | 71.43% | 9 | 2 | 3 | 0 |
-| block-box-model | 56.67% | 8 | 1 | 6 | 0 |
+| block-box-model | 70.00% | 10 | 1 | 4 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
@@ -141,7 +138,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | expected | status | diff% | category | feature | id | description |
 |----------|--------|------:|----------|---------|----|-------------|
-| unsupported | FAIL | 30.56 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
+| unsupported | FAIL | 30.39 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 99.99 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
 | unsupported | FAIL | 78.13 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | PASS | 0.31 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
@@ -280,7 +277,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 ### backgrounds-gradients — 71.43%
 - **background-clip** — 0.00%
-  - FAIL 30.56% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
+  - FAIL 30.39% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
 - **background-origin** — 50.00%
   - PARTIAL 8.57% background-origin=content-box — `background-origin-content-box` — background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.
 - **background-position** — 100.00%
@@ -302,12 +299,12 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.31% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - PASS 0.29% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
-### block-box-model — 56.67%
+### block-box-model — 70.00%
 - **border-width** — 0.00%
   - FAIL 33.00% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
-- **box-sizing** — 0.00%
+- **box-sizing** — 50.00%
   - FAIL 33.21% box-sizing=border-box — `block-box-sizing-border-box` — box-sizing:border-box keeps the total rendered width at 200px despite 24px padding and 8px border.
-  - FAIL 29.38% box-sizing=content-box — `block-box-sizing-content-box` — box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.
+  - PASS 0.00% box-sizing=content-box — `block-box-sizing-content-box` — box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.
 - **display** — 100.00%
   - PASS 0.11% display=block — `block-display-block-stacking` — Inline spans forced to display:block stack vertically full-width, each on its own line.
   - PASS 0.33% display=inline-block — `block-display-inline-block-row` — Three display:inline-block chips laid out in a row (whitespace collapsed via font-size:0) verifying inline flow of block boxes.
@@ -321,8 +318,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% min-width=floor — `block-min-width-floor` — Declared width:80px raised to the min-width:220px floor.
 - **nested-block-flow** — 0.00%
   - FAIL 34.24% nested-block-flow=containment — `block-nested-containment` — Three nested blocks, each inset by its parent's padding, forming concentric frames to verify nested block containment.
-- **padding** — 0.00%
-  - FAIL 23.55% padding=uniform — `block-padding-all-sides` — content-box container with 30px padding on all sides framing an inner box; verifies padding insets content equally.
+- **padding** — 100.00%
+  - PASS 0.00% padding=uniform — `block-padding-all-sides` — content-box container with 30px padding on all sides framing an inner box; verifies padding insets content equally.
 - **width** — 75.00%
   - PASS 0.26% width=auto — `block-width-auto-fills-parent` — Block child with width:auto expands to fill the parent's content box (parent width minus padding).
   - PARTIAL 5.18% width=percent — `block-width-percent` — Child with width:50% resolves to half (200px) of the 400px parent content box.

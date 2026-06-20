@@ -3807,7 +3807,12 @@ fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
 }
 
 fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
-    let parts: Vec<&str> = k.split_whitespace().collect();
+    // A function color such as `rgba(38, 50, 56, 0.35)` contains internal spaces,
+    // so pull it out (and remove it from the string) before tokenizing on
+    // whitespace. Otherwise the rgba(...) would shatter into several "words" and
+    // the color (alpha included) would be lost, painting the border opaque black.
+    let (rest, func_color) = extract_border_function_color(k);
+    let parts: Vec<&str> = rest.split_whitespace().collect();
     let mut width = 0.0f32;
     let mut border_style = BorderStyle::Solid;
     for part in &parts {
@@ -3829,18 +3834,60 @@ fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
             }
         }
     }
-    let color = parts.last().and_then(|last| parse_border_color(last));
+    let color = func_color.or_else(|| parts.last().and_then(|last| parse_border_color(last)));
     (width, color, border_style)
+}
+
+/// Parse a single border color token using the shared CSS color parser, which
+/// handles named colors, `#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa` hex (lightningcss
+/// serialises `rgba(...)` to 8-digit hex with the alpha byte), and
+/// `rgb()`/`rgba()` functions — preserving alpha for translucent borders.
+fn parse_border_color_token(val: &str) -> Option<Color> {
+    match crate::parser::css::parse_color(val) {
+        Some(CssValue::Color(c)) => Some(c),
+        _ => None,
+    }
+}
+
+/// Pull a function color (`rgb(...)` / `rgba(...)`) out of a border shorthand,
+/// returning the string with that token removed plus the parsed color. The
+/// remaining tokens (width / style keyword) are space-separated as usual. If no
+/// function color is present the input is returned unchanged with `None`.
+fn extract_border_function_color(k: &str) -> (String, Option<Color>) {
+    let lower = k.to_ascii_lowercase();
+    for prefix in ["rgba(", "rgb("] {
+        if let Some(start) = lower.find(prefix) {
+            if let Some(close_rel) = k[start..].find(')') {
+                let end = start + close_rel + 1;
+                let func = &k[start..end];
+                let color = match crate::parser::css::parse_color(func) {
+                    Some(CssValue::Color(c)) => Some(c),
+                    _ => None,
+                };
+                let mut rest = String::with_capacity(k.len());
+                rest.push_str(&k[..start]);
+                rest.push(' ');
+                rest.push_str(&k[end..]);
+                return (rest, color);
+            }
+        }
+    }
+    (k.to_string(), None)
 }
 
 /// Parse a color name or hex value for border shorthand.
 fn parse_border_color(val: &str) -> Option<Color> {
-    let val = val.to_ascii_lowercase();
-    match val.as_str() {
-        // `currentColor` can't be resolved here (the element's final `color`
-        // isn't known yet). Mark it with a sentinel; a post-pass in
-        // `compute_style_with_context` swaps it for the computed `color`.
-        "currentcolor" => Some(CURRENT_COLOR_SENTINEL),
+    let lower = val.to_ascii_lowercase();
+    // `currentColor` can't be resolved here (the element's final `color` isn't
+    // known yet). Mark it with a sentinel; a post-pass in
+    // `compute_style_with_context` swaps it for the computed `color`.
+    if lower == "currentcolor" {
+        return Some(CURRENT_COLOR_SENTINEL);
+    }
+    // Delegate everything else (named colors, #rgb/#rgba/#rrggbb/#rrggbbaa hex,
+    // rgb()/rgba() functions) to the shared CSS color parser so translucent
+    // borders keep their alpha channel.
+    parse_border_color_token(val).or_else(|| match lower.as_str() {
         "black" => Some(Color::rgb(0, 0, 0)),
         "white" => Some(Color::rgb(255, 255, 255)),
         "red" => Some(Color::rgb(255, 0, 0)),
@@ -3850,14 +3897,8 @@ fn parse_border_color(val: &str) -> Option<Color> {
         "orange" => Some(Color::rgb(255, 165, 0)),
         "purple" => Some(Color::rgb(128, 0, 128)),
         "gray" | "grey" => Some(Color::rgb(128, 128, 128)),
-        _ => {
-            if let Some(hex) = val.strip_prefix('#') {
-                parse_hex_to_color(hex)
-            } else {
-                None
-            }
-        }
-    }
+        _ => lower.strip_prefix('#').and_then(parse_hex_to_color),
+    })
 }
 
 fn parse_hex_to_color(hex: &str) -> Option<Color> {

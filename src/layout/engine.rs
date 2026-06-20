@@ -29,11 +29,23 @@ use super::text::{
 use crate::style::computed::ContentItem;
 
 /// A single border side for layout rendering.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct LayoutBorderSide {
     pub width: f32,
     pub color: (f32, f32, f32),
+    pub alpha: f32,
     pub style: crate::style::computed::BorderStyle,
+}
+
+impl Default for LayoutBorderSide {
+    fn default() -> Self {
+        Self {
+            width: 0.0,
+            color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
+            style: crate::style::computed::BorderStyle::default(),
+        }
+    }
 }
 
 /// Per-side border for layout rendering.
@@ -54,21 +66,25 @@ impl LayoutBorder {
             top: LayoutBorderSide {
                 width: b.top.width,
                 color: b.top.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                alpha: b.top.color.map_or(1.0, |c| c.to_f32_rgba().3),
                 style: b.top.style,
             },
             right: LayoutBorderSide {
                 width: b.right.width,
                 color: b.right.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                alpha: b.right.color.map_or(1.0, |c| c.to_f32_rgba().3),
                 style: b.right.style,
             },
             bottom: LayoutBorderSide {
                 width: b.bottom.width,
                 color: b.bottom.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                alpha: b.bottom.color.map_or(1.0, |c| c.to_f32_rgba().3),
                 style: b.bottom.style,
             },
             left: LayoutBorderSide {
                 width: b.left.width,
                 color: b.left.color.map_or((0.0, 0.0, 0.0), |c| c.to_f32_rgb()),
+                alpha: b.left.color.map_or(1.0, |c| c.to_f32_rgba().3),
                 style: b.left.style,
             },
         }
@@ -4617,13 +4633,15 @@ mod tests {
 
     #[test]
     fn box_sizing_content_box_width_is_content_only() {
-        // With content-box (default), width: 200pt is just the content
+        // With content-box (default), width: 200pt is the *content* width, so the
+        // stored block_width (the outer/border-box width) is the content width
+        // plus horizontal padding (and border): 200 + 20 + 20 = 240pt.
         let html = r#"<div style="box-sizing: content-box; width: 200pt; padding-left: 20pt; padding-right: 20pt">Text</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
         if let (_, LayoutElement::TextBlock { block_width, .. }) = &pages[0].elements[0] {
-            assert_eq!(*block_width, Some(200.0));
+            assert_eq!(*block_width, Some(240.0));
         } else {
             panic!("Expected TextBlock");
         }
@@ -6157,21 +6175,25 @@ mod tests {
             top: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 3.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 2.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 5.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
         };
@@ -6184,21 +6206,25 @@ mod tests {
             top: LayoutBorderSide {
                 width: 4.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 6.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 1.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
         };
@@ -6211,21 +6237,25 @@ mod tests {
             top: LayoutBorderSide {
                 width: 2.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             right: LayoutBorderSide {
                 width: 7.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             bottom: LayoutBorderSide {
                 width: 3.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
             left: LayoutBorderSide {
                 width: 5.0,
                 color: (0.0, 0.0, 0.0),
+                alpha: 1.0,
                 style: crate::style::computed::BorderStyle::Solid,
             },
         };

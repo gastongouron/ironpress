@@ -434,39 +434,67 @@ pub(super) fn render_nested_text_block(
         let y_bottom = block_bottom;
         if block.border.top.width > 0.0 {
             let (r, g, b) = block.border.top.color;
+            let a = begin_border_alpha(
+                content,
+                ctx.page_ext_gstates,
+                ctx.bg_alpha_counter,
+                block.border.top.alpha,
+            );
             content.push_str(dash_pattern_for_style(block.border.top.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                 block.border.top.width
             ));
             content.push_str(reset_dash_pattern(block.border.top.style));
+            end_border_alpha(content, a);
         }
         if block.border.right.width > 0.0 {
             let (r, g, b) = block.border.right.color;
+            let a = begin_border_alpha(
+                content,
+                ctx.page_ext_gstates,
+                ctx.bg_alpha_counter,
+                block.border.right.alpha,
+            );
             content.push_str(dash_pattern_for_style(block.border.right.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                 block.border.right.width
             ));
             content.push_str(reset_dash_pattern(block.border.right.style));
+            end_border_alpha(content, a);
         }
         if block.border.bottom.width > 0.0 {
             let (r, g, b) = block.border.bottom.color;
+            let a = begin_border_alpha(
+                content,
+                ctx.page_ext_gstates,
+                ctx.bg_alpha_counter,
+                block.border.bottom.alpha,
+            );
             content.push_str(dash_pattern_for_style(block.border.bottom.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                 block.border.bottom.width
             ));
             content.push_str(reset_dash_pattern(block.border.bottom.style));
+            end_border_alpha(content, a);
         }
         if block.border.left.width > 0.0 {
             let (r, g, b) = block.border.left.color;
+            let a = begin_border_alpha(
+                content,
+                ctx.page_ext_gstates,
+                ctx.bg_alpha_counter,
+                block.border.left.alpha,
+            );
             content.push_str(dash_pattern_for_style(block.border.left.style));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                 block.border.left.width
             ));
             content.push_str(reset_dash_pattern(block.border.left.style));
+            end_border_alpha(content, a);
         }
     }
 
@@ -581,31 +609,59 @@ pub(super) fn render_nested_layout_elements(
                         let y_bottom = row_y - cell_height;
                         if cell.border.top.width > 0.0 {
                             let (r, g, b) = cell.border.top.color;
+                            let a = begin_border_alpha(
+                                content,
+                                ctx.page_ext_gstates,
+                                ctx.bg_alpha_counter,
+                                cell.border.top.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                 cell.border.top.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.right.width > 0.0 {
                             let (r, g, b) = cell.border.right.color;
+                            let a = begin_border_alpha(
+                                content,
+                                ctx.page_ext_gstates,
+                                ctx.bg_alpha_counter,
+                                cell.border.right.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                 cell.border.right.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.bottom.width > 0.0 {
                             let (r, g, b) = cell.border.bottom.color;
+                            let a = begin_border_alpha(
+                                content,
+                                ctx.page_ext_gstates,
+                                ctx.bg_alpha_counter,
+                                cell.border.bottom.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                 cell.border.bottom.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.left.width > 0.0 {
                             let (r, g, b) = cell.border.left.color;
+                            let a = begin_border_alpha(
+                                content,
+                                ctx.page_ext_gstates,
+                                ctx.bg_alpha_counter,
+                                cell.border.left.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                 cell.border.left.width
                             ));
+                            end_border_alpha(content, a);
                         }
                     }
 

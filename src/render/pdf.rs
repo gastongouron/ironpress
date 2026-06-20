@@ -54,6 +54,37 @@ fn reset_dash_pattern(style: BorderStyle) -> &'static str {
     }
 }
 
+/// Apply a stroke-opacity ExtGState before painting a border side whose color is
+/// translucent (`alpha < 1.0`). Mirrors the background-color alpha path: pushes a
+/// `(name, alpha)` entry onto `page_ext_gstates` and emits `/{name} gs`. Returns
+/// `true` when a non-default gstate was applied so the caller can reset it with
+/// [`end_border_alpha`]. For opaque sides (`alpha >= 1.0`) nothing is emitted, so
+/// existing output stays byte-identical.
+fn begin_border_alpha(
+    content: &mut String,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    counter: &mut usize,
+    alpha: f32,
+) -> bool {
+    if alpha < 1.0 {
+        let gs_name = format!("GSbd{counter}");
+        *counter += 1;
+        page_ext_gstates.push((gs_name.clone(), alpha));
+        content.push_str(&format!("/{gs_name} gs\n"));
+        true
+    } else {
+        false
+    }
+}
+
+/// Reset stroke opacity to the default gstate after a translucent border side.
+/// No-op when `applied` is false.
+fn end_border_alpha(content: &mut String, applied: bool) {
+    if applied {
+        content.push_str("/GSDefault gs\n");
+    }
+}
+
 /// Stroke the CSS `border` frame of an image box. `(box_x, box_bottom)` is the
 /// bottom-left corner of the box in PDF (bottom-up) coordinates; `box_w`/`box_h`
 /// are the border-box dimensions. With `box-sizing: border-box` the frame is
@@ -66,6 +97,8 @@ fn draw_image_border(
     box_w: f32,
     box_h: f32,
     border: &crate::layout::engine::LayoutBorder,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
 ) {
     if !border.has_any() {
         return;
@@ -85,6 +118,7 @@ fn draw_image_border(
         let bw = border.top.width;
         let half = bw / 2.0;
         let (r, g, b) = border.top.color;
+        let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, border.top.alpha);
         content.push_str(dash_pattern_for_style(border.top.style));
         content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
         content.push_str(&format!(
@@ -95,6 +129,7 @@ fn draw_image_border(
             h = box_h - bw,
         ));
         content.push_str(reset_dash_pattern(border.top.style));
+        end_border_alpha(content, a);
         return;
     }
     // Per-side: center each stroke half its own width inside the box edge.
@@ -104,31 +139,54 @@ fn draw_image_border(
     let x_right = box_right - border.right.width / 2.0;
     if border.top.width > 0.0 {
         let (r, g, b) = border.top.color;
+        let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, border.top.alpha);
         content.push_str(dash_pattern_for_style(border.top.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
         content.push_str(&format!("{box_x} {y_top} m {box_right} {y_top} l S\n"));
         content.push_str(reset_dash_pattern(border.top.style));
+        end_border_alpha(content, a);
     }
     if border.right.width > 0.0 {
         let (r, g, b) = border.right.color;
+        let a = begin_border_alpha(
+            content,
+            page_ext_gstates,
+            bg_alpha_counter,
+            border.right.alpha,
+        );
         content.push_str(dash_pattern_for_style(border.right.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.right.width));
         content.push_str(&format!("{x_right} {y_top} m {x_right} {y_bottom} l S\n"));
         content.push_str(reset_dash_pattern(border.right.style));
+        end_border_alpha(content, a);
     }
     if border.bottom.width > 0.0 {
         let (r, g, b) = border.bottom.color;
+        let a = begin_border_alpha(
+            content,
+            page_ext_gstates,
+            bg_alpha_counter,
+            border.bottom.alpha,
+        );
         content.push_str(dash_pattern_for_style(border.bottom.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.bottom.width));
         content.push_str(&format!("{box_x} {y_bottom} m {box_right} {y_bottom} l S\n"));
         content.push_str(reset_dash_pattern(border.bottom.style));
+        end_border_alpha(content, a);
     }
     if border.left.width > 0.0 {
         let (r, g, b) = border.left.color;
+        let a = begin_border_alpha(
+            content,
+            page_ext_gstates,
+            bg_alpha_counter,
+            border.left.alpha,
+        );
         content.push_str(dash_pattern_for_style(border.left.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.left.width));
         content.push_str(&format!("{x_left} {y_top} m {x_left} {y_bottom} l S\n"));
         content.push_str(reset_dash_pattern(border.left.style));
+        end_border_alpha(content, a);
     }
 }
 
@@ -603,6 +661,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.style == border.left.style;
                         if uniform && *border_radius > 0.0 {
                             let (br, bg, bb) = border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                border.top.alpha,
+                            );
                             content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{br} {bg} {bb} RG\n{bw} w\n",
@@ -617,8 +681,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                             content.push_str("S\n");
                             content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(&mut content, a);
                         } else if uniform {
                             let (br, bg, bb) = border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                border.top.alpha,
+                            );
                             content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{br} {bg} {bb} RG\n{bw} w\n",
@@ -633,6 +704,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                             content.push_str("S\n");
                             content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(&mut content, a);
                         } else {
                             let x1 = block_x;
                             let x2 = block_x + render_width;
@@ -645,15 +717,28 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             // Top border
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.top.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.top.style));
                                 content
                                     .push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
                                 content.push_str(&format!("{x1} {y_top} m {x2} {y_top} l S\n"));
                                 content.push_str(reset_dash_pattern(border.top.style));
+                                end_border_alpha(&mut content, a);
                             }
                             // Right border
                             if border.right.width > 0.0 {
                                 let (r, g, b) = border.right.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.right.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
@@ -663,10 +748,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     "{x_right} {y_top} m {x_right} {y_bottom} l S\n"
                                 ));
                                 content.push_str(reset_dash_pattern(border.right.style));
+                                end_border_alpha(&mut content, a);
                             }
                             // Bottom border
                             if border.bottom.width > 0.0 {
                                 let (r, g, b) = border.bottom.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.bottom.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
@@ -675,10 +767,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content
                                     .push_str(&format!("{x1} {y_bottom} m {x2} {y_bottom} l S\n"));
                                 content.push_str(reset_dash_pattern(border.bottom.style));
+                                end_border_alpha(&mut content, a);
                             }
                             // Left border
                             if border.left.width > 0.0 {
                                 let (r, g, b) = border.left.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.left.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
@@ -688,6 +787,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     "{x_left} {y_top} m {x_left} {y_bottom} l S\n"
                                 ));
                                 content.push_str(reset_dash_pattern(border.left.style));
+                                end_border_alpha(&mut content, a);
                             }
                         }
                     }
@@ -1012,39 +1112,67 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let y_bottom = row_y - cell_height;
                             if cell.border.top.width > 0.0 {
                                 let (r, g, b) = cell.border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    cell.border.top.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(cell.border.top.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                     cell.border.top.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.top.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.right.width > 0.0 {
                                 let (r, g, b) = cell.border.right.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    cell.border.right.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(cell.border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                     cell.border.right.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.right.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.bottom.width > 0.0 {
                                 let (r, g, b) = cell.border.bottom.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    cell.border.bottom.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(cell.border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                     cell.border.bottom.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.bottom.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.left.width > 0.0 {
                                 let (r, g, b) = cell.border.left.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    cell.border.left.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(cell.border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                     cell.border.left.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.left.style));
+                                end_border_alpha(&mut content, a);
                             }
                         }
 
@@ -1108,31 +1236,59 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let by2 = row_y - row_height;
                         if grid_border.top.width > 0.0 {
                             let (r, g, b) = grid_border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                grid_border.top.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx2} {by1} l S\n",
                                 grid_border.top.width
                             ));
+                            end_border_alpha(&mut content, a);
                         }
                         if grid_border.right.width > 0.0 {
                             let (r, g, b) = grid_border.right.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                grid_border.right.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{bx2} {by1} m {bx2} {by2} l S\n",
                                 grid_border.right.width
                             ));
+                            end_border_alpha(&mut content, a);
                         }
                         if grid_border.bottom.width > 0.0 {
                             let (r, g, b) = grid_border.bottom.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                grid_border.bottom.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{bx1} {by2} m {bx2} {by2} l S\n",
                                 grid_border.bottom.width
                             ));
+                            end_border_alpha(&mut content, a);
                         }
                         if grid_border.left.width > 0.0 {
                             let (r, g, b) = grid_border.left.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                grid_border.left.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx1} {by2} l S\n",
                                 grid_border.left.width
                             ));
+                            end_border_alpha(&mut content, a);
                         }
                     }
 
@@ -1419,6 +1575,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.style == border.left.style;
                         if uniform && *border_radius > 0.0 {
                             let (r, g, b) = border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                border.top.alpha,
+                            );
                             content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n",
@@ -1433,8 +1595,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                             content.push_str("S\n");
                             content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(&mut content, a);
                         } else if uniform {
                             let (r, g, b) = border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                border.top.alpha,
+                            );
                             content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
@@ -1443,6 +1612,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 h = full_height,
                             ));
                             content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(&mut content, a);
                         } else {
                             let x1 = bx;
                             let x2 = bx + container_width;
@@ -1450,39 +1620,67 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let y_bottom = by;
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.top.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.top.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                     border.top.width
                                 ));
                                 content.push_str(reset_dash_pattern(border.top.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.right.width > 0.0 {
                                 let (r, g, b) = border.right.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.right.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.right.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                     border.right.width
                                 ));
                                 content.push_str(reset_dash_pattern(border.right.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.bottom.width > 0.0 {
                                 let (r, g, b) = border.bottom.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.bottom.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.bottom.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                     border.bottom.width
                                 ));
                                 content.push_str(reset_dash_pattern(border.bottom.style));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.left.width > 0.0 {
                                 let (r, g, b) = border.left.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.left.alpha,
+                                );
                                 content.push_str(dash_pattern_for_style(border.left.style));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                     border.left.width
                                 ));
                                 content.push_str(reset_dash_pattern(border.left.style));
+                                end_border_alpha(&mut content, a);
                             }
                         }
                     }
@@ -1609,6 +1807,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             if cell.border_radius > 0.0 {
                                 let bw = cell.border.top.width;
                                 let (r, g, b) = cell.border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    cell.border.top.alpha,
+                                );
                                 content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
                                 content.push_str(&rounded_rect_path(
                                     cell_x,
@@ -1618,6 +1822,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     cell.border_radius,
                                 ));
                                 content.push_str("S\n");
+                                end_border_alpha(&mut content, a);
                             } else {
                                 let bx1 = cell_x;
                                 let bx2 = cell_x + cell.width;
@@ -1625,31 +1830,59 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let by2 = text_area_top - cell_y_shift - cell_render_h;
                                 if cell.border.top.width > 0.0 {
                                     let (r, g, b) = cell.border.top.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        cell.border.top.alpha,
+                                    );
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx2} {by1} l S\n",
                                         cell.border.top.width
                                     ));
+                                    end_border_alpha(&mut content, a);
                                 }
                                 if cell.border.right.width > 0.0 {
                                     let (r, g, b) = cell.border.right.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        cell.border.right.alpha,
+                                    );
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{} w\n{bx2} {by1} m {bx2} {by2} l S\n",
                                         cell.border.right.width
                                     ));
+                                    end_border_alpha(&mut content, a);
                                 }
                                 if cell.border.bottom.width > 0.0 {
                                     let (r, g, b) = cell.border.bottom.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        cell.border.bottom.alpha,
+                                    );
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{} w\n{bx1} {by2} m {bx2} {by2} l S\n",
                                         cell.border.bottom.width
                                     ));
+                                    end_border_alpha(&mut content, a);
                                 }
                                 if cell.border.left.width > 0.0 {
                                     let (r, g, b) = cell.border.left.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        cell.border.left.alpha,
+                                    );
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx1} {by2} l S\n",
                                         cell.border.left.width
                                     ));
+                                    end_border_alpha(&mut content, a);
                                 }
                             } // else (non-rounded cell border)
                         }
@@ -1931,31 +2164,59 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             let y_bottom = nested_y - total_h;
                                             if n_border.top.width > 0.0 {
                                                 let (r, g, b) = n_border.top.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    n_border.top.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                                     n_border.top.width
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if n_border.bottom.width > 0.0 {
                                                 let (r, g, b) = n_border.bottom.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    n_border.bottom.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                                     n_border.bottom.width
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if n_border.left.width > 0.0 {
                                                 let (r, g, b) = n_border.left.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    n_border.left.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                                     n_border.left.width
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if n_border.right.width > 0.0 {
                                                 let (r, g, b) = n_border.right.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    n_border.right.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                                     n_border.right.width
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                         }
 
@@ -2031,31 +2292,59 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                 let y_bottom = nested_y - t_row_h;
                                                 if t_cell.border.top.width > 0.0 {
                                                     let (r, g, b) = t_cell.border.top.color;
+                                                    let a = begin_border_alpha(
+                                                        &mut content,
+                                                        &mut page_ext_gstates,
+                                                        &mut bg_alpha_counter,
+                                                        t_cell.border.top.alpha,
+                                                    );
                                                     content.push_str(&format!(
                                                         "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                                         t_cell.border.top.width
                                                     ));
+                                                    end_border_alpha(&mut content, a);
                                                 }
                                                 if t_cell.border.bottom.width > 0.0 {
                                                     let (r, g, b) = t_cell.border.bottom.color;
+                                                    let a = begin_border_alpha(
+                                                        &mut content,
+                                                        &mut page_ext_gstates,
+                                                        &mut bg_alpha_counter,
+                                                        t_cell.border.bottom.alpha,
+                                                    );
                                                     content.push_str(&format!(
                                                         "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                                         t_cell.border.bottom.width
                                                     ));
+                                                    end_border_alpha(&mut content, a);
                                                 }
                                                 if t_cell.border.left.width > 0.0 {
                                                     let (r, g, b) = t_cell.border.left.color;
+                                                    let a = begin_border_alpha(
+                                                        &mut content,
+                                                        &mut page_ext_gstates,
+                                                        &mut bg_alpha_counter,
+                                                        t_cell.border.left.alpha,
+                                                    );
                                                     content.push_str(&format!(
                                                         "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                                         t_cell.border.left.width
                                                     ));
+                                                    end_border_alpha(&mut content, a);
                                                 }
                                                 if t_cell.border.right.width > 0.0 {
                                                     let (r, g, b) = t_cell.border.right.color;
+                                                    let a = begin_border_alpha(
+                                                        &mut content,
+                                                        &mut page_ext_gstates,
+                                                        &mut bg_alpha_counter,
+                                                        t_cell.border.right.alpha,
+                                                    );
                                                     content.push_str(&format!(
                                                         "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                                         t_cell.border.right.width
                                                     ));
+                                                    end_border_alpha(&mut content, a);
                                                 }
                                             }
                                             tcx += tw;
@@ -2188,6 +2477,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             let by2 = nested_y - cont_h;
                                             if cont_border.left.width > 0.0 {
                                                 let (r, g, b) = cont_border.left.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    cont_border.left.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.left.width,
@@ -2196,9 +2491,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     bx1 + cont_border.left.width * 0.5,
                                                     by2
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if cont_border.right.width > 0.0 {
                                                 let (r, g, b) = cont_border.right.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    cont_border.right.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.right.width,
@@ -2207,9 +2509,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     bx2 - cont_border.right.width * 0.5,
                                                     by2
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if cont_border.top.width > 0.0 {
                                                 let (r, g, b) = cont_border.top.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    cont_border.top.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.top.width,
@@ -2218,9 +2527,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     bx2,
                                                     by1 - cont_border.top.width * 0.5
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                             if cont_border.bottom.width > 0.0 {
                                                 let (r, g, b) = cont_border.bottom.color;
+                                                let a = begin_border_alpha(
+                                                    &mut content,
+                                                    &mut page_ext_gstates,
+                                                    &mut bg_alpha_counter,
+                                                    cont_border.bottom.alpha,
+                                                );
                                                 content.push_str(&format!(
                                                     "{r} {g} {b} RG\n{} w\n{} {} m {} {} l S\n",
                                                     cont_border.bottom.width,
@@ -2229,6 +2545,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     bx2,
                                                     by2 + cont_border.bottom.width * 0.5
                                                 ));
+                                                end_border_alpha(&mut content, a);
                                             }
                                         }
 
@@ -2559,6 +2876,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 .max(border.bottom.width)
                                 .max(border.left.width);
                             let (r, g, b) = border.top.color;
+                            let a = begin_border_alpha(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                border.top.alpha,
+                            );
                             content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
                             content.push_str(&rounded_rect_path(
                                 container_x,
@@ -2568,6 +2891,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 *c_border_radius,
                             ));
                             content.push_str("S\n");
+                            end_border_alpha(&mut content, a);
                         } else {
                             let bx1 = container_x;
                             let bx2 = container_x + container_w;
@@ -2575,6 +2899,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let by2 = container_y_top - total_h;
                             if border.left.width > 0.0 {
                                 let (r, g, b) = border.left.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.left.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = border.left.width,
@@ -2582,9 +2912,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.right.width > 0.0 {
                                 let (r, g, b) = border.right.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.right.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = border.right.width,
@@ -2592,9 +2929,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.top.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = border.top.width,
@@ -2602,9 +2946,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     x2 = bx2,
                                     y = by1 - border.top.width * 0.5
                                 ));
+                                end_border_alpha(&mut content, a);
                             }
                             if border.bottom.width > 0.0 {
                                 let (r, g, b) = border.bottom.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.bottom.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = border.bottom.width,
@@ -2612,6 +2963,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     x2 = bx2,
                                     y = by2 + border.bottom.width * 0.5
                                 ));
+                                end_border_alpha(&mut content, a);
                             }
                         } // else (non-rounded borders)
                     }
@@ -2745,7 +3097,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Stroke the border frame around the image box. Border-box
                     // keeps the frame inside the box, so center each stroke half a
                     // width inside the box edge.
-                    draw_image_border(&mut content, img_x, img_y, *width, *height, border);
+                    draw_image_border(
+                        &mut content,
+                        img_x,
+                        img_y,
+                        *width,
+                        *height,
+                        border,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
                 }
                 LayoutElement::Svg {
                     tree,
@@ -3567,31 +3928,59 @@ fn render_container_children(
                     let by2 = render_y - child_h;
                     if border.top.width > 0.0 {
                         let (r, g, b) = border.top.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.top.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx2} {by1} l S\n",
                             border.top.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if border.bottom.width > 0.0 {
                         let (r, g, b) = border.bottom.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.bottom.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by2} m {bx2} {by2} l S\n",
                             border.bottom.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if border.left.width > 0.0 {
                         let (r, g, b) = border.left.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.left.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx1} {by2} l S\n",
                             border.left.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if border.right.width > 0.0 {
                         let (r, g, b) = border.right.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.right.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx2} {by1} m {bx2} {by2} l S\n",
                             border.right.width
                         ));
+                        end_border_alpha(content, a);
                     }
                 }
 
@@ -3855,6 +4244,12 @@ fn render_container_children(
                 let by2 = nk_top_y - nk_total_h;
                 if border.left.width > 0.0 {
                     let (r, g, b) = border.left.color;
+                    let a = begin_border_alpha(
+                        content,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                        border.left.alpha,
+                    );
                     content.push_str(&format!(
                         "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                         bw = border.left.width,
@@ -3862,9 +4257,16 @@ fn render_container_children(
                         y1 = by1,
                         y2 = by2
                     ));
+                    end_border_alpha(content, a);
                 }
                 if border.right.width > 0.0 {
                     let (r, g, b) = border.right.color;
+                    let a = begin_border_alpha(
+                        content,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                        border.right.alpha,
+                    );
                     content.push_str(&format!(
                         "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                         bw = border.right.width,
@@ -3872,9 +4274,16 @@ fn render_container_children(
                         y1 = by1,
                         y2 = by2
                     ));
+                    end_border_alpha(content, a);
                 }
                 if border.top.width > 0.0 {
                     let (r, g, b) = border.top.color;
+                    let a = begin_border_alpha(
+                        content,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                        border.top.alpha,
+                    );
                     content.push_str(&format!(
                         "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                         bw = border.top.width,
@@ -3882,9 +4291,16 @@ fn render_container_children(
                         x2 = bx2,
                         y = by1 - border.top.width * 0.5
                     ));
+                    end_border_alpha(content, a);
                 }
                 if border.bottom.width > 0.0 {
                     let (r, g, b) = border.bottom.color;
+                    let a = begin_border_alpha(
+                        content,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                        border.bottom.alpha,
+                    );
                     content.push_str(&format!(
                         "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                         bw = border.bottom.width,
@@ -3892,6 +4308,7 @@ fn render_container_children(
                         x2 = bx2,
                         y = by2 + border.bottom.width * 0.5
                     ));
+                    end_border_alpha(content, a);
                 }
 
                 // Clip if overflow:hidden (use rounded rect when border-radius > 0)
@@ -4032,7 +4449,16 @@ fn render_container_children(
                     obj_id: img_obj_id,
                 });
                 // Stroke the border frame around the image box.
-                draw_image_border(content, x, box_bottom, *img_w, *img_h, border);
+                draw_image_border(
+                    content,
+                    x,
+                    box_bottom,
+                    *img_w,
+                    *img_h,
+                    border,
+                    page_ext_gstates,
+                    bg_alpha_counter,
+                );
                 cursor_y -= img_h;
                 y = cursor_y;
             }
@@ -4219,6 +4645,12 @@ fn render_container_children(
                             // Rounded border — use uniform stroke with rounded rect
                             let bw = cell.border.top.width;
                             let (r, g, b) = cell.border.top.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                cell.border.top.alpha,
+                            );
                             content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
                             content.push_str(&rounded_rect_path(
                                 cell_x,
@@ -4228,6 +4660,7 @@ fn render_container_children(
                                 cell.border_radius,
                             ));
                             content.push_str("S\n");
+                            end_border_alpha(content, a);
                         } else {
                             let bx1 = cell_x;
                             let bx2 = cell_x + cell_w;
@@ -4235,6 +4668,12 @@ fn render_container_children(
                             let by2 = cell_bottom;
                             if cell.border.left.width > 0.0 {
                                 let (r, g, b) = cell.border.left.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    cell.border.left.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = cell.border.left.width,
@@ -4242,9 +4681,16 @@ fn render_container_children(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                end_border_alpha(content, a);
                             }
                             if cell.border.right.width > 0.0 {
                                 let (r, g, b) = cell.border.right.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    cell.border.right.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = cell.border.right.width,
@@ -4252,9 +4698,16 @@ fn render_container_children(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                end_border_alpha(content, a);
                             }
                             if cell.border.top.width > 0.0 {
                                 let (r, g, b) = cell.border.top.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    cell.border.top.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = cell.border.top.width,
@@ -4262,9 +4715,16 @@ fn render_container_children(
                                     x2 = bx2,
                                     y = by1 - cell.border.top.width * 0.5
                                 ));
+                                end_border_alpha(content, a);
                             }
                             if cell.border.bottom.width > 0.0 {
                                 let (r, g, b) = cell.border.bottom.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    cell.border.bottom.alpha,
+                                );
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = cell.border.bottom.width,
@@ -4272,6 +4732,7 @@ fn render_container_children(
                                     x2 = bx2,
                                     y = by2 + cell.border.bottom.width * 0.5
                                 ));
+                                end_border_alpha(content, a);
                             }
                         } // else (non-rounded cell border)
                     }
@@ -4439,31 +4900,59 @@ fn render_nested_table_rows(
                         let y_bottom = row_y - row_height;
                         if cell.border.top.width > 0.0 {
                             let (r, g, b) = cell.border.top.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                cell.border.top.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                 cell.border.top.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.right.width > 0.0 {
                             let (r, g, b) = cell.border.right.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                cell.border.right.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                 cell.border.right.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.bottom.width > 0.0 {
                             let (r, g, b) = cell.border.bottom.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                cell.border.bottom.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                 cell.border.bottom.width
                             ));
+                            end_border_alpha(content, a);
                         }
                         if cell.border.left.width > 0.0 {
                             let (r, g, b) = cell.border.left.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                cell.border.left.alpha,
+                            );
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                 cell.border.left.width
                             ));
+                            end_border_alpha(content, a);
                         }
                     }
 
@@ -4568,31 +5057,59 @@ fn render_nested_table_rows(
                     let by2 = row_y - row_height;
                     if grid_border.top.width > 0.0 {
                         let (r, g, b) = grid_border.top.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            grid_border.top.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx2} {by1} l S\n",
                             grid_border.top.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if grid_border.right.width > 0.0 {
                         let (r, g, b) = grid_border.right.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            grid_border.right.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx2} {by1} m {bx2} {by2} l S\n",
                             grid_border.right.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if grid_border.bottom.width > 0.0 {
                         let (r, g, b) = grid_border.bottom.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            grid_border.bottom.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by2} m {bx2} {by2} l S\n",
                             grid_border.bottom.width
                         ));
+                        end_border_alpha(content, a);
                     }
                     if grid_border.left.width > 0.0 {
                         let (r, g, b) = grid_border.left.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            grid_border.left.alpha,
+                        );
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx1} {by2} l S\n",
                             grid_border.left.width
                         ));
+                        end_border_alpha(content, a);
                     }
                 }
 
@@ -10479,21 +10996,25 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (1.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 1.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = crate::layout::engine::LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         render_nested_text_block(
@@ -10572,6 +11093,7 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (1.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         render_nested_text_block(
@@ -10653,21 +11175,25 @@ mod tests {
         border.top = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = crate::layout::engine::LayoutBorderSide {
             width: 2.0,
             color: (0.0, 0.0, 0.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         let lines = vec![test_text_line(vec![test_text_run("SvgBorder")])];
@@ -11063,21 +11589,25 @@ mod tests {
         border.top = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.right = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.bottom = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         border.left = LayoutBorderSide {
             width: 1.0,
             color: (0.0, 0.0, 1.0),
+            alpha: 1.0,
             style: crate::style::computed::BorderStyle::Solid,
         };
         let cell = TableCell {
