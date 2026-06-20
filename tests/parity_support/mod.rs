@@ -61,31 +61,30 @@ const CHANNEL_TOL: i32 = 20;
 /// Overall-score regression epsilon (percentage points). Below this is noise.
 const SCORE_EPSILON: f64 = 0.5;
 /// Default thresholds when a manifest entry omits them.
-const DEFAULT_PASS_PCT: f64 = 2.0;
-const DEFAULT_PARTIAL_PCT: f64 = 10.0;
-/// Inherent engine-vs-Chrome structural-jitter floor (percentage points), on the
-/// SSIM-hybrid (image-compare) DISSIMILARITY scale `100*(1-score)`. The
-/// perfect-render substrate probes — a plain filled box, a colour swatch, two
-/// stacked blocks — are PIXEL-CORRECT renders whose residual dissimilarity is
-/// pure sub-pixel anti-aliasing / ~1px page-position jitter, NOT a rendering bug.
-/// Measured on the SSIM-hybrid scale at 300 DPI (full-suite run, this branch):
-///   * probe-color-swatch : 4.09%
-///   * probe-fill-box     : 5.33%
-///   * probe-block-flow   : 6.06%   <- highest perfect-probe value
-/// The three perfect probes cluster at 4.1–6.1%. The lowest REAL-gap probe
-/// (probe-border-box) sits at 20.25%, with probe-text-baseline at 52.83% and
-/// probe-image-render at 100.00% far above. We therefore set the PASS floor just
-/// above the highest perfect probe (6.06%) with a ~1pp margin, and keep the
-/// PARTIAL floor well below the lowest real gap (20.25%):
-///   PASS floor 7.0%  -> all three perfect probes PASS comfortably
-///                       (largest, block-flow at 6.06%, clears by ~0.9pp).
-///   PARTIAL floor 12.0% -> real gaps (>=20.25%) stay FAIL with >8pp of margin;
-///                          nothing weakens far enough to let a real gap pass.
-/// Effective per-fixture thresholds are clamped to sit ABOVE this floor so a
-/// correct render is never scored as a failure (which would confound everything
-/// depending on it). Per-fixture thresholds may be HIGHER (e.g. text shaping),
-/// never below the floor.
-const NOISE_FLOOR_PASS_PCT: f64 = 7.0;
+const DEFAULT_PASS_PCT: f64 = 1.5;
+const DEFAULT_PARTIAL_PCT: f64 = 12.0;
+/// Inherent engine-vs-Chrome floor (percentage points) on the perceptual
+/// pixel-diff scale (fraction of pixels that genuinely differ; see `diff_images`).
+/// Because the metric ignores anti-aliasing edges and sub-threshold noise, a
+/// PIXEL-CORRECT render scores ~0% — far lower than the old SSIM-hybrid baseline
+/// (which inflated perfect renders to 4–6%). The perfect-render substrate probes,
+/// measured on this scale at 300 DPI (full-suite run, this branch):
+///   * probe-color-swatch : 0.00%
+///   * probe-fill-box     : 0.00%
+///   * probe-block-flow   : 0.32%
+///   * probe-border-box   : 0.69%
+///   * probe-image-render : 0.79%   <- highest perfect (non-text) probe
+/// All perfect renders sit <= 0.8%. probe-text-baseline (20.6%) is the
+/// cross-rasterizer text-AA ceiling — text is NOT pixel-identical across two
+/// independent rasterizers even when feature-correct — and is deliberately
+/// EXCLUDED from the floor (it is a known measurement ceiling, not a bug).
+/// We set the PASS floor at 1.5% (clears every perfect probe by ~0.7pp, yet
+/// below real small-area defects such as an unrounded per-corner radius at
+/// 2.79%), and the PARTIAL floor at 12.0% (a recognizable-but-imperfect render
+/// such as slightly-mis-sized flex boxes at 7.6% stays PARTIAL; substantially
+/// wrong / missing content fails). Effective per-fixture thresholds are clamped
+/// to sit ABOVE this floor so a correct render is never scored as a failure.
+const NOISE_FLOOR_PASS_PCT: f64 = 1.5;
 const NOISE_FLOOR_PARTIAL_PCT: f64 = 12.0;
 
 // ---------------------------------------------------------------------------
@@ -1236,19 +1235,157 @@ fn crop_rect(img: &RgbaImage, bb: BBox) -> RgbaImage {
 /// no difference and brighter pixels mark the structural (red) and chroma
 /// (green/blue) deviations that drove the dissimilarity. It is returned as an
 /// `RgbaImage` so the committed diff PNG visualises exactly what the score saw.
+/// Per-pixel perceptual threshold (pixelmatch `threshold`, 0..1). Differences
+/// below this are treated as identical, so a visually-correct smooth gradient or
+/// the sub-tone noise between two independent rasterizers scores ~0% instead of
+/// being over-penalized the way global MSSIM is. Higher = more tolerant.
+const PM_THRESHOLD: f64 = 0.12;
+/// Maximum possible YIQ color delta (pixelmatch constant).
+const PM_MAX_DELTA: f64 = 35215.0;
+
+/// Perceptual image diff = fraction of pixels that genuinely differ, ignoring
+/// anti-aliasing edges and sub-threshold noise (Mapbox pixelmatch algorithm).
+///
+/// Replaces global MSSIM, which had two opposite failure modes on this suite:
+/// it was too LENIENT on small hard differences (an unrounded per-corner radius
+/// is a tiny pixel fraction, so MSSIM diluted it into a PASS) and too HARSH on
+/// large smooth differences (a visually-identical gradient scored ~10%). A
+/// thresholded, AA-aware per-pixel diff is harsh on solid wrong regions and
+/// lenient on smooth near-matches and glyph anti-aliasing — so a perfect render
+/// scores ~0% and the noise floor can sit low enough to catch real defects.
 fn diff_images(a: &RgbaImage, b: &RgbaImage) -> (f64, RgbaImage) {
-    match image_compare::rgba_hybrid_compare(a, b) {
-        Ok(sim) => {
-            // score is a SIMILARITY (1.0 == identical); convert to dissimilarity %.
-            let pct = (100.0 * (1.0 - sim.score)).clamp(0.0, 100.0);
-            let overlay = sim.image.to_color_map().to_rgba8();
-            (pct, overlay)
-        }
-        // Only fails on dimension mismatch, which cannot happen here (both inputs
-        // are cropped to the identical union rectangle). Treat defensively as a
-        // total miss with a 1x1 white overlay so the caller's contract holds.
-        Err(_) => (100.0, ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255]))),
+    let (w, h) = a.dimensions();
+    if w == 0 || h == 0 || b.dimensions() != (w, h) {
+        return (100.0, ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255])));
     }
+    let max_delta = PM_MAX_DELTA * PM_THRESHOLD * PM_THRESHOLD;
+    let mut overlay = ImageBuffer::from_pixel(w, h, Rgba([255u8, 255, 255, 255]));
+    let mut diff_count: u64 = 0;
+    for y in 0..h {
+        for x in 0..w {
+            let pa = a.get_pixel(x, y);
+            let pb = b.get_pixel(x, y);
+            let delta = color_delta(pa, pb, false);
+            if delta.abs() > max_delta {
+                // Significant difference — unless it is an anti-aliasing artifact
+                // present in either image (glyph/shape edges differ sub-pixel
+                // between rasterizers but are not real layout differences).
+                if is_antialiased(a, x, y, w, h, b) || is_antialiased(b, x, y, w, h, a) {
+                    overlay.put_pixel(x, y, Rgba([255, 224, 0, 255])); // AA edge: yellow
+                } else {
+                    diff_count += 1;
+                    overlay.put_pixel(x, y, Rgba([255, 40, 40, 255])); // real diff: red
+                }
+            } else {
+                // Matched: faint grayscale of the reference so the overlay stays
+                // readable (shows the shape behind the highlighted differences).
+                let yv = rgb2y(pb);
+                let g = (255.0 - (255.0 - yv) * 0.12).round().clamp(0.0, 255.0) as u8;
+                overlay.put_pixel(x, y, Rgba([g, g, g, 255]));
+            }
+        }
+    }
+    let pct = (100.0 * diff_count as f64 / (w as f64 * h as f64)).clamp(0.0, 100.0);
+    (pct, overlay)
+}
+
+#[inline]
+fn rgb2y(p: &Rgba<u8>) -> f64 {
+    p[0] as f64 * 0.298_895_31 + p[1] as f64 * 0.586_622_47 + p[2] as f64 * 0.114_482_23
+}
+#[inline]
+fn rgb2i(p: &Rgba<u8>) -> f64 {
+    p[0] as f64 * 0.595_977_99 - p[1] as f64 * 0.274_176_10 - p[2] as f64 * 0.321_801_89
+}
+#[inline]
+fn rgb2q(p: &Rgba<u8>) -> f64 {
+    p[0] as f64 * 0.211_470_17 - p[1] as f64 * 0.522_617_11 + p[2] as f64 * 0.311_146_94
+}
+
+/// Signed YIQ perceptual delta between two pixels (pixelmatch `colorDelta`).
+/// `y_only` returns just the brightness delta (used for AA edge detection).
+/// Sign encodes which pixel is brighter; callers use the magnitude for the
+/// threshold and the sign for anti-aliasing classification.
+fn color_delta(a: &Rgba<u8>, b: &Rgba<u8>, y_only: bool) -> f64 {
+    if a == b {
+        return 0.0;
+    }
+    let y1 = rgb2y(a);
+    let y2 = rgb2y(b);
+    if y_only {
+        return y1 - y2;
+    }
+    let dy = y1 - y2;
+    let di = rgb2i(a) - rgb2i(b);
+    let dq = rgb2q(a) - rgb2q(b);
+    let delta = 0.5053 * dy * dy + 0.299 * di * di + 0.1957 * dq * dq;
+    if y1 > y2 { -delta } else { delta }
+}
+
+/// Whether the pixel at (x1,y1) in `img` looks like anti-aliasing rather than a
+/// real difference (pixelmatch `antialiased`): it sits on a high-contrast edge
+/// whose extreme neighbor also has many equal siblings in both images.
+fn is_antialiased(img: &RgbaImage, x1: u32, y1: u32, w: u32, h: u32, img2: &RgbaImage) -> bool {
+    let x0 = x1.saturating_sub(1);
+    let y0 = y1.saturating_sub(1);
+    let x2 = (x1 + 1).min(w - 1);
+    let y2 = (y1 + 1).min(h - 1);
+    let mut zeroes = u32::from(x1 == x0 || x1 == x2 || y1 == y0 || y1 == y2);
+    let center = img.get_pixel(x1, y1);
+    let mut min = 0.0f64;
+    let mut max = 0.0f64;
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (0u32, 0u32, 0u32, 0u32);
+    for y in y0..=y2 {
+        for x in x0..=x2 {
+            if x == x1 && y == y1 {
+                continue;
+            }
+            let delta = color_delta(center, img.get_pixel(x, y), true);
+            if delta == 0.0 {
+                zeroes += 1;
+                if zeroes > 2 {
+                    return false;
+                }
+            } else if delta < min {
+                min = delta;
+                min_x = x;
+                min_y = y;
+            } else if delta > max {
+                max = delta;
+                max_x = x;
+                max_y = y;
+            }
+        }
+    }
+    if min == 0.0 || max == 0.0 {
+        return false;
+    }
+    (has_many_siblings(img, min_x, min_y, w, h) && has_many_siblings(img2, min_x, min_y, w, h))
+        || (has_many_siblings(img, max_x, max_y, w, h) && has_many_siblings(img2, max_x, max_y, w, h))
+}
+
+/// Whether a pixel has 3+ equal adjacent neighbors (pixelmatch `hasManySiblings`).
+fn has_many_siblings(img: &RgbaImage, x1: u32, y1: u32, w: u32, h: u32) -> bool {
+    let x0 = x1.saturating_sub(1);
+    let y0 = y1.saturating_sub(1);
+    let x2 = (x1 + 1).min(w - 1);
+    let y2 = (y1 + 1).min(h - 1);
+    let mut zeroes = u32::from(x1 == x0 || x1 == x2 || y1 == y0 || y1 == y2);
+    let center = img.get_pixel(x1, y1);
+    for y in y0..=y2 {
+        for x in x0..=x2 {
+            if x == x1 && y == y1 {
+                continue;
+            }
+            if img.get_pixel(x, y) == center {
+                zeroes += 1;
+                if zeroes > 2 {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 fn classify(diff_pct: f64, pass: f64, partial: f64) -> Status {
