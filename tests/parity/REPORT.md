@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 62.86%  (PASS 167 · PARTIAL 101 · FAIL 78 · UNKNOWN 0 · total 346)
+Overall: 63.44%  (PASS 169 · PARTIAL 101 · FAIL 76 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -30,7 +30,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 73.02 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | REAL | 19.33 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
 | FAIL | REAL | 29.40 | backgrounds-borders | outline | solid-offset | outline-solid |  |
-| FAIL | REAL | 33.00 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
 | FAIL | REAL | 34.24 | block-box-model | nested-block-flow | containment | block-nested-containment |  |
 | FAIL | REAL | 29.44 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
@@ -72,7 +71,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 49.32 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset |  |
 | FAIL | REAL | 37.28 | positioning | overflow | visible | positioning-overflow-visible-no-clip |  |
 | FAIL | REAL | 39.67 | positioning | position | fixed | positioning-fixed-top-left |  |
-| FAIL | REAL | 16.92 | positioning | z-index | stacking | positioning-z-index-stacking |  |
 | FAIL | REAL | 15.73 | tables | border-collapse | separate | tables-border-separate |  |
 | FAIL | REAL | 52.90 | tables | cell-padding | padding-20px | tables-cell-padding |  |
 | FAIL | REAL | 61.71 | units-values | calc | mixed-percent-px | units-calc-mixed-percent |  |
@@ -94,14 +92,13 @@ None — every fixture's HTML matches `refs.lock`.
 | 10 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
 | 11 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
 | 12 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 13 | `positioning-z-index-stacking` | z-index | FAIL | 1 | positioning-zindex-x-transforms-rotate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
 | backgrounds-gradients | 71.43% | 9 | 2 | 3 | 0 |
-| block-box-model | 76.67% | 11 | 1 | 3 | 0 |
+| block-box-model | 83.33% | 12 | 1 | 2 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
@@ -117,7 +114,7 @@ None — every fixture's HTML matches `refs.lock`.
 | multicol | 6.25% | 0 | 1 | 7 | 0 |
 | overflow-clipping | 35.00% | 1 | 5 | 4 | 0 |
 | paged-media | 83.33% | 7 | 1 | 1 | 0 |
-| positioning | 53.13% | 5 | 7 | 4 | 0 |
+| positioning | 59.38% | 6 | 7 | 3 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 100.00% | 15 | 0 | 0 | 0 |
 | tables | 71.88% | 9 | 5 | 2 | 0 |
@@ -292,9 +289,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.31% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - PASS 0.29% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
-### block-box-model — 76.67%
-- **border-width** — 0.00%
-  - FAIL 33.00% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
+### block-box-model — 83.33%
+- **border-width** — 100.00%
+  - PASS 0.64% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
 - **box-sizing** — 50.00%
   - FAIL 33.21% box-sizing=border-box — `block-box-sizing-border-box` — box-sizing:border-box keeps the total rendered width at 200px despite 24px padding and 8px border.
   - PASS 0.00% box-sizing=content-box — `block-box-sizing-content-box` — box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.
@@ -663,7 +660,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 0.00% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 53.13%
+### positioning — 59.38%
 - **clear** — 100.00%
   - PASS 0.11% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
 - **containing-block** — 50.00%
@@ -684,9 +681,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 3.19% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
   - PASS 0.00% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
   - PASS 0.00% position=static — `positioning-position-static` — position:static box ignores top/left offsets and stays in normal flow.
-- **z-index** — 50.00%
+- **z-index** — 100.00%
   - PASS 0.00% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.
-  - FAIL 16.92% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
+  - PASS 0.00% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
 
 ### probes — 100.00%
 - **background-color** — 100.00%

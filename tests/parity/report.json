@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 62.86,
-    "pass": 167,
+    "score_pct": 63.44,
+    "pass": 169,
     "partial": 101,
-    "fail": 78,
+    "fail": 76,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -894,21 +894,21 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 76.67,
+      "score_pct": 83.33,
       "counts": {
-        "pass": 11,
+        "pass": 12,
         "partial": 1,
-        "fail": 3,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
         {
           "feature": "border-width",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -919,8 +919,8 @@
               "subfeature": "per-side",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 33.0023,
+              "status": "PASS",
+              "diff_pct": 0.6369,
               "weight": 1.0,
               "description": "Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.",
               "note": "",
@@ -930,7 +930,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "a2d0aaa4fdfbb15f2476e8ab9ea7f87692fa98a84a52446f23b7768c2b2e2b31"
             }
           ]
@@ -6028,7 +6028,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: z-index (`positioning-z-index-stacking`)",
+              "attribution": "REAL",
               "html_sha256": "c50fe5639884661eebf3d38fd7add9934a3dfdfa3b188a801ec70bd4bac1142b"
             }
           ]
@@ -7210,11 +7210,11 @@
     },
     {
       "category": "positioning",
-      "score_pct": 53.13,
+      "score_pct": 59.38,
       "counts": {
-        "pass": 5,
+        "pass": 6,
         "partial": 7,
-        "fail": 4,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
@@ -7586,11 +7586,11 @@
         },
         {
           "feature": "z-index",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7622,8 +7622,8 @@
               "subfeature": "stacking",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.9191,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Higher z-index paints on top of a later-in-source sibling with lower z-index.",
               "note": "",
@@ -7633,7 +7633,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "1fc00c36233c37b6897ff4280d4d17a9c0ba7b6c16ce8e34df3f9c330ac39416"
             }
           ]
@@ -10588,15 +10588,6 @@
       "confounded_count": 1,
       "confounded_ids": [
         "interactions-positioning-fixed-x-transforms-translate"
-      ]
-    },
-    {
-      "id": "positioning-z-index-stacking",
-      "feature": "z-index",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "positioning-zindex-x-transforms-rotate"
       ]
     }
   ],

@@ -3777,6 +3777,37 @@ fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
     total
 }
 
+/// CSS paint-order key for a sibling child of a container.
+///
+/// Returns `(layer, z_index)` where `layer` is `0` for in-flow / non-positioned
+/// content and `1` for out-of-flow `position: absolute` boxes. A *stable* sort by
+/// this key keeps in-flow children in source order (so flow-cursor advancement is
+/// unaffected) while moving absolutely-positioned siblings to paint last, ordered
+/// by ascending `z_index` (stable for ties). This implements the simplified CSS
+/// stacking rule: positioned descendants paint above non-positioned in-flow ones,
+/// and among the positioned ones, lower `z_index` paints first.
+fn child_paint_order(element: &LayoutElement) -> (u8, i32) {
+    match element {
+        LayoutElement::TextBlock {
+            position, z_index, ..
+        }
+        | LayoutElement::Container {
+            position, z_index, ..
+        } => {
+            // Only out-of-flow (absolute) siblings are safe to reorder for paint
+            // without disturbing in-flow cursor advancement: they take no flow
+            // space and are positioned from the fixed container top. In-flow
+            // children (static / relative / float) stay in source order.
+            if *position == Position::Absolute {
+                (1, *z_index)
+            } else {
+                (0, 0)
+            }
+        }
+        _ => (0, 0),
+    }
+}
+
 /// Recursively render a Container element and all its children.
 ///
 /// `x` / `y` are the content-box origin (after padding).
@@ -3815,7 +3846,24 @@ fn render_container_children(
     // do not participate in collapse.
     let mut prev_margin_bottom: f32 = 0.0;
 
-    for child in children {
+    // Paint children in CSS stacking order: in-flow / non-positioned content
+    // first (kept in source order), then absolutely-positioned siblings sorted
+    // by ascending z-index. A *stable* sort preserves source order for ties and,
+    // critically, for all in-flow children — so flow-cursor advancement below is
+    // identical to iterating `children` directly. Only the paint order of
+    // out-of-flow absolute boxes (which consume no flow space) changes.
+    let needs_reorder = children
+        .iter()
+        .any(|c| child_paint_order(c) != (0, 0));
+    let paint_order: Vec<&LayoutElement> = if needs_reorder {
+        let mut ordered: Vec<&LayoutElement> = children.iter().collect();
+        ordered.sort_by_key(|c| child_paint_order(c));
+        ordered
+    } else {
+        children.iter().collect()
+    };
+
+    for child in paint_order {
         let handled_by_nested = matches!(
             child,
             LayoutElement::TableRow { .. } | LayoutElement::GridRow { .. }

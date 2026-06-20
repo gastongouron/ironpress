@@ -255,12 +255,28 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
 
     if matches!(
         property,
-        "border" | "border-style" | "border-top" | "border-right" | "border-bottom" | "border-left"
+        "border"
+            | "border-style"
+            | "border-top"
+            | "border-right"
+            | "border-bottom"
+            | "border-left"
+            | "border-top-style"
+            | "border-right-style"
+            | "border-bottom-style"
+            | "border-left-style"
     ) {
         return Some(CssValue::Keyword(val.to_string()));
     }
 
-    if property == "border-width" {
+    if matches!(
+        property,
+        "border-width"
+            | "border-top-width"
+            | "border-right-width"
+            | "border-bottom-width"
+            | "border-left-width"
+    ) {
         return parse_length(val);
     }
 

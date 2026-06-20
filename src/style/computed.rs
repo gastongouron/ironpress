@@ -2154,6 +2154,97 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.border.left.color = Some(*c);
     }
 
+    // Uniform `border-style` keyword applies the same line style to all four
+    // edges (e.g. `border-style: solid` paired with per-side `border-*-width`).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-style") {
+        let bs = parse_border_style_keyword(k);
+        style.border.top.style = bs;
+        style.border.right.style = bs;
+        style.border.bottom.style = bs;
+        style.border.left.style = bs;
+    }
+
+    // Per-side border longhands (`border-{side}-{width,style,color}`). These run
+    // after the `border` / `border-{side}` shorthands and the uniform
+    // `border-{width,color,style}` properties so an explicit longhand wins.
+    for (prop, setter) in &[
+        (
+            "border-top-width",
+            (|s: &mut ComputedStyle, w| s.border.top.width = w)
+                as fn(&mut ComputedStyle, f32),
+        ),
+        (
+            "border-right-width",
+            (|s: &mut ComputedStyle, w| s.border.right.width = w) as fn(&mut ComputedStyle, f32),
+        ),
+        (
+            "border-bottom-width",
+            (|s: &mut ComputedStyle, w| s.border.bottom.width = w) as fn(&mut ComputedStyle, f32),
+        ),
+        (
+            "border-left-width",
+            (|s: &mut ComputedStyle, w| s.border.left.width = w) as fn(&mut ComputedStyle, f32),
+        ),
+    ] {
+        if let Some(CssValue::Length(v)) = get_non_special(map, prop) {
+            setter(style, *v);
+        }
+    }
+
+    for (prop, setter) in &[
+        (
+            "border-top-color",
+            (|s: &mut ComputedStyle, c| s.border.top.color = Some(c))
+                as fn(&mut ComputedStyle, Color),
+        ),
+        (
+            "border-right-color",
+            (|s: &mut ComputedStyle, c| s.border.right.color = Some(c))
+                as fn(&mut ComputedStyle, Color),
+        ),
+        (
+            "border-bottom-color",
+            (|s: &mut ComputedStyle, c| s.border.bottom.color = Some(c))
+                as fn(&mut ComputedStyle, Color),
+        ),
+        (
+            "border-left-color",
+            (|s: &mut ComputedStyle, c| s.border.left.color = Some(c))
+                as fn(&mut ComputedStyle, Color),
+        ),
+    ] {
+        if let Some(CssValue::Color(c)) = get_non_special(map, prop) {
+            setter(style, *c);
+        }
+    }
+
+    for (prop, setter) in &[
+        (
+            "border-top-style",
+            (|s: &mut ComputedStyle, bs| s.border.top.style = bs)
+                as fn(&mut ComputedStyle, BorderStyle),
+        ),
+        (
+            "border-right-style",
+            (|s: &mut ComputedStyle, bs| s.border.right.style = bs)
+                as fn(&mut ComputedStyle, BorderStyle),
+        ),
+        (
+            "border-bottom-style",
+            (|s: &mut ComputedStyle, bs| s.border.bottom.style = bs)
+                as fn(&mut ComputedStyle, BorderStyle),
+        ),
+        (
+            "border-left-style",
+            (|s: &mut ComputedStyle, bs| s.border.left.style = bs)
+                as fn(&mut ComputedStyle, BorderStyle),
+        ),
+    ] {
+        if let Some(CssValue::Keyword(k)) = get_non_special(map, prop) {
+            setter(style, parse_border_style_keyword(k));
+        }
+    }
+
     // Float
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "float") {
         style.float = match k.as_str() {
@@ -3840,6 +3931,17 @@ fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
     out
 }
 
+/// Map a CSS `border-style` keyword to a `BorderStyle`. Unknown keywords keep
+/// the CSS-wide default (`solid`); `none`/`hidden` suppress the edge.
+fn parse_border_style_keyword(keyword: &str) -> BorderStyle {
+    match keyword.trim().to_ascii_lowercase().as_str() {
+        "dashed" => BorderStyle::Dashed,
+        "dotted" => BorderStyle::Dotted,
+        "none" | "hidden" => BorderStyle::None,
+        _ => BorderStyle::Solid,
+    }
+}
+
 fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
     // A function color such as `rgba(38, 50, 56, 0.35)` contains internal spaces,
     // so pull it out (and remove it from the string) before tokenizing on
@@ -4479,6 +4581,59 @@ mod tests {
         assert_eq!(c.r, 0);
         assert_eq!(c.g, 0);
         assert_eq!(c.b, 255);
+    }
+
+    #[test]
+    fn border_per_side_width_longhands() {
+        // Mirrors block-box-model/block-border-width-thick: a single
+        // `border-style`/`border-color` plus asymmetric per-side widths. Each
+        // edge must pick up its own width and remain paintable (solid + colored).
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                "border-style: solid; border-color: #11305f; \
+                 border-top-width: 6px; border-right-width: 14px; \
+                 border-bottom-width: 22px; border-left-width: 30px",
+            ),
+            &parent,
+        );
+        // px -> pt is a 0.75 factor.
+        assert!((style.border.top.width - 6.0 * 0.75).abs() < 0.01);
+        assert!((style.border.right.width - 14.0 * 0.75).abs() < 0.01);
+        assert!((style.border.bottom.width - 22.0 * 0.75).abs() < 0.01);
+        assert!((style.border.left.width - 30.0 * 0.75).abs() < 0.01);
+        for side in [
+            &style.border.top,
+            &style.border.right,
+            &style.border.bottom,
+            &style.border.left,
+        ] {
+            assert_eq!(side.style, BorderStyle::Solid);
+            let c = side.color.expect("per-side border color should be set");
+            assert_eq!((c.r, c.g, c.b), (0x11, 0x30, 0x5f));
+            // Paintable: width > 0 && style != None.
+            assert!(side.width > 0.0 && side.style != BorderStyle::None);
+        }
+    }
+
+    #[test]
+    fn border_per_side_style_and_color_longhands() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                "border-width: 4px; border-top-style: dashed; \
+                 border-right-style: dotted; border-bottom-style: none; \
+                 border-left-color: red",
+            ),
+            &parent,
+        );
+        assert_eq!(style.border.top.style, BorderStyle::Dashed);
+        assert_eq!(style.border.right.style, BorderStyle::Dotted);
+        assert_eq!(style.border.bottom.style, BorderStyle::None);
+        let left = style.border.left.color.expect("left color should be set");
+        assert_eq!((left.r, left.g, left.b), (255, 0, 0));
     }
 
     #[test]
