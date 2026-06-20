@@ -2226,6 +2226,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
                     background_radial_gradient: c_bg_radial,
+                    background_svg: c_bg_svg,
+                    background_size: c_bg_size,
+                    background_position: c_bg_position,
+                    background_repeat: c_bg_repeat,
+                    background_origin: c_bg_origin,
+                    background_blur_radius: c_bg_blur,
                     z_index: _,
                     ..
                 } => {
@@ -2379,6 +2385,50 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         if *c_border_radius > 0.0 {
                             content.push_str("Q\n");
                         }
+                    }
+
+                    // Draw SVG background image if specified
+                    if let Some(svg_tree) = c_bg_svg {
+                        let bg_y = container_y_top - total_h;
+                        // Adjust reference box based on background-origin
+                        let (ref_x, ref_y, ref_w, ref_h) = match c_bg_origin {
+                            BackgroundOrigin::Border => (
+                                container_x - border.left.width,
+                                bg_y - border.bottom.width,
+                                container_w + border.left.width + border.right.width,
+                                total_h + border.top.width + border.bottom.width,
+                            ),
+                            BackgroundOrigin::Content => (
+                                container_x + c_pl,
+                                bg_y + c_pb,
+                                (container_w - c_pl - c_pr).max(0.0),
+                                (total_h - c_pt - c_pb).max(0.0),
+                            ),
+                            BackgroundOrigin::Padding => (container_x, bg_y, container_w, total_h),
+                        };
+                        render_svg_background(
+                            &mut content,
+                            svg_tree,
+                            &mut pdf_writer,
+                            &mut page_images,
+                            &mut page_shadings,
+                            &mut shading_counter,
+                            Some(&mut page_ext_gstates),
+                            BackgroundPaintContext::new(
+                                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                                SvgViewportBox::new(
+                                    container_x - border.left.width,
+                                    bg_y - border.bottom.width,
+                                    container_w + border.left.width + border.right.width,
+                                    total_h + border.top.width + border.bottom.width,
+                                ),
+                                *c_border_radius,
+                                *c_bg_blur,
+                                *c_bg_size,
+                                *c_bg_position,
+                                *c_bg_repeat,
+                            ),
+                        );
                     }
 
                     // Draw inset box-shadow (after container background, before borders).
@@ -3420,6 +3470,12 @@ fn render_container_children(
                 offset_left: nk_offset_left,
                 transform: nk_transform,
                 clip_path: nk_clip_path,
+                background_svg: nk_bg_svg,
+                background_size: nk_bg_size,
+                background_position: nk_bg_position,
+                background_repeat: nk_bg_repeat,
+                background_origin: nk_bg_origin,
+                background_blur_radius: nk_bg_blur,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -3549,6 +3605,50 @@ fn render_container_children(
                     if *cont_br > 0.0 {
                         content.push_str("Q\n");
                     }
+                }
+
+                // Draw SVG background image if specified
+                if let Some(svg_tree) = nk_bg_svg {
+                    let bg_y = nk_top_y - nk_total_h;
+                    // Adjust reference box based on background-origin
+                    let (ref_x, ref_y, ref_w, ref_h) = match nk_bg_origin {
+                        BackgroundOrigin::Border => (
+                            nk_x - border.left.width,
+                            bg_y - border.bottom.width,
+                            nk_w + border.left.width + border.right.width,
+                            nk_total_h + border.top.width + border.bottom.width,
+                        ),
+                        BackgroundOrigin::Content => (
+                            nk_x + padding_left,
+                            bg_y + padding_bottom,
+                            (nk_w - padding_left - padding_right).max(0.0),
+                            (nk_total_h - padding_top - padding_bottom).max(0.0),
+                        ),
+                        BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
+                    };
+                    render_svg_background(
+                        content,
+                        svg_tree,
+                        pdf_writer,
+                        page_images,
+                        page_shadings,
+                        shading_counter,
+                        Some(page_ext_gstates),
+                        BackgroundPaintContext::new(
+                            SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                            SvgViewportBox::new(
+                                nk_x - border.left.width,
+                                bg_y - border.bottom.width,
+                                nk_w + border.left.width + border.right.width,
+                                nk_total_h + border.top.width + border.bottom.width,
+                            ),
+                            *cont_br,
+                            *nk_bg_blur,
+                            *nk_bg_size,
+                            *nk_bg_position,
+                            *nk_bg_repeat,
+                        ),
+                    );
                 }
 
                 // Draw all 4 borders

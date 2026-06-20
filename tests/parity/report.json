@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 53.61,
-    "pass": 137,
-    "partial": 97,
-    "fail": 112,
+    "score_pct": 54.62,
+    "pass": 140,
+    "partial": 98,
+    "fail": 108,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -484,11 +484,11 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 32.14,
+      "score_pct": 57.14,
       "counts": {
-        "pass": 4,
-        "partial": 1,
-        "fail": 9,
+        "pass": 7,
+        "partial": 2,
+        "fail": 5,
         "unknown": 0
       },
       "features": [
@@ -528,11 +528,11 @@
         },
         {
           "feature": "background-origin",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -543,8 +543,8 @@
               "subfeature": "content-box",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 26.4384,
+              "status": "PARTIAL",
+              "diff_pct": 8.8861,
               "weight": 1.0,
               "description": "background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.",
               "note": "",
@@ -563,10 +563,10 @@
         },
         {
           "feature": "background-position",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -578,8 +578,8 @@
               "subfeature": "bottom-right-keyword",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 11.0817,
+              "status": "PASS",
+              "diff_pct": 0.0883,
               "weight": 1.0,
               "description": "A no-repeat raster placed at the 'bottom right' keyword position inside a sized box.",
               "note": "",
@@ -590,18 +590,18 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c6ab00d45c6347c6f7871797319a3ae78a9043612a4d843ff624180a4027e69e"
             }
           ]
         },
         {
           "feature": "background-size",
-          "score_pct": 0.0,
+          "score_pct": 83.33,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 3,
+            "pass": 2,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -612,8 +612,8 @@
               "subfeature": "contain",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.2764,
+              "status": "PASS",
+              "diff_pct": 0.2656,
               "weight": 1.0,
               "description": "background-size: contain scales the raster to fit within the box, left-aligned, leaving base color visible.",
               "note": "",
@@ -624,7 +624,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "65d62cf74a7fe8a19c4c6f8fb85f77847b34d65f556221c6a44300b247832e34"
             },
             {
@@ -634,8 +634,8 @@
               "subfeature": "cover",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 98.5504,
+              "status": "PASS",
+              "diff_pct": 0.4643,
               "weight": 1.0,
               "description": "background-size: cover scales the raster to fill the box, cropping overflow, centered.",
               "note": "",
@@ -646,7 +646,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6cc1ba073d59becbc96101e81583b66120c2cf126842fc005a2ab8822fb19797"
             },
             {
@@ -656,8 +656,8 @@
               "subfeature": "explicit-length",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 24.7522,
+              "status": "PARTIAL",
+              "diff_pct": 8.405,
               "weight": 1.0,
               "description": "background-size with an explicit 120px x 80px length, no-repeat, top-left.",
               "note": "",
@@ -799,7 +799,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 33.842,
+              "diff_pct": 78.13,
               "weight": 1.0,
               "description": "Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.",
               "note": "",

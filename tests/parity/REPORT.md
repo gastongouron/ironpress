@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 53.61%  (PASS 137 · PARTIAL 97 · FAIL 112 · UNKNOWN 0 · total 346)
+Overall: 54.62%  (PASS 140 · PARTIAL 98 · FAIL 108 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -30,10 +30,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 73.02 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | REAL | 19.58 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
 | FAIL | REAL | 16.45 | backgrounds-borders | outline | solid-offset | outline-solid |  |
-| FAIL | REAL | 26.44 | backgrounds-gradients | background-origin | content-box | background-origin-content-box |  |
-| FAIL | REAL | 49.28 | backgrounds-gradients | background-size | contain | background-size-contain |  |
-| FAIL | REAL | 98.55 | backgrounds-gradients | background-size | cover | background-size-cover |  |
-| FAIL | REAL | 24.75 | backgrounds-gradients | background-size | explicit-length | background-size-length |  |
 | FAIL | REAL | 33.00 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
 | FAIL | REAL | 29.38 | block-box-model | box-sizing | content-box | block-box-sizing-content-box |  |
@@ -120,7 +116,7 @@ None — every fixture's HTML matches `refs.lock`.
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
-| backgrounds-gradients | 32.14% | 4 | 1 | 9 | 0 |
+| backgrounds-gradients | 57.14% | 7 | 2 | 5 | 0 |
 | block-box-model | 50.00% | 7 | 1 | 7 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 71.43% | 10 | 0 | 4 | 0 |
@@ -153,7 +149,7 @@ None — every fixture's HTML matches `refs.lock`.
 |----------|--------|------:|----------|---------|----|-------------|
 | unsupported | FAIL | 30.56 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 99.99 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
-| unsupported | FAIL | 33.84 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
+| unsupported | FAIL | 78.13 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | FAIL | 40.97 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | FAIL | 16.32 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | PASS | 0.03 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
@@ -288,17 +284,17 @@ None — every fixture's HTML matches `refs.lock`.
 - **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
 
-### backgrounds-gradients — 32.14%
+### backgrounds-gradients — 57.14%
 - **background-clip** — 0.00%
   - FAIL 30.56% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
-- **background-origin** — 0.00%
-  - FAIL 26.44% background-origin=content-box — `background-origin-content-box` — background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.
-- **background-position** — 50.00%
-  - PARTIAL 11.08% background-position=bottom-right-keyword — `background-position-keyword` — A no-repeat raster placed at the 'bottom right' keyword position inside a sized box.
-- **background-size** — 0.00%
-  - FAIL 49.28% background-size=contain — `background-size-contain` — background-size: contain scales the raster to fit within the box, left-aligned, leaving base color visible.
-  - FAIL 98.55% background-size=cover — `background-size-cover` — background-size: cover scales the raster to fill the box, cropping overflow, centered.
-  - FAIL 24.75% background-size=explicit-length — `background-size-length` — background-size with an explicit 120px x 80px length, no-repeat, top-left.
+- **background-origin** — 50.00%
+  - PARTIAL 8.89% background-origin=content-box — `background-origin-content-box` — background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.
+- **background-position** — 100.00%
+  - PASS 0.09% background-position=bottom-right-keyword — `background-position-keyword` — A no-repeat raster placed at the 'bottom right' keyword position inside a sized box.
+- **background-size** — 83.33%
+  - PASS 0.27% background-size=contain — `background-size-contain` — background-size: contain scales the raster to fit within the box, left-aligned, leaving base color visible.
+  - PASS 0.46% background-size=cover — `background-size-cover` — background-size: cover scales the raster to fill the box, cropping overflow, centered.
+  - PARTIAL 8.40% background-size=explicit-length — `background-size-length` — background-size with an explicit 120px x 80px length, no-repeat, top-left.
 - **conic-gradient** — 0.00%
   - FAIL 99.99% conic-gradient=four-quadrant-sweep — `conic-gradient-basic` — Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture.
 - **linear-gradient** — 100.00%
@@ -306,7 +302,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.35% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
   - PASS 0.32% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
 - **multiple-backgrounds** — 0.00%
-  - FAIL 33.84% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
+  - FAIL 78.13% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
 - **radial-gradient** — 33.33%
   - PASS 0.30% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
   - FAIL 40.97% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
