@@ -137,8 +137,14 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             margin_top,
             margin_bottom,
             block_height,
+            position,
             ..
         } => {
+            // Absolute containers are out of flow and contribute no height to
+            // their parent (matches the TextBlock arm above).
+            if *position == Position::Absolute {
+                return 0.0;
+            }
             let children_h: f32 = children
                 .iter()
                 .map(|c| estimate_element_height_bounded(c, depth - 1))

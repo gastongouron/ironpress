@@ -3321,14 +3321,34 @@ fn render_container_children(
                 block_height: nk_block_height,
                 float: nk_float,
                 overflow,
+                position: nk_position,
+                offset_top: nk_offset_top,
+                offset_left: nk_offset_left,
                 ..
             } => {
-                cursor_y -= margin_top;
+                // Absolute-positioned containers (e.g. an empty position:absolute
+                // div) must render at their inset offset from the containing
+                // block's padding box, mirroring the TextBlock abspos arm — not
+                // in normal flow. Without this, nested abspos boxes rendered at
+                // the parent's content-box origin (top/left silently dropped).
+                let nk_is_abs = *nk_position == Position::Absolute;
+                if !nk_is_abs {
+                    cursor_y -= margin_top;
+                }
                 y = cursor_y;
                 let nk_w = block_width.unwrap_or(width);
-                let nk_x = match nk_float {
-                    Float::Right => x + width - nk_w,
-                    _ => x,
+                let nk_x = if nk_is_abs {
+                    (x - abs_pad_left) + nk_offset_left
+                } else {
+                    match nk_float {
+                        Float::Right => x + width - nk_w,
+                        _ => x,
+                    }
+                };
+                let nk_top_y = if nk_is_abs {
+                    (container_top_y + abs_pad_top) - nk_offset_top
+                } else {
+                    y
                 };
                 let nk_children_h: f32 = nested_kids
                     .iter()
@@ -3357,7 +3377,7 @@ fn render_container_children(
                     content.push_str(&format!(
                         "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
                         cx = nk_x,
-                        cy = y - nk_total_h,
+                        cy = nk_top_y - nk_total_h,
                         cw = nk_w,
                         ch = nk_total_h,
                     ));
@@ -3369,7 +3389,7 @@ fn render_container_children(
                 // Draw linear gradient
                 if let Some(gradient) = background_gradient {
                     let bg_x = nk_x;
-                    let bg_y = y - nk_total_h;
+                    let bg_y = nk_top_y - nk_total_h;
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
                         content
@@ -3394,7 +3414,7 @@ fn render_container_children(
                 // Draw radial gradient
                 if let Some(gradient) = background_radial_gradient {
                     let bg_x = nk_x;
-                    let bg_y = y - nk_total_h;
+                    let bg_y = nk_top_y - nk_total_h;
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
                         content
@@ -3419,8 +3439,8 @@ fn render_container_children(
                 // Draw all 4 borders
                 let bx1 = nk_x;
                 let bx2 = nk_x + nk_w;
-                let by1 = y;
-                let by2 = y - nk_total_h;
+                let by1 = nk_top_y;
+                let by2 = nk_top_y - nk_total_h;
                 if border.left.width > 0.0 {
                     let (r, g, b) = border.left.color;
                     content.push_str(&format!(
@@ -3469,7 +3489,7 @@ fn render_container_children(
                     if *cont_br > 0.0 {
                         content.push_str(&rounded_rect_path(
                             nk_x,
-                            y - nk_total_h,
+                            nk_top_y - nk_total_h,
                             nk_w,
                             nk_total_h,
                             *cont_br,
@@ -3479,7 +3499,7 @@ fn render_container_children(
                         content.push_str(&format!(
                             "{cx} {cy} {cw} {ch} re W n\n",
                             cx = nk_x,
-                            cy = y - nk_total_h,
+                            cy = nk_top_y - nk_total_h,
                             cw = nk_w,
                             ch = nk_total_h,
                         ));
@@ -3489,7 +3509,7 @@ fn render_container_children(
                 // Recurse into nested children
                 let inner_x = nk_x + padding_left + border.left.width;
                 let inner_w = nk_w - padding_left - padding_right - border.horizontal_width();
-                let inner_y = y - padding_top - border.top.width;
+                let inner_y = nk_top_y - padding_top - border.top.width;
                 render_container_children(
                     content,
                     nested_kids,
@@ -3511,8 +3531,11 @@ fn render_container_children(
                 if clip {
                     content.push_str("Q\n");
                 }
-                cursor_y -= nk_total_h + margin_bottom;
-                y = cursor_y;
+                // Absolute containers are out of flow — don't advance the cursor.
+                if !nk_is_abs {
+                    cursor_y -= nk_total_h + margin_bottom;
+                    y = cursor_y;
+                }
             }
             LayoutElement::Image {
                 image,

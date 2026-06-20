@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 31.94%  (PASS 64 · PARTIAL 93 · FAIL 189 · UNKNOWN 0 · total 346)
+Overall: 35.40%  (PASS 76 · PARTIAL 93 · FAIL 177 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**10 suspect(s):** `background-blend-mode-multiply`, `filter-url-svg`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `text-shadow-blur`, `text-shadow-offset`, `units-min-max`
+**14 suspect(s):** `background-blend-mode-multiply`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-url-svg`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `mix-blend-mode-multiply`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `text-shadow-blur`, `text-shadow-offset`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -76,22 +76,20 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 25.41 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 37.02 | inline-text | word-spacing | positive | inline-text-word-spacing |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 39.17 | inline-text | wrapping | normal | inline-text-wrapping-normal |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 13.28 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 13.28 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
 | FAIL | CONFOUNDED: gap (`flexbox-gap`) | 25.94 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 30.12 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `grid-display-grid` already FAILs | flexbox-x-grid-nested |  |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | 23.79 | interactions | float | (interaction: positioning×block-box-model) DERIVATIVE: base `block-margin-collapse-adjacent` already FAILs | interactions-positioning-float-x-margin-collapse |  |
 | FAIL | CONFOUNDED: display (`grid-display-grid`) | 21.73 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) DERIVATIVE: base `background-linear-gradient` already FAILs | grid-x-background-gradient |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 34.59 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 14.05 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `transforms-rotate` already FAILs | interactions-positioning-absolute-x-transforms-rotate |  |
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | 16.89 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `transforms-translate` already FAILs | interactions-positioning-fixed-x-transforms-translate |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 100.00 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 23.54 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 13.77 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid |  |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 23.54 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox |  |
+| FAIL | CONFOUNDED: display (`grid-display-grid`) | 13.77 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid |  |
 | FAIL | CONFOUNDED: table (`tables-basic-grid`) | 23.93 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 22.65 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `typography-font-weight-bold` already FAILs | tables-x-typography-bold |  |
-| FAIL | CONFOUNDED: transform (`transforms-rotate`) | 20.11 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item |  |
-| FAIL | CONFOUNDED: z-index (`positioning-z-index-stacking`) | 28.05 | interactions | z-index | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `background-linear-gradient` already FAILs | interactions-positioning-z-index-x-backgrounds-gradient |  |
-| FAIL | CONFOUNDED: z-index (`positioning-z-index-stacking`) | 13.83 | interactions | z-index-x-transforms | (interaction: positioning×transforms) DERIVATIVE: base `transforms-rotate` already FAILs | positioning-zindex-x-transforms-rotate |  |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 20.11 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item |  |
+| FAIL | CONFOUNDED: z-index (`positioning-z-index-stacking`) | 14.02 | interactions | z-index-x-transforms | (interaction: positioning×transforms) DERIVATIVE: base `positioning-z-index-stacking` already FAILs | positioning-zindex-x-transforms-rotate |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 27.19 | lists-counters | list-style-position | inside | list-style-position-inside |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 27.62 | lists-counters | list-style-position | outside | list-style-position-outside |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 19.65 | lists-counters | list-style-type | decimal | list-style-type-decimal |  |
@@ -103,15 +101,10 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 31.31 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip |  |
 | FAIL | REAL | 16.97 | overflow-clipping | overflow | visible | overflow-visible-no-clip |  |
 | FAIL | REAL | 13.20 | positioning | inset | negative-offset | positioning-inset-negative-offset |  |
-| FAIL | REAL | 15.49 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset |  |
-| FAIL | REAL | 19.77 | positioning | overflow | hidden-clips-absolute | positioning-overflow-hidden-absolute-child-clip |  |
+| FAIL | REAL | 12.42 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset |  |
 | FAIL | REAL | 15.02 | positioning | overflow | visible | positioning-overflow-visible-no-clip |  |
 | FAIL | REAL | 21.06 | positioning | position | fixed | positioning-fixed-top-left |  |
-| FAIL | REAL | 14.55 | positioning | position | absolute-bottom-right | positioning-position-absolute-bottom-right |  |
-| FAIL | REAL | 16.83 | positioning | position | absolute | positioning-position-absolute-top-left |  |
 | FAIL | REAL | 13.79 | positioning | position | relative | positioning-position-relative-offset |  |
-| FAIL | REAL | 22.57 | positioning | z-index | source-order | positioning-z-index-source-order-overlap |  |
-| FAIL | REAL | 14.11 | positioning | z-index | stacking | positioning-z-index-stacking |  |
 | FAIL | REAL | 48.53 | probes | font-metrics | baseline | probe-text-baseline |  |
 | FAIL | REAL | 16.59 | selectors-cascade | at-rule | media-print | selectors-cascade-media-print |  |
 | FAIL | REAL | 100.00 | selectors-cascade | cascade | important-over-id | selectors-cascade-important-overrides-specificity |  |
@@ -141,8 +134,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 52.73 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 36.67 | text-advanced | white-space | pre-line | text-advanced-white-space-pre-line |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 40.73 | text-advanced | white-space | pre-wrap | text-advanced-white-space-pre-wrap |  |
-| FAIL | REAL | 14.86 | transforms | transform | scaleX | transforms-scale-x |  |
-| FAIL | REAL | 15.97 | transforms | transform | scaleY | transforms-scale-y |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 18.80 | typography | vertical-align | sub | typography-vertical-align-sub |  |
 | FAIL | REAL | 37.48 | units-values | custom-properties | var-resolution | units-var-custom-property |  |
 | FAIL | REAL | 32.44 | units-values | custom-properties | var-fallback | units-var-fallback |  |
@@ -154,36 +145,33 @@ None — every fixture's HTML matches `refs.lock`.
 |-----:|----|---------|--------|----------:|------------|
 | 1 | `probe-text-baseline` | font-metrics | FAIL | 90 | color-text-glyph, counter-content-roman, counter-reset-increment, counters-nested, fonts-advanced-font-face-custom-src, fonts-advanced-font-feature-settings-ligatures …(+84) |
 | 2 | `flexbox-display-flex` | display | PARTIAL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
-| 3 | `positioning-position-absolute-top-left` | position | FAIL | 5 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, interactions-positioning-absolute-x-transforms-rotate, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
-| 4 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
-| 5 | `transforms-rotate` | transform | PARTIAL | 3 | interactions-positioning-absolute-x-transforms-rotate, positioning-zindex-x-transforms-rotate, transforms-rotate-x-flexbox-item |
-| 6 | `background-linear-gradient` | linear-gradient | PARTIAL | 2 | grid-x-background-gradient, interactions-positioning-z-index-x-backgrounds-gradient |
-| 7 | `block-margin-collapse-adjacent` | margin | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 8 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 9 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 10 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 11 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 12 | `positioning-z-index-stacking` | z-index | FAIL | 2 | interactions-positioning-z-index-x-backgrounds-gradient, positioning-zindex-x-transforms-rotate |
-| 13 | `block-nested-containment` | nested-block-flow | PARTIAL | 1 | block-percentage-height-x-nested-containers |
-| 14 | `block-padding-all-sides` | padding | PARTIAL | 1 | interactions-positioning-absolute-x-box-model-padding |
-| 15 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 16 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
-| 17 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 18 | `positioning-position-relative-offset` | position | FAIL | 1 | interactions-positioning-relative-x-inline-block |
-| 19 | `tables-basic-grid` | table | FAIL | 1 | tables-x-flexbox-nested |
-| 20 | `tables-thead-tbody-tfoot` | table-sections | FAIL | 1 | tables-x-typography-bold |
-| 21 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 22 | `typography-font-weight-bold` | font-weight | PARTIAL | 1 | tables-x-typography-bold |
+| 3 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
+| 4 | `background-linear-gradient` | linear-gradient | PARTIAL | 2 | grid-x-background-gradient, interactions-positioning-z-index-x-backgrounds-gradient |
+| 5 | `block-margin-collapse-adjacent` | margin | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 6 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 7 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
+| 8 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 9 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 10 | `positioning-z-index-stacking` | z-index | PARTIAL | 2 | interactions-positioning-z-index-x-backgrounds-gradient, positioning-zindex-x-transforms-rotate |
+| 11 | `block-nested-containment` | nested-block-flow | PARTIAL | 1 | block-percentage-height-x-nested-containers |
+| 12 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 13 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
+| 14 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 15 | `positioning-position-relative-offset` | position | FAIL | 1 | interactions-positioning-relative-x-inline-block |
+| 16 | `tables-basic-grid` | table | FAIL | 1 | tables-x-flexbox-nested |
+| 17 | `tables-thead-tbody-tfoot` | table-sections | FAIL | 1 | tables-x-typography-bold |
+| 18 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 19 | `typography-font-weight-bold` | font-weight | PARTIAL | 1 | tables-x-typography-bold |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 50.00% | 5 | 7 | 5 | 0 |
+| backgrounds-borders | 52.94% | 6 | 6 | 5 | 0 |
 | backgrounds-gradients | 28.57% | 2 | 4 | 8 | 0 |
 | block-box-model | 46.67% | 4 | 6 | 5 | 0 |
 | clip-mask | 0.00% | 0 | 0 | 8 | 0 |
-| color-opacity | 57.14% | 7 | 2 | 5 | 0 |
-| effects | 86.36% | 9 | 1 | 1 | 0 |
+| color-opacity | 71.43% | 10 | 0 | 4 | 0 |
+| effects | 95.45% | 10 | 1 | 0 | 0 |
 | filters | 7.14% | 1 | 0 | 13 | 0 |
 | flexbox | 46.88% | 1 | 13 | 2 | 0 |
 | fonts-advanced | 0.00% | 0 | 0 | 12 | 0 |
@@ -191,17 +179,17 @@ None — every fixture's HTML matches `refs.lock`.
 | grid | 37.50% | 1 | 10 | 5 | 0 |
 | images-replaced | 66.67% | 9 | 2 | 4 | 0 |
 | inline-text | 3.13% | 0 | 1 | 15 | 0 |
-| interactions | 13.64% | 0 | 6 | 16 | 0 |
+| interactions | 20.45% | 1 | 7 | 14 | 0 |
 | lists-counters | 12.50% | 0 | 3 | 9 | 0 |
 | multicol | 0.00% | 0 | 0 | 8 | 0 |
 | overflow-clipping | 25.00% | 1 | 3 | 6 | 0 |
 | paged-media | 72.22% | 5 | 3 | 1 | 0 |
-| positioning | 21.88% | 1 | 5 | 10 | 0 |
+| positioning | 50.00% | 5 | 6 | 5 | 0 |
 | probes | 83.33% | 5 | 0 | 1 | 0 |
 | selectors-cascade | 50.00% | 7 | 1 | 7 | 0 |
 | tables | 0.00% | 0 | 0 | 16 | 0 |
 | text-advanced | 10.00% | 0 | 3 | 12 | 0 |
-| transforms | 13.64% | 0 | 3 | 8 | 0 |
+| transforms | 36.36% | 2 | 4 | 5 | 0 |
 | typography | 53.13% | 2 | 13 | 1 | 0 |
 | units-values | 50.00% | 4 | 4 | 4 | 0 |
 
@@ -223,18 +211,18 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 40.82 | clip-mask | mask-image: linear-gradient() | mask-image-linear-gradient | mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only). |
 | unsupported | FAIL | 50.39 | clip-mask | mask-image: radial-gradient() | mask-image-radial-gradient | mask-image: radial-gradient() leaves a solid disc fading to transparent at the edges. CSS mask is unsupported. |
 | unsupported | FAIL | 26.44 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
-| unsupported | PARTIAL | 9.15 | color-opacity | color-format | color-hsla-alpha | Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing). |
-| partial | PASS | 5.63 | color-opacity | color-format | color-rgba-alpha | Semi-transparent rgba() box composited over a solid background box. |
+| unsupported | PASS | 2.33 | color-opacity | color-format | color-hsla-alpha | Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing). |
+| partial | PASS | 2.30 | color-opacity | color-format | color-rgba-alpha | Semi-transparent rgba() box composited over a solid background box. |
 | unsupported | FAIL | 28.02 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
-| unsupported | FAIL | 18.23 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
+| unsupported | PASS | 3.47 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
 | unsupported | FAIL | 49.00 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | PASS | 4.81 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | PASS | 6.50 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PASS | 3.99 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
 | partial | PASS | 4.39 | effects | box-shadow | box-shadow-multiple | Two stacked hard box-shadows in different directions and colors. |
 | partial | PASS | 6.69 | effects | box-shadow | box-shadow-spread | Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo. |
-| unsupported | PARTIAL | 10.65 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
-| unsupported | FAIL | 26.79 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
+| unsupported | PASS | 6.51 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
+| unsupported | PARTIAL | 7.63 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
 | unsupported | PASS | 5.39 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
 | unsupported | PASS | 6.18 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
 | partial | FAIL | 38.84 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
@@ -306,13 +294,13 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 22.49 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
 | unsupported | FAIL | 31.81 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
 | unsupported | PARTIAL | 17.56 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
-| unsupported | FAIL | 13.51 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
-| unsupported | FAIL | 12.03 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
-| unsupported | FAIL | 19.37 | transforms | transform | transforms-skew | transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser. |
-| partial | FAIL | 14.47 | transforms | transform | transforms-translate | transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout. |
-| partial | FAIL | 16.28 | transforms | transform | transforms-translate-x | transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged. |
-| partial | FAIL | 17.70 | transforms | transform | transforms-translate-y | transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged. |
-| unsupported | PARTIAL | 9.60 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
+| unsupported | FAIL | 12.36 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
+| unsupported | PARTIAL | 10.14 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
+| unsupported | PASS | 6.06 | transforms | transform | transforms-skew | transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser. |
+| partial | FAIL | 12.89 | transforms | transform | transforms-translate | transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout. |
+| partial | FAIL | 13.63 | transforms | transform | transforms-translate-x | transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged. |
+| partial | FAIL | 20.76 | transforms | transform | transforms-translate-y | transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged. |
+| unsupported | FAIL | 12.90 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
 | partial | FAIL | 12.53 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
 | partial | FAIL | 14.70 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
 | unsupported | PARTIAL | 9.16 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
@@ -320,9 +308,9 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PARTIAL | 10.53 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 50.00%
-- **background-color** — 75.00%
-  - PARTIAL 9.90% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
+### backgrounds-borders — 52.94%
+- **background-color** — 100.00%
+  - PASS 2.34% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
 - **border** — 75.00%
   - PARTIAL 7.55% border=per-side-width-color — `border-per-side-colors` — Box with four different per-side border widths and colors.
@@ -415,28 +403,28 @@ None — every fixture's HTML matches `refs.lock`.
 - **mask-image: url()** — 0.00%
   - FAIL 26.44% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
 
-### color-opacity — 57.14%
-- **color-format** — 81.25%
+### color-opacity — 71.43%
+- **color-format** — 87.50%
   - PASS 0.00% color-format=hex-3-digit — `color-hex-rgb` — Box filled with a 3-digit shorthand hex color (#0a6).
   - PASS 0.00% color-format=hex-6-digit — `color-hex-rrggbb` — Box filled with a 6-digit hex color (#c2185b).
   - PASS 0.00% color-format=hsl-function — `color-hsl` — Box filled with an hsl() functional color (aspirational; no hsl parsing).
-  - PARTIAL 9.15% color-format=hsla-alpha — `color-hsla-alpha` — Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing).
+  - PASS 2.33% color-format=hsla-alpha — `color-hsla-alpha` — Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing).
   - PASS 0.00% color-format=named-keyword — `color-named` — Box filled with a named CSS color keyword (navy).
   - PASS 0.00% color-format=rgb-function — `color-rgb-function` — Box filled with an rgb() functional color.
-  - PASS 5.63% color-format=rgba-alpha — `color-rgba-alpha` — Semi-transparent rgba() box composited over a solid background box.
+  - PASS 2.30% color-format=rgba-alpha — `color-rgba-alpha` — Semi-transparent rgba() box composited over a solid background box.
   - FAIL 65.67% color-format=text-glyph-fill — `color-text-glyph` — The color property fills text glyphs in ParitySans with a solid color.
-- **color-keyword** — 0.00%
+- **color-keyword** — 50.00%
   - FAIL 28.02% color-keyword=currentcolor — `color-currentcolor` — currentColor resolves the color property into a thick solid border (aspirational; likely unsupported).
-  - FAIL 18.23% color-keyword=transparent — `color-transparent-keyword` — transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported).
+  - PASS 3.47% color-keyword=transparent — `color-transparent-keyword` — transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported).
 - **display** — 100.00%
   - PASS 0.00% display=none-removal — `display-none-removal` — display:none removes the first block entirely so the second block rises to the top of the page.
-- **opacity** — 50.00%
-  - PARTIAL 7.89% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
+- **opacity** — 100.00%
+  - PASS 2.48% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
 - **visibility** — 0.00%
   - FAIL 49.00% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - FAIL 21.89% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
-### effects — 86.36%
+### effects — 95.45%
 - **background-blend-mode** — 100.00%
   - PASS 4.81% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
 - **box-shadow** — 100.00%
@@ -446,9 +434,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 4.39% box-shadow=multiple — `box-shadow-multiple` — Two stacked hard box-shadows in different directions and colors.
   - PASS 3.33% box-shadow=hard-offset — `box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.
   - PASS 6.69% box-shadow=spread — `box-shadow-spread` — Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.
-- **mix-blend-mode** — 25.00%
-  - PARTIAL 10.65% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
-  - FAIL 26.79% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
+- **mix-blend-mode** — 75.00%
+  - PASS 6.51% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
+  - PARTIAL 7.63% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
 - **text-shadow** — 100.00%
   - PASS 5.39% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
   - PASS 6.18% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
@@ -630,9 +618,9 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 0.00%
   - FAIL 39.17% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 13.64%
-- **containing-block** — 25.00%
-  - PARTIAL 10.58% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
+### interactions — 20.45%
+- **containing-block** — 50.00%
+  - PASS 5.83% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 13.28% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 0.00%
   - FAIL 25.94% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
@@ -654,8 +642,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 10.94% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 50.00%
   - PARTIAL 7.48% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
-- **position** — 0.00%
-  - FAIL 14.05% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
+- **position** — 16.67%
+  - PARTIAL 8.60% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
   - FAIL 16.89% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
   - FAIL 100.00% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
 - **positioning-x-flexbox** — 0.00%
@@ -668,10 +656,10 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 22.65% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
 - **transforms-x-flexbox** — 0.00%
   - FAIL 20.11% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
-- **z-index** — 0.00%
-  - FAIL 28.05% z-index=with-gradient — `interactions-positioning-z-index-x-backgrounds-gradient` — Interaction: z-index stacking where the upper positioned box carries a linear-gradient background over a lower solid box.
+- **z-index** — 50.00%
+  - PARTIAL 11.27% z-index=with-gradient — `interactions-positioning-z-index-x-backgrounds-gradient` — Interaction: z-index stacking where the upper positioned box carries a linear-gradient background over a lower solid box.
 - **z-index-x-transforms** — 0.00%
-  - FAIL 13.83% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
+  - FAIL 14.02% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
 ### lists-counters — 12.50%
 - **counters** — 50.00%
@@ -742,30 +730,30 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 6.78% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 21.88%
+### positioning — 50.00%
 - **clear** — 100.00%
   - PASS 3.48% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
-- **containing-block** — 50.00%
-  - PARTIAL 8.35% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
-  - PARTIAL 11.30% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
+- **containing-block** — 75.00%
+  - PARTIAL 7.70% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
+  - PASS 4.39% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
 - **float** — 50.00%
   - PARTIAL 9.45% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
 - **inset** — 0.00%
   - FAIL 13.20% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
-  - FAIL 15.49% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
-- **overflow** — 16.67%
-  - FAIL 19.77% overflow=hidden-clips-absolute — `positioning-overflow-hidden-absolute-child-clip` — overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.
+  - FAIL 12.42% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
+- **overflow** — 33.33%
+  - PARTIAL 9.35% overflow=hidden-clips-absolute — `positioning-overflow-hidden-absolute-child-clip` — overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.
   - PARTIAL 7.04% overflow=hidden — `positioning-overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the parent box.
   - FAIL 15.02% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
-- **position** — 10.00%
+- **position** — 50.00%
   - FAIL 21.06% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
-  - FAIL 14.55% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
-  - FAIL 16.83% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
+  - PASS 5.29% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
+  - PASS 6.32% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
   - FAIL 13.79% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
   - PARTIAL 8.34% position=static — `positioning-position-static` — position:static box ignores top/left offsets and stays in normal flow.
-- **z-index** — 0.00%
-  - FAIL 22.57% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.
-  - FAIL 14.11% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
+- **z-index** — 75.00%
+  - PASS 4.79% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.
+  - PARTIAL 10.72% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
 
 ### probes — 83.33%
 - **background-color** — 100.00%
@@ -863,20 +851,20 @@ None — every fixture's HTML matches `refs.lock`.
 - **writing-mode** — 50.00%
   - PARTIAL 17.56% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
-### transforms — 13.64%
-- **transform** — 10.00%
-  - FAIL 13.51% transform=compound-rotate-translate — `transforms-compound-rotate-translate` — Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.
-  - FAIL 12.03% transform=matrix — `transforms-matrix` — transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.
-  - PARTIAL 8.06% transform=rotate — `transforms-rotate` — transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.
-  - PARTIAL 11.57% transform=scale — `transforms-scale` — transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.
-  - FAIL 14.86% transform=scaleX — `transforms-scale-x` — transform: scaleX() stretches the box horizontally about its center.
-  - FAIL 15.97% transform=scaleY — `transforms-scale-y` — transform: scaleY() stretches the box vertically about its center.
-  - FAIL 19.37% transform=skew — `transforms-skew` — transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser.
-  - FAIL 14.47% transform=translate — `transforms-translate` — transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.
-  - FAIL 16.28% transform=translateX — `transforms-translate-x` — transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.
-  - FAIL 17.70% transform=translateY — `transforms-translate-y` — transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.
-- **transform-origin** — 50.00%
-  - PARTIAL 9.60% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
+### transforms — 36.36%
+- **transform** — 40.00%
+  - FAIL 12.36% transform=compound-rotate-translate — `transforms-compound-rotate-translate` — Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.
+  - PARTIAL 10.14% transform=matrix — `transforms-matrix` — transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.
+  - PASS 5.42% transform=rotate — `transforms-rotate` — transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.
+  - PARTIAL 7.17% transform=scale — `transforms-scale` — transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.
+  - PARTIAL 9.84% transform=scaleX — `transforms-scale-x` — transform: scaleX() stretches the box horizontally about its center.
+  - PARTIAL 10.89% transform=scaleY — `transforms-scale-y` — transform: scaleY() stretches the box vertically about its center.
+  - PASS 6.06% transform=skew — `transforms-skew` — transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser.
+  - FAIL 12.89% transform=translate — `transforms-translate` — transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.
+  - FAIL 13.63% transform=translateX — `transforms-translate-x` — transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.
+  - FAIL 20.76% transform=translateY — `transforms-translate-y` — transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.
+- **transform-origin** — 0.00%
+  - FAIL 12.90% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
 
 ### typography — 53.13%
 - **font-family** — 50.00%
