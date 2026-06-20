@@ -47,6 +47,15 @@ type SharedFonts = Arc<Vec<(&'static str, Vec<u8>)>>;
 const DPI: u32 = 300;
 /// Per-channel tolerance for the bbox white-detection (0..=255).
 const WHITE_TOL: i32 = 10;
+/// Maximum small-offset registration window (pixels at the rasterization DPI,
+/// ~1.5 CSS px at 300 DPI). Before the SSIM compare we cancel a translation of
+/// the candidate relative to the reference up to this magnitude, to neutralize a
+/// UNIVERSAL sub-perceptual page-origin offset: ironpress anchors content at the
+/// spec-correct 28.8pt = 120px@300dpi margin, while the Chrome reference sits a
+/// few px in (~116px), producing an IDENTICAL ~+4px right/down shift on every
+/// fixture. Clamping to this small window cancels that artifact while leaving any
+/// GENUINE layout shift larger than the window unmasked (it still scores high).
+const MAX_REG: i32 = 6;
 /// Per-channel tolerance for the pixel diff (absorbs sub-pixel AA / gamma).
 const CHANNEL_TOL: i32 = 20;
 /// Overall-score regression epsilon (percentage points). Below this is noise.
@@ -872,8 +881,19 @@ fn process_entry(
     // any tolerance/dilation that might otherwise mask it.
     let (diff_pct, diff_img) = match (cand_bb, ref_bb) {
         (Some(cb), Some(rb)) => {
-            let union = union_bbox(cb, rb);
-            let cand_a = crop_rect(&cand, union);
+            // SMALL-OFFSET REGISTRATION: cancel the UNIVERSAL ~+4px page-origin
+            // offset (see MAX_REG) before the SSIM compare. Derive the candidate's
+            // translation relative to the reference from the difference of the two
+            // content-bbox top-left corners, CLAMPED to ±MAX_REG so a genuine
+            // layout shift larger than the window is NOT masked. Re-anchor the
+            // candidate (and its bbox) by that clamped offset, then run the usual
+            // union-bbox crop + SSIM on the registered pair. The overlay stays
+            // score-faithful because it is produced from the same registered crops.
+            let (dx, dy) = registration_offset(cb, rb);
+            let cand_reg = shift_image(&cand, dx, dy);
+            let cb_reg = shift_bbox(cb, dx, dy, cand.dimensions());
+            let union = union_bbox(cb_reg, rb);
+            let cand_a = crop_rect(&cand_reg, union);
             let ref_a = crop_rect(&reference, union);
             diff_images(&cand_a, &ref_a)
         }
@@ -1111,6 +1131,57 @@ fn content_bbox(img: &RgbaImage) -> Option<BBox> {
     } else {
         None
     }
+}
+
+/// Clamped small-offset registration. Returns the integer translation `(dx, dy)`
+/// to apply to the CANDIDATE so its content top-left aligns with the REFERENCE's,
+/// CLAMPED to `±MAX_REG` on each axis. `cand`/`ref` are the two content bboxes in
+/// the shared page space; the raw shift is `ref_top_left - cand_top_left`.
+///
+/// This neutralizes the UNIVERSAL sub-perceptual page-origin offset (ironpress at
+/// the spec-correct 120px@300dpi margin vs the Chrome reference at ~116px — an
+/// identical ~+4px shift on every fixture). The clamp guarantees a GENUINE layout
+/// shift larger than the window is only partially cancelled, so it still produces
+/// a clearly high dissimilarity rather than being masked.
+fn registration_offset(cand: BBox, reference: BBox) -> (i32, i32) {
+    let raw_dx = reference.0 as i32 - cand.0 as i32;
+    let raw_dy = reference.1 as i32 - cand.1 as i32;
+    (raw_dx.clamp(-MAX_REG, MAX_REG), raw_dy.clamp(-MAX_REG, MAX_REG))
+}
+
+/// Translate `img` by `(dx, dy)` pixels on a white background (same dimensions),
+/// so registered content lands at the reference's page position before cropping.
+/// Out-of-frame source pixels become white; this is only ever called with the
+/// small clamped registration offset, so at most `MAX_REG` px is lost per edge.
+fn shift_image(img: &RgbaImage, dx: i32, dy: i32) -> RgbaImage {
+    if dx == 0 && dy == 0 {
+        return img.clone();
+    }
+    let (w, h) = img.dimensions();
+    let mut out: RgbaImage = ImageBuffer::from_pixel(w, h, Rgba([255, 255, 255, 255]));
+    for y in 0..h {
+        for x in 0..w {
+            let nx = x as i32 + dx;
+            let ny = y as i32 + dy;
+            if nx >= 0 && ny >= 0 && (nx as u32) < w && (ny as u32) < h {
+                out.put_pixel(nx as u32, ny as u32, *img.get_pixel(x, y));
+            }
+        }
+    }
+    out
+}
+
+/// Translate an inclusive bbox by `(dx, dy)`, clamping to the image bounds so the
+/// shifted box stays valid for `union_bbox`/`crop_rect`. Matches `shift_image`.
+fn shift_bbox(bb: BBox, dx: i32, dy: i32, dims: (u32, u32)) -> BBox {
+    let (w, h) = dims;
+    let clamp = |v: i32, hi: u32| v.clamp(0, hi.saturating_sub(1) as i32) as u32;
+    (
+        clamp(bb.0 as i32 + dx, w),
+        clamp(bb.1 as i32 + dy, h),
+        clamp(bb.2 as i32 + dx, w),
+        clamp(bb.3 as i32 + dy, h),
+    )
 }
 
 /// Union of two inclusive bboxes (min of mins, max of maxes).
@@ -2503,5 +2574,80 @@ mod tests {
                 "structural error '{name}' ({val:.4}%) must dominate AA ({aa:.4}%)"
             );
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Clamped small-offset registration (neutralizes the universal page-origin
+    // offset without masking genuine layout shifts).
+    // -----------------------------------------------------------------------
+
+    /// Score a candidate vs a reference through the SAME registration + union-crop
+    /// + SSIM path the real comparator uses, so these tests exercise the actual
+    /// behaviour rather than re-deriving it.
+    fn registered_pct(cand: &RgbaImage, reference: &RgbaImage) -> f64 {
+        match (content_bbox(cand), content_bbox(reference)) {
+            (Some(cb), Some(rb)) => {
+                let (dx, dy) = registration_offset(cb, rb);
+                let cand_reg = shift_image(cand, dx, dy);
+                let cb_reg = shift_bbox(cb, dx, dy, cand.dimensions());
+                let union = union_bbox(cb_reg, rb);
+                diff_images(&crop_rect(&cand_reg, union), &crop_rect(reference, union)).0
+            }
+            (None, None) => 0.0,
+            // Exactly one side blank: mirror the comparator's forced-FAIL guard.
+            _ => 100.0,
+        }
+    }
+
+    #[test]
+    fn registration_cancels_universal_small_offset() {
+        // (a) Two IDENTICAL shapes, the candidate translated by exactly (4,4) —
+        // the universal sub-perceptual page-origin offset. Registration (clamped
+        // at ±6) cancels it, so the registered diff is ~0, while comparing the
+        // SAME pair WITHOUT registration scores clearly higher (proving the offset
+        // really was being penalized before).
+        let reference = solid_square();
+        let cand = shift_image(&reference, 4, 4);
+
+        let raw = pct(&cand, &reference); // no registration, page coords
+        let reg = registered_pct(&cand, &reference);
+        eprintln!("registration_cancels_universal_small_offset raw={raw:.4}% reg={reg:.4}%");
+        assert!(
+            reg < NOISE_FLOOR_PASS_PCT,
+            "a (4,4) offset must register to ~0%, got {reg:.4}%"
+        );
+        assert!(
+            raw > reg + 1.0,
+            "unregistered (4,4) offset ({raw:.4}%) must be visibly penalized vs registered ({reg:.4}%)"
+        );
+    }
+
+    #[test]
+    fn registration_clamps_large_shift_not_masked() {
+        // (b) A shape shifted by (20,20) — a GENUINE layout shift far beyond the
+        // ±6 window. Registration clamps at 6, leaving a 14px residual, so the
+        // pair still scores HIGH (clearly above the noise floor): not masked.
+        let reference = solid_square();
+        let cand = shift_image(&reference, 20, 20);
+        let reg = registered_pct(&cand, &reference);
+        eprintln!("registration_clamps_large_shift_not_masked reg={reg:.4}%");
+        assert!(
+            reg > NOISE_FLOOR_PASS_PCT,
+            "a 20px shift must NOT be masked by the ±6 clamp, got {reg:.4}%"
+        );
+    }
+
+    #[test]
+    fn registration_blank_candidate_still_fails() {
+        // (c) A blank (all-white) candidate vs a real reference must still score
+        // ~100%: registration must never rescue an all-or-nothing miss.
+        let reference = solid_square();
+        let blank = white_canvas();
+        let reg = registered_pct(&blank, &reference);
+        eprintln!("registration_blank_candidate_still_fails reg={reg:.4}%");
+        assert!(
+            reg >= 100.0 - 1e-9,
+            "a blank candidate must still score ~100%, got {reg:.4}%"
+        );
     }
 }
