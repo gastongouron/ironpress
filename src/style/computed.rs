@@ -1611,12 +1611,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         && let Some(CssValue::Keyword(k)) = get_non_special(map, "background-image")
     {
         style.clear_background_images();
-        let trimmed = k.trim();
+        let resolved = resolve_embedded_vars(k.trim(), &style.custom_properties);
+        let trimmed = resolved.trim();
         if trimmed != "none" {
             if let Some(svg_text) = crate::parser::css::extract_svg_data_uri(trimmed) {
                 if let Some(tree) = crate::parser::svg::parse_svg_from_string(&svg_text) {
                     style.background_svg = Some(tree);
                 }
+            } else if let Some(CssValue::Color(c)) = crate::parser::css::parse_color(trimmed) {
+                // `background: var(--c)` decomposes here; a resolved colour is a
+                // background-color, not an image URL.
+                style.background_color = Some(c);
             } else {
                 style.background_image = Some(trimmed.to_string());
             }
@@ -1849,7 +1854,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
 
     // Border shorthand: "1px solid black"
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border") {
-        let (w, c, bs) = parse_border_shorthand(k);
+        let k = resolve_embedded_vars(k, &style.custom_properties);
+        let (w, c, bs) = parse_border_shorthand(&k);
         style.border = BorderSides::uniform_styled(w, c, bs);
     }
 
@@ -1897,7 +1903,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         ),
     ] {
         if let Some(CssValue::Keyword(k)) = get_non_special(map, prop) {
-            let (w, c, bs) = parse_border_shorthand(k);
+            let k = resolve_embedded_vars(k, &style.custom_properties);
+            let (w, c, bs) = parse_border_shorthand(&k);
             setter(style, w, c, bs);
         }
     }
@@ -3554,6 +3561,37 @@ fn find_matching_paren(s: &str, start: usize) -> Option<usize> {
 }
 
 /// Parse a border shorthand string like "1px solid black" into (width_pt, Option<Color>, BorderStyle).
+/// Substitute every `var(--name[, fallback])` occurrence inside a raw value
+/// string with its resolved custom-property value, so var() works inside
+/// shorthands (e.g. `border: 4px solid var(--c)`, `background: var(--bg)`),
+/// not just standalone properties.
+fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
+    if !raw.contains("var(") {
+        return raw.to_string();
+    }
+    let mut out = String::new();
+    let mut rest = raw;
+    while let Some(pos) = rest.find("var(") {
+        out.push_str(&rest[..pos]);
+        let after = &rest[pos + 4..];
+        let Some(close) = after.find(')') else {
+            out.push_str(rest);
+            return out;
+        };
+        let inner = after[..close].trim();
+        let (name, fb) = match inner.split_once(',') {
+            Some((n, f)) => (n.trim(), Some(f.trim())),
+            None => (inner, None),
+        };
+        if let Some(v) = crate::style::resolve::resolve_var_to_string(name, fb, cp) {
+            out.push_str(&v);
+        }
+        rest = &after[close + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
 fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
     let parts: Vec<&str> = k.split_whitespace().collect();
     let mut width = 0.0f32;

@@ -4,7 +4,10 @@ use super::{
     is_css_wide_keyword,
     lightning::parse_inline_style_with_lightning,
     parse_length,
-    values::{border_spacing_value_count, parse_border_spacing_shorthand, parse_property_value},
+    values::{
+        border_spacing_value_count, parse_border_spacing_shorthand, parse_property_value,
+        parse_var_function,
+    },
 };
 
 /// Parse an inline CSS style string (e.g. "color: red; font-size: 14px").
@@ -67,6 +70,15 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
         if is_css_wide_keyword(&lower) {
             clear_background_shorthand_keys(map);
             map.set_with_importance("background", CssValue::Keyword(lower), is_important);
+            return;
+        }
+
+        // A bare `background: var(--x)` can't be classified at parse time
+        // (custom properties resolve in the cascade). Defer it as a
+        // background-color Var so computed-time var resolution handles it.
+        if let Some(var_val) = parse_var_function(trimmed) {
+            clear_background_shorthand_keys(map);
+            map.set_with_importance("background-color", var_val, is_important);
             return;
         }
 

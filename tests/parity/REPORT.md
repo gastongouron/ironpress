@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 43.50%  (PASS 97 · PARTIAL 107 · FAIL 142 · UNKNOWN 0 · total 346)
+Overall: 44.08%  (PASS 99 · PARTIAL 107 · FAIL 140 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -120,8 +120,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 13.63 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 20.36 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap |  |
 | FAIL | REAL | 61.82 | units-values | calc | mixed-percent-px | units-calc-mixed-percent |  |
-| FAIL | REAL | 100.00 | units-values | custom-properties | var-resolution | units-var-custom-property |  |
-| FAIL | REAL | 100.00 | units-values | custom-properties | var-fallback | units-var-fallback |  |
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
@@ -176,7 +174,7 @@ None — every fixture's HTML matches `refs.lock`.
 | text-advanced | 33.33% | 0 | 10 | 5 | 0 |
 | transforms | 86.36% | 9 | 1 | 1 | 0 |
 | typography | 93.75% | 14 | 2 | 0 | 0 |
-| units-values | 33.33% | 3 | 2 | 7 | 0 |
+| units-values | 50.00% | 5 | 2 | 5 | 0 |
 
 ## Known gaps (expected_support != implemented)
 > Fixtures targeting features ironpress is NOT expected to fully support. These are tracked for breadth, not counted as regressions.
@@ -876,12 +874,12 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 12.85% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
   - PARTIAL 9.22% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
-### units-values — 33.33%
+### units-values — 50.00%
 - **calc** — 0.00%
   - FAIL 61.82% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
-- **custom-properties** — 0.00%
-  - FAIL 100.00% custom-properties=var-resolution — `units-var-custom-property` — Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.
-  - FAIL 100.00% custom-properties=var-fallback — `units-var-fallback` — var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.
+- **custom-properties** — 100.00%
+  - PASS 0.76% custom-properties=var-resolution — `units-var-custom-property` — Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.
+  - PASS 0.76% custom-properties=var-fallback — `units-var-fallback` — var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.
 - **length-units** — 50.00%
   - FAIL 29.91% length-units=cm — `units-length-cm` — Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution.
   - PARTIAL 9.78% length-units=em — `units-length-em` — Box with font-size:20px sized 12em x 6em (=240x120px) and 0.2em border; verifies em resolves against element font-size.

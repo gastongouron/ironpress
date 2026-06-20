@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 43.5,
-    "pass": 97,
+    "score_pct": 44.08,
+    "pass": 99,
     "partial": 107,
-    "fail": 142,
+    "fail": 140,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -9912,11 +9912,11 @@
     },
     {
       "category": "units-values",
-      "score_pct": 33.33,
+      "score_pct": 50.0,
       "counts": {
-        "pass": 3,
+        "pass": 5,
         "partial": 2,
-        "fail": 7,
+        "fail": 5,
         "unknown": 0
       },
       "features": [
@@ -9956,11 +9956,11 @@
         },
         {
           "feature": "custom-properties",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 2,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -9971,8 +9971,8 @@
               "subfeature": "var-resolution",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 0.7637,
               "weight": 1.0,
               "description": "Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.",
               "note": "",
@@ -9983,7 +9983,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "5f0296186073fcc2eb69bc85325e7b3152cc301514216f3ac11410326aa0e9de"
             },
             {
@@ -9993,8 +9993,8 @@
               "subfeature": "var-fallback",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 0.7637,
               "weight": 1.0,
               "description": "var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.",
               "note": "",
@@ -10005,7 +10005,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "0903ae860eb4faf15a9dff2e5062d41edfc12d99fe13dc009caa26c193fe7685"
             }
           ]
