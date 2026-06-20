@@ -881,20 +881,40 @@ fn process_entry(
     let (diff_pct, diff_img) = match (cand_bb, ref_bb) {
         (Some(cb), Some(rb)) => {
             // SMALL-OFFSET REGISTRATION: cancel the UNIVERSAL ~+4px page-origin
-            // offset (see MAX_REG) before the SSIM compare. Derive the candidate's
-            // translation relative to the reference from the difference of the two
-            // content-bbox top-left corners, CLAMPED to ±MAX_REG so a genuine
-            // layout shift larger than the window is NOT masked. Re-anchor the
-            // candidate (and its bbox) by that clamped offset, then run the usual
-            // union-bbox crop + SSIM on the registered pair. The overlay stays
-            // score-faithful because it is produced from the same registered crops.
-            let (dx, dy) = registration_offset(cb, rb);
-            let cand_reg = shift_image(&cand, dx, dy);
-            let cb_reg = shift_bbox(cb, dx, dy, cand.dimensions());
-            let union = union_bbox(cb_reg, rb);
-            let cand_a = crop_rect(&cand_reg, union);
-            let ref_a = crop_rect(&reference, union);
-            diff_images(&cand_a, &ref_a)
+            // offset (see MAX_REG) before the diff. The single bbox-corner delta
+            // mis-registers by 1–2px whenever the two rasterizers round an edge
+            // differently, leaving a red frame around otherwise-identical content.
+            // So also search every integer offset within ±MAX_REG for the one that
+            // minimizes a cheap proxy cost. Both candidates are CLAMPED to ±MAX_REG
+            // so a real layout shift larger than the window is NOT masked.
+            //
+            // The proxy minimum is not guaranteed to minimize the perceptual diff
+            // (especially on already-wrong renders, where it can mis-align), so we
+            // evaluate the ACTUAL diff at BOTH the corner delta and the searched
+            // offset and keep the lower. This is monotonic: the result is never
+            // worse than the corner-only registration that preceded it.
+            let corner = (
+                (rb.0 as i32 - cb.0 as i32).clamp(-MAX_REG, MAX_REG),
+                (rb.1 as i32 - cb.1 as i32).clamp(-MAX_REG, MAX_REG),
+            );
+            let searched = best_registration_offset(&cand, &reference, rb);
+            let eval = |dx: i32, dy: i32| {
+                let cand_reg = shift_image(&cand, dx, dy);
+                let cb_reg = shift_bbox(cb, dx, dy, cand.dimensions());
+                let union = union_bbox(cb_reg, rb);
+                diff_images(&crop_rect(&cand_reg, union), &crop_rect(&reference, union))
+            };
+            let corner_res = eval(corner.0, corner.1);
+            if searched == corner {
+                corner_res
+            } else {
+                let searched_res = eval(searched.0, searched.1);
+                if searched_res.0 < corner_res.0 {
+                    searched_res
+                } else {
+                    corner_res
+                }
+            }
         }
         (None, None) => {
             // Both blank: pixel-identical empties => perfect parity.
@@ -1132,20 +1152,63 @@ fn content_bbox(img: &RgbaImage) -> Option<BBox> {
     }
 }
 
-/// Clamped small-offset registration. Returns the integer translation `(dx, dy)`
-/// to apply to the CANDIDATE so its content top-left aligns with the REFERENCE's,
-/// CLAMPED to `±MAX_REG` on each axis. `cand`/`ref` are the two content bboxes in
-/// the shared page space; the raw shift is `ref_top_left - cand_top_left`.
+/// Pick the integer translation `(dx, dy)` within `±MAX_REG` that best aligns the
+/// candidate onto the reference, by minimizing a cheap per-pixel colour
+/// difference over the reference's content region. This cancels the universal
+/// page-origin offset (and 1–2px cross-rasterizer edge rounding) far more
+/// accurately than the single bbox-corner estimate, which systematically left a
+/// thin mismatch frame around content that was actually identical.
 ///
-/// This neutralizes the UNIVERSAL sub-perceptual page-origin offset (ironpress at
-/// the spec-correct 120px@300dpi margin vs the Chrome reference at ~116px — an
-/// identical ~+4px shift on every fixture). The clamp guarantees a GENUINE layout
-/// shift larger than the window is only partially cancelled, so it still produces
-/// a clearly high dissimilarity rather than being masked.
-fn registration_offset(cand: BBox, reference: BBox) -> (i32, i32) {
-    let raw_dx = reference.0 as i32 - cand.0 as i32;
-    let raw_dy = reference.1 as i32 - cand.1 as i32;
-    (raw_dx.clamp(-MAX_REG, MAX_REG), raw_dy.clamp(-MAX_REG, MAX_REG))
+/// Safety: the search is bounded by `±MAX_REG`, so a genuine layout shift larger
+/// than that window still leaves a residual and is NOT masked (same guarantee as
+/// the corner-based offset). Sampled on a stride for speed — the chosen offset
+/// then drives the full perceptual diff. `dx, dy` follow `shift_image`'s
+/// convention (candidate pixel `(x, y)` moves to `(x + dx, y + dy)`), so the
+/// candidate pixel landing at reference position `(x, y)` is `(x - dx, y - dy)`.
+fn best_registration_offset(cand: &RgbaImage, reference: &RgbaImage, rb: BBox) -> (i32, i32) {
+    const STRIDE: u32 = 3;
+    const COLOR_DELTA: i32 = 60;
+    let (cw, ch) = cand.dimensions();
+    let (min_x, min_y, max_x, max_y) = rb;
+    let mut best_cost = i64::MAX;
+    let mut best = (0, 0);
+    let mut best_mag = i32::MAX;
+    for dy in -MAX_REG..=MAX_REG {
+        for dx in -MAX_REG..=MAX_REG {
+            let mut cost: i64 = 0;
+            let mut y = min_y;
+            while y <= max_y {
+                let mut x = min_x;
+                while x <= max_x {
+                    let rp = reference.get_pixel(x, y).0;
+                    let sx = x as i32 - dx;
+                    let sy = y as i32 - dy;
+                    let cp = if sx >= 0 && sy >= 0 && (sx as u32) < cw && (sy as u32) < ch {
+                        cand.get_pixel(sx as u32, sy as u32).0
+                    } else {
+                        [255, 255, 255, 255]
+                    };
+                    let d = (rp[0] as i32 - cp[0] as i32).abs()
+                        + (rp[1] as i32 - cp[1] as i32).abs()
+                        + (rp[2] as i32 - cp[2] as i32).abs();
+                    if d > COLOR_DELTA {
+                        cost += 1;
+                    }
+                    x += STRIDE;
+                }
+                y += STRIDE;
+            }
+            // On ties prefer the smallest-magnitude offset so equal-cost
+            // alignments don't introduce a spurious shift.
+            let mag = dx * dx + dy * dy;
+            if cost < best_cost || (cost == best_cost && mag < best_mag) {
+                best_cost = cost;
+                best_mag = mag;
+                best = (dx, dy);
+            }
+        }
+    }
+    best
 }
 
 /// Translate `img` by `(dx, dy)` pixels on a white background (same dimensions),
@@ -2724,7 +2787,7 @@ mod tests {
     fn registered_pct(cand: &RgbaImage, reference: &RgbaImage) -> f64 {
         match (content_bbox(cand), content_bbox(reference)) {
             (Some(cb), Some(rb)) => {
-                let (dx, dy) = registration_offset(cb, rb);
+                let (dx, dy) = best_registration_offset(cand, reference, rb);
                 let cand_reg = shift_image(cand, dx, dy);
                 let cb_reg = shift_bbox(cb, dx, dy, cand.dimensions());
                 let union = union_bbox(cb_reg, rb);
@@ -2772,6 +2835,21 @@ mod tests {
             reg > NOISE_FLOOR_PASS_PCT,
             "a 20px shift must NOT be masked by the ±6 clamp, got {reg:.4}%"
         );
+    }
+
+    #[test]
+    fn best_registration_recovers_asymmetric_offset() {
+        // A candidate translated by an asymmetric (5, 2) — the best-shift search
+        // must recover exactly the inverse offset (-5, -2) and register to ~0%,
+        // where the naive top-left-corner estimate would also work here but the
+        // search is what makes it robust to 1–2px cross-rasterizer edge rounding.
+        let reference = solid_square();
+        let cand = shift_image(&reference, 5, 2);
+        let rb = content_bbox(&reference).unwrap();
+        let (dx, dy) = best_registration_offset(&cand, &reference, rb);
+        assert_eq!((dx, dy), (-5, -2), "best-shift must recover the inverse offset");
+        let reg = registered_pct(&cand, &reference);
+        assert!(reg < NOISE_FLOOR_PASS_PCT, "registered diff must be ~0%, got {reg:.4}%");
     }
 
     #[test]
