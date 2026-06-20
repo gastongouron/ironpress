@@ -5758,6 +5758,47 @@ mod tests {
         assert!(found, "did not find the child paragraph");
     }
 
+    /// A padded block child of a column-direction flex container now flattens
+    /// to a Container (so its padding offsets its content). The column emit loop
+    /// must not drop non-TextBlock items — regression guard for the content-loss
+    /// bug where such an item disappeared entirely.
+    #[test]
+    fn column_flex_padded_child_preserves_content() {
+        let html = r#"<div style="display:flex;flex-direction:column">
+            <div style="padding:20px"><p>kept</p></div>
+        </div>"#;
+        let dom = parse_html(html).unwrap();
+        let pages = layout(
+            &dom,
+            crate::types::PageSize::default(),
+            crate::types::Margin::uniform(20.0),
+        );
+        fn has_text(elem: &LayoutElement, needle: &str) -> bool {
+            match elem {
+                LayoutElement::TextBlock { lines, .. } => lines
+                    .iter()
+                    .flat_map(|l| l.runs.iter())
+                    .any(|r| r.text.contains(needle)),
+                LayoutElement::Container { children, .. } => {
+                    children.iter().any(|c| has_text(c, needle))
+                }
+                LayoutElement::FlexRow { cells, .. } => cells.iter().any(|c| {
+                    c.lines
+                        .iter()
+                        .flat_map(|l| l.runs.iter())
+                        .any(|r| r.text.contains(needle))
+                        || c.nested_elements.iter().any(|n| has_text(n, needle))
+                }),
+                _ => false,
+            }
+        }
+        let found = pages
+            .iter()
+            .flat_map(|p| p.elements.iter())
+            .any(|(_, e)| has_text(e, "kept"));
+        assert!(found, "column flex dropped the padded child's content");
+    }
+
     /// Flex child with inline background (badge) should propagate the
     /// background_color from the computed style to the TextRun.
     #[test]

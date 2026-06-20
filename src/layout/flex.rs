@@ -1292,6 +1292,54 @@ pub(crate) fn layout_flex_container(
                                 heading_level: None,
                                 clip_children_count: 0,
                             });
+                        } else {
+                            // Non-TextBlock flex item (e.g. a Container emitted
+                            // for a padded child). Wrap it so the column's
+                            // main-axis (vertical) leading and cross-axis
+                            // (horizontal) alignment are applied; otherwise the
+                            // element would be silently dropped by this loop.
+                            let leading = if y == 0.0 && !emitted_column_bg {
+                                style.margin.top + style.padding.top
+                            } else if y == 0.0 {
+                                style.padding.top
+                            } else {
+                                gap
+                            };
+                            output.push(LayoutElement::Container {
+                                children: vec![elem.clone()],
+                                background_color: None,
+                                border: LayoutBorder::default(),
+                                border_radius: 0.0,
+                                padding_top: 0.0,
+                                padding_bottom: 0.0,
+                                padding_left: 0.0,
+                                padding_right: 0.0,
+                                margin_top: leading,
+                                margin_bottom: 0.0,
+                                block_width: effective_width,
+                                block_height: None,
+                                opacity: 1.0,
+                                float: Float::None,
+                                position: if x_offset > 0.0 || style.padding.left > 0.0 {
+                                    Position::Relative
+                                } else {
+                                    Position::Static
+                                },
+                                offset_top: 0.0,
+                                offset_left: x_offset + style.padding.left,
+                                overflow: Overflow::Visible,
+                                transform: None,
+                                box_shadow: None,
+                                background_gradient: None,
+                                background_radial_gradient: None,
+                                background_svg: None,
+                                background_blur_radius: 0.0,
+                                background_size: BackgroundSize::Auto,
+                                background_position: BackgroundPosition::default(),
+                                background_repeat: BackgroundRepeat::Repeat,
+                                background_origin: BackgroundOrigin::Padding,
+                                z_index: 0,
+                            });
                         }
                     }
 
