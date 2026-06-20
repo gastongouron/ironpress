@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 59.68,
-    "pass": 157,
-    "partial": 99,
-    "fail": 90,
+    "score_pct": 60.69,
+    "pass": 160,
+    "partial": 100,
+    "fail": 86,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -3218,11 +3218,11 @@
     },
     {
       "category": "fonts-advanced",
-      "score_pct": 75.0,
+      "score_pct": 87.5,
       "counts": {
-        "pass": 8,
-        "partial": 2,
-        "fail": 2,
+        "pass": 9,
+        "partial": 3,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -3294,11 +3294,11 @@
         },
         {
           "feature": "font-size",
-          "score_pct": 60.0,
+          "score_pct": 90.0,
           "counts": {
-            "pass": 3,
-            "partial": 0,
-            "fail": 2,
+            "pass": 4,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3309,8 +3309,8 @@
               "subfeature": "ch",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 46.5349,
+              "status": "PASS",
+              "diff_pct": 0.4284,
               "weight": 1.0,
               "description": "font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).",
               "note": "",
@@ -3320,7 +3320,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "ea93d7e2370382c90dee07e3189d6ec7a449df08958e1b63f3f755666cc89019"
             },
             {
@@ -3351,8 +3351,8 @@
               "subfeature": "ex",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 37.7477,
+              "status": "PARTIAL",
+              "diff_pct": 15.4255,
               "weight": 1.0,
               "description": "font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).",
               "note": "",
@@ -9912,11 +9912,11 @@
     },
     {
       "category": "units-values",
-      "score_pct": 50.0,
+      "score_pct": 66.67,
       "counts": {
-        "pass": 5,
+        "pass": 7,
         "partial": 2,
-        "fail": 5,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
@@ -10012,11 +10012,11 @@
         },
         {
           "feature": "length-units",
-          "score_pct": 50.0,
+          "score_pct": 90.0,
           "counts": {
-            "pass": 2,
+            "pass": 4,
             "partial": 1,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -10027,8 +10027,8 @@
               "subfeature": "cm",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 29.9077,
+              "status": "PASS",
+              "diff_pct": 0.4512,
               "weight": 1.0,
               "description": "Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution.",
               "note": "",
@@ -10039,7 +10039,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "88e8f675ed466accebdc7c47ecc8d0e0be751bc86461d37d2dd20e1c4232154f"
             },
             {
@@ -10071,8 +10071,8 @@
               "subfeature": "in",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 35.893,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px).",
               "note": "",
@@ -10083,7 +10083,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e91e77b44ee7348e213addf464d41bc7eead5844ea039e29dc99fa02c3da6a81"
             },
             {
@@ -10629,6 +10629,7 @@
     "filter-saturate",
     "filter-sepia",
     "fonts-advanced-font-feature-settings-ligatures",
+    "fonts-advanced-font-size-ch",
     "fonts-advanced-font-stretch-condensed",
     "generated-content-first-line",
     "img-aspect-ratio-box",

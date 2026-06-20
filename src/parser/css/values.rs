@@ -47,6 +47,42 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
         return number.parse::<f32>().ok().map(CssValue::Percentage);
     }
 
+    // Font-relative ex/ch (approximate as a fraction of the em; resolved against
+    // font-size downstream like `em`). Checked before `em`-free fallthrough; they
+    // don't end in "em" so they don't collide with the `em` branch above.
+    if let Some(number) = val.strip_suffix("ex") {
+        return number.parse::<f32>().ok().map(|v| CssValue::Number(v * 0.5));
+    }
+    if let Some(number) = val.strip_suffix("ch") {
+        return number.parse::<f32>().ok().map(|v| CssValue::Number(v * 0.5));
+    }
+
+    // Absolute length units → points (1pt = 1/72in). CssValue::Length is in pt.
+    if let Some(number) = val.strip_suffix("cm") {
+        return number
+            .parse::<f32>()
+            .ok()
+            .map(|v| CssValue::Length(v * 72.0 / 2.54));
+    }
+    if let Some(number) = val.strip_suffix("mm") {
+        return number
+            .parse::<f32>()
+            .ok()
+            .map(|v| CssValue::Length(v * 72.0 / 25.4));
+    }
+    if let Some(number) = val.strip_suffix("q") {
+        return number
+            .parse::<f32>()
+            .ok()
+            .map(|v| CssValue::Length(v * 72.0 / 25.4 / 4.0));
+    }
+    if let Some(number) = val.strip_suffix("in") {
+        return number.parse::<f32>().ok().map(|v| CssValue::Length(v * 72.0));
+    }
+    if let Some(number) = val.strip_suffix("pc") {
+        return number.parse::<f32>().ok().map(|v| CssValue::Length(v * 12.0));
+    }
+
     if let Some(number) = val.strip_suffix("em") {
         return number.parse::<f32>().ok().map(CssValue::Number);
     }

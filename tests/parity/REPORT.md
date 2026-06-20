@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 59.68%  (PASS 157 · PARTIAL 99 · FAIL 90 · UNKNOWN 0 · total 346)
+Overall: 60.69%  (PASS 160 · PARTIAL 100 · FAIL 86 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**35 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
+**36 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -114,7 +114,7 @@ None — every fixture's HTML matches `refs.lock`.
 | effects | 45.45% | 2 | 6 | 3 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
-| fonts-advanced | 75.00% | 8 | 2 | 2 | 0 |
+| fonts-advanced | 87.50% | 9 | 3 | 0 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
 | grid | 3.13% | 0 | 1 | 15 | 0 |
 | images-replaced | 93.33% | 14 | 0 | 1 | 0 |
@@ -131,7 +131,7 @@ None — every fixture's HTML matches `refs.lock`.
 | text-advanced | 46.67% | 0 | 14 | 1 | 0 |
 | transforms | 90.91% | 10 | 0 | 1 | 0 |
 | typography | 93.75% | 14 | 2 | 0 | 0 |
-| units-values | 50.00% | 5 | 2 | 5 | 0 |
+| units-values | 66.67% | 7 | 2 | 3 | 0 |
 
 ## Known gaps (expected_support != implemented)
 > Fixtures targeting features ironpress is NOT expected to fully support. These are tracked for breadth, not counted as regressions.
@@ -181,8 +181,8 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 99.38 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
 | partial | PARTIAL | 6.07 | fonts-advanced | font-face | fonts-advanced-font-face-custom-src | An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism. |
 | unsupported | PASS | 2.84 | fonts-advanced | font-feature-settings | fonts-advanced-font-feature-settings-ligatures | Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied). |
-| unsupported | FAIL | 46.53 | fonts-advanced | font-size | fonts-advanced-font-size-ch | font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing). |
-| unsupported | FAIL | 37.75 | fonts-advanced | font-size | fonts-advanced-font-size-ex | font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing). |
+| unsupported | PASS | 0.43 | fonts-advanced | font-size | fonts-advanced-font-size-ch | font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing). |
+| unsupported | PARTIAL | 15.43 | fonts-advanced | font-size | fonts-advanced-font-size-ex | font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing). |
 | unsupported | PASS | 1.43 | fonts-advanced | font-stretch | fonts-advanced-font-stretch-condensed | Text with font-stretch: condensed selecting a narrower face/width (aspirational; font-stretch is not parsed or matched). |
 | unsupported | PARTIAL | 6.78 | fonts-advanced | font-variant | fonts-advanced-font-variant-small-caps | Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support). |
 | unsupported | PARTIAL | 11.69 | generated-content | content-url | generated-content-content-url-image | content: url(data:png) on ::before places a small decoded raster image before the element text. |
@@ -241,8 +241,8 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 1.29 | transforms | transform | transforms-translate-x | transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged. |
 | partial | PASS | 1.45 | transforms | transform | transforms-translate-y | transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged. |
 | unsupported | FAIL | 17.80 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
-| partial | FAIL | 29.91 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
-| partial | FAIL | 35.89 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
+| partial | PASS | 0.45 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
+| partial | PASS | 0.00 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
 | unsupported | FAIL | 21.97 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
 | unsupported | PASS | 0.00 | units-values | math-functions | units-min-max | Aspirational: width:max(150px,240px) and height:min(120px,300px) resolve to 240x120px; standalone min()/max() value functions are unsupported in ironpress. |
 | partial | FAIL | 19.01 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
@@ -440,15 +440,15 @@ None — every fixture's HTML matches `refs.lock`.
 - **order** — 0.00%
   - FAIL 52.56% order=reorder — `flexbox-order` — order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.
 
-### fonts-advanced — 75.00%
+### fonts-advanced — 87.50%
 - **font-face** — 50.00%
   - PARTIAL 6.07% font-face=custom-src — `fonts-advanced-font-face-custom-src` — An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism.
 - **font-feature-settings** — 100.00%
   - PASS 2.84% font-feature-settings=ligatures-off — `fonts-advanced-font-feature-settings-ligatures` — Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied).
-- **font-size** — 60.00%
-  - FAIL 46.53% font-size=ch — `fonts-advanced-font-size-ch` — font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).
+- **font-size** — 90.00%
+  - PASS 0.43% font-size=ch — `fonts-advanced-font-size-ch` — font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).
   - PASS 0.00% font-size=em — `fonts-advanced-font-size-em` — font-size: 2em resolved against the parent region's 16px font-size for a 32px effective size.
-  - FAIL 37.75% font-size=ex — `fonts-advanced-font-size-ex` — font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).
+  - PARTIAL 15.43% font-size=ex — `fonts-advanced-font-size-ex` — font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).
   - PASS 1.33% font-size=percent — `fonts-advanced-font-size-percent` — font-size: 150% resolved against the parent region's 20px font-size for a 30px effective size.
   - PASS 0.00% font-size=rem — `fonts-advanced-font-size-rem` — font-size: 2rem resolved against the root 16px font-size (32px), independent of the local 10px font-size.
 - **font-stretch** — 100.00%
@@ -831,16 +831,16 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 12.03% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
   - PARTIAL 8.13% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
-### units-values — 50.00%
+### units-values — 66.67%
 - **calc** — 0.00%
   - FAIL 61.71% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
 - **custom-properties** — 100.00%
   - PASS 0.00% custom-properties=var-resolution — `units-var-custom-property` — Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.
   - PASS 0.00% custom-properties=var-fallback — `units-var-fallback` — var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.
-- **length-units** — 50.00%
-  - FAIL 29.91% length-units=cm — `units-length-cm` — Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution.
+- **length-units** — 90.00%
+  - PASS 0.45% length-units=cm — `units-length-cm` — Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution.
   - PARTIAL 9.78% length-units=em — `units-length-em` — Box with font-size:20px sized 12em x 6em (=240x120px) and 0.2em border; verifies em resolves against element font-size.
-  - FAIL 35.89% length-units=in — `units-length-in` — Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px).
+  - PASS 0.00% length-units=in — `units-length-in` — Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px).
   - PASS 0.00% length-units=pt — `units-length-pt` — Box sized in pt (180pt x 90pt = 240x120px) with a 3pt solid border; verifies pt->px length resolution.
   - PASS 0.00% length-units=rem — `units-length-rem` — Box sized 15rem x 7.5rem against root font-size:16px (=240x120px) inside a 40px-font ancestor; rem ignores local font-size.
 - **math-functions** — 50.00%
