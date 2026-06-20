@@ -443,6 +443,7 @@ mod tests {
             width: 100.0,
             natural_height: 0.0,
             has_explicit_height: false,
+            align_self: crate::style::computed::AlignSelf::Auto,
             text_align: TextAlign::Left,
             background_color: None,
             padding_top: 0.0,

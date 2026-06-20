@@ -192,6 +192,10 @@ pub struct FlexCell {
     /// keep such an item at its `natural_height` rather than stretching it to
     /// the line cross size.
     pub has_explicit_height: bool,
+    /// Per-item `align-self` override. `Auto` defers to the FlexRow's
+    /// `align_items`; otherwise this item aligns independently on the cross
+    /// axis.
+    pub align_self: crate::style::computed::AlignSelf,
     pub border_radius: f32,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,

@@ -1,9 +1,9 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    Clear, ComputedStyle, Display, FlexDirection, FlexWrap, Float, JustifyContent, Overflow,
-    Position, TextAlign, VerticalAlign, Visibility, compute_style_with_context,
+    AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BoxSizing, Clear, ComputedStyle, Display, FlexDirection, FlexWrap, Float, JustifyContent,
+    Overflow, Position, TextAlign, VerticalAlign, Visibility, compute_style_with_context,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
@@ -210,6 +210,15 @@ pub(crate) fn layout_flex_container(
         /// cross axis is the block axis, so `align-items: stretch` must NOT
         /// stretch an item that already has a definite height.
         has_explicit_height: bool,
+        /// Per-item `align-self` (cross-axis override; `Auto` defers to the
+        /// container's `align-items`).
+        align_self: AlignSelf,
+        /// CSS `order`. Items are placed by ascending order, document order
+        /// breaking ties.
+        order: i32,
+        /// Index of the originating child element (document order). Used to map
+        /// a (possibly reordered) item back to its `child_elements` entry.
+        child_idx: usize,
     }
 
     let mut items: Vec<FlexItem> = Vec::new();
@@ -399,6 +408,9 @@ pub(crate) fn layout_flex_container(
                 natural_height: child_h, // Natural height for align-items flex-start
                 has_explicit_width,
                 has_explicit_height,
+                align_self: child_style.align_self,
+                order: child_style.order,
+                child_idx: idx,
             });
             continue;
         }
@@ -558,11 +570,20 @@ pub(crate) fn layout_flex_container(
             natural_height: child_h + child_style.margin.top + child_style.margin.bottom,
             has_explicit_width,
             has_explicit_height,
+            align_self: child_style.align_self,
+            order: child_style.order,
+            child_idx: idx,
         });
     }
 
     if items.is_empty() {
         return;
+    }
+
+    // Reorder items by CSS `order` (ascending), with document order breaking
+    // ties. Layout/placement and visual paint order both follow `order`.
+    if items.iter().any(|it| it.order != 0) {
+        items.sort_by_key(|it| (it.order, it.child_idx));
     }
 
     let direction = style.flex_direction;
@@ -728,7 +749,12 @@ pub(crate) fn layout_flex_container(
         // It advances y by its full height in paginate.  We then emit a
         // negative-margin spacer to pull y back so children flow *inside*
         // the background rather than after it.
-        let bg_flow_height = container_h + style.border.vertical_width();
+        // The background block advances the cursor by its padding-box height
+        // (`block_height = container_h`); its border is painted outside that
+        // advance, so the pull-back spacer must match `container_h` exactly.
+        // (Adding the border height here over-pulls and floats the first item
+        // above the container's top border.)
+        let bg_flow_height = container_h;
         let BackgroundFields {
             gradient: background_gradient,
             radial_gradient: background_radial_gradient,
@@ -910,7 +936,7 @@ pub(crate) fn layout_flex_container(
                         && (items[i].width - items[i].base_width).abs() > 1.0
                     {
                         let final_w = items[i].width;
-                        let child_el = child_elements[i];
+                        let child_el = child_elements[items[i].child_idx];
                         let has_block_kids = child_el.children.iter().any(|c| {
                             matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
                         });
@@ -934,7 +960,7 @@ pub(crate) fn layout_flex_container(
                                 None,
                                 &relayout_ancestors,
                                 positioned_depth,
-                                i,
+                                items[i].child_idx,
                                 child_count,
                                 &[],
                                 env,
@@ -1000,6 +1026,7 @@ pub(crate) fn layout_flex_container(
                                 width: item.width,
                                 natural_height: item.height,
                                 has_explicit_height: item.has_explicit_height,
+                                align_self: item.align_self,
                                 text_align: TextAlign::Left,
                                 background_color: None,
                                 padding_top: 0.0,
@@ -1066,6 +1093,7 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
+                                align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: first_bg,
                             padding_top: first_pt,
@@ -1157,6 +1185,7 @@ pub(crate) fn layout_flex_container(
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
+                                align_self: item.align_self,
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                         });
@@ -1169,6 +1198,7 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: item.height,
                             has_explicit_height: item.has_explicit_height,
+                                align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: None,
                             padding_top: 0.0,
@@ -1219,8 +1249,18 @@ pub(crate) fn layout_flex_container(
                 for &item_idx in &line_items {
                     let item = &items[item_idx];
 
+                    // `align-self` overrides the container's `align-items` on the
+                    // cross axis (horizontal, for a column container).
+                    let effective_align = match item.align_self {
+                        AlignSelf::Auto => align,
+                        AlignSelf::FlexStart => AlignItems::FlexStart,
+                        AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                        AlignSelf::Center => AlignItems::Center,
+                        AlignSelf::Stretch => AlignItems::Stretch,
+                    };
+
                     // Calculate cross-axis (horizontal) alignment
-                    let x_offset = match align {
+                    let x_offset = match effective_align {
                         AlignItems::FlexStart => 0.0,
                         AlignItems::FlexEnd => inner_width - item.width,
                         AlignItems::Center => (inner_width - item.width) / 2.0,
@@ -1230,7 +1270,7 @@ pub(crate) fn layout_flex_container(
                     // align-items: stretch only stretches items whose cross size
                     // (width, for a column container) is auto. An item with an
                     // explicit width keeps it.
-                    let effective_width = if align == AlignItems::Stretch
+                    let effective_width = if effective_align == AlignItems::Stretch
                         && !item.has_explicit_width
                     {
                         Some(inner_width)
@@ -1280,11 +1320,15 @@ pub(crate) fn layout_flex_container(
                             output.push(LayoutElement::TextBlock {
                                 lines: tb_lines.clone(),
                                 margin_top: if y == 0.0 && !emitted_column_bg {
-                                    style.margin.top + style.padding.top + *tb_mt
+                                    style.margin.top
+                                        + style.border.top.width
+                                        + style.padding.top
+                                        + *tb_mt
                                 } else if y == 0.0 {
                                     // Background element already accounts for margin;
-                                    // add only the container padding offset.
-                                    style.padding.top + *tb_mt
+                                    // add the container's top border + padding so the
+                                    // first item flows inside the container's border box.
+                                    style.border.top.width + style.padding.top + *tb_mt
                                 } else {
                                     // Apply gap between column-direction flex items.
                                     gap + *tb_mt
@@ -1304,13 +1348,18 @@ pub(crate) fn layout_flex_container(
                                 background_blend_mode: *tb_bg_blend,
                                 float: Float::None,
                                 clear: Clear::None,
-                                position: if x_offset > 0.0 || style.padding.left > 0.0 {
+                                position: if x_offset > 0.0
+                                    || style.padding.left > 0.0
+                                    || style.border.left.width > 0.0
+                                {
                                     Position::Relative
                                 } else {
                                     *tb_pos
                                 },
                                 offset_top: 0.0,
-                                offset_left: x_offset + style.padding.left,
+                                offset_left: x_offset
+                                    + style.padding.left
+                                    + style.border.left.width,
                                 offset_bottom: 0.0,
                                 offset_right: 0.0,
                                 containing_block: None,
@@ -1346,9 +1395,9 @@ pub(crate) fn layout_flex_container(
                             // (horizontal) alignment are applied; otherwise the
                             // element would be silently dropped by this loop.
                             let leading = if y == 0.0 && !emitted_column_bg {
-                                style.margin.top + style.padding.top
+                                style.margin.top + style.border.top.width + style.padding.top
                             } else if y == 0.0 {
-                                style.padding.top
+                                style.border.top.width + style.padding.top
                             } else {
                                 gap
                             };
@@ -1370,13 +1419,18 @@ pub(crate) fn layout_flex_container(
                                 background_blend_mode: crate::style::computed::BlendMode::Normal,
                                 visible: true,
                                 float: Float::None,
-                                position: if x_offset > 0.0 || style.padding.left > 0.0 {
+                                position: if x_offset > 0.0
+                                    || style.padding.left > 0.0
+                                    || style.border.left.width > 0.0
+                                {
                                     Position::Relative
                                 } else {
                                     Position::Static
                                 },
                                 offset_top: 0.0,
-                                offset_left: x_offset + style.padding.left,
+                                offset_left: x_offset
+                                    + style.padding.left
+                                    + style.border.left.width,
                                 overflow: Overflow::Visible,
                                 transform: None,
                                 clip_path: None,

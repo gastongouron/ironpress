@@ -358,14 +358,14 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
 
     if matches!(
         property,
-        "flex-direction" | "justify-content" | "align-items" | "flex-wrap"
+        "flex-direction" | "justify-content" | "align-items" | "align-self" | "flex-wrap"
     ) {
         return Some(CssValue::Keyword(lower));
     }
 
     if matches!(
         property,
-        "flex-grow" | "flex-shrink" | "gap" | "grid-gap" | "column-gap"
+        "flex-grow" | "flex-shrink" | "order" | "gap" | "grid-gap" | "column-gap"
     ) {
         return parse_length(val);
     }

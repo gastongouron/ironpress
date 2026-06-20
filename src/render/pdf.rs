@@ -15,7 +15,7 @@ use crate::render::shading::{
 };
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
-    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
     BorderCollapse, BorderStyle, Float, FontFamily, LinearGradient, Overflow, Position,
     RadialGradient, TextAlign, VerticalAlign,
 };
@@ -1727,10 +1727,20 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
                         let cell_y_origin = cell.y_offset;
 
-                        // Compute per-cell height and vertical offset based on align-items.
-                        // For stretch: use the line's cross size (default CSS behavior).
-                        // For flex-start/center/flex-end: use the cell's natural_height.
-                        let (cell_render_h, cell_y_shift) = match align_items {
+                        // Compute per-cell height and vertical offset based on the
+                        // effective cross-axis alignment. `align-self` on the item
+                        // overrides the container's `align-items` unless it is
+                        // `auto`. For stretch: use the line's cross size (default
+                        // CSS behavior). For flex-start/center/flex-end: use the
+                        // cell's natural_height.
+                        let effective_align = match cell.align_self {
+                            AlignSelf::Auto => *align_items,
+                            AlignSelf::FlexStart => AlignItems::FlexStart,
+                            AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                            AlignSelf::Center => AlignItems::Center,
+                            AlignSelf::Stretch => AlignItems::Stretch,
+                        };
+                        let (cell_render_h, cell_y_shift) = match effective_align {
                             // `align-items: stretch` only stretches items whose
                             // cross size (height) is auto. An item with a definite
                             // height keeps it (like flex-start, top-anchored).
@@ -4908,7 +4918,16 @@ fn render_container_children(
                     } else {
                         *flex_row_h
                     };
-                    let (cell_h, cell_y_shift) = match align_items {
+                    // `align-self` on the item overrides the container's
+                    // `align-items` unless it is `auto`.
+                    let effective_align = match cell.align_self {
+                        AlignSelf::Auto => *align_items,
+                        AlignSelf::FlexStart => AlignItems::FlexStart,
+                        AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                        AlignSelf::Center => AlignItems::Center,
+                        AlignSelf::Stretch => AlignItems::Stretch,
+                    };
+                    let (cell_h, cell_y_shift) = match effective_align {
                         // `align-items: stretch` only stretches auto-height items;
                         // an item with a definite height keeps it (top-anchored).
                         AlignItems::Stretch if cell.has_explicit_height => {

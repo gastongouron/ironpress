@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 72.11%  (PASS 197 · PARTIAL 105 · FAIL 44 · UNKNOWN 0 · total 346)
+Overall: 72.54%  (PASS 197 · PARTIAL 108 · FAIL 41 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -30,10 +30,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 73.02 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | REAL | 19.33 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
 | FAIL | REAL | 29.40 | backgrounds-borders | outline | solid-offset | outline-solid |  |
-| FAIL | REAL | 29.44 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
-| FAIL | REAL | 13.18 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
-| FAIL | REAL | 53.74 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
-| FAIL | REAL | 52.56 | flexbox | order | reorder | flexbox-order |  |
+| FAIL | REAL | 52.85 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 37.34 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | 17.74 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 16.77 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `flexbox-display-flex` already FAILs | flexbox-x-grid-nested |  |
@@ -81,7 +78,7 @@ None — every fixture's HTML matches `refs.lock`.
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 72.73% | 5 | 6 | 0 | 0 |
 | filters | 60.71% | 8 | 1 | 5 | 0 |
-| flexbox | 37.50% | 0 | 12 | 4 | 0 |
+| flexbox | 46.88% | 0 | 15 | 1 | 0 |
 | fonts-advanced | 87.50% | 9 | 3 | 0 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
 | grid | 75.00% | 8 | 8 | 0 | 0 |
@@ -377,18 +374,18 @@ None — every fixture's HTML matches `refs.lock`.
 - **filter: url()** — 0.00%
   - FAIL 99.38% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
-### flexbox — 37.50%
+### flexbox — 46.88%
 - **align-items** — 50.00%
   - PARTIAL 2.89% align-items=center — `flexbox-align-items-center` — align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.
   - PARTIAL 3.27% align-items=stretch — `flexbox-align-items-stretch` — align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.
-- **align-self** — 0.00%
-  - FAIL 29.44% align-self=flex-end — `flexbox-align-self-flex-end` — align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.
+- **align-self** — 50.00%
+  - PARTIAL 2.92% align-self=flex-end — `flexbox-align-self-flex-end` — align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.
 - **display** — 50.00%
   - PARTIAL 5.23% display=flex — `flexbox-display-flex` — display:flex lays three fixed-size boxes in a row along the main axis with default packing.
 - **flex-basis** — 50.00%
   - PARTIAL 4.44% flex-basis=px — `flexbox-flex-basis` — flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).
-- **flex-direction** — 0.00%
-  - FAIL 13.18% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
+- **flex-direction** — 50.00%
+  - PARTIAL 8.83% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
 - **flex-grow** — 50.00%
   - PARTIAL 6.43% flex-grow=ratio — `flexbox-flex-grow` — flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.
 - **flex-shrink** — 50.00%
@@ -404,9 +401,9 @@ None — every fixture's HTML matches `refs.lock`.
 - **min-width** — 50.00%
   - PARTIAL 5.62% min-width=shrink-floor — `flexbox-min-width-constraint` — min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.
 - **nested-flex** — 0.00%
-  - FAIL 53.74% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
-- **order** — 0.00%
-  - FAIL 52.56% order=reorder — `flexbox-order` — order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.
+  - FAIL 52.85% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
+- **order** — 50.00%
+  - PARTIAL 4.44% order=reorder — `flexbox-order` — order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.
 
 ### fonts-advanced — 87.50%
 - **font-face** — 50.00%

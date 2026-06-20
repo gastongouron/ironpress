@@ -310,6 +310,7 @@ pub(crate) fn layout_inline_block_group(
             width: item.width,
             natural_height: natural_h,
             has_explicit_height: false,
+            align_self: crate::style::computed::AlignSelf::Auto,
             text_align: item.text_align,
             background_color: item.background_color,
             padding_top: item.padding_top,

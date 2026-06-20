@@ -61,6 +61,18 @@ pub enum AlignItems {
     Stretch,
 }
 
+/// CSS align-self property (per-item cross-axis alignment override).
+/// `Auto` means "use the container's align-items".
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum AlignSelf {
+    #[default]
+    Auto,
+    FlexStart,
+    FlexEnd,
+    Center,
+    Stretch,
+}
+
 /// CSS flex-wrap property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum FlexWrap {
@@ -778,6 +790,12 @@ pub struct ComputedStyle {
     pub flex_direction: FlexDirection,
     pub justify_content: JustifyContent,
     pub align_items: AlignItems,
+    /// Per-item `align-self` (cross-axis alignment override; `Auto` defers to
+    /// the container's `align-items`). Not inherited.
+    pub align_self: AlignSelf,
+    /// Per-item `order` — flex items are laid out by ascending `order`, with
+    /// document order breaking ties. Not inherited.
+    pub order: i32,
     pub flex_wrap: FlexWrap,
     pub flex_grow: f32,
     pub flex_shrink: f32,
@@ -963,6 +981,8 @@ impl Default for ComputedStyle {
             flex_direction: FlexDirection::Row,
             justify_content: JustifyContent::FlexStart,
             align_items: AlignItems::Stretch,
+            align_self: AlignSelf::Auto,
+            order: 0,
             flex_wrap: FlexWrap::NoWrap,
             flex_grow: 0.0,
             flex_shrink: 1.0,
@@ -1158,6 +1178,8 @@ pub fn compute_style_with_context(
     style.flex_direction = FlexDirection::Row;
     style.justify_content = JustifyContent::FlexStart;
     style.align_items = AlignItems::Stretch;
+    style.align_self = AlignSelf::Auto;
+    style.order = 0;
     style.flex_wrap = FlexWrap::NoWrap;
     style.flex_grow = 0.0;
     style.flex_shrink = 1.0;
@@ -1389,6 +1411,8 @@ pub fn compute_pseudo_element_style(
     style.flex_direction = FlexDirection::Row;
     style.justify_content = JustifyContent::FlexStart;
     style.align_items = AlignItems::Stretch;
+    style.align_self = AlignSelf::Auto;
+    style.order = 0;
     style.flex_wrap = FlexWrap::NoWrap;
     style.flex_grow = 0.0;
     style.flex_shrink = 1.0;
@@ -1595,6 +1619,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "flex-direction" => style.flex_direction = default.flex_direction,
         "justify-content" => style.justify_content = default.justify_content,
         "align-items" => style.align_items = default.align_items,
+        "align-self" => style.align_self = default.align_self,
+        "order" => style.order = default.order,
         "flex-wrap" => style.flex_wrap = default.flex_wrap,
         "flex-grow" => style.flex_grow = default.flex_grow,
         "flex-shrink" => style.flex_shrink = default.flex_shrink,
@@ -1751,6 +1777,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "flex-direction" => style.flex_direction = parent.flex_direction,
         "justify-content" => style.justify_content = parent.justify_content,
         "align-items" => style.align_items = parent.align_items,
+        "align-self" => style.align_self = parent.align_self,
+        "order" => style.order = parent.order,
         "flex-wrap" => style.flex_wrap = parent.flex_wrap,
         "flex-grow" => style.flex_grow = parent.flex_grow,
         "flex-shrink" => style.flex_shrink = parent.flex_shrink,
@@ -2075,6 +2103,28 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
         // Grid uses the same property with start/end/center/stretch keywords.
         style.grid_align_items = parse_grid_align(k);
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-self") {
+        style.align_self = match k.as_str() {
+            "auto" => AlignSelf::Auto,
+            "flex-start" | "start" => AlignSelf::FlexStart,
+            "flex-end" | "end" => AlignSelf::FlexEnd,
+            "center" => AlignSelf::Center,
+            "stretch" => AlignSelf::Stretch,
+            _ => AlignSelf::Auto,
+        };
+    }
+
+    // `order` (integer). May arrive as a Length (numeric) or Keyword.
+    match get_non_special(map, "order") {
+        Some(CssValue::Length(v)) => style.order = *v as i32,
+        Some(CssValue::Keyword(k)) => {
+            if let Ok(n) = k.trim().parse::<i32>() {
+                style.order = n;
+            }
+        }
+        _ => {}
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex-wrap") {

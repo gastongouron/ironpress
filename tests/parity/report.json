@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 72.11,
+    "score_pct": 72.54,
     "pass": 197,
-    "partial": 105,
-    "fail": 44,
+    "partial": 108,
+    "fail": 41,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -2714,11 +2714,11 @@
     },
     {
       "category": "flexbox",
-      "score_pct": 37.5,
+      "score_pct": 46.88,
       "counts": {
         "pass": 0,
-        "partial": 12,
-        "fail": 4,
+        "partial": 15,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -2778,11 +2778,11 @@
         },
         {
           "feature": "align-self",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2793,8 +2793,8 @@
               "subfeature": "flex-end",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 29.436,
+              "status": "PARTIAL",
+              "diff_pct": 2.9155,
               "weight": 1.0,
               "description": "align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.",
               "note": "",
@@ -2877,11 +2877,11 @@
         },
         {
           "feature": "flex-direction",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2892,8 +2892,8 @@
               "subfeature": "column",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.178,
+              "status": "PARTIAL",
+              "diff_pct": 8.8285,
               "weight": 1.0,
               "description": "flex-direction:column stacks items top-to-bottom along the vertical main axis.",
               "note": "",
@@ -3166,7 +3166,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 53.7379,
+              "diff_pct": 52.8472,
               "weight": 1.0,
               "description": "A row flex container holds two growing column flex containers, each space-between stacking two boxes.",
               "note": "",
@@ -3183,11 +3183,11 @@
         },
         {
           "feature": "order",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3198,8 +3198,8 @@
               "subfeature": "reorder",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 52.5629,
+              "status": "PARTIAL",
+              "diff_pct": 4.4417,
               "weight": 1.0,
               "description": "order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.",
               "note": "",
