@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 52.02%  (PASS 131 · PARTIAL 98 · FAIL 117 · UNKNOWN 0 · total 346)
+Overall: 53.61%  (PASS 137 · PARTIAL 97 · FAIL 112 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**30 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
+**31 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -38,9 +38,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
 | FAIL | REAL | 29.38 | block-box-model | box-sizing | content-box | block-box-sizing-content-box |  |
 | FAIL | REAL | 98.63 | block-box-model | display | block | block-display-block-stacking |  |
-| FAIL | REAL | 42.25 | block-box-model | margin | auto-centering | block-margin-auto-centering |  |
 | FAIL | REAL | 25.98 | block-box-model | margin | collapse-adjacent | block-margin-collapse-adjacent |  |
-| FAIL | REAL | 21.05 | block-box-model | margin | explicit-offsets | block-margin-offsets |  |
 | FAIL | REAL | 34.46 | block-box-model | nested-block-flow | containment | block-nested-containment |  |
 | FAIL | REAL | 23.55 | block-box-model | padding | uniform | block-padding-all-sides |  |
 | FAIL | REAL | 40.00 | color-opacity | opacity | half | opacity-half |  |
@@ -75,19 +73,16 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: display (`grid-display-grid`) | 31.98 | interactions | grid-x-flexbox | (interaction: grid×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | grid-x-flexbox-nested |  |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | 34.87 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align |  |
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | 35.37 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `positioning-fixed-top-left` already FAILs | interactions-positioning-fixed-x-transforms-translate |  |
-| FAIL | CONFOUNDED: position (`positioning-position-relative-offset`) | 28.75 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block |  |
+| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | 28.75 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 29.89 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 34.09 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid |  |
 | FAIL | REAL | 30.30 | interactions | tables-x-typography | (interaction: tables×typography) GENUINE: both bases PASS, interaction FAILs | tables-x-typography-bold |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 19.51 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item |  |
 | FAIL | REAL | 30.42 | multicol | column-gap | px | multicol-column-gap |  |
-| FAIL | REAL | 12.70 | overflow-clipping | overflow | nested-clip-intersection | overflow-hidden-nested |  |
 | FAIL | REAL | 38.46 | overflow-clipping | overflow | visible | overflow-visible-no-clip |  |
-| FAIL | REAL | 25.56 | positioning | inset | negative-offset | positioning-inset-negative-offset |  |
 | FAIL | REAL | 49.43 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset |  |
 | FAIL | REAL | 37.50 | positioning | overflow | visible | positioning-overflow-visible-no-clip |  |
-| FAIL | REAL | 43.90 | positioning | position | fixed | positioning-fixed-top-left |  |
-| FAIL | REAL | 24.36 | positioning | position | relative | positioning-position-relative-offset |  |
+| FAIL | REAL | 39.88 | positioning | position | fixed | positioning-fixed-top-left |  |
 | FAIL | REAL | 17.13 | positioning | z-index | stacking | positioning-z-index-stacking |  |
 | FAIL | REAL | 27.78 | selectors-cascade | combinator | adjacent-sibling | selectors-cascade-adjacent-sibling |  |
 | FAIL | REAL | 54.33 | selectors-cascade | combinator | general-sibling | selectors-cascade-general-sibling |  |
@@ -119,15 +114,14 @@ None — every fixture's HTML matches `refs.lock`.
 | 12 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
 | 13 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
 | 14 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 15 | `positioning-position-relative-offset` | position | FAIL | 1 | interactions-positioning-relative-x-inline-block |
-| 16 | `positioning-z-index-stacking` | z-index | FAIL | 1 | positioning-zindex-x-transforms-rotate |
+| 15 | `positioning-z-index-stacking` | z-index | FAIL | 1 | positioning-zindex-x-transforms-rotate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
 | backgrounds-gradients | 32.14% | 4 | 1 | 9 | 0 |
-| block-box-model | 36.67% | 5 | 1 | 9 | 0 |
+| block-box-model | 50.00% | 7 | 1 | 7 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 71.43% | 10 | 0 | 4 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
@@ -141,9 +135,9 @@ None — every fixture's HTML matches `refs.lock`.
 | interactions | 20.45% | 1 | 7 | 14 | 0 |
 | lists-counters | 75.00% | 6 | 6 | 0 | 0 |
 | multicol | 6.25% | 0 | 1 | 7 | 0 |
-| overflow-clipping | 20.00% | 0 | 4 | 6 | 0 |
-| paged-media | 77.78% | 6 | 2 | 1 | 0 |
-| positioning | 40.63% | 3 | 7 | 6 | 0 |
+| overflow-clipping | 30.00% | 1 | 4 | 5 | 0 |
+| paged-media | 83.33% | 7 | 1 | 1 | 0 |
+| positioning | 53.13% | 5 | 7 | 4 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 80.00% | 12 | 0 | 3 | 0 |
 | tables | 53.13% | 7 | 3 | 6 | 0 |
@@ -234,7 +228,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 54.40 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
 | unsupported | FAIL | 50.23 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
 | unsupported | PASS | 0.35 | paged-media | break-before | paged-break-before-page-modern | Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine. |
-| unsupported | PARTIAL | 10.50 | paged-media | break-inside | paged-break-inside-avoid | Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap. |
+| unsupported | PASS | 0.77 | paged-media | break-inside | paged-break-inside-avoid | Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap. |
 | unsupported | PASS | 0.50 | paged-media | named-page | paged-named-page | The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap. |
 | unsupported | PASS | 5.18 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
 | partial | PASS | 0.40 | paged-media | page-break-before | paged-page-break-before-avoid-noop | page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap. |
@@ -318,7 +312,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 40.97% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - FAIL 16.32% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
-### block-box-model — 36.67%
+### block-box-model — 50.00%
 - **border-width** — 0.00%
   - FAIL 33.00% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
 - **box-sizing** — 0.00%
@@ -327,10 +321,10 @@ None — every fixture's HTML matches `refs.lock`.
 - **display** — 50.00%
   - FAIL 98.63% display=block — `block-display-block-stacking` — Inline spans forced to display:block stack vertically full-width, each on its own line.
   - PASS 0.92% display=inline-block — `block-display-inline-block-row` — Three display:inline-block chips laid out in a row (whitespace collapsed via font-size:0) verifying inline flow of block boxes.
-- **margin** — 0.00%
-  - FAIL 42.25% margin=auto-centering — `block-margin-auto-centering` — Fixed-width block with margin-left/right:auto horizontally centered inside a wider track.
+- **margin** — 66.67%
+  - PASS 0.66% margin=auto-centering — `block-margin-auto-centering` — Fixed-width block with margin-left/right:auto horizontally centered inside a wider track.
   - FAIL 25.98% margin=collapse-adjacent — `block-margin-collapse-adjacent` — Two stacked blocks whose adjacent vertical margins (40px and 24px) collapse to the larger 40px gap.
-  - FAIL 21.05% margin=explicit-offsets — `block-margin-offsets` — Block with asymmetric explicit margin-top:40px and margin-left:90px offsetting it within a track.
+  - PASS 0.42% margin=explicit-offsets — `block-margin-offsets` — Block with asymmetric explicit margin-top:40px and margin-left:90px offsetting it within a track.
 - **max-width** — 100.00%
   - PASS 0.61% max-width=clamp — `block-max-width-clamp` — Auto-width block clamped down to max-width:200px instead of filling the wider track.
 - **min-width** — 100.00%
@@ -656,24 +650,24 @@ None — every fixture's HTML matches `refs.lock`.
 - **columns** — 0.00%
   - FAIL 60.50% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).
 
-### overflow-clipping — 20.00%
-- **overflow** — 20.00%
+### overflow-clipping — 30.00%
+- **overflow** — 30.00%
   - FAIL 43.49% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
   - PARTIAL 5.36% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PARTIAL 2.95% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PARTIAL 4.62% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - FAIL 100.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
-  - FAIL 12.70% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
+  - PASS 0.61% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
   - PARTIAL 14.86% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - FAIL 54.40% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - FAIL 38.46% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
   - FAIL 50.23% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
 
-### paged-media — 77.78%
+### paged-media — 83.33%
 - **break-before** — 100.00%
   - PASS 0.35% break-before=page-leading-noop — `paged-break-before-page-modern` — Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine.
-- **break-inside** — 50.00%
-  - PARTIAL 10.50% break-inside=avoid — `paged-break-inside-avoid` — Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap.
+- **break-inside** — 100.00%
+  - PASS 0.77% break-inside=avoid — `paged-break-inside-avoid` — Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap.
 - **named-page** — 100.00%
   - PASS 0.50% named-page=page-property — `paged-named-page` — The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap.
 - **orphans-widows** — 100.00%
@@ -689,7 +683,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 40.63%
+### positioning — 53.13%
 - **clear** — 100.00%
   - PASS 1.00% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
 - **containing-block** — 50.00%
@@ -697,18 +691,18 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 3.88% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
 - **float** — 50.00%
   - PARTIAL 6.15% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
-- **inset** — 0.00%
-  - FAIL 25.56% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
+- **inset** — 50.00%
+  - PASS 0.43% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
   - FAIL 49.43% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
 - **overflow** — 33.33%
   - PARTIAL 4.13% overflow=hidden-clips-absolute — `positioning-overflow-hidden-absolute-child-clip` — overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.
   - PARTIAL 3.81% overflow=hidden — `positioning-overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the parent box.
   - FAIL 37.50% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
-- **position** — 40.00%
-  - FAIL 43.90% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
+- **position** — 60.00%
+  - FAIL 39.88% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
   - PARTIAL 4.61% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
   - PARTIAL 3.48% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
-  - FAIL 24.36% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
+  - PASS 0.63% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
   - PASS 0.64% position=static — `positioning-position-static` — position:static box ignores top/left offsets and stays in normal flow.
 - **z-index** — 50.00%
   - PASS 0.36% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.

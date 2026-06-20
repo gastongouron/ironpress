@@ -780,8 +780,14 @@ pub(crate) fn resolve_abs_containing_block(
     elem_height: f32,
     elem_width: f32,
 ) -> (Option<ContainingBlock>, f32, f32) {
-    if style.position != Position::Absolute {
+    // `top`/`left` only shift a *positioned* box. A `position: static` element
+    // ignores them entirely, so it must report a zero offset — otherwise the
+    // value leaks into `offset_left`/`offset_top` and shifts the static box.
+    if style.position == Position::Relative {
         return (None, style.top.unwrap_or(0.0), style.left.unwrap_or(0.0));
+    }
+    if style.position != Position::Absolute {
+        return (None, 0.0, 0.0);
     }
     let cb = match abs_cb {
         Some(cb) => cb,

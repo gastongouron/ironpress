@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 52.02,
-    "pass": 131,
-    "partial": 98,
-    "fail": 117,
+    "score_pct": 53.61,
+    "pass": 137,
+    "partial": 97,
+    "fail": 112,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -894,11 +894,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 36.67,
+      "score_pct": 50.0,
       "counts": {
-        "pass": 5,
+        "pass": 7,
         "partial": 1,
-        "fail": 9,
+        "fail": 7,
         "unknown": 0
       },
       "features": [
@@ -1043,11 +1043,11 @@
         },
         {
           "feature": "margin",
-          "score_pct": 0.0,
+          "score_pct": 66.67,
           "counts": {
-            "pass": 0,
+            "pass": 2,
             "partial": 0,
-            "fail": 3,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -1058,8 +1058,8 @@
               "subfeature": "auto-centering",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 42.251,
+              "status": "PASS",
+              "diff_pct": 0.6607,
               "weight": 1.0,
               "description": "Fixed-width block with margin-left/right:auto horizontally centered inside a wider track.",
               "note": "",
@@ -1069,7 +1069,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e2e9ab67273726d3395cc6923f2c298546e5d0edeb6603bb3bdf3f0238461aa6"
             },
             {
@@ -1100,8 +1100,8 @@
               "subfeature": "explicit-offsets",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 21.0472,
+              "status": "PASS",
+              "diff_pct": 0.4157,
               "weight": 1.0,
               "description": "Block with asymmetric explicit margin-top:40px and margin-left:90px offsetting it within a track.",
               "note": "",
@@ -1111,7 +1111,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "dc7c6f563696348b480245dfd86541aa88547f08d0084ed2c244560718651dbc"
             }
           ]
@@ -5415,7 +5415,7 @@
                 "block-margin-collapse-adjacent"
               ],
               "status": "FAIL",
-              "diff_pct": 39.0152,
+              "diff_pct": 39.0153,
               "weight": 1.0,
               "description": "A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.",
               "note": "",
@@ -5753,7 +5753,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: position (`positioning-position-relative-offset`)",
+              "attribution": "CONFOUNDED: inline-block (`inline-text-inline-block-baseline`)",
               "html_sha256": "d4f1fdd6c5276ee46ade4396915d432dcdc2a268d8f12362911721300261ce19"
             }
           ]
@@ -6667,21 +6667,21 @@
     },
     {
       "category": "overflow-clipping",
-      "score_pct": 20.0,
+      "score_pct": 30.0,
       "counts": {
-        "pass": 0,
+        "pass": 1,
         "partial": 4,
-        "fail": 6,
+        "fail": 5,
         "unknown": 0
       },
       "features": [
         {
           "feature": "overflow",
-          "score_pct": 20.0,
+          "score_pct": 30.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 4,
-            "fail": 6,
+            "fail": 5,
             "unknown": 0
           },
           "fixtures": [
@@ -6798,8 +6798,8 @@
               "subfeature": "nested-clip-intersection",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 12.7002,
+              "status": "PASS",
+              "diff_pct": 0.6087,
               "weight": 1.0,
               "description": "Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.",
               "note": "",
@@ -6809,7 +6809,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6d9ff7ed60e45ec0ffdd7f7ad3f181e41917ff1b60b14ab95e0fdfa69e752f29"
             },
             {
@@ -6903,10 +6903,10 @@
     },
     {
       "category": "paged-media",
-      "score_pct": 77.78,
+      "score_pct": 83.33,
       "counts": {
-        "pass": 6,
-        "partial": 2,
+        "pass": 7,
+        "partial": 1,
         "fail": 1,
         "unknown": 0
       },
@@ -6946,10 +6946,10 @@
         },
         {
           "feature": "break-inside",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -6961,8 +6961,8 @@
               "subfeature": "avoid",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 10.504,
+              "status": "PASS",
+              "diff_pct": 0.7655,
               "weight": 1.0,
               "description": "Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap.",
               "note": "",
@@ -6972,7 +6972,7 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "cd6d01c9ff67c99c958a9ea3a0659f9a4456560cccf36437ff45fdbee3f6d9eb"
             }
           ]
@@ -7210,11 +7210,11 @@
     },
     {
       "category": "positioning",
-      "score_pct": 40.63,
+      "score_pct": 53.13,
       "counts": {
-        "pass": 3,
+        "pass": 5,
         "partial": 7,
-        "fail": 6,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -7340,11 +7340,11 @@
         },
         {
           "feature": "inset",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -7355,8 +7355,8 @@
               "subfeature": "negative-offset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 25.5569,
+              "status": "PASS",
+              "diff_pct": 0.4273,
               "weight": 1.0,
               "description": "position:relative with negative top/left pulls the box up and left, overlapping prior flow.",
               "note": "",
@@ -7366,7 +7366,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "147754ad9bce5211f279975d5b39281c2d956a606bc14156dc4b8da8c648e42d"
             },
             {
@@ -7469,11 +7469,11 @@
         },
         {
           "feature": "position",
-          "score_pct": 40.0,
+          "score_pct": 60.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 2,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -7485,7 +7485,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 43.8952,
+              "diff_pct": 39.8757,
               "weight": 1.0,
               "description": "position:fixed box placed by top/left relative to the page box on a single non-scrolling page.",
               "note": "",
@@ -7547,8 +7547,8 @@
               "subfeature": "relative",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 24.3589,
+              "status": "PASS",
+              "diff_pct": 0.6318,
               "weight": 1.0,
               "description": "position:relative shifts the box by top/left from its in-flow position; flow space is preserved.",
               "note": "",
@@ -7558,7 +7558,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e786349ac86fa7ce0cf2fb29096a9841c702488f350b0ce0dec6dab69d915434"
             },
             {
@@ -10611,15 +10611,6 @@
       ]
     },
     {
-      "id": "positioning-position-relative-offset",
-      "feature": "position",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "interactions-positioning-relative-x-inline-block"
-      ]
-    },
-    {
       "id": "positioning-z-index-stacking",
       "feature": "z-index",
       "status": "FAIL",
@@ -10653,6 +10644,7 @@
     "img-object-fit-cover",
     "img-object-fit-fill",
     "paged-break-before-page-modern",
+    "paged-break-inside-avoid",
     "paged-named-page",
     "paged-orphans-widows",
     "text-shadow-blur",

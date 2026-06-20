@@ -3237,22 +3237,17 @@ fn render_container_children(
 
                 let render_w = tb_block_width.unwrap_or(width);
 
-                // Apply float/position offset
+                // Apply float/position offset. `offset_left`/`offset_top` combine
+                // the in-flow horizontal placement (margin-left / margin:auto
+                // centering) with any relative left/top shift, and are 0 for a
+                // plain static block — so apply them unconditionally rather than
+                // only for relative (which dropped margin-left/centering on
+                // nested blocks).
                 let render_x = match tb_float {
                     Float::Right => x + width - render_w,
-                    _ => {
-                        if *position == Position::Relative {
-                            x + offset_left
-                        } else {
-                            x
-                        }
-                    }
+                    _ => x + offset_left,
                 };
-                let render_y = if *position == Position::Relative {
-                    y - offset_top
-                } else {
-                    y
-                };
+                let render_y = y - offset_top;
 
                 // Draw child background
                 if let Some((r, g, b, a)) = background_color {
@@ -3443,13 +3438,16 @@ fn render_container_children(
                 } else {
                     match nk_float {
                         Float::Right => x + width - nk_w,
-                        _ => x,
+                        // Apply margin-left / margin:auto centering / relative
+                        // left shift (all folded into offset_left; 0 for a plain
+                        // static block). Previously dropped on nested containers.
+                        _ => x + nk_offset_left,
                     }
                 };
                 let nk_top_y = if nk_is_abs {
                     (container_top_y + abs_pad_top) - nk_offset_top
                 } else {
-                    y
+                    y - nk_offset_top
                 };
                 let nk_children_h: f32 = nested_kids
                     .iter()
