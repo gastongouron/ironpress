@@ -298,48 +298,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cx = block_x + render_width * 0.5;
                         let cy = block_bottom + total_h * 0.5;
                         content.push_str("q\n");
-                        match t {
-                            crate::style::computed::Transform::Rotate(deg) => {
-                                // Negate angle: CSS rotate is clockwise in top-down Y,
-                                // but PDF Y points up, so negate to match visual result.
-                                let rad = -deg * std::f32::consts::PI / 180.0;
-                                let cos_v = rad.cos();
-                                let sin_v = rad.sin();
-                                // T(cx,cy) · Rot · T(-cx,-cy)
-                                let tx = cx - cx * cos_v + cy * sin_v;
-                                let ty = cy - cx * sin_v - cy * cos_v;
-                                content.push_str(&format!(
-                                    "{cos_v} {sin_v} {neg_sin} {cos_v} {tx} {ty} cm\n",
-                                    neg_sin = -sin_v,
-                                ));
-                            }
-                            crate::style::computed::Transform::Scale(sx, sy) => {
-                                // T(cx,cy) · Scale(sx,sy) · T(-cx,-cy)
-                                let tx = cx - cx * sx;
-                                let ty = cy - cy * sy;
-                                content.push_str(&format!("{sx} 0 0 {sy} {tx} {ty} cm\n",));
-                            }
-                            crate::style::computed::Transform::Translate(tx, ty) => {
-                                // Negate Y: CSS positive Y is down, PDF positive Y is up
-                                content.push_str(&format!("1 0 0 1 {tx} {} cm\n", -ty));
-                            }
-                            crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
-                                // Pre-composed matrix — apply around element centre.
-                                // Convert CSS matrix (top-down Y) to PDF (bottom-up Y):
-                                // Conjugate with Y-flip: F·M·F where F = diag(1,-1)
-                                // [a b e]     [a  -b  e ]
-                                // [c d f]  →  [-c  d  -f]
-                                let pa = a;
-                                let pb = -b;
-                                let pc = -c;
-                                let pd = d;
-                                let pe = e;
-                                let pf = -f;
-                                let ne = pa * (-cx) + pc * (-cy) + pe + cx;
-                                let nf = pb * (-cx) + pd * (-cy) + pf + cy;
-                                content.push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
-                            }
-                        }
+                        push_transform_cm(&mut content, t, cx, cy);
                     }
 
                     // Apply clipping rect if overflow: hidden
@@ -1486,40 +1445,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let cx = cell_x + cell.width * 0.5;
                             let cy = text_area_top - cell_y_origin - line_cross * 0.5;
                             content.push_str("q\n");
-                            match t {
-                                crate::style::computed::Transform::Rotate(deg) => {
-                                    let rad = -deg * std::f32::consts::PI / 180.0;
-                                    let cos_v = rad.cos();
-                                    let sin_v = rad.sin();
-                                    let tx = cx - cx * cos_v + cy * sin_v;
-                                    let ty = cy - cx * sin_v - cy * cos_v;
-                                    content.push_str(&format!(
-                                        "{cos_v} {sin_v} {} {cos_v} {tx} {ty} cm\n",
-                                        -sin_v,
-                                    ));
-                                }
-                                crate::style::computed::Transform::Scale(sx, sy) => {
-                                    let tx = cx - cx * sx;
-                                    let ty = cy - cy * sy;
-                                    content.push_str(&format!("{sx} 0 0 {sy} {tx} {ty} cm\n"));
-                                }
-                                crate::style::computed::Transform::Translate(dx, dy) => {
-                                    content.push_str(&format!("1 0 0 1 {dx} {} cm\n", -dy));
-                                }
-                                crate::style::computed::Transform::Matrix(a, b, c, d, e, f) => {
-                                    // CSS→PDF Y-flip conjugation
-                                    let pa = a;
-                                    let pb = -b;
-                                    let pc = -c;
-                                    let pd = d;
-                                    let pe = e;
-                                    let pf = -f;
-                                    let ne = pa * (-cx) + pc * (-cy) + pe + cx;
-                                    let nf = pb * (-cx) + pd * (-cy) + pf + cy;
-                                    content
-                                        .push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
-                                }
-                            }
+                            push_transform_cm(&mut content, t, cx, cy);
                         }
 
                         // Draw per-cell box-shadow (e.g. inline-block items
@@ -2962,6 +2888,40 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
     content.push_str("] TJ\n");
 }
 
+/// Emit a PDF `cm` operator for a CSS `transform` applied around the element
+/// centre `(cx, cy)` in PDF coordinates (CSS `transform-origin: 50% 50%`). The
+/// caller wraps the element's drawing in `q` ... `Q`. Shared by every render
+/// arm so transforms behave identically for top-level, flex-cell, and nested
+/// (container / absolutely-positioned) elements.
+fn push_transform_cm(content: &mut String, t: &crate::style::computed::Transform, cx: f32, cy: f32) {
+    use crate::style::computed::Transform;
+    match t {
+        Transform::Rotate(deg) => {
+            let rad = -*deg * std::f32::consts::PI / 180.0;
+            let cos_v = rad.cos();
+            let sin_v = rad.sin();
+            let tx = cx - cx * cos_v + cy * sin_v;
+            let ty = cy - cx * sin_v - cy * cos_v;
+            content.push_str(&format!("{cos_v} {sin_v} {} {cos_v} {tx} {ty} cm\n", -sin_v));
+        }
+        Transform::Scale(sx, sy) => {
+            let tx = cx - cx * sx;
+            let ty = cy - cy * sy;
+            content.push_str(&format!("{sx} 0 0 {sy} {tx} {ty} cm\n"));
+        }
+        Transform::Translate(dx, dy) => {
+            content.push_str(&format!("1 0 0 1 {dx} {} cm\n", -*dy));
+        }
+        Transform::Matrix(a, b, c, d, e, f) => {
+            // CSS->PDF Y-flip conjugation.
+            let (pa, pb, pc, pd, pe, pf) = (*a, -*b, -*c, *d, *e, -*f);
+            let ne = pa * (-cx) + pc * (-cy) + pe + cx;
+            let nf = pb * (-cx) + pd * (-cy) + pf + cy;
+            content.push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
+        }
+    }
+}
+
 /// Recursively render a Container element and all its children.
 ///
 /// `x` / `y` are the content-box origin (after padding).
@@ -3324,6 +3284,7 @@ fn render_container_children(
                 position: nk_position,
                 offset_top: nk_offset_top,
                 offset_left: nk_offset_left,
+                transform: nk_transform,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -3364,6 +3325,17 @@ fn render_container_children(
                 } else {
                     nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h))
                 };
+
+                // Apply a CSS transform around the box centre (wrap all drawing
+                // in q..Q), mirroring the top-level arm. Without this, transforms
+                // on nested / absolutely-positioned boxes were silently dropped.
+                let nk_needs_transform = nk_transform.is_some();
+                if let Some(t) = nk_transform {
+                    let cx = nk_x + nk_w * 0.5;
+                    let cy = nk_top_y - nk_total_h * 0.5;
+                    content.push_str("q\n");
+                    push_transform_cm(content, t, cx, cy);
+                }
 
                 // Draw background with proper alpha support
                 if let Some((r, g, b, a)) = background_color {
@@ -3529,6 +3501,9 @@ fn render_container_children(
                 );
 
                 if clip {
+                    content.push_str("Q\n");
+                }
+                if nk_needs_transform {
                     content.push_str("Q\n");
                 }
                 // Absolute containers are out of flow — don't advance the cursor.

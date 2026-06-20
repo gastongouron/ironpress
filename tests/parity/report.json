@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 39.6,
-    "pass": 83,
-    "partial": 108,
-    "fail": 155,
+    "score_pct": 41.76,
+    "pass": 91,
+    "partial": 107,
+    "fail": 148,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -5688,7 +5688,7 @@
                 "transforms-rotate"
               ],
               "status": "PARTIAL",
-              "diff_pct": 6.5866,
+              "diff_pct": 2.1293,
               "weight": 1.0,
               "description": "Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.",
               "note": "",
@@ -5949,7 +5949,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: transform (`transforms-rotate`)",
+              "attribution": "CONFOUNDED: display (`flexbox-display-flex`)",
               "html_sha256": "cf037921b7023dc94a71e3cb88f902c7e3447560722539508c8546a55509e152"
             }
           ]
@@ -6018,7 +6018,7 @@
                 "transforms-rotate"
               ],
               "status": "PARTIAL",
-              "diff_pct": 9.0316,
+              "diff_pct": 6.9493,
               "weight": 1.0,
               "description": "Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.",
               "note": "",
@@ -9229,21 +9229,21 @@
     },
     {
       "category": "transforms",
-      "score_pct": 9.09,
+      "score_pct": 77.27,
       "counts": {
-        "pass": 0,
-        "partial": 2,
-        "fail": 9,
+        "pass": 8,
+        "partial": 1,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
         {
           "feature": "transform",
-          "score_pct": 10.0,
+          "score_pct": 85.0,
           "counts": {
-            "pass": 0,
-            "partial": 2,
-            "fail": 8,
+            "pass": 8,
+            "partial": 1,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -9254,8 +9254,8 @@
               "subfeature": "compound-rotate-translate",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 24.7829,
+              "status": "PASS",
+              "diff_pct": 1.1551,
               "weight": 1.0,
               "description": "Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.",
               "note": "",
@@ -9265,7 +9265,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "cb4e0f16f51e06f7e65062dfbfef9b576445bccfdcdce8211f0879367db1a3ea"
             },
             {
@@ -9296,8 +9296,8 @@
               "subfeature": "rotate",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 7.3917,
+              "status": "PASS",
+              "diff_pct": 1.1488,
               "weight": 1.0,
               "description": "transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.",
               "note": "",
@@ -9307,7 +9307,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e5d2200931eecf1a04448749767701d05eeb3819aa53c43be97cfe5de2f156be"
             },
             {
@@ -9317,8 +9317,8 @@
               "subfeature": "scale",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 15.1886,
+              "status": "PASS",
+              "diff_pct": 1.6016,
               "weight": 1.0,
               "description": "transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.",
               "note": "",
@@ -9328,7 +9328,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "58f37e40bdfaef4c5733c622baff74b16d4eec1d315b4f7a3a5d3c26dc645883"
             },
             {
@@ -9338,8 +9338,8 @@
               "subfeature": "scaleX",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 17.473,
+              "status": "PARTIAL",
+              "diff_pct": 2.2141,
               "weight": 1.0,
               "description": "transform: scaleX() stretches the box horizontally about its center.",
               "note": "",
@@ -9359,8 +9359,8 @@
               "subfeature": "scaleY",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 17.0003,
+              "status": "PASS",
+              "diff_pct": 1.8938,
               "weight": 1.0,
               "description": "transform: scaleY() stretches the box vertically about its center.",
               "note": "",
@@ -9370,7 +9370,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c3a3f0ac241dde9aaedd280f9af58314460b73f515c7966e61982d8fef8e1567"
             },
             {
@@ -9380,8 +9380,8 @@
               "subfeature": "skew",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 4.8279,
+              "status": "PASS",
+              "diff_pct": 1.0593,
               "weight": 1.0,
               "description": "transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser.",
               "note": "",
@@ -9391,7 +9391,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "8b2581284c354aa3c9ad527be2d52696a9410f0f05f89fb5e093711b0bdd0c5a"
             },
             {
@@ -9401,8 +9401,8 @@
               "subfeature": "translate",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 27.8232,
+              "status": "PASS",
+              "diff_pct": 1.4415,
               "weight": 1.0,
               "description": "transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.",
               "note": "",
@@ -9412,7 +9412,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "50a08aa7f07ce3ec82442703f4e9b47b33fd12740c2024367787e014bcccfcc0"
             },
             {
@@ -9422,8 +9422,8 @@
               "subfeature": "translateX",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 30.7742,
+              "status": "PASS",
+              "diff_pct": 1.5376,
               "weight": 1.0,
               "description": "transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.",
               "note": "",
@@ -9433,7 +9433,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "620fe7b41d1d6565271370bf268f7a9e2f21d8051381c4c2d97e244abe3c383a"
             },
             {
@@ -9443,8 +9443,8 @@
               "subfeature": "translateY",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 34.601,
+              "status": "PASS",
+              "diff_pct": 1.7098,
               "weight": 1.0,
               "description": "transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.",
               "note": "",
@@ -9454,7 +9454,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "928dd456ffe4370c3a7f447db5f6e96559fbe3998c1373211ea4b92c52a4cce2"
             }
           ]
@@ -9477,7 +9477,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 17.5745,
+              "diff_pct": 18.1566,
               "weight": 1.0,
               "description": "transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.",
               "note": "",
@@ -10589,17 +10589,6 @@
       ]
     },
     {
-      "id": "transforms-rotate",
-      "feature": "transform",
-      "status": "PARTIAL",
-      "confounded_count": 3,
-      "confounded_ids": [
-        "interactions-positioning-absolute-x-transforms-rotate",
-        "positioning-zindex-x-transforms-rotate",
-        "transforms-rotate-x-flexbox-item"
-      ]
-    },
-    {
       "id": "block-margin-collapse-adjacent",
       "feature": "margin",
       "status": "FAIL",
@@ -10738,15 +10727,6 @@
       "confounded_ids": [
         "tables-x-typography-bold"
       ]
-    },
-    {
-      "id": "transforms-translate",
-      "feature": "transform",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "interactions-positioning-fixed-x-transforms-translate"
-      ]
     }
   ],
   "ref_mismatches": [],
@@ -10767,6 +10747,8 @@
     "paged-break-before-page-modern",
     "paged-orphans-widows",
     "text-shadow-blur",
+    "transforms-compound-rotate-translate",
+    "transforms-skew",
     "units-min-max"
   ],
   "stale_refs": [],
