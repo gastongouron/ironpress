@@ -293,6 +293,64 @@ pub enum Position {
     Absolute,
 }
 
+/// CSS blend mode (`mix-blend-mode` / `background-blend-mode`).
+///
+/// Maps directly onto the PDF `/BM` blend-mode names emitted in an ExtGState.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BlendMode {
+    #[default]
+    Normal,
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+}
+
+impl BlendMode {
+    /// Parse a CSS blend-mode keyword. Unknown keywords fall back to `Normal`.
+    pub fn from_keyword(keyword: &str) -> Self {
+        match keyword.trim().to_ascii_lowercase().as_str() {
+            "multiply" => BlendMode::Multiply,
+            "screen" => BlendMode::Screen,
+            "overlay" => BlendMode::Overlay,
+            "darken" => BlendMode::Darken,
+            "lighten" => BlendMode::Lighten,
+            "color-dodge" => BlendMode::ColorDodge,
+            "color-burn" => BlendMode::ColorBurn,
+            "hard-light" => BlendMode::HardLight,
+            "soft-light" => BlendMode::SoftLight,
+            "difference" => BlendMode::Difference,
+            "exclusion" => BlendMode::Exclusion,
+            _ => BlendMode::Normal,
+        }
+    }
+
+    /// PDF `/BM` blend-mode name, or `None` for `Normal` (which needs no gstate).
+    pub fn pdf_name(self) -> Option<&'static str> {
+        match self {
+            BlendMode::Normal => None,
+            BlendMode::Multiply => Some("Multiply"),
+            BlendMode::Screen => Some("Screen"),
+            BlendMode::Overlay => Some("Overlay"),
+            BlendMode::Darken => Some("Darken"),
+            BlendMode::Lighten => Some("Lighten"),
+            BlendMode::ColorDodge => Some("ColorDodge"),
+            BlendMode::ColorBurn => Some("ColorBurn"),
+            BlendMode::HardLight => Some("HardLight"),
+            BlendMode::SoftLight => Some("SoftLight"),
+            BlendMode::Difference => Some("Difference"),
+            BlendMode::Exclusion => Some("Exclusion"),
+        }
+    }
+}
+
 /// CSS overflow property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Overflow {
@@ -687,6 +745,11 @@ pub struct ComputedStyle {
     pub margin_left_auto: bool,
     pub margin_right_auto: bool,
     pub opacity: f32,
+    /// CSS `mix-blend-mode`: how this element composites with the backdrop.
+    pub mix_blend_mode: BlendMode,
+    /// CSS `background-blend-mode`: how the element's background layers blend
+    /// with each other and the background color.
+    pub background_blend_mode: BlendMode,
     pub float: Float,
     pub clear: Clear,
     pub position: Position,
@@ -844,6 +907,8 @@ impl Default for ComputedStyle {
             margin_left_auto: false,
             margin_right_auto: false,
             opacity: 1.0,
+            mix_blend_mode: BlendMode::default(),
+            background_blend_mode: BlendMode::default(),
             float: Float::None,
             clear: Clear::None,
             position: Position::Static,
@@ -1417,6 +1482,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.percentage_sizing.max_height = default.percentage_sizing.max_height;
         }
         "opacity" => style.opacity = default.opacity,
+        "mix-blend-mode" => style.mix_blend_mode = default.mix_blend_mode,
+        "background-blend-mode" => style.background_blend_mode = default.background_blend_mode,
         "border-width" => {
             style.border.top.width = default.border.top.width;
             style.border.right.width = default.border.right.width;
@@ -1559,6 +1626,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.percentage_sizing.max_height = parent.percentage_sizing.max_height;
         }
         "opacity" => style.opacity = parent.opacity,
+        "mix-blend-mode" => style.mix_blend_mode = parent.mix_blend_mode,
+        "background-blend-mode" => style.background_blend_mode = parent.background_blend_mode,
         "border-width" => {
             style.border.top.width = parent.border.top.width;
             style.border.right.width = parent.border.right.width;
@@ -2152,6 +2221,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Fold any `filter: opacity()` factor into the finalized opacity.
     if filter_opacity != 1.0 {
         style.opacity = (style.opacity * filter_opacity).clamp(0.0, 1.0);
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mix-blend-mode") {
+        style.mix_blend_mode = BlendMode::from_keyword(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-blend-mode") {
+        style.background_blend_mode = BlendMode::from_keyword(k);
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "border-width") {
@@ -5112,6 +5188,30 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("opacity: 0.5"), &parent);
         assert!((style.opacity - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn blend_modes_from_inline_style() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("mix-blend-mode: multiply"), &parent);
+        assert_eq!(s.mix_blend_mode, BlendMode::Multiply);
+        let s = compute_style(HtmlTag::Div, Some("mix-blend-mode: screen"), &parent);
+        assert_eq!(s.mix_blend_mode, BlendMode::Screen);
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background-blend-mode: multiply"),
+            &parent,
+        );
+        assert_eq!(s.background_blend_mode, BlendMode::Multiply);
+    }
+
+    #[test]
+    fn blend_mode_default_is_normal() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.mix_blend_mode, BlendMode::Normal);
+        assert_eq!(s.background_blend_mode, BlendMode::Normal);
+        assert_eq!(BlendMode::Normal.pdf_name(), None);
+        assert_eq!(BlendMode::Multiply.pdf_name(), Some("Multiply"));
     }
 
     #[test]

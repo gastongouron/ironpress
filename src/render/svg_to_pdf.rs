@@ -351,7 +351,6 @@ fn render_node(
 
             match &style.fill {
                 SvgPaint::Url(id) => {
-                    out.push_str(&path);
                     if let Some(gradient) = defs.gradients.get(id) {
                         if let Some(coords) = resolve_gradient_coords(
                             gradient,
@@ -361,19 +360,29 @@ fn render_node(
                             paint_svg_linear_gradient_fill(
                                 gradient,
                                 coords,
+                                &path,
                                 out,
                                 shadings,
                                 shading_counter,
                             );
                         } else {
+                            out.push_str(&path);
                             out.push_str("n\n");
                         }
                     } else if let Some(rg) = defs.radial_gradients.get(id) {
                         let bbox = node_object_bounding_box(node, text_ctx);
                         let coords = resolve_radial_gradient_coords(rg, bbox);
                         let (shadings, shading_counter) = resources.shading_state();
-                        paint_svg_radial_gradient_fill(rg, coords, out, shadings, shading_counter);
+                        paint_svg_radial_gradient_fill(
+                            rg,
+                            coords,
+                            &path,
+                            out,
+                            shadings,
+                            shading_counter,
+                        );
                     } else {
+                        out.push_str(&path);
                         out.push_str("n\n");
                     }
                     if has_visible_stroke(&style) {
@@ -718,6 +727,7 @@ fn emit_empty_clip_path(out: &mut String) {
 fn paint_svg_linear_gradient_fill(
     gradient: &SvgLinearGradient,
     coords: [f32; 4],
+    path: &str,
     out: &mut String,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
@@ -729,7 +739,11 @@ fn paint_svg_linear_gradient_fill(
         .collect();
     let name = push_axial_shading(shadings, shading_counter, coords, stops);
 
+    // Canonical "fill a shape with a shading" idiom: build the path *inside* the
+    // q/Q block, clip to it with `W n`, then paint the shading. The path must be
+    // constructed between `q` and `W n` so it is the active clip path.
     out.push_str("q\n");
+    out.push_str(path);
     out.push_str("W n\n");
     if let Some(SvgTransform::Matrix(a, b, c, d, e, f)) = gradient.gradient_transform {
         out.push_str(&format!("{a} {b} {c} {d} {e} {f} cm\n"));
@@ -780,6 +794,7 @@ fn resolve_radial_gradient_coords(
 fn paint_svg_radial_gradient_fill(
     gradient: &SvgRadialGradient,
     coords: [f32; 6],
+    path: &str,
     out: &mut String,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
@@ -791,7 +806,11 @@ fn paint_svg_radial_gradient_fill(
         .collect();
     let name = push_radial_shading(shadings, shading_counter, coords, stops);
 
+    // Canonical "fill a shape with a shading" idiom: build the path *inside* the
+    // q/Q block, clip to it with `W n`, then paint the shading. The path must be
+    // constructed between `q` and `W n` so it is the active clip path.
     out.push_str("q\n");
+    out.push_str(path);
     out.push_str("W n\n");
     if let Some(SvgTransform::Matrix(a, b, c, d, e, f)) = gradient.gradient_transform {
         out.push_str(&format!("{a} {b} {c} {d} {e} {f} cm\n"));

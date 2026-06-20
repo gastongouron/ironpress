@@ -85,6 +85,29 @@ fn end_border_alpha(content: &mut String, applied: bool) {
     }
 }
 
+/// Register a blend-mode ExtGState and emit its `gs` operator, returning `true`
+/// when a non-`Normal` blend was applied. The gstate name encodes the PDF blend
+/// mode (`GSbm<Mode>`); the writer turns that into a `<< /BM /<Mode> >>` dict.
+/// Callers wrap the affected paint in `q`..`Q` so the blend (and its restore via
+/// `Q`) is scoped to that paint only. For `Normal` nothing is emitted, so output
+/// for non-blended elements stays byte-identical.
+fn begin_blend_mode(
+    content: &mut String,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    mode: crate::style::computed::BlendMode,
+) -> bool {
+    if let Some(pdf_mode) = mode.pdf_name() {
+        let gs_name = format!("GSbm{pdf_mode}");
+        // Deduplicated by name in the writer, so registering the same blend mode
+        // from multiple elements is harmless.
+        page_ext_gstates.push((gs_name.clone(), 1.0));
+        content.push_str(&format!("/{gs_name} gs\n"));
+        true
+    } else {
+        false
+    }
+}
+
 /// Stroke the CSS `border` frame of an image box. `(box_x, box_bottom)` is the
 /// bottom-left corner of the box in PDF (bottom-up) coordinates; `box_w`/`box_h`
 /// are the border-box dimensions. With `box-sizing: border-box` the frame is
@@ -3910,6 +3933,8 @@ fn render_container_children(
                 offset_top,
                 offset_left,
                 opacity: tb_opacity,
+                mix_blend_mode: tb_mix_blend,
+                background_blend_mode: tb_bg_blend,
                 block_width: tb_block_width,
                 ..
             } => {
@@ -3923,6 +3948,15 @@ fn render_container_children(
                     let abs_w = tb_block_width.unwrap_or(width);
                     let abs_x = (x - abs_pad_left) + offset_left;
                     let abs_y = (container_top_y + abs_pad_top) - offset_top;
+
+                    // `mix-blend-mode`: composite the whole element (background +
+                    // text) with the backdrop. Scope the blend gstate to a
+                    // `q`..`Q` pair so only this element's paint blends.
+                    let blended = *tb_mix_blend != crate::style::computed::BlendMode::Normal;
+                    if blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *tb_mix_blend);
+                    }
 
                     // Apply element opacity (e.g. `.z-back { opacity: 0.8 }`)
                     // for the entire absolute element (background + text). The
@@ -3997,6 +4031,10 @@ fn render_container_children(
                     if needs_opacity {
                         content.push_str("/GSDefault gs\n");
                     }
+                    // Close the mix-blend-mode scope (restores the prior gstate).
+                    if blended {
+                        content.push_str("Q\n");
+                    }
                     // Don't advance cursor_y for absolute elements
                     continue;
                 }
@@ -4048,10 +4086,19 @@ fn render_container_children(
                     }
                 }
 
+                // `background-blend-mode`: the background image layers (gradient)
+                // blend against the background color painted above. Scope the
+                // blend gstate to a `q`..`Q` around the gradient paint.
+                let bg_blended = *tb_bg_blend != crate::style::computed::BlendMode::Normal;
+
                 // Draw linear gradient background
                 if let Some(gradient) = tb_bg_gradient {
                     let bg_x = render_x;
                     let bg_y = render_y - child_h;
+                    if bg_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                    }
                     if *tb_border_radius > 0.0 {
                         content.push_str("q\n");
                         content.push_str(&rounded_rect_path(
@@ -4076,12 +4123,19 @@ fn render_container_children(
                     if *tb_border_radius > 0.0 {
                         content.push_str("Q\n");
                     }
+                    if bg_blended {
+                        content.push_str("Q\n");
+                    }
                 }
 
                 // Draw radial gradient background
                 if let Some(gradient) = tb_bg_radial {
                     let bg_x = render_x;
                     let bg_y = render_y - child_h;
+                    if bg_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                    }
                     if *tb_border_radius > 0.0 {
                         content.push_str("q\n");
                         content.push_str(&rounded_rect_path(
@@ -4104,6 +4158,9 @@ fn render_container_children(
                         shading_counter,
                     );
                     if *tb_border_radius > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                    if bg_blended {
                         content.push_str("Q\n");
                     }
                 }
@@ -4225,6 +4282,8 @@ fn render_container_children(
                 block_width,
                 block_height: nk_block_height,
                 opacity: nk_opacity,
+                mix_blend_mode: nk_mix_blend,
+                background_blend_mode: nk_bg_blend,
                 visible: nk_visible,
                 float: nk_float,
                 overflow,
@@ -4291,6 +4350,14 @@ fn render_container_children(
                 // `visibility: hidden` keeps the box's space (cursor still
                 // advances below) but paints nothing — gate all drawing on it.
                 if *nk_visible {
+                // `mix-blend-mode`: composite the whole box (background + border +
+                // children) with the backdrop. Outermost q..Q so the blend gstate
+                // scopes the entire element and is restored by `Q` afterwards.
+                let nk_blended = *nk_mix_blend != crate::style::computed::BlendMode::Normal;
+                if nk_blended {
+                    content.push_str("q\n");
+                    begin_blend_mode(content, page_ext_gstates, *nk_mix_blend);
+                }
                 // Apply CSS opacity to the whole subtree as one group (background +
                 // border + children composite together), mirroring the top-level
                 // arm. Outermost q..Q so the alpha applies to the entire box.
@@ -4340,10 +4407,19 @@ fn render_container_children(
                     }
                 }
 
+                // `background-blend-mode`: the background image layers (gradient /
+                // SVG) blend against the background color painted above. Scope the
+                // blend gstate to a `q`..`Q` around each background-image paint.
+                let nk_bg_blended = *nk_bg_blend != crate::style::computed::BlendMode::Normal;
+
                 // Draw linear gradient
                 if let Some(gradient) = background_gradient {
                     let bg_x = nk_x;
                     let bg_y = nk_top_y - nk_total_h;
+                    if nk_bg_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                    }
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
                         content
@@ -4363,12 +4439,19 @@ fn render_container_children(
                     if *cont_br > 0.0 {
                         content.push_str("Q\n");
                     }
+                    if nk_bg_blended {
+                        content.push_str("Q\n");
+                    }
                 }
 
                 // Draw radial gradient
                 if let Some(gradient) = background_radial_gradient {
                     let bg_x = nk_x;
                     let bg_y = nk_top_y - nk_total_h;
+                    if nk_bg_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                    }
                     if *cont_br > 0.0 {
                         content.push_str("q\n");
                         content
@@ -4386,6 +4469,9 @@ fn render_container_children(
                         shading_counter,
                     );
                     if *cont_br > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                    if nk_bg_blended {
                         content.push_str("Q\n");
                     }
                 }
@@ -4591,6 +4677,10 @@ fn render_container_children(
                 if nk_needs_opacity {
                     content.push_str("Q\n");
                 }
+                // Close the mix-blend-mode scope (restores the prior gstate).
+                if nk_blended {
+                    content.push_str("Q\n");
+                }
                 } // end if *nk_visible
                 // Absolute containers are out of flow — don't advance the cursor.
                 if !nk_is_abs {
@@ -4725,8 +4815,8 @@ fn render_container_children(
                     ));
                     {
                         let mut res = crate::render::svg_to_pdf::SvgPdfResources {
-                            shadings: &mut Vec::new(),
-                            shading_counter: &mut 0,
+                            shadings: &mut *page_shadings,
+                            shading_counter: &mut *shading_counter,
                             ext_gstates: Some(page_ext_gstates),
                             image_sink: None,
                         };
@@ -4737,8 +4827,8 @@ fn render_container_children(
                     content.push_str("Q\n");
                 } else {
                     let mut res = crate::render::svg_to_pdf::SvgPdfResources {
-                        shadings: &mut Vec::new(),
-                        shading_counter: &mut 0,
+                        shadings: &mut *page_shadings,
+                        shading_counter: &mut *shading_counter,
                         ext_gstates: Some(page_ext_gstates),
                         image_sink: None,
                     };
@@ -6945,12 +7035,16 @@ impl PdfWriter {
             ));
             gs_obj_refs.push(("GSDefault".to_string(), default_gs_id));
 
-            // Per-element ExtGState objects
+            // Per-element ExtGState objects. Names prefixed `GSbm` carry a blend
+            // mode (e.g. `GSbmMultiply` → `/BM /Multiply`); all others are alpha
+            // (`/ca` / `/CA`) gstates whose float value is the opacity.
             for (name, opacity) in &gs_entries {
                 let gs_id = all_objects.len() + 1;
-                all_objects.push(format!(
-                    "{gs_id} 0 obj\n<< /Type /ExtGState /ca {opacity} /CA {opacity} >>\nendobj"
-                ));
+                let body = match name.strip_prefix("GSbm") {
+                    Some(mode) => format!("/Type /ExtGState /BM /{mode}"),
+                    None => format!("/Type /ExtGState /ca {opacity} /CA {opacity}"),
+                };
+                all_objects.push(format!("{gs_id} 0 obj\n<< {body} >>\nendobj"));
                 gs_obj_refs.push((name.clone(), gs_id));
             }
         }
@@ -7493,6 +7587,8 @@ mod tests {
             block_width: None,
             block_height: None,
             opacity: 1.0,
+            mix_blend_mode: crate::style::computed::BlendMode::Normal,
+            background_blend_mode: crate::style::computed::BlendMode::Normal,
             float: Float::None,
             clear: crate::style::computed::Clear::None,
             position: Position::Static,

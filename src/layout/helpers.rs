@@ -617,6 +617,8 @@ pub(crate) fn build_pseudo_block(
         block_width: explicit_width,
         block_height: effective_height.map(|_| padding_box_height),
         opacity: pseudo_style.opacity,
+        mix_blend_mode: pseudo_style.mix_blend_mode,
+        background_blend_mode: pseudo_style.background_blend_mode,
         float: pseudo_style.float,
         clear: pseudo_style.clear,
         position: pseudo_style.position,

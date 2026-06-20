@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 65.32,
-    "pass": 177,
+    "score_pct": 66.47,
+    "pass": 181,
     "partial": 98,
-    "fail": 71,
+    "fail": 67,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -1974,21 +1974,21 @@
     },
     {
       "category": "effects",
-      "score_pct": 45.45,
+      "score_pct": 72.73,
       "counts": {
-        "pass": 2,
+        "pass": 5,
         "partial": 6,
-        "fail": 3,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "background-blend-mode",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1999,8 +1999,8 @@
               "subfeature": "multiply",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 20.3944,
+              "status": "PASS",
+              "diff_pct": 0.0287,
               "weight": 1.0,
               "description": "A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).",
               "note": "",
@@ -2010,7 +2010,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e6b4fb34d61ccadb03982e73ecfd697f757e9c127d5153ce0926083e799e2048"
             }
           ]
@@ -2155,11 +2155,11 @@
         },
         {
           "feature": "mix-blend-mode",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 2,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2170,8 +2170,8 @@
               "subfeature": "multiply",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 14.1142,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).",
               "note": "",
@@ -2181,7 +2181,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "935a066f0541bc12c1e695f39f651c9898e1c3d8b53c939ca8e13288317be209"
             },
             {
@@ -2191,8 +2191,8 @@
               "subfeature": "screen",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 14.458,
+              "status": "PASS",
+              "diff_pct": 0.3438,
               "weight": 1.0,
               "description": "Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).",
               "note": "",
@@ -2202,7 +2202,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "528fd0e1406ee5780bbd7cf2d17a372fce4c480532ce3ef24fdb303b47714930"
             }
           ]
@@ -4373,11 +4373,11 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 93.33,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 14,
+        "pass": 15,
         "partial": 0,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -4534,11 +4534,11 @@
         },
         {
           "feature": "inline-svg",
-          "score_pct": 75.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 4,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4569,8 +4569,8 @@
               "subfeature": "linear-gradient-fill",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 79.1366,
+              "status": "PASS",
+              "diff_pct": 0.1342,
               "weight": 1.0,
               "description": "Inline SVG rect filled with a horizontal linearGradient from blue to red.",
               "note": "",
@@ -4579,7 +4579,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "7087d652f98d0e8df0ba1c2c5b31ff74385d1fc0902f5d3ad20559edb8300272"
             },
             {
@@ -10584,6 +10584,7 @@
   ],
   "ref_mismatches": [],
   "suspect_unsupported_pass": [
+    "background-blend-mode-multiply",
     "clip-path-circle",
     "clip-path-ellipse",
     "clip-path-inset",
@@ -10611,6 +10612,8 @@
     "img-object-fit-fill",
     "img-object-fit-none",
     "img-object-position",
+    "mix-blend-mode-multiply",
+    "mix-blend-mode-screen",
     "paged-break-before-page-modern",
     "paged-break-inside-avoid",
     "paged-named-page",

@@ -352,6 +352,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(lower));
     }
 
+    if matches!(property, "mix-blend-mode" | "background-blend-mode") {
+        return Some(CssValue::Keyword(lower));
+    }
+
     if matches!(
         property,
         "flex-direction" | "justify-content" | "align-items" | "flex-wrap"

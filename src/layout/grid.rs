@@ -386,6 +386,8 @@ pub(crate) fn layout_grid_container(
         block_width: Some(inner_width + style.padding.left + style.padding.right),
         block_height: None,
         opacity: style.opacity,
+        mix_blend_mode: style.mix_blend_mode,
+        background_blend_mode: style.background_blend_mode,
         visible: style.visibility == Visibility::Visible,
         float: style.float,
         position: style.position,

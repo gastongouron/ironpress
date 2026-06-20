@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 65.32%  (PASS 177 · PARTIAL 98 · FAIL 71 · UNKNOWN 0 · total 346)
+Overall: 66.47%  (PASS 181 · PARTIAL 98 · FAIL 67 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**39 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-clamp`, `units-min-max`
+**42 suspect(s):** `background-blend-mode-multiply`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-multiply`, `mix-blend-mode-screen`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -97,13 +97,13 @@ None — every fixture's HTML matches `refs.lock`.
 | block-box-model | 100.00% | 15 | 0 | 0 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
-| effects | 45.45% | 2 | 6 | 3 | 0 |
+| effects | 72.73% | 5 | 6 | 0 | 0 |
 | filters | 60.71% | 8 | 1 | 5 | 0 |
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
 | fonts-advanced | 87.50% | 9 | 3 | 0 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
 | grid | 3.13% | 0 | 1 | 15 | 0 |
-| images-replaced | 93.33% | 14 | 0 | 1 | 0 |
+| images-replaced | 100.00% | 15 | 0 | 0 | 0 |
 | inline-text | 53.13% | 1 | 15 | 0 | 0 |
 | interactions | 22.73% | 3 | 4 | 15 | 0 |
 | lists-counters | 83.33% | 8 | 4 | 0 | 0 |
@@ -142,13 +142,13 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.00 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
 | unsupported | PASS | 0.00 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
 | unsupported | PARTIAL | 7.81 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
-| unsupported | FAIL | 20.39 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
+| unsupported | PASS | 0.03 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | PARTIAL | 3.44 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PARTIAL | 4.30 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
 | partial | PARTIAL | 4.64 | effects | box-shadow | box-shadow-multiple | Two stacked hard box-shadows in different directions and colors. |
 | partial | PARTIAL | 8.13 | effects | box-shadow | box-shadow-spread | Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo. |
-| unsupported | FAIL | 14.11 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
-| unsupported | FAIL | 14.46 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
+| unsupported | PASS | 0.00 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
+| unsupported | PASS | 0.34 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
 | unsupported | PASS | 1.76 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
 | unsupported | PASS | 1.63 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
 | partial | FAIL | 20.38 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
@@ -178,7 +178,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.23 | images-replaced | aspect-ratio | img-aspect-ratio-box | A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height. |
 | partial | PASS | 0.01 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PASS | 0.00 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
-| partial | FAIL | 79.14 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
+| partial | PASS | 0.13 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
 | partial | PASS | 0.99 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
 | unsupported | PASS | 0.07 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
 | unsupported | PASS | 0.13 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
@@ -350,9 +350,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 7.81% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
-### effects — 45.45%
-- **background-blend-mode** — 0.00%
-  - FAIL 20.39% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
+### effects — 72.73%
+- **background-blend-mode** — 100.00%
+  - PASS 0.03% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
 - **box-shadow** — 50.00%
   - PARTIAL 3.44% box-shadow=blur — `box-shadow-blur` — Offset box-shadow with a soft blur radius on a non-white stage.
   - PARTIAL 3.86% box-shadow=colored — `box-shadow-color` — Hard offset box-shadow in a saturated color distinct from the box fill.
@@ -360,9 +360,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 4.64% box-shadow=multiple — `box-shadow-multiple` — Two stacked hard box-shadows in different directions and colors.
   - PARTIAL 3.49% box-shadow=hard-offset — `box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.
   - PARTIAL 8.13% box-shadow=spread — `box-shadow-spread` — Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.
-- **mix-blend-mode** — 0.00%
-  - FAIL 14.11% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
-  - FAIL 14.46% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
+- **mix-blend-mode** — 100.00%
+  - PASS 0.00% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
+  - PASS 0.34% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
 - **text-shadow** — 100.00%
   - PASS 1.76% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
   - PASS 1.63% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
@@ -495,7 +495,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 50.00%
   - PARTIAL 9.28% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 93.33%
+### images-replaced — 100.00%
 - **aspect-ratio** — 100.00%
   - PASS 0.23% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
 - **img** — 100.00%
@@ -504,9 +504,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.24% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
   - PASS 0.24% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
   - PASS 0.01% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
-- **inline-svg** — 75.00%
+- **inline-svg** — 100.00%
   - PASS 0.00% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
-  - FAIL 79.14% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
+  - PASS 0.13% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
   - PASS 0.00% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
   - PASS 0.99% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
 - **object-fit** — 100.00%

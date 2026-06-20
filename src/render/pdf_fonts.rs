@@ -481,6 +481,8 @@ mod tests {
             block_width: None,
             block_height: None,
             opacity: 1.0,
+            mix_blend_mode: crate::style::computed::BlendMode::Normal,
+            background_blend_mode: crate::style::computed::BlendMode::Normal,
             float: Float::None,
             clear: Clear::None,
             position: Position::Static,
