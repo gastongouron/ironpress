@@ -3228,6 +3228,24 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         return Some(Transform::Matrix(1.0, tan_y, 0.0, 1.0, 0.0, 0.0));
     }
 
+    if let Some(inner) = val.strip_prefix("matrix(").and_then(|s| s.strip_suffix(')')) {
+        let nums: Vec<f32> = inner
+            .split(',')
+            .filter_map(|p| p.trim().parse::<f32>().ok())
+            .collect();
+        if nums.len() == 6 {
+            // a, b, c, d are unitless; e, f are pixel translations -> points.
+            return Some(Transform::Matrix(
+                nums[0],
+                nums[1],
+                nums[2],
+                nums[3],
+                nums[4] * 0.75,
+                nums[5] * 0.75,
+            ));
+        }
+    }
+
     None
 }
 

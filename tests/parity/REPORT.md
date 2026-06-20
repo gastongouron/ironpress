@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 43.21%  (PASS 96 · PARTIAL 107 · FAIL 143 · UNKNOWN 0 · total 346)
+Overall: 43.50%  (PASS 97 · PARTIAL 107 · FAIL 142 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**24 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `transforms-compound-rotate-translate`, `transforms-skew`, `units-min-max`
+**25 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -174,7 +174,7 @@ None — every fixture's HTML matches `refs.lock`.
 | selectors-cascade | 46.67% | 7 | 0 | 8 | 0 |
 | tables | 18.75% | 0 | 6 | 10 | 0 |
 | text-advanced | 33.33% | 0 | 10 | 5 | 0 |
-| transforms | 77.27% | 8 | 1 | 2 | 0 |
+| transforms | 86.36% | 9 | 1 | 1 | 0 |
 | typography | 93.75% | 14 | 2 | 0 | 0 |
 | units-values | 33.33% | 3 | 2 | 7 | 0 |
 
@@ -280,7 +280,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PARTIAL | 10.40 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
 | unsupported | PARTIAL | 7.37 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
 | unsupported | PASS | 1.16 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
-| unsupported | FAIL | 14.18 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
+| unsupported | PASS | 1.36 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
 | unsupported | PASS | 1.06 | transforms | transform | transforms-skew | transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser. |
 | partial | PASS | 1.44 | transforms | transform | transforms-translate | transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout. |
 | partial | PASS | 1.54 | transforms | transform | transforms-translate-x | transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged. |
@@ -836,10 +836,10 @@ None — every fixture's HTML matches `refs.lock`.
 - **writing-mode** — 50.00%
   - PARTIAL 7.37% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
-### transforms — 77.27%
-- **transform** — 85.00%
+### transforms — 86.36%
+- **transform** — 95.00%
   - PASS 1.16% transform=compound-rotate-translate — `transforms-compound-rotate-translate` — Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.
-  - FAIL 14.18% transform=matrix — `transforms-matrix` — transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.
+  - PASS 1.36% transform=matrix — `transforms-matrix` — transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.
   - PASS 1.15% transform=rotate — `transforms-rotate` — transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.
   - PASS 1.60% transform=scale — `transforms-scale` — transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.
   - PARTIAL 2.21% transform=scaleX — `transforms-scale-x` — transform: scaleX() stretches the box horizontally about its center.
