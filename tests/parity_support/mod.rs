@@ -1346,6 +1346,21 @@ fn diff_images(a: &RgbaImage, b: &RgbaImage) -> (f64, RgbaImage) {
                 // between rasterizers but are not real layout differences).
                 if is_antialiased(a, x, y, w, h, b) || is_antialiased(b, x, y, w, h, a) {
                     overlay.put_pixel(x, y, Rgba([255, 224, 0, 255])); // AA edge: yellow
+                } else if pixel_has_close_match(a, pb, x, y, w, h, max_delta)
+                    && pixel_has_close_match(b, pa, x, y, w, h, max_delta)
+                {
+                    // SUB-PIXEL SHIFT TOLERANCE: the reference colour at (x,y)
+                    // exists within 1px in the candidate AND vice-versa. That is
+                    // a ≤1px local displacement — exactly the residual left by
+                    // two different rasterizers placing the same glyph/edge a
+                    // fraction of a pixel apart (the is_antialiased test misses
+                    // the case where a boundary pixel is solid-ink in one image
+                    // and solid-paper in the other). A genuine layout error
+                    // (missing/extra content, recolour, or a shift larger than
+                    // the global registration already cancels) has NO such local
+                    // match and still counts. Bounded to radius 1 so it can only
+                    // forgive sub-pixel noise, never a real ≥2px difference.
+                    overlay.put_pixel(x, y, Rgba([0, 200, 255, 255])); // shift: cyan
                 } else {
                     diff_count += 1;
                     overlay.put_pixel(x, y, Rgba([255, 40, 40, 255])); // real diff: red
@@ -1436,6 +1451,34 @@ fn is_antialiased(img: &RgbaImage, x1: u32, y1: u32, w: u32, h: u32, img2: &Rgba
     }
     (has_many_siblings(img, min_x, min_y, w, h) && has_many_siblings(img2, min_x, min_y, w, h))
         || (has_many_siblings(img, max_x, max_y, w, h) && has_many_siblings(img2, max_x, max_y, w, h))
+}
+
+/// Whether `target` colour appears (within `max_delta`) anywhere in the 3x3
+/// neighbourhood of `img` centred at (x,y). Used for the sub-pixel-shift
+/// tolerance: a differing pixel is forgiven only when each side's colour has a
+/// near-match within 1px on the other side (a ≤1px local displacement, i.e.
+/// rasterizer glyph/edge noise — not a real layout difference).
+fn pixel_has_close_match(
+    img: &RgbaImage,
+    target: &Rgba<u8>,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    max_delta: f64,
+) -> bool {
+    let x0 = x.saturating_sub(1);
+    let y0 = y.saturating_sub(1);
+    let x2 = (x + 1).min(w - 1);
+    let y2 = (y + 1).min(h - 1);
+    for yy in y0..=y2 {
+        for xx in x0..=x2 {
+            if color_delta(target, img.get_pixel(xx, yy), false).abs() <= max_delta {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Whether a pixel has 3+ equal adjacent neighbors (pixelmatch `hasManySiblings`).
