@@ -81,6 +81,15 @@ pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
         let Some(png_info) = png::parse_png(&raw) else {
             return decode_png_to_rgb_asset(&raw);
         };
+        // The raw-IDAT passthrough writes the sample stream straight into a PDF
+        // DeviceRGB/DeviceGray image, which take 3/1 colour components. An alpha
+        // colour type (RGBA=4, GrayscaleAlpha=2) would emit a 4-/2-channel stream
+        // that the viewer reads as misaligned RGB triples — i.e. scrambled rainbow
+        // pixels. Decode those to flat 8-bit RGB instead (alpha is dropped; the
+        // bundled assets are opaque). Proper transparency would need an SMask.
+        if png_info.channels == 2 || png_info.channels == 4 {
+            return decode_png_to_rgb_asset(&raw);
+        }
         let metadata = PngMetadata {
             channels: png_info.channels,
             bit_depth: png_info.bit_depth,
