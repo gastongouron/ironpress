@@ -4496,7 +4496,12 @@ fn render_radial_gradient(
 ) {
     let cx = x + width / 2.0;
     let cy = y + height / 2.0;
-    let max_radius = width.max(height) / 2.0;
+    // CSS default radial extent for an unspecified size is `farthest-corner`:
+    // the radius reaches from the (centered) center to the farthest box corner,
+    // i.e. sqrt((w/2)^2 + (h/2)^2), not width.max(height)/2 (farthest-side).
+    let half_w = width / 2.0;
+    let half_h = height / 2.0;
+    let max_radius = (half_w * half_w + half_h * half_h).sqrt();
 
     let stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops

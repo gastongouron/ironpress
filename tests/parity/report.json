@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 25.29,
-    "pass": 54,
-    "partial": 67,
-    "fail": 225,
+    "score_pct": 25.43,
+    "pass": 53,
+    "partial": 70,
+    "fail": 223,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -18,11 +18,11 @@
   "categories": [
     {
       "category": "backgrounds-borders",
-      "score_pct": 47.06,
+      "score_pct": 50.0,
       "counts": {
         "pass": 5,
-        "partial": 6,
-        "fail": 6,
+        "partial": 7,
+        "fail": 5,
         "unknown": 0
       },
       "features": [
@@ -449,11 +449,11 @@
         },
         {
           "feature": "radial-gradient",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -464,8 +464,8 @@
               "subfeature": "circle-center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.7661,
+              "status": "PARTIAL",
+              "diff_pct": 7.8835,
               "weight": 1.0,
               "description": "Centered circular two-stop radial-gradient background on a square box.",
               "note": "",
@@ -484,11 +484,11 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 25.0,
+      "score_pct": 28.57,
       "counts": {
         "pass": 2,
-        "partial": 3,
-        "fail": 9,
+        "partial": 4,
+        "fail": 8,
         "unknown": 0
       },
       "features": [
@@ -817,11 +817,11 @@
         },
         {
           "feature": "radial-gradient",
-          "score_pct": 0.0,
+          "score_pct": 16.67,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 3,
+            "partial": 1,
+            "fail": 2,
             "unknown": 0
           },
           "fixtures": [
@@ -832,8 +832,8 @@
               "subfeature": "circle-at-center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 21.9055,
+              "status": "PARTIAL",
+              "diff_pct": 7.7506,
               "weight": 1.0,
               "description": "Centered circular two-stop radial-gradient (the shape ironpress natively supports).",
               "note": "",
@@ -854,7 +854,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 17.8634,
+              "diff_pct": 18.1826,
               "weight": 1.0,
               "description": "Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.",
               "note": "",
@@ -4373,10 +4373,10 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 66.67,
+      "score_pct": 63.33,
       "counts": {
-        "pass": 9,
-        "partial": 2,
+        "pass": 8,
+        "partial": 3,
         "fail": 4,
         "unknown": 0
       },
@@ -4534,10 +4534,10 @@
         },
         {
           "feature": "inline-svg",
-          "score_pct": 75.0,
+          "score_pct": 62.5,
           "counts": {
-            "pass": 3,
-            "partial": 0,
+            "pass": 2,
+            "partial": 1,
             "fail": 1,
             "unknown": 0
           },
@@ -4609,8 +4609,8 @@
               "subfeature": "text-element",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PASS",
-              "diff_pct": 6.6245,
+              "status": "PARTIAL",
+              "diff_pct": 9.3708,
               "weight": 1.0,
               "description": "Inline SVG text element rendered in ParitySans at 36px over a light fill.",
               "note": "",
@@ -4620,7 +4620,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "partial",
-              "attribution": "",
+              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
               "html_sha256": "763ee480d72b7adb03067ab13c018af0ec67d4910d03e245cd34369bc4cbd1a6"
             }
           ]
@@ -10471,7 +10471,7 @@
       "id": "probe-text-baseline",
       "feature": "font-metrics",
       "status": "FAIL",
-      "confounded_count": 90,
+      "confounded_count": 91,
       "confounded_ids": [
         "color-text-glyph",
         "counter-content-roman",
@@ -10530,6 +10530,7 @@
         "overflow-hidden-text-clip",
         "paged-orphans-widows",
         "paged-page-counter-content",
+        "svg-inline-text",
         "tables-caption",
         "tables-cell-text-align",
         "tables-th-header",
