@@ -2215,7 +2215,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     offset_top: _,
                     offset_left: c_offset_left,
                     overflow: c_overflow,
-                    transform: _,
+                    transform: c_transform,
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
                     background_radial_gradient: c_bg_radial,
@@ -2241,6 +2241,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     } else {
                         c_block_height.map_or(content_h, |h| content_h.max(h))
                     };
+
+                    // Apply a CSS transform around the box centre (wrap the whole
+                    // element, incl. shadow + children, in q..Q). Shares the same
+                    // helper as the other arms so block-level containers transform
+                    // identically to text blocks / flex cells / nested boxes.
+                    let c_needs_transform = c_transform.is_some();
+                    if let Some(t) = c_transform {
+                        let cx = container_x + container_w * 0.5;
+                        let cy = container_y_top - total_h * 0.5;
+                        content.push_str("q\n");
+                        push_transform_cm(&mut content, t, cx, cy);
+                    }
 
                     // Draw box-shadow with blur
                     if let Some(shadow) = c_box_shadow {
@@ -2482,6 +2494,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Restore clip
                     if needs_clip {
+                        content.push_str("Q\n");
+                    }
+                    if c_needs_transform {
                         content.push_str("Q\n");
                     }
                 }

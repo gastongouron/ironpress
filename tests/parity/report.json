@@ -5715,7 +5715,7 @@
                 "transforms-translate"
               ],
               "status": "FAIL",
-              "diff_pct": 40.2052,
+              "diff_pct": 35.3661,
               "weight": 1.0,
               "description": "Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.",
               "note": "",
