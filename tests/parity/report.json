@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 30.78,
-    "pass": 63,
-    "partial": 87,
-    "fail": 196,
+    "score_pct": 31.94,
+    "pass": 64,
+    "partial": 93,
+    "fail": 189,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -2714,21 +2714,21 @@
     },
     {
       "category": "flexbox",
-      "score_pct": 21.88,
+      "score_pct": 46.88,
       "counts": {
-        "pass": 0,
-        "partial": 7,
-        "fail": 9,
+        "pass": 1,
+        "partial": 13,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
         {
           "feature": "align-items",
-          "score_pct": 25.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 1,
-            "fail": 1,
+            "partial": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2739,8 +2739,8 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.5133,
+              "status": "PARTIAL",
+              "diff_pct": 8.3796,
               "weight": 1.0,
               "description": "align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.",
               "note": "",
@@ -2761,7 +2761,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 9.9381,
+              "diff_pct": 8.5958,
               "weight": 1.0,
               "description": "align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.",
               "note": "",
@@ -2778,11 +2778,11 @@
         },
         {
           "feature": "align-self",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2793,8 +2793,8 @@
               "subfeature": "flex-end",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.4053,
+              "status": "PARTIAL",
+              "diff_pct": 9.8687,
               "weight": 1.0,
               "description": "align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.",
               "note": "",
@@ -2827,7 +2827,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 9.7235,
+              "diff_pct": 9.5242,
               "weight": 1.0,
               "description": "display:flex lays three fixed-size boxes in a row along the main axis with default packing.",
               "note": "",
@@ -2844,11 +2844,11 @@
         },
         {
           "feature": "flex-basis",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2859,8 +2859,8 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 12.5736,
+              "status": "PARTIAL",
+              "diff_pct": 10.4463,
               "weight": 1.0,
               "description": "flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).",
               "note": "",
@@ -2910,11 +2910,11 @@
         },
         {
           "feature": "flex-grow",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2925,8 +2925,8 @@
               "subfeature": "ratio",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.0432,
+              "status": "PARTIAL",
+              "diff_pct": 10.4865,
               "weight": 1.0,
               "description": "flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.",
               "note": "",
@@ -2959,7 +2959,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 10.5246,
+              "diff_pct": 8.0893,
               "weight": 1.0,
               "description": "flex-shrink removes overflow in a 1:2 ratio when two oversized boxes exceed the container width.",
               "note": "",
@@ -2976,10 +2976,10 @@
         },
         {
           "feature": "flex-wrap",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -2991,8 +2991,8 @@
               "subfeature": "wrap",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 8.677,
+              "status": "PASS",
+              "diff_pct": 5.7255,
               "weight": 1.0,
               "description": "flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.",
               "note": "",
@@ -3002,18 +3002,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2871fca4c9c2c1273001ecdd47c2320e067b4a1f121cda6c73e151284f4a4d18"
             }
           ]
         },
         {
           "feature": "gap",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3024,8 +3024,8 @@
               "subfeature": "fixed",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.7411,
+              "status": "PARTIAL",
+              "diff_pct": 11.9536,
               "weight": 1.0,
               "description": "gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.",
               "note": "",
@@ -3042,11 +3042,11 @@
         },
         {
           "feature": "justify-content",
-          "score_pct": 33.33,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 2,
-            "fail": 1,
+            "partial": 3,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3058,7 +3058,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 11.8836,
+              "diff_pct": 10.0819,
               "weight": 1.0,
               "description": "justify-content:center groups items centered on the main axis with equal leftover space on both sides.",
               "note": "",
@@ -3078,8 +3078,8 @@
               "subfeature": "space-around",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.3181,
+              "status": "PARTIAL",
+              "diff_pct": 11.4826,
               "weight": 1.0,
               "description": "justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.",
               "note": "",
@@ -3100,7 +3100,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 11.9715,
+              "diff_pct": 10.1223,
               "weight": 1.0,
               "description": "justify-content:space-between pins first and last boxes to the edges with equal gaps between.",
               "note": "",
@@ -3133,7 +3133,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 9.6263,
+              "diff_pct": 7.1828,
               "weight": 1.0,
               "description": "min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.",
               "note": "",
@@ -3183,11 +3183,11 @@
         },
         {
           "feature": "order",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3198,8 +3198,8 @@
               "subfeature": "reorder",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.4802,
+              "status": "PARTIAL",
+              "diff_pct": 11.5879,
               "weight": 1.0,
               "description": "order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.",
               "note": "",
@@ -5262,7 +5262,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 14.2567,
+              "diff_pct": 13.281,
               "weight": 1.0,
               "description": "Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.",
               "note": "",
@@ -5308,7 +5308,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: flex-wrap (`flexbox-flex-wrap`)",
+              "attribution": "CONFOUNDED: gap (`flexbox-gap`)",
               "html_sha256": "bbf0e8834e1d745688ebe20e11e4ffbef6ab4b175e8736a3ba09bd2790708261"
             }
           ]
@@ -5860,7 +5860,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 23.5453,
+              "diff_pct": 23.9297,
               "weight": 1.0,
               "description": "A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.",
               "note": "",
@@ -5939,7 +5939,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 16.7264,
+              "diff_pct": 20.1106,
               "weight": 1.0,
               "description": "A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.",
               "note": "",
@@ -10704,18 +10704,9 @@
       ]
     },
     {
-      "id": "flexbox-flex-wrap",
-      "feature": "flex-wrap",
-      "status": "PARTIAL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "flexbox-wrap-x-gap"
-      ]
-    },
-    {
       "id": "flexbox-gap",
       "feature": "gap",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "confounded_count": 1,
       "confounded_ids": [
         "flexbox-wrap-x-gap"

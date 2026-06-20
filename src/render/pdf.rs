@@ -3615,6 +3615,8 @@ fn render_container_children(
                 border,
                 padding_top: flex_pt,
                 padding_left: flex_pl,
+                row_height: flex_row_h,
+                align_items,
                 ..
             } => {
                 cursor_y -= flex_mt;
@@ -3653,6 +3655,30 @@ fn render_container_children(
                 for cell in cells {
                     let cell_w = cell.width;
                     let cell_x = cell_base_x + cell.x_offset;
+                    // Cross-axis (vertical) placement per align-items/align-self,
+                    // mirroring the top-level FlexRow arm. Stretch fills the line
+                    // cross size; otherwise the cell keeps its natural height and
+                    // is anchored at start/end/center. Without this the nested arm
+                    // force-stretched every cell to the full row height.
+                    let line_cross = if cell.line_cross_size > 0.0 {
+                        cell.line_cross_size
+                    } else {
+                        *flex_row_h
+                    };
+                    let (cell_h, cell_y_shift) = match align_items {
+                        AlignItems::Stretch => (line_cross, cell.y_offset),
+                        AlignItems::FlexStart => (cell.natural_height, cell.y_offset),
+                        AlignItems::FlexEnd => (
+                            cell.natural_height,
+                            cell.y_offset + line_cross - cell.natural_height,
+                        ),
+                        AlignItems::Center => (
+                            cell.natural_height,
+                            cell.y_offset + (line_cross - cell.natural_height) / 2.0,
+                        ),
+                    };
+                    let cell_top = content_y - cell_y_shift;
+                    let cell_bottom = cell_top - cell_h;
                     // Draw cell background
                     if let Some((cr, cg, cb, ca)) = cell.background_color {
                         let needs_alpha = ca < 1.0;
@@ -3666,18 +3692,18 @@ fn render_container_children(
                         if cell.border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
                                 cell_x,
-                                y - row_h,
+                                cell_bottom,
                                 cell_w,
-                                row_h,
+                                cell_h,
                                 cell.border_radius,
                             ));
                         } else {
                             content.push_str(&format!(
                                 "{cx} {cy} {cw} {ch} re\n",
                                 cx = cell_x,
-                                cy = y - row_h,
+                                cy = cell_bottom,
                                 cw = cell_w,
-                                ch = row_h,
+                                ch = cell_h,
                             ));
                         }
                         content.push_str("f\n");
@@ -3694,17 +3720,17 @@ fn render_container_children(
                             content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
                             content.push_str(&rounded_rect_path(
                                 cell_x,
-                                y - row_h,
+                                cell_bottom,
                                 cell_w,
-                                row_h,
+                                cell_h,
                                 cell.border_radius,
                             ));
                             content.push_str("S\n");
                         } else {
                             let bx1 = cell_x;
                             let bx2 = cell_x + cell_w;
-                            let by1 = y;
-                            let by2 = y - row_h;
+                            let by1 = cell_top;
+                            let by2 = cell_bottom;
                             if cell.border.left.width > 0.0 {
                                 let (r, g, b) = cell.border.left.color;
                                 content.push_str(&format!(
@@ -3748,7 +3774,7 @@ fn render_container_children(
                         } // else (non-rounded cell border)
                     }
                     // Draw cell text
-                    let mut text_y = content_y;
+                    let mut text_y = cell_top;
                     for line in &cell.lines {
                         let metrics = line_box_metrics(line, custom_fonts);
                         text_y -= metrics.half_leading + metrics.ascender;
@@ -3779,7 +3805,7 @@ fn render_container_children(
                     // Render nested elements in flex cells (tables, containers)
                     if !cell.nested_elements.is_empty() {
                         let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-                        let nested_y = content_y - text_h;
+                        let nested_y = cell_top - text_h;
                         render_container_children(
                             content,
                             &cell.nested_elements,

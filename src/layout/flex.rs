@@ -1095,12 +1095,18 @@ pub(crate) fn layout_flex_container(
                         background_origin: tb_bg_origin,
                         box_shadow: tb_bs,
                         border,
+                        block_height: tb_bh,
                         ..
                     }) = item.elements.first()
                     {
-                        // Calculate natural height for this item
+                        // Natural cross size: an explicit height defines it;
+                        // otherwise derive from content (text + padding + border).
+                        // Without honoring block_height, an empty box with an
+                        // explicit height collapses to ~border height under any
+                        // non-stretch align-items (it vanished entirely).
                         let text_h: f32 = tb_lines.iter().map(|l| l.height).sum();
-                        let natural_h = *tb_pt + text_h + *tb_pb + border.vertical_width();
+                        let content_natural = *tb_pt + text_h + *tb_pb + border.vertical_width();
+                        let natural_h = tb_bh.unwrap_or(content_natural);
                         flex_cells.push(FlexCell {
                             lines: tb_lines.clone(),
                             x_offset: x,
