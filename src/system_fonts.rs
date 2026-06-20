@@ -5,6 +5,7 @@ use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
 use std::process::Command;
+use std::sync::{Mutex, OnceLock};
 
 const FONT_VARIANTS: &[FontVariant] = &[
     FontVariant::new(false, false),
@@ -590,35 +591,70 @@ fn load_preferred_family_font(
     })
 }
 
-fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
-    let mut child = Command::new("fc-match")
-        .args([
-            query.fontconfig_pattern().as_str(),
-            "-f",
-            "%{family}\n%{file}",
-        ])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .ok()?;
+/// Whether `fc-match` is available on this system. Probed at most once per
+/// process: if the binary is missing (the common case on minimal/CI hosts),
+/// every subsequent fontconfig query short-circuits without spawning anything.
+fn fontconfig_available() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        Command::new("fc-match")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    })
+}
 
-    // Timeout after 1 second to avoid blocking on slow/absent fontconfig.
-    let timeout = std::time::Duration::from_secs(1);
-    let start = std::time::Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => break,
-            Ok(None) => {
-                if start.elapsed() > timeout {
-                    let _ = child.kill();
-                    return None;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-            Err(_) => return None,
+/// Process-wide cache of resolved fontconfig file paths, keyed by the exact
+/// `fc-match` pattern. Ensures `fc-match` is spawned **at most once per
+/// distinct pattern for the entire process lifetime** (and never on the hot
+/// path once warm), instead of once per font variant × family × render.
+///
+/// We cache the resolved file path (not the parsed `TtfFont`) so the entry is
+/// cheap to clone and shared across threads; the small per-call `parse_ttf` is
+/// negligible next to a subprocess spawn + fontconfig re-init.
+fn fontconfig_path_cache() -> &'static Mutex<HashMap<String, Option<String>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Option<String>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
+    let pattern = query.fontconfig_pattern();
+
+    // Fast path: serve from the cache without spawning.
+    if let Ok(cache) = fontconfig_path_cache().lock() {
+        if let Some(cached) = cache.get(&pattern) {
+            return cached
+                .as_ref()
+                .and_then(|path| parse_ttf(std::fs::read(path).ok()?).ok());
         }
     }
-    let output = child.wait_with_output().ok()?;
+
+    // Cache miss: resolve via fc-match at most once for this pattern, then store
+    // the result (including negative results) so it is never spawned again.
+    let resolved = resolve_fontconfig_path(query, &pattern);
+    if let Ok(mut cache) = fontconfig_path_cache().lock() {
+        cache.insert(pattern, resolved.clone());
+    }
+
+    resolved.and_then(|path| parse_ttf(std::fs::read(path).ok()?).ok())
+}
+
+/// Spawn `fc-match` once for `pattern` and return the resolved file path if the
+/// returned family matches the requested family (same guard as before). No
+/// sleep-polling: `output()` blocks on the child directly.
+fn resolve_fontconfig_path(query: &SystemFontQuery<'_>, pattern: &str) -> Option<String> {
+    if !fontconfig_available() {
+        return None;
+    }
+
+    let output = Command::new("fc-match")
+        .args([pattern, "-f", "%{family}\n%{file}"])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -634,7 +670,7 @@ fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
         return None;
     }
 
-    parse_ttf(std::fs::read(path).ok()?).ok()
+    Some(path.to_string())
 }
 
 fn fontconfig_family_matches(query: &SystemFontQuery<'_>, family_output: &str) -> bool {
