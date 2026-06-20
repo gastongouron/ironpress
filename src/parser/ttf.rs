@@ -99,12 +99,6 @@ impl TtfFont {
     }
 
     /// Get the advance width for a glyph in PDF units (1/1000 of text space).
-    #[cfg(test)]
-    pub fn glyph_width_pdf(&self, glyph_id: u16) -> u16 {
-        self.glyph_width_pdf_value(glyph_id).trunc() as u16
-    }
-
-    /// Get the advance width for a glyph in PDF units (1/1000 of text space).
     pub fn glyph_width_pdf_value(&self, glyph_id: u16) -> f32 {
         if self.units_per_em == 0 {
             return 0.0;
