@@ -2579,11 +2579,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     image,
                     width,
                     height,
+                    object_fit,
+                    object_position,
+                    background_color,
                     ..
                 } => {
                     let img_x = margin.left;
                     // PDF y-axis is bottom-up; y_pos is top of margin, image draws from bottom-left
                     let img_y = page_size.height - margin.top - y_pos - height;
+                    // Paint the image-box background first; with object-fit it may
+                    // remain visible where the image content does not cover the box.
+                    if let Some((br, bg, bb, ba)) = background_color
+                        && *ba > 0.0
+                    {
+                        content.push_str(&format!(
+                            "{br} {bg} {bb} rg\n{img_x} {img_y} {width} {height} re\nf\n",
+                        ));
+                    }
+                    let placement = crate::layout::images::compute_image_placement(
+                        *width,
+                        *height,
+                        image.source_width,
+                        image.source_height,
+                        *object_fit,
+                        *object_position,
+                    );
                     let img_obj_id = pdf_writer.add_image_object(
                         &image.data,
                         image.source_width,
@@ -2592,12 +2612,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         image.png_metadata.as_ref(),
                     );
                     let img_name = format!("Im{img_obj_id}");
+                    content.push_str("q\n");
+                    if placement.clip {
+                        content.push_str(&format!("{img_x} {img_y} {width} {height} re\nW n\n",));
+                    }
                     content.push_str(&format!(
-                        "q\n{w} 0 0 {h} {x} {y} cm\n/{name} Do\nQ\n",
-                        w = width,
-                        h = height,
-                        x = img_x,
-                        y = img_y,
+                        "{w} 0 0 {h} {x} {y} cm\n/{name} Do\nQ\n",
+                        w = placement.width,
+                        h = placement.height,
+                        x = img_x + placement.offset_x,
+                        // img_y is the box bottom; box top is img_y + height.
+                        y = img_y + height - placement.offset_y - placement.height,
                         name = img_name,
                     ));
                     page_images.push(ImageRef {
@@ -3763,10 +3788,35 @@ fn render_container_children(
                 width: img_w,
                 height: img_h,
                 margin_top: img_mt,
+                object_fit,
+                object_position,
+                background_color,
                 ..
             } => {
                 cursor_y -= img_mt;
                 y = cursor_y;
+                let box_top = y;
+                let box_bottom = y - img_h;
+                // Paint the image-box background first; with object-fit it may
+                // remain visible where the image content does not cover the box.
+                if let Some((br, bg, bb, ba)) = background_color
+                    && *ba > 0.0
+                {
+                    content.push_str(&format!(
+                        "{br} {bg} {bb} rg\n{x} {by} {w} {h} re\nf\n",
+                        by = box_bottom,
+                        w = img_w,
+                        h = img_h,
+                    ));
+                }
+                let placement = crate::layout::images::compute_image_placement(
+                    *img_w,
+                    *img_h,
+                    image.source_width,
+                    image.source_height,
+                    *object_fit,
+                    *object_position,
+                );
                 let img_obj_id = pdf_writer.add_image_object(
                     &image.data,
                     image.source_width,
@@ -3775,12 +3825,21 @@ fn render_container_children(
                     image.png_metadata.as_ref(),
                 );
                 let img_name = format!("Im{img_obj_id}");
+                content.push_str("q\n");
+                if placement.clip {
+                    content.push_str(&format!(
+                        "{x} {by} {w} {h} re\nW n\n",
+                        by = box_bottom,
+                        w = img_w,
+                        h = img_h,
+                    ));
+                }
                 content.push_str(&format!(
-                    "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
-                    w = img_w,
-                    h = img_h,
-                    ix = x,
-                    iy = y - img_h,
+                    "{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                    w = placement.width,
+                    h = placement.height,
+                    ix = x + placement.offset_x,
+                    iy = box_top - placement.offset_y - placement.height,
                     name = img_name,
                 ));
                 page_images.push(ImageRef {

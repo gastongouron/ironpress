@@ -299,6 +299,8 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "word-wrap"
             | "text-transform"
             | "direction"
+            | "object-fit"
+            | "object-position"
     ) {
         return Some(CssValue::Keyword(val.to_string()));
     }

@@ -701,6 +701,42 @@ pub struct ComputedStyle {
     /// applied in order to a replaced image's pixels. `blur(...)` stays in
     /// `blur_radius`; this holds the non-blur ops.
     pub color_filters: Vec<ColorFilterOp>,
+    /// CSS `object-fit` for replaced elements (how the content fits its box).
+    pub object_fit: ObjectFit,
+    /// CSS `object-position` as horizontal/vertical fractions of the free space
+    /// (0.0 = start/left/top, 0.5 = center, 1.0 = end/right/bottom).
+    pub object_position: ObjectPosition,
+}
+
+/// CSS `object-fit` for replaced elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ObjectFit {
+    /// Stretch to fill the box, ignoring aspect ratio (initial value).
+    #[default]
+    Fill,
+    /// Scale to fit inside the box, preserving aspect ratio (letterboxed).
+    Contain,
+    /// Scale to cover the box, preserving aspect ratio (cropped).
+    Cover,
+    /// Use the intrinsic size, ignoring the box dimensions.
+    None,
+    /// Use the smaller of `None` and `Contain`.
+    ScaleDown,
+}
+
+/// CSS `object-position` expressed as a pair of alignment fractions of the
+/// free space within the box (0.0 = start, 0.5 = center, 1.0 = end). The
+/// initial value is `50% 50%` (centered).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ObjectPosition {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Default for ObjectPosition {
+    fn default() -> Self {
+        Self { x: 0.5, y: 0.5 }
+    }
 }
 
 /// A single CSS `filter` color function. Amounts are resolved fractions
@@ -815,6 +851,8 @@ impl Default for ComputedStyle {
             row_gap: 0.0,
             blur_radius: 0.0,
             color_filters: Vec::new(),
+            object_fit: ObjectFit::default(),
+            object_position: ObjectPosition::default(),
         }
     }
 }
@@ -1326,6 +1364,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-origin" => style.background_origin = default.background_origin,
         "background-image" | "background-svg" => style.clear_background_images(),
         "aspect-ratio" => style.aspect_ratio = default.aspect_ratio,
+        "object-fit" => style.object_fit = default.object_fit,
+        "object-position" => style.object_position = default.object_position,
         "background" => style.reset_background(),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
@@ -1469,6 +1509,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.background_radial_gradient = parent.background_radial_gradient.clone()
         }
         "aspect-ratio" => style.aspect_ratio = parent.aspect_ratio,
+        "object-fit" => style.object_fit = parent.object_fit,
+        "object-position" => style.object_position = parent.object_position,
         "background" => style.inherit_background(parent),
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
@@ -2277,6 +2319,22 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.aspect_ratio = parse_aspect_ratio(k);
     }
 
+    // object-fit / object-position (replaced-element content placement)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "object-fit") {
+        style.object_fit = match k.to_ascii_lowercase().as_str() {
+            "contain" => ObjectFit::Contain,
+            "cover" => ObjectFit::Cover,
+            "none" => ObjectFit::None,
+            "scale-down" => ObjectFit::ScaleDown,
+            _ => ObjectFit::Fill,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "object-position") {
+        if let Some(pos) = parse_object_position(k) {
+            style.object_position = pos;
+        }
+    }
+
     // z-index
     if let Some(CssValue::Number(v)) = get_non_special(map, "z-index") {
         style.z_index = *v as i32;
@@ -2732,6 +2790,65 @@ fn parse_aspect_ratio(raw: &str) -> Option<f32> {
         return (num > 0.0 && den > 0.0).then_some(num / den);
     }
     value.parse::<f32>().ok().filter(|ratio| *ratio > 0.0)
+}
+
+/// Parse CSS `object-position` into horizontal/vertical alignment fractions of
+/// the free space (0.0 = start, 0.5 = center, 1.0 = end). Supports the keywords
+/// `left`/`right`/`top`/`bottom`/`center` and percentage values. Returns `None`
+/// for unrecognized input so the caller keeps the default.
+fn parse_object_position(raw: &str) -> Option<ObjectPosition> {
+    let tokens: Vec<&str> = raw.split_whitespace().collect();
+    if tokens.is_empty() {
+        return None;
+    }
+
+    // Map a single token to a fraction; classify whether it is horizontal-only,
+    // vertical-only, or axis-agnostic (center/percentage).
+    enum Axis {
+        Horizontal,
+        Vertical,
+        Any,
+    }
+    fn classify(token: &str) -> Option<(Axis, f32)> {
+        match token.to_ascii_lowercase().as_str() {
+            "left" => Some((Axis::Horizontal, 0.0)),
+            "right" => Some((Axis::Horizontal, 1.0)),
+            "top" => Some((Axis::Vertical, 0.0)),
+            "bottom" => Some((Axis::Vertical, 1.0)),
+            "center" => Some((Axis::Any, 0.5)),
+            other => other
+                .strip_suffix('%')
+                .and_then(|pct| pct.trim().parse::<f32>().ok())
+                .map(|pct| (Axis::Any, (pct / 100.0).clamp(0.0, 1.0))),
+        }
+    }
+
+    let mut x: Option<f32> = None;
+    let mut y: Option<f32> = None;
+    let mut pending: Vec<f32> = Vec::new();
+    for token in &tokens {
+        let (axis, value) = classify(token)?;
+        match axis {
+            Axis::Horizontal => x = Some(value),
+            Axis::Vertical => y = Some(value),
+            Axis::Any => pending.push(value),
+        }
+    }
+
+    // Assign axis-agnostic values (center/percentages) positionally to whichever
+    // axes are still unset: first to x, then to y.
+    for value in pending {
+        if x.is_none() {
+            x = Some(value);
+        } else if y.is_none() {
+            y = Some(value);
+        }
+    }
+
+    Some(ObjectPosition {
+        x: x.unwrap_or(0.5),
+        y: y.unwrap_or(0.5),
+    })
 }
 
 fn parse_filter_blur(val: &str) -> Option<f32> {

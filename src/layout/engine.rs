@@ -356,6 +356,13 @@ pub enum LayoutElement {
         flow_extra_bottom: f32,
         margin_top: f32,
         margin_bottom: f32,
+        /// CSS `object-fit` controlling how the image is scaled within its box.
+        object_fit: crate::style::computed::ObjectFit,
+        /// CSS `object-position` (alignment fractions of the free space).
+        object_position: crate::style::computed::ObjectPosition,
+        /// Background color painted behind the image box (visible when the image
+        /// content does not cover the whole box under `contain`/`none`).
+        background_color: Option<(f32, f32, f32, f32)>,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },

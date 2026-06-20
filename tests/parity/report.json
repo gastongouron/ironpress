@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 54.62,
-    "pass": 140,
+    "score_pct": 55.78,
+    "pass": 144,
     "partial": 98,
-    "fail": 108,
+    "fail": 104,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -894,11 +894,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 50.0,
+      "score_pct": 56.67,
       "counts": {
-        "pass": 7,
+        "pass": 8,
         "partial": 1,
-        "fail": 7,
+        "fail": 6,
         "unknown": 0
       },
       "features": [
@@ -989,11 +989,11 @@
         },
         {
           "feature": "display",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1004,8 +1004,8 @@
               "subfeature": "block",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 98.6316,
+              "status": "PASS",
+              "diff_pct": 0.9267,
               "weight": 1.0,
               "description": "Inline spans forced to display:block stack vertically full-width, each on its own line.",
               "note": "",
@@ -1015,7 +1015,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6e550ca8c39fc43ac8bb099d906a144fec4494dcf9008c519837fe44f2626263"
             },
             {
@@ -4373,11 +4373,11 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 63.33,
+      "score_pct": 83.33,
       "counts": {
-        "pass": 9,
+        "pass": 12,
         "partial": 1,
-        "fail": 5,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
@@ -4627,11 +4627,11 @@
         },
         {
           "feature": "object-fit",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 4,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4642,8 +4642,8 @@
               "subfeature": "contain",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 33.2887,
+              "status": "PASS",
+              "diff_pct": 0.5324,
               "weight": 1.0,
               "description": "object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.",
               "note": "",
@@ -4653,7 +4653,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3b6051521e253107308ab8e952bd7a76f476cdda3618e8d9983269570a72ed4b"
             },
             {
@@ -4664,7 +4664,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 0.0,
+              "diff_pct": 0.1329,
               "weight": 1.0,
               "description": "object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.",
               "note": "",
@@ -4705,8 +4705,8 @@
               "subfeature": "none",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 66.6329,
+              "status": "PASS",
+              "diff_pct": 0.0059,
               "weight": 1.0,
               "description": "object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box.",
               "note": "",
@@ -4716,18 +4716,18 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b649f9ab6622880fa3232e98468af0c2255188c21c83cc63b80d91a43f3fb8fc"
             }
           ]
         },
         {
           "feature": "object-position",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4738,8 +4738,8 @@
               "subfeature": "bottom-with-contain",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.0499,
+              "status": "PASS",
+              "diff_pct": 0.2652,
               "weight": 1.0,
               "description": "object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box.",
               "note": "",
@@ -4749,7 +4749,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "bf752b705a03a06ed3af5fd681ddc8caa35e63ba3cd5f5fe0ed54ca0eab5a42e"
             }
           ]
@@ -10641,8 +10641,11 @@
     "fonts-advanced-font-stretch-condensed",
     "generated-content-first-line",
     "img-aspect-ratio-box",
+    "img-object-fit-contain",
     "img-object-fit-cover",
     "img-object-fit-fill",
+    "img-object-fit-none",
+    "img-object-position",
     "paged-break-before-page-modern",
     "paged-break-inside-avoid",
     "paged-named-page",

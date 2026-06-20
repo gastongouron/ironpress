@@ -1221,7 +1221,14 @@ pub(crate) fn layout_block_element(
                             env.fonts,
                         );
                     }
-                    if recurses_as_layout_child(child_el.tag) {
+                    if recurses_as_layout_child(child_el.tag)
+                        || element_has_css_display_block(
+                            child_el,
+                            style,
+                            env.rules,
+                            child_ancestors,
+                        )
+                    {
                         let child_cb = if effective_height.is_some() {
                             Some(ContainingBlock {
                                 x: 0.0,
@@ -1497,7 +1504,14 @@ pub(crate) fn layout_block_element(
                             env.fonts,
                         );
                     }
-                    if recurses_as_layout_child(child_el.tag) {
+                    if recurses_as_layout_child(child_el.tag)
+                        || element_has_css_display_block(
+                            child_el,
+                            style,
+                            env.rules,
+                            child_ancestors,
+                        )
+                    {
                         flatten_element(
                             child_el,
                             style,

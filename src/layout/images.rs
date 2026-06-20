@@ -210,6 +210,9 @@ pub(crate) fn load_image_from_element(
         flow_extra_bottom: 0.0,
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
+        object_fit: style.object_fit,
+        object_position: style.object_position,
+        background_color: style.background_color.map(|c| c.to_f32_rgba()),
     })
 }
 
@@ -234,6 +237,78 @@ fn decode_png_to_rgb_asset(raw: &[u8]) -> Option<RasterImageAsset> {
             bit_depth: png_info.bit_depth,
         }),
     })
+}
+
+/// Placement of replaced-image content inside its box, in points relative to the
+/// box top-left corner. `width`/`height` are the drawn size; `offset_x`/`offset_y`
+/// shift the drawn content within the box. `clip` is true when the content can
+/// overflow the box and must be clipped (cover, or none/contain larger than box).
+pub(crate) struct ImagePlacement {
+    pub width: f32,
+    pub height: f32,
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub clip: bool,
+}
+
+/// Compute where to draw a replaced image inside its box per CSS `object-fit`
+/// and `object-position`. The box is `box_w` x `box_h` points; the image's
+/// intrinsic pixel size is converted to points (1px = 0.75pt).
+pub(crate) fn compute_image_placement(
+    box_w: f32,
+    box_h: f32,
+    source_width: u32,
+    source_height: u32,
+    object_fit: crate::style::computed::ObjectFit,
+    object_position: crate::style::computed::ObjectPosition,
+) -> ImagePlacement {
+    use crate::style::computed::ObjectFit;
+
+    // Intrinsic size in points (CSS px -> pt).
+    let intrinsic_w = source_width as f32 * 0.75;
+    let intrinsic_h = source_height as f32 * 0.75;
+
+    // Fall back to filling the box when intrinsic dimensions are unusable.
+    if intrinsic_w <= 0.0 || intrinsic_h <= 0.0 || box_w <= 0.0 || box_h <= 0.0 {
+        return ImagePlacement {
+            width: box_w,
+            height: box_h,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            clip: false,
+        };
+    }
+
+    let contain_scale = (box_w / intrinsic_w).min(box_h / intrinsic_h);
+    let cover_scale = (box_w / intrinsic_w).max(box_h / intrinsic_h);
+
+    let (draw_w, draw_h) = match object_fit {
+        ObjectFit::Fill => (box_w, box_h),
+        ObjectFit::Contain => (intrinsic_w * contain_scale, intrinsic_h * contain_scale),
+        ObjectFit::Cover => (intrinsic_w * cover_scale, intrinsic_h * cover_scale),
+        ObjectFit::None => (intrinsic_w, intrinsic_h),
+        ObjectFit::ScaleDown => {
+            // The smaller of `none` and `contain`.
+            let scale = contain_scale.min(1.0);
+            (intrinsic_w * scale, intrinsic_h * scale)
+        }
+    };
+
+    // object-position aligns the drawn content within the free space (which can
+    // be negative when the content is larger than the box, i.e. cropping).
+    let offset_x = (box_w - draw_w) * object_position.x;
+    let offset_y = (box_h - draw_h) * object_position.y;
+
+    // Clip whenever the drawn content can extend past the box edges.
+    let clip = draw_w > box_w + 0.01 || draw_h > box_h + 0.01;
+
+    ImagePlacement {
+        width: draw_w,
+        height: draw_h,
+        offset_x,
+        offset_y,
+        clip,
+    }
 }
 
 pub(crate) fn constrain_replaced_image_size(
@@ -297,6 +372,9 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             flow_extra_bottom,
             margin_top,
             margin_bottom,
+            object_fit,
+            object_position,
+            background_color,
         } => LayoutElement::Image {
             image,
             width,
@@ -304,6 +382,9 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             flow_extra_bottom: flow_extra_bottom + baseline_gap,
             margin_top,
             margin_bottom,
+            object_fit,
+            object_position,
+            background_color,
         },
         LayoutElement::Svg {
             tree,
