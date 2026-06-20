@@ -309,6 +309,7 @@ pub(crate) fn layout_inline_block_group(
             x_offset: x,
             width: item.width,
             natural_height: natural_h,
+            has_explicit_height: false,
             text_align: item.text_align,
             background_color: item.background_color,
             padding_top: item.padding_top,

@@ -1427,6 +1427,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // For stretch: use the line's cross size (default CSS behavior).
                         // For flex-start/center/flex-end: use the cell's natural_height.
                         let (cell_render_h, cell_y_shift) = match align_items {
+                            // `align-items: stretch` only stretches items whose
+                            // cross size (height) is auto. An item with a definite
+                            // height keeps it (like flex-start, top-anchored).
+                            AlignItems::Stretch if cell.has_explicit_height => {
+                                (cell.natural_height, cell_y_origin)
+                            }
                             AlignItems::Stretch => (line_cross, cell_y_origin),
                             AlignItems::FlexStart => (cell.natural_height, cell_y_origin),
                             AlignItems::FlexEnd => {
@@ -3753,6 +3759,7 @@ fn render_container_children(
                 margin_bottom: flex_mb,
                 background_color,
                 border,
+                container_width,
                 padding_top: flex_pt,
                 padding_left: flex_pl,
                 row_height: flex_row_h,
@@ -3763,6 +3770,12 @@ fn render_container_children(
                 y = cursor_y;
                 let row_h =
                     crate::layout::engine::estimate_element_height(child) - flex_mt - flex_mb;
+                // The flex container honors its explicit width: paint its
+                // background at `container_width` (already clamped to the
+                // layout-time available width), not the full available width.
+                // Mirrors the top-level FlexRow arm; without this a `width:Npx`
+                // flex box painted its background across the whole content width.
+                let flex_w = *container_width;
 
                 // Draw flex row background
                 if let Some((r, g, b, a)) = background_color {
@@ -3777,7 +3790,7 @@ fn render_container_children(
                         "{r} {g} {b} rg\n{fx} {fy} {fw} {fh} re\nf\n",
                         fx = x,
                         fy = y - row_h,
-                        fw = width,
+                        fw = flex_w,
                         fh = row_h,
                     ));
                     if needs_alpha {
@@ -3806,6 +3819,11 @@ fn render_container_children(
                         *flex_row_h
                     };
                     let (cell_h, cell_y_shift) = match align_items {
+                        // `align-items: stretch` only stretches auto-height items;
+                        // an item with a definite height keeps it (top-anchored).
+                        AlignItems::Stretch if cell.has_explicit_height => {
+                            (cell.natural_height, cell.y_offset)
+                        }
                         AlignItems::Stretch => (line_cross, cell.y_offset),
                         AlignItems::FlexStart => (cell.natural_height, cell.y_offset),
                         AlignItems::FlexEnd => (

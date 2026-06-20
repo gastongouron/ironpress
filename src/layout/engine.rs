@@ -172,6 +172,10 @@ pub struct FlexCell {
     pub border: LayoutBorder,
     /// Natural height of this flex item (without stretching)
     pub natural_height: f32,
+    /// Whether the item has a definite `height`. `align-items: stretch` must
+    /// keep such an item at its `natural_height` rather than stretching it to
+    /// the line cross size.
+    pub has_explicit_height: bool,
     pub border_radius: f32,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,

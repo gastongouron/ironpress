@@ -204,6 +204,10 @@ pub(crate) fn layout_flex_container(
         /// Whether the item has an explicit cross-axis size (width for a column
         /// container). `align-items: stretch` must NOT stretch such items.
         has_explicit_width: bool,
+        /// Whether the item has an explicit `height`. For a row container the
+        /// cross axis is the block axis, so `align-items: stretch` must NOT
+        /// stretch an item that already has a definite height.
+        has_explicit_height: bool,
     }
 
     let mut items: Vec<FlexItem> = Vec::new();
@@ -255,6 +259,7 @@ pub(crate) fn layout_flex_container(
         // layout is `width + padding + border`. For `border-box`, the
         // specified width is already the outer box.
         let has_explicit_width = child_style.flex_basis.is_some() || child_style.width.is_some();
+        let has_explicit_height = child_style.height.is_some();
         let inflate_outer = |w: f32| -> f32 {
             if child_style.box_sizing == BoxSizing::ContentBox {
                 w + child_style.padding.left
@@ -391,6 +396,7 @@ pub(crate) fn layout_flex_container(
                 height: child_h,
                 natural_height: child_h, // Natural height for align-items flex-start
                 has_explicit_width,
+                has_explicit_height,
             });
             continue;
         }
@@ -547,6 +553,7 @@ pub(crate) fn layout_flex_container(
             height: child_h + child_style.margin.top + child_style.margin.bottom,
             natural_height: child_h + child_style.margin.top + child_style.margin.bottom,
             has_explicit_width,
+            has_explicit_height,
         });
     }
 
@@ -984,6 +991,7 @@ pub(crate) fn layout_flex_container(
                                 x_offset: x,
                                 width: item.width,
                                 natural_height: item.height,
+                                has_explicit_height: item.has_explicit_height,
                                 text_align: TextAlign::Left,
                                 background_color: None,
                                 padding_top: 0.0,
@@ -1049,6 +1057,7 @@ pub(crate) fn layout_flex_container(
                             x_offset: x,
                             width: item.width,
                             natural_height: natural_h,
+                            has_explicit_height: item.has_explicit_height,
                             text_align: TextAlign::Left,
                             background_color: first_bg,
                             padding_top: first_pt,
@@ -1106,7 +1115,15 @@ pub(crate) fn layout_flex_container(
                         // non-stretch align-items (it vanished entirely).
                         let text_h: f32 = tb_lines.iter().map(|l| l.height).sum();
                         let content_natural = *tb_pt + text_h + *tb_pb + border.vertical_width();
-                        let natural_h = tb_bh.unwrap_or(content_natural);
+                        // `natural_height` is the cell's border-box (the renderer
+                        // paints the border inside it). `content_natural` already
+                        // includes the border, but `block_height` is a padding-box
+                        // height (TextBlock convention), so add the border back to
+                        // keep the two cases consistent — otherwise an explicit
+                        // height rendered the box short by its border thickness.
+                        let natural_h = tb_bh
+                            .map(|h| h + border.vertical_width())
+                            .unwrap_or(content_natural);
                         flex_cells.push(FlexCell {
                             lines: tb_lines.clone(),
                             x_offset: x,
@@ -1131,6 +1148,7 @@ pub(crate) fn layout_flex_container(
                             box_shadow: *tb_bs,
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
+                            has_explicit_height: item.has_explicit_height,
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                         });
@@ -1142,6 +1160,7 @@ pub(crate) fn layout_flex_container(
                             x_offset: x,
                             width: item.width,
                             natural_height: item.height,
+                            has_explicit_height: item.has_explicit_height,
                             text_align: TextAlign::Left,
                             background_color: None,
                             padding_top: 0.0,

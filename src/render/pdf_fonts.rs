@@ -440,6 +440,7 @@ mod tests {
             x_offset: 0.0,
             width: 100.0,
             natural_height: 0.0,
+            has_explicit_height: false,
             text_align: TextAlign::Left,
             background_color: None,
             padding_top: 0.0,
