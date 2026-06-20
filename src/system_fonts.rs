@@ -261,20 +261,30 @@ const UNICODE_FALLBACK_FAMILIES: &[&str] = &[
 /// This enables CJK and other non-Latin characters to render correctly
 /// instead of appearing as rectangles/tofu when the document uses a
 /// standard PDF font (Helvetica, Times-Roman, Courier).
+/// The resolved+parsed system CJK fallback font (large; ~parse cost), cached so
+/// it isn't re-parsed on every conversion.
+static UNICODE_FALLBACK_CACHE: OnceLock<Option<TtfFont>> = OnceLock::new();
+
 pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     if fonts.contains_key(UNICODE_FALLBACK_KEY) {
         return;
     }
 
-    let db = system_fontdb();
-
-    for family in UNICODE_FALLBACK_FAMILIES {
-        let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-        {
-            fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
-            return;
+    let cached = UNICODE_FALLBACK_CACHE.get_or_init(|| {
+        let db = system_fontdb();
+        for family in UNICODE_FALLBACK_FAMILIES {
+            let query = SystemFontQuery::new(family, FontVariant::new(false, false));
+            if let Some(font) =
+                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
+            {
+                return Some(font);
+            }
         }
+        None
+    });
+    if let Some(font) = cached {
+        fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font.clone());
+        return;
     }
 
     // In WASM builds there are no system fonts available via fontdb —
@@ -336,9 +346,13 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
 /// a system emoji font to be installed.
 fn load_bundled_emoji_font(fonts: &mut HashMap<String, TtfFont>) {
     static NOTO_EMOJI_DATA: &[u8] = include_bytes!("../assets/NotoEmoji-Regular.ttf");
+    // Parse the 295KB bundled emoji font once, not on every conversion.
+    static EMOJI_FONT_CACHE: OnceLock<Option<TtfFont>> = OnceLock::new();
 
-    if let Ok(font) = crate::parser::ttf::parse_ttf(NOTO_EMOJI_DATA.to_vec()) {
-        fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
+    let cached = EMOJI_FONT_CACHE
+        .get_or_init(|| crate::parser::ttf::parse_ttf(NOTO_EMOJI_DATA.to_vec()).ok());
+    if let Some(font) = cached {
+        fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font.clone());
     }
 }
 
@@ -472,26 +486,35 @@ fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
 /// per-cold-render subprocess spawns. (`fc-match` remains available, cached and
 /// at-most-once, for genuinely *requested* unknown families via
 /// `load_requested_system_fonts`.)
-pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
-    let families = [
-        ("Times New Roman", "serif"),
-        ("Arial", "sans-serif"),
-        ("Courier New", "monospace"),
-    ];
-    let db = system_fontdb();
+/// Parsed default-family variants (Times/Arial/Courier x regular/bold/italic/
+/// bold-italic), resolved from the system fontdb once. Resolving + parsing these
+/// is ~12 TTF parses; caching avoids repeating that on every conversion (it was
+/// ~12ms per call), so warm/batch generation stays well under a millisecond.
+static DEFAULT_FONTS_CACHE: OnceLock<Vec<(String, TtfFont)>> = OnceLock::new();
 
-    for (family, _generic) in &families {
-        for variant in FONT_VARIANTS {
-            let query = SystemFontQuery::new(family, *variant);
-            let key = query.variant_key();
-            if fonts.contains_key(&key) {
-                continue;
-            }
-            // fontdb-only: do not fall through to query_fontconfig_font (fc-match).
-            if let Some(font) = query_fontdb_font(db, &query) {
-                fonts.insert(key, font);
+pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
+    let cached = DEFAULT_FONTS_CACHE.get_or_init(|| {
+        let families = [
+            ("Times New Roman", "serif"),
+            ("Arial", "sans-serif"),
+            ("Courier New", "monospace"),
+        ];
+        let db = system_fontdb();
+        let mut out = Vec::new();
+        for (family, _generic) in &families {
+            for variant in FONT_VARIANTS {
+                let query = SystemFontQuery::new(family, *variant);
+                // fontdb-only: do not fall through to query_fontconfig_font (fc-match).
+                if let Some(font) = query_fontdb_font(db, &query) {
+                    out.push((query.variant_key(), font));
+                }
             }
         }
+        out
+    });
+    for (key, font) in cached {
+        // Don't override fonts already provided (e.g. @font-face, add_font).
+        fonts.entry(key.clone()).or_insert_with(|| font.clone());
     }
 }
 
