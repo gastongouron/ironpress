@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 63.87,
-    "pass": 170,
-    "partial": 102,
-    "fail": 74,
+    "score_pct": 65.32,
+    "pass": 177,
+    "partial": 98,
+    "fail": 71,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -799,7 +799,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 85.4957,
+              "diff_pct": 78.5428,
               "weight": 1.0,
               "description": "Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.",
               "note": "",
@@ -894,11 +894,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 83.33,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 12,
-        "partial": 1,
-        "fail": 2,
+        "pass": 15,
+        "partial": 0,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -937,11 +937,11 @@
         },
         {
           "feature": "box-sizing",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -952,8 +952,8 @@
               "subfeature": "border-box",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 33.2113,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "box-sizing:border-box keeps the total rendered width at 200px despite 24px padding and 8px border.",
               "note": "",
@@ -962,7 +962,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "8626a8522ab1578a3960626cfa9d3fd9ffc21c8705948dae3c1a4f4c7f67d99c"
             },
             {
@@ -1184,11 +1184,11 @@
         },
         {
           "feature": "nested-block-flow",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1199,8 +1199,8 @@
               "subfeature": "containment",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 34.236,
+              "status": "PASS",
+              "diff_pct": 0.2131,
               "weight": 1.0,
               "description": "Three nested blocks, each inset by its parent's padding, forming concentric frames to verify nested block containment.",
               "note": "",
@@ -1210,7 +1210,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e7c251b1d3bd7eacd5f49842e5cbc6d2dfd1b6e46a77513205946aea98007753"
             }
           ]
@@ -1250,10 +1250,10 @@
         },
         {
           "feature": "width",
-          "score_pct": 75.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
-            "partial": 1,
+            "pass": 2,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -1286,8 +1286,8 @@
               "subfeature": "percent",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 5.1775,
+              "status": "PASS",
+              "diff_pct": 1.2367,
               "weight": 1.0,
               "description": "Child with width:50% resolves to half (200px) of the 400px parent content box.",
               "note": "",
@@ -1297,7 +1297,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "dc78e904ce8d3a6c6dcac5b1f3a86072c4a4a581f7b585408e14d6e04b74f2c7"
             }
           ]
@@ -5203,10 +5203,10 @@
     },
     {
       "category": "interactions",
-      "score_pct": 20.45,
+      "score_pct": 22.73,
       "counts": {
-        "pass": 2,
-        "partial": 5,
+        "pass": 3,
+        "partial": 4,
         "fail": 15,
         "unknown": 0
       },
@@ -5627,10 +5627,10 @@
         },
         {
           "feature": "percentage-height-x-nested-block",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -5648,8 +5648,8 @@
                 "block-width-height-explicit",
                 "block-nested-containment"
               ],
-              "status": "PARTIAL",
-              "diff_pct": 3.4564,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).",
               "note": "",
@@ -5659,7 +5659,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: nested-block-flow (`block-nested-containment`)",
+              "attribution": "",
               "html_sha256": "1b16f488fce04e09f9834af8cdd81bf27498ad80e4c21e029a40d2e85db5d7ae"
             }
           ]
@@ -7290,7 +7290,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 3.8758,
+              "diff_pct": 2.484,
               "weight": 1.0,
               "description": "A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.",
               "note": "",
@@ -7506,7 +7506,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 4.3157,
+              "diff_pct": 2.6541,
               "weight": 1.0,
               "description": "position:absolute box anchored to bottom/right edges of its containing block.",
               "note": "",
@@ -9912,20 +9912,20 @@
     },
     {
       "category": "units-values",
-      "score_pct": 79.17,
+      "score_pct": 95.83,
       "counts": {
-        "pass": 8,
-        "partial": 3,
-        "fail": 1,
+        "pass": 11,
+        "partial": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "calc",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -9937,8 +9937,8 @@
               "subfeature": "mixed-percent-px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 2.4109,
+              "status": "PASS",
+              "diff_pct": 0.6022,
               "weight": 1.0,
               "description": "calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.",
               "note": "",
@@ -9949,7 +9949,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "a418255b6e42434aeb8264a41aecc94f6607a45f17c02f1a93d33e68c28298af"
             }
           ]
@@ -10190,10 +10190,10 @@
         },
         {
           "feature": "percentage",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -10205,8 +10205,8 @@
               "subfeature": "width-height-resolution",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 2.2673,
+              "status": "PASS",
+              "diff_pct": 0.7231,
               "weight": 1.0,
               "description": "Child width:75% / height:50% of a 400x200px parent resolves to 300x100px; verifies percentage length resolution against the containing block.",
               "note": "",
@@ -10217,18 +10217,18 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "464f4465e4274f2a68a12003b9d15454f7bcffc03cdaab407202259cfdbf580f"
             }
           ]
         },
         {
           "feature": "viewport-units",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -10239,8 +10239,8 @@
               "subfeature": "vw-vh",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.0109,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial.",
               "note": "",
@@ -10251,7 +10251,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "082a567f843b7396bc05e9e49cd831fb632df227b18762a65f98af39c8b1c58b"
             }
           ]
@@ -10543,15 +10543,6 @@
       "confounded_ids": [
         "box-model-overflow-hidden-x-border-radius",
         "interactions-positioning-overflow-hidden-x-border-radius"
-      ]
-    },
-    {
-      "id": "block-nested-containment",
-      "feature": "nested-block-flow",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "block-percentage-height-x-nested-containers"
       ]
     },
     {

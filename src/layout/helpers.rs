@@ -41,6 +41,28 @@ pub(crate) fn resolve_padding_box_height(
     }
 }
 
+/// Resolve a box's *content-box* height from its specified (effective) height.
+///
+/// Per CSS 2.1 § 10.5, an in-flow child's percentage height resolves against
+/// the containing block's **content** height (the box's `height` minus its own
+/// padding and border for `box-sizing: border-box`; equal to `height` for
+/// `content-box`). This differs from `resolve_padding_box_height`, which
+/// returns the padding box (the containing block used for *absolute*
+/// descendants). Returns 0 when the result would be negative.
+pub(crate) fn resolve_content_box_height(
+    specified_height: f32,
+    padding_top: f32,
+    padding_bottom: f32,
+    border_vertical: f32,
+    box_sizing: BoxSizing,
+) -> f32 {
+    let padding_box = match box_sizing {
+        BoxSizing::BorderBox => specified_height - border_vertical,
+        BoxSizing::ContentBox => specified_height + padding_top + padding_bottom,
+    };
+    (padding_box - padding_top - padding_bottom).max(0.0)
+}
+
 /// Strip the first child's top margin and the last child's bottom margin when
 /// they would otherwise collapse through the parent (no top/bottom padding or
 /// border). Returns the adjusted children-area height.

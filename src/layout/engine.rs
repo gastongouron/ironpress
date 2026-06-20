@@ -659,8 +659,11 @@ pub fn layout_with_rules_and_fonts(
     let content_height = page_size.height - margin.top - margin.bottom;
     parent_style.width = Some(available_width);
     parent_style.root_font_size = parent_style.font_size;
-    parent_style.viewport_width = page_size.width;
-    parent_style.viewport_height = page_size.height;
+    // Chrome resolves vw/vh against the printable CONTENT area (page minus
+    // margins), not the full page size. Use the available content
+    // width/height already computed above so 1vw == 1% of content width.
+    parent_style.viewport_width = available_width;
+    parent_style.viewport_height = content_height;
 
     // First, flatten DOM into layout elements
     let mut elements = Vec::new();
@@ -8341,12 +8344,17 @@ line 3</pre>
     }
 
     #[test]
-    fn vw_unit_resolves_against_actual_page_size() {
-        // 50vw on Letter (612pt wide) should produce ~306pt, not ~297pt (A4)
+    fn vw_unit_resolves_against_content_area() {
+        // Chrome resolves vw against the printable CONTENT area (page minus
+        // margins), not the full page size. On Letter (612pt wide) with the
+        // default 72pt margins the content width is 612 - 2*72 = 468pt, so
+        // 50vw should produce ~234pt.
         let html = r#"<div style="width:50vw;background:red">test</div>"#;
         let nodes = parse_html(html).unwrap();
-        let pages = layout(&nodes, PageSize::LETTER, Margin::default());
-        let expected = PageSize::LETTER.width / 2.0; // 306pt
+        let margin = Margin::default();
+        let pages = layout(&nodes, PageSize::LETTER, margin);
+        let content_width = PageSize::LETTER.width - margin.left - margin.right;
+        let expected = content_width / 2.0; // (612 - 2*72) / 2 = 234pt
         for (_, el) in &pages[0].elements {
             if let LayoutElement::TextBlock {
                 block_width: Some(_w),

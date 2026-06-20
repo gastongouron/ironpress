@@ -1728,10 +1728,28 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.background_color = Some(*c);
     }
 
+    // Background-image layers. A single declaration may split into several keys
+    // (e.g. `background-image: url(...), linear-gradient(...)` becomes a raster
+    // `background-image` key AND a `background-gradient` key — see
+    // parser::css::inline). All such layers from the *same* declaration must
+    // coexist, but they collectively replace any background-image stack inherited
+    // from an earlier, lower-priority cascade layer. So clear the whole stack
+    // exactly once, up front, before setting any layer present in this map —
+    // rather than per-key, which would clobber a sibling layer from the same
+    // declaration. Full resets (`background:` shorthand, `background-image: none`,
+    // the per-element reset in compute_style_with_context, the initial/inherit
+    // paths) are handled elsewhere and remain unaffected.
+    let sets_image_layer = get_non_special(map, "background-gradient").is_some()
+        || get_non_special(map, "background-radial-gradient").is_some()
+        || get_non_special(map, "background-svg").is_some()
+        || get_non_special(map, "background-image").is_some();
+    if sets_image_layer {
+        style.clear_background_images();
+    }
+
     // Linear gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-gradient") {
         if let Some(lg) = parse_linear_gradient(k) {
-            style.clear_background_images();
             style.background_gradient = Some(lg);
         }
     }
@@ -1739,7 +1757,6 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Radial gradient (from background or background-image)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
-            style.clear_background_images();
             style.background_radial_gradient = Some(rg);
         }
     }
@@ -1747,17 +1764,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // SVG background image (from data:image/svg+xml URI)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-svg") {
         if let Some(tree) = crate::parser::svg::parse_svg_from_string(k) {
-            style.clear_background_images();
             style.background_svg = Some(tree);
         }
     }
 
-    if get_non_special(map, "background-gradient").is_none()
-        && get_non_special(map, "background-radial-gradient").is_none()
-        && get_non_special(map, "background-svg").is_none()
-        && let Some(CssValue::Keyword(k)) = get_non_special(map, "background-image")
-    {
-        style.clear_background_images();
+    // Raster background image. Read even when a gradient/svg layer is also
+    // present in this map so a raster + gradient pair from the same shorthand
+    // both paint (the up-front clear above already reset the prior stack).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-image") {
         let resolved = resolve_embedded_vars(k.trim(), &style.custom_properties);
         let trimmed = resolved.trim();
         if trimmed != "none" {
@@ -8125,6 +8139,35 @@ mod tests {
         assert!(style.background_svg.is_none());
         assert!(style.background_gradient.is_none());
         assert!(style.background_radial_gradient.is_none());
+    }
+
+    #[test]
+    fn multiple_backgrounds_raster_and_gradient_coexist() {
+        // `background-image: url(<png>), linear-gradient(...)` splits (in
+        // parser::css::inline) into a raster `background-image` key AND a
+        // `background-gradient` key. Both layers must survive the cascade so the
+        // renderer can paint a PNG layer over a gradient layer over the color.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(
+                r#"background-color: #37474f; background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAIElEQVR42mO4rK8PRJJll4CIAYWjV2sERF/rxYEIhQMABxYT6ZMR6l4AAAAASUVORK5CYII="), linear-gradient(to bottom, #ffd600, #00bcd4)"#,
+            ),
+            &parent,
+        );
+        assert!(
+            style.background_image.is_some(),
+            "raster layer should be present"
+        );
+        assert!(
+            style.background_gradient.is_some(),
+            "gradient layer should coexist with raster"
+        );
+        assert_eq!(
+            style.background_color.map(|c| (c.r, c.g, c.b)),
+            Some((0x37, 0x47, 0x4f)),
+            "base color should also survive"
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 63.87%  (PASS 170 · PARTIAL 102 · FAIL 74 · UNKNOWN 0 · total 346)
+Overall: 65.32%  (PASS 177 · PARTIAL 98 · FAIL 71 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -30,8 +30,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 73.02 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | REAL | 19.33 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
 | FAIL | REAL | 29.40 | backgrounds-borders | outline | solid-offset | outline-solid |  |
-| FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
-| FAIL | REAL | 34.24 | block-box-model | nested-block-flow | containment | block-nested-containment |  |
 | FAIL | REAL | 29.44 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
 | FAIL | REAL | 13.18 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 53.74 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
@@ -86,18 +84,17 @@ None — every fixture's HTML matches `refs.lock`.
 | 5 | `inline-text-inline-block-baseline` | inline-block | PARTIAL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
 | 6 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
 | 7 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 8 | `block-nested-containment` | nested-block-flow | FAIL | 1 | block-percentage-height-x-nested-containers |
-| 9 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 10 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 11 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 12 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 8 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 9 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 10 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
+| 11 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
 | backgrounds-gradients | 71.43% | 9 | 2 | 3 | 0 |
-| block-box-model | 83.33% | 12 | 1 | 2 | 0 |
+| block-box-model | 100.00% | 15 | 0 | 0 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
@@ -108,7 +105,7 @@ None — every fixture's HTML matches `refs.lock`.
 | grid | 3.13% | 0 | 1 | 15 | 0 |
 | images-replaced | 93.33% | 14 | 0 | 1 | 0 |
 | inline-text | 53.13% | 1 | 15 | 0 | 0 |
-| interactions | 20.45% | 2 | 5 | 15 | 0 |
+| interactions | 22.73% | 3 | 4 | 15 | 0 |
 | lists-counters | 83.33% | 8 | 4 | 0 | 0 |
 | multicol | 6.25% | 0 | 1 | 7 | 0 |
 | overflow-clipping | 35.00% | 1 | 5 | 4 | 0 |
@@ -120,7 +117,7 @@ None — every fixture's HTML matches `refs.lock`.
 | text-advanced | 46.67% | 0 | 14 | 1 | 0 |
 | transforms | 90.91% | 10 | 0 | 1 | 0 |
 | typography | 93.75% | 14 | 2 | 0 | 0 |
-| units-values | 79.17% | 8 | 3 | 1 | 0 |
+| units-values | 95.83% | 11 | 1 | 0 | 0 |
 
 ## Known gaps (expected_support != implemented)
 > Fixtures targeting features ironpress is NOT expected to fully support. These are tracked for breadth, not counted as regressions.
@@ -129,7 +126,7 @@ None — every fixture's HTML matches `refs.lock`.
 |----------|--------|------:|----------|---------|----|-------------|
 | unsupported | FAIL | 30.39 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 99.99 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
-| unsupported | FAIL | 85.50 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
+| unsupported | FAIL | 78.54 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | PASS | 0.31 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | PASS | 0.03 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
@@ -234,7 +231,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.00 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
 | unsupported | PASS | 0.00 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
 | unsupported | PASS | 0.00 | units-values | math-functions | units-min-max | Aspirational: width:max(150px,240px) and height:min(120px,300px) resolve to 240x120px; standalone min()/max() value functions are unsupported in ironpress. |
-| partial | FAIL | 19.01 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
+| partial | PASS | 0.00 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
 ### backgrounds-borders — 67.65%
@@ -282,17 +279,17 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.35% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
   - PASS 0.32% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
 - **multiple-backgrounds** — 0.00%
-  - FAIL 85.50% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
+  - FAIL 78.54% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
 - **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
   - PASS 0.31% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - PASS 0.29% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
-### block-box-model — 83.33%
+### block-box-model — 100.00%
 - **border-width** — 100.00%
   - PASS 0.64% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
-- **box-sizing** — 50.00%
-  - FAIL 33.21% box-sizing=border-box — `block-box-sizing-border-box` — box-sizing:border-box keeps the total rendered width at 200px despite 24px padding and 8px border.
+- **box-sizing** — 100.00%
+  - PASS 0.00% box-sizing=border-box — `block-box-sizing-border-box` — box-sizing:border-box keeps the total rendered width at 200px despite 24px padding and 8px border.
   - PASS 0.00% box-sizing=content-box — `block-box-sizing-content-box` — box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.
 - **display** — 100.00%
   - PASS 0.11% display=block — `block-display-block-stacking` — Inline spans forced to display:block stack vertically full-width, each on its own line.
@@ -305,13 +302,13 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.06% max-width=clamp — `block-max-width-clamp` — Auto-width block clamped down to max-width:200px instead of filling the wider track.
 - **min-width** — 100.00%
   - PASS 0.00% min-width=floor — `block-min-width-floor` — Declared width:80px raised to the min-width:220px floor.
-- **nested-block-flow** — 0.00%
-  - FAIL 34.24% nested-block-flow=containment — `block-nested-containment` — Three nested blocks, each inset by its parent's padding, forming concentric frames to verify nested block containment.
+- **nested-block-flow** — 100.00%
+  - PASS 0.21% nested-block-flow=containment — `block-nested-containment` — Three nested blocks, each inset by its parent's padding, forming concentric frames to verify nested block containment.
 - **padding** — 100.00%
   - PASS 0.00% padding=uniform — `block-padding-all-sides` — content-box container with 30px padding on all sides framing an inner box; verifies padding insets content equally.
-- **width** — 75.00%
+- **width** — 100.00%
   - PASS 0.26% width=auto — `block-width-auto-fills-parent` — Block child with width:auto expands to fill the parent's content box (parent width minus padding).
-  - PARTIAL 5.18% width=percent — `block-width-percent` — Child with width:50% resolves to half (200px) of the 400px parent content box.
+  - PASS 1.24% width=percent — `block-width-percent` — Child with width:50% resolves to half (200px) of the 400px parent content box.
 - **width-height** — 100.00%
   - PASS 0.00% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
@@ -547,7 +544,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 50.00%
   - PARTIAL 8.47% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 20.45%
+### interactions — 22.73%
 - **containing-block** — 25.00%
   - PARTIAL 2.04% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 37.34% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -569,8 +566,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 3.52% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
 - **overflow-hidden-x-border-radius** — 50.00%
   - PARTIAL 5.38% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
-- **percentage-height-x-nested-block** — 50.00%
-  - PARTIAL 3.46% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
+- **percentage-height-x-nested-block** — 100.00%
+  - PASS 0.00% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
 - **position** — 33.33%
   - PASS 1.56% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
   - FAIL 35.24% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
@@ -664,7 +661,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.11% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
 - **containing-block** — 50.00%
   - PARTIAL 10.09% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
-  - PARTIAL 3.88% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
+  - PARTIAL 2.48% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
 - **float** — 50.00%
   - PARTIAL 5.92% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
 - **inset** — 50.00%
@@ -676,7 +673,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 37.28% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
 - **position** — 60.00%
   - FAIL 39.67% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
-  - PARTIAL 4.32% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
+  - PARTIAL 2.65% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
   - PARTIAL 3.19% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
   - PASS 0.00% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
   - PASS 0.00% position=static — `positioning-position-static` — position:static box ignores top/left offsets and stays in normal flow.
@@ -820,9 +817,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 12.03% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
   - PARTIAL 8.13% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
-### units-values — 79.17%
-- **calc** — 50.00%
-  - PARTIAL 2.41% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
+### units-values — 95.83%
+- **calc** — 100.00%
+  - PASS 0.60% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
 - **custom-properties** — 100.00%
   - PASS 0.00% custom-properties=var-resolution — `units-var-custom-property` — Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.
   - PASS 0.00% custom-properties=var-fallback — `units-var-fallback` — var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.
@@ -835,8 +832,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **math-functions** — 100.00%
   - PASS 0.00% math-functions=clamp — `units-clamp` — Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress.
   - PASS 0.00% math-functions=min-max — `units-min-max` — Aspirational: width:max(150px,240px) and height:min(120px,300px) resolve to 240x120px; standalone min()/max() value functions are unsupported in ironpress.
-- **percentage** — 50.00%
-  - PARTIAL 2.27% percentage=width-height-resolution — `units-percent-width-height` — Child width:75% / height:50% of a 400x200px parent resolves to 300x100px; verifies percentage length resolution against the containing block.
-- **viewport-units** — 0.00%
-  - FAIL 19.01% viewport-units=vw-vh — `units-viewport-vw-vh` — Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial.
+- **percentage** — 100.00%
+  - PASS 0.72% percentage=width-height-resolution — `units-percent-width-height` — Child width:75% / height:50% of a 400x200px parent resolves to 300x100px; verifies percentage length resolution against the containing block.
+- **viewport-units** — 100.00%
+  - PASS 0.00% viewport-units=vw-vh — `units-viewport-vw-vh` — Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial.
 

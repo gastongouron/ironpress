@@ -14,7 +14,8 @@ use super::helpers::{
     BackgroundFields, append_pseudo_inline_run, aspect_ratio_height, build_pseudo_block,
     collects_as_inline_text, has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
-    recurses_as_layout_child, resolve_abs_containing_block, resolve_padding_box_height,
+    recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
+    resolve_padding_box_height,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
@@ -138,6 +139,33 @@ pub(crate) fn layout_block_element(
     }
 
     let style = &*style;
+
+    // Parent style handed to block children for *their* percentage-height
+    // resolution (CSS 2.1 § 10.5). A child's `height: %` resolves against this
+    // box's CONTENT-box height, but `style.height` here is the declared height
+    // (the border-box height under `box-sizing: border-box`). When this box has
+    // a definite height, hand children a clone whose `.height` is the content
+    // box (declared height minus this box's own padding and border) so their
+    // `height: 100%` fits inside rather than inflating the parent. Only built
+    // when a definite height exists and differs from the content box — otherwise
+    // children just see the original `style`.
+    let child_parent_owned: Option<ComputedStyle> = effective_height.and_then(|h| {
+        let content_h = resolve_content_box_height(
+            h,
+            style.padding.top,
+            style.padding.bottom,
+            style.border.vertical_width(),
+            style.box_sizing,
+        );
+        if (content_h - h).abs() < f32::EPSILON {
+            None
+        } else {
+            let mut adjusted = style.clone();
+            adjusted.height = Some(content_h);
+            Some(adjusted)
+        }
+    });
+    let child_parent_style: &ComputedStyle = child_parent_owned.as_ref().unwrap_or(style);
 
     let ib_ctx = ctx.with_parent(inner_width, ctx.parent.content_height, style.font_size);
 
@@ -699,7 +727,7 @@ pub(crate) fn layout_block_element(
                             .count();
                         flatten_element(
                             child_el,
-                            style,
+                            child_parent_style,
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size)
                                 .with_containing_block(None),
                             target,
@@ -1237,19 +1265,28 @@ pub(crate) fn layout_block_element(
                             child_ancestors,
                         )
                     {
-                        let child_cb = if effective_height.is_some() {
-                            Some(ContainingBlock {
-                                x: 0.0,
-                                width: inner_width,
-                                height: effective_height.unwrap_or(0.0),
-                                depth: positioned_depth,
-                            })
-                        } else {
-                            None
-                        };
+                        // An in-flow child's percentage height resolves against
+                        // this box's *content-box* height (CSS 2.1 § 10.5), not
+                        // its border-box `effective_height`. For `border-box`
+                        // that means subtracting this box's own padding and
+                        // border; for `content-box` the effective height already
+                        // is the content height. (Absolute descendants use the
+                        // padding box via `make_containing_block`, kept separate.)
+                        let child_cb = effective_height.map(|h| ContainingBlock {
+                            x: 0.0,
+                            width: inner_width,
+                            height: resolve_content_box_height(
+                                h,
+                                style.padding.top,
+                                style.padding.bottom,
+                                style.border.vertical_width(),
+                                style.box_sizing,
+                            ),
+                            depth: positioned_depth,
+                        });
                         flatten_element(
                             child_el,
-                            style,
+                            child_parent_style,
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size)
                                 .with_containing_block(child_cb),
                             &mut child_elements,
@@ -1529,7 +1566,7 @@ pub(crate) fn layout_block_element(
                     {
                         flatten_element(
                             child_el,
-                            style,
+                            child_parent_style,
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size)
                                 .with_containing_block(cb_info),
                             output,
