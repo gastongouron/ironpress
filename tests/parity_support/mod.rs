@@ -1051,17 +1051,28 @@ fn bundled_font_faces() -> Vec<(&'static str, PathBuf)> {
     // SAME outline as the bundled ParityMono.ttf (a renamed DejaVu Sans Mono).
     // Use the system DejaVu mono so ironpress shapes identical glyphs.
     let mono = PathBuf::from("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf");
+    // The `Parity*` families are the deterministic faces this harness bundles
+    // (DejaVu Sans/Serif/Mono renamed). `scripts/parity-gen-refs.sh` INSTALLS
+    // them into the user font dir before generating refs, so Chrome resolves
+    // `font-family: ParitySans/ParitySerif/ParityMono` to THESE exact outlines.
+    // ironpress must shape with the same files — the previous serif fallback
+    // mis-rendered every `ParitySans`/`ParityMono` fixture (proportional serif
+    // instead of the reference's sans / monospace, breaking glyph shapes and
+    // monospace column alignment).
+    let parity = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("parity")
+        .join("fonts");
     vec![
         // Generics: resolve exactly as the snap chromium does.
-        ("sans-serif", sans.clone()),
+        ("sans-serif", sans),
         ("serif", serif.clone()),
-        ("monospace", mono.clone()),
-        // Bare Parity* names: the snap resolves every unknown family to its
-        // serif default, so ironpress must too for like-for-like parity.
-        ("ParitySans", serif.clone()),
-        ("ParitySerif", serif.clone()),
-        ("ParityMono", serif.clone()),
-        // Any @font-face-declared ParityCustom likewise falls to serif.
+        ("monospace", mono),
+        // Bare Parity* names resolve to the installed bundled faces.
+        ("ParitySans", parity.join("ParitySans.ttf")),
+        ("ParitySerif", parity.join("ParitySerif.ttf")),
+        ("ParityMono", parity.join("ParityMono.ttf")),
+        // Any @font-face-declared ParityCustom falls back to the serif default.
         ("ParityCustom", serif),
     ]
 }

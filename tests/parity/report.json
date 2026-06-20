@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 49.42,
-    "pass": 118,
-    "partial": 106,
-    "fail": 122,
+    "score_pct": 52.02,
+    "pass": 131,
+    "partial": 98,
+    "fail": 117,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -1603,21 +1603,21 @@
     },
     {
       "category": "color-opacity",
-      "score_pct": 64.29,
+      "score_pct": 71.43,
       "counts": {
-        "pass": 9,
+        "pass": 10,
         "partial": 0,
-        "fail": 5,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
         {
           "feature": "color-format",
-          "score_pct": 87.5,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 7,
+            "pass": 8,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1775,8 +1775,8 @@
               "subfeature": "text-glyph-fill",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 26.3796,
+              "status": "PASS",
+              "diff_pct": 0.0273,
               "weight": 1.0,
               "description": "The color property fills text glyphs in ParitySans with a solid color.",
               "note": "",
@@ -1785,7 +1785,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "2dd23a546c50e2c3a92c228c512f2cbaac7a08a80848f31b8727ff7dc94d36bd"
             }
           ]
@@ -1974,10 +1974,10 @@
     },
     {
       "category": "effects",
-      "score_pct": 40.91,
+      "score_pct": 45.45,
       "counts": {
-        "pass": 1,
-        "partial": 7,
+        "pass": 2,
+        "partial": 6,
         "fail": 3,
         "unknown": 0
       },
@@ -2209,10 +2209,10 @@
         },
         {
           "feature": "text-shadow",
-          "score_pct": 75.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
-            "partial": 1,
+            "pass": 2,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -2225,7 +2225,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 2.5114,
+              "diff_pct": 1.7836,
               "weight": 1.0,
               "description": "Short heading with a blurred text-shadow glow (aspirational; not implemented).",
               "note": "",
@@ -2244,8 +2244,8 @@
               "subfeature": "hard-offset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 3.4008,
+              "status": "PASS",
+              "diff_pct": 1.6449,
               "weight": 1.0,
               "description": "Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).",
               "note": "",
@@ -2254,7 +2254,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "8c71f4692fab87a1b169f8faeed768934860ff15545719812ee86ff298a0527e"
             }
           ]
@@ -3218,10 +3218,10 @@
     },
     {
       "category": "fonts-advanced",
-      "score_pct": 41.67,
+      "score_pct": 75.0,
       "counts": {
-        "pass": 0,
-        "partial": 10,
+        "pass": 8,
+        "partial": 2,
         "fail": 2,
         "unknown": 0
       },
@@ -3254,17 +3254,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "ccca2b33a7ca2d95d980bf8c65faf4dca9c85412ee46d5f3dbf2275feda362a7"
             }
           ]
         },
         {
           "feature": "font-feature-settings",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -3276,8 +3276,8 @@
               "subfeature": "ligatures-off",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 6.182,
+              "status": "PASS",
+              "diff_pct": 3.5519,
               "weight": 1.0,
               "description": "Text with font-feature-settings: \"liga\" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied).",
               "note": "",
@@ -3287,17 +3287,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "2b1c2c2d74e42ec09ee396938b77843dabc8cce770be18ba07acfae6b74e9f96"
             }
           ]
         },
         {
           "feature": "font-size",
-          "score_pct": 30.0,
+          "score_pct": 60.0,
           "counts": {
-            "pass": 0,
-            "partial": 3,
+            "pass": 3,
+            "partial": 0,
             "fail": 2,
             "unknown": 0
           },
@@ -3310,7 +3310,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 47.0931,
+              "diff_pct": 46.6389,
               "weight": 1.0,
               "description": "font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).",
               "note": "",
@@ -3320,7 +3320,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "ea93d7e2370382c90dee07e3189d6ec7a449df08958e1b63f3f755666cc89019"
             },
             {
@@ -3330,8 +3330,8 @@
               "subfeature": "em",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 7.1272,
+              "status": "PASS",
+              "diff_pct": 0.6489,
               "weight": 1.0,
               "description": "font-size: 2em resolved against the parent region's 16px font-size for a 32px effective size.",
               "note": "",
@@ -3341,7 +3341,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "971dcc5868675c5110e76f255234c1d3ae669ca6b8885c4996aceb0e1986f48c"
             },
             {
@@ -3352,7 +3352,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 38.0576,
+              "diff_pct": 37.8854,
               "weight": 1.0,
               "description": "font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).",
               "note": "",
@@ -3362,7 +3362,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "db9fb2a9a8aad5bcfc488894b764770e67232b75bfa6a85c936a78ebb32b423c"
             },
             {
@@ -3372,8 +3372,8 @@
               "subfeature": "percent",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 6.6061,
+              "status": "PASS",
+              "diff_pct": 2.0547,
               "weight": 1.0,
               "description": "font-size: 150% resolved against the parent region's 20px font-size for a 30px effective size.",
               "note": "",
@@ -3383,7 +3383,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "bda7a8485f78c6c2b9822d631833ccd75088a57fb9c01e737db3b43c5af2bb88"
             },
             {
@@ -3393,8 +3393,8 @@
               "subfeature": "rem",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 7.7115,
+              "status": "PASS",
+              "diff_pct": 0.6514,
               "weight": 1.0,
               "description": "font-size: 2rem resolved against the root 16px font-size (32px), independent of the local 10px font-size.",
               "note": "",
@@ -3404,17 +3404,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "ecdeb22b0bfc99167c77012c2537e192f3098302ca431e7e32c521df628735ae"
             }
           ]
         },
         {
           "feature": "font-stretch",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -3426,8 +3426,8 @@
               "subfeature": "condensed",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 9.746,
+              "status": "PASS",
+              "diff_pct": 2.2029,
               "weight": 1.0,
               "description": "Text with font-stretch: condensed selecting a narrower face/width (aspirational; font-stretch is not parsed or matched).",
               "note": "",
@@ -3437,7 +3437,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "598428e0d78748c63b2b3569467d5381882443d3d50ec293ea041521070fd1c2"
             }
           ]
@@ -3460,7 +3460,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 8.0302,
+              "diff_pct": 7.5215,
               "weight": 1.0,
               "description": "Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support).",
               "note": "",
@@ -3470,17 +3470,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "2ea8a1bad30f51bf13ac32dd9bd526501ea648be42ca19d691fe003214df414c"
             }
           ]
         },
         {
           "feature": "text-transform",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 3,
+            "pass": 3,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -3492,8 +3492,8 @@
               "subfeature": "capitalize",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 9.582,
+              "status": "PASS",
+              "diff_pct": 2.2544,
               "weight": 1.0,
               "description": "Lowercase words rendered with text-transform: capitalize so the first letter of each word is uppercased.",
               "note": "",
@@ -3503,7 +3503,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "b3a19c3d377627b43b682ba0ee0c1391def4ac7f3083c56754bde329a5805017"
             },
             {
@@ -3513,8 +3513,8 @@
               "subfeature": "lowercase",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 8.6424,
+              "status": "PASS",
+              "diff_pct": 2.1435,
               "weight": 1.0,
               "description": "Uppercase source text rendered with text-transform: lowercase so every glyph is lowercased before shaping.",
               "note": "",
@@ -3524,7 +3524,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "07df0b3b47c4d24d493ebebca063c0499eef0cc5f86219684764282488e0866e"
             },
             {
@@ -3534,8 +3534,8 @@
               "subfeature": "uppercase",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 7.0092,
+              "status": "PASS",
+              "diff_pct": 2.2097,
               "weight": 1.0,
               "description": "Lowercase source text rendered with text-transform: uppercase so every glyph is uppercased before shaping.",
               "note": "",
@@ -3545,7 +3545,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "4c05bcf38714f9b24748ca6610154de52e910c18b2291e22319c5567c913ea6e"
             }
           ]
@@ -3554,10 +3554,10 @@
     },
     {
       "category": "generated-content",
-      "score_pct": 55.0,
+      "score_pct": 60.0,
       "counts": {
-        "pass": 1,
-        "partial": 9,
+        "pass": 2,
+        "partial": 8,
         "fail": 0,
         "unknown": 0
       },
@@ -3580,7 +3580,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 13.4394,
+              "diff_pct": 14.2397,
               "weight": 1.0,
               "description": "content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.",
               "note": "",
@@ -3592,7 +3592,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "db83dad6cb2921e82acdf6c5796336f77d941c598c31c41ac19dfc90c79457d3"
             }
           ]
@@ -3615,7 +3615,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 4.0803,
+              "diff_pct": 3.787,
               "weight": 1.0,
               "description": "counter-reset plus counter-increment with content: counter(step) numbers three stacked items via ::before.",
               "note": "",
@@ -3650,7 +3650,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 11.633,
+              "diff_pct": 9.6803,
               "weight": 1.0,
               "description": "content: none on ::before suppresses the pseudo-element so only the original element text renders.",
               "note": "",
@@ -3662,7 +3662,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "8485476dcd979fcc605e2bd9f998ed4dd6efc87ba21c1ec854849331c34b5b4f"
             }
           ]
@@ -3685,7 +3685,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 12.179,
+              "diff_pct": 11.7366,
               "weight": 1.0,
               "description": "content: url(data:png) on ::before places a small decoded raster image before the element text.",
               "note": "",
@@ -3698,7 +3698,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "a4c0f8dd661e83ce4e10f1e45b1c26627e01e2bdb4d4a518fb6c72cb26b9e718"
             }
           ]
@@ -3721,7 +3721,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 11.5388,
+              "diff_pct": 10.8744,
               "weight": 1.0,
               "description": "::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it.",
               "note": "",
@@ -3733,17 +3733,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "7267e20d52eb43e9511064b7649aaa634eb9d9fbb757fbd60533d5590675de5f"
             }
           ]
         },
         {
           "feature": "first-line",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -3755,8 +3755,8 @@
               "subfeature": "color-weight",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 13.6588,
+              "status": "PASS",
+              "diff_pct": 4.1359,
               "weight": 1.0,
               "description": "::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.",
               "note": "",
@@ -3768,7 +3768,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "80b3460599e271df58a24ba45ca62df5e26980f553e726c06d89251990b8fc2a"
             }
           ]
@@ -3791,7 +3791,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 12.9955,
+              "diff_pct": 11.8982,
               "weight": 1.0,
               "description": "::after appends a literal string after the element text inside a filled, bordered box.",
               "note": "",
@@ -3803,7 +3803,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "88aaf3c8dc0d1c49bb2ae8aa8cb5be378e6e0a774c825efb938b899135d32547"
             },
             {
@@ -3814,7 +3814,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 12.3436,
+              "diff_pct": 12.1751,
               "weight": 1.0,
               "description": "content: \"\" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.",
               "note": "",
@@ -3826,7 +3826,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "19e243ecfe4974eadd61c071504a7ad968c41edb9d604cd2dfa994756745024a"
             },
             {
@@ -3837,7 +3837,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 13.8704,
+              "diff_pct": 14.212,
               "weight": 1.0,
               "description": "::before inserts a literal red string in front of the element text inside a filled, bordered box.",
               "note": "",
@@ -3849,7 +3849,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "83ef463f21efc11fceb093c4168f7a5f22a4ca76eeae8ba313356e2c4ce7773f"
             }
           ]
@@ -3872,7 +3872,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 9.1335,
+              "diff_pct": 9.6881,
               "weight": 1.0,
               "description": "content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.",
               "note": "",
@@ -3884,7 +3884,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "a8306c0e131e3e5201d2f888d22a1c6ec555e9e453d4826c912ae92152835749"
             }
           ]
@@ -4794,7 +4794,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "6c3419f3e6ed8b524d09ba138d5b1c25004047d5fbdfff125a7384e03aec28bf"
             }
           ]
@@ -4826,7 +4826,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "8cfb6782a9ac7addf188252543cce55b0e071ad252d476ef221fa7f530ecfb75"
             }
           ]
@@ -4890,7 +4890,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "14aaf8d56842eb975eddab06b4a9c4cdf7defb9b5d6ddae70a4b5da0147934b9"
             },
             {
@@ -4910,7 +4910,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "016be098aedc4750b4233c21ed6f12a94295dda92d31a5bbb2382665317d9d16"
             },
             {
@@ -4930,7 +4930,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "dce0fd5875a7e64f8092b5bf31cc44fc0efcc74eaaf2ea72a252b91112614623"
             }
           ]
@@ -4962,7 +4962,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "d5bb66bed6badd08ad3a0c47d439360e72cf95cdba763d38a9acc5a8f9000d97"
             }
           ]
@@ -4995,7 +4995,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "b24b92c8cb0e22bb84d56213c4e26ba07f01dbb2d1185a7fa11aeeb354bb1040"
             },
             {
@@ -5016,7 +5016,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "5bf577a7de0607cc433903c7a6ac7cfb7d6ffd09b0c2aa3ac14d036f6feb2755"
             },
             {
@@ -5037,7 +5037,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "7bbf57ee3b8a1612fd884dd33eae4941a72c3536d0443a51b3b0f57539f70871"
             },
             {
@@ -5058,7 +5058,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "2ffc50b31e849b7a189dac6bc62e1fe68a235326de3d0cba67ae23e88f3d67af"
             }
           ]
@@ -5090,7 +5090,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "b8f664b0f81d9fdb314fbae6a88a64f38a366ac1cfd0b8045953f3e3a58a78d7"
             },
             {
@@ -5110,7 +5110,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "fd46d0ad4ba973b187777a18ea7f9514a234ef870c1753339698b5deec78dde1"
             },
             {
@@ -5130,7 +5130,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "bc5c9b68efb634c29c96d417e313effeb0e18a7ea7b6798f68f254da8e4060c2"
             }
           ]
@@ -5162,7 +5162,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "31b0b05760c3176106791199bb5cd24ab86c035b577f21b499c8ab8fd4759208"
             }
           ]
@@ -5194,7 +5194,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "d93d78372204f5a0aa921bec8b23d54fd43729a14d9f156cb5ef780ed9b7fa1a"
             }
           ]
@@ -5540,7 +5540,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "CONFOUNDED: inline-block (`inline-text-inline-block-baseline`)",
               "html_sha256": "a4f7d1c92d3ae00c6a4fb9bf9efdc16048e0e062fe9aeb0e2029dfccef7a6e5c"
             }
           ]
@@ -5753,7 +5753,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "CONFOUNDED: position (`positioning-position-relative-offset`)",
               "html_sha256": "d4f1fdd6c5276ee46ade4396915d432dcdc2a268d8f12362911721300261ce19"
             }
           ]
@@ -5910,7 +5910,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "cfa53772cf779976b862ebfb50670b3d94f5f0e59841f9339e794b1971a7cec3"
             }
           ]
@@ -6037,20 +6037,20 @@
     },
     {
       "category": "lists-counters",
-      "score_pct": 83.33,
+      "score_pct": 75.0,
       "counts": {
-        "pass": 8,
-        "partial": 4,
+        "pass": 6,
+        "partial": 6,
         "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "counters",
-          "score_pct": 100.0,
+          "score_pct": 83.33,
           "counts": {
-            "pass": 3,
-            "partial": 0,
+            "pass": 2,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -6063,7 +6063,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 3.6851,
+              "diff_pct": 3.1413,
               "weight": 1.0,
               "description": "content:counter(x, upper-roman) rendering counter values in an explicit counter style.",
               "note": "",
@@ -6085,8 +6085,8 @@
               "subfeature": "reset-increment-content",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PASS",
-              "diff_pct": 5.4218,
+              "status": "PARTIAL",
+              "diff_pct": 6.3002,
               "weight": 1.0,
               "description": "counter-reset and counter-increment feeding content:counter() in ::before across three rows.",
               "note": "",
@@ -6098,7 +6098,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "",
+              "attribution": "REAL",
               "html_sha256": "fc14514580b9ef938a8c2f8af85a036100e383efd027f4528e2e87da9543bbea"
             },
             {
@@ -6109,7 +6109,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 3.3739,
+              "diff_pct": 3.8422,
               "weight": 1.0,
               "description": "Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.",
               "note": "",
@@ -6144,7 +6144,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 8.1116,
+              "diff_pct": 6.9795,
               "weight": 1.0,
               "description": "Unordered list using a data-URI PNG as the marker image (list-style-image:url()).",
               "note": "",
@@ -6157,7 +6157,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "b99039eed62798882f7531913b9abb0f12c2a748c84cfb3abc411484d51d4b46"
             }
           ]
@@ -6180,7 +6180,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.1989,
+              "diff_pct": 7.894,
               "weight": 1.0,
               "description": "Ordered list with markers flowed inside the content box (list-style-position:inside).",
               "note": "",
@@ -6192,7 +6192,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "7a49d209fb0bed56e22661f0ffbe5a5f7677a7e4f9e0e53f50d8c5d61caeec2e"
             },
             {
@@ -6203,7 +6203,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.8512,
+              "diff_pct": 7.9721,
               "weight": 1.0,
               "description": "Ordered list with markers hung outside the content box (list-style-position:outside).",
               "note": "",
@@ -6215,17 +6215,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "186e5a815fe3360dfc791fac3a5f73b3dabba271afff5a710664a07f3614d00d"
             }
           ]
         },
         {
           "feature": "list-style-type",
-          "score_pct": 100.0,
+          "score_pct": 90.0,
           "counts": {
-            "pass": 5,
-            "partial": 0,
+            "pass": 4,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -6238,7 +6238,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 5.0561,
+              "diff_pct": 4.9323,
               "weight": 1.0,
               "description": "Ordered list rendering 1./2./3. decimal markers on three short text items.",
               "note": "",
@@ -6261,7 +6261,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 4.8687,
+              "diff_pct": 4.6036,
               "weight": 1.0,
               "description": "Unordered list rendering filled disc markers on three short text items.",
               "note": "",
@@ -6284,7 +6284,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 5.4764,
+              "diff_pct": 5.6825,
               "weight": 1.0,
               "description": "Ordered list rendering a./b./c. lower-alpha markers on three short text items.",
               "note": "",
@@ -6306,8 +6306,8 @@
               "subfeature": "none",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PASS",
-              "diff_pct": 5.966,
+              "status": "PARTIAL",
+              "diff_pct": 6.4425,
               "weight": 1.0,
               "description": "Unordered list with markers suppressed via list-style-type:none.",
               "note": "",
@@ -6319,7 +6319,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "",
+              "attribution": "REAL",
               "html_sha256": "c60840a05d5bff697997443f25f0ece8ff869f27d3caa25096cd4384a06a2113"
             },
             {
@@ -6330,7 +6330,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 5.0482,
+              "diff_pct": 3.6064,
               "weight": 1.0,
               "description": "Ordered list rendering I./II./III. upper-roman markers on three short text items.",
               "note": "",
@@ -6365,7 +6365,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.1479,
+              "diff_pct": 8.1538,
               "weight": 1.0,
               "description": "Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.",
               "note": "",
@@ -6377,7 +6377,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "f9074af58c763bf8fe27e056b7b344dc349ecf6e090f6b41f0d4d525d3f65c5e"
             }
           ]
@@ -6447,7 +6447,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.8469,
+              "diff_pct": 8.9348,
               "weight": 1.0,
               "description": "Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.",
               "note": "",
@@ -6460,7 +6460,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "ea1e806a08e980d6d251cd90abcd86c72d5ad56c0023785eef24b19cec2b468a"
             },
             {
@@ -6820,7 +6820,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 13.0771,
+              "diff_pct": 14.8586,
               "weight": 1.0,
               "description": "overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).",
               "note": "",
@@ -6831,7 +6831,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "534cb9c193be91ea2aff178c35f0e010a87642131c691c2ad5b15b54de6fa69e"
             },
             {
@@ -6903,11 +6903,11 @@
     },
     {
       "category": "paged-media",
-      "score_pct": 61.11,
+      "score_pct": 77.78,
       "counts": {
-        "pass": 4,
-        "partial": 3,
-        "fail": 2,
+        "pass": 6,
+        "partial": 2,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -6979,11 +6979,11 @@
         },
         {
           "feature": "named-page",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6994,8 +6994,8 @@
               "subfeature": "page-property",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.5025,
+              "status": "PASS",
+              "diff_pct": 0.5024,
               "weight": 1.0,
               "description": "The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap.",
               "note": "",
@@ -7005,7 +7005,7 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "ac3851546dc7096a62c6e8f4ffa3923d58cdc0090b462a2e96a73f1096a1351b"
             }
           ]
@@ -7028,7 +7028,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PASS",
-              "diff_pct": 5.8677,
+              "diff_pct": 5.1836,
               "weight": 1.0,
               "description": "orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap.",
               "note": "",
@@ -7168,17 +7168,17 @@
                 "probe-text-baseline"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "9c16d090211e83c9620270e8d37246cc5907ed1e0625f01b13fd85643ba12134"
             }
           ]
         },
         {
           "feature": "page-margin",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -7190,8 +7190,8 @@
               "subfeature": "via-body-margin",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 3.0375,
+              "status": "PASS",
+              "diff_pct": 0.4324,
               "weight": 1.0,
               "description": "Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.",
               "note": "",
@@ -7201,7 +7201,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3652adc221325eff974681fa2f1a1dcc21609e45cfe42456cae0c36ca87a195f"
             }
           ]
@@ -7642,11 +7642,11 @@
     },
     {
       "category": "probes",
-      "score_pct": 83.33,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 5,
+        "pass": 6,
         "partial": 0,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -7772,11 +7772,11 @@
         },
         {
           "feature": "font-metrics",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7787,15 +7787,15 @@
               "subfeature": "baseline",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 18.9136,
+              "status": "PASS",
+              "diff_pct": 0.0088,
               "weight": 1.0,
               "description": "Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.",
               "note": "",
               "kind": "probe",
               "depends_on": [],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "a0289049eb08b5c421c9289151d69eccbefc6380c360818e344f3ede18fb7a54"
             }
           ]
@@ -7834,21 +7834,21 @@
     },
     {
       "category": "selectors-cascade",
-      "score_pct": 73.33,
+      "score_pct": 80.0,
       "counts": {
-        "pass": 11,
+        "pass": 12,
         "partial": 0,
-        "fail": 4,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
         {
           "feature": "at-rule",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -7859,8 +7859,8 @@
               "subfeature": "media-print",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 94.0375,
+              "status": "PASS",
+              "diff_pct": 0.4512,
               "weight": 1.0,
               "description": "@media print { } applies in the print rendering context, turning the box green; ignoring print media queries leaves it gray.",
               "note": "",
@@ -7872,7 +7872,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6978d15918d7e299de7387b1fe02571577be092427bb4a838651dd2206fcc91f"
             },
             {
@@ -8387,7 +8387,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "c4dd6ab8a9f8e6b0002f9a3b2b985844d0c7891586b53950c4c533eb54cad2fa"
             }
           ]
@@ -8782,11 +8782,11 @@
     },
     {
       "category": "text-advanced",
-      "score_pct": 33.33,
+      "score_pct": 36.67,
       "counts": {
         "pass": 0,
-        "partial": 10,
-        "fail": 5,
+        "partial": 11,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -8808,7 +8808,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 18.1959,
+              "diff_pct": 19.5318,
               "weight": 1.0,
               "description": "direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress.",
               "note": "",
@@ -8818,18 +8818,18 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "f8ed9b1f2d0df8583a56cac3e37dd2e6f210ee73bf1bae964cec16e649039dc6"
             }
           ]
         },
         {
           "feature": "hyphens",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8840,8 +8840,8 @@
               "subfeature": "auto",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 18.38,
+              "status": "PARTIAL",
+              "diff_pct": 9.4182,
               "weight": 1.0,
               "description": "hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress.",
               "note": "",
@@ -8851,7 +8851,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "47fbd6ac2757476a211f643dfb8c6e45e57060c99a57f8f5449c7f5e4d785114"
             }
           ]
@@ -8874,7 +8874,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 16.526,
+              "diff_pct": 16.5029,
               "weight": 1.0,
               "description": "overflow-wrap:break-word breaks an over-long word so it does not overflow the narrow fixed-width box.",
               "note": "",
@@ -8884,7 +8884,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "e7027c37a530c4e03f8bd550d6ac54b0c0620160021db1259d0e7b5a8f463fb8"
             }
           ]
@@ -8907,7 +8907,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 8.2835,
+              "diff_pct": 8.6098,
               "weight": 1.0,
               "description": "tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.",
               "note": "",
@@ -8917,7 +8917,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "684a9cb96dfe1fa969b1c331100c2d5f370041e08ed5dd9eb5573e628fac4582"
             }
           ]
@@ -8940,7 +8940,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 14.9423,
+              "diff_pct": 10.4394,
               "weight": 1.0,
               "description": "text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.",
               "note": "",
@@ -8950,7 +8950,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "49d8f65fe0e16b1e8b7fe1a4ef0f11ae9894caf4b945c229440aff536b51b1d3"
             }
           ]
@@ -8973,7 +8973,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 20.9123,
+              "diff_pct": 19.1785,
               "weight": 1.0,
               "description": "text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis.",
               "note": "",
@@ -8983,7 +8983,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "3810ddde88a2d4f53941037abd860be374ff1a164ba7efcf728a4cab073a8de0"
             },
             {
@@ -8994,7 +8994,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 19.9317,
+              "diff_pct": 19.5259,
               "weight": 1.0,
               "description": "text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped.",
               "note": "",
@@ -9004,7 +9004,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "9c800c544318e9637fc85bcae0c1dc28cdda06086e0504379ff815f023b5b238"
             }
           ]
@@ -9027,7 +9027,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 14.4019,
+              "diff_pct": 15.8807,
               "weight": 1.0,
               "description": "unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress.",
               "note": "",
@@ -9037,7 +9037,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "2ef873410153f7db6c31029dea461bdcb482ac84f80a316c37e51de97a088c0c"
             }
           ]
@@ -9060,7 +9060,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 15.1205,
+              "diff_pct": 8.2202,
               "weight": 1.0,
               "description": "white-space:normal collapses runs of spaces and newlines into single soft-wrappable spaces.",
               "note": "",
@@ -9070,7 +9070,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "b7ab17ad80301693ac4403d40ce34dbbd6b9f2f3810efbe857817060bc87de90"
             },
             {
@@ -9081,7 +9081,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 20.3638,
+              "diff_pct": 19.7467,
               "weight": 1.0,
               "description": "white-space:nowrap forces a single line that is clipped by overflow:hidden in a narrow box.",
               "note": "",
@@ -9091,7 +9091,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "4e39542bdc76cb249df6b449c1fff9fe73bc5c75777ddd30cb2f255185667188"
             },
             {
@@ -9102,7 +9102,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.4441,
+              "diff_pct": 6.9882,
               "weight": 1.0,
               "description": "white-space:pre preserves runs of spaces and explicit newlines in monospace text with no wrapping.",
               "note": "",
@@ -9112,7 +9112,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "1c742677767c19a6bf3fff5f56f9409356bbd7330e03ea84080929cad2176f16"
             },
             {
@@ -9123,7 +9123,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 14.5745,
+              "diff_pct": 12.2076,
               "weight": 1.0,
               "description": "white-space:pre-line collapses spaces but preserves explicit newlines, wrapping at the box edge.",
               "note": "",
@@ -9133,7 +9133,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "cff647cc571df6d79cabe3362d9b4128a67376332a2b42a8dd30159eb4a859de"
             },
             {
@@ -9144,7 +9144,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 14.9602,
+              "diff_pct": 10.7261,
               "weight": 1.0,
               "description": "white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.",
               "note": "",
@@ -9154,7 +9154,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "669b3155058a3248bef0c1b3e04213b34f51876bbdddb4fb8a206ba290a6679e"
             }
           ]
@@ -9177,7 +9177,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 10.4035,
+              "diff_pct": 8.6727,
               "weight": 1.0,
               "description": "word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.",
               "note": "",
@@ -9187,7 +9187,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "45431698601507582395e30f35264497996985312a5a66d793b701b1fe7628eb"
             }
           ]
@@ -9210,7 +9210,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 7.516,
+              "diff_pct": 7.9728,
               "weight": 1.0,
               "description": "writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.",
               "note": "",
@@ -9220,7 +9220,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "b6f7ccb81cb325f898d104a4c8653043c95128d5d2e324d6e8bfa192ff0513df"
             }
           ]
@@ -9883,7 +9883,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "fe1bdfaab6304966b91c8c703e2b55ca35f7abfc815523671215abb93577f3e2"
             },
             {
@@ -9903,7 +9903,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "REAL",
               "html_sha256": "d77da2c5feccd6bdc11e9a9279fb7dd8ce3158e26a2bf4bf9158adb2bf4a1d7c"
             }
           ]
@@ -10468,80 +10468,6 @@
   },
   "fix_first": [
     {
-      "id": "probe-text-baseline",
-      "feature": "font-metrics",
-      "status": "FAIL",
-      "confounded_count": 66,
-      "confounded_ids": [
-        "color-text-glyph",
-        "fonts-advanced-font-face-custom-src",
-        "fonts-advanced-font-feature-settings-ligatures",
-        "fonts-advanced-font-size-ch",
-        "fonts-advanced-font-size-em",
-        "fonts-advanced-font-size-ex",
-        "fonts-advanced-font-size-percent",
-        "fonts-advanced-font-size-rem",
-        "fonts-advanced-font-stretch-condensed",
-        "fonts-advanced-font-variant-small-caps",
-        "fonts-advanced-text-transform-capitalize",
-        "fonts-advanced-text-transform-lowercase",
-        "fonts-advanced-text-transform-uppercase",
-        "generated-content-after-string",
-        "generated-content-attr",
-        "generated-content-before-decorative-box",
-        "generated-content-before-string",
-        "generated-content-content-none",
-        "generated-content-content-url-image",
-        "generated-content-first-letter-dropcap",
-        "generated-content-first-line",
-        "generated-content-open-close-quote",
-        "inline-block-x-vertical-align",
-        "inline-text-inline-block-baseline",
-        "inline-text-letter-spacing",
-        "inline-text-text-align-center",
-        "inline-text-text-align-justify",
-        "inline-text-text-align-right",
-        "inline-text-text-decoration-underline",
-        "inline-text-vertical-align-baseline",
-        "inline-text-vertical-align-middle",
-        "inline-text-vertical-align-text-top",
-        "inline-text-vertical-align-top",
-        "inline-text-white-space-nowrap",
-        "inline-text-white-space-pre",
-        "inline-text-white-space-pre-wrap",
-        "inline-text-word-spacing",
-        "inline-text-wrapping-normal",
-        "interactions-positioning-relative-x-inline-block",
-        "list-style-image-data-uri",
-        "list-style-position-inside",
-        "list-style-position-outside",
-        "marker-pseudo-color",
-        "multicol-column-count-text",
-        "overflow-hidden-text-clip",
-        "paged-page-counter-content",
-        "tables-caption",
-        "tables-x-typography-bold",
-        "text-advanced-direction-rtl",
-        "text-advanced-hyphens-auto",
-        "text-advanced-overflow-wrap-break-word",
-        "text-advanced-tab-size",
-        "text-advanced-text-indent",
-        "text-advanced-text-overflow-clip",
-        "text-advanced-text-overflow-ellipsis",
-        "text-advanced-unicode-bidi-override",
-        "text-advanced-white-space-normal",
-        "text-advanced-white-space-nowrap",
-        "text-advanced-white-space-pre",
-        "text-advanced-white-space-pre-line",
-        "text-advanced-white-space-pre-wrap",
-        "text-advanced-word-break-break-all",
-        "text-advanced-writing-mode-vertical-rl",
-        "text-shadow-offset",
-        "typography-vertical-align-sub",
-        "typography-vertical-align-sup"
-      ]
-    },
-    {
       "id": "flexbox-display-flex",
       "feature": "display",
       "status": "PARTIAL",
@@ -10720,12 +10646,17 @@
     "filter-invert",
     "filter-saturate",
     "filter-sepia",
+    "fonts-advanced-font-feature-settings-ligatures",
+    "fonts-advanced-font-stretch-condensed",
+    "generated-content-first-line",
     "img-aspect-ratio-box",
     "img-object-fit-cover",
     "img-object-fit-fill",
     "paged-break-before-page-modern",
+    "paged-named-page",
     "paged-orphans-widows",
     "text-shadow-blur",
+    "text-shadow-offset",
     "transforms-compound-rotate-translate",
     "transforms-matrix",
     "transforms-skew",

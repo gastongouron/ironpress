@@ -75,6 +75,12 @@ pub(crate) fn preprocess_media_queries_with_context(
     css: &str,
     ctx: Option<MediaContext>,
 ) -> String {
+    // Strip CSS comments FIRST. The at-rule scanner below keys on raw `@`
+    // characters; a comment such as `/* the @media print block ... */` would
+    // otherwise start a bogus at-rule that swallows up to the next `{` (the real
+    // `@media print {`), evaluate the garbage as non-matching, and drop the real
+    // block — silently discarding print-only styles.
+    let css = strip_css_comments(css);
     let mut output = String::new();
     let mut chars = css.chars().peekable();
 
@@ -123,6 +129,61 @@ pub(crate) fn preprocess_media_queries_with_context(
     }
 
     output
+}
+
+/// Remove `/* ... */` CSS comments, leaving string literals (`'...'` / `"..."`)
+/// untouched so a `/*` inside a quoted value is not mistaken for a comment.
+pub(crate) fn strip_css_comments(css: &str) -> String {
+    let mut out = String::with_capacity(css.len());
+    let bytes = css.as_bytes();
+    let mut i = 0;
+    let mut quote: u8 = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if quote != 0 {
+            out.push(c as char);
+            if c == quote {
+                quote = 0;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' || c == b'\'' {
+            quote = c;
+            out.push(c as char);
+            i += 1;
+            continue;
+        }
+        if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            // Skip to the closing */ (or end of input for an unterminated comment).
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            continue;
+        }
+        // Copy this byte, preserving any multi-byte UTF-8 sequence verbatim.
+        let ch_len = utf8_len(c);
+        let end = (i + ch_len).min(bytes.len());
+        out.push_str(&css[i..end]);
+        i = end;
+    }
+    out
+}
+
+fn utf8_len(first: u8) -> usize {
+    if first & 0x80 == 0 {
+        1
+    } else if first & 0xE0 == 0xC0 {
+        2
+    } else if first & 0xF0 == 0xE0 {
+        3
+    } else if first & 0xF8 == 0xF0 {
+        4
+    } else {
+        1
+    }
 }
 
 /// Extract content inside braces, handling nested brace pairs.
@@ -235,6 +296,30 @@ mod tests {
         let result = preprocess_media_queries(css);
         assert!(result.contains("@charset"));
         assert!(result.contains("p { color: red }"));
+    }
+
+    #[test]
+    fn comment_mentioning_at_media_does_not_drop_print_block() {
+        // A comment containing "@media print" must not confuse the at-rule
+        // scanner into discarding the real print block that follows.
+        let css = "\
+            .box { background: gray }\n\
+            /* the @media print block turns it green; if ignored it stays gray */\n\
+            @media print { .box { background: green } }";
+        let result = preprocess_media_queries(css);
+        assert!(
+            result.contains(".box { background: green }"),
+            "print block dropped by comment: {result}"
+        );
+        assert!(!result.contains("/*"), "comments should be stripped: {result}");
+    }
+
+    #[test]
+    fn strip_css_comments_preserves_strings() {
+        // A `/*` inside a quoted value must survive.
+        let out = super::strip_css_comments("a { content: \"/* not a comment */\" } /* real */ b{}");
+        assert!(out.contains("\"/* not a comment */\""), "string mangled: {out}");
+        assert!(!out.contains("/* real */"), "real comment kept: {out}");
     }
 
     #[test]
