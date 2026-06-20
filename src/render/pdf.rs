@@ -2249,6 +2249,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             &mut bg_alpha_counter,
                                             &mut page_shadings,
                                             &mut shading_counter,
+                                            &mut pdf_writer,
+                                            &mut page_images,
                                             *cont_pl + cont_border.left.width,
                                             *cont_pt + cont_border.top.width,
                                         );
@@ -2546,6 +2548,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &mut bg_alpha_counter,
                         &mut page_shadings,
                         &mut shading_counter,
+                        &mut pdf_writer,
+                        &mut page_images,
                         *c_pl + border.left.width,
                         *c_pt + border.top.width,
                     );
@@ -2976,6 +2980,8 @@ fn render_container_children(
     bg_alpha_counter: &mut usize,
     page_shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
     abs_pad_left: f32,
     abs_pad_top: f32,
 ) {
@@ -3496,6 +3502,8 @@ fn render_container_children(
                     bg_alpha_counter,
                     page_shadings,
                     shading_counter,
+                    pdf_writer,
+                    page_images,
                     *padding_left + border.left.width,
                     *padding_top + border.top.width,
                 );
@@ -3504,6 +3512,38 @@ fn render_container_children(
                     content.push_str("Q\n");
                 }
                 cursor_y -= nk_total_h + margin_bottom;
+                y = cursor_y;
+            }
+            LayoutElement::Image {
+                image,
+                width: img_w,
+                height: img_h,
+                margin_top: img_mt,
+                ..
+            } => {
+                cursor_y -= img_mt;
+                y = cursor_y;
+                let img_obj_id = pdf_writer.add_image_object(
+                    &image.data,
+                    image.source_width,
+                    image.source_height,
+                    image.format,
+                    image.png_metadata.as_ref(),
+                );
+                let img_name = format!("Im{img_obj_id}");
+                content.push_str(&format!(
+                    "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                    w = img_w,
+                    h = img_h,
+                    ix = x,
+                    iy = y - img_h,
+                    name = img_name,
+                ));
+                page_images.push(ImageRef {
+                    name: img_name,
+                    obj_id: img_obj_id,
+                });
+                cursor_y -= img_h;
                 y = cursor_y;
             }
             LayoutElement::Svg {
@@ -3747,6 +3787,8 @@ fn render_container_children(
                             bg_alpha_counter,
                             page_shadings,
                             shading_counter,
+                            pdf_writer,
+                            page_images,
                             0.0, // flex cells don't have separate padding for abs children
                             0.0,
                         );

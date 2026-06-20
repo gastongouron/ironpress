@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 23.27%  (PASS 47 · PARTIAL 67 · FAIL 232 · UNKNOWN 0 · total 346)
+Overall: 25.14%  (PASS 53 · PARTIAL 68 · FAIL 225 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**7 suspect(s):** `background-blend-mode-multiply`, `img-aspect-ratio-box`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `text-shadow-blur`, `text-shadow-offset`, `units-min-max`
+**9 suspect(s):** `background-blend-mode-multiply`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `text-shadow-blur`, `text-shadow-offset`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -33,9 +33,9 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 34.84 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
 | FAIL | REAL | 32.07 | backgrounds-borders | outline | solid-offset | outline-solid |  |
 | FAIL | REAL | 19.77 | backgrounds-borders | radial-gradient | circle-center | background-radial-gradient |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 12.79 | backgrounds-gradients | background-origin | content-box | background-origin-content-box |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 18.60 | backgrounds-gradients | background-size | contain | background-size-contain |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 28.74 | backgrounds-gradients | background-size | cover | background-size-cover |  |
+| FAIL | REAL | 12.79 | backgrounds-gradients | background-origin | content-box | background-origin-content-box |  |
+| FAIL | REAL | 18.60 | backgrounds-gradients | background-size | contain | background-size-contain |  |
+| FAIL | REAL | 28.74 | backgrounds-gradients | background-size | cover | background-size-cover |  |
 | FAIL | REAL | 21.91 | backgrounds-gradients | radial-gradient | circle-at-center | radial-gradient-circle-center |  |
 | FAIL | REAL | 23.95 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 12.23 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
@@ -76,9 +76,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 13.70 | grid | grid-template-columns | minmax | grid-template-columns-minmax |  |
 | FAIL | REAL | 12.93 | grid | grid-template-columns | percent | grid-template-columns-percent |  |
 | FAIL | REAL | 15.99 | grid | grid-template-columns | repeat | grid-template-columns-repeat |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 100.00 | images-replaced | img | border-on-image | img-border |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 100.00 | images-replaced | img | explicit-width-height-stretch | img-width-height-stretch |  |
-| FAIL | CONFOUNDED: image (`probe-image-render`) | 100.00 | images-replaced | img | width-auto-height-aspect | img-width-scaled |  |
+| FAIL | REAL | 15.95 | images-replaced | img | width-auto-height-aspect | img-width-scaled |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 31.74 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 29.30 | inline-text | letter-spacing | positive | inline-text-letter-spacing |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 20.12 | inline-text | line-height | numeric | inline-text-line-height-numeric |  |
@@ -143,7 +141,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 22.57 | positioning | z-index | source-order | positioning-z-index-source-order-overlap |  |
 | FAIL | REAL | 14.11 | positioning | z-index | stacking | positioning-z-index-stacking |  |
 | FAIL | REAL | 48.53 | probes | font-metrics | baseline | probe-text-baseline |  |
-| FAIL | REAL | 100.00 | probes | image | data-uri-png | probe-image-render |  |
 | FAIL | REAL | 26.14 | selectors-cascade | at-rule | media-print | selectors-cascade-media-print |  |
 | FAIL | REAL | 100.00 | selectors-cascade | cascade | important-over-id | selectors-cascade-important-overrides-specificity |  |
 | FAIL | REAL | 100.00 | selectors-cascade | cascade | source-order-tiebreak | selectors-cascade-source-order-tiebreak |  |
@@ -188,29 +185,28 @@ None — every fixture's HTML matches `refs.lock`.
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
 | 1 | `probe-text-baseline` | font-metrics | FAIL | 91 | color-text-glyph, counter-content-roman, counter-reset-increment, counters-nested, fonts-advanced-font-face-custom-src, fonts-advanced-font-feature-settings-ligatures …(+85) |
-| 2 | `probe-image-render` | image | FAIL | 27 | background-origin-content-box, background-size-contain, background-size-cover, background-size-length, filter-blur-img, filter-brightness …(+21) |
-| 3 | `flexbox-display-flex` | display | FAIL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
-| 4 | `positioning-position-absolute-top-left` | position | FAIL | 5 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, interactions-positioning-absolute-x-transforms-rotate, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
-| 5 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
-| 6 | `transforms-rotate` | transform | PARTIAL | 3 | interactions-positioning-absolute-x-transforms-rotate, positioning-zindex-x-transforms-rotate, transforms-rotate-x-flexbox-item |
-| 7 | `background-linear-gradient` | linear-gradient | PARTIAL | 2 | grid-x-background-gradient, interactions-positioning-z-index-x-backgrounds-gradient |
-| 8 | `block-margin-collapse-adjacent` | margin | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 9 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 10 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 11 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 12 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 13 | `positioning-z-index-stacking` | z-index | FAIL | 2 | interactions-positioning-z-index-x-backgrounds-gradient, positioning-zindex-x-transforms-rotate |
-| 14 | `block-nested-containment` | nested-block-flow | PARTIAL | 1 | block-percentage-height-x-nested-containers |
-| 15 | `block-padding-all-sides` | padding | PARTIAL | 1 | interactions-positioning-absolute-x-box-model-padding |
-| 16 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
-| 17 | `flexbox-gap` | gap | FAIL | 1 | flexbox-wrap-x-gap |
-| 18 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
-| 19 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 20 | `positioning-position-relative-offset` | position | FAIL | 1 | interactions-positioning-relative-x-inline-block |
-| 21 | `tables-basic-grid` | table | FAIL | 1 | tables-x-flexbox-nested |
-| 22 | `tables-thead-tbody-tfoot` | table-sections | FAIL | 1 | tables-x-typography-bold |
-| 23 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 24 | `typography-font-weight-bold` | font-weight | PARTIAL | 1 | tables-x-typography-bold |
+| 2 | `flexbox-display-flex` | display | FAIL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
+| 3 | `positioning-position-absolute-top-left` | position | FAIL | 5 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, interactions-positioning-absolute-x-transforms-rotate, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
+| 4 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
+| 5 | `transforms-rotate` | transform | PARTIAL | 3 | interactions-positioning-absolute-x-transforms-rotate, positioning-zindex-x-transforms-rotate, transforms-rotate-x-flexbox-item |
+| 6 | `background-linear-gradient` | linear-gradient | PARTIAL | 2 | grid-x-background-gradient, interactions-positioning-z-index-x-backgrounds-gradient |
+| 7 | `block-margin-collapse-adjacent` | margin | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 8 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 9 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
+| 10 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 11 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 12 | `positioning-z-index-stacking` | z-index | FAIL | 2 | interactions-positioning-z-index-x-backgrounds-gradient, positioning-zindex-x-transforms-rotate |
+| 13 | `block-nested-containment` | nested-block-flow | PARTIAL | 1 | block-percentage-height-x-nested-containers |
+| 14 | `block-padding-all-sides` | padding | PARTIAL | 1 | interactions-positioning-absolute-x-box-model-padding |
+| 15 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
+| 16 | `flexbox-gap` | gap | FAIL | 1 | flexbox-wrap-x-gap |
+| 17 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
+| 18 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 19 | `positioning-position-relative-offset` | position | FAIL | 1 | interactions-positioning-relative-x-inline-block |
+| 20 | `tables-basic-grid` | table | FAIL | 1 | tables-x-flexbox-nested |
+| 21 | `tables-thead-tbody-tfoot` | table-sections | FAIL | 1 | tables-x-typography-bold |
+| 22 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 23 | `typography-font-weight-bold` | font-weight | PARTIAL | 1 | tables-x-typography-bold |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -226,7 +222,7 @@ None — every fixture's HTML matches `refs.lock`.
 | fonts-advanced | 0.00% | 0 | 0 | 12 | 0 |
 | generated-content | 15.00% | 0 | 3 | 7 | 0 |
 | grid | 37.50% | 1 | 10 | 5 | 0 |
-| images-replaced | 26.67% | 3 | 2 | 10 | 0 |
+| images-replaced | 63.33% | 8 | 3 | 4 | 0 |
 | inline-text | 3.13% | 0 | 1 | 15 | 0 |
 | interactions | 9.09% | 0 | 4 | 18 | 0 |
 | lists-counters | 12.50% | 0 | 3 | 9 | 0 |
@@ -234,7 +230,7 @@ None — every fixture's HTML matches `refs.lock`.
 | overflow-clipping | 0.00% | 0 | 0 | 10 | 0 |
 | paged-media | 72.22% | 5 | 3 | 1 | 0 |
 | positioning | 0.00% | 0 | 0 | 16 | 0 |
-| probes | 66.67% | 4 | 0 | 2 | 0 |
+| probes | 83.33% | 5 | 0 | 1 | 0 |
 | selectors-cascade | 6.67% | 1 | 0 | 14 | 0 |
 | tables | 0.00% | 0 | 0 | 16 | 0 |
 | text-advanced | 10.00% | 0 | 3 | 12 | 0 |
@@ -275,18 +271,18 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 5.39 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
 | unsupported | PASS | 6.18 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
 | partial | FAIL | 46.13 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
-| partial | FAIL | 100.00 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
+| partial | FAIL | 46.30 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
 | partial | FAIL | 52.44 | filters | filter: blur() | filter-on-box-blur | filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path. |
-| unsupported | FAIL | 100.00 | filters | filter: brightness() | filter-brightness | filter: brightness(1.6) lightening a four-quadrant color image. |
-| unsupported | FAIL | 100.00 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
-| unsupported | FAIL | 100.00 | filters | filter: contrast() | filter-contrast | filter: contrast(2) increasing contrast of a four-quadrant color image. |
-| unsupported | FAIL | 100.00 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
-| unsupported | FAIL | 100.00 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
-| unsupported | FAIL | 100.00 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
-| unsupported | FAIL | 100.00 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
+| unsupported | FAIL | 75.25 | filters | filter: brightness() | filter-brightness | filter: brightness(1.6) lightening a four-quadrant color image. |
+| unsupported | FAIL | 79.20 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
+| unsupported | FAIL | 77.02 | filters | filter: contrast() | filter-contrast | filter: contrast(2) increasing contrast of a four-quadrant color image. |
+| unsupported | FAIL | 87.13 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
+| unsupported | FAIL | 75.04 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
+| unsupported | FAIL | 75.33 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
+| unsupported | FAIL | 75.77 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
 | unsupported | FAIL | 22.33 | filters | filter: opacity() | filter-opacity-fn | filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property. |
-| unsupported | FAIL | 100.00 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
-| unsupported | FAIL | 100.00 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
+| unsupported | FAIL | 76.24 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
+| unsupported | FAIL | 74.55 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
 | unsupported | FAIL | 21.30 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
 | partial | FAIL | 19.15 | fonts-advanced | font-face | fonts-advanced-font-face-custom-src | An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism. |
 | unsupported | FAIL | 18.09 | fonts-advanced | font-feature-settings | fonts-advanced-font-feature-settings-ligatures | Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied). |
@@ -299,15 +295,15 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 38.47 | generated-content | first-line | generated-content-first-line | ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal. |
 | unsupported | PARTIAL | 15.32 | generated-content | quotes | generated-content-open-close-quote | content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property. |
 | unsupported | PASS | 0.95 | images-replaced | aspect-ratio | img-aspect-ratio-box | A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height. |
-| partial | FAIL | 100.00 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
+| partial | PASS | 2.11 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PASS | 0.79 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
 | partial | FAIL | 33.85 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
 | partial | PARTIAL | 9.37 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
-| unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
-| unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
-| unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
-| unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
-| unsupported | FAIL | 100.00 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
+| unsupported | PARTIAL | 11.86 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
+| unsupported | PASS | 1.71 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
+| unsupported | PASS | 1.71 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
+| unsupported | FAIL | 20.63 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
+| unsupported | FAIL | 16.20 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
 | partial | PARTIAL | 12.49 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
 | unsupported | PARTIAL | 15.80 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
 | unsupported | FAIL | 25.83 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
@@ -493,28 +489,28 @@ None — every fixture's HTML matches `refs.lock`.
 ### filters — 0.00%
 - **filter: blur()** — 0.00%
   - FAIL 46.13% filter: blur()=on-box-background — `filter-blur-box` — filter: blur() applied to a box with a solid background-color fill.
-  - FAIL 100.00% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
+  - FAIL 46.30% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
   - FAIL 52.44% filter: blur()=on-box-vs-img — `filter-on-box-blur` — filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path.
 - **filter: brightness()** — 0.00%
-  - FAIL 100.00% filter: brightness()=1.6 — `filter-brightness` — filter: brightness(1.6) lightening a four-quadrant color image.
+  - FAIL 75.25% filter: brightness()=1.6 — `filter-brightness` — filter: brightness(1.6) lightening a four-quadrant color image.
 - **filter: chained** — 0.00%
-  - FAIL 100.00% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
+  - FAIL 79.20% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
 - **filter: contrast()** — 0.00%
-  - FAIL 100.00% filter: contrast()=2 — `filter-contrast` — filter: contrast(2) increasing contrast of a four-quadrant color image.
+  - FAIL 77.02% filter: contrast()=2 — `filter-contrast` — filter: contrast(2) increasing contrast of a four-quadrant color image.
 - **filter: drop-shadow()** — 0.00%
-  - FAIL 100.00% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
+  - FAIL 87.13% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
 - **filter: grayscale()** — 0.00%
-  - FAIL 100.00% filter: grayscale()=1 — `filter-grayscale` — filter: grayscale(1) fully desaturating a four-quadrant color image.
+  - FAIL 75.04% filter: grayscale()=1 — `filter-grayscale` — filter: grayscale(1) fully desaturating a four-quadrant color image.
 - **filter: hue-rotate()** — 0.00%
-  - FAIL 100.00% filter: hue-rotate()=120deg — `filter-hue-rotate` — filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.
+  - FAIL 75.33% filter: hue-rotate()=120deg — `filter-hue-rotate` — filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.
 - **filter: invert()** — 0.00%
-  - FAIL 100.00% filter: invert()=1 — `filter-invert` — filter: invert(1) inverting the colors of a four-quadrant color image.
+  - FAIL 75.77% filter: invert()=1 — `filter-invert` — filter: invert(1) inverting the colors of a four-quadrant color image.
 - **filter: opacity()** — 0.00%
   - FAIL 22.33% filter: opacity()=0.5-over-grey — `filter-opacity-fn` — filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.
 - **filter: saturate()** — 0.00%
-  - FAIL 100.00% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
+  - FAIL 76.24% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
 - **filter: sepia()** — 0.00%
-  - FAIL 100.00% filter: sepia()=1 — `filter-sepia` — filter: sepia(1) applying a sepia tone to a four-quadrant color image.
+  - FAIL 74.55% filter: sepia()=1 — `filter-sepia` — filter: sepia(1) applying a sepia tone to a four-quadrant color image.
 - **filter: url()** — 0.00%
   - FAIL 21.30% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
@@ -618,27 +614,27 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 50.00%
   - PARTIAL 8.58% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 26.67%
+### images-replaced — 63.33%
 - **aspect-ratio** — 100.00%
   - PASS 0.95% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
-- **img** — 10.00%
-  - FAIL 100.00% img=border-on-image — `img-border` — A replaced image with a 6px solid border framing it under border-box sizing.
-  - PARTIAL 11.93% img=data-uri-png-sized — `img-data-uri-intrinsic` — A data: URI PNG placed in an img with explicit 120x120 size, scaled up from its 4x4 intrinsic pixels.
-  - FAIL 100.00% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
-  - FAIL 100.00% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
-  - FAIL 100.00% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
+- **img** — 70.00%
+  - PARTIAL 10.74% img=border-on-image — `img-border` — A replaced image with a 6px solid border framing it under border-box sizing.
+  - PASS 1.59% img=data-uri-png-sized — `img-data-uri-intrinsic` — A data: URI PNG placed in an img with explicit 120x120 size, scaled up from its 4x4 intrinsic pixels.
+  - PASS 1.48% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
+  - FAIL 15.95% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
+  - PASS 2.11% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
 - **inline-svg** — 62.50%
   - PASS 0.79% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
   - FAIL 33.85% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
   - PASS 2.32% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
   - PARTIAL 9.37% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
-- **object-fit** — 0.00%
-  - FAIL 100.00% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
-  - FAIL 100.00% object-fit=cover — `img-object-fit-cover` — object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.
-  - FAIL 100.00% object-fit=fill — `img-object-fit-fill` — object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect.
-  - FAIL 100.00% object-fit=none — `img-object-fit-none` — object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box.
+- **object-fit** — 62.50%
+  - PARTIAL 11.86% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
+  - PASS 1.71% object-fit=cover — `img-object-fit-cover` — object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.
+  - PASS 1.71% object-fit=fill — `img-object-fit-fill` — object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect.
+  - FAIL 20.63% object-fit=none — `img-object-fit-none` — object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box.
 - **object-position** — 0.00%
-  - FAIL 100.00% object-position=bottom-with-contain — `img-object-position` — object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box.
+  - FAIL 16.20% object-position=bottom-with-contain — `img-object-position` — object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box.
 
 ### inline-text — 3.13%
 - **inline-block** — 0.00%
@@ -804,7 +800,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 22.57% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.
   - FAIL 14.11% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
 
-### probes — 66.67%
+### probes — 83.33%
 - **background-color** — 100.00%
   - PASS 0.00% background-color=solid-paint — `probe-color-swatch` — Substrate probe: a pure background-color rectangle. Trust anchor for background-color paint.
 - **block-flow** — 100.00%
@@ -815,8 +811,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% box-sizing=solid-fill-geometry — `probe-fill-box` — Substrate probe: one solid-filled box of known px size. Trust anchor for box-sizing + fill paint + page geometry.
 - **font-metrics** — 0.00%
   - FAIL 48.53% font-metrics=baseline — `probe-text-baseline` — Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.
-- **image** — 0.00%
-  - FAIL 100.00% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
+- **image** — 100.00%
+  - PASS 4.72% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
 
 ### selectors-cascade — 6.67%
 - **at-rule** — 0.00%

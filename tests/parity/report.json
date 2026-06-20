@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 23.27,
-    "pass": 47,
-    "partial": 67,
-    "fail": 232,
+    "score_pct": 25.14,
+    "pass": 53,
+    "partial": 68,
+    "fail": 225,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -556,7 +556,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "6668936be24285c6a8cbb94300bbddc14dfe08ae89b05a1a45332a7559e49c5e"
             }
           ]
@@ -624,7 +624,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "65d62cf74a7fe8a19c4c6f8fb85f77847b34d65f556221c6a44300b247832e34"
             },
             {
@@ -646,7 +646,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "6cc1ba073d59becbc96101e81583b66120c2cf126842fc005a2ab8822fb19797"
             },
             {
@@ -668,7 +668,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "2a18e2fe22a53ed954dccd82803940825c301ef7c1e1240fa001548948f2e7d0"
             }
           ]
@@ -810,7 +810,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "f4b6179752c39a37be3e5db2e977a5f9029b2943fd692bf44789f11cd60c08a9"
             }
           ]
@@ -2310,7 +2310,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 46.3011,
               "weight": 1.0,
               "description": "filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.",
               "note": "",
@@ -2320,7 +2320,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "f02bc98a2b36734683ec0dfc72eda1edabf7243d4b48df44fe7275f1bba80d03"
             },
             {
@@ -2365,7 +2365,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 75.2513,
               "weight": 1.0,
               "description": "filter: brightness(1.6) lightening a four-quadrant color image.",
               "note": "",
@@ -2375,7 +2375,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "1c0654eb681bacfd683216b9636ebfe50bd7be7080f091f712d897754fd70c6d"
             }
           ]
@@ -2398,7 +2398,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 79.2029,
               "weight": 1.0,
               "description": "Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.",
               "note": "",
@@ -2408,7 +2408,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "3e09963cf75f15b44cc6e6dce992b1234af49bab1e39e29b5aefcad1213cc98e"
             }
           ]
@@ -2431,7 +2431,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 77.0193,
               "weight": 1.0,
               "description": "filter: contrast(2) increasing contrast of a four-quadrant color image.",
               "note": "",
@@ -2441,7 +2441,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "59bf376923761c0af556a764b246e06579cb66f858a8b050622d26c630a560d7"
             }
           ]
@@ -2464,7 +2464,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 87.1344,
               "weight": 1.0,
               "description": "filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.",
               "note": "",
@@ -2474,7 +2474,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "631f3c3f0bab927649681e7a5e8129a424670b354ef2952b6b038f0ca715a08f"
             }
           ]
@@ -2497,7 +2497,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 75.0393,
               "weight": 1.0,
               "description": "filter: grayscale(1) fully desaturating a four-quadrant color image.",
               "note": "",
@@ -2507,7 +2507,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "c4d5159f531dffd2b6a89c80b15cc512285393785653fc451efb3f4de47cfa3d"
             }
           ]
@@ -2530,7 +2530,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 75.3272,
               "weight": 1.0,
               "description": "filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.",
               "note": "",
@@ -2540,7 +2540,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "8c5396c62eba3d8bf40108f384393861b5f1ba452e70873bd2f87c964174a7a0"
             }
           ]
@@ -2563,7 +2563,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 75.7709,
               "weight": 1.0,
               "description": "filter: invert(1) inverting the colors of a four-quadrant color image.",
               "note": "",
@@ -2573,7 +2573,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "54b7dd9d7022283d0e1bd7d6792b5c7404182644184887854e701f7209bfda60"
             }
           ]
@@ -2629,7 +2629,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 76.2382,
               "weight": 1.0,
               "description": "filter: saturate(3) boosting saturation of a four-quadrant color image.",
               "note": "",
@@ -2639,7 +2639,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "bc71a88e73c7243e44881c3c582a714f6e78e68473806ae652edbf84217aed7f"
             }
           ]
@@ -2662,7 +2662,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 74.5536,
               "weight": 1.0,
               "description": "filter: sepia(1) applying a sepia tone to a four-quadrant color image.",
               "note": "",
@@ -2672,7 +2672,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "a3fe487cd5bb240c78e63516c826cc3e58968ea2465fad2266e4316f051657f4"
             }
           ]
@@ -4373,11 +4373,11 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 26.67,
+      "score_pct": 63.33,
       "counts": {
-        "pass": 3,
-        "partial": 2,
-        "fail": 10,
+        "pass": 8,
+        "partial": 3,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -4416,11 +4416,11 @@
         },
         {
           "feature": "img",
-          "score_pct": 10.0,
+          "score_pct": 70.0,
           "counts": {
-            "pass": 0,
+            "pass": 3,
             "partial": 1,
-            "fail": 4,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -4431,8 +4431,8 @@
               "subfeature": "border-on-image",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PARTIAL",
+              "diff_pct": 10.7426,
               "weight": 1.0,
               "description": "A replaced image with a 6px solid border framing it under border-box sizing.",
               "note": "",
@@ -4443,7 +4443,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "158fda1595e78cd31b756b5d6a2cc6faf4ed8ff84b4e22459c640ed661af9f09"
             },
             {
@@ -4453,8 +4453,8 @@
               "subfeature": "data-uri-png-sized",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 11.9278,
+              "status": "PASS",
+              "diff_pct": 1.5913,
               "weight": 1.0,
               "description": "A data: URI PNG placed in an img with explicit 120x120 size, scaled up from its 4x4 intrinsic pixels.",
               "note": "",
@@ -4464,7 +4464,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "",
               "html_sha256": "f79fdd4e98a1c418585d30341123e46fc1e4873ca2fe720c4f3242c092175fdc"
             },
             {
@@ -4474,8 +4474,8 @@
               "subfeature": "explicit-width-height-stretch",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 1.4772,
               "weight": 1.0,
               "description": "A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.",
               "note": "",
@@ -4485,7 +4485,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "",
               "html_sha256": "aff0b0cbdb9f1f9af2f0c5aa0ce0fe9adcbb8d8fbb3959f1e3dd649294a032df"
             },
             {
@@ -4496,7 +4496,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 15.9488,
               "weight": 1.0,
               "description": "A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.",
               "note": "",
@@ -4506,7 +4506,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "3dbd6d7fad75021df6997637061e536393ec92b600af71f17535f41b0e9fe754"
             },
             {
@@ -4516,8 +4516,8 @@
               "subfeature": "svg-data-uri-source",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 2.1069,
               "weight": 1.0,
               "description": "An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.",
               "note": "",
@@ -4527,7 +4527,7 @@
                 "probe-image-render"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "",
               "html_sha256": "3049c3962c0a8366150778d201e6dc617e54ad5cc6cd73692aa3c4c560096aca"
             }
           ]
@@ -4627,11 +4627,11 @@
         },
         {
           "feature": "object-fit",
-          "score_pct": 0.0,
+          "score_pct": 62.5,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 4,
+            "pass": 2,
+            "partial": 1,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -4642,8 +4642,8 @@
               "subfeature": "contain",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PARTIAL",
+              "diff_pct": 11.8637,
               "weight": 1.0,
               "description": "object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.",
               "note": "",
@@ -4653,7 +4653,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "3b6051521e253107308ab8e952bd7a76f476cdda3618e8d9983269570a72ed4b"
             },
             {
@@ -4663,8 +4663,8 @@
               "subfeature": "cover",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 1.7108,
               "weight": 1.0,
               "description": "object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.",
               "note": "",
@@ -4674,7 +4674,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "",
               "html_sha256": "c19ea8245895d20cd37e7fca871c9505635c702ed215b86cf26fcb2013fbaf6e"
             },
             {
@@ -4684,8 +4684,8 @@
               "subfeature": "fill",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 1.7108,
               "weight": 1.0,
               "description": "object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect.",
               "note": "",
@@ -4695,7 +4695,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "",
               "html_sha256": "b4134e2b039b2f387f14974f3ecc5ce057609509efb60928cd67e8d83e8bc62e"
             },
             {
@@ -4706,7 +4706,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 20.6321,
               "weight": 1.0,
               "description": "object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box.",
               "note": "",
@@ -4716,7 +4716,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "b649f9ab6622880fa3232e98468af0c2255188c21c83cc63b80d91a43f3fb8fc"
             }
           ]
@@ -4739,7 +4739,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 16.1962,
               "weight": 1.0,
               "description": "object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box.",
               "note": "",
@@ -4749,7 +4749,7 @@
                 "probe-image-render"
               ],
               "expected_support": "unsupported",
-              "attribution": "CONFOUNDED: image (`probe-image-render`)",
+              "attribution": "REAL",
               "html_sha256": "bf752b705a03a06ed3af5fd681ddc8caa35e63ba3cd5f5fe0ed54ca0eab5a42e"
             }
           ]
@@ -7642,11 +7642,11 @@
     },
     {
       "category": "probes",
-      "score_pct": 66.67,
+      "score_pct": 83.33,
       "counts": {
-        "pass": 4,
+        "pass": 5,
         "partial": 0,
-        "fail": 2,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -7802,11 +7802,11 @@
         },
         {
           "feature": "image",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7817,15 +7817,15 @@
               "subfeature": "data-uri-png",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 100.0,
+              "status": "PASS",
+              "diff_pct": 4.7212,
               "weight": 1.0,
               "description": "Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.",
               "note": "",
               "kind": "probe",
               "depends_on": [],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "62fb3ed1763c09c90359ecd12b4757271c033b76f336e075d65421a8ac70fe1a"
             }
           ]
@@ -10567,41 +10567,6 @@
       ]
     },
     {
-      "id": "probe-image-render",
-      "feature": "image",
-      "status": "FAIL",
-      "confounded_count": 27,
-      "confounded_ids": [
-        "background-origin-content-box",
-        "background-size-contain",
-        "background-size-cover",
-        "background-size-length",
-        "filter-blur-img",
-        "filter-brightness",
-        "filter-chained",
-        "filter-contrast",
-        "filter-drop-shadow",
-        "filter-grayscale",
-        "filter-hue-rotate",
-        "filter-invert",
-        "filter-saturate",
-        "filter-sepia",
-        "generated-content-content-url-image",
-        "img-border",
-        "img-data-uri-intrinsic",
-        "img-object-fit-contain",
-        "img-object-fit-cover",
-        "img-object-fit-fill",
-        "img-object-fit-none",
-        "img-object-position",
-        "img-width-height-stretch",
-        "img-width-scaled",
-        "list-style-image-data-uri",
-        "multiple-backgrounds-layered",
-        "svg-as-img"
-      ]
-    },
-    {
       "id": "flexbox-display-flex",
       "feature": "display",
       "status": "FAIL",
@@ -10825,6 +10790,8 @@
   "suspect_unsupported_pass": [
     "background-blend-mode-multiply",
     "img-aspect-ratio-box",
+    "img-object-fit-cover",
+    "img-object-fit-fill",
     "paged-break-before-page-modern",
     "paged-break-inside-avoid",
     "text-shadow-blur",

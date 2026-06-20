@@ -74,7 +74,13 @@ pub(crate) fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgT
 /// Detect PNG/JPEG format and return a raster asset with source dimensions.
 pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
     if png::is_png(&raw) {
-        let png_info = png::parse_png(&raw)?;
+        // The lightweight parser passes raw IDAT through to PDF FlateDecode and
+        // only supports color types whose samples map directly to a PDF color
+        // space (grayscale/RGB +/- alpha). Indexed (palette) PNGs and other
+        // exotic encodings are decoded and normalized to 8-bit RGB instead.
+        let Some(png_info) = png::parse_png(&raw) else {
+            return decode_png_to_rgb_asset(&raw);
+        };
         let metadata = PngMetadata {
             channels: png_info.channels,
             bit_depth: png_info.bit_depth,
@@ -188,6 +194,29 @@ pub(crate) fn load_image_from_element(
         flow_extra_bottom: 0.0,
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
+    })
+}
+
+/// Decode a PNG the lightweight parser cannot pass through (e.g. indexed/palette
+/// color) and re-encode it as a clean 8-bit RGB PNG so it flows through the
+/// normal FlateDecode embedding path.
+fn decode_png_to_rgb_asset(raw: &[u8]) -> Option<RasterImageAsset> {
+    let rgb = image::load_from_memory(raw).ok()?.to_rgb8();
+    let (width, height) = (rgb.width(), rgb.height());
+    let mut encoded = Vec::new();
+    image::DynamicImage::ImageRgb8(rgb)
+        .write_to(&mut std::io::Cursor::new(&mut encoded), image::ImageFormat::Png)
+        .ok()?;
+    let png_info = png::parse_png(&encoded)?;
+    Some(RasterImageAsset {
+        data: png_info.idat_data,
+        source_width: width,
+        source_height: height,
+        format: ImageFormat::Png,
+        png_metadata: Some(PngMetadata {
+            channels: png_info.channels,
+            bit_depth: png_info.bit_depth,
+        }),
     })
 }
 
