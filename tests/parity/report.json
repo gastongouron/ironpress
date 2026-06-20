@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 57.8,
+    "score_pct": 57.95,
     "pass": 151,
-    "partial": 98,
-    "fail": 97,
+    "partial": 99,
+    "fail": 96,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -4901,7 +4901,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 15.8374,
+              "diff_pct": 15.6429,
               "weight": 1.0,
               "description": "text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.",
               "note": "",
@@ -5153,7 +5153,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 16.7877,
+              "diff_pct": 14.2728,
               "weight": 1.0,
               "description": "word-spacing:20px widens the gap at space characters between words on a single line.",
               "note": "",
@@ -6667,21 +6667,21 @@
     },
     {
       "category": "overflow-clipping",
-      "score_pct": 30.0,
+      "score_pct": 35.0,
       "counts": {
         "pass": 1,
-        "partial": 4,
-        "fail": 5,
+        "partial": 5,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
         {
           "feature": "overflow",
-          "score_pct": 30.0,
+          "score_pct": 35.0,
           "counts": {
             "pass": 1,
-            "partial": 4,
-            "fail": 5,
+            "partial": 5,
+            "fail": 4,
             "unknown": 0
           },
           "fixtures": [
@@ -6692,8 +6692,8 @@
               "subfeature": "clip",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 43.4851,
+              "status": "PARTIAL",
+              "diff_pct": 2.9451,
               "weight": 1.0,
               "description": "overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).",
               "note": "",
@@ -6842,7 +6842,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 54.4022,
+              "diff_pct": 21.6933,
               "weight": 1.0,
               "description": "overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.",
               "note": "",

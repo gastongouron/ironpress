@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 57.80%  (PASS 151 · PARTIAL 98 · FAIL 97 · UNKNOWN 0 · total 346)
+Overall: 57.95%  (PASS 151 · PARTIAL 99 · FAIL 96 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -127,7 +127,7 @@ None — every fixture's HTML matches `refs.lock`.
 | interactions | 20.45% | 1 | 7 | 14 | 0 |
 | lists-counters | 75.00% | 6 | 6 | 0 | 0 |
 | multicol | 6.25% | 0 | 1 | 7 | 0 |
-| overflow-clipping | 30.00% | 1 | 4 | 5 | 0 |
+| overflow-clipping | 35.00% | 1 | 5 | 4 | 0 |
 | paged-media | 83.33% | 7 | 1 | 1 | 0 |
 | positioning | 53.13% | 5 | 7 | 4 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
@@ -215,9 +215,9 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 43.29 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
 | unsupported | FAIL | 45.68 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
 | partial | FAIL | 60.50 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
-| unsupported | FAIL | 43.49 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
+| unsupported | PARTIAL | 2.95 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
 | partial | FAIL | 100.00 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
-| partial | FAIL | 54.40 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
+| partial | FAIL | 21.69 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
 | unsupported | FAIL | 50.23 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
 | unsupported | PASS | 0.35 | paged-media | break-before | paged-break-before-page-modern | Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine. |
 | unsupported | PASS | 0.77 | paged-media | break-inside | paged-break-inside-avoid | Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap. |
@@ -545,7 +545,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.28% line-height=numeric — `inline-text-line-height-numeric` — Three filled paragraphs with line-height:2; verifies inter-line spacing and line-box height.
 - **text-align** — 50.00%
   - PARTIAL 14.42% text-align=center — `inline-text-text-align-center` — text-align:center horizontally centers a short line within the box content area.
-  - PARTIAL 15.84% text-align=justify — `inline-text-text-align-justify` — text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.
+  - PARTIAL 15.64% text-align=justify — `inline-text-text-align-justify` — text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.
   - PARTIAL 17.27% text-align=right — `inline-text-text-align-right` — text-align:right pushes a short line to the right edge of the box content area.
 - **text-decoration** — 50.00%
   - PARTIAL 16.23% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
@@ -559,7 +559,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 8.68% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
   - PARTIAL 8.16% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
 - **word-spacing** — 50.00%
-  - PARTIAL 16.79% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
+  - PARTIAL 14.27% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
 - **wrapping** — 50.00%
   - PARTIAL 8.85% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
@@ -642,16 +642,16 @@ None — every fixture's HTML matches `refs.lock`.
 - **columns** — 0.00%
   - FAIL 60.50% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).
 
-### overflow-clipping — 30.00%
-- **overflow** — 30.00%
-  - FAIL 43.49% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
+### overflow-clipping — 35.00%
+- **overflow** — 35.00%
+  - PARTIAL 2.95% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
   - PARTIAL 5.36% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PARTIAL 2.95% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PARTIAL 4.62% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - FAIL 100.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PASS 0.61% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
   - PARTIAL 14.86% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
-  - FAIL 54.40% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
+  - FAIL 21.69% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - FAIL 38.46% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
   - FAIL 50.23% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
 

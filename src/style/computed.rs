@@ -2219,7 +2219,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Overflow
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow") {
         style.overflow = match k.as_str() {
-            "hidden" => Overflow::Hidden,
+            // In a print/PDF context there are no interactive scrollbars, so
+            // `clip` and `scroll` both clip overflowing content to the box,
+            // identically to `hidden` (the existing clip path handles it).
+            "hidden" | "clip" | "scroll" => Overflow::Hidden,
             "auto" => Overflow::Auto,
             _ => Overflow::Visible,
         };

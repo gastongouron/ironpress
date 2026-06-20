@@ -891,6 +891,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             text_y,
                             custom_fonts,
                             &prepared_custom_fonts,
+                            total_ws,
                         );
 
                         // Reset letter spacing after line
@@ -1834,6 +1835,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     text_y,
                                     custom_fonts,
                                     &prepared_custom_fonts,
+                                    0.0,
                                 );
 
                                 // Draw underline (font-size-relative)
@@ -1971,6 +1973,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     ty,
                                                     custom_fonts,
                                                     &prepared_custom_fonts,
+                                                    0.0,
                                                 );
                                                 lx += rw;
                                             }
@@ -2014,6 +2017,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                         ty,
                                                         custom_fonts,
                                                         &prepared_custom_fonts,
+                                                        0.0,
                                                     );
                                                     lx += rw;
                                                 }
@@ -3017,6 +3021,12 @@ struct ShapedTextRender<'a> {
     font: &'a TtfFont,
     shaped: &'a crate::text::ShapedRun,
     prepared_font: Option<&'a PreparedCustomFont>,
+    /// Extra advance (in PDF text-space units) to insert after each space
+    /// cluster (U+0020).  Carries CSS `word-spacing` plus the per-space
+    /// `text-align: justify` stretch.  Type0 / Identity-H text ignores the
+    /// PDF `Tw` operator (it only applies to single-byte code 32), so this
+    /// must be baked into the TJ array as a negative adjustment instead.
+    word_spacing: f32,
 }
 
 impl<'a> ShapedTextRender<'a> {
@@ -3033,6 +3043,27 @@ impl<'a> ShapedTextRender<'a> {
             font,
             shaped,
             prepared_font,
+            word_spacing: 0.0,
+        }
+    }
+
+    const fn with_word_spacing(mut self, word_spacing: f32) -> Self {
+        self.word_spacing = word_spacing;
+        self
+    }
+
+    /// Extra TJ adjustment (thousandths of an em / text-space units) to add
+    /// after `glyph` when it is a space cluster.  A positive `Tj` number moves
+    /// the cursor left, so the returned adjustment is negative in order to
+    /// *widen* the gap after the space.
+    fn space_tj_adjustment(&self, glyph: &crate::text::ShapedGlyph) -> f32 {
+        if self.word_spacing.abs() <= f32::EPSILON {
+            return 0.0;
+        }
+        if glyph.unicode.as_slice() == [0x0020] {
+            -(self.word_spacing * 1000.0 / self.font_size.max(f32::EPSILON))
+        } else {
+            0.0
         }
     }
 
@@ -3079,6 +3110,11 @@ fn append_positioned_shaped_text(content: &mut String, render: ShapedTextRender<
         ));
         content.push_str(&format!("<{encoded}> Tj\n"));
         cursor_x += glyph.x_advance;
+        // Identity-H ignores the PDF `Tw` operator, so widen the gap after
+        // each space cluster by advancing the cursor manually.
+        if render.word_spacing.abs() > f32::EPSILON && glyph.unicode.as_slice() == [0x0020] {
+            cursor_x += render.word_spacing;
+        }
     }
 }
 
@@ -3106,8 +3142,12 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
             .font
             .glyph_width_scaled(glyph.glyph_id, render.font_size);
         let advance_adjustment = glyph.x_advance - nominal_advance;
-        if advance_adjustment.abs() > 0.001 {
-            let tj_adjustment = -(advance_adjustment * 1000.0 / render.font_size.max(f32::EPSILON));
+        // Fold the shaper advance/kerning delta together with any extra
+        // inter-word spacing (CSS word-spacing + justify stretch) for space
+        // clusters, so a single TJ number carries both.
+        let kern_adjustment = -(advance_adjustment * 1000.0 / render.font_size.max(f32::EPSILON));
+        let tj_adjustment = kern_adjustment + render.space_tj_adjustment(glyph);
+        if tj_adjustment.abs() > 0.001 {
             content.push(' ');
             content.push_str(&format_pdf_number(tj_adjustment));
         }
@@ -3404,6 +3444,7 @@ fn render_container_children(
                                 text_y_abs,
                                 custom_fonts,
                                 prepared_custom_fonts,
+                                0.0,
                             );
                             lx += rw;
                         }
@@ -3578,6 +3619,7 @@ fn render_container_children(
                             text_y,
                             custom_fonts,
                             prepared_custom_fonts,
+                            0.0,
                         );
                         lx += rw;
                     }
@@ -4257,6 +4299,7 @@ fn render_container_children(
                                 text_y,
                                 custom_fonts,
                                 prepared_custom_fonts,
+                                0.0,
                             );
                             lx += rw;
                         }
@@ -4486,6 +4529,7 @@ fn render_nested_table_rows(
                                 text_y,
                                 custom_fonts,
                                 prepared_custom_fonts,
+                                0.0,
                             );
                             lx += rw;
                         }
@@ -4622,6 +4666,7 @@ fn render_nested_table_rows(
                                 text_y,
                                 custom_fonts,
                                 prepared_custom_fonts,
+                                0.0,
                             );
                             lx += rw;
                         }
@@ -4646,6 +4691,7 @@ fn render_run_text(
     text_y: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
+    word_spacing: f32,
 ) -> f32 {
     let (r, g, b) = run.color;
 
@@ -4675,7 +4721,8 @@ fn render_run_text(
                         fallback_font,
                         &fallback_shaped,
                         prepared_font,
-                    );
+                    )
+                    .with_word_spacing(word_spacing);
                     if render.has_complex_offsets() {
                         append_positioned_shaped_text(content, render);
                     } else {
@@ -4693,6 +4740,7 @@ fn render_run_text(
                     text_y,
                     custom_fonts,
                     prepared_custom_fonts,
+                    word_spacing,
                 );
                 cur_x += w;
                 total_width += w;
@@ -4722,7 +4770,8 @@ fn render_run_text(
             font,
             shaped,
             prepared_font,
-        );
+        )
+        .with_word_spacing(word_spacing);
         if render.has_complex_offsets() {
             append_positioned_shaped_text(content, render);
         } else {
@@ -4755,6 +4804,7 @@ fn render_line_text(
     y: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
+    word_spacing: f32,
 ) {
     let non_empty: Vec<&TextRun> = runs.iter().filter(|r| !r.text.is_empty()).collect();
     if non_empty.is_empty() {
@@ -4799,7 +4849,7 @@ fn render_line_text(
         let mut x = start_x;
         for run in &non_empty {
             let run_width =
-                render_run_text(content, run, x, y, custom_fonts, prepared_custom_fonts);
+                render_run_text(content, run, x, y, custom_fonts, prepared_custom_fonts, word_spacing);
             x += run_width;
         }
     }
@@ -10045,6 +10095,7 @@ mod tests {
             20.0,
             &fonts,
             &prepared_custom_fonts,
+            0.0,
         );
 
         assert!(content.contains("/Helvetica 12 Tf\n"));

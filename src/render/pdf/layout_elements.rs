@@ -273,6 +273,7 @@ pub(super) fn render_cell_text(
                 text_y,
                 ctx.custom_fonts,
                 ctx.prepared_custom_fonts,
+                0.0,
             );
 
             if run.underline {
