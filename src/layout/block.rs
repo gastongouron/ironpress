@@ -1436,6 +1436,7 @@ pub(crate) fn layout_block_element(
                 None
             },
             opacity: style.opacity,
+            visible: style.visibility == Visibility::Visible,
             float: style.float,
             position: style.position,
             offset_top: wrapper_top,

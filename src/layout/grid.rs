@@ -1,7 +1,8 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    ComputedStyle, FontWeight, GridTrack, TextAlign, VerticalAlign, compute_style_with_context,
+    ComputedStyle, FontWeight, GridTrack, TextAlign, VerticalAlign, Visibility,
+    compute_style_with_context,
 };
 
 use super::context::{LayoutContext, LayoutEnv};
@@ -383,6 +384,7 @@ pub(crate) fn layout_grid_container(
         block_width: Some(inner_width + style.padding.left + style.padding.right),
         block_height: None,
         opacity: style.opacity,
+        visible: style.visibility == Visibility::Visible,
         float: style.float,
         position: style.position,
         offset_top: 0.0,

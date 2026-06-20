@@ -1354,6 +1354,7 @@ pub(crate) fn layout_flex_container(
                                 block_width: effective_width,
                                 block_height: None,
                                 opacity: 1.0,
+                                visible: true,
                                 float: Float::None,
                                 position: if x_offset > 0.0 || style.padding.left > 0.0 {
                                     Position::Relative

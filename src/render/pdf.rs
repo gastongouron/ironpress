@@ -2215,7 +2215,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     margin_bottom: _,
                     block_width,
                     block_height: c_block_height,
-                    opacity: _,
+                    opacity: c_opacity,
+                    visible: c_visible,
                     float: c_float,
                     position: _,
                     offset_top: _,
@@ -2235,6 +2236,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     z_index: _,
                     ..
                 } => {
+                    // Skip rendering if visibility: hidden (space is preserved).
+                    if !c_visible {
+                        continue;
+                    }
+
                     let container_w = block_width.unwrap_or(available_width);
                     let container_x = match c_float {
                         Float::Right => margin.left + available_width - container_w,
@@ -2254,6 +2260,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     } else {
                         c_block_height.map_or(content_h, |h| content_h.max(h))
                     };
+
+                    // Apply CSS opacity to the whole subtree as a single group
+                    // (background + border + children composite together, matching
+                    // CSS `opacity`). Wraps everything below in its own q..Q so the
+                    // ExtGState alpha applies to the entire box uniformly.
+                    let c_needs_opacity = *c_opacity < 1.0;
+                    if c_needs_opacity {
+                        let gs_name = format!("GScontainerop{elem_idx}");
+                        page_ext_gstates.push((gs_name.clone(), *c_opacity));
+                        content.push_str("q\n");
+                        content.push_str(&format!("/{gs_name} gs\n"));
+                    }
 
                     // Apply a CSS transform around the box centre (wrap the whole
                     // element, incl. shadow + children, in q..Q). Shares the same
@@ -2572,6 +2590,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("Q\n");
                     }
                     if c_needs_transform {
+                        content.push_str("Q\n");
+                    }
+                    // Close the opacity group (must be the outermost q..Q).
+                    if c_needs_opacity {
                         content.push_str("Q\n");
                     }
                 }
@@ -3488,6 +3510,8 @@ fn render_container_children(
                 margin_bottom,
                 block_width,
                 block_height: nk_block_height,
+                opacity: nk_opacity,
+                visible: nk_visible,
                 float: nk_float,
                 overflow,
                 position: nk_position,
@@ -3544,6 +3568,21 @@ fn render_container_children(
                 } else {
                     nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h))
                 };
+
+                // `visibility: hidden` keeps the box's space (cursor still
+                // advances below) but paints nothing — gate all drawing on it.
+                if *nk_visible {
+                // Apply CSS opacity to the whole subtree as one group (background +
+                // border + children composite together), mirroring the top-level
+                // arm. Outermost q..Q so the alpha applies to the entire box.
+                let nk_needs_opacity = *nk_opacity < 1.0;
+                if nk_needs_opacity {
+                    let gs_name = format!("GScca{bg_alpha_counter}");
+                    *bg_alpha_counter += 1;
+                    page_ext_gstates.push((gs_name.clone(), *nk_opacity));
+                    content.push_str("q\n");
+                    content.push_str(&format!("/{gs_name} gs\n"));
+                }
 
                 // Apply a CSS transform around the box centre (wrap all drawing
                 // in q..Q), mirroring the top-level arm. Without this, transforms
@@ -3777,6 +3816,11 @@ fn render_container_children(
                 if nk_needs_transform {
                     content.push_str("Q\n");
                 }
+                // Close the opacity group (outermost q..Q).
+                if nk_needs_opacity {
+                    content.push_str("Q\n");
+                }
+                } // end if *nk_visible
                 // Absolute containers are out of flow — don't advance the cursor.
                 if !nk_is_abs {
                     cursor_y -= nk_total_h + margin_bottom;

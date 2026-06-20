@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 55.78%  (PASS 144 · PARTIAL 98 · FAIL 104 · UNKNOWN 0 · total 346)
+Overall: 56.65%  (PASS 147 · PARTIAL 98 · FAIL 101 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**34 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
+**35 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -36,8 +36,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 25.98 | block-box-model | margin | collapse-adjacent | block-margin-collapse-adjacent |  |
 | FAIL | REAL | 34.46 | block-box-model | nested-block-flow | containment | block-nested-containment |  |
 | FAIL | REAL | 23.55 | block-box-model | padding | uniform | block-padding-all-sides |  |
-| FAIL | REAL | 40.00 | color-opacity | opacity | half | opacity-half |  |
-| FAIL | REAL | 50.00 | color-opacity | visibility | hidden-reserves-space | visibility-hidden |  |
 | FAIL | REAL | 29.59 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
 | FAIL | REAL | 14.03 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 53.74 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
@@ -118,7 +116,7 @@ None — every fixture's HTML matches `refs.lock`.
 | backgrounds-gradients | 57.14% | 7 | 2 | 5 | 0 |
 | block-box-model | 56.67% | 8 | 1 | 6 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
-| color-opacity | 71.43% | 10 | 0 | 4 | 0 |
+| color-opacity | 92.86% | 13 | 0 | 1 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
@@ -161,7 +159,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 49.48 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
 | unsupported | PASS | 0.53 | color-opacity | color-format | color-hsla-alpha | Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing). |
 | partial | PASS | 0.53 | color-opacity | color-format | color-rgba-alpha | Semi-transparent rgba() box composited over a solid background box. |
-| unsupported | FAIL | 29.96 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
+| unsupported | PASS | 0.72 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
 | unsupported | PASS | 0.73 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
 | unsupported | FAIL | 64.38 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | FAIL | 20.39 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
@@ -351,7 +349,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **mask-image: url()** — 0.00%
   - FAIL 49.48% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
 
-### color-opacity — 71.43%
+### color-opacity — 92.86%
 - **color-format** — 100.00%
   - PASS 0.00% color-format=hex-3-digit — `color-hex-rgb` — Box filled with a 3-digit shorthand hex color (#0a6).
   - PASS 0.00% color-format=hex-6-digit — `color-hex-rrggbb` — Box filled with a 6-digit hex color (#c2185b).
@@ -361,16 +359,16 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% color-format=rgb-function — `color-rgb-function` — Box filled with an rgb() functional color.
   - PASS 0.53% color-format=rgba-alpha — `color-rgba-alpha` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.03% color-format=text-glyph-fill — `color-text-glyph` — The color property fills text glyphs in ParitySans with a solid color.
-- **color-keyword** — 50.00%
-  - FAIL 29.96% color-keyword=currentcolor — `color-currentcolor` — currentColor resolves the color property into a thick solid border (aspirational; likely unsupported).
+- **color-keyword** — 100.00%
+  - PASS 0.72% color-keyword=currentcolor — `color-currentcolor` — currentColor resolves the color property into a thick solid border (aspirational; likely unsupported).
   - PASS 0.73% color-keyword=transparent — `color-transparent-keyword` — transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported).
 - **display** — 100.00%
   - PASS 0.00% display=none-removal — `display-none-removal` — display:none removes the first block entirely so the second block rises to the top of the page.
-- **opacity** — 0.00%
-  - FAIL 40.00% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
-- **visibility** — 0.00%
+- **opacity** — 100.00%
+  - PASS 0.27% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
+- **visibility** — 50.00%
   - FAIL 64.38% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
-  - FAIL 50.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
+  - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
 ### effects — 45.45%
 - **background-blend-mode** — 0.00%

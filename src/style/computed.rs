@@ -7,6 +7,20 @@ use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
 use crate::types::{Color, EdgeSizes};
 
+/// Sentinel color used to mark a property whose value was the CSS
+/// `currentColor` keyword. The cascade can't resolve `currentColor` while a
+/// property is being parsed (the element's final `color` may still change in a
+/// later cascade layer), so the keyword is parsed to this unique sentinel and a
+/// post-pass at the end of `compute_style_with_context` replaces every
+/// occurrence with the element's computed `color`. The RGBA value is chosen to
+/// be effectively unauthorable so it can't collide with a real color.
+const CURRENT_COLOR_SENTINEL: Color = Color {
+    r: 1,
+    g: 2,
+    b: 3,
+    a: 254,
+};
+
 /// CSS display property.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Display {
@@ -1081,7 +1095,59 @@ pub fn compute_style_with_context(
         style.margin.left = em * style.font_size;
     }
 
+    // Resolve `currentColor`. Two cases collapse here, both needing the
+    // element's now-finalized `color`:
+    //   1. The legacy parser parks an explicit `currentColor` keyword as a
+    //      sentinel (the final `color` isn't known mid-cascade).
+    //   2. A visible border with no resolvable color token. Per CSS the initial
+    //      value of `border-color` is `currentColor`, and lightningcss strips
+    //      `currentColor` from `border`/`border-*` shorthands (it equals the
+    //      default), leaving the side with `color: None`. Such a side must paint
+    //      in the element's `color`, not the black fallback.
+    resolve_current_color(&mut style);
+
     style
+}
+
+/// Resolve `currentColor` into the element's finalized computed `color`.
+///
+/// Replaces both the `CURRENT_COLOR_SENTINEL` placeholder (explicit
+/// `currentColor` keyword) and the implicit `currentColor` default of a visible
+/// border side that has no resolved color.
+fn resolve_current_color(style: &mut ComputedStyle) {
+    let is_sentinel = |c: &Color| {
+        c.r == CURRENT_COLOR_SENTINEL.r
+            && c.g == CURRENT_COLOR_SENTINEL.g
+            && c.b == CURRENT_COLOR_SENTINEL.b
+            && c.a == CURRENT_COLOR_SENTINEL.a
+    };
+    let resolved = style.color;
+    for side in [
+        &mut style.border.top,
+        &mut style.border.right,
+        &mut style.border.bottom,
+        &mut style.border.left,
+    ] {
+        let is_visible = side.width > 0.0 && side.style != BorderStyle::None;
+        match side.color {
+            Some(c) if is_sentinel(&c) => side.color = Some(resolved),
+            // A visible border with no color uses `currentColor` (CSS initial
+            // value of border-color).
+            None if is_visible => side.color = Some(resolved),
+            _ => {}
+        }
+    }
+    if matches!(style.outline_color, Some(c) if is_sentinel(&c)) {
+        style.outline_color = Some(resolved);
+    }
+    if matches!(style.background_color, Some(c) if is_sentinel(&c)) {
+        style.background_color = Some(resolved);
+    }
+    if let Some(shadow) = style.box_shadow.as_mut()
+        && is_sentinel(&shadow.color)
+    {
+        shadow.color = resolved;
+    }
 }
 
 /// Compute the style for a `::before` or `::after` pseudo-element.
@@ -1209,6 +1275,9 @@ pub fn compute_pseudo_element_style(
     if let Some(em) = style.margin_em_left {
         style.margin.left = em * style.font_size;
     }
+
+    // Resolve any `currentColor` sentinels against the pseudo-element's color.
+    resolve_current_color(&mut style);
 
     Some(style)
 }
@@ -3734,6 +3803,10 @@ fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
 fn parse_border_color(val: &str) -> Option<Color> {
     let val = val.to_ascii_lowercase();
     match val.as_str() {
+        // `currentColor` can't be resolved here (the element's final `color`
+        // isn't known yet). Mark it with a sentinel; a post-pass in
+        // `compute_style_with_context` swaps it for the computed `color`.
+        "currentcolor" => Some(CURRENT_COLOR_SENTINEL),
         "black" => Some(Color::rgb(0, 0, 0)),
         "white" => Some(Color::rgb(255, 255, 255)),
         "red" => Some(Color::rgb(255, 0, 0)),
@@ -4268,6 +4341,24 @@ mod tests {
     }
 
     #[test]
+    fn border_currentcolor_resolves_to_computed_color() {
+        // `border: ... currentColor` must paint with the element's computed
+        // `color`, not fall back to black.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("color: #6a1b9a; border: 12px solid currentColor"),
+            &parent,
+        );
+        let c = style.border.top.color.expect("border color should be set");
+        assert_eq!(
+            (c.r, c.g, c.b),
+            (style.color.r, style.color.g, style.color.b)
+        );
+        assert_eq!((c.r, c.g, c.b), (0x6a, 0x1b, 0x9a));
+    }
+
+    #[test]
     fn border_color_variants() {
         let parent = ComputedStyle::default();
         for (name, r, g, b) in [
@@ -4306,10 +4397,22 @@ mod tests {
     }
 
     #[test]
-    fn border_color_unknown_returns_none() {
+    fn border_color_unknown_falls_back_to_current_color() {
+        // An unrecognized color token leaves the border without an explicit
+        // color. Per CSS the initial value of `border-color` is `currentColor`,
+        // so a visible border with no resolvable color paints in the element's
+        // computed `color` (here the default, black) rather than staying unset.
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("border: 1px solid foobar"), &parent);
-        assert!(style.border.top.color.is_none());
+        let c = style.border.top.color.expect("visible border resolves a color");
+        assert_eq!((c.r, c.g, c.b), (style.color.r, style.color.g, style.color.b));
+    }
+
+    #[test]
+    fn parse_border_color_unknown_token_returns_none() {
+        // The low-level parser still reports `None` for an unknown color token;
+        // the currentColor default is applied later, in the cascade post-pass.
+        assert!(parse_border_color("foobar").is_none());
     }
 
     // --- Extended font-family mapping tests ---

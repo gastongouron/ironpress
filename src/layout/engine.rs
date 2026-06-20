@@ -452,6 +452,9 @@ pub enum LayoutElement {
         block_width: Option<f32>,
         block_height: Option<f32>,
         opacity: f32,
+        /// Whether the container is rendered. `false` for `visibility: hidden`
+        /// (the box still occupies space but is not painted).
+        visible: bool,
         float: Float,
         position: Position,
         offset_top: f32,

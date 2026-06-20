@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 55.78,
-    "pass": 144,
+    "score_pct": 56.65,
+    "pass": 147,
     "partial": 98,
-    "fail": 104,
+    "fail": 101,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -1603,11 +1603,11 @@
     },
     {
       "category": "color-opacity",
-      "score_pct": 71.43,
+      "score_pct": 92.86,
       "counts": {
-        "pass": 10,
+        "pass": 13,
         "partial": 0,
-        "fail": 4,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -1792,11 +1792,11 @@
         },
         {
           "feature": "color-keyword",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1807,8 +1807,8 @@
               "subfeature": "currentcolor",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 29.9622,
+              "status": "PASS",
+              "diff_pct": 0.7245,
               "weight": 1.0,
               "description": "currentColor resolves the color property into a thick solid border (aspirational; likely unsupported).",
               "note": "",
@@ -1819,7 +1819,7 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "19d143fe45308123c5b4c204622a866197c7e9a9e6d4e22b17d601607bece2ba"
             },
             {
@@ -1882,11 +1882,11 @@
         },
         {
           "feature": "opacity",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1897,8 +1897,8 @@
               "subfeature": "half",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 40.0004,
+              "status": "PASS",
+              "diff_pct": 0.2667,
               "weight": 1.0,
               "description": "Box with opacity 0.5 composited over a solid background box.",
               "note": "",
@@ -1908,18 +1908,18 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b9e2e75e3b1ede45bc77949ed0b69cb22e7107670c7ddaa223846e14fb26caaf"
             }
           ]
         },
         {
           "feature": "visibility",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -1953,8 +1953,8 @@
               "subfeature": "hidden-reserves-space",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 50.0,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "visibility:hidden hides the first block but reserves its space, so the second block stays offset below.",
               "note": "",
@@ -1965,7 +1965,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "5be6a418543d562f0027e2e9f2b3af76408737b4288a2ab90a4063413d6ae4ee"
             }
           ]
@@ -10627,6 +10627,7 @@
     "clip-path-inset",
     "clip-path-inset-round",
     "clip-path-polygon",
+    "color-currentcolor",
     "color-hsla-alpha",
     "color-transparent-keyword",
     "counters-nested",
