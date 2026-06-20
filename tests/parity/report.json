@@ -2893,7 +2893,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 22.3171,
+              "diff_pct": 19.4398,
               "weight": 1.0,
               "description": "flex-direction:column stacks items top-to-bottom along the vertical main axis.",
               "note": "",

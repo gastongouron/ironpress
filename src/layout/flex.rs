@@ -201,6 +201,9 @@ pub(crate) fn layout_flex_container(
         flex_shrink: f32,
         height: f32,
         natural_height: f32,
+        /// Whether the item has an explicit cross-axis size (width for a column
+        /// container). `align-items: stretch` must NOT stretch such items.
+        has_explicit_width: bool,
     }
 
     let mut items: Vec<FlexItem> = Vec::new();
@@ -387,6 +390,7 @@ pub(crate) fn layout_flex_container(
                 flex_shrink: child_style.flex_shrink,
                 height: child_h,
                 natural_height: child_h, // Natural height for align-items flex-start
+                has_explicit_width,
             });
             continue;
         }
@@ -542,6 +546,7 @@ pub(crate) fn layout_flex_container(
             flex_shrink: child_style.flex_shrink,
             height: child_h + child_style.margin.top + child_style.margin.bottom,
             natural_height: child_h + child_style.margin.top + child_style.margin.bottom,
+            has_explicit_width,
         });
     }
 
@@ -1189,7 +1194,12 @@ pub(crate) fn layout_flex_container(
                         AlignItems::Stretch => 0.0,
                     };
 
-                    let effective_width = if align == AlignItems::Stretch {
+                    // align-items: stretch only stretches items whose cross size
+                    // (width, for a column container) is auto. An item with an
+                    // explicit width keeps it.
+                    let effective_width = if align == AlignItems::Stretch
+                        && !item.has_explicit_width
+                    {
                         Some(inner_width)
                     } else {
                         Some(item.width)

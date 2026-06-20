@@ -45,7 +45,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 13.51 | flexbox | align-items | center | flexbox-align-items-center |  |
 | FAIL | REAL | 13.41 | flexbox | align-self | flex-end | flexbox-align-self-flex-end |  |
 | FAIL | REAL | 12.57 | flexbox | flex-basis | px | flexbox-flex-basis |  |
-| FAIL | REAL | 22.32 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
+| FAIL | REAL | 19.44 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 13.04 | flexbox | flex-grow | ratio | flexbox-flex-grow |  |
 | FAIL | REAL | 13.74 | flexbox | gap | fixed | flexbox-gap |  |
 | FAIL | REAL | 13.32 | flexbox | justify-content | space-around | flexbox-justify-content-space-around |  |
@@ -500,7 +500,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **flex-basis** — 0.00%
   - FAIL 12.57% flex-basis=px — `flexbox-flex-basis` — flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).
 - **flex-direction** — 0.00%
-  - FAIL 22.32% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
+  - FAIL 19.44% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
 - **flex-grow** — 0.00%
   - FAIL 13.04% flex-grow=ratio — `flexbox-flex-grow` — flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.
 - **flex-shrink** — 50.00%
