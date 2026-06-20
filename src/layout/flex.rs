@@ -1345,6 +1345,7 @@ pub(crate) fn layout_flex_container(
                                 offset_left: x_offset + style.padding.left,
                                 overflow: Overflow::Visible,
                                 transform: None,
+                                clip_path: None,
                                 box_shadow: None,
                                 background_gradient: None,
                                 background_radial_gradient: None,

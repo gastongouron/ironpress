@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 41.76,
-    "pass": 91,
+    "score_pct": 43.21,
+    "pass": 96,
     "partial": 107,
-    "fail": 148,
+    "fail": 143,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -1339,21 +1339,21 @@
     },
     {
       "category": "clip-mask",
-      "score_pct": 0.0,
+      "score_pct": 62.5,
       "counts": {
-        "pass": 0,
+        "pass": 5,
         "partial": 0,
-        "fail": 8,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
         {
           "feature": "clip-path: circle()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1364,8 +1364,8 @@
               "subfeature": "centered",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.4799,
+              "status": "PASS",
+              "diff_pct": 0.0287,
               "weight": 1.0,
               "description": "clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.",
               "note": "",
@@ -1375,18 +1375,18 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "7d29ed5a6798de7239abce0c13052d76276aaf56f72efa127064ecb52cccdb43"
             }
           ]
         },
         {
           "feature": "clip-path: ellipse()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1397,8 +1397,8 @@
               "subfeature": "distinct-radii",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 50.6493,
+              "status": "PASS",
+              "diff_pct": 0.034,
               "weight": 1.0,
               "description": "clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.",
               "note": "",
@@ -1408,18 +1408,18 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3bf7bc5a101809e59c0a3da40d9d86d3bfbd5913f0c9dc7a89aca383c1f25443"
             }
           ]
         },
         {
           "feature": "clip-path: inset()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 2,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1430,8 +1430,8 @@
               "subfeature": "rectangular",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 74.8331,
+              "status": "PASS",
+              "diff_pct": 0.925,
               "weight": 1.0,
               "description": "clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs).",
               "note": "",
@@ -1441,7 +1441,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "4b3a7d207662fa01cb6ed0f36fe6b77582404cfcced94a00c0d4689f246f6e43"
             },
             {
@@ -1451,8 +1451,8 @@
               "subfeature": "rounded",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 40.8147,
+              "status": "PASS",
+              "diff_pct": 0.4393,
               "weight": 1.0,
               "description": "clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported.",
               "note": "",
@@ -1462,18 +1462,18 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e330f72457d72c4f500a1006bf24b2ed4797a9eb863a8608ac0ff586551e6ef3"
             }
           ]
         },
         {
           "feature": "clip-path: polygon()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1484,8 +1484,8 @@
               "subfeature": "diamond",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.6812,
+              "status": "PASS",
+              "diff_pct": 0.0003,
               "weight": 1.0,
               "description": "clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported.",
               "note": "",
@@ -1495,7 +1495,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6ea6656b99ade11b44e8c92723707c7befcaf41b52b909f30b122eb00d891331"
             }
           ]
@@ -10731,6 +10731,11 @@
   ],
   "ref_mismatches": [],
   "suspect_unsupported_pass": [
+    "clip-path-circle",
+    "clip-path-ellipse",
+    "clip-path-inset",
+    "clip-path-inset-round",
+    "clip-path-polygon",
     "color-hsla-alpha",
     "color-transparent-keyword",
     "counters-nested",

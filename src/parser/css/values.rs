@@ -282,6 +282,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "filter"
             | "aspect-ratio"
             | "grid-template-columns"
+            | "clip-path"
             | "box-shadow"
             | "outline"
             | "box-sizing"

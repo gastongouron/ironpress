@@ -2216,6 +2216,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     offset_left: c_offset_left,
                     overflow: c_overflow,
                     transform: c_transform,
+                    clip_path: c_clip_path,
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
                     background_radial_gradient: c_bg_radial,
@@ -2252,6 +2253,21 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cy = container_y_top - total_h * 0.5;
                         content.push_str("q\n");
                         push_transform_cm(&mut content, t, cx, cy);
+                    }
+
+                    // CSS clip-path: clip the element (and descendants) to the
+                    // basic shape before painting. Wrapped in its own q..Q.
+                    let c_needs_clip_path = c_clip_path.is_some();
+                    if let Some(cp) = c_clip_path {
+                        content.push_str("q\n");
+                        push_clip_path(
+                            &mut content,
+                            cp,
+                            container_x,
+                            container_y_top,
+                            container_w,
+                            total_h,
+                        );
                     }
 
                     // Draw box-shadow with blur
@@ -2494,6 +2510,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Restore clip
                     if needs_clip {
+                        content.push_str("Q\n");
+                    }
+                    if c_needs_clip_path {
                         content.push_str("Q\n");
                     }
                     if c_needs_transform {
@@ -2937,6 +2956,105 @@ fn push_transform_cm(content: &mut String, t: &crate::style::computed::Transform
     }
 }
 
+/// Emit a circle/ellipse as four cubic Bézier arcs (PDF `c` operators) starting
+/// from a `move` to the right vertex. Caller terminates the path (e.g. `W n`).
+fn emit_ellipse_path(content: &mut String, cx: f32, cy: f32, rx: f32, ry: f32) {
+    const K: f32 = 0.552_284_75; // 4/3*(sqrt(2)-1): circle->bezier constant
+    let (kx, ky) = (K * rx, K * ry);
+    content.push_str(&format!("{} {cy} m\n", cx + rx));
+    content.push_str(&format!(
+        "{} {} {} {} {cx} {} c\n",
+        cx + rx,
+        cy + ky,
+        cx + kx,
+        cy + ry,
+        cy + ry
+    ));
+    content.push_str(&format!(
+        "{} {} {} {} {} {cy} c\n",
+        cx - kx,
+        cy + ry,
+        cx - rx,
+        cy + ky,
+        cx - rx
+    ));
+    content.push_str(&format!(
+        "{} {} {} {} {cx} {} c\n",
+        cx - rx,
+        cy - ky,
+        cx - kx,
+        cy - ry,
+        cy - ry
+    ));
+    content.push_str(&format!(
+        "{} {} {} {} {} {cy} c\n",
+        cx + kx,
+        cy - ry,
+        cx + rx,
+        cy - ky,
+        cx + rx
+    ));
+}
+
+/// Emit the geometry for a CSS `clip-path` basic shape as a PDF clip (`... W n`),
+/// resolved against the element border box (`left`/`top_y` are the top-left in
+/// PDF bottom-up coordinates; `w`/`h` the box size). Caller wraps in `q`..`Q`.
+fn push_clip_path(
+    content: &mut String,
+    clip: &crate::style::computed::ClipPath,
+    left: f32,
+    top_y: f32,
+    w: f32,
+    h: f32,
+) {
+    use crate::style::computed::ClipPath;
+    let along_x = |(v, pct): (f32, bool)| if pct { w * v / 100.0 } else { v };
+    let along_y = |(v, pct): (f32, bool)| if pct { h * v / 100.0 } else { v };
+    match clip {
+        ClipPath::Circle { r, cx, cy } => {
+            let cxp = left + along_x(*cx);
+            let cyp = top_y - along_y(*cy);
+            // % radius resolves against the diagonal/sqrt(2); approximate with
+            // the smaller axis for px-free cases. px radii are absolute.
+            let rad = if r.1 { w.min(h) * r.0 / 100.0 } else { r.0 };
+            emit_ellipse_path(content, cxp, cyp, rad, rad);
+        }
+        ClipPath::Ellipse { rx, ry, cx, cy } => {
+            let cxp = left + along_x(*cx);
+            let cyp = top_y - along_y(*cy);
+            emit_ellipse_path(content, cxp, cyp, along_x(*rx), along_y(*ry));
+        }
+        ClipPath::Inset {
+            top,
+            right,
+            bottom,
+            left: l,
+            radius,
+        } => {
+            let x0 = left + along_x(*l);
+            let x1 = left + w - along_x(*right);
+            let y1 = top_y - along_y(*top); // upper edge
+            let y0 = top_y - (h - along_y(*bottom)); // lower edge
+            let (rw, rh) = ((x1 - x0).max(0.0), (y1 - y0).max(0.0));
+            if *radius > 0.0 {
+                content.push_str(&rounded_rect_path(x0, y0, rw, rh, *radius));
+                content.push('\n');
+            } else {
+                content.push_str(&format!("{x0} {y0} {rw} {rh} re\n"));
+            }
+        }
+        ClipPath::Polygon(points) => {
+            for (i, (px, py)) in points.iter().enumerate() {
+                let x = left + along_x(*px);
+                let y = top_y - along_y(*py);
+                content.push_str(&format!("{x} {y} {}\n", if i == 0 { "m" } else { "l" }));
+            }
+            content.push_str("h\n");
+        }
+    }
+    content.push_str("W n\n");
+}
+
 /// Recursively render a Container element and all its children.
 ///
 /// `x` / `y` are the content-box origin (after padding).
@@ -3300,6 +3418,7 @@ fn render_container_children(
                 offset_top: nk_offset_top,
                 offset_left: nk_offset_left,
                 transform: nk_transform,
+                clip_path: nk_clip_path,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -3350,6 +3469,11 @@ fn render_container_children(
                     let cy = nk_top_y - nk_total_h * 0.5;
                     content.push_str("q\n");
                     push_transform_cm(content, t, cx, cy);
+                }
+                let nk_needs_clip_path = nk_clip_path.is_some();
+                if let Some(cp) = nk_clip_path {
+                    content.push_str("q\n");
+                    push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
                 }
 
                 // Draw background with proper alpha support
@@ -3516,6 +3640,9 @@ fn render_container_children(
                 );
 
                 if clip {
+                    content.push_str("Q\n");
+                }
+                if nk_needs_clip_path {
                     content.push_str("Q\n");
                 }
                 if nk_needs_transform {

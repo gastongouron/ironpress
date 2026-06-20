@@ -389,6 +389,7 @@ pub(crate) fn layout_grid_container(
         offset_left: 0.0,
         overflow: style.overflow,
         transform: style.transform,
+        clip_path: style.clip_path.clone(),
         box_shadow: style.box_shadow,
         background_gradient,
         background_radial_gradient,

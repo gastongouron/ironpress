@@ -68,6 +68,35 @@ pub enum GridTrack {
     Minmax(f32, f32),
 }
 
+/// A CSS `clip-path` basic shape. Lengths are in points; positions/percentages
+/// resolve against the element's border box at render time.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClipPath {
+    /// `circle(r at cx cy)` — radius + centre, each (value, is_percent).
+    Circle {
+        r: (f32, bool),
+        cx: (f32, bool),
+        cy: (f32, bool),
+    },
+    /// `ellipse(rx ry at cx cy)`.
+    Ellipse {
+        rx: (f32, bool),
+        ry: (f32, bool),
+        cx: (f32, bool),
+        cy: (f32, bool),
+    },
+    /// `inset(top right bottom left [round radius])`.
+    Inset {
+        top: (f32, bool),
+        right: (f32, bool),
+        bottom: (f32, bool),
+        left: (f32, bool),
+        radius: f32,
+    },
+    /// `polygon(x y, ...)` — vertices, each coord (value, is_percent).
+    Polygon(Vec<((f32, bool), (f32, bool))>),
+}
+
 /// Text alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum TextAlign {
@@ -626,6 +655,7 @@ pub struct ComputedStyle {
     pub overflow: Overflow,
     pub visibility: Visibility,
     pub transform: Option<Transform>,
+    pub clip_path: Option<ClipPath>,
     pub grid_template_columns: Vec<GridTrack>,
     pub grid_gap: f32,
     pub border_radius: f32,
@@ -745,6 +775,7 @@ impl Default for ComputedStyle {
             overflow: Overflow::Visible,
             visibility: Visibility::Visible,
             transform: None,
+            clip_path: None,
             grid_template_columns: Vec::new(),
             grid_gap: 0.0,
             border_radius: 0.0,
@@ -931,6 +962,7 @@ pub fn compute_style_with_context(
     style.overflow = Overflow::Visible;
     style.visibility = Visibility::Visible;
     style.transform = None;
+    style.clip_path = None;
     style.grid_template_columns = Vec::new();
     style.grid_gap = 0.0;
     style.border_radius = 0.0;
@@ -1099,6 +1131,7 @@ pub fn compute_pseudo_element_style(
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.transform = None;
+    style.clip_path = None;
     style.grid_template_columns = Vec::new();
     style.grid_gap = 0.0;
     style.border_radius = 0.0;
@@ -1787,6 +1820,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Grid template columns
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-columns") {
         style.grid_template_columns = parse_grid_template_columns(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
+        style.clip_path = parse_clip_path(k);
     }
 
     // Grid gap (shorthand sets both column and row gap)
@@ -3282,6 +3318,88 @@ fn parse_transform_length(val: &str) -> Option<f32> {
     } else {
         val.parse::<f32>().ok()
     }
+}
+
+/// Parse a clip-path length/percentage token into (points-or-percent, is_percent).
+fn parse_clip_len(token: &str) -> Option<(f32, bool)> {
+    let t = token.trim();
+    if let Some(n) = t.strip_suffix('%') {
+        n.parse::<f32>().ok().map(|v| (v, true))
+    } else if let Some(n) = t.strip_suffix("px") {
+        n.parse::<f32>().ok().map(|v| (v * 0.75, false))
+    } else if let Some(n) = t.strip_suffix("pt") {
+        n.parse::<f32>().ok().map(|v| (v, false))
+    } else {
+        t.parse::<f32>().ok().map(|v| (v * 0.75, false))
+    }
+}
+
+/// Parse a CSS `clip-path` basic shape (circle/ellipse/inset/polygon). Returns
+/// None for `none` and unsupported forms (url(), path(), etc.).
+fn parse_clip_path(val: &str) -> Option<ClipPath> {
+    let raw = val.trim();
+    let center = (50.0, true);
+    let parse_pos = |s: &str| -> ((f32, bool), (f32, bool)) {
+        // `at X Y` — default to centre when a coord is missing/unparsable.
+        let mut it = s.split_whitespace();
+        let x = it.next().and_then(parse_clip_len).unwrap_or(center);
+        let y = it.next().and_then(parse_clip_len).unwrap_or(center);
+        (x, y)
+    };
+    if let Some(inner) = raw.strip_prefix("circle(").and_then(|s| s.strip_suffix(')')) {
+        let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
+        let r = parse_clip_len(shape.trim())?;
+        let (cx, cy) = parse_pos(pos);
+        return Some(ClipPath::Circle { r, cx, cy });
+    }
+    if let Some(inner) = raw.strip_prefix("ellipse(").and_then(|s| s.strip_suffix(')')) {
+        let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
+        let mut radii = shape.split_whitespace();
+        let rx = radii.next().and_then(parse_clip_len)?;
+        let ry = radii.next().and_then(parse_clip_len).unwrap_or(rx);
+        let (cx, cy) = parse_pos(pos);
+        return Some(ClipPath::Ellipse { rx, ry, cx, cy });
+    }
+    if let Some(inner) = raw.strip_prefix("inset(").and_then(|s| s.strip_suffix(')')) {
+        let (insets_part, radius) = match inner.split_once(" round ") {
+            Some((a, r)) => (a, parse_clip_len(r.trim()).map_or(0.0, |(v, _)| v)),
+            None => (inner, 0.0),
+        };
+        let vals: Vec<(f32, bool)> = insets_part
+            .split_whitespace()
+            .filter_map(parse_clip_len)
+            .collect();
+        // CSS 1-4 value shorthand (top, right, bottom, left).
+        let (top, right, bottom, left) = match vals.len() {
+            1 => (vals[0], vals[0], vals[0], vals[0]),
+            2 => (vals[0], vals[1], vals[0], vals[1]),
+            3 => (vals[0], vals[1], vals[2], vals[1]),
+            n if n >= 4 => (vals[0], vals[1], vals[2], vals[3]),
+            _ => return None,
+        };
+        return Some(ClipPath::Inset {
+            top,
+            right,
+            bottom,
+            left,
+            radius,
+        });
+    }
+    if let Some(inner) = raw.strip_prefix("polygon(").and_then(|s| s.strip_suffix(')')) {
+        let points: Vec<((f32, bool), (f32, bool))> = inner
+            .split(',')
+            .filter_map(|pair| {
+                let mut it = pair.split_whitespace();
+                let x = parse_clip_len(it.next()?)?;
+                let y = parse_clip_len(it.next()?)?;
+                Some((x, y))
+            })
+            .collect();
+        if points.len() >= 3 {
+            return Some(ClipPath::Polygon(points));
+        }
+    }
+    None
 }
 
 /// Parse a single grid track token (e.g. `1fr`, `200pt`, `100px`, `auto`).

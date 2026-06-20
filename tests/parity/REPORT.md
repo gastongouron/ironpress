@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 41.76%  (PASS 91 · PARTIAL 107 · FAIL 148 · UNKNOWN 0 · total 346)
+Overall: 43.21%  (PASS 96 · PARTIAL 107 · FAIL 143 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**19 suspect(s):** `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `transforms-compound-rotate-translate`, `transforms-skew`, `units-min-max`
+**24 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `transforms-compound-rotate-translate`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -154,7 +154,7 @@ None — every fixture's HTML matches `refs.lock`.
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
 | backgrounds-gradients | 32.14% | 4 | 1 | 9 | 0 |
 | block-box-model | 26.67% | 3 | 2 | 10 | 0 |
-| clip-mask | 0.00% | 0 | 0 | 8 | 0 |
+| clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 64.29% | 9 | 0 | 5 | 0 |
 | effects | 40.91% | 1 | 7 | 3 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
@@ -188,11 +188,11 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 33.84 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | FAIL | 40.97 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | FAIL | 16.32 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
-| unsupported | FAIL | 49.48 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
-| unsupported | FAIL | 50.65 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
-| unsupported | FAIL | 74.83 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
-| unsupported | FAIL | 40.81 | clip-mask | clip-path: inset() | clip-path-inset-round | clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported. |
-| unsupported | FAIL | 49.68 | clip-mask | clip-path: polygon() | clip-path-polygon | clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.03 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.03 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.93 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
+| unsupported | PASS | 0.44 | clip-mask | clip-path: inset() | clip-path-inset-round | clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.00 | clip-mask | clip-path: polygon() | clip-path-polygon | clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported. |
 | unsupported | FAIL | 80.50 | clip-mask | mask-image: linear-gradient() | mask-image-linear-gradient | mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only). |
 | unsupported | FAIL | 52.48 | clip-mask | mask-image: radial-gradient() | mask-image-radial-gradient | mask-image: radial-gradient() leaves a solid disc fading to transparent at the edges. CSS mask is unsupported. |
 | unsupported | FAIL | 49.48 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
@@ -371,16 +371,16 @@ None — every fixture's HTML matches `refs.lock`.
 - **width-height** — 100.00%
   - PASS 0.76% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
-### clip-mask — 0.00%
-- **clip-path: circle()** — 0.00%
-  - FAIL 49.48% clip-path: circle()=centered — `clip-path-circle` — clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.
-- **clip-path: ellipse()** — 0.00%
-  - FAIL 50.65% clip-path: ellipse()=distinct-radii — `clip-path-ellipse` — clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.
-- **clip-path: inset()** — 0.00%
-  - FAIL 74.83% clip-path: inset()=rectangular — `clip-path-inset` — clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs).
-  - FAIL 40.81% clip-path: inset()=rounded — `clip-path-inset-round` — clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported.
-- **clip-path: polygon()** — 0.00%
-  - FAIL 49.68% clip-path: polygon()=diamond — `clip-path-polygon` — clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported.
+### clip-mask — 62.50%
+- **clip-path: circle()** — 100.00%
+  - PASS 0.03% clip-path: circle()=centered — `clip-path-circle` — clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.
+- **clip-path: ellipse()** — 100.00%
+  - PASS 0.03% clip-path: ellipse()=distinct-radii — `clip-path-ellipse` — clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.
+- **clip-path: inset()** — 100.00%
+  - PASS 0.93% clip-path: inset()=rectangular — `clip-path-inset` — clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs).
+  - PASS 0.44% clip-path: inset()=rounded — `clip-path-inset-round` — clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported.
+- **clip-path: polygon()** — 100.00%
+  - PASS 0.00% clip-path: polygon()=diamond — `clip-path-polygon` — clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported.
 - **mask-image: linear-gradient()** — 0.00%
   - FAIL 80.50% mask-image: linear-gradient()=alpha-fade — `mask-image-linear-gradient` — mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
 - **mask-image: radial-gradient()** — 0.00%

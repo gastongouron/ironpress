@@ -1420,6 +1420,7 @@ pub(crate) fn layout_block_element(
             offset_left: wrapper_left + auto_offset_left,
             overflow: style.overflow,
             transform: style.transform,
+            clip_path: style.clip_path.clone(),
             box_shadow: style.box_shadow,
             background_gradient,
             background_radial_gradient,

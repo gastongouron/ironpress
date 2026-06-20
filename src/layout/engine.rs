@@ -447,6 +447,7 @@ pub enum LayoutElement {
         offset_left: f32,
         overflow: Overflow,
         transform: Option<Transform>,
+        clip_path: Option<crate::style::computed::ClipPath>,
         box_shadow: Option<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
