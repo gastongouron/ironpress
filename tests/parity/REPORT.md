@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 35.40%  (PASS 76 · PARTIAL 93 · FAIL 177 · UNKNOWN 0 · total 346)
+Overall: 35.55%  (PASS 76 · PARTIAL 94 · FAIL 176 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -86,8 +86,8 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 100.00 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 23.54 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox |  |
 | FAIL | CONFOUNDED: display (`grid-display-grid`) | 13.77 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid |  |
-| FAIL | CONFOUNDED: table (`tables-basic-grid`) | 23.93 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested |  |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 22.65 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `typography-font-weight-bold` already FAILs | tables-x-typography-bold |  |
+| FAIL | CONFOUNDED: table (`tables-basic-grid`) | 26.11 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested |  |
+| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 17.63 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `typography-font-weight-bold` already FAILs | tables-x-typography-bold |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 20.11 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item |  |
 | FAIL | CONFOUNDED: z-index (`positioning-z-index-stacking`) | 14.02 | interactions | z-index-x-transforms | (interaction: positioning×transforms) DERIVATIVE: base `positioning-z-index-stacking` already FAILs | positioning-zindex-x-transforms-rotate |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 27.19 | lists-counters | list-style-position | inside | list-style-position-inside |  |
@@ -112,22 +112,21 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 12.21 | selectors-cascade | combinator | general-sibling | selectors-cascade-general-sibling |  |
 | FAIL | REAL | 17.09 | selectors-cascade | specificity | class-over-type | selectors-cascade-specificity-class-over-type |  |
 | FAIL | REAL | 100.00 | selectors-cascade | specificity | id-over-class | selectors-cascade-specificity-id-over-class |  |
-| FAIL | REAL | 18.97 | tables | border-collapse | collapse | tables-border-collapse |  |
-| FAIL | REAL | 25.77 | tables | border-collapse | separate | tables-border-separate |  |
-| FAIL | REAL | 30.03 | tables | border-spacing | uniform-12px | tables-border-spacing |  |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 34.44 | tables | caption | caption-side-top | tables-caption |  |
+| FAIL | REAL | 12.45 | tables | border-collapse | collapse | tables-border-collapse |  |
+| FAIL | REAL | 23.65 | tables | border-collapse | separate | tables-border-separate |  |
+| FAIL | REAL | 35.31 | tables | border-spacing | uniform-12px | tables-border-spacing |  |
+| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 33.35 | tables | caption | caption-side-top | tables-caption |  |
 | FAIL | REAL | 43.15 | tables | cell-padding | padding-20px | tables-cell-padding |  |
-| FAIL | REAL | 21.52 | tables | colspan | colspan-2 | tables-colspan |  |
-| FAIL | REAL | 22.80 | tables | column-width | percent | tables-width-percent-columns |  |
-| FAIL | REAL | 26.18 | tables | empty-cells | hide | tables-empty-cells-hide |  |
-| FAIL | REAL | 36.32 | tables | rowspan | rowspan-2 | tables-rowspan |  |
-| FAIL | REAL | 18.04 | tables | table | basic-grid | tables-basic-grid |  |
-| FAIL | REAL | 12.45 | tables | table-layout | auto | tables-layout-auto |  |
-| FAIL | REAL | 28.45 | tables | table-layout | fixed | tables-layout-fixed |  |
-| FAIL | REAL | 30.07 | tables | table-sections | thead-tbody-tfoot | tables-thead-tbody-tfoot |  |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 18.60 | tables | text-align | left-center-right | tables-cell-text-align |  |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 20.48 | tables | th-cell | header-default | tables-th-header |  |
-| FAIL | REAL | 16.92 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align |  |
+| FAIL | REAL | 19.42 | tables | colspan | colspan-2 | tables-colspan |  |
+| FAIL | REAL | 18.23 | tables | column-width | percent | tables-width-percent-columns |  |
+| FAIL | REAL | 34.64 | tables | empty-cells | hide | tables-empty-cells-hide |  |
+| FAIL | REAL | 13.59 | tables | rowspan | rowspan-2 | tables-rowspan |  |
+| FAIL | REAL | 14.44 | tables | table | basic-grid | tables-basic-grid |  |
+| FAIL | REAL | 19.67 | tables | table-layout | auto | tables-layout-auto |  |
+| FAIL | REAL | 14.88 | tables | table-layout | fixed | tables-layout-fixed |  |
+| FAIL | REAL | 16.52 | tables | table-sections | thead-tbody-tfoot | tables-thead-tbody-tfoot |  |
+| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 18.51 | tables | text-align | left-center-right | tables-cell-text-align |  |
+| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 19.56 | tables | th-cell | header-default | tables-th-header |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 48.17 | text-advanced | overflow-wrap | break-word | text-advanced-overflow-wrap-break-word |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 41.79 | text-advanced | text-indent | length | text-advanced-text-indent |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 41.46 | text-advanced | white-space | normal | text-advanced-white-space-normal |  |
@@ -187,7 +186,7 @@ None — every fixture's HTML matches `refs.lock`.
 | positioning | 50.00% | 5 | 6 | 5 | 0 |
 | probes | 83.33% | 5 | 0 | 1 | 0 |
 | selectors-cascade | 50.00% | 7 | 1 | 7 | 0 |
-| tables | 0.00% | 0 | 0 | 16 | 0 |
+| tables | 3.13% | 0 | 1 | 15 | 0 |
 | text-advanced | 10.00% | 0 | 3 | 12 | 0 |
 | transforms | 36.36% | 2 | 4 | 5 | 0 |
 | typography | 53.13% | 2 | 13 | 1 | 0 |
@@ -215,7 +214,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 2.30 | color-opacity | color-format | color-rgba-alpha | Semi-transparent rgba() box composited over a solid background box. |
 | unsupported | FAIL | 28.02 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
 | unsupported | PASS | 3.47 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
-| unsupported | FAIL | 49.00 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
+| unsupported | FAIL | 18.30 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | PASS | 4.81 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | PASS | 6.50 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PASS | 3.99 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
@@ -279,7 +278,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PARTIAL | 11.24 | paged-media | named-page | paged-named-page | The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap. |
 | unsupported | PARTIAL | 17.79 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
 | partial | PASS | 1.80 | paged-media | page-break-before | paged-page-break-before-avoid-noop | page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap. |
-| unsupported | FAIL | 27.36 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
+| unsupported | FAIL | 21.44 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
 | unsupported | PARTIAL | 17.92 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
 | unsupported | FAIL | 16.59 | selectors-cascade | at-rule | selectors-cascade-supports-rule | @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap. |
 | partial | PASS | 5.21 | selectors-cascade | attribute-selector | selectors-cascade-attribute-equals | [data-pick="yes"] colors only the box whose attribute equals the value; boxes with a different value or no attribute stay gray. |
@@ -421,7 +420,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **opacity** — 100.00%
   - PASS 2.48% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
 - **visibility** — 0.00%
-  - FAIL 49.00% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
+  - FAIL 18.30% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - FAIL 21.89% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
 ### effects — 95.45%
@@ -651,9 +650,9 @@ None — every fixture's HTML matches `refs.lock`.
 - **positioning-x-grid** — 0.00%
   - FAIL 13.77% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
-  - FAIL 23.93% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
+  - FAIL 26.11% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
 - **tables-x-typography** — 0.00%
-  - FAIL 22.65% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
+  - FAIL 17.63% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
 - **transforms-x-flexbox** — 0.00%
   - FAIL 20.11% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
 - **z-index** — 50.00%
@@ -724,7 +723,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-break-before** — 100.00%
   - PASS 1.80% page-break-before=avoid-noop — `paged-page-break-before-avoid-noop` — page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap.
 - **page-break-inside** — 0.00%
-  - FAIL 27.36% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
+  - FAIL 21.44% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
 - **page-counter** — 50.00%
   - PARTIAL 17.92% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
 - **page-margin** — 100.00%
@@ -792,37 +791,37 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 17.09% specificity=class-over-type — `selectors-cascade-specificity-class-over-type` — A class selector (0,1,0) overrides a type selector (0,0,1) regardless of source order; only the .pick box turns green.
   - FAIL 100.00% specificity=id-over-class — `selectors-cascade-specificity-id-over-class` — An id selector (1,0,0) overrides a more numerous class selector (0,2,0) on the same element; only the box carrying the id turns green.
 
-### tables — 0.00%
+### tables — 3.13%
 - **border-collapse** — 0.00%
-  - FAIL 18.97% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
-  - FAIL 25.77% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
+  - FAIL 12.45% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
+  - FAIL 23.65% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
 - **border-spacing** — 0.00%
-  - FAIL 30.03% border-spacing=uniform-12px — `tables-border-spacing` — border-collapse:separate with 12px border-spacing exposes the table background between cells.
+  - FAIL 35.31% border-spacing=uniform-12px — `tables-border-spacing` — border-collapse:separate with 12px border-spacing exposes the table background between cells.
 - **caption** — 0.00%
-  - FAIL 34.44% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
+  - FAIL 33.35% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
 - **cell-padding** — 0.00%
   - FAIL 43.15% cell-padding=padding-20px — `tables-cell-padding` — 20px cell padding insets a filled inner box from the cell border on all sides.
 - **colspan** — 0.00%
-  - FAIL 21.52% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
+  - FAIL 19.42% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
 - **column-width** — 0.00%
-  - FAIL 22.80% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
+  - FAIL 18.23% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
 - **empty-cells** — 0.00%
-  - FAIL 26.18% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
+  - FAIL 34.64% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
 - **rowspan** — 0.00%
-  - FAIL 36.32% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
+  - FAIL 13.59% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
 - **table** — 0.00%
-  - FAIL 18.04% table=basic-grid — `tables-basic-grid` — 2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.
+  - FAIL 14.44% table=basic-grid — `tables-basic-grid` — 2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.
 - **table-layout** — 0.00%
-  - FAIL 12.45% table-layout=auto — `tables-layout-auto` — table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).
-  - FAIL 28.45% table-layout=fixed — `tables-layout-fixed` — table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.
+  - FAIL 19.67% table-layout=auto — `tables-layout-auto` — table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).
+  - FAIL 14.88% table-layout=fixed — `tables-layout-fixed` — table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.
 - **table-sections** — 0.00%
-  - FAIL 30.07% table-sections=thead-tbody-tfoot — `tables-thead-tbody-tfoot` — thead, tbody and tfoot row groups render in document order with distinct section backgrounds.
+  - FAIL 16.52% table-sections=thead-tbody-tfoot — `tables-thead-tbody-tfoot` — thead, tbody and tfoot row groups render in document order with distinct section backgrounds.
 - **text-align** — 0.00%
-  - FAIL 18.60% text-align=left-center-right — `tables-cell-text-align` — Short monospace text aligned left, center and right within three equal cells.
+  - FAIL 18.51% text-align=left-center-right — `tables-cell-text-align` — Short monospace text aligned left, center and right within three equal cells.
 - **th-cell** — 0.00%
-  - FAIL 20.48% th-cell=header-default — `tables-th-header` — th header cells in the first row vs td data cells, with distinct fills and text.
-- **vertical-align** — 0.00%
-  - FAIL 16.92% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
+  - FAIL 19.56% th-cell=header-default — `tables-th-header` — th header cells in the first row vs td data cells, with distinct fills and text.
+- **vertical-align** — 50.00%
+  - PARTIAL 10.91% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
 
 ### text-advanced — 10.00%
 - **direction** — 0.00%

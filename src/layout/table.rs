@@ -2,7 +2,8 @@ use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BorderCollapse, ComputedStyle, Display, FontStyle, FontWeight, TableLayout, TextAlign,
+    BorderCollapse, BoxSizing, ComputedStyle, Display, FontStyle, FontWeight, TableLayout,
+    TextAlign,
     VerticalAlign, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
@@ -40,12 +41,19 @@ pub struct TableCell {
     pub text_align: TextAlign,
     /// Vertical alignment within the row box.
     pub vertical_align: VerticalAlign,
+    /// Minimum content-box height from an explicit `height` on the cell. The
+    /// row grows to at least this even when the cell has no text (CSS treats
+    /// the cell `height` as a minimum). 0.0 = auto.
+    pub min_content_height: f32,
 }
 
 pub(crate) fn table_cell_content_height(cell: &TableCell) -> f32 {
     let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
     let nested_h: f32 = cell.nested_rows.iter().map(estimate_element_height).sum();
-    cell.padding_top + text_h + nested_h + cell.padding_bottom
+    let content = cell.padding_top + text_h + nested_h + cell.padding_bottom;
+    // An explicit cell height acts as a minimum (CSS): an empty cell with
+    // `height:Npx` must still occupy that height rather than collapsing.
+    content.max(cell.min_content_height)
 }
 
 /// Parse a width for a `<col>` / `<colgroup>` element.
@@ -908,6 +916,7 @@ pub(crate) fn flatten_table(
                     border: LayoutBorder::default(),
                     text_align: TextAlign::Left,
                     vertical_align: VerticalAlign::Baseline,
+                    min_content_height: 0.0,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -1015,6 +1024,18 @@ pub(crate) fn flatten_table(
                 .or(row_style.background_color)
                 .map(|c: crate::types::Color| c.to_f32_rgba());
 
+            // An explicit cell height is a minimum on the cell's content+padding
+            // box (table_cell_content_height excludes the border). Resolve
+            // border-box vs content-box so an empty `height:Npx` cell keeps its
+            // height instead of collapsing.
+            let cell_border = LayoutBorder::from_computed(&cell_style.border);
+            let min_content_height = cell_style.height.map_or(0.0, |h| {
+                if cell_style.box_sizing == BoxSizing::BorderBox {
+                    (h - cell_border.vertical_width()).max(0.0)
+                } else {
+                    h + cell_style.padding.top + cell_style.padding.bottom
+                }
+            });
             cells.push(TableCell {
                 lines,
                 nested_rows,
@@ -1026,9 +1047,10 @@ pub(crate) fn flatten_table(
                 padding_left: cell_style.padding.left,
                 colspan,
                 rowspan,
-                border: LayoutBorder::from_computed(&cell_style.border),
+                border: cell_border,
                 text_align: cell_style.text_align,
                 vertical_align: cell_style.vertical_align,
+                min_content_height,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1

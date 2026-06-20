@@ -484,6 +484,7 @@ pub(super) fn render_nested_text_block(
             border: crate::layout::engine::LayoutBorder::default(),
             text_align: block.text_align,
             vertical_align: VerticalAlign::Baseline,
+            min_content_height: 0.0,
         };
         render_cell_text(
             content,

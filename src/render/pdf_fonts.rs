@@ -430,6 +430,7 @@ mod tests {
             border: LayoutBorder::default(),
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Middle,
+            min_content_height: 0.0,
         }
     }
 
