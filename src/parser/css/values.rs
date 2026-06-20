@@ -426,6 +426,21 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
     }
 
+    // Multi-column shorthands/longhands whose values are best preserved verbatim
+    // and decoded later in `compute_style` (e.g. `column-rule: 6px solid #d6005a`,
+    // `column-width: 140px`, `column-span: all`).
+    if matches!(
+        property,
+        "column-width"
+            | "column-rule"
+            | "column-rule-width"
+            | "column-rule-style"
+            | "column-rule-color"
+            | "column-span"
+    ) {
+        return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
+    }
+
     if matches!(property, "border-radius" | "outline-width") {
         return parse_length(val);
     }

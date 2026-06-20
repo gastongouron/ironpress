@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 70.23,
-    "pass": 190,
-    "partial": 106,
-    "fail": 50,
+    "score_pct": 72.11,
+    "pass": 197,
+    "partial": 105,
+    "fail": 44,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -6386,21 +6386,21 @@
     },
     {
       "category": "multicol",
-      "score_pct": 12.5,
+      "score_pct": 93.75,
       "counts": {
-        "pass": 0,
-        "partial": 2,
-        "fail": 6,
+        "pass": 7,
+        "partial": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "break-inside",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6411,8 +6411,8 @@
               "subfeature": "avoid",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.5837,
+              "status": "PASS",
+              "diff_pct": 0.1985,
               "weight": 1.0,
               "description": "Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).",
               "note": "",
@@ -6424,18 +6424,18 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "897d50f8f10c43e620808d536d59f866c2752e2bcf94c5b49468f0409e317d64"
             }
           ]
         },
         {
           "feature": "column-count",
-          "score_pct": 25.0,
+          "score_pct": 75.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 1,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6447,7 +6447,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 10.6608,
+              "diff_pct": 7.7883,
               "weight": 1.0,
               "description": "Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.",
               "note": "",
@@ -6470,8 +6470,8 @@
               "subfeature": "three",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 15.1428,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.",
               "note": "",
@@ -6483,17 +6483,17 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "e21d95d89df2b65a0d778471fb2ad2aa77a21bb9face4ecf55bc4162974cb343"
             }
           ]
         },
         {
           "feature": "column-gap",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -6505,8 +6505,8 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 11.162,
+              "status": "PASS",
+              "diff_pct": 0.4713,
               "weight": 1.0,
               "description": "Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.",
               "note": "",
@@ -6518,18 +6518,18 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "29496b48b12caa204a9ab7b75cb223e03b5227b46d006adfdab19173774addaf"
             }
           ]
         },
         {
           "feature": "column-rule",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6540,8 +6540,8 @@
               "subfeature": "solid",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 13.6764,
+              "status": "PASS",
+              "diff_pct": 1.5319,
               "weight": 1.0,
               "description": "Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).",
               "note": "",
@@ -6553,18 +6553,18 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b570249039545748e1392c998114f3f95144a53288e253ad5b3c2b0fef309fa3"
             }
           ]
         },
         {
           "feature": "column-span",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6575,8 +6575,8 @@
               "subfeature": "all",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 44.8331,
+              "status": "PASS",
+              "diff_pct": 0.3221,
               "weight": 1.0,
               "description": "A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).",
               "note": "",
@@ -6588,18 +6588,18 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "023009ddb06da468ef060698da77aa63a14a5911024613c391b58bcd9c4d937c"
             }
           ]
         },
         {
           "feature": "column-width",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6610,8 +6610,8 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 45.3467,
+              "status": "PASS",
+              "diff_pct": 0.2462,
               "weight": 1.0,
               "description": "Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).",
               "note": "",
@@ -6623,18 +6623,18 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c798ffab4c265d4b0ba5b99d68ff4da7d827557460e0147d701acd111338d39e"
             }
           ]
         },
         {
           "feature": "columns",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6645,8 +6645,8 @@
               "subfeature": "shorthand",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 60.4141,
+              "status": "PASS",
+              "diff_pct": 0.3214,
               "weight": 1.0,
               "description": "columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).",
               "note": "",
@@ -6658,7 +6658,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b4bf47ad0a03279acba08883389e346f719fea1efd7fd4fb1bc2b5dd2d469b41"
             }
           ]
@@ -10601,6 +10601,10 @@
     "img-object-position",
     "mix-blend-mode-multiply",
     "mix-blend-mode-screen",
+    "multicol-break-inside-avoid",
+    "multicol-column-rule",
+    "multicol-column-span-all",
+    "multicol-column-width",
     "paged-break-before-page-modern",
     "paged-break-inside-avoid",
     "paged-named-page",

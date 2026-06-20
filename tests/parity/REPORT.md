@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 70.23%  (PASS 190 · PARTIAL 106 · FAIL 50 · UNKNOWN 0 · total 346)
+Overall: 72.11%  (PASS 197 · PARTIAL 105 · FAIL 44 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**42 suspect(s):** `background-blend-mode-multiply`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-multiply`, `mix-blend-mode-screen`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-clamp`, `units-min-max`
+**46 suspect(s):** `background-blend-mode-multiply`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-multiply`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-rule`, `multicol-column-span-all`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -89,7 +89,7 @@ None — every fixture's HTML matches `refs.lock`.
 | inline-text | 53.13% | 1 | 15 | 0 | 0 |
 | interactions | 27.27% | 4 | 4 | 14 | 0 |
 | lists-counters | 83.33% | 8 | 4 | 0 | 0 |
-| multicol | 12.50% | 0 | 2 | 6 | 0 |
+| multicol | 93.75% | 7 | 1 | 0 | 0 |
 | overflow-clipping | 35.00% | 1 | 5 | 4 | 0 |
 | paged-media | 83.33% | 7 | 1 | 1 | 0 |
 | positioning | 59.38% | 6 | 7 | 3 | 0 |
@@ -171,13 +171,13 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 3.74 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
 | unsupported | PARTIAL | 6.24 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
 | unsupported | PARTIAL | 7.42 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
-| unsupported | FAIL | 49.58 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
-| partial | PARTIAL | 10.66 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
-| partial | FAIL | 15.14 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
-| unsupported | FAIL | 13.68 | multicol | column-rule | multicol-column-rule | Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap). |
-| unsupported | FAIL | 44.83 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
-| unsupported | FAIL | 45.35 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
-| partial | FAIL | 60.41 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
+| unsupported | PASS | 0.20 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
+| partial | PARTIAL | 7.79 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
+| partial | PASS | 0.00 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
+| unsupported | PASS | 1.53 | multicol | column-rule | multicol-column-rule | Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap). |
+| unsupported | PASS | 0.32 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
+| unsupported | PASS | 0.25 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
+| partial | PASS | 0.32 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
 | unsupported | PARTIAL | 2.31 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
 | partial | FAIL | 42.93 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
 | partial | FAIL | 21.69 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
@@ -588,22 +588,22 @@ None — every fixture's HTML matches `refs.lock`.
 - **marker-pseudo** — 50.00%
   - PARTIAL 7.42% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
-### multicol — 12.50%
-- **break-inside** — 0.00%
-  - FAIL 49.58% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).
-- **column-count** — 25.00%
-  - PARTIAL 10.66% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
-  - FAIL 15.14% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
-- **column-gap** — 50.00%
-  - PARTIAL 11.16% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
-- **column-rule** — 0.00%
-  - FAIL 13.68% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).
-- **column-span** — 0.00%
-  - FAIL 44.83% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
-- **column-width** — 0.00%
-  - FAIL 45.35% column-width=px — `multicol-column-width` — Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).
-- **columns** — 0.00%
-  - FAIL 60.41% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).
+### multicol — 93.75%
+- **break-inside** — 100.00%
+  - PASS 0.20% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).
+- **column-count** — 75.00%
+  - PARTIAL 7.79% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
+  - PASS 0.00% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
+- **column-gap** — 100.00%
+  - PASS 0.47% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
+- **column-rule** — 100.00%
+  - PASS 1.53% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).
+- **column-span** — 100.00%
+  - PASS 0.32% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
+- **column-width** — 100.00%
+  - PASS 0.25% column-width=px — `multicol-column-width` — Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).
+- **columns** — 100.00%
+  - PASS 0.32% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).
 
 ### overflow-clipping — 35.00%
 - **overflow** — 35.00%

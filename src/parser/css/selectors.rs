@@ -325,21 +325,55 @@ fn simple_selector_core_matches(
         return true;
     }
 
+    // A compound selector is an optional tag part followed by any number of
+    // `.class` and `#id` segments, all of which must match (e.g. `.card.alt`,
+    // `div.box#hero`). Split at each `.`/`#` boundary, keeping the delimiter so
+    // we know whether each segment is a class or an id. The leading run (before
+    // the first delimiter) is the type/universal part.
+    let first_delim = selector.find(['.', '#']);
+    let (tag_part, rest) = match first_delim {
+        Some(i) => selector.split_at(i),
+        None => (selector, ""),
+    };
+
     // A `*` tag part matches any element (universal selector), just like an
     // empty tag part. This applies to bare `*`, `*#id`, and `*.class`.
-    let tag_matches = |tag_part: &str| tag_part.is_empty() || tag_part == "*" || tag_part == tag;
-
-    if let Some(hash_index) = selector.find('#') {
-        let (tag_part, id_part) = selector.split_at(hash_index);
-        return tag_matches(tag_part) && id.is_some_and(|value| value == &id_part[1..]);
+    if !(tag_part.is_empty() || tag_part == "*" || tag_part == tag) {
+        return false;
     }
 
-    if let Some(dot_index) = selector.find('.') {
-        let (tag_part, class_part) = selector.split_at(dot_index);
-        return tag_matches(tag_part) && classes.iter().any(|class| class == &&class_part[1..]);
+    if rest.is_empty() {
+        return true;
     }
 
-    selector == "*" || selector == tag
+    // Walk each `.class` / `#id` segment; every one must match.
+    let mut chars = rest.char_indices().peekable();
+    while let Some((start, marker)) = chars.next() {
+        // Find the end of this segment (next `.`/`#` or end of string).
+        let mut end = rest.len();
+        while let Some(&(idx, c)) = chars.peek() {
+            if c == '.' || c == '#' {
+                end = idx;
+                break;
+            }
+            chars.next();
+        }
+        let name = &rest[start + 1..end];
+        match marker {
+            '.' => {
+                if !classes.iter().any(|class| *class == name) {
+                    return false;
+                }
+            }
+            '#' => {
+                if id != Some(name) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
 }
 
 fn split_pseudo_class(selector: &str) -> (&str, Option<&str>) {

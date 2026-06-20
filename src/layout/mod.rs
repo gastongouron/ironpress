@@ -7,6 +7,7 @@ pub(crate) mod helpers;
 pub(crate) mod images;
 pub(crate) mod inline;
 pub mod math;
+pub(crate) mod multicol;
 pub(crate) mod paginate;
 pub(crate) mod table;
 pub(crate) mod text;

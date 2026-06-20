@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::parser::css::{
-    CssRule, CssValue, SelectorContext, StyleMap, selector_matches_with_context,
+    CssRule, CssValue, SelectorContext, StyleMap, parse_length, selector_matches_with_context,
 };
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
@@ -841,7 +841,18 @@ pub struct ComputedStyle {
     pub counter_reset: Vec<(String, i32)>,
     pub counter_increment: Vec<(String, i32)>,
     pub column_count: Option<u32>,
+    /// CSS `column-width` (the ideal width of each column, in px). Combined with
+    /// `column-count` to derive the used number of columns for multicol flow.
+    pub column_width: Option<f32>,
     pub column_gap: f32,
+    /// Whether `column-gap` was set explicitly. Multicol uses a `normal` default
+    /// of 1em when unset, while grid/flex keep a 0 default.
+    pub column_gap_is_normal: bool,
+    /// CSS `column-rule`: the vertical line painted in each column gap.
+    pub column_rule: BorderSide,
+    /// CSS `column-span: all` — element spans across all columns as a full-width
+    /// band, breaking the column flow.
+    pub column_span_all: bool,
     pub row_gap: f32,
     pub blur_radius: f32,
     /// CSS `filter` color functions (grayscale/brightness/.../hue-rotate),
@@ -1004,7 +1015,11 @@ impl Default for ComputedStyle {
             counter_reset: Vec::new(),
             counter_increment: Vec::new(),
             column_count: None,
+            column_width: None,
             column_gap: 0.0,
+            column_gap_is_normal: true,
+            column_rule: BorderSide::default(),
+            column_span_all: false,
             row_gap: 0.0,
             blur_radius: 0.0,
             color_filters: Vec::new(),
@@ -1154,6 +1169,15 @@ pub fn compute_style_with_context(
     style.clip_path = None;
     style.grid_template_columns = Vec::new();
     style.grid_gap = 0.0;
+    // Multi-column properties are not inherited — reset for every element so a
+    // multicol container's block children don't themselves become multicol
+    // boxes (which would recursively re-fragment their own content).
+    style.column_count = None;
+    style.column_width = None;
+    style.column_gap = 0.0;
+    style.column_gap_is_normal = true;
+    style.column_rule = BorderSide::default();
+    style.column_span_all = false;
     style.border_radius = 0.0;
     style.outline_width = 0.0;
     style.outline_color = None;
@@ -1375,6 +1399,15 @@ pub fn compute_pseudo_element_style(
     style.clip_path = None;
     style.grid_template_columns = Vec::new();
     style.grid_gap = 0.0;
+    // Multi-column properties are not inherited — reset for every element so a
+    // multicol container's block children don't themselves become multicol
+    // boxes (which would recursively re-fragment their own content).
+    style.column_count = None;
+    style.column_width = None;
+    style.column_gap = 0.0;
+    style.column_gap_is_normal = true;
+    style.column_rule = BorderSide::default();
+    style.column_span_all = false;
     style.border_radius = 0.0;
     style.outline_width = 0.0;
     style.outline_color = None;
@@ -1587,8 +1620,20 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "content" => style.content = default.content,
         "counter-reset" => style.counter_reset = default.counter_reset,
         "counter-increment" => style.counter_increment = default.counter_increment,
-        "column-count" | "columns" => style.column_count = default.column_count,
-        "column-gap" => style.column_gap = default.column_gap,
+        "column-count" => style.column_count = default.column_count,
+        "column-width" => style.column_width = default.column_width,
+        "columns" => {
+            style.column_count = default.column_count;
+            style.column_width = default.column_width;
+        }
+        "column-gap" => {
+            style.column_gap = default.column_gap;
+            style.column_gap_is_normal = default.column_gap_is_normal;
+        }
+        "column-rule" | "column-rule-width" | "column-rule-style" | "column-rule-color" => {
+            style.column_rule = default.column_rule;
+        }
+        "column-span" => style.column_span_all = default.column_span_all,
         "filter" => {
             style.blur_radius = default.blur_radius;
             style.color_filters = default.color_filters.clone();
@@ -2480,19 +2525,81 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => {}
         }
     }
-    if let Some(val) = get_non_special(map, "columns") {
+    if let Some(val) = get_non_special(map, "column-width") {
         match val {
-            CssValue::Length(n) => style.column_count = Some(*n as u32),
-            CssValue::Keyword(k) => {
-                if let Ok(n) = k.parse::<u32>() {
-                    style.column_count = Some(n);
+            CssValue::Length(w) => style.column_width = Some(*w),
+            CssValue::Keyword(k) if k != "auto" => {
+                if let Some(CssValue::Length(w)) = parse_length(k) {
+                    style.column_width = Some(w);
                 }
             }
             _ => {}
         }
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "column-gap") {
-        style.column_gap = *v;
+    // `columns` shorthand: `<column-width> || <column-count>`, in any order.
+    // Each token is either a length (column-width) or an integer (column-count).
+    if let Some(val) = get_non_special(map, "columns") {
+        match val {
+            CssValue::Length(n) => style.column_count = Some(*n as u32),
+            CssValue::Keyword(k) => {
+                for token in k.split_whitespace() {
+                    if token == "auto" {
+                        continue;
+                    }
+                    if let Ok(n) = token.parse::<u32>() {
+                        style.column_count = Some(n);
+                    } else if let Some(CssValue::Length(w)) = parse_length(token) {
+                        style.column_width = Some(w);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(val) = get_non_special(map, "column-gap") {
+        match val {
+            CssValue::Length(v) => {
+                style.column_gap = *v;
+                style.column_gap_is_normal = false;
+            }
+            CssValue::Keyword(k) if k != "normal" => {
+                if let Some(CssValue::Length(v)) = parse_length(k) {
+                    style.column_gap = v;
+                    style.column_gap_is_normal = false;
+                }
+            }
+            _ => {}
+        }
+    }
+    // `column-rule` shorthand and longhands. The rule is the vertical line drawn
+    // in each column gap; width/style/color mirror a single border side.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-rule") {
+        style.column_rule = parse_column_rule_shorthand(k);
+    }
+    if let Some(val) = get_non_special(map, "column-rule-width") {
+        if let CssValue::Length(w) = val {
+            style.column_rule.width = *w;
+        } else if let CssValue::Keyword(k) = val {
+            if let Some(CssValue::Length(w)) = parse_length(k) {
+                style.column_rule.width = w;
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-rule-style") {
+        style.column_rule.style = parse_border_style_keyword(k);
+    }
+    if let Some(val) = get_non_special(map, "column-rule-color") {
+        let c = match val {
+            CssValue::Color(c) => Some(*c),
+            CssValue::Keyword(k) => parse_border_color_token(k),
+            _ => None,
+        };
+        if c.is_some() {
+            style.column_rule.color = c;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-span") {
+        style.column_span_all = k.eq_ignore_ascii_case("all");
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "row-gap") {
         style.row_gap = *v;
@@ -4187,6 +4294,17 @@ fn parse_border_style_keyword(keyword: &str) -> BorderStyle {
         "dotted" => BorderStyle::Dotted,
         "none" | "hidden" => BorderStyle::None,
         _ => BorderStyle::Solid,
+    }
+}
+
+/// Parse a `column-rule` shorthand (`<width> || <style> || <color>`) into a
+/// `BorderSide`, reusing the border-shorthand tokenizer.
+fn parse_column_rule_shorthand(k: &str) -> BorderSide {
+    let (width, color, style) = parse_border_shorthand(k);
+    BorderSide {
+        width,
+        color,
+        style,
     }
 }
 
@@ -9798,3 +9916,4 @@ mod tests {
         assert!(ps.background_gradient.is_some());
     }
 }
+

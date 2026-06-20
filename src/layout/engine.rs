@@ -4,7 +4,7 @@ use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
     BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, Display, Float, FontFamily,
-    FontStyle, FontWeight, GridTrack, LinearGradient, ListStylePosition, ListStyleType, Overflow,
+    FontStyle, FontWeight, LinearGradient, ListStylePosition, ListStyleType, Overflow,
     Position, RadialGradient, TextAlign, Transform, VerticalAlign, Visibility,
     compute_pseudo_element_style, compute_style_with_context,
 };
@@ -2092,21 +2092,26 @@ fn route_element(
         return;
     }
 
-    // Multi-column layout: treat as implicit grid with equal columns
-    if let Some(col_count) = style.column_count {
-        if col_count >= 2 {
-            let gap = style.column_gap;
-            let tracks: Vec<GridTrack> = (0..col_count).map(|_| GridTrack::Fr(1.0)).collect();
-            let mut col_style = style.clone();
-            col_style.grid_template_columns = tracks;
-            col_style.grid_gap = gap;
-            layout_grid_container(el, &col_style, &layout_ctx, output, child_ancestors, env);
+    // Multi-column layout: column-major balanced flow. Triggered by an explicit
+    // multi-column count (>= 2) or a column-width (which derives the count from
+    // the available width). A single column degrades to normal block layout.
+    let multicol_active = style.column_count.is_some_and(|c| c >= 2)
+        || style.column_width.is_some_and(|w| w > 0.0);
+    if multicol_active {
+        crate::layout::multicol::layout_multicol_container(
+            el,
+            style,
+            &layout_ctx,
+            output,
+            ancestors,
+            positioned_depth,
+            env,
+        );
 
-            if style.page_break_after {
-                output.push(LayoutElement::PageBreak);
-            }
-            return;
+        if style.page_break_after {
+            output.push(LayoutElement::PageBreak);
         }
+        return;
     }
 
     if style.display == Display::Block || style.display == Display::InlineBlock {
