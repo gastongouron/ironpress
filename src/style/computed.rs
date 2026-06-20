@@ -8114,6 +8114,32 @@ mod tests {
     }
 
     #[test]
+    fn parse_clip_path_shapes() {
+        assert_eq!(
+            parse_clip_path("circle(80px at 100px 100px)"),
+            Some(ClipPath::Circle {
+                r: (60.0, false),
+                cx: (75.0, false),
+                cy: (75.0, false),
+            })
+        );
+        assert!(matches!(
+            parse_clip_path("ellipse(100px 60px at 50% 50%)"),
+            Some(ClipPath::Ellipse { .. })
+        ));
+        assert!(matches!(
+            parse_clip_path("inset(40px 60px 40px 60px)"),
+            Some(ClipPath::Inset { .. })
+        ));
+        match parse_clip_path("polygon(50% 0%, 100% 50%, 0% 50%)") {
+            Some(ClipPath::Polygon(pts)) => assert_eq!(pts.len(), 3),
+            other => panic!("expected polygon, got {other:?}"),
+        }
+        assert_eq!(parse_clip_path("none"), None);
+        assert_eq!(parse_clip_path("url(#m)"), None);
+    }
+
+    #[test]
     fn parse_filter_color_functions() {
         assert_eq!(parse_filter("grayscale(100%)").1, vec![ColorFilterOp::Grayscale(1.0)]);
         assert_eq!(parse_filter("grayscale(0.5)").1, vec![ColorFilterOp::Grayscale(0.5)]);
