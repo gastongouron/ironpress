@@ -1231,6 +1231,7 @@ fn collect_table_cell_content_inner(
                             background_color: bg,
                             padding: pad,
                             border_radius: br,
+                            line_height_factor: resolved_line_height_factor(parent_style, fonts),
                         },
                     );
                 }
@@ -1401,6 +1402,7 @@ fn push_line_break_run(
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: resolved_line_height_factor(style, fonts),
         },
     );
 }

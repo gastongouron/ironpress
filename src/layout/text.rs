@@ -175,12 +175,23 @@ pub(crate) fn wrap_text_runs(
     let mut lines: Vec<TextLine> = Vec::new();
     let mut current_runs: Vec<TextRun> = Vec::new();
     let mut current_width: f32 = 0.0;
-    // Start with line height based on max font size in this line (typography alignment)
-    let base_font_size = runs
-        .iter()
-        .map(|r| r.font_size)
-        .fold(options.default_font_size, f32::max);
-    let mut line_height = base_font_size * line_height_factor;
+    // The line box takes its height from the inline content it contains: each
+    // run uses the line-height resolved from its *own* element's style, falling
+    // back to the block-level factor when the run leaves it unspecified (NaN).
+    let run_line_height = |run: &TextRun| {
+        let factor = if run.line_height_factor.is_nan() {
+            line_height_factor
+        } else {
+            run.line_height_factor.max(0.0)
+        };
+        run.font_size * factor
+    };
+    // Start the line box height from the first run's line-height contribution.
+    let mut line_height = runs
+        .first()
+        .map_or(options.default_font_size * line_height_factor, |r| {
+            run_line_height(r)
+        });
 
     // Apply BiDi reordering if the paragraph direction is RTL or the text
     // contains RTL characters. This reorders runs into visual order so
@@ -252,7 +263,7 @@ pub(crate) fn wrap_text_runs(
                 height: line_height,
             });
             current_width = 0.0;
-            line_height = template.font_size * line_height_factor;
+            line_height = run_line_height(&template);
             continue;
         }
 
@@ -301,7 +312,7 @@ pub(crate) fn wrap_text_runs(
                 } else {
                     prefix
                 };
-                line_height = line_height.max(template.font_size * line_height_factor);
+                line_height = line_height.max(run_line_height(&template));
                 current_runs.push(TextRun {
                     text: prefix_text,
                     ..template.clone()
@@ -312,7 +323,7 @@ pub(crate) fn wrap_text_runs(
                     height: line_height,
                 });
                 current_width = 0.0;
-                line_height = template.font_size * line_height_factor;
+                line_height = run_line_height(&template);
                 queue.push_front((remainder, template, false));
                 continue;
             }
@@ -324,7 +335,7 @@ pub(crate) fn wrap_text_runs(
                 height: line_height,
             });
             current_width = 0.0;
-            line_height = template.font_size * line_height_factor;
+            line_height = run_line_height(&template);
         }
 
         // When transitioning between runs with different backgrounds,
@@ -365,6 +376,7 @@ pub(crate) fn wrap_text_runs(
                     background_color: None,
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
+                    line_height_factor: prev_run.line_height_factor,
                 });
                 word
             } else {
@@ -383,7 +395,7 @@ pub(crate) fn wrap_text_runs(
             fonts,
         );
         current_width += w;
-        line_height = line_height.max(template.font_size * line_height_factor);
+        line_height = line_height.max(run_line_height(&template));
 
         current_runs.push(TextRun { text, ..template });
     }
@@ -665,6 +677,7 @@ fn collect_text_runs_inner(
                             background_color: bg,
                             padding: pad,
                             border_radius: br,
+                            line_height_factor: resolved_line_height_factor(parent_style, fonts),
                         },
                         runs,
                         fonts,
@@ -688,6 +701,7 @@ fn collect_text_runs_inner(
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            line_height_factor: resolved_line_height_factor(parent_style, fonts),
                         });
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
@@ -815,6 +829,10 @@ impl<'a> FlexTextRunCollector<'a> {
                                     .map(|c| c.to_f32_rgba()),
                                 padding: text_padding,
                                 border_radius: 0.0,
+                                line_height_factor: resolved_line_height_factor(
+                                    parent_style,
+                                    self.fonts,
+                                ),
                             },
                             self.runs,
                             self.fonts,
@@ -875,6 +893,10 @@ impl<'a> FlexTextRunCollector<'a> {
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            line_height_factor: resolved_line_height_factor(
+                                parent_style,
+                                self.fonts,
+                            ),
                         });
                         continue;
                     }
@@ -908,6 +930,10 @@ impl<'a> FlexTextRunCollector<'a> {
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            line_height_factor: resolved_line_height_factor(
+                                &child_style,
+                                self.fonts,
+                            ),
                         });
                     }
                 }

@@ -6123,6 +6123,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         }
     }
 
@@ -7727,6 +7728,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -7742,6 +7744,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let cell = TableCell {
             lines: vec![
@@ -7825,6 +7828,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -7842,6 +7846,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -7859,6 +7864,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -9265,6 +9271,7 @@ mod tests {
             background_color: Some((1.0, 0.0, 0.0, 1.0)),
             padding: (4.0, 2.0),
             border_radius: 3.0,
+            line_height_factor: f32::NAN,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -9320,6 +9327,7 @@ mod tests {
             background_color: Some((1.0, 1.0, 0.0, 1.0)),
             padding: (2.0, 1.0),
             border_radius: 4.0,
+            line_height_factor: f32::NAN,
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -9335,6 +9343,7 @@ mod tests {
             background_color: Some((1.0, 1.0, 0.0, 1.0)),
             padding: (2.0, 1.0),
             border_radius: 8.0, // Different border_radius
+            line_height_factor: f32::NAN,
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -10250,6 +10259,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let run_visible = TextRun {
             text: "Visible".to_string(),
@@ -10356,6 +10366,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -10440,6 +10451,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let mut border = LayoutBorder::default();
         border.top = LayoutBorderSide {
@@ -10551,6 +10563,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
 
         // Test right-align
@@ -10639,6 +10652,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let strike_run = TextRun {
             text: "Strike".to_string(),
@@ -10654,6 +10668,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -10724,6 +10739,7 @@ mod tests {
             background_color: Some((0.2, 0.4, 0.8, 1.0)),
             padding: (3.0, 2.0),
             border_radius: 4.0, // Triggers rounded rect for inline background
+            line_height_factor: f32::NAN,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -10787,6 +10803,7 @@ mod tests {
             background_color: Some((1.0, 1.0, 0.0, 1.0)), // yellow
             padding: (2.0, 1.0),
             border_radius: 0.0, // No rounding — should use rectangle
+            line_height_factor: f32::NAN,
         };
 
         let cell = crate::layout::engine::TableCell {

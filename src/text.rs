@@ -426,6 +426,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
@@ -447,6 +448,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }

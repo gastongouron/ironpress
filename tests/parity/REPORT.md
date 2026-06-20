@@ -174,7 +174,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 26.75 | positioning | z-index | source-order | positioning-z-index-source-order-overlap |  |
 | FAIL | REAL | 18.84 | positioning | z-index | stacking | positioning-z-index-stacking |  |
 | FAIL | REAL | 13.62 | probes | border | thick-solid | probe-border-box |  |
-| FAIL | REAL | 62.75 | probes | font-metrics | baseline | probe-text-baseline |  |
+| FAIL | REAL | 53.38 | probes | font-metrics | baseline | probe-text-baseline |  |
 | FAIL | REAL | 100.00 | probes | image | data-uri-png | probe-image-render |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 22.71 | selectors-cascade | at-rule | media-print | selectors-cascade-media-print |  |
 | FAIL | CONFOUNDED: border (`probe-border-box`) | 100.00 | selectors-cascade | cascade | important-over-id | selectors-cascade-important-overrides-specificity |  |
@@ -355,7 +355,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 100.00 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PARTIAL | 8.84 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
 | partial | FAIL | 34.80 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
-| partial | FAIL | 19.53 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
+| partial | FAIL | 21.83 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
 | unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
 | unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
 | unsupported | FAIL | 100.00 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
@@ -684,7 +684,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 8.84% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
   - FAIL 34.80% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
   - PARTIAL 9.40% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
-  - FAIL 19.53% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
+  - FAIL 21.83% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
 - **object-fit** — 0.00%
   - FAIL 100.00% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
   - FAIL 100.00% object-fit=cover — `img-object-fit-cover` — object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.
@@ -867,7 +867,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **box-sizing** — 100.00%
   - PASS 5.33% box-sizing=solid-fill-geometry — `probe-fill-box` — Substrate probe: one solid-filled box of known px size. Trust anchor for box-sizing + fill paint + page geometry.
 - **font-metrics** — 0.00%
-  - FAIL 62.75% font-metrics=baseline — `probe-text-baseline` — Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.
+  - FAIL 53.38% font-metrics=baseline — `probe-text-baseline` — Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.
 - **image** — 0.00%
   - FAIL 100.00% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
 

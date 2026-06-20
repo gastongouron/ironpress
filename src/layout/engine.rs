@@ -217,6 +217,13 @@ pub struct TextRun {
     pub padding: (f32, f32),
     /// Border radius for inline spans (e.g. badge with rounded corners).
     pub border_radius: f32,
+    /// Resolved line-height as a multiple of the run's font size.
+    ///
+    /// CSS line boxes take their height from the inline content they contain,
+    /// so each run carries the line-height resolved from its *own* element's
+    /// computed style. `NaN` means "unspecified" — the line-box height then
+    /// falls back to the block-level line-height passed via `TextWrapOptions`.
+    pub line_height_factor: f32,
 }
 
 /// A laid-out line of text runs.
@@ -817,6 +824,10 @@ fn flatten_nodes(
                             background_color: None,
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
+                            line_height_factor: resolved_line_height_factor(
+                                parent_style,
+                                env.fonts,
+                            ),
                         },
                         &mut text_runs,
                         env.fonts,
@@ -1054,6 +1065,7 @@ pub(crate) fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                line_height_factor: resolved_line_height_factor(&style, env.fonts),
             }],
             height: style.font_size * resolved_line_height_factor(&style, env.fonts),
         };
@@ -1219,6 +1231,7 @@ pub(crate) fn flatten_element(
                     background_color: None,
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
+                    line_height_factor: resolved_line_height_factor(&style, env.fonts),
                 },
                 &mut runs,
                 env.fonts,
@@ -1375,6 +1388,7 @@ pub(crate) fn flatten_element(
                 background_color: None,
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
+                line_height_factor: resolved_line_height_factor(&style, env.fonts),
             },
             &mut runs,
             env.fonts,
@@ -1651,6 +1665,7 @@ pub(crate) fn flatten_element(
                         background_color: None,
                         padding: (0.0, 0.0),
                         border_radius: 0.0,
+                        line_height_factor: resolved_line_height_factor(ps, env.fonts),
                     },
                     &mut runs,
                     env.fonts,
@@ -1701,6 +1716,7 @@ pub(crate) fn flatten_element(
                     background_color: None,
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
+                    line_height_factor: resolved_line_height_factor(&style, env.fonts),
                 },
                 &mut runs,
                 env.fonts,
@@ -5450,6 +5466,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -5494,6 +5511,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let lines = wrap_text_runs(
             vec![run],
@@ -5525,6 +5543,7 @@ mod tests {
             background_color: None,
             padding: (0.0, 0.0),
             border_radius: 0.0,
+            line_height_factor: f32::NAN,
         };
         let lines = wrap_text_runs(
             vec![run],
