@@ -125,6 +125,47 @@ fn resolve_vh_val() {
 }
 
 #[test]
+fn resolve_clamp_preferred_clamped_to_max() {
+    // clamp(120px, 50%, 240px) against a 600px (450pt) basis: 50% of 450 = 225,
+    // clamped to max 180pt (240px) -> 180pt.
+    let val = CssValue::Clamp(
+        Box::new(CssValue::Length(90.0)),
+        Box::new(CssValue::Percentage(50.0)),
+        Box::new(CssValue::Length(180.0)),
+    );
+    let ctx = LengthResolutionContext::new(450.0, 12.0, 12.0, 595.28, 841.89);
+    let r = resolve_length_value_in_context(&val, ctx, &HashMap::new()).unwrap();
+    assert!((r - 180.0).abs() < 0.01, "got {r}");
+}
+
+#[test]
+fn resolve_clamp_preferred_within_bounds() {
+    // clamp(120px, 50%, 240px) against a 400px (300pt) basis: 50% of 300 = 150,
+    // within [90, 180] -> 150pt.
+    let val = CssValue::Clamp(
+        Box::new(CssValue::Length(90.0)),
+        Box::new(CssValue::Percentage(50.0)),
+        Box::new(CssValue::Length(180.0)),
+    );
+    let ctx = LengthResolutionContext::new(300.0, 12.0, 12.0, 595.28, 841.89);
+    let r = resolve_length_value_in_context(&val, ctx, &HashMap::new()).unwrap();
+    assert!((r - 150.0).abs() < 0.01, "got {r}");
+}
+
+#[test]
+fn resolve_clamp_preferred_clamped_to_min() {
+    // clamp(120px, 10%, 240px): 10% of 300pt = 30, below min 90pt -> 90pt.
+    let val = CssValue::Clamp(
+        Box::new(CssValue::Length(90.0)),
+        Box::new(CssValue::Percentage(10.0)),
+        Box::new(CssValue::Length(180.0)),
+    );
+    let ctx = LengthResolutionContext::new(300.0, 12.0, 12.0, 595.28, 841.89);
+    let r = resolve_length_value_in_context(&val, ctx, &HashMap::new()).unwrap();
+    assert!((r - 90.0).abs() < 0.01, "got {r}");
+}
+
+#[test]
 fn resolve_var_defined() {
     let mut props = HashMap::new();
     props.insert("--spacing".to_string(), "10pt".to_string());

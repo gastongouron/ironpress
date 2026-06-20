@@ -35,6 +35,6 @@ pub(crate) use selectors::selector_matches_with_context;
 pub(crate) use values::{is_css_wide_keyword, parse_color, parse_length};
 #[cfg(test)]
 pub(crate) use values::{
-    parse_border_spacing_component, parse_calc_expression, parse_property_value,
-    parse_var_function, tokenize_calc,
+    parse_border_spacing_component, parse_calc_expression, parse_clamp_expression,
+    parse_property_value, parse_var_function, tokenize_calc,
 };

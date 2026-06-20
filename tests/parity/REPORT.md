@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 63.44%  (PASS 169 · PARTIAL 101 · FAIL 76 · UNKNOWN 0 · total 346)
+Overall: 63.87%  (PASS 170 · PARTIAL 102 · FAIL 74 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**38 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
+**39 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `selectors-cascade-supports-rule`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -73,7 +73,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 39.67 | positioning | position | fixed | positioning-fixed-top-left |  |
 | FAIL | REAL | 15.73 | tables | border-collapse | separate | tables-border-separate |  |
 | FAIL | REAL | 52.90 | tables | cell-padding | padding-20px | tables-cell-padding |  |
-| FAIL | REAL | 61.71 | units-values | calc | mixed-percent-px | units-calc-mixed-percent |  |
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
@@ -121,7 +120,7 @@ None — every fixture's HTML matches `refs.lock`.
 | text-advanced | 46.67% | 0 | 14 | 1 | 0 |
 | transforms | 90.91% | 10 | 0 | 1 | 0 |
 | typography | 93.75% | 14 | 2 | 0 | 0 |
-| units-values | 66.67% | 7 | 2 | 3 | 0 |
+| units-values | 79.17% | 8 | 3 | 1 | 0 |
 
 ## Known gaps (expected_support != implemented)
 > Fixtures targeting features ironpress is NOT expected to fully support. These are tracked for breadth, not counted as regressions.
@@ -130,7 +129,7 @@ None — every fixture's HTML matches `refs.lock`.
 |----------|--------|------:|----------|---------|----|-------------|
 | unsupported | FAIL | 30.39 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 99.99 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
-| unsupported | FAIL | 78.13 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
+| unsupported | FAIL | 85.50 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | PASS | 0.31 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | PASS | 0.03 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
@@ -233,7 +232,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 17.80 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
 | partial | PASS | 0.45 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
 | partial | PASS | 0.00 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
-| unsupported | FAIL | 21.97 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
+| unsupported | PASS | 0.00 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
 | unsupported | PASS | 0.00 | units-values | math-functions | units-min-max | Aspirational: width:max(150px,240px) and height:min(120px,300px) resolve to 240x120px; standalone min()/max() value functions are unsupported in ironpress. |
 | partial | FAIL | 19.01 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
@@ -283,7 +282,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.35% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
   - PASS 0.32% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
 - **multiple-backgrounds** — 0.00%
-  - FAIL 78.13% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
+  - FAIL 85.50% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
 - **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
   - PASS 0.31% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
@@ -821,9 +820,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 12.03% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
   - PARTIAL 8.13% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
-### units-values — 66.67%
-- **calc** — 0.00%
-  - FAIL 61.71% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
+### units-values — 79.17%
+- **calc** — 50.00%
+  - PARTIAL 2.41% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
 - **custom-properties** — 100.00%
   - PASS 0.00% custom-properties=var-resolution — `units-var-custom-property` — Box dimensions and colors driven entirely by :root custom properties via var() (240x120px blue box); verifies var() resolution for lengths and colors.
   - PASS 0.00% custom-properties=var-fallback — `units-var-fallback` — var() with undefined custom properties falls back to literal length/color fallbacks (240x120px green box); verifies the var() fallback argument path.
@@ -833,8 +832,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% length-units=in — `units-length-in` — Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px).
   - PASS 0.00% length-units=pt — `units-length-pt` — Box sized in pt (180pt x 90pt = 240x120px) with a 3pt solid border; verifies pt->px length resolution.
   - PASS 0.00% length-units=rem — `units-length-rem` — Box sized 15rem x 7.5rem against root font-size:16px (=240x120px) inside a 40px-font ancestor; rem ignores local font-size.
-- **math-functions** — 50.00%
-  - FAIL 21.97% math-functions=clamp — `units-clamp` — Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress.
+- **math-functions** — 100.00%
+  - PASS 0.00% math-functions=clamp — `units-clamp` — Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress.
   - PASS 0.00% math-functions=min-max — `units-min-max` — Aspirational: width:max(150px,240px) and height:min(120px,300px) resolve to 240x120px; standalone min()/max() value functions are unsupported in ironpress.
 - **percentage** — 50.00%
   - PARTIAL 2.27% percentage=width-height-resolution — `units-percent-width-height` — Child width:75% / height:50% of a 400x200px parent resolves to 300x100px; verifies percentage length resolution against the containing block.

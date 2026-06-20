@@ -163,6 +163,20 @@ pub fn resolve_length_value_in_context(
             ctx.page_width,
             ctx.page_height,
         )),
+        CssValue::Clamp(min, preferred, max) => {
+            // clamp(min, preferred, max) == max(min, min(preferred, max)).
+            // Each operand resolves against the same context (percentages use
+            // `ctx.parent_width`; callers wanting a height basis substitute it
+            // into `parent_width`). If an operand can't resolve, fall back to the
+            // preferred value alone so we still produce a usable length.
+            let min = resolve_length_value_in_context(min, ctx, custom_properties);
+            let preferred = resolve_length_value_in_context(preferred, ctx, custom_properties);
+            let max = resolve_length_value_in_context(max, ctx, custom_properties);
+            match (min, preferred, max) {
+                (Some(lo), Some(pref), Some(hi)) => Some(pref.min(hi).max(lo)),
+                _ => preferred,
+            }
+        }
         CssValue::Var(name, fallback) => {
             let raw = resolve_var_to_string(name, fallback.as_deref(), custom_properties)?;
             let parsed = crate::parser::css::parse_inline_style(&format!("_x: {raw}"));

@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 63.44,
-    "pass": 169,
-    "partial": 101,
-    "fail": 76,
+    "score_pct": 63.87,
+    "pass": 170,
+    "partial": 102,
+    "fail": 74,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -799,7 +799,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 78.13,
+              "diff_pct": 85.4957,
               "weight": 1.0,
               "description": "Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.",
               "note": "",
@@ -9912,21 +9912,21 @@
     },
     {
       "category": "units-values",
-      "score_pct": 66.67,
+      "score_pct": 79.17,
       "counts": {
-        "pass": 7,
-        "partial": 2,
-        "fail": 3,
+        "pass": 8,
+        "partial": 3,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
         {
           "feature": "calc",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -9937,8 +9937,8 @@
               "subfeature": "mixed-percent-px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 61.7112,
+              "status": "PARTIAL",
+              "diff_pct": 2.4109,
               "weight": 1.0,
               "description": "calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.",
               "note": "",
@@ -10134,11 +10134,11 @@
         },
         {
           "feature": "math-functions",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -10149,8 +10149,8 @@
               "subfeature": "clamp",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 21.9702,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress.",
               "note": "",
@@ -10161,7 +10161,7 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "da31815dccfffad06c86ca1f5b6bfae48ca1c5c4ef828b4280c2f7e4420f63c1"
             },
             {
@@ -10630,6 +10630,7 @@
     "transforms-compound-rotate-translate",
     "transforms-matrix",
     "transforms-skew",
+    "units-clamp",
     "units-min-max"
   ],
   "stale_refs": [],

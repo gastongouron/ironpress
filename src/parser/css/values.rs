@@ -20,6 +20,10 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
         return Some(calc_value);
     }
 
+    if let Some(clamp_value) = parse_clamp_expression(val) {
+        return Some(clamp_value);
+    }
+
     if let Some(number) = val.strip_suffix("px") {
         return number
             .parse::<f32>()
@@ -111,6 +115,52 @@ pub(crate) fn parse_calc_expression(val: &str) -> Option<CssValue> {
     }
 
     tokenize_calc(inner).map(CssValue::Calc)
+}
+
+/// Parse a `clamp(min, preferred, max)` expression. Each of the three operands
+/// is a length-like value (length, percentage, calc, var, …) parsed via
+/// [`parse_length`] and stored lazily so the percentage basis can be applied at
+/// resolution time. Resolves to `max(min, min(preferred, max))`.
+pub(crate) fn parse_clamp_expression(val: &str) -> Option<CssValue> {
+    let inner = val.strip_prefix("clamp(")?.strip_suffix(')')?.trim();
+    let parts = split_top_level_args(inner);
+    if parts.len() != 3 {
+        return None;
+    }
+    let min = parse_length(parts[0].trim())?;
+    let preferred = parse_length(parts[1].trim())?;
+    let max = parse_length(parts[2].trim())?;
+    Some(CssValue::Clamp(
+        Box::new(min),
+        Box::new(preferred),
+        Box::new(max),
+    ))
+}
+
+/// Split a comma-separated argument list at top level, ignoring commas nested
+/// inside parentheses (e.g. `calc(50% - 1px), 2px`).
+fn split_top_level_args(inner: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0u32;
+    for ch in inner.chars() {
+        match ch {
+            '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                depth = depth.saturating_sub(1);
+                current.push(ch);
+            }
+            ',' if depth == 0 => parts.push(std::mem::take(&mut current)),
+            _ => current.push(ch),
+        }
+    }
+    if !current.is_empty() || !parts.is_empty() {
+        parts.push(current);
+    }
+    parts
 }
 
 pub(crate) fn tokenize_calc(expr: &str) -> Option<Vec<CalcToken>> {
@@ -227,6 +277,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
 
     if let Some(calc_value) = parse_calc_expression(val) {
         return Some(calc_value);
+    }
+
+    if let Some(clamp_value) = parse_clamp_expression(val) {
+        return Some(clamp_value);
     }
 
     if is_css_wide_keyword(&lower) {

@@ -143,7 +143,76 @@ fn clear_background_shorthand_keys(map: &mut StyleMap) {
     }
 }
 
+/// Split a comma-separated CSS value into its top-level parts, ignoring commas
+/// that appear inside parentheses (e.g. `linear-gradient(a, b)`) or quotes
+/// (e.g. a `url("data:...,...")` data URI). Used to separate comma-separated
+/// `background-image` layers so each layer is parsed independently.
+fn split_top_level_commas(val: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0u32;
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+
+    for ch in val.chars() {
+        match ch {
+            '\'' if !in_double_quote => {
+                in_single_quote = !in_single_quote;
+                current.push(ch);
+            }
+            '"' if !in_single_quote => {
+                in_double_quote = !in_double_quote;
+                current.push(ch);
+            }
+            '(' if !in_single_quote && !in_double_quote => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' if !in_single_quote && !in_double_quote && paren_depth > 0 => {
+                paren_depth -= 1;
+                current.push(ch);
+            }
+            ',' if paren_depth == 0 && !in_single_quote && !in_double_quote => {
+                parts.push(std::mem::take(&mut current));
+            }
+            _ => current.push(ch),
+        }
+    }
+    parts.push(current);
+    parts
+}
+
+/// Apply a `background-image` value, supporting multiple comma-separated layers.
+///
+/// Each layer is parsed independently via [`apply_single_background_image_value`].
+/// The data model carries a single raster/SVG layer (`background-image` /
+/// `background-svg`) and a single gradient layer (`background-gradient` /
+/// `background-radial-gradient`) separately, so a `url(...), linear-gradient(...)`
+/// list can populate both keys. Per CSS the first listed layer paints on top,
+/// which matches the renderer's gradient-then-raster paint order.
+///
+/// Returns `true` if at least one layer was recognised and applied.
 fn apply_background_image_value(map: &mut StyleMap, value: &str, is_important: bool) -> bool {
+    let layers = split_top_level_commas(value);
+    if layers.len() <= 1 {
+        return apply_single_background_image_value(map, value, is_important);
+    }
+
+    let mut applied = false;
+    for layer in &layers {
+        if apply_single_background_image_value(map, layer, is_important) {
+            applied = true;
+        }
+    }
+    applied
+}
+
+/// Apply a single (non-comma-separated) `background-image` layer.
+fn apply_single_background_image_value(
+    map: &mut StyleMap,
+    value: &str,
+    is_important: bool,
+) -> bool {
     let trimmed = value.trim();
     let lower = trimmed.to_ascii_lowercase();
 
@@ -176,6 +245,17 @@ fn apply_background_image_value(map: &mut StyleMap, value: &str, is_important: b
 
     if let Some(svg_text) = extract_svg_data_uri(trimmed) {
         map.set_with_importance("background-svg", CssValue::Keyword(svg_text), is_important);
+        return true;
+    }
+
+    // A non-SVG `url(...)` is a raster image layer. Preserve the full `url(...)`
+    // token (rather than just the path) so the raster builder can resolve it.
+    if lower.starts_with("url(") {
+        map.set_with_importance(
+            "background-image",
+            CssValue::Keyword(trimmed.to_string()),
+            is_important,
+        );
         return true;
     }
 
@@ -258,16 +338,6 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool)
         {
             ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
             if apply_background_image_value(map, token, is_important) {
-                found_image = true;
-                index += 1;
-                continue;
-            }
-            if lower.starts_with("url(") {
-                map.set_with_importance(
-                    "background-image",
-                    CssValue::Keyword(token.trim().to_string()),
-                    is_important,
-                );
                 found_image = true;
                 index += 1;
                 continue;
@@ -532,7 +602,7 @@ fn expand_box_shorthand(map: &mut StyleMap, prop: &str, val: &str, is_important:
 
 #[cfg(test)]
 mod tests {
-    use super::parse_inline_style;
+    use super::{apply_declaration, parse_inline_style, split_top_level_commas};
     use crate::parser::css::{CssValue, StyleMap};
 
     #[test]
@@ -812,6 +882,64 @@ mod tests {
         assert!(
             style.get("background-svg").is_some(),
             "expected background-svg from SVG data URI in background shorthand"
+        );
+    }
+
+    #[test]
+    fn split_top_level_commas_respects_parens_and_quotes() {
+        let parts = split_top_level_commas(
+            "url(\"data:image/png;base64,AAA\"), linear-gradient(to bottom, #fff, #000)",
+        );
+        assert_eq!(parts.len(), 2, "got: {parts:?}");
+        assert!(parts[0].contains("url("));
+        assert!(parts[1].trim().starts_with("linear-gradient("));
+    }
+
+    #[test]
+    fn inline_background_image_layers_url_and_gradient() {
+        // A comma-separated `background-image` with a raster url() layer and a
+        // gradient layer should populate BOTH the raster and gradient keys
+        // (one raster + one gradient layer can coexist in the data model).
+        // Use apply_declaration directly so the data-URI `;` is not split by
+        // the legacy declaration tokenizer.
+        let mut style = StyleMap::new();
+        apply_declaration(
+            &mut style,
+            "background-image",
+            "url(\"data:image/png;base64,iVBORw0KGgo=\"), \
+             linear-gradient(to bottom, #ffd600, #00bcd4)",
+            false,
+        );
+        assert!(
+            matches!(style.get("background-image"), Some(CssValue::Keyword(v)) if v.contains("url(")),
+            "expected raster background-image layer to be captured: {:?}",
+            style.get("background-image")
+        );
+        assert!(
+            matches!(style.get("background-gradient"), Some(CssValue::Keyword(v)) if v.starts_with("linear-gradient(")),
+            "expected gradient background-image layer to be captured: {:?}",
+            style.get("background-gradient")
+        );
+    }
+
+    #[test]
+    fn inline_background_image_single_layer_unchanged() {
+        // A single gradient layer must still parse exactly as before (no
+        // spurious background-image key).
+        let mut style = StyleMap::new();
+        apply_declaration(
+            &mut style,
+            "background-image",
+            "linear-gradient(to right, red, blue)",
+            false,
+        );
+        assert!(
+            matches!(style.get("background-gradient"), Some(CssValue::Keyword(v)) if v.starts_with("linear-gradient(")),
+            "single gradient layer should set background-gradient"
+        );
+        assert!(
+            !matches!(style.get("background-image"), Some(CssValue::Keyword(v)) if v.contains("url(")),
+            "single gradient must not set a raster background-image"
         );
     }
 

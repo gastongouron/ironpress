@@ -83,6 +83,10 @@ pub enum CssValue {
     Vh(f32),
     /// A calc() expression as a list of tokens.
     Calc(Vec<CalcToken>),
+    /// A clamp(min, preferred, max) expression. Each operand is itself a
+    /// length-like value (length, percentage, calc, …) resolved lazily so the
+    /// percentage basis is known. Resolves to `max(min, min(preferred, max))`.
+    Clamp(Box<CssValue>, Box<CssValue>, Box<CssValue>),
     /// A var() reference: (variable_name, optional_fallback).
     Var(String, Option<String>),
 }

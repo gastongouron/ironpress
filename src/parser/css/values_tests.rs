@@ -1,6 +1,7 @@
 use super::{
     CalcOp, CalcToken, CssValue, parse_border_spacing_component, parse_calc_expression,
-    parse_color, parse_length, parse_property_value, parse_var_function, tokenize_calc,
+    parse_clamp_expression, parse_color, parse_length, parse_property_value, parse_var_function,
+    tokenize_calc,
 };
 
 #[test]
@@ -86,6 +87,45 @@ fn parse_calc_expression_basic() {
 #[test]
 fn parse_calc_expression_empty_is_none() {
     assert!(parse_calc_expression("calc()").is_none());
+}
+
+#[test]
+fn parse_clamp_expression_basic() {
+    let Some(CssValue::Clamp(min, preferred, max)) =
+        parse_clamp_expression("clamp(120px, 50%, 240px)")
+    else {
+        panic!("expected clamp value");
+    };
+    // 120px -> 90pt, 240px -> 180pt (px*0.75); preferred stays a percentage.
+    assert!(matches!(*min, CssValue::Length(v) if (v - 90.0).abs() < 0.01));
+    assert!(matches!(*preferred, CssValue::Percentage(v) if (v - 50.0).abs() < 0.01));
+    assert!(matches!(*max, CssValue::Length(v) if (v - 180.0).abs() < 0.01));
+}
+
+#[test]
+fn parse_clamp_expression_with_calc_arg() {
+    // A clamp arg may itself be a calc(); top-level comma splitting must not
+    // break on the comma-free calc, and nested parens must be respected.
+    let Some(CssValue::Clamp(_, preferred, _)) =
+        parse_clamp_expression("clamp(10pt, calc(50% - 4pt), 200pt)")
+    else {
+        panic!("expected clamp with calc preferred");
+    };
+    assert!(matches!(*preferred, CssValue::Calc(_)));
+}
+
+#[test]
+fn parse_clamp_expression_wrong_arity_is_none() {
+    assert!(parse_clamp_expression("clamp(10px, 20px)").is_none());
+    assert!(parse_clamp_expression("clamp(10px)").is_none());
+}
+
+#[test]
+fn parse_property_value_recognizes_clamp() {
+    assert!(matches!(
+        parse_property_value("width", "clamp(120px, 50%, 240px)"),
+        Some(CssValue::Clamp(_, _, _))
+    ));
 }
 
 #[test]

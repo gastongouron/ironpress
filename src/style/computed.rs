@@ -2634,6 +2634,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 | CssValue::Vw(_)
                 | CssValue::Vh(_)
                 | CssValue::Calc(_)
+                | CssValue::Clamp(_, _, _)
                 | CssValue::Var(_, _) => {
                     if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
                         val,
@@ -2668,17 +2669,37 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     let resolve_block_percentage =
         |percent: f32| resolved_parent_height.map(|height| height * percent / 100.0);
 
+    // Height-axis resolution context: percentages inside height/min/max-height
+    // clamp() resolve against the parent's content height, so we feed the
+    // resolved parent height into the context's `parent_width` field (the field
+    // the resolver uses as the percentage basis). Falls back to the viewport
+    // height when the parent height is indefinite.
+    let height_length_context = crate::style::resolve::LengthResolutionContext::new(
+        resolved_parent_height.unwrap_or(parent.viewport_height),
+        style.font_size,
+        parent.root_font_size,
+        parent.viewport_width,
+        parent.viewport_height,
+    );
+
     if let Some(val) = get_non_special(map, "height") {
         match val {
             CssValue::Percentage(v) => {
                 style.percentage_sizing.height = Some(*v);
                 style.height = resolve_block_percentage(*v);
             }
-            CssValue::Rem(_)
-            | CssValue::Vw(_)
-            | CssValue::Vh(_)
-            | CssValue::Calc(_)
-            | CssValue::Var(_, _) => {
+            CssValue::Calc(_) | CssValue::Clamp(_, _, _) => {
+                // Percentages inside a calc()/clamp() on a block height resolve
+                // against the parent's content height, so use the height-axis
+                // context (parent height in the percentage-basis slot).
+                style.percentage_sizing.height = None;
+                style.height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    height_length_context,
+                );
+            }
+            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
                 style.percentage_sizing.height = None;
                 style.height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -2695,11 +2716,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 style.percentage_sizing.max_height = Some(*v);
                 style.max_height = resolve_block_percentage(*v);
             }
-            CssValue::Rem(_)
-            | CssValue::Vw(_)
-            | CssValue::Vh(_)
-            | CssValue::Calc(_)
-            | CssValue::Var(_, _) => {
+            CssValue::Calc(_) | CssValue::Clamp(_, _, _) => {
+                style.percentage_sizing.max_height = None;
+                style.max_height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    height_length_context,
+                );
+            }
+            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
                 style.percentage_sizing.max_height = None;
                 style.max_height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -2716,11 +2741,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 style.percentage_sizing.min_height = Some(*v);
                 style.min_height = resolve_block_percentage(*v);
             }
-            CssValue::Rem(_)
-            | CssValue::Vw(_)
-            | CssValue::Vh(_)
-            | CssValue::Calc(_)
-            | CssValue::Var(_, _) => {
+            CssValue::Calc(_) | CssValue::Clamp(_, _, _) => {
+                style.percentage_sizing.min_height = None;
+                style.min_height = crate::style::resolve::try_resolve_to_length_in_context(
+                    val,
+                    &style.custom_properties,
+                    height_length_context,
+                );
+            }
+            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
                 style.percentage_sizing.min_height = None;
                 style.min_height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -2760,11 +2789,23 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                         }
                     }
                 }
-                CssValue::Rem(_)
-                | CssValue::Vw(_)
-                | CssValue::Vh(_)
-                | CssValue::Calc(_)
-                | CssValue::Var(_, _) => {
+                CssValue::Calc(_) | CssValue::Clamp(_, _, _) => {
+                    // top/bottom percentages resolve against the containing
+                    // block's height, so use the height-axis context.
+                    match prop_name {
+                        "top" => style.percentage_insets.top = None,
+                        "bottom" => style.percentage_insets.bottom = None,
+                        _ => {}
+                    }
+                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
+                        val,
+                        &style.custom_properties,
+                        height_length_context,
+                    ) {
+                        setter(style, resolved);
+                    }
+                }
+                CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
                     match prop_name {
                         "top" => style.percentage_insets.top = None,
                         "bottom" => style.percentage_insets.bottom = None,
@@ -4421,6 +4462,66 @@ mod tests {
         let style = compute_style(HtmlTag::Span, Some("font-size: 2em"), &parent);
         // em gets parsed as Number, then multiplied by parent font_size
         assert!((style.font_size - 24.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn calc_mixed_percent_width_uses_parent_width() {
+        // calc(50% - 40px) against a 300pt-wide parent: 50% of 300 = 150,
+        // minus 40px (30pt) = 120pt.
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(300.0);
+        parent.height = Some(120.0);
+        let style = compute_style(HtmlTag::Div, Some("width: calc(50% - 40px)"), &parent);
+        assert!(
+            matches!(style.width, Some(w) if (w - 120.0).abs() < 0.01),
+            "got {:?}",
+            style.width
+        );
+    }
+
+    #[test]
+    fn calc_mixed_percent_height_uses_parent_height() {
+        // calc(100% - 60px) on height must resolve the percent against the
+        // parent height (120pt), not its width: 120 - 45 = 75pt.
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(300.0);
+        parent.height = Some(120.0);
+        let style = compute_style(HtmlTag::Div, Some("height: calc(100% - 60px)"), &parent);
+        assert!(
+            matches!(style.height, Some(h) if (h - 75.0).abs() < 0.01),
+            "got {:?}",
+            style.height
+        );
+    }
+
+    #[test]
+    fn clamp_width_resolves_against_parent_width() {
+        // clamp(120px, 50%, 240px): 50% of 600pt = 300, clamped to 180pt (240px).
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(600.0);
+        parent.height = Some(120.0);
+        let style = compute_style(HtmlTag::Div, Some("width: clamp(120px, 50%, 240px)"), &parent);
+        assert!(
+            matches!(style.width, Some(w) if (w - 180.0).abs() < 0.01),
+            "got {:?}",
+            style.width
+        );
+    }
+
+    #[test]
+    fn clamp_height_resolves_against_parent_height() {
+        // clamp(80px, 50%, 200px): 50% of 160pt parent height = 80, min 80px(60pt)
+        // -> clamps to 60pt.
+        let mut parent = ComputedStyle::default();
+        parent.width = Some(600.0);
+        parent.height = Some(160.0);
+        let style = compute_style(HtmlTag::Div, Some("height: clamp(80px, 50%, 200px)"), &parent);
+        // 50% of 160 = 80pt, within [60, 150] -> 80pt.
+        assert!(
+            matches!(style.height, Some(h) if (h - 80.0).abs() < 0.01),
+            "got {:?}",
+            style.height
+        );
     }
 
     #[test]
