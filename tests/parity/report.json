@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 25.43,
-    "pass": 53,
-    "partial": 70,
-    "fail": 223,
+    "score_pct": 30.35,
+    "pass": 63,
+    "partial": 84,
+    "fail": 199,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -324,7 +324,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 35.0036,
+              "diff_pct": 27.5459,
               "weight": 1.0,
               "description": "Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.",
               "note": "",
@@ -345,7 +345,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 34.8377,
+              "diff_pct": 13.7963,
               "weight": 1.0,
               "description": "Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).",
               "note": "",
@@ -432,7 +432,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 32.0746,
+              "diff_pct": 17.9583,
               "weight": 1.0,
               "description": "Box with a solid outline drawn outside its border via outline-offset.",
               "note": "",
@@ -2263,11 +2263,11 @@
     },
     {
       "category": "filters",
-      "score_pct": 0.0,
+      "score_pct": 7.14,
       "counts": {
-        "pass": 0,
+        "pass": 1,
         "partial": 0,
-        "fail": 14,
+        "fail": 13,
         "unknown": 0
       },
       "features": [
@@ -2289,7 +2289,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 46.1344,
+              "diff_pct": 38.8379,
               "weight": 1.0,
               "description": "filter: blur() applied to a box with a solid background-color fill.",
               "note": "",
@@ -2310,7 +2310,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 46.3011,
+              "diff_pct": 44.6015,
               "weight": 1.0,
               "description": "filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.",
               "note": "",
@@ -2331,7 +2331,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 52.4438,
+              "diff_pct": 46.531,
               "weight": 1.0,
               "description": "filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path.",
               "note": "",
@@ -2365,7 +2365,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 75.2513,
+              "diff_pct": 76.3695,
               "weight": 1.0,
               "description": "filter: brightness(1.6) lightening a four-quadrant color image.",
               "note": "",
@@ -2398,7 +2398,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 79.2029,
+              "diff_pct": 78.1162,
               "weight": 1.0,
               "description": "Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.",
               "note": "",
@@ -2431,7 +2431,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 77.0193,
+              "diff_pct": 77.9343,
               "weight": 1.0,
               "description": "filter: contrast(2) increasing contrast of a four-quadrant color image.",
               "note": "",
@@ -2464,7 +2464,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 87.1344,
+              "diff_pct": 88.6599,
               "weight": 1.0,
               "description": "filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.",
               "note": "",
@@ -2497,7 +2497,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 75.0393,
+              "diff_pct": 76.0931,
               "weight": 1.0,
               "description": "filter: grayscale(1) fully desaturating a four-quadrant color image.",
               "note": "",
@@ -2530,7 +2530,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 75.3272,
+              "diff_pct": 76.3046,
               "weight": 1.0,
               "description": "filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.",
               "note": "",
@@ -2563,7 +2563,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 75.7709,
+              "diff_pct": 76.3169,
               "weight": 1.0,
               "description": "filter: invert(1) inverting the colors of a four-quadrant color image.",
               "note": "",
@@ -2596,7 +2596,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 22.3332,
+              "diff_pct": 12.7907,
               "weight": 1.0,
               "description": "filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.",
               "note": "",
@@ -2629,7 +2629,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 76.2382,
+              "diff_pct": 77.09,
               "weight": 1.0,
               "description": "filter: saturate(3) boosting saturation of a four-quadrant color image.",
               "note": "",
@@ -2662,7 +2662,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 74.5536,
+              "diff_pct": 75.7695,
               "weight": 1.0,
               "description": "filter: sepia(1) applying a sepia tone to a four-quadrant color image.",
               "note": "",
@@ -2679,11 +2679,11 @@
         },
         {
           "feature": "filter: url()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2694,8 +2694,8 @@
               "subfeature": "svg-fecolormatrix",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 21.3012,
+              "status": "PASS",
+              "diff_pct": 5.652,
               "weight": 1.0,
               "description": "filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).",
               "note": "",
@@ -2705,7 +2705,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "d8b4cee9870b4e4f34850710f03d1f020c653b645470fa0060d8dd50b00dd9e3"
             }
           ]
@@ -2714,21 +2714,21 @@
     },
     {
       "category": "flexbox",
-      "score_pct": 0.0,
+      "score_pct": 12.5,
       "counts": {
         "pass": 0,
-        "partial": 0,
-        "fail": 16,
+        "partial": 4,
+        "fail": 12,
         "unknown": 0
       },
       "features": [
         {
           "feature": "align-items",
-          "score_pct": 0.0,
+          "score_pct": 25.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 2,
+            "partial": 1,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -2740,7 +2740,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 20.102,
+              "diff_pct": 13.5133,
               "weight": 1.0,
               "description": "align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.",
               "note": "",
@@ -2760,8 +2760,8 @@
               "subfeature": "stretch",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 20.4582,
+              "status": "PARTIAL",
+              "diff_pct": 9.9381,
               "weight": 1.0,
               "description": "align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.",
               "note": "",
@@ -2794,7 +2794,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 18.9104,
+              "diff_pct": 13.4053,
               "weight": 1.0,
               "description": "align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.",
               "note": "",
@@ -2811,11 +2811,11 @@
         },
         {
           "feature": "display",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2826,8 +2826,8 @@
               "subfeature": "flex",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 29.2059,
+              "status": "PARTIAL",
+              "diff_pct": 9.7235,
               "weight": 1.0,
               "description": "display:flex lays three fixed-size boxes in a row along the main axis with default packing.",
               "note": "",
@@ -2860,7 +2860,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.2658,
+              "diff_pct": 12.5736,
               "weight": 1.0,
               "description": "flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).",
               "note": "",
@@ -2893,7 +2893,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 27.5427,
+              "diff_pct": 22.3171,
               "weight": 1.0,
               "description": "flex-direction:column stacks items top-to-bottom along the vertical main axis.",
               "note": "",
@@ -2926,7 +2926,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 28.0786,
+              "diff_pct": 13.0432,
               "weight": 1.0,
               "description": "flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.",
               "note": "",
@@ -2943,11 +2943,11 @@
         },
         {
           "feature": "flex-shrink",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2958,8 +2958,8 @@
               "subfeature": "ratio",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.6336,
+              "status": "PARTIAL",
+              "diff_pct": 10.5246,
               "weight": 1.0,
               "description": "flex-shrink removes overflow in a 1:2 ratio when two oversized boxes exceed the container width.",
               "note": "",
@@ -2992,7 +2992,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 27.6748,
+              "diff_pct": 19.6507,
               "weight": 1.0,
               "description": "flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.",
               "note": "",
@@ -3025,7 +3025,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 28.6303,
+              "diff_pct": 14.9127,
               "weight": 1.0,
               "description": "gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.",
               "note": "",
@@ -3058,7 +3058,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.9093,
+              "diff_pct": 16.5743,
               "weight": 1.0,
               "description": "justify-content:center groups items centered on the main axis with equal leftover space on both sides.",
               "note": "",
@@ -3079,7 +3079,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 31.2871,
+              "diff_pct": 17.3274,
               "weight": 1.0,
               "description": "justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.",
               "note": "",
@@ -3100,7 +3100,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 28.8573,
+              "diff_pct": 16.0848,
               "weight": 1.0,
               "description": "justify-content:space-between pins first and last boxes to the edges with equal gaps between.",
               "note": "",
@@ -3117,11 +3117,11 @@
         },
         {
           "feature": "min-width",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3132,8 +3132,8 @@
               "subfeature": "shrink-floor",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.3263,
+              "status": "PARTIAL",
+              "diff_pct": 9.6263,
               "weight": 1.0,
               "description": "min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.",
               "note": "",
@@ -3166,7 +3166,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 33.5581,
+              "diff_pct": 17.3143,
               "weight": 1.0,
               "description": "A row flex container holds two growing column flex containers, each space-between stacking two boxes.",
               "note": "",
@@ -3199,7 +3199,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.7862,
+              "diff_pct": 13.4802,
               "weight": 1.0,
               "description": "order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.",
               "note": "",
@@ -4373,10 +4373,10 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 63.33,
+      "score_pct": 66.67,
       "counts": {
-        "pass": 8,
-        "partial": 3,
+        "pass": 9,
+        "partial": 2,
         "fail": 4,
         "unknown": 0
       },
@@ -4534,10 +4534,10 @@
         },
         {
           "feature": "inline-svg",
-          "score_pct": 62.5,
+          "score_pct": 75.0,
           "counts": {
-            "pass": 2,
-            "partial": 1,
+            "pass": 3,
+            "partial": 0,
             "fail": 1,
             "unknown": 0
           },
@@ -4609,8 +4609,8 @@
               "subfeature": "text-element",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 9.3708,
+              "status": "PASS",
+              "diff_pct": 6.6245,
               "weight": 1.0,
               "description": "Inline SVG text element rendered in ParitySans at 36px over a light fill.",
               "note": "",
@@ -4620,7 +4620,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "763ee480d72b7adb03067ab13c018af0ec67d4910d03e245cd34369bc4cbd1a6"
             }
           ]
@@ -5203,21 +5203,21 @@
     },
     {
       "category": "interactions",
-      "score_pct": 9.09,
+      "score_pct": 13.64,
       "counts": {
         "pass": 0,
-        "partial": 4,
-        "fail": 18,
+        "partial": 6,
+        "fail": 16,
         "unknown": 0
       },
       "features": [
         {
           "feature": "containing-block",
-          "score_pct": 0.0,
+          "score_pct": 25.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 2,
+            "partial": 1,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -5234,8 +5234,8 @@
                 "positioning-position-absolute-top-left",
                 "block-padding-all-sides"
               ],
-              "status": "FAIL",
-              "diff_pct": 15.0555,
+              "status": "PARTIAL",
+              "diff_pct": 10.5814,
               "weight": 1.0,
               "description": "Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.",
               "note": "",
@@ -5262,7 +5262,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 34.2919,
+              "diff_pct": 14.9728,
               "weight": 1.0,
               "description": "Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.",
               "note": "",
@@ -5376,7 +5376,7 @@
                 "block-margin-collapse-adjacent"
               ],
               "status": "FAIL",
-              "diff_pct": 28.4073,
+              "diff_pct": 23.7944,
               "weight": 1.0,
               "description": "Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.",
               "note": "",
@@ -5547,11 +5547,11 @@
         },
         {
           "feature": "overflow",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -5568,8 +5568,8 @@
                 "positioning-overflow-hidden-clip",
                 "border-radius-uniform"
               ],
-              "status": "FAIL",
-              "diff_pct": 17.8303,
+              "status": "PARTIAL",
+              "diff_pct": 9.0704,
               "weight": 1.0,
               "description": "Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.",
               "note": "",
@@ -5688,7 +5688,7 @@
                 "transforms-rotate"
               ],
               "status": "FAIL",
-              "diff_pct": 18.842,
+              "diff_pct": 14.0488,
               "weight": 1.0,
               "description": "Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.",
               "note": "",
@@ -6667,21 +6667,21 @@
     },
     {
       "category": "overflow-clipping",
-      "score_pct": 0.0,
+      "score_pct": 25.0,
       "counts": {
-        "pass": 0,
-        "partial": 0,
-        "fail": 10,
+        "pass": 1,
+        "partial": 3,
+        "fail": 6,
         "unknown": 0
       },
       "features": [
         {
           "feature": "overflow",
-          "score_pct": 0.0,
+          "score_pct": 25.0,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 10,
+            "pass": 1,
+            "partial": 3,
+            "fail": 6,
             "unknown": 0
           },
           "fixtures": [
@@ -6693,7 +6693,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.1919,
+              "diff_pct": 19.5379,
               "weight": 1.0,
               "description": "overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).",
               "note": "",
@@ -6713,8 +6713,8 @@
               "subfeature": "hidden-with-border-radius",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.1538,
+              "status": "PARTIAL",
+              "diff_pct": 10.4237,
               "weight": 1.0,
               "description": "overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.",
               "note": "",
@@ -6735,8 +6735,8 @@
               "subfeature": "hidden",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 24.6346,
+              "status": "PASS",
+              "diff_pct": 5.4853,
               "weight": 1.0,
               "description": "overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.",
               "note": "",
@@ -6746,7 +6746,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "1bbf350d98229ec2c5a9f0cb79c0d5da683e44ccae0e80d3f44d24285615e104"
             },
             {
@@ -6756,8 +6756,8 @@
               "subfeature": "hidden-on-flex-item",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.4915,
+              "status": "PARTIAL",
+              "diff_pct": 8.7594,
               "weight": 1.0,
               "description": "A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.",
               "note": "",
@@ -6798,8 +6798,8 @@
               "subfeature": "nested-clip-intersection",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 22.9513,
+              "status": "PARTIAL",
+              "diff_pct": 11.1585,
               "weight": 1.0,
               "description": "Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.",
               "note": "",
@@ -6820,7 +6820,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 38.0981,
+              "diff_pct": 31.3065,
               "weight": 1.0,
               "description": "overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).",
               "note": "",
@@ -6842,7 +6842,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 24.1022,
+              "diff_pct": 19.3452,
               "weight": 1.0,
               "description": "overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.",
               "note": "",
@@ -6863,7 +6863,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.9067,
+              "diff_pct": 16.9654,
               "weight": 1.0,
               "description": "overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.",
               "note": "",
@@ -6884,7 +6884,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 25.9221,
+              "diff_pct": 20.6209,
               "weight": 1.0,
               "description": "overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.",
               "note": "",
@@ -7210,21 +7210,21 @@
     },
     {
       "category": "positioning",
-      "score_pct": 0.0,
+      "score_pct": 21.88,
       "counts": {
-        "pass": 0,
-        "partial": 0,
-        "fail": 16,
+        "pass": 1,
+        "partial": 5,
+        "fail": 10,
         "unknown": 0
       },
       "features": [
         {
           "feature": "clear",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7235,8 +7235,8 @@
               "subfeature": "both",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 22.9476,
+              "status": "PASS",
+              "diff_pct": 3.4756,
               "weight": 1.0,
               "description": "clear:both pushes the cleared block below preceding floats instead of wrapping beside them.",
               "note": "",
@@ -7246,18 +7246,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "fbfa1e02891c000a0e5734bd7bb91299ec6a946def268f694f20ade76eef54f5"
             }
           ]
         },
         {
           "feature": "containing-block",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 2,
+            "partial": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7268,8 +7268,8 @@
               "subfeature": "nearest-positioned-ancestor",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 17.5673,
+              "status": "PARTIAL",
+              "diff_pct": 8.3547,
               "weight": 1.0,
               "description": "Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.",
               "note": "",
@@ -7289,8 +7289,8 @@
               "subfeature": "transform-establishes",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 18.3988,
+              "status": "PARTIAL",
+              "diff_pct": 11.3037,
               "weight": 1.0,
               "description": "A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.",
               "note": "",
@@ -7307,11 +7307,11 @@
         },
         {
           "feature": "float",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7322,8 +7322,8 @@
               "subfeature": "left",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.0394,
+              "status": "PARTIAL",
+              "diff_pct": 9.4486,
               "weight": 1.0,
               "description": "float:left removes the box from flow and shifts it left; the following block wraps around its right side.",
               "note": "",
@@ -7356,7 +7356,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 13.8244,
+              "diff_pct": 13.1993,
               "weight": 1.0,
               "description": "position:relative with negative top/left pulls the box up and left, overlapping prior flow.",
               "note": "",
@@ -7377,7 +7377,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 19.9968,
+              "diff_pct": 15.4854,
               "weight": 1.0,
               "description": "All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.",
               "note": "",
@@ -7394,11 +7394,11 @@
         },
         {
           "feature": "overflow",
-          "score_pct": 0.0,
+          "score_pct": 16.67,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 3,
+            "partial": 1,
+            "fail": 2,
             "unknown": 0
           },
           "fixtures": [
@@ -7410,7 +7410,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 24.9835,
+              "diff_pct": 19.7709,
               "weight": 1.0,
               "description": "overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.",
               "note": "",
@@ -7430,8 +7430,8 @@
               "subfeature": "hidden",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 26.8586,
+              "status": "PARTIAL",
+              "diff_pct": 7.0366,
               "weight": 1.0,
               "description": "overflow:hidden clips an oversized in-flow child to the parent box.",
               "note": "",
@@ -7452,7 +7452,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 25.6751,
+              "diff_pct": 15.0198,
               "weight": 1.0,
               "description": "overflow:visible (default) does not clip; the child overflows the parent box.",
               "note": "",
@@ -7469,11 +7469,11 @@
         },
         {
           "feature": "position",
-          "score_pct": 0.0,
+          "score_pct": 10.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 5,
+            "partial": 1,
+            "fail": 4,
             "unknown": 0
           },
           "fixtures": [
@@ -7506,7 +7506,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 21.6407,
+              "diff_pct": 14.5455,
               "weight": 1.0,
               "description": "position:absolute box anchored to bottom/right edges of its containing block.",
               "note": "",
@@ -7527,7 +7527,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 24.4197,
+              "diff_pct": 16.8333,
               "weight": 1.0,
               "description": "position:absolute box placed by top/left within a relative containing block.",
               "note": "",
@@ -7548,7 +7548,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 24.2593,
+              "diff_pct": 13.7893,
               "weight": 1.0,
               "description": "position:relative shifts the box by top/left from its in-flow position; flow space is preserved.",
               "note": "",
@@ -7568,8 +7568,8 @@
               "subfeature": "static",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 32.6096,
+              "status": "PARTIAL",
+              "diff_pct": 8.3401,
               "weight": 1.0,
               "description": "position:static box ignores top/left offsets and stays in normal flow.",
               "note": "",
@@ -7834,11 +7834,11 @@
     },
     {
       "category": "selectors-cascade",
-      "score_pct": 6.67,
+      "score_pct": 50.0,
       "counts": {
-        "pass": 1,
-        "partial": 0,
-        "fail": 14,
+        "pass": 7,
+        "partial": 1,
+        "fail": 7,
         "unknown": 0
       },
       "features": [
@@ -7860,7 +7860,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.1404,
+              "diff_pct": 16.5931,
               "weight": 1.0,
               "description": "@media print { } applies in the print rendering context, turning the box green; ignoring print media queries leaves it gray.",
               "note": "",
@@ -7883,7 +7883,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 26.1404,
+              "diff_pct": 16.5931,
               "weight": 1.0,
               "description": "@supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap.",
               "note": "",
@@ -7902,11 +7902,11 @@
         },
         {
           "feature": "attribute-selector",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7917,8 +7917,8 @@
               "subfeature": "equals",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 33.0262,
+              "status": "PASS",
+              "diff_pct": 5.2089,
               "weight": 1.0,
               "description": "[data-pick=\"yes\"] colors only the box whose attribute equals the value; boxes with a different value or no attribute stay gray.",
               "note": "",
@@ -7930,7 +7930,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "4e650f277d55d959f43d252838dfe3780df6b9e65f5bff686d5116b5442a1663"
             }
           ]
@@ -7995,11 +7995,11 @@
         },
         {
           "feature": "combinator",
-          "score_pct": 0.0,
+          "score_pct": 62.5,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 4,
+            "pass": 2,
+            "partial": 1,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -8010,8 +8010,8 @@
               "subfeature": "adjacent-sibling",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 33.2528,
+              "status": "PARTIAL",
+              "diff_pct": 8.5277,
               "weight": 1.0,
               "description": "The adjacent-sibling combinator (+) matches only the box immediately following .marker; the marker and the third box stay gray.",
               "note": "",
@@ -8033,8 +8033,8 @@
               "subfeature": "child",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 31.2794,
+              "status": "PASS",
+              "diff_pct": 4.4757,
               "weight": 1.0,
               "description": "The child combinator (>) matches only immediate children of #parent; a nested .box stays gray while direct-child boxes turn green.",
               "note": "",
@@ -8046,7 +8046,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "64e318c873df9860db70f7b1264369bf6cfd404b2260ed00a5d493006be862ce"
             },
             {
@@ -8056,8 +8056,8 @@
               "subfeature": "descendant",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 32.3431,
+              "status": "PASS",
+              "diff_pct": 4.4261,
               "weight": 1.0,
               "description": "The descendant combinator (space) matches every .box inside #parent at any depth; a .box outside #parent stays gray.",
               "note": "",
@@ -8069,7 +8069,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "fa8bd3bcc69a27070496417e40bd13cd003d4a6ef2e801dca918ed5c8f3a4c83"
             },
             {
@@ -8080,7 +8080,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 35.6931,
+              "diff_pct": 12.2082,
               "weight": 1.0,
               "description": "The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.",
               "note": "",
@@ -8099,11 +8099,11 @@
         },
         {
           "feature": "pseudo-class",
-          "score_pct": 25.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 4,
             "partial": 0,
-            "fail": 3,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8114,8 +8114,8 @@
               "subfeature": "first-child-last-child",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 38.3757,
+              "status": "PASS",
+              "diff_pct": 5.7175,
               "weight": 1.0,
               "description": ":first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.",
               "note": "",
@@ -8127,7 +8127,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "ae0cd903dfb6de301206d9d9ff9ca86d8eefb7da78eec42c966f68f65733f75b"
             },
             {
@@ -8137,8 +8137,8 @@
               "subfeature": "not-negation",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 35.5836,
+              "status": "PASS",
+              "diff_pct": 5.7156,
               "weight": 1.0,
               "description": ":not(.skip) colors every .box except the one carrying .skip; the skipped box stays gray.",
               "note": "",
@@ -8150,7 +8150,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "d3a9b4fa4c2da7dcca4ca597eaa4fb5a2e40c9a648b249a118f260585f3b37bf"
             },
             {
@@ -8160,8 +8160,8 @@
               "subfeature": "nth-child-odd",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 38.1746,
+              "status": "PASS",
+              "diff_pct": 6.0167,
               "weight": 1.0,
               "description": ":nth-child(odd) colors the 1st, 3rd and 5th of five boxes green; even-position boxes stay gray.",
               "note": "",
@@ -8173,7 +8173,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "348d9295780ccdee6b10038d8e33683fc7ca34e1c4994d3863c0c8c1b6f54e0e"
             },
             {
@@ -8219,7 +8219,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 21.7916,
+              "diff_pct": 17.0873,
               "weight": 1.0,
               "description": "A class selector (0,1,0) overrides a type selector (0,0,1) regardless of source order; only the .pick box turns green.",
               "note": "",
@@ -10471,7 +10471,7 @@
       "id": "probe-text-baseline",
       "feature": "font-metrics",
       "status": "FAIL",
-      "confounded_count": 91,
+      "confounded_count": 90,
       "confounded_ids": [
         "color-text-glyph",
         "counter-content-roman",
@@ -10530,7 +10530,6 @@
         "overflow-hidden-text-clip",
         "paged-orphans-widows",
         "paged-page-counter-content",
-        "svg-inline-text",
         "tables-caption",
         "tables-cell-text-align",
         "tables-th-header",
@@ -10569,7 +10568,7 @@
     {
       "id": "flexbox-display-flex",
       "feature": "display",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "confounded_count": 6,
       "confounded_ids": [
         "flexbox-x-grid-nested",
@@ -10659,7 +10658,7 @@
     {
       "id": "positioning-float-left",
       "feature": "float",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "confounded_count": 2,
       "confounded_ids": [
         "interactions-float-x-margin-collapse",
@@ -10669,7 +10668,7 @@
     {
       "id": "positioning-overflow-hidden-clip",
       "feature": "overflow",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "confounded_count": 2,
       "confounded_ids": [
         "box-model-overflow-hidden-x-border-radius",
@@ -10789,6 +10788,7 @@
   "ref_mismatches": [],
   "suspect_unsupported_pass": [
     "background-blend-mode-multiply",
+    "filter-url-svg",
     "img-aspect-ratio-box",
     "img-object-fit-cover",
     "img-object-fit-fill",

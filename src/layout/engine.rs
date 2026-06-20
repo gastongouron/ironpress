@@ -5719,14 +5719,14 @@ mod tests {
             crate::types::Margin::uniform(0.0),
         );
         // The <p> inside the padded div should be laid out within 200 - 40 = 160pt.
-        // We verify that the p's TextBlock has block_width <= 160.
-        let mut found = false;
-        for page in &pages {
-            for (_, elem) in &page.elements {
-                if let LayoutElement::TextBlock {
+        // We verify that the p's TextBlock has block_width <= 160. A padded block
+        // now routes its children through a Container wrapper (so the padding
+        // offsets them), so the paragraph lives in Container.children — recurse.
+        fn check(elem: &LayoutElement, found: &mut bool) {
+            match elem {
+                LayoutElement::TextBlock {
                     lines, block_width, ..
-                } = elem
-                {
+                } => {
                     let text: String = lines
                         .iter()
                         .flat_map(|l| l.runs.iter().map(|r| r.text.as_str()))
@@ -5738,9 +5738,21 @@ mod tests {
                                 "child block width {bw} should be <= inner_width 160"
                             );
                         }
-                        found = true;
+                        *found = true;
                     }
                 }
+                LayoutElement::Container { children, .. } => {
+                    for child in children {
+                        check(child, found);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut found = false;
+        for page in &pages {
+            for (_, elem) in &page.elements {
+                check(elem, &mut found);
             }
         }
         assert!(found, "did not find the child paragraph");
