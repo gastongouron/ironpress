@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 61.56,
-    "pass": 163,
+    "score_pct": 62.14,
+    "pass": 165,
     "partial": 100,
-    "fail": 83,
+    "fail": 81,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -894,11 +894,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 70.0,
+      "score_pct": 76.67,
       "counts": {
-        "pass": 10,
+        "pass": 11,
         "partial": 1,
-        "fail": 4,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
@@ -1043,11 +1043,11 @@
         },
         {
           "feature": "margin",
-          "score_pct": 66.67,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1079,8 +1079,8 @@
               "subfeature": "collapse-adjacent",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 25.878,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Two stacked blocks whose adjacent vertical margins (40px and 24px) collapse to the larger 40px gap.",
               "note": "",
@@ -1090,7 +1090,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "07efd05f7401939143447d4575a74e75b786b1a0241e966a8ebfb4194f4a4bf0"
             },
             {
@@ -5376,7 +5376,7 @@
                 "block-margin-collapse-adjacent"
               ],
               "status": "FAIL",
-              "diff_pct": 47.4746,
+              "diff_pct": 52.368,
               "weight": 1.0,
               "description": "Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.",
               "note": "",
@@ -5415,7 +5415,7 @@
                 "block-margin-collapse-adjacent"
               ],
               "status": "FAIL",
-              "diff_pct": 38.9004,
+              "diff_pct": 42.9298,
               "weight": 1.0,
               "description": "A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.",
               "note": "",
@@ -7834,21 +7834,21 @@
     },
     {
       "category": "selectors-cascade",
-      "score_pct": 93.33,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 14,
+        "pass": 15,
         "partial": 0,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "at-rule",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -7882,8 +7882,8 @@
               "subfeature": "supports",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 94.0375,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "@supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap.",
               "note": "",
@@ -7895,7 +7895,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "091ec479e537deb5dd4ee17e2c628820000b08088269d0d074d1d97769c64458"
             }
           ]
@@ -10506,16 +10506,6 @@
       ]
     },
     {
-      "id": "block-margin-collapse-adjacent",
-      "feature": "margin",
-      "status": "FAIL",
-      "confounded_count": 2,
-      "confounded_ids": [
-        "interactions-float-x-margin-collapse",
-        "interactions-positioning-float-x-margin-collapse"
-      ]
-    },
-    {
       "id": "border-radius-uniform",
       "feature": "border-radius",
       "status": "PARTIAL",
@@ -10643,6 +10633,7 @@
     "paged-break-inside-avoid",
     "paged-named-page",
     "paged-orphans-widows",
+    "selectors-cascade-supports-rule",
     "text-shadow-blur",
     "text-shadow-offset",
     "transforms-compound-rotate-translate",

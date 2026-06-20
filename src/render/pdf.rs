@@ -2427,10 +2427,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     } => {
                                         nested_y -= cont_mt;
                                         let cont_w = cont_bw.unwrap_or(cell.width);
-                                        let cont_children_h: f32 = cont_kids
-                                            .iter()
-                                            .map(crate::layout::engine::estimate_element_height)
-                                            .sum();
+                                        let cont_children_h: f32 =
+                                            collapsed_children_height(cont_kids);
                                         let cont_h = cont_pt
                                             + cont_children_h
                                             + cont_pb
@@ -2647,11 +2645,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     };
                     let container_y_top = page_size.height - margin.top - y_pos;
 
-                    // Use explicit block_height if set, otherwise compute from children
-                    let children_h: f32 = children
-                        .iter()
-                        .map(crate::layout::engine::estimate_element_height)
-                        .sum();
+                    // Use explicit block_height if set, otherwise compute from
+                    // children (with adjacent-sibling margin collapse so the
+                    // painted box height matches the collapsed child flow).
+                    let children_h: f32 = collapsed_children_height(children);
                     let content_h = c_pt + children_h + c_pb + border.vertical_width();
                     let total_h = if *c_overflow == Overflow::Hidden {
                         // When clipping, use declared height to constrain the box
@@ -3650,6 +3647,132 @@ fn push_clip_path(
     content.push_str("W n\n");
 }
 
+/// CSS adjacent-sibling vertical margin collapse.
+///
+/// Returns the *extra* amount to subtract from the cursor for `margin_top`
+/// given that `prev_margin_bottom` (the previous in-flow sibling's
+/// margin-bottom) was already subtracted. The collapsed gap between two
+/// in-flow blocks is: max for two positive margins, min (most negative) for
+/// two negatives, and the sum for mixed signs — matching `paginate.rs`.
+fn collapsed_margin_top_extra(margin_top: f32, prev_margin_bottom: f32) -> f32 {
+    let collapsed = if margin_top >= 0.0 && prev_margin_bottom >= 0.0 {
+        margin_top.max(prev_margin_bottom)
+    } else if margin_top < 0.0 && prev_margin_bottom < 0.0 {
+        margin_top.min(prev_margin_bottom)
+    } else {
+        margin_top + prev_margin_bottom
+    };
+    // `prev_margin_bottom` is already gone from the cursor; only apply the
+    // excess of the collapsed gap over it.
+    collapsed - prev_margin_bottom
+}
+
+/// How a child participates in adjacent-sibling vertical margin collapse,
+/// mirroring the per-arm handling in `render_container_children`.
+enum CollapseRole {
+    /// In-flow block: collapses with neighbours (margin-top, margin-bottom).
+    Collapsing(f32, f32),
+    /// Out of flow (absolute): contributes no height and leaves the running
+    /// collapse state untouched (cursor `continue`s without resetting it).
+    Skip,
+    /// Non-collapsing in-flow content (floats, table/grid rows): consumes its
+    /// own space and breaks the collapse chain for the next sibling.
+    Barrier,
+}
+
+fn collapse_role(element: &LayoutElement) -> CollapseRole {
+    match element {
+        LayoutElement::TextBlock {
+            margin_top,
+            margin_bottom,
+            position,
+            float,
+            ..
+        }
+        | LayoutElement::Container {
+            margin_top,
+            margin_bottom,
+            position,
+            float,
+            ..
+        } => {
+            if *position == Position::Absolute {
+                CollapseRole::Skip
+            } else if *float != Float::None {
+                CollapseRole::Barrier
+            } else {
+                CollapseRole::Collapsing(*margin_top, *margin_bottom)
+            }
+        }
+        LayoutElement::Image {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::Svg {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::FlexRow {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::HorizontalRule {
+            margin_top,
+            margin_bottom,
+        }
+        | LayoutElement::ProgressBar {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::MathBlock {
+            margin_top,
+            margin_bottom,
+            ..
+        } => CollapseRole::Collapsing(*margin_top, *margin_bottom),
+        // Table/grid rows and anything else: do not collapse with siblings.
+        _ => CollapseRole::Barrier,
+    }
+}
+
+/// Sum of children heights with CSS adjacent-sibling vertical margin collapse
+/// applied, mirroring the cursor advance in `render_container_children`.
+///
+/// `estimate_element_height` sums each child's full top+bottom margins; this
+/// subtracts the collapse "savings" between consecutive in-flow siblings so a
+/// container's painted height matches the collapsed flow.
+fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
+    let mut total = 0.0f32;
+    let mut prev_mb: Option<f32> = None;
+    for child in children {
+        total += crate::layout::engine::estimate_element_height(child);
+        match collapse_role(child) {
+            CollapseRole::Collapsing(mt, mb) => {
+                if let Some(pmb) = prev_mb {
+                    // Both margins are already in `total`; remove the overlap
+                    // (their sum minus the collapsed gap).
+                    let collapsed = if mt >= 0.0 && pmb >= 0.0 {
+                        mt.max(pmb)
+                    } else if mt < 0.0 && pmb < 0.0 {
+                        mt.min(pmb)
+                    } else {
+                        mt + pmb
+                    };
+                    total -= pmb + mt - collapsed;
+                }
+                prev_mb = Some(mb);
+            }
+            // Absolute children don't break the chain; barriers do.
+            CollapseRole::Skip => {}
+            CollapseRole::Barrier => prev_mb = None,
+        }
+    }
+    total
+}
+
 /// Recursively render a Container element and all its children.
 ///
 /// `x` / `y` are the content-box origin (after padding).
@@ -3682,6 +3805,11 @@ fn render_container_children(
     // Save original y for absolute positioning (must not be affected by
     // flow children advancing the cursor).
     let container_top_y = y;
+    // Track the previous in-flow block sibling's margin-bottom so adjacent
+    // vertical margins collapse (CSS) instead of summing. Reset to 0 across
+    // out-of-flow children (absolute/float) and nested-table batches, which
+    // do not participate in collapse.
+    let mut prev_margin_bottom: f32 = 0.0;
 
     for child in children {
         let handled_by_nested = matches!(
@@ -3691,6 +3819,8 @@ fn render_container_children(
         if handled_by_nested {
             nested_batch.push(child);
             cursor_y -= crate::layout::engine::estimate_element_height(child);
+            // Table/grid rows do not collapse margins with sibling blocks.
+            prev_margin_bottom = 0.0;
             continue;
         }
 
@@ -3819,7 +3949,13 @@ fn render_container_children(
                     continue;
                 }
 
-                cursor_y -= margin_top;
+                // Collapse this block's margin-top against the previous in-flow
+                // sibling's margin-bottom (only floats are out of flow here).
+                if *tb_float == Float::None {
+                    cursor_y -= collapsed_margin_top_extra(*margin_top, prev_margin_bottom);
+                } else {
+                    cursor_y -= margin_top;
+                }
                 y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();
                 let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
@@ -4016,6 +4152,10 @@ fn render_container_children(
                 }
                 cursor_y -= child_h;
                 y = cursor_y;
+                // This arm never subtracts margin-bottom from the cursor, so a
+                // following sibling has nothing already-subtracted to collapse
+                // against (its margin-top applies in full).
+                prev_margin_bottom = 0.0;
             }
             LayoutElement::Container {
                 children: nested_kids,
@@ -4057,7 +4197,13 @@ fn render_container_children(
                 // in normal flow. Without this, nested abspos boxes rendered at
                 // the parent's content-box origin (top/left silently dropped).
                 let nk_is_abs = *nk_position == Position::Absolute;
-                if !nk_is_abs {
+                // In-flow containers collapse their margin-top against the
+                // previous in-flow sibling's margin-bottom; floats and absolutes
+                // are out of flow and take their margin-top in full.
+                let nk_in_flow = !nk_is_abs && *nk_float == Float::None;
+                if nk_in_flow {
+                    cursor_y -= collapsed_margin_top_extra(*margin_top, prev_margin_bottom);
+                } else if !nk_is_abs {
                     cursor_y -= margin_top;
                 }
                 y = cursor_y;
@@ -4078,10 +4224,7 @@ fn render_container_children(
                 } else {
                     y - nk_offset_top
                 };
-                let nk_children_h: f32 = nested_kids
-                    .iter()
-                    .map(crate::layout::engine::estimate_element_height)
-                    .sum();
+                let nk_children_h: f32 = collapsed_children_height(nested_kids);
                 let nk_content_h =
                     padding_top + nk_children_h + padding_bottom + border.vertical_width();
                 // When an explicit block_height is given, use it directly so that
@@ -4401,6 +4544,9 @@ fn render_container_children(
                 if !nk_is_abs {
                     cursor_y -= nk_total_h + margin_bottom;
                     y = cursor_y;
+                    // Remember this in-flow block's margin-bottom so the next
+                    // sibling collapses against it; floats don't collapse.
+                    prev_margin_bottom = if nk_in_flow { *margin_bottom } else { 0.0 };
                 }
             }
             LayoutElement::Image {
@@ -4414,7 +4560,7 @@ fn render_container_children(
                 border,
                 ..
             } => {
-                cursor_y -= img_mt;
+                cursor_y -= collapsed_margin_top_extra(*img_mt, prev_margin_bottom);
                 y = cursor_y;
                 let box_top = y;
                 let box_bottom = y - img_h;
@@ -4487,6 +4633,9 @@ fn render_container_children(
                 );
                 cursor_y -= img_h;
                 y = cursor_y;
+                // Image arm subtracts no margin-bottom; next sibling's
+                // margin-top applies in full.
+                prev_margin_bottom = 0.0;
             }
             LayoutElement::Svg {
                 tree,
@@ -4495,7 +4644,7 @@ fn render_container_children(
                 margin_top: svg_mt,
                 ..
             } => {
-                cursor_y -= svg_mt;
+                cursor_y -= collapsed_margin_top_extra(*svg_mt, prev_margin_bottom);
                 y = cursor_y;
                 let svg_x = x;
                 let svg_y = y - svg_h;
@@ -4548,6 +4697,9 @@ fn render_container_children(
                 content.push_str("Q\n");
                 cursor_y -= svg_h;
                 y = cursor_y;
+                // Svg arm subtracts no margin-bottom; next sibling's
+                // margin-top applies in full.
+                prev_margin_bottom = 0.0;
             }
             LayoutElement::FlexRow {
                 cells,
@@ -4562,7 +4714,7 @@ fn render_container_children(
                 align_items,
                 ..
             } => {
-                cursor_y -= flex_mt;
+                cursor_y -= collapsed_margin_top_extra(*flex_mt, prev_margin_bottom);
                 y = cursor_y;
                 let row_h =
                     crate::layout::engine::estimate_element_height(child) - flex_mt - flex_mb;
@@ -4817,12 +4969,13 @@ fn render_container_children(
                 }
                 cursor_y -= row_h + flex_mb;
                 y = cursor_y;
+                prev_margin_bottom = *flex_mb;
             }
             LayoutElement::HorizontalRule {
                 margin_top: rule_mt,
                 margin_bottom: rule_mb,
             } => {
-                cursor_y -= rule_mt;
+                cursor_y -= collapsed_margin_top_extra(*rule_mt, prev_margin_bottom);
                 y = cursor_y;
                 // Default rule: gray line across container width
                 content.push_str(&format!(
@@ -4832,11 +4985,15 @@ fn render_container_children(
                 ));
                 cursor_y -= 1.0 + rule_mb;
                 y = cursor_y;
+                prev_margin_bottom = *rule_mb;
             }
             _ => {
                 let h = crate::layout::engine::estimate_element_height(child);
                 cursor_y -= h;
                 y = cursor_y;
+                // Unknown/other element: its full estimated height (incl. any
+                // margins) was consumed; do not collapse the next sibling.
+                prev_margin_bottom = 0.0;
             }
         }
     }

@@ -66,6 +66,114 @@ fn parse_media_length(val: &str) -> Option<f32> {
     val.parse::<f32>().ok()
 }
 
+/// Evaluate a `@supports` condition. Returns `true` when ironpress can render
+/// the feature(s) the condition tests, so the guarded block should be unwrapped.
+///
+/// This is a pragmatic, lenient evaluator: it handles `not(...)`, `and`/`or`
+/// combinators and parenthesised `(property: value)` declarations. A bare
+/// declaration whose property looks renderable is treated as supported, and we
+/// DEFAULT to `true` for anything that parses like `(x: y)` so real content is
+/// never silently dropped. Only an explicitly-unknown property is rejected.
+pub(crate) fn supports_condition(cond: &str) -> bool {
+    let cond = cond.trim();
+    if cond.is_empty() {
+        return false;
+    }
+
+    // `not(...)` / `not (...)` negates the inner condition.
+    if let Some(rest) = cond.strip_prefix("not") {
+        let rest = rest.trim();
+        if rest.starts_with('(') {
+            return !supports_condition(rest);
+        }
+    }
+
+    // Combinators: split on top-level ` and ` / ` or ` (outside parentheses).
+    if let Some(parts) = split_top_level(cond, "and") {
+        return parts.iter().all(|part| supports_condition(part));
+    }
+    if let Some(parts) = split_top_level(cond, "or") {
+        return parts.iter().any(|part| supports_condition(part));
+    }
+
+    // A single parenthesised group: it may wrap a declaration or another
+    // (possibly combined / negated) condition.
+    if cond.starts_with('(') && cond.ends_with(')') {
+        let inner = cond[1..cond.len() - 1].trim();
+        // `(property: value)` — evaluate the declaration.
+        if let Some((name, value)) = inner.split_once(':') {
+            let name = name.trim();
+            let value = value.trim();
+            // Reject a malformed declaration with no value.
+            if name.is_empty() || value.is_empty() {
+                return false;
+            }
+            // Anything that isn't an obviously-unknown property is supported.
+            return !is_unsupported_property(name);
+        }
+        // Otherwise it nests a further condition (e.g. `((a: b) and (c: d))`).
+        return supports_condition(inner);
+    }
+
+    // Unrecognised shape (e.g. `selector(...)`, `font-tech(...)`): be lenient.
+    true
+}
+
+/// Split a `@supports` condition on a top-level ` <op> ` separator, ignoring
+/// occurrences nested inside parentheses. Returns `None` when the operator is
+/// absent at the top level so the caller can fall through to other handling.
+fn split_top_level(cond: &str, op: &str) -> Option<Vec<String>> {
+    let needle = format!(" {op} ");
+    let bytes = cond.as_bytes();
+    let mut depth = 0i32;
+    let mut parts: Vec<String> = Vec::new();
+    let mut start = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 && cond[i..].starts_with(&needle) {
+            parts.push(cond[start..i].trim().to_string());
+            i += needle.len();
+            start = i;
+            continue;
+        }
+        i += 1;
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    parts.push(cond[start..].trim().to_string());
+    Some(parts)
+}
+
+/// Conservative deny-list of CSS properties ironpress cannot render, so a
+/// `@supports` query that tests them is treated as unsupported. Everything else
+/// (the long tail of layout / paint / text properties) is assumed supported so
+/// real content is never dropped.
+fn is_unsupported_property(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        // Properties referenced by the spec but meaningless / unimplemented for
+        // a static print target, or deliberately-bogus probes.
+        "nonsense-prop"
+            | "not-a-real-prop"
+            | "definitely-not-a-property"
+            | "scroll-behavior"
+            | "scroll-snap-type"
+            | "overscroll-behavior"
+            | "cursor"
+            | "pointer-events"
+            | "user-select"
+            | "touch-action"
+            | "caret-color"
+            | "accent-color"
+    )
+}
+
 pub(crate) fn preprocess_media_queries(css: &str) -> String {
     preprocess_media_queries_with_context(css, None)
 }
@@ -106,6 +214,22 @@ pub(crate) fn preprocess_media_queries_with_context(
                 .trim();
             let content = extract_braced_content(&mut chars);
             if evaluate_media_query(query, ctx) {
+                output.push_str(&content);
+            }
+            continue;
+        }
+
+        if at_rule.starts_with("@supports") && at_rule.ends_with('{') {
+            let condition = at_rule
+                .trim_end_matches('{')
+                .trim_start_matches("@supports")
+                .trim();
+            let content = extract_braced_content(&mut chars);
+            // Like `@media`, unwrap the block when the condition is supported
+            // (emit just the inner rules); otherwise drop it entirely. Emitting
+            // the wrapper verbatim would make the stylesheet parser choke on the
+            // `@supports (...) {` prelude and silently discard the inner rules.
+            if supports_condition(condition) {
                 output.push_str(&content);
             }
             continue;
@@ -333,6 +457,57 @@ mod tests {
             Some(ctx),
         );
         assert_eq!(rules.len(), 1);
+    }
+
+    #[test]
+    fn preprocess_supports_unwraps_supported_conditions() {
+        // A supported declaration: the inner rule survives without its wrapper.
+        let result = preprocess_media_queries("@supports (display: flex) { p { color: red } }");
+        assert!(
+            result.contains("p { color: red }"),
+            "supported @supports block dropped: {result}"
+        );
+        assert!(
+            !result.contains("@supports"),
+            "@supports wrapper not unwrapped: {result}"
+        );
+
+        // grid is renderable enough that its block must not be dropped.
+        let grid = preprocess_media_queries("@supports (display: grid) { p { color: blue } }");
+        assert!(
+            grid.contains("p { color: blue }"),
+            "grid @supports block dropped: {grid}"
+        );
+
+        // The fixture's condition.
+        let block = preprocess_media_queries("@supports (display: block) { .box { background: green } }");
+        assert!(
+            block.contains(".box { background: green }"),
+            "block @supports condition dropped: {block}"
+        );
+    }
+
+    #[test]
+    fn preprocess_supports_drops_unsupported_conditions() {
+        let result =
+            preprocess_media_queries("@supports (nonsense-prop: x) { p { color: red } }");
+        assert!(
+            !result.contains("color: red"),
+            "unsupported @supports block kept: {result}"
+        );
+    }
+
+    #[test]
+    fn supports_condition_combinators_and_negation() {
+        use super::supports_condition;
+        assert!(supports_condition("(display: flex)"));
+        assert!(supports_condition("(display: flex) and (color: red)"));
+        assert!(supports_condition("(nonsense-prop: x) or (display: flex)"));
+        assert!(!supports_condition("(nonsense-prop: x) and (display: flex)"));
+        assert!(supports_condition("not (nonsense-prop: x)"));
+        assert!(!supports_condition("not (display: flex)"));
+        // Lenient default for unrecognised shapes.
+        assert!(supports_condition("selector(:has(a))"));
     }
 
     #[test]
