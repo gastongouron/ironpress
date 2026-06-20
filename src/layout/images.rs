@@ -188,10 +188,14 @@ pub(crate) fn load_image_from_element(
         .height
         .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
+    let src_w = image.source_width as f32;
+    let src_h = image.source_height as f32;
     let (width, height) = match (attr_width, attr_height) {
         (Some(w), Some(h)) => (w, h),
-        (Some(w), None) => (w, w), // fallback: square
-        (None, Some(h)) => (h, h),
+        (Some(w), None) if src_w > 0.0 => (w, w * (src_h / src_w)),
+        (Some(w), None) => (w, w), // fallback: square (intrinsic size unknown)
+        (None, Some(h)) if src_h > 0.0 => (h * (src_w / src_h), h),
+        (None, Some(h)) => (h, h), // fallback: square (intrinsic size unknown)
         (None, None) => (available_width.min(200.0), 150.0),
     };
 

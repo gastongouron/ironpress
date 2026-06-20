@@ -381,11 +381,38 @@ pub struct LinearGradient {
     pub stops: Vec<GradientStop>,
 }
 
-/// A CSS radial gradient (simplified: always circular, centered).
+/// A position component of a radial gradient's center, resolvable against the
+/// painted box at render time.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RadialPos {
+    /// Fraction of the box extent (0..1), e.g. from a keyword or percentage.
+    Fraction(f32),
+    /// Absolute offset in points from the box's start edge (left/top).
+    Points(f32),
+}
+
+impl RadialPos {
+    /// Resolve to an offset in points given the box extent (in points) along
+    /// this axis.
+    pub fn resolve(self, extent: f32) -> f32 {
+        match self {
+            RadialPos::Fraction(f) => extent * f,
+            RadialPos::Points(p) => p,
+        }
+    }
+}
+
+/// A CSS radial gradient (simplified: always circular).
 #[derive(Debug, Clone)]
 pub struct RadialGradient {
     /// Color stops (at least 2).
     pub stops: Vec<GradientStop>,
+    /// Center position parsed from `at <pos>`, as `(x, y)` measured from the
+    /// box's left/top edges (CSS top-down). Defaults to box center.
+    pub center: (RadialPos, RadialPos),
+    /// Explicit circular radius in points (e.g. `circle 60px` → 45pt). When
+    /// `None`, the `farthest-corner` extent is used.
+    pub radius: Option<f32>,
 }
 
 /// CSS text-overflow property.
@@ -3901,7 +3928,8 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
 
 /// Parse a CSS `radial-gradient(...)` function value into a `RadialGradient`.
 ///
-/// Simplified: always centered circular gradient. Ignores shape/size keywords.
+/// Simplified: always circular. Shape/size keywords are skipped, but the
+/// `at <position>` clause is honored so the gradient can be anchored.
 pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
     let val = val.trim();
     let inner = val
@@ -3915,18 +3943,38 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
 
     let first = parts[0].trim().to_ascii_lowercase();
 
-    // Skip shape/size keywords like "circle", "ellipse", "closest-side", etc.
-    let color_start = if first.starts_with("circle")
+    // A first arg is a shape/size/position prefix (not a color stop) when it
+    // names a shape keyword, an extent keyword, an `at <pos>` clause, or is a
+    // bare length/percentage size (e.g. lightningcss re-serializes
+    // `circle 60px at center` to `60px`). We detect the bare-length case by it
+    // not parsing as a color while parsing as a length token, so a real first
+    // color stop is never dropped.
+    let is_shape_or_size = first.starts_with("circle")
         || first.starts_with("ellipse")
         || first.contains("at ")
         || first == "closest-side"
         || first == "farthest-side"
         || first == "closest-corner"
         || first == "farthest-corner"
-    {
-        1
+        || (parse_gradient_color(&first).is_none() && first_token_is_length(&first));
+    let color_start = usize::from(is_shape_or_size);
+
+    // Honor the `at <position>` clause and a leading explicit radius, else
+    // default to a box-centered farthest-corner gradient.
+    let (center, radius) = if color_start == 1 {
+        let center = parse_radial_center(&first);
+        // A leading bare length (before any `at`) is the explicit circle radius.
+        let size_part = first.split("at").next().unwrap_or("").trim();
+        let radius = size_part
+            .split_whitespace()
+            .next()
+            .and_then(parse_radial_length_pt);
+        (center, radius)
     } else {
-        0
+        (
+            (RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)),
+            None,
+        )
     };
 
     let color_parts = &parts[color_start..];
@@ -3936,7 +3984,83 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
 
     let stops = parse_gradient_stops(color_parts)?;
 
-    Some(RadialGradient { stops })
+    Some(RadialGradient {
+        stops,
+        center,
+        radius,
+    })
+}
+
+/// True when the first whitespace-delimited token looks like a CSS length or
+/// percentage (a number with a known unit, or a bare `%`). Used to recognize a
+/// size-only first argument of `radial-gradient()`.
+fn first_token_is_length(s: &str) -> bool {
+    let tok = s.split_whitespace().next().unwrap_or("");
+    parse_radial_pos(tok).is_some()
+}
+
+/// Parse a length token to points (px→pt = 0.75). Only absolute pixel/point
+/// units are honored; relative units return `None`. A bare `0` is treated as
+/// `0pt`.
+fn parse_radial_length_pt(tok: &str) -> Option<f32> {
+    if let Some(n) = tok.strip_suffix("px") {
+        return n.parse::<f32>().ok().map(|v| v * 0.75);
+    }
+    if let Some(n) = tok.strip_suffix("pt") {
+        return n.parse::<f32>().ok();
+    }
+    // Bare numeric (typically `0`).
+    tok.parse::<f32>().ok()
+}
+
+/// Parse a single position component into a `RadialPos`: a percentage becomes a
+/// fraction, a length becomes an absolute point offset.
+fn parse_radial_pos(tok: &str) -> Option<RadialPos> {
+    if let Some(n) = tok.strip_suffix('%') {
+        return n.parse::<f32>().ok().map(|p| RadialPos::Fraction(p / 100.0));
+    }
+    parse_radial_length_pt(tok).map(RadialPos::Points)
+}
+
+/// Parse the `at <position>` clause of a radial-gradient first argument into a
+/// center `(x, y)` measured from the box's left/top edges (CSS top-down).
+/// Supports keyword positions (`center`, `top`, `left`, corners), percentages,
+/// and lengths. Falls back to box center when absent or unparseable.
+fn parse_radial_center(first: &str) -> (RadialPos, RadialPos) {
+    let half = RadialPos::Fraction(0.5);
+    let lower = first.to_ascii_lowercase();
+    let Some(at_pos) = lower.find("at ") else {
+        return (half, half);
+    };
+    let pos = lower[at_pos + 3..].trim();
+    if pos.is_empty() {
+        return (half, half);
+    }
+
+    let mut x: Option<RadialPos> = None;
+    let mut y: Option<RadialPos> = None;
+
+    for t in pos.split_whitespace() {
+        match t {
+            "left" => x = Some(RadialPos::Fraction(0.0)),
+            "right" => x = Some(RadialPos::Fraction(1.0)),
+            "top" => y = Some(RadialPos::Fraction(0.0)),
+            "bottom" => y = Some(RadialPos::Fraction(1.0)),
+            "center" => { /* leaves the axis at its default 0.5 */ }
+            other => {
+                if let Some(p) = parse_radial_pos(other) {
+                    // First numeric goes to x, the second to y.
+                    if x.is_none() {
+                        x = Some(p);
+                    } else if y.is_none() {
+                        y = Some(p);
+                    }
+                }
+            }
+        }
+    }
+
+    (x.unwrap_or(half), y.unwrap_or(half))
 }
 
 /// Split gradient arguments on commas, respecting parentheses (e.g., rgb(...)).

@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 56.65,
-    "pass": 147,
+    "score_pct": 57.51,
+    "pass": 150,
     "partial": 98,
-    "fail": 101,
+    "fail": 98,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -484,11 +484,11 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 57.14,
+      "score_pct": 71.43,
       "counts": {
-        "pass": 7,
+        "pass": 9,
         "partial": 2,
-        "fail": 5,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
@@ -817,11 +817,11 @@
         },
         {
           "feature": "radial-gradient",
-          "score_pct": 33.33,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 3,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -853,8 +853,8 @@
               "subfeature": "ellipse-at-top-left",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 40.9699,
+              "status": "PASS",
+              "diff_pct": 0.3097,
               "weight": 1.0,
               "description": "Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.",
               "note": "",
@@ -864,7 +864,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "56d3f19229cb5fe02d5a3c9138149049ff0162aa3469bc7031541ff7c990aec8"
             },
             {
@@ -874,8 +874,8 @@
               "subfeature": "explicit-pixel-size",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.3205,
+              "status": "PASS",
+              "diff_pct": 0.2899,
               "weight": 1.0,
               "description": "Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.",
               "note": "",
@@ -885,7 +885,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "21a716325a5f4ba07d687aeaf56482ecfadad65514e77906b4562d619592d22b"
             }
           ]
@@ -4373,11 +4373,11 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 83.33,
+      "score_pct": 90.0,
       "counts": {
-        "pass": 12,
+        "pass": 13,
         "partial": 1,
-        "fail": 2,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -4416,11 +4416,11 @@
         },
         {
           "feature": "img",
-          "score_pct": 70.0,
+          "score_pct": 90.0,
           "counts": {
-            "pass": 3,
+            "pass": 4,
             "partial": 1,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4495,8 +4495,8 @@
               "subfeature": "width-auto-height-aspect",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 52.091,
+              "status": "PASS",
+              "diff_pct": 0.4903,
               "weight": 1.0,
               "description": "A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.",
               "note": "",
@@ -4506,7 +4506,7 @@
                 "probe-image-render"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3dbd6d7fad75021df6997637061e536393ec92b600af71f17535f41b0e9fe754"
             },
             {

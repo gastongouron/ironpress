@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 56.65%  (PASS 147 · PARTIAL 98 · FAIL 101 · UNKNOWN 0 · total 346)
+Overall: 57.51%  (PASS 150 · PARTIAL 98 · FAIL 98 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -55,7 +55,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 44.83 | grid | grid-template-columns | repeat | grid-template-columns-repeat |  |
 | FAIL | REAL | 20.39 | grid | grid-template-rows | px | grid-template-rows |  |
 | FAIL | REAL | 16.22 | grid | justify-items | end | grid-justify-items-end |  |
-| FAIL | REAL | 52.09 | images-replaced | img | width-auto-height-aspect | img-width-scaled |  |
 | FAIL | REAL | 18.00 | inline-text | white-space | nowrap | inline-text-white-space-nowrap |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 37.59 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | 18.23 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap |  |
@@ -113,7 +112,7 @@ None — every fixture's HTML matches `refs.lock`.
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 67.65% | 9 | 5 | 3 | 0 |
-| backgrounds-gradients | 57.14% | 7 | 2 | 5 | 0 |
+| backgrounds-gradients | 71.43% | 9 | 2 | 3 | 0 |
 | block-box-model | 56.67% | 8 | 1 | 6 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 92.86% | 13 | 0 | 1 | 0 |
@@ -123,7 +122,7 @@ None — every fixture's HTML matches `refs.lock`.
 | fonts-advanced | 75.00% | 8 | 2 | 2 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
 | grid | 3.13% | 0 | 1 | 15 | 0 |
-| images-replaced | 83.33% | 12 | 1 | 2 | 0 |
+| images-replaced | 90.00% | 13 | 1 | 1 | 0 |
 | inline-text | 50.00% | 1 | 14 | 1 | 0 |
 | interactions | 20.45% | 1 | 7 | 14 | 0 |
 | lists-counters | 75.00% | 6 | 6 | 0 | 0 |
@@ -147,8 +146,8 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 30.56 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 99.99 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
 | unsupported | FAIL | 78.13 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
-| partial | FAIL | 40.97 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
-| partial | FAIL | 16.32 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
+| partial | PASS | 0.31 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
+| partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | PASS | 0.03 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.03 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.66 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
@@ -281,7 +280,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
 
-### backgrounds-gradients — 57.14%
+### backgrounds-gradients — 71.43%
 - **background-clip** — 0.00%
   - FAIL 30.56% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
 - **background-origin** — 50.00%
@@ -300,10 +299,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.32% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
 - **multiple-backgrounds** — 0.00%
   - FAIL 78.13% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
-- **radial-gradient** — 33.33%
+- **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
-  - FAIL 40.97% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
-  - FAIL 16.32% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
+  - PASS 0.31% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
+  - PASS 0.29% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
 ### block-box-model — 56.67%
 - **border-width** — 0.00%
@@ -515,14 +514,14 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 50.00%
   - PARTIAL 9.28% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 83.33%
+### images-replaced — 90.00%
 - **aspect-ratio** — 100.00%
   - PASS 0.66% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
-- **img** — 70.00%
+- **img** — 90.00%
   - PARTIAL 9.74% img=border-on-image — `img-border` — A replaced image with a 6px solid border framing it under border-box sizing.
   - PASS 0.00% img=data-uri-png-sized — `img-data-uri-intrinsic` — A data: URI PNG placed in an img with explicit 120x120 size, scaled up from its 4x4 intrinsic pixels.
   - PASS 0.25% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
-  - FAIL 52.09% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
+  - PASS 0.49% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
   - PASS 0.22% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
 - **inline-svg** — 75.00%
   - PASS 0.00% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
