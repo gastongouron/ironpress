@@ -49,6 +49,22 @@ pub struct TableCell {
     /// background and borders must not be painted (the table background shows
     /// through instead).
     pub hide_if_empty: bool,
+    /// Grid-only: when set, the cell's painted box (background + border) is
+    /// inset from the track cell rather than filling it, to model
+    /// `justify-items`/`align-items` with an explicit item size smaller than
+    /// the track. `None` for table cells (which always fill). Fields are the
+    /// inset from the left/top of the track and the item's own painted size.
+    pub grid_inset: Option<GridInset>,
+}
+
+/// Placement of a grid item's painted box within its (possibly larger) track
+/// cell. All values in points relative to the track cell's top-left corner.
+#[derive(Debug, Clone, Copy)]
+pub struct GridInset {
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 /// Minimum outer width a nested layout element wants inside an auto-sized table
@@ -1007,6 +1023,7 @@ pub(crate) fn flatten_table(
                     vertical_align: VerticalAlign::Baseline,
                     min_content_height: 0.0,
                     hide_if_empty: false,
+                    grid_inset: None,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -1152,6 +1169,7 @@ pub(crate) fn flatten_table(
                 vertical_align: cell_style.vertical_align,
                 min_content_height,
                 hide_if_empty,
+                grid_inset: None,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1

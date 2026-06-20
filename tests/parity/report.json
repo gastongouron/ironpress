@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 66.47,
-    "pass": 181,
-    "partial": 98,
-    "fail": 67,
+    "score_pct": 70.23,
+    "pass": 190,
+    "partial": 106,
+    "fail": 50,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -3893,21 +3893,21 @@
     },
     {
       "category": "grid",
-      "score_pct": 3.13,
+      "score_pct": 75.0,
       "counts": {
-        "pass": 0,
-        "partial": 1,
-        "fail": 15,
+        "pass": 8,
+        "partial": 8,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "align-items",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3918,8 +3918,8 @@
               "subfeature": "start",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 12.5988,
+              "status": "PARTIAL",
+              "diff_pct": 2.3155,
               "weight": 1.0,
               "description": "align-items: start aligns short cells to the block (top) start of each track.",
               "note": "",
@@ -3936,11 +3936,11 @@
         },
         {
           "feature": "display",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3951,8 +3951,8 @@
               "subfeature": "grid",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.4085,
+              "status": "PASS",
+              "diff_pct": 0.9387,
               "weight": 1.0,
               "description": "2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.",
               "note": "",
@@ -3962,18 +3962,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6003d6cb2af4fe00881fc10f01ec6b6e7e39891c9986cb6828e6eba3dc6bf152"
             }
           ]
         },
         {
           "feature": "gap",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -3984,8 +3984,8 @@
               "subfeature": "row-column-gap",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.6324,
+              "status": "PARTIAL",
+              "diff_pct": 2.1669,
               "weight": 1.0,
               "description": "2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.",
               "note": "",
@@ -4002,11 +4002,11 @@
         },
         {
           "feature": "grid-auto-flow",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4017,8 +4017,8 @@
               "subfeature": "column",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 23.6877,
+              "status": "PASS",
+              "diff_pct": 1.5563,
               "weight": 1.0,
               "description": "grid-auto-flow: column places items down each column before wrapping to the next.",
               "note": "",
@@ -4028,18 +4028,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c8b10d4767aaceb5b5799ce5aab2094d9c6fcf67a7b584b29d928333e4732691"
             }
           ]
         },
         {
           "feature": "grid-auto-rows",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4050,8 +4050,8 @@
               "subfeature": "implicit-tracks",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 23.3106,
+              "status": "PASS",
+              "diff_pct": 1.2084,
               "weight": 1.0,
               "description": "Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.",
               "note": "",
@@ -4061,18 +4061,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "cade687e291ef0bc5c405dc78036aa4c8ed03ef2301ea55bdd869c53c47e32a6"
             }
           ]
         },
         {
           "feature": "grid-column",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4083,8 +4083,8 @@
               "subfeature": "span",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.7746,
+              "status": "PASS",
+              "diff_pct": 1.5437,
               "weight": 1.0,
               "description": "First cell spans two columns (grid-column: span 2) within a 3x2 grid.",
               "note": "",
@@ -4094,18 +4094,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "46e0e9ecfa39321b13e007415a2311d55b94a74bf0bf0dbc9db5f6982515b2cb"
             }
           ]
         },
         {
           "feature": "grid-row",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4116,8 +4116,8 @@
               "subfeature": "span",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 23.4641,
+              "status": "PASS",
+              "diff_pct": 1.1669,
               "weight": 1.0,
               "description": "First cell spans two rows (grid-row: span 2) within a 2x2 grid.",
               "note": "",
@@ -4127,18 +4127,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "a41fdea0b8d4ee2b4bc474d3e35727064a55249df3248622a54769c61d3b8c40"
             }
           ]
         },
         {
           "feature": "grid-template-columns",
-          "score_pct": 0.0,
+          "score_pct": 66.67,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 6,
+            "pass": 2,
+            "partial": 4,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4149,8 +4149,8 @@
               "subfeature": "named-lines",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 28.5752,
+              "status": "PARTIAL",
+              "diff_pct": 4.7769,
               "weight": 1.0,
               "description": "Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.",
               "note": "",
@@ -4170,8 +4170,8 @@
               "subfeature": "auto",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 54.4637,
+              "status": "PARTIAL",
+              "diff_pct": 2.6224,
               "weight": 1.0,
               "description": "Three columns sized 100px auto 100px so the auto track absorbs the leftover width.",
               "note": "",
@@ -4191,8 +4191,8 @@
               "subfeature": "fr-mix",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 49.2536,
+              "status": "PASS",
+              "diff_pct": 1.5624,
               "weight": 1.0,
               "description": "Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.",
               "note": "",
@@ -4202,7 +4202,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "136a23c5b077879c9df9cd0678b217454c3b5f97dd392506e0e012dad7f975c2"
             },
             {
@@ -4212,8 +4212,8 @@
               "subfeature": "minmax",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 46.8911,
+              "status": "PARTIAL",
+              "diff_pct": 9.0544,
               "weight": 1.0,
               "description": "Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.",
               "note": "",
@@ -4233,8 +4233,8 @@
               "subfeature": "percent",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 54.5729,
+              "status": "PASS",
+              "diff_pct": 1.6963,
               "weight": 1.0,
               "description": "Three columns sized 25% 50% 25% of a fixed-width grid container.",
               "note": "",
@@ -4244,7 +4244,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2548c34eda4fc0075c2dec0453f63f989911be713845c677dcff3d407ace0cff"
             },
             {
@@ -4254,8 +4254,8 @@
               "subfeature": "repeat",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 44.8319,
+              "status": "PARTIAL",
+              "diff_pct": 2.0385,
               "weight": 1.0,
               "description": "Four equal 80px columns produced by repeat(4, 80px).",
               "note": "",
@@ -4272,11 +4272,11 @@
         },
         {
           "feature": "grid-template-rows",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4287,8 +4287,8 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 20.3912,
+              "status": "PASS",
+              "diff_pct": 1.0358,
               "weight": 1.0,
               "description": "Single column with three explicit-px rows of 50px, 110px and 70px height.",
               "note": "",
@@ -4298,18 +4298,18 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b7a9419f49ce7c1d4c6215e12847113ca29a156cd98c8f05a0f08f517dba4bcb"
             }
           ]
         },
         {
           "feature": "justify-items",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4320,8 +4320,8 @@
               "subfeature": "end",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.218,
+              "status": "PARTIAL",
+              "diff_pct": 2.4377,
               "weight": 1.0,
               "description": "justify-items: end aligns narrow cells to the inline (right) end of each track.",
               "note": "",
@@ -4354,7 +4354,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 9.2789,
+              "diff_pct": 3.0863,
               "weight": 1.0,
               "description": "place-items: center centers smaller cells both horizontally and vertically inside larger tracks.",
               "note": "",
@@ -5203,11 +5203,11 @@
     },
     {
       "category": "interactions",
-      "score_pct": 22.73,
+      "score_pct": 27.27,
       "counts": {
-        "pass": 3,
+        "pass": 4,
         "partial": 4,
-        "fail": 15,
+        "fail": 14,
         "unknown": 0
       },
       "features": [
@@ -5337,7 +5337,7 @@
                 "grid-display-grid"
               ],
               "status": "FAIL",
-              "diff_pct": 60.8905,
+              "diff_pct": 16.774,
               "weight": 1.0,
               "description": "A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.",
               "note": "",
@@ -5454,7 +5454,7 @@
                 "background-linear-gradient"
               ],
               "status": "FAIL",
-              "diff_pct": 32.3971,
+              "diff_pct": 64.2573,
               "weight": 1.0,
               "description": "Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.",
               "note": "",
@@ -5465,18 +5465,18 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: display (`grid-display-grid`)",
+              "attribution": "REAL",
               "html_sha256": "ff656964cb13dbd35d4c004b5e792cb6a05bd52185d45f43e60611bd5c859cb7"
             }
           ]
         },
         {
           "feature": "grid-x-flexbox",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -5493,8 +5493,8 @@
                 "grid-display-grid",
                 "flexbox-display-flex"
               ],
-              "status": "FAIL",
-              "diff_pct": 31.9789,
+              "status": "PASS",
+              "diff_pct": 1.0627,
               "weight": 1.0,
               "description": "A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.",
               "note": "",
@@ -5504,7 +5504,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: display (`grid-display-grid`)",
+              "attribution": "",
               "html_sha256": "872f88706e0f3a88fe49f6b84cd5eb3f070fda8af8a1bffb1210717e852ad4ee"
             }
           ]
@@ -5821,7 +5821,7 @@
                 "grid-display-grid"
               ],
               "status": "FAIL",
-              "diff_pct": 34.0906,
+              "diff_pct": 42.6612,
               "weight": 1.0,
               "description": "An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.",
               "note": "",
@@ -6386,11 +6386,11 @@
     },
     {
       "category": "multicol",
-      "score_pct": 6.25,
+      "score_pct": 12.5,
       "counts": {
         "pass": 0,
-        "partial": 1,
-        "fail": 7,
+        "partial": 2,
+        "fail": 6,
         "unknown": 0
       },
       "features": [
@@ -6412,7 +6412,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 42.8631,
+              "diff_pct": 49.5837,
               "weight": 1.0,
               "description": "Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).",
               "note": "",
@@ -6447,7 +6447,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 8.8861,
+              "diff_pct": 10.6608,
               "weight": 1.0,
               "description": "Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.",
               "note": "",
@@ -6471,7 +6471,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 35.4305,
+              "diff_pct": 15.1428,
               "weight": 1.0,
               "description": "Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.",
               "note": "",
@@ -6490,11 +6490,11 @@
         },
         {
           "feature": "column-gap",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -6505,8 +6505,8 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 30.4238,
+              "status": "PARTIAL",
+              "diff_pct": 11.162,
               "weight": 1.0,
               "description": "Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.",
               "note": "",
@@ -6541,7 +6541,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 31.4674,
+              "diff_pct": 13.6764,
               "weight": 1.0,
               "description": "Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).",
               "note": "",
@@ -6576,7 +6576,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 43.064,
+              "diff_pct": 44.8331,
               "weight": 1.0,
               "description": "A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).",
               "note": "",
@@ -6778,7 +6778,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 100.0,
+              "diff_pct": 42.9347,
               "weight": 1.0,
               "description": "A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.",
               "note": "",
@@ -10471,26 +10471,13 @@
       "id": "flexbox-display-flex",
       "feature": "display",
       "status": "PARTIAL",
-      "confounded_count": 6,
+      "confounded_count": 5,
       "confounded_ids": [
         "flexbox-x-grid-nested",
-        "grid-x-flexbox-nested",
         "interactions-positioning-absolute-x-flexbox-container",
         "positioning-absolute-x-flexbox",
         "tables-x-flexbox-nested",
         "transforms-rotate-x-flexbox-item"
-      ]
-    },
-    {
-      "id": "grid-display-grid",
-      "feature": "display",
-      "status": "FAIL",
-      "confounded_count": 4,
-      "confounded_ids": [
-        "flexbox-x-grid-nested",
-        "grid-x-background-gradient",
-        "grid-x-flexbox-nested",
-        "positioning-absolute-x-grid"
       ]
     },
     {

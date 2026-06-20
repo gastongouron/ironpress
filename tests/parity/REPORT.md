@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 66.47%  (PASS 181 · PARTIAL 98 · FAIL 67 · UNKNOWN 0 · total 346)
+Overall: 70.23%  (PASS 190 · PARTIAL 106 · FAIL 50 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -34,37 +34,20 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 13.18 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 53.74 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
 | FAIL | REAL | 52.56 | flexbox | order | reorder | flexbox-order |  |
-| FAIL | REAL | 12.60 | grid | align-items | start | grid-align-items-start |  |
-| FAIL | REAL | 28.41 | grid | display | grid | grid-display-grid |  |
-| FAIL | REAL | 19.63 | grid | gap | row-column-gap | grid-gap |  |
-| FAIL | REAL | 23.69 | grid | grid-auto-flow | column | grid-auto-flow-column |  |
-| FAIL | REAL | 23.31 | grid | grid-auto-rows | implicit-tracks | grid-implicit-tracks |  |
-| FAIL | REAL | 28.77 | grid | grid-column | span | grid-column-span |  |
-| FAIL | REAL | 23.46 | grid | grid-row | span | grid-row-span |  |
-| FAIL | REAL | 28.58 | grid | grid-template-columns | named-lines | grid-named-lines-basic |  |
-| FAIL | REAL | 54.46 | grid | grid-template-columns | auto | grid-template-columns-auto |  |
-| FAIL | REAL | 49.25 | grid | grid-template-columns | fr-mix | grid-template-columns-fr-mix |  |
-| FAIL | REAL | 46.89 | grid | grid-template-columns | minmax | grid-template-columns-minmax |  |
-| FAIL | REAL | 54.57 | grid | grid-template-columns | percent | grid-template-columns-percent |  |
-| FAIL | REAL | 44.83 | grid | grid-template-columns | repeat | grid-template-columns-repeat |  |
-| FAIL | REAL | 20.39 | grid | grid-template-rows | px | grid-template-rows |  |
-| FAIL | REAL | 16.22 | grid | justify-items | end | grid-justify-items-end |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 37.34 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | 17.74 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap |  |
-| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 60.89 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `grid-display-grid` already FAILs | flexbox-x-grid-nested |  |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 16.77 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `flexbox-display-flex` already FAILs | flexbox-x-grid-nested |  |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | 52.37 | interactions | float | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-positioning-float-x-margin-collapse |  |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | 42.93 | interactions | float-x-margin-collapse | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-float-x-margin-collapse |  |
-| FAIL | CONFOUNDED: display (`grid-display-grid`) | 32.40 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) DERIVATIVE: base `grid-display-grid` already FAILs | grid-x-background-gradient |  |
-| FAIL | CONFOUNDED: display (`grid-display-grid`) | 31.98 | interactions | grid-x-flexbox | (interaction: grid×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | grid-x-flexbox-nested |  |
+| FAIL | REAL | 64.26 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) GENUINE: both bases PASS, interaction FAILs | grid-x-background-gradient |  |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | 34.84 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align |  |
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | 35.24 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `positioning-fixed-top-left` already FAILs | interactions-positioning-fixed-x-transforms-translate |  |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | 28.22 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block |  |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 29.44 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 34.09 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid |  |
+| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 42.66 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `positioning-position-absolute-top-left` already FAILs | positioning-absolute-x-grid |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 12.31 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested |  |
 | FAIL | REAL | 18.18 | interactions | tables-x-typography | (interaction: tables×typography) GENUINE: both bases PASS, interaction FAILs | tables-x-typography-bold |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 19.29 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item |  |
-| FAIL | REAL | 30.42 | multicol | column-gap | px | multicol-column-gap |  |
 | FAIL | REAL | 38.37 | overflow-clipping | overflow | visible | overflow-visible-no-clip |  |
 | FAIL | REAL | 49.32 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset |  |
 | FAIL | REAL | 37.28 | positioning | overflow | visible | positioning-overflow-visible-no-clip |  |
@@ -77,17 +60,16 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `flexbox-display-flex` | display | PARTIAL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
-| 2 | `grid-display-grid` | display | FAIL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
-| 3 | `positioning-position-absolute-top-left` | position | PARTIAL | 4 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
-| 4 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 5 | `inline-text-inline-block-baseline` | inline-block | PARTIAL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 6 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 7 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 8 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 9 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 10 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 11 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 1 | `flexbox-display-flex` | display | PARTIAL | 5 | flexbox-x-grid-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
+| 2 | `positioning-position-absolute-top-left` | position | PARTIAL | 4 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
+| 3 | `border-radius-uniform` | border-radius | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 4 | `inline-text-inline-block-baseline` | inline-block | PARTIAL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
+| 5 | `positioning-float-left` | float | PARTIAL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 6 | `positioning-overflow-hidden-clip` | overflow | PARTIAL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 7 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 8 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 9 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
+| 10 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -102,12 +84,12 @@ None — every fixture's HTML matches `refs.lock`.
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
 | fonts-advanced | 87.50% | 9 | 3 | 0 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
-| grid | 3.13% | 0 | 1 | 15 | 0 |
+| grid | 75.00% | 8 | 8 | 0 | 0 |
 | images-replaced | 100.00% | 15 | 0 | 0 | 0 |
 | inline-text | 53.13% | 1 | 15 | 0 | 0 |
-| interactions | 22.73% | 3 | 4 | 15 | 0 |
+| interactions | 27.27% | 4 | 4 | 14 | 0 |
 | lists-counters | 83.33% | 8 | 4 | 0 | 0 |
-| multicol | 6.25% | 0 | 1 | 7 | 0 |
+| multicol | 12.50% | 0 | 2 | 6 | 0 |
 | overflow-clipping | 35.00% | 1 | 5 | 4 | 0 |
 | paged-media | 83.33% | 7 | 1 | 1 | 0 |
 | positioning | 59.38% | 6 | 7 | 3 | 0 |
@@ -189,15 +171,15 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 3.74 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
 | unsupported | PARTIAL | 6.24 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
 | unsupported | PARTIAL | 7.42 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
-| unsupported | FAIL | 42.86 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
-| partial | PARTIAL | 8.89 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
-| partial | FAIL | 35.43 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
-| unsupported | FAIL | 31.47 | multicol | column-rule | multicol-column-rule | Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap). |
-| unsupported | FAIL | 43.06 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
+| unsupported | FAIL | 49.58 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
+| partial | PARTIAL | 10.66 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
+| partial | FAIL | 15.14 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
+| unsupported | FAIL | 13.68 | multicol | column-rule | multicol-column-rule | Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap). |
+| unsupported | FAIL | 44.83 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
 | unsupported | FAIL | 45.35 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
 | partial | FAIL | 60.41 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
 | unsupported | PARTIAL | 2.31 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
-| partial | FAIL | 100.00 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
+| partial | FAIL | 42.93 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
 | partial | FAIL | 21.69 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
 | unsupported | FAIL | 50.23 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
 | unsupported | PASS | 0.23 | paged-media | break-before | paged-break-before-page-modern | Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine. |
@@ -466,34 +448,34 @@ None — every fixture's HTML matches `refs.lock`.
 - **quotes** — 50.00%
   - PARTIAL 9.67% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
-### grid — 3.13%
-- **align-items** — 0.00%
-  - FAIL 12.60% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
-- **display** — 0.00%
-  - FAIL 28.41% display=grid — `grid-display-grid` — 2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.
-- **gap** — 0.00%
-  - FAIL 19.63% gap=row-column-gap — `grid-gap` — 2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.
-- **grid-auto-flow** — 0.00%
-  - FAIL 23.69% grid-auto-flow=column — `grid-auto-flow-column` — grid-auto-flow: column places items down each column before wrapping to the next.
-- **grid-auto-rows** — 0.00%
-  - FAIL 23.31% grid-auto-rows=implicit-tracks — `grid-implicit-tracks` — Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.
-- **grid-column** — 0.00%
-  - FAIL 28.77% grid-column=span — `grid-column-span` — First cell spans two columns (grid-column: span 2) within a 3x2 grid.
-- **grid-row** — 0.00%
-  - FAIL 23.46% grid-row=span — `grid-row-span` — First cell spans two rows (grid-row: span 2) within a 2x2 grid.
-- **grid-template-columns** — 0.00%
-  - FAIL 28.58% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
-  - FAIL 54.46% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
-  - FAIL 49.25% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
-  - FAIL 46.89% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
-  - FAIL 54.57% grid-template-columns=percent — `grid-template-columns-percent` — Three columns sized 25% 50% 25% of a fixed-width grid container.
-  - FAIL 44.83% grid-template-columns=repeat — `grid-template-columns-repeat` — Four equal 80px columns produced by repeat(4, 80px).
-- **grid-template-rows** — 0.00%
-  - FAIL 20.39% grid-template-rows=px — `grid-template-rows` — Single column with three explicit-px rows of 50px, 110px and 70px height.
-- **justify-items** — 0.00%
-  - FAIL 16.22% justify-items=end — `grid-justify-items-end` — justify-items: end aligns narrow cells to the inline (right) end of each track.
+### grid — 75.00%
+- **align-items** — 50.00%
+  - PARTIAL 2.32% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
+- **display** — 100.00%
+  - PASS 0.94% display=grid — `grid-display-grid` — 2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.
+- **gap** — 50.00%
+  - PARTIAL 2.17% gap=row-column-gap — `grid-gap` — 2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.
+- **grid-auto-flow** — 100.00%
+  - PASS 1.56% grid-auto-flow=column — `grid-auto-flow-column` — grid-auto-flow: column places items down each column before wrapping to the next.
+- **grid-auto-rows** — 100.00%
+  - PASS 1.21% grid-auto-rows=implicit-tracks — `grid-implicit-tracks` — Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.
+- **grid-column** — 100.00%
+  - PASS 1.54% grid-column=span — `grid-column-span` — First cell spans two columns (grid-column: span 2) within a 3x2 grid.
+- **grid-row** — 100.00%
+  - PASS 1.17% grid-row=span — `grid-row-span` — First cell spans two rows (grid-row: span 2) within a 2x2 grid.
+- **grid-template-columns** — 66.67%
+  - PARTIAL 4.78% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
+  - PARTIAL 2.62% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
+  - PASS 1.56% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
+  - PARTIAL 9.05% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
+  - PASS 1.70% grid-template-columns=percent — `grid-template-columns-percent` — Three columns sized 25% 50% 25% of a fixed-width grid container.
+  - PARTIAL 2.04% grid-template-columns=repeat — `grid-template-columns-repeat` — Four equal 80px columns produced by repeat(4, 80px).
+- **grid-template-rows** — 100.00%
+  - PASS 1.04% grid-template-rows=px — `grid-template-rows` — Single column with three explicit-px rows of 50px, 110px and 70px height.
+- **justify-items** — 50.00%
+  - PARTIAL 2.44% justify-items=end — `grid-justify-items-end` — justify-items: end aligns narrow cells to the inline (right) end of each track.
 - **place-items** — 50.00%
-  - PARTIAL 9.28% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
+  - PARTIAL 3.09% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
 ### images-replaced — 100.00%
 - **aspect-ratio** — 100.00%
@@ -544,22 +526,22 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 50.00%
   - PARTIAL 8.47% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 22.73%
+### interactions — 27.27%
 - **containing-block** — 25.00%
   - PARTIAL 2.04% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 37.34% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 0.00%
   - FAIL 17.74% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 0.00%
-  - FAIL 60.89% flexbox-x-grid=grid-in-flex-item — `flexbox-x-grid-nested` — A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.
+  - FAIL 16.77% flexbox-x-grid=grid-in-flex-item — `flexbox-x-grid-nested` — A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.
 - **float** — 0.00%
   - FAIL 52.37% float=with-margin-collapse — `interactions-positioning-float-x-margin-collapse` — Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.
 - **float-x-margin-collapse** — 0.00%
   - FAIL 42.93% float-x-margin-collapse=float-beside-collapsing-blocks — `interactions-float-x-margin-collapse` — A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.
 - **grid-x-background-gradient** — 0.00%
-  - FAIL 32.40% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
-- **grid-x-flexbox** — 0.00%
-  - FAIL 31.98% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
+  - FAIL 64.26% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
+- **grid-x-flexbox** — 100.00%
+  - PASS 1.06% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
 - **inline-block-x-vertical-align** — 0.00%
   - FAIL 34.84% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 50.00%
@@ -575,7 +557,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **positioning-x-flexbox** — 0.00%
   - FAIL 29.44% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
 - **positioning-x-grid** — 0.00%
-  - FAIL 34.09% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
+  - FAIL 42.66% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
   - FAIL 12.31% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
 - **tables-x-typography** — 0.00%
@@ -606,18 +588,18 @@ None — every fixture's HTML matches `refs.lock`.
 - **marker-pseudo** — 50.00%
   - PARTIAL 7.42% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
-### multicol — 6.25%
+### multicol — 12.50%
 - **break-inside** — 0.00%
-  - FAIL 42.86% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).
+  - FAIL 49.58% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).
 - **column-count** — 25.00%
-  - PARTIAL 8.89% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
-  - FAIL 35.43% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
-- **column-gap** — 0.00%
-  - FAIL 30.42% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
+  - PARTIAL 10.66% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
+  - FAIL 15.14% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
+- **column-gap** — 50.00%
+  - PARTIAL 11.16% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
 - **column-rule** — 0.00%
-  - FAIL 31.47% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).
+  - FAIL 13.68% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).
 - **column-span** — 0.00%
-  - FAIL 43.06% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
+  - FAIL 44.83% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
 - **column-width** — 0.00%
   - FAIL 45.35% column-width=px — `multicol-column-width` — Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).
 - **columns** — 0.00%
@@ -629,7 +611,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 5.32% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PARTIAL 2.31% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PARTIAL 3.88% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
-  - FAIL 100.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
+  - FAIL 42.93% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PASS 0.22% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
   - PARTIAL 14.68% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - FAIL 21.69% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.

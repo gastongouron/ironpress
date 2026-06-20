@@ -78,8 +78,24 @@ pub enum GridTrack {
     Fr(f32),
     /// Automatic sizing (equal share of remaining space).
     Auto,
+    /// A percentage of the grid container's content box (0..1 fraction).
+    Percent(f32),
     /// `minmax(min, max)` — the track is at least `min` and at most `max`.
     Minmax(f32, f32),
+}
+
+/// CSS Grid box-alignment keyword (justify-items / align-items per item axis).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum GridAlign {
+    /// `stretch` — item fills the track (default).
+    #[default]
+    Stretch,
+    /// `start` — item placed at the start of the track at its own size.
+    Start,
+    /// `end` — item placed at the end of the track at its own size.
+    End,
+    /// `center` — item centered in the track at its own size.
+    Center,
 }
 
 /// A CSS `clip-path` basic shape. Lengths are in points; positions/percentages
@@ -772,6 +788,21 @@ pub struct ComputedStyle {
     pub transform: Option<Transform>,
     pub clip_path: Option<ClipPath>,
     pub grid_template_columns: Vec<GridTrack>,
+    /// Explicit `grid-template-rows` track list (empty = auto rows).
+    pub grid_template_rows: Vec<GridTrack>,
+    /// `grid-auto-rows` size in points for implicit rows (None = auto/content).
+    pub grid_auto_rows: Option<f32>,
+    /// `grid-auto-flow: column` is in effect (default is row).
+    pub grid_auto_flow_column: bool,
+    /// `justify-items` (inline-axis alignment of grid items in their tracks).
+    pub justify_items: GridAlign,
+    /// `align-items` for grid (block-axis alignment of grid items). Distinct
+    /// from the flex `align_items` field; grid uses start/end/center/stretch.
+    pub grid_align_items: GridAlign,
+    /// Item-level `grid-column: span N` (number of columns to span, >=1).
+    pub grid_column_span: usize,
+    /// Item-level `grid-row: span N` (number of rows to span, >=1).
+    pub grid_row_span: usize,
     pub grid_gap: f32,
     pub border_radius: f32,
     /// Percentage-based border-radius (e.g. 50% for circles). Resolved in layout.
@@ -931,6 +962,13 @@ impl Default for ComputedStyle {
             transform: None,
             clip_path: None,
             grid_template_columns: Vec::new(),
+            grid_template_rows: Vec::new(),
+            grid_auto_rows: None,
+            grid_auto_flow_column: false,
+            justify_items: GridAlign::Stretch,
+            grid_align_items: GridAlign::Stretch,
+            grid_column_span: 1,
+            grid_row_span: 1,
             grid_gap: 0.0,
             border_radius: 0.0,
             border_radius_pct: None,
@@ -1985,11 +2023,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-items") {
         style.align_items = match k.as_str() {
-            "flex-start" => AlignItems::FlexStart,
-            "flex-end" => AlignItems::FlexEnd,
+            "flex-start" | "start" => AlignItems::FlexStart,
+            "flex-end" | "end" => AlignItems::FlexEnd,
             "center" => AlignItems::Center,
             _ => AlignItems::Stretch,
         };
+        // Grid uses the same property with start/end/center/stretch keywords.
+        style.grid_align_items = parse_grid_align(k);
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex-wrap") {
@@ -2055,6 +2095,46 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Grid template columns
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-columns") {
         style.grid_template_columns = parse_grid_template_columns(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-rows") {
+        style.grid_template_rows = parse_grid_template_columns(k);
+    }
+    // `grid-auto-rows` may arrive as a Length (single px/pt value) or Keyword.
+    match get_non_special(map, "grid-auto-rows") {
+        Some(CssValue::Length(v)) => style.grid_auto_rows = Some(*v),
+        Some(CssValue::Keyword(k)) => {
+            if let Some(GridTrack::Fixed(v)) = parse_single_track(k) {
+                style.grid_auto_rows = Some(v);
+            }
+        }
+        _ => {}
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-auto-flow") {
+        style.grid_auto_flow_column = k.contains("column");
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-items") {
+        style.justify_items = parse_grid_align(k);
+    }
+    // `place-items: <align> [<justify>]` shorthand sets both axes.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "place-items") {
+        let mut parts = k.split_whitespace();
+        if let Some(a) = parts.next() {
+            let align = parse_grid_align(a);
+            let justify = parts.next().map(parse_grid_align).unwrap_or(align);
+            style.grid_align_items = align;
+            style.justify_items = justify;
+        }
+    }
+    // Item-level grid-column / grid-row spans (`span N`).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-column") {
+        if let Some(n) = parse_grid_span(k) {
+            style.grid_column_span = n;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-row") {
+        if let Some(n) = parse_grid_span(k) {
+            style.grid_row_span = n;
+        }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
         style.clip_path = parse_clip_path(k);
@@ -3897,11 +3977,48 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
     None
 }
 
+/// Parse a CSS Grid box-alignment keyword (`start`/`end`/`center`/`stretch`).
+/// Also accepts the flex aliases `flex-start`/`flex-end` for robustness.
+fn parse_grid_align(k: &str) -> GridAlign {
+    match k.trim() {
+        "start" | "flex-start" | "left" | "self-start" => GridAlign::Start,
+        "end" | "flex-end" | "right" | "self-end" => GridAlign::End,
+        "center" => GridAlign::Center,
+        _ => GridAlign::Stretch,
+    }
+}
+
+/// Parse a `grid-column` / `grid-row` value into a span count. Supports
+/// `span N` and bare integer line ranges (`start / end` → end-start). Returns
+/// `None` when no explicit span is expressed (defaults to 1 elsewhere).
+fn parse_grid_span(val: &str) -> Option<usize> {
+    let val = val.trim();
+    // `a / b` line syntax: span = |b - a| when both are integers.
+    if let Some((a, b)) = val.split_once('/') {
+        let a = a.trim();
+        let b = b.trim();
+        if let Some(rest) = b.strip_prefix("span") {
+            return rest.trim().parse::<usize>().ok().filter(|n| *n >= 1);
+        }
+        if let (Ok(ai), Ok(bi)) = (a.parse::<i32>(), b.parse::<i32>()) {
+            let n = (bi - ai).unsigned_abs() as usize;
+            return if n >= 1 { Some(n) } else { None };
+        }
+        return None;
+    }
+    if let Some(rest) = val.strip_prefix("span") {
+        return rest.trim().parse::<usize>().ok().filter(|n| *n >= 1);
+    }
+    None
+}
+
 /// Parse a single grid track token (e.g. `1fr`, `200pt`, `100px`, `auto`).
 fn parse_single_track(token: &str) -> Option<GridTrack> {
     let token = token.trim();
     if let Some(n) = token.strip_suffix("fr") {
         n.parse::<f32>().ok().map(GridTrack::Fr)
+    } else if let Some(n) = token.strip_suffix('%') {
+        n.parse::<f32>().ok().map(|v| GridTrack::Percent(v / 100.0))
     } else if token == "auto" || token == "auto-fill" || token == "auto-fit" {
         Some(GridTrack::Auto)
     } else if let Some(n) = token.strip_suffix("pt") {

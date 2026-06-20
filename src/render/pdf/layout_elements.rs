@@ -522,6 +522,7 @@ pub(super) fn render_nested_text_block(
             vertical_align: VerticalAlign::Baseline,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         render_cell_text(
             content,

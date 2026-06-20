@@ -432,6 +432,7 @@ mod tests {
             vertical_align: VerticalAlign::Middle,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         }
     }
 

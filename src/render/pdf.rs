@@ -5438,14 +5438,34 @@ fn render_nested_table_rows(
                     }
                 }
 
-                let mut cell_x = origin_x + grid_pl;
                 let cell_row_y = row_y - grid_pt;
                 let cell_content_h = compute_row_height(cells);
-                for (i, cell) in cells.iter().enumerate() {
-                    let cell_w = if i < col_widths.len() {
-                        col_widths[i]
-                    } else {
-                        0.0
+                let mut col_pos: usize = 0;
+                for cell in cells.iter() {
+                    let span = cell.colspan.max(1);
+                    let track_x = origin_x
+                        + grid_pl
+                        + col_widths.iter().take(col_pos).sum::<f32>()
+                        + gap * col_pos as f32;
+                    let track_w: f32 = col_widths.iter().skip(col_pos).take(span).sum::<f32>()
+                        + gap * span.saturating_sub(1) as f32;
+
+                    // The painted box (background + border) either fills the
+                    // track cell or, for grid items with an explicit smaller
+                    // size, is inset per justify-items/align-items.
+                    let (box_x, box_y, box_w, box_h) = match cell.grid_inset {
+                        Some(ins) => (
+                            track_x + ins.offset_x,
+                            cell_row_y - ins.offset_y - ins.height,
+                            ins.width,
+                            ins.height,
+                        ),
+                        None => (
+                            track_x,
+                            cell_row_y - cell_content_h,
+                            track_w,
+                            cell_content_h,
+                        ),
                     };
 
                     // Draw cell background
@@ -5459,19 +5479,35 @@ fn render_nested_table_rows(
                         }
                         content.push_str(&format!(
                             "{r} {g} {b} rg\n{x} {y} {w} {h} re\nf\n",
-                            x = cell_x,
-                            y = cell_row_y - cell_content_h,
-                            w = cell_w,
-                            h = cell_content_h,
+                            x = box_x,
+                            y = box_y,
+                            w = box_w,
+                            h = box_h,
                         ));
                         if needs_alpha {
                             content.push_str("/GSDefault gs\n");
                         }
                     }
 
+                    // Draw per-cell border around the painted box. Use the
+                    // shared image-border helper so each stroke is centered
+                    // half its width INSIDE the cell's border-box edge (CSS
+                    // box-sizing: border-box), matching Chrome's inner borders.
+                    draw_image_border(
+                        content,
+                        box_x,
+                        box_y,
+                        box_w,
+                        box_h,
+                        &cell.border,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                    );
+
+                    let cell_x = box_x;
                     // Render cell text
-                    let cell_inner_w = cell_w - cell.padding_left - cell.padding_right;
-                    let mut text_y = cell_row_y - cell.padding_top;
+                    let cell_inner_w = box_w - cell.padding_left - cell.padding_right;
+                    let mut text_y = (box_y + box_h) - cell.padding_top;
                     for line in &cell.lines {
                         let metrics = line_box_metrics(line, custom_fonts);
                         text_y -= metrics.half_leading + metrics.ascender;
@@ -5515,7 +5551,7 @@ fn render_nested_table_rows(
                         text_y -= metrics.descender + metrics.half_leading;
                     }
 
-                    cell_x += cell_w + gap;
+                    col_pos += span;
                 }
                 cursor_y -= row_height;
             }
@@ -9214,6 +9250,7 @@ mod tests {
             vertical_align: VerticalAlign::Baseline,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -10742,6 +10779,7 @@ mod tests {
             vertical_align: VerticalAlign::Middle,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -11747,6 +11785,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let cell_visible = TableCell {
             lines: vec![TextLine {
@@ -11767,6 +11806,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell_skip, cell_visible],
@@ -11853,6 +11893,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -11965,6 +12006,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -12060,6 +12102,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let mut content_right = String::new();
         render_cell_text(
@@ -12093,6 +12136,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
         let mut content_center = String::new();
         render_cell_text(
@@ -12174,6 +12218,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
 
         let mut content = String::new();
@@ -12241,6 +12286,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
 
         let mut content = String::new();
@@ -12307,6 +12353,7 @@ mod tests {
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
             hide_if_empty: false,
+            grid_inset: None,
         };
 
         let mut content = String::new();
