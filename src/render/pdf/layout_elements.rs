@@ -162,7 +162,14 @@ pub(super) fn table_cell_geometry(
     spacing: f32,
     origin_x: f32,
 ) -> (f32, f32) {
-    let cell_x = origin_x + col_widths.iter().take(col_pos).sum::<f32>() + spacing * col_pos as f32;
+    // `border-spacing` is drawn before the first column and between every pair of
+    // columns (and after the last), so the first cell is inset by one `spacing`
+    // and each subsequent column is preceded by another. For `border-collapse`
+    // (spacing == 0) this leading inset vanishes.
+    let cell_x = origin_x
+        + spacing
+        + col_widths.iter().take(col_pos).sum::<f32>()
+        + spacing * col_pos as f32;
     let cell_w = col_widths.iter().skip(col_pos).take(colspan).sum::<f32>()
         + spacing * colspan.saturating_sub(1) as f32;
     (cell_x, cell_w)
@@ -514,6 +521,7 @@ pub(super) fn render_nested_text_block(
             text_align: block.text_align,
             vertical_align: VerticalAlign::Baseline,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         render_cell_text(
             content,
@@ -582,7 +590,9 @@ pub(super) fn render_nested_layout_elements(
                         row_height
                     };
 
-                    if let Some((r, g, b, a)) = cell.background_color {
+                    if let Some((r, g, b, a)) =
+                        cell.background_color.filter(|_| !cell.hide_if_empty)
+                    {
                         let needs_cell_bg_alpha = a < 1.0;
                         if needs_cell_bg_alpha {
                             let gs_name = format!("GSba{}", ctx.bg_alpha_counter);
@@ -602,7 +612,7 @@ pub(super) fn render_nested_layout_elements(
                         }
                     }
 
-                    if cell.border.has_any() {
+                    if cell.border.has_any() && !cell.hide_if_empty {
                         let x1 = cell_x;
                         let x2 = cell_x + cell_w;
                         let y_top = row_y;

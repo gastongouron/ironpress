@@ -448,6 +448,14 @@ pub enum TableLayout {
     Auto,
     Fixed,
 }
+/// CSS empty-cells property (inherited). Controls whether the borders and
+/// background of an empty table cell are drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum EmptyCells {
+    #[default]
+    Show,
+    Hide,
+}
 /// CSS background-origin property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BackgroundOrigin {
@@ -724,6 +732,7 @@ pub struct ComputedStyle {
     pub border_collapse: BorderCollapse,
     pub table_layout: TableLayout,
     pub border_spacing: f32,
+    pub empty_cells: EmptyCells,
     pub background_size: BackgroundSize,
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
@@ -879,6 +888,7 @@ impl Default for ComputedStyle {
             border_collapse: BorderCollapse::Separate,
             table_layout: TableLayout::Auto,
             border_spacing: 0.0,
+            empty_cells: EmptyCells::Show,
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
@@ -1048,7 +1058,7 @@ pub fn compute_style_with_context(
     style.text_indent = 0.0;
     style.vertical_align = VerticalAlign::Baseline;
     style.text_overflow = TextOverflow::Clip;
-    // border_collapse and border_spacing are inherited; don't reset them.
+    // border_collapse, border_spacing and empty_cells are inherited; don't reset.
     style.table_layout = TableLayout::Auto;
     style.background_size = BackgroundSize::Auto;
     style.background_repeat = BackgroundRepeat::Repeat;
@@ -1457,6 +1467,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "border-collapse" => style.border_collapse = default.border_collapse,
         "table-layout" => style.table_layout = default.table_layout,
         "border-spacing" => style.border_spacing = default.border_spacing,
+        "empty-cells" => style.empty_cells = default.empty_cells,
         "background-size" => style.background_size = default.background_size,
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
@@ -1595,6 +1606,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
+        "empty-cells" => style.empty_cells = parent.empty_cells,
         "border-collapse" => style.border_collapse = parent.border_collapse,
         "table-layout" => style.table_layout = parent.table_layout,
         "border-spacing" => style.border_spacing = parent.border_spacing,
@@ -2397,6 +2409,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing") {
         style.border_spacing = *v;
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "empty-cells") {
+        style.empty_cells = match k.as_str() {
+            "hide" => EmptyCells::Hide,
+            _ => EmptyCells::Show,
+        };
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-size") {
         style.background_size = match k.as_str() {

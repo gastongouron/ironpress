@@ -45,7 +45,10 @@ fn convert_handle(handle: &Handle, stylesheets: &mut Vec<String>) -> Vec<DomNode
         }
         NodeData::Text { contents } => {
             let text = contents.borrow().to_string();
-            if text.trim().is_empty() {
+            // A non-breaking space (U+00A0) is *content*, not collapsible
+            // whitespace, so a node made only of NBSP must survive (e.g. an
+            // `&nbsp;` table cell). Only ASCII whitespace is collapsible here.
+            if text.chars().all(|c| c.is_ascii_whitespace()) {
                 // Preserve whitespace-only text nodes that contain at least
                 // one space (as opposed to consisting solely of newlines and
                 // tabs).  These often represent inter-element spacing, e.g.

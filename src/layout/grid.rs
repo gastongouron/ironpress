@@ -313,6 +313,7 @@ pub(crate) fn layout_grid_container(
                 text_align: child_style.text_align,
                 vertical_align: child_style.vertical_align,
                 min_content_height: 0.0,
+                hide_if_empty: false,
             });
         }
 
@@ -333,6 +334,7 @@ pub(crate) fn layout_grid_container(
                 text_align: TextAlign::Left,
                 vertical_align: VerticalAlign::Baseline,
                 min_content_height: 0.0,
+                hide_if_empty: false,
             });
         }
 

@@ -1084,8 +1084,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             row_height
                         };
 
-                        // Draw cell background
-                        if let Some((r, g, b, a)) = cell.background_color {
+                        // Draw cell background (suppressed for empty cells under
+                        // `empty-cells: hide`).
+                        if let Some((r, g, b, a)) =
+                            cell.background_color.filter(|_| !cell.hide_if_empty)
+                        {
                             let needs_cell_bg_alpha = a < 1.0;
                             if needs_cell_bg_alpha {
                                 let gs_name = format!("GStcbg{elem_idx}_{col_pos}");
@@ -1104,8 +1107,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
                         }
 
-                        // Draw cell borders when CSS specifies them.
-                        if cell.border.has_any() {
+                        // Draw cell borders when CSS specifies them (suppressed
+                        // for empty cells under `empty-cells: hide`).
+                        if cell.border.has_any() && !cell.hide_if_empty {
                             let x1 = cell_x;
                             let x2 = cell_x + cell_w;
                             let y_top = row_y;
@@ -9065,6 +9069,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Baseline,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -10592,6 +10597,7 @@ mod tests {
             text_align: TextAlign::Center,
             vertical_align: VerticalAlign::Middle,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -11596,6 +11602,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let cell_visible = TableCell {
             lines: vec![TextLine {
@@ -11615,6 +11622,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell_skip, cell_visible],
@@ -11700,6 +11708,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -11811,6 +11820,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -11905,6 +11915,7 @@ mod tests {
             text_align: TextAlign::Right,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let mut content_right = String::new();
         render_cell_text(
@@ -11937,6 +11948,7 @@ mod tests {
             text_align: TextAlign::Center,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
         let mut content_center = String::new();
         render_cell_text(
@@ -12017,6 +12029,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
 
         let mut content = String::new();
@@ -12083,6 +12096,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
 
         let mut content = String::new();
@@ -12148,6 +12162,7 @@ mod tests {
             text_align: TextAlign::Left,
             vertical_align: VerticalAlign::Top,
             min_content_height: 0.0,
+            hide_if_empty: false,
         };
 
         let mut content = String::new();

@@ -45,6 +45,37 @@ pub struct TableCell {
     /// row grows to at least this even when the cell has no text (CSS treats
     /// the cell `height` as a minimum). 0.0 = auto.
     pub min_content_height: f32,
+    /// `empty-cells: hide` is in effect and this cell has no content, so its
+    /// background and borders must not be painted (the table background shows
+    /// through instead).
+    pub hide_if_empty: bool,
+}
+
+/// Minimum outer width a nested layout element wants inside an auto-sized table
+/// cell. Used so shrink-to-fit columns stay at least as wide as fixed-width
+/// block descendants, nested tables, and replaced content.
+fn nested_element_preferred_width(element: &LayoutElement) -> f32 {
+    match element {
+        LayoutElement::TableRow { .. } => table_row_content_width(element),
+        LayoutElement::TextBlock { block_width, .. }
+        | LayoutElement::Container { block_width, .. } => block_width.unwrap_or(0.0),
+        LayoutElement::Image { width, .. } | LayoutElement::Svg { width, .. } => *width,
+        _ => 0.0,
+    }
+}
+
+/// Whether a `<td>`/`<th>` has no in-flow content for the purpose of
+/// `empty-cells: hide`. A cell is empty only if it has no element children and
+/// all its text is ASCII whitespace. A non-breaking space (`&nbsp;`, U+00A0) is
+/// content per CSS, so it makes the cell non-empty even though it collapses
+/// away during whitespace processing.
+fn cell_has_no_content(cell_el: &ElementNode) -> bool {
+    cell_el.children.iter().all(|child| match child {
+        DomNode::Element(_) => false,
+        // A non-breaking space (U+00A0) is content, so only ASCII whitespace
+        // counts as "empty" here.
+        DomNode::Text(text) => text.chars().all(|c| c.is_ascii_whitespace()),
+    })
 }
 
 pub(crate) fn table_cell_content_height(cell: &TableCell) -> f32 {
@@ -445,6 +476,9 @@ pub(crate) fn flatten_table(
     let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
     let mut row_section_child_indices: Vec<usize> = Vec::new();
     let mut row_section_sibling_counts: Vec<usize> = Vec::new();
+    // First `<caption>` (caption-side:top is the only supported placement) and
+    // its position among the table's element children, for selector matching.
+    let mut caption: Option<(&ElementNode, usize)> = None;
     let section_count = el
         .children
         .iter()
@@ -453,6 +487,11 @@ pub(crate) fn flatten_table(
     for (section_child_idx, child) in el.children.iter().enumerate() {
         if let DomNode::Element(child_el) = child {
             match child_el.tag {
+                HtmlTag::Caption => {
+                    if caption.is_none() {
+                        caption = Some((child_el, section_child_idx));
+                    }
+                }
                 HtmlTag::Tr => {
                     // Direct <tr> child of <table> — standalone section
                     let idx = rows.len();
@@ -610,6 +649,10 @@ pub(crate) fn flatten_table(
         }
     }
     let has_explicit_widths = explicit_col_widths.iter().any(|width| width.is_some());
+    // A table with no explicit `width` shrinks to fit its content/column widths
+    // (CSS auto table layout) instead of stretching to the containing block.
+    let table_has_explicit_width =
+        style.width.is_some() || style.percentage_sizing.width.is_some();
     // When `border-collapse: separate`, horizontal `border-spacing` is drawn between
     // every pair of adjacent cells AND on the outer edges, so the space available for
     // the N columns is `inner_width - (N+1) * border_spacing`. Without this reduction
@@ -744,47 +787,74 @@ pub(crate) fn flatten_table(
                             inner_width.max(1.0),
                             counter_state,
                         );
-                        // Estimate content width using estimate_word_width for accurate
-                        // measurement. Use the maximum of (full text width, longest word
-                        // width) to avoid hyphenation of short columns like "Unit Price".
+                        // Estimate content width the way the line wrapper measures
+                        // it: sum each word's width plus one inter-word space. The
+                        // wrapper measures words and spaces separately (losing the
+                        // cross-word kerning that a single full-string measurement
+                        // folds in), so measuring the full run here would under-size
+                        // the column and force max-content text to wrap. Track the
+                        // longest single word too, so short headings never hyphenate.
                         let content_width: f32 = runs
                             .iter()
                             .map(|run| {
-                                // Measure full text width using estimate_word_width
-                                let full_width = estimate_word_width(
-                                    &run.text,
+                                let space_width = estimate_word_width(
+                                    " ",
                                     run.font_size,
                                     &run.font_family,
                                     run.bold,
                                     run.italic,
                                     fonts,
                                 );
-                                // Also ensure the column is at least as wide as
-                                // the longest word to prevent hyphenation.
-                                let longest_word_width = run
-                                    .text
-                                    .split_whitespace()
-                                    .map(|w| {
-                                        estimate_word_width(
-                                            w,
-                                            run.font_size,
-                                            &run.font_family,
-                                            run.bold,
-                                            run.italic,
-                                            fonts,
-                                        )
-                                    })
-                                    .fold(0.0f32, f32::max);
-                                full_width.max(longest_word_width)
+                                let words: Vec<&str> = run.text.split_whitespace().collect();
+                                let mut line_width = 0.0f32;
+                                let mut longest_word_width = 0.0f32;
+                                for (i, word) in words.iter().enumerate() {
+                                    let word_width = estimate_word_width(
+                                        word,
+                                        run.font_size,
+                                        &run.font_family,
+                                        run.bold,
+                                        run.italic,
+                                        fonts,
+                                    );
+                                    if i > 0 {
+                                        line_width += space_width;
+                                    }
+                                    line_width += word_width;
+                                    longest_word_width = longest_word_width.max(word_width);
+                                }
+                                line_width.max(longest_word_width)
                             })
                             .sum();
+                        // The line wrapper accumulates word/space widths in a
+                        // different association order than the sum above, so an
+                        // exact-fit column can tip into wrapping on a 1-ULP
+                        // rounding difference. A sub-point slack keeps max-content
+                        // text on one line without visibly widening the column.
+                        let content_width = if content_width > 0.0 {
+                            content_width + 0.5
+                        } else {
+                            content_width
+                        };
+                        // Nested block descendants (e.g. a fixed-width <div>) and
+                        // nested tables both contribute a minimum content width so
+                        // a shrink-to-fit cell does not crush them narrower than
+                        // their own declared/intrinsic width.
                         let nested_width = nested_rows
                             .iter()
-                            .map(table_row_content_width)
+                            .map(nested_element_preferred_width)
                             .fold(0.0f32, f32::max);
-                        let total_preferred = content_width.max(nested_width)
+                        // An explicit width on the cell (CSS or `width` attribute)
+                        // seeds the column's preferred width: the column is at least
+                        // as wide as the declared width, taken as the track width
+                        // (consistent with the fixed-layout path).
+                        let explicit_cell_width =
+                            resolve_cell_track_width(cell_el, &cell_style, inner_width)
+                                .unwrap_or(0.0);
+                        let total_preferred = (content_width.max(nested_width)
                             + cell_style.padding.left
-                            + cell_style.padding.right;
+                            + cell_style.padding.right)
+                            .max(explicit_cell_width);
                         if colspan == 1 {
                             if col_pos < num_cols {
                                 preferred_widths[col_pos] =
@@ -825,7 +895,11 @@ pub(crate) fn flatten_table(
             let total_preferred: f32 = preferred_widths.iter().sum();
             if total_preferred <= columns_width {
                 let extra = columns_width - total_preferred;
-                if total_preferred > 0.0 && extra > 0.0 {
+                // Shrink-to-fit: a table with no explicit `width` is only as wide
+                // as its columns require, so don't stretch the columns to fill the
+                // containing block. Only an explicitly-sized table absorbs the
+                // leftover space.
+                if table_has_explicit_width && total_preferred > 0.0 && extra > 0.0 {
                     preferred_widths
                         .iter()
                         .map(|width| width + (width / total_preferred) * extra)
@@ -846,7 +920,9 @@ pub(crate) fn flatten_table(
     // Build layout rows, tracking cells occupied by rowspan from previous rows.
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
-    let mut is_first = true;
+    // Remember where this table's rows start so a table-level background/border
+    // box can be inserted ahead of them once the total height is known.
+    let table_output_start = output.len();
     for (row_idx, row) in rows.iter().enumerate() {
         let row_classes = row.class_list();
         // Use section-relative index for nth-child matching (browsers count
@@ -930,6 +1006,7 @@ pub(crate) fn flatten_table(
                     text_align: TextAlign::Left,
                     vertical_align: VerticalAlign::Baseline,
                     min_content_height: 0.0,
+                    hide_if_empty: false,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -1052,6 +1129,13 @@ pub(crate) fn flatten_table(
                     h + cell_style.padding.top + cell_style.padding.bottom
                 }
             });
+            // Under `empty-cells: hide`, a cell with no in-flow content has its
+            // border and background suppressed so the table background shows
+            // through. Emptiness is decided from the DOM, not the collapsed
+            // text, because `&nbsp;` is content yet whitespace-collapses away.
+            let hide_if_empty = cell_style.empty_cells
+                == crate::style::computed::EmptyCells::Hide
+                && cell_has_no_content(cell_el);
             cells.push(TableCell {
                 lines,
                 nested_rows,
@@ -1067,6 +1151,7 @@ pub(crate) fn flatten_table(
                 text_align: cell_style.text_align,
                 vertical_align: cell_style.vertical_align,
                 min_content_height,
+                hide_if_empty,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1
@@ -1088,9 +1173,11 @@ pub(crate) fn flatten_table(
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
-                margin_top: if is_first {
-                    style.margin.top
-                } else if style.border_collapse == BorderCollapse::Separate {
+                // The table-level background box (inserted below) carries the
+                // table's own `margin-top`. The first row is therefore inset
+                // only by the top `border-spacing` (zero when collapsed);
+                // subsequent rows are separated by `border-spacing`.
+                margin_top: if style.border_collapse == BorderCollapse::Separate {
                     style.border_spacing
                 } else {
                     0.0
@@ -1100,13 +1187,236 @@ pub(crate) fn flatten_table(
                 border_spacing: style.border_spacing,
                 is_header,
             });
-            is_first = false;
         }
     }
 
-    // Add bottom margin after the last row
+    // If no rows were actually emitted (e.g. every row was `display:none`),
+    // there is no table box to paint.
+    if output.len() == table_output_start {
+        return;
+    }
+
+    let separate = matches!(style.border_collapse, BorderCollapse::Separate);
+    let edge_spacing = if separate { style.border_spacing } else { 0.0 };
+
+    // Height of the table content box: the rows plus, for `separate` collapse,
+    // the `border-spacing` above the first row, below the last row, and between
+    // each adjacent pair. (`compute_row_height` lives in the renderer; mirror it
+    // here from each row's cells.)
+    let mut emitted_rows = 0usize;
+    let mut rows_height = 0.0f32;
+    for elem in &output[table_output_start..] {
+        if let LayoutElement::TableRow { cells, .. } = elem {
+            emitted_rows += 1;
+            rows_height += cells
+                .iter()
+                .map(table_cell_content_height)
+                .fold(0.0f32, f32::max);
+        }
+    }
+    let box_height = rows_height
+        + edge_spacing * (emitted_rows.saturating_add(1) as f32);
+
+    // Width of the table content box: the resolved column widths plus, for
+    // `separate` collapse, one `border-spacing` on each outer edge and between
+    // each adjacent pair. For a shrink-to-fit (auto) table this is narrower than
+    // `inner_width`, so the background must follow the columns, not the
+    // containing block.
+    let columns_sum: f32 = col_widths.iter().sum();
+    let box_width =
+        columns_sum + edge_spacing * (col_widths.len().saturating_add(1) as f32);
+
+    // The last row carries the bottom `border-spacing` gap plus the table's own
+    // `margin-bottom`, so the in-flow height below the rows matches the box.
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
-        *margin_bottom = style.margin.bottom;
+        *margin_bottom = edge_spacing + style.margin.bottom;
+    }
+
+    // The table's own `margin-top` is carried by whichever box comes first: the
+    // caption (if any), otherwise the background box (if any), otherwise the
+    // first row. Track whether something earlier already claimed it.
+    let mut margin_top_claimed = false;
+
+    // Paint the table element's own background/border behind the rows. It is a
+    // zero-flow box: its `margin-top` carries the table's own top margin (unless
+    // a caption above already does) while a matching negative `margin-bottom`
+    // cancels its height so the rows that follow render on top of it.
+    let table_border = LayoutBorder::from_computed(&style.border);
+    if has_background_paint(style) || table_border.has_any() {
+        let bg_margin_top = if caption.is_some() {
+            0.0
+        } else {
+            margin_top_claimed = true;
+            style.margin.top
+        };
+        let bg_block = LayoutElement::TextBlock {
+            lines: Vec::new(),
+            margin_top: bg_margin_top,
+            margin_bottom: -(box_height + table_border.vertical_width()),
+            text_align: TextAlign::Left,
+            background_color: style.background_color.map(|c| c.to_f32_rgba()),
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: table_border,
+            block_width: Some(box_width),
+            block_height: Some(box_height),
+            opacity: style.opacity,
+            float: Default::default(),
+            clear: Default::default(),
+            position: Default::default(),
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            clip_children_count: 0,
+            box_shadow: style.box_shadow,
+            visible: style.visibility == Visibility::Visible,
+            clip_rect: None,
+            transform: None,
+            border_radius: style.border_radius,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: Default::default(),
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            background_svg: style.background_svg.clone(),
+            background_blur_radius: 0.0,
+            background_size: Default::default(),
+            background_position: Default::default(),
+            background_repeat: Default::default(),
+            background_origin: Default::default(),
+            z_index: style.z_index,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: None,
+        };
+        output.insert(table_output_start, bg_block);
+    }
+
+    // `<caption>` (caption-side:top) renders as a full-table-width block above
+    // the rows: it carries the table's `margin-top` and pushes the rest of the
+    // table down by its own height.
+    if let Some((caption_el, caption_child_idx)) = caption {
+        let caption_classes = caption_el.class_list();
+        let caption_ctx = SelectorContext {
+            ancestors: table_ancestors.clone(),
+            child_index: caption_child_idx,
+            sibling_count: section_count,
+            preceding_siblings: Vec::new(),
+        };
+        let caption_style = compute_style_with_context(
+            caption_el.tag,
+            caption_el.style_attr(),
+            style,
+            rules,
+            caption_el.tag_name(),
+            &caption_classes,
+            caption_el.id(),
+            &caption_el.attributes,
+            &caption_ctx,
+        );
+        let caption_inner =
+            (box_width - caption_style.padding.left - caption_style.padding.right).max(1.0);
+        let mut caption_ancestors = table_ancestors.clone();
+        caption_ancestors.push(AncestorInfo {
+            element: caption_el,
+            child_index: caption_child_idx,
+            sibling_count: section_count,
+            preceding_siblings: Vec::new(),
+        });
+        let mut caption_runs = Vec::new();
+        let mut caption_nested = Vec::new();
+        collect_table_cell_content_inner(
+            &caption_el.children,
+            &caption_style,
+            &mut caption_runs,
+            &mut caption_nested,
+            None,
+            rules,
+            fonts,
+            false,
+            false,
+            true,
+            &caption_ancestors,
+            caption_inner,
+            counter_state,
+        );
+        let caption_lines = wrap_text_runs(
+            caption_runs,
+            TextWrapOptions::new(
+                caption_inner,
+                caption_style.font_size,
+                resolved_line_height_factor(&caption_style, fonts),
+                caption_style.overflow_wrap,
+            )
+            .with_rtl(caption_style.direction_rtl),
+            fonts,
+        );
+        let caption_border = LayoutBorder::from_computed(&caption_style.border);
+        let caption_block = LayoutElement::TextBlock {
+            lines: caption_lines,
+            margin_top: style.margin.top,
+            margin_bottom: 0.0,
+            text_align: caption_style.text_align,
+            background_color: caption_style.background_color.map(|c| c.to_f32_rgba()),
+            padding_top: caption_style.padding.top,
+            padding_bottom: caption_style.padding.bottom,
+            padding_left: caption_style.padding.left,
+            padding_right: caption_style.padding.right,
+            border: caption_border,
+            block_width: Some(box_width),
+            block_height: caption_style.height,
+            opacity: caption_style.opacity,
+            float: Default::default(),
+            clear: Default::default(),
+            position: Default::default(),
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            clip_children_count: 0,
+            box_shadow: caption_style.box_shadow,
+            visible: caption_style.visibility == Visibility::Visible,
+            clip_rect: None,
+            transform: None,
+            border_radius: caption_style.border_radius,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: caption_style.letter_spacing,
+            word_spacing: caption_style.word_spacing,
+            vertical_align: Default::default(),
+            background_gradient: caption_style.background_gradient.clone(),
+            background_radial_gradient: caption_style.background_radial_gradient.clone(),
+            background_svg: caption_style.background_svg.clone(),
+            background_blur_radius: 0.0,
+            background_size: Default::default(),
+            background_position: Default::default(),
+            background_repeat: Default::default(),
+            background_origin: Default::default(),
+            z_index: caption_style.z_index,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: None,
+        };
+        output.insert(table_output_start, caption_block);
+        margin_top_claimed = true;
+    }
+
+    // If neither a caption nor a background box claimed the table's `margin-top`,
+    // fold it into the first emitted row so the table keeps its top margin.
+    if !margin_top_claimed && style.margin.top != 0.0 {
+        if let Some(LayoutElement::TableRow { margin_top, .. }) = output.get_mut(table_output_start)
+        {
+            *margin_top += style.margin.top;
+        }
     }
 }
 

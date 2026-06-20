@@ -325,6 +325,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "text-overflow"
             | "border-collapse"
             | "table-layout"
+            | "empty-cells"
             | "background-size"
             | "background-repeat"
             | "background-position"

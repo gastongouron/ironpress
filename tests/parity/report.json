@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 62.14,
-    "pass": 165,
-    "partial": 100,
-    "fail": 81,
+    "score_pct": 62.86,
+    "pass": 167,
+    "partial": 101,
+    "fail": 78,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -5203,11 +5203,11 @@
     },
     {
       "category": "interactions",
-      "score_pct": 22.73,
+      "score_pct": 20.45,
       "counts": {
         "pass": 2,
-        "partial": 6,
-        "fail": 14,
+        "partial": 5,
+        "fail": 15,
         "unknown": 0
       },
       "features": [
@@ -5838,11 +5838,11 @@
         },
         {
           "feature": "tables-x-flexbox",
-          "score_pct": 50.0,
+          "score_pct": 0.0,
           "counts": {
             "pass": 0,
-            "partial": 1,
-            "fail": 0,
+            "partial": 0,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -5859,8 +5859,8 @@
                 "tables-basic-grid",
                 "flexbox-display-flex"
               ],
-              "status": "PARTIAL",
-              "diff_pct": 9.14,
+              "status": "FAIL",
+              "diff_pct": 12.3064,
               "weight": 1.0,
               "description": "A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.",
               "note": "",
@@ -5899,7 +5899,7 @@
                 "typography-font-weight-bold"
               ],
               "status": "FAIL",
-              "diff_pct": 30.2604,
+              "diff_pct": 18.1773,
               "weight": 1.0,
               "description": "A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.",
               "note": "",
@@ -8263,11 +8263,11 @@
     },
     {
       "category": "tables",
-      "score_pct": 53.13,
+      "score_pct": 71.88,
       "counts": {
-        "pass": 7,
-        "partial": 3,
-        "fail": 6,
+        "pass": 9,
+        "partial": 5,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
@@ -8327,11 +8327,11 @@
         },
         {
           "feature": "border-spacing",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8342,8 +8342,8 @@
               "subfeature": "uniform-12px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 58.4162,
+              "status": "PARTIAL",
+              "diff_pct": 7.7992,
               "weight": 1.0,
               "description": "border-collapse:separate with 12px border-spacing exposes the table background between cells.",
               "note": "",
@@ -8360,11 +8360,11 @@
         },
         {
           "feature": "caption",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8375,8 +8375,8 @@
               "subfeature": "caption-side-top",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 59.883,
+              "status": "PASS",
+              "diff_pct": 1.8117,
               "weight": 1.0,
               "description": "A top-side caption renders as a full-width banner above the table body.",
               "note": "",
@@ -8387,7 +8387,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c4dd6ab8a9f8e6b0002f9a3b2b985844d0c7891586b53950c4c533eb54cad2fa"
             }
           ]
@@ -8493,11 +8493,11 @@
         },
         {
           "feature": "empty-cells",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8508,8 +8508,8 @@
               "subfeature": "hide",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 58.8359,
+              "status": "PARTIAL",
+              "diff_pct": 7.3999,
               "weight": 1.0,
               "description": "empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.",
               "note": "",
@@ -8592,11 +8592,11 @@
         },
         {
           "feature": "table-layout",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8607,8 +8607,8 @@
               "subfeature": "auto",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 60.207,
+              "status": "PASS",
+              "diff_pct": 0.3293,
               "weight": 1.0,
               "description": "table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).",
               "note": "",
@@ -8618,7 +8618,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "87459310f1d4d4b321a8c03b90159dc8044c12e1136b29d7c7196da7525f4832"
             },
             {
