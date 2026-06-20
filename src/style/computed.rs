@@ -308,6 +308,9 @@ pub enum Visibility {
     #[default]
     Visible,
     Hidden,
+    /// `collapse`: like `hidden` for non-table elements; removes the row/column
+    /// (including its space) for table rows/columns, similar to `display: none`.
+    Collapse,
 }
 
 /// CSS transform value.
@@ -2226,6 +2229,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "visibility") {
         style.visibility = match k.as_str() {
             "hidden" => Visibility::Hidden,
+            "collapse" => Visibility::Collapse,
             _ => Visibility::Visible,
         };
     }

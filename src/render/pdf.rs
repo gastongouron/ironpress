@@ -54,6 +54,84 @@ fn reset_dash_pattern(style: BorderStyle) -> &'static str {
     }
 }
 
+/// Stroke the CSS `border` frame of an image box. `(box_x, box_bottom)` is the
+/// bottom-left corner of the box in PDF (bottom-up) coordinates; `box_w`/`box_h`
+/// are the border-box dimensions. With `box-sizing: border-box` the frame is
+/// drawn inside the box, so each stroke is centered half its width inside the
+/// corresponding box edge (the inner edge meets the image content rect).
+fn draw_image_border(
+    content: &mut String,
+    box_x: f32,
+    box_bottom: f32,
+    box_w: f32,
+    box_h: f32,
+    border: &crate::layout::engine::LayoutBorder,
+) {
+    if !border.has_any() {
+        return;
+    }
+    let box_top = box_bottom + box_h;
+    let box_right = box_x + box_w;
+    let uniform = border.top.width == border.right.width
+        && border.top.width == border.bottom.width
+        && border.top.width == border.left.width
+        && border.top.color == border.right.color
+        && border.top.color == border.bottom.color
+        && border.top.color == border.left.color
+        && border.top.style == border.right.style
+        && border.top.style == border.bottom.style
+        && border.top.style == border.left.style;
+    if uniform {
+        let bw = border.top.width;
+        let half = bw / 2.0;
+        let (r, g, b) = border.top.color;
+        content.push_str(dash_pattern_for_style(border.top.style));
+        content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
+        content.push_str(&format!(
+            "{x} {y} {w} {h} re\nS\n",
+            x = box_x + half,
+            y = box_bottom + half,
+            w = box_w - bw,
+            h = box_h - bw,
+        ));
+        content.push_str(reset_dash_pattern(border.top.style));
+        return;
+    }
+    // Per-side: center each stroke half its own width inside the box edge.
+    let y_top = box_top - border.top.width / 2.0;
+    let y_bottom = box_bottom + border.bottom.width / 2.0;
+    let x_left = box_x + border.left.width / 2.0;
+    let x_right = box_right - border.right.width / 2.0;
+    if border.top.width > 0.0 {
+        let (r, g, b) = border.top.color;
+        content.push_str(dash_pattern_for_style(border.top.style));
+        content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
+        content.push_str(&format!("{box_x} {y_top} m {box_right} {y_top} l S\n"));
+        content.push_str(reset_dash_pattern(border.top.style));
+    }
+    if border.right.width > 0.0 {
+        let (r, g, b) = border.right.color;
+        content.push_str(dash_pattern_for_style(border.right.style));
+        content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.right.width));
+        content.push_str(&format!("{x_right} {y_top} m {x_right} {y_bottom} l S\n"));
+        content.push_str(reset_dash_pattern(border.right.style));
+    }
+    if border.bottom.width > 0.0 {
+        let (r, g, b) = border.bottom.color;
+        content.push_str(dash_pattern_for_style(border.bottom.style));
+        content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.bottom.width));
+        content.push_str(&format!("{box_x} {y_bottom} m {box_right} {y_bottom} l S\n"));
+        content.push_str(reset_dash_pattern(border.bottom.style));
+    }
+    if border.left.width > 0.0 {
+        let (r, g, b) = border.left.color;
+        content.push_str(dash_pattern_for_style(border.left.style));
+        content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.left.width));
+        content.push_str(&format!("{x_left} {y_top} m {x_left} {y_bottom} l S\n"));
+        content.push_str(reset_dash_pattern(border.left.style));
+    }
+}
+
 /// A link annotation to be placed on a PDF page.
 struct LinkAnnotation {
     x1: f32,
@@ -2604,6 +2682,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     object_fit,
                     object_position,
                     background_color,
+                    border,
                     ..
                 } => {
                     let img_x = margin.left;
@@ -2618,9 +2697,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             "{br} {bg} {bb} rg\n{img_x} {img_y} {width} {height} re\nf\n",
                         ));
                     }
+                    // With box-sizing:border-box the box (width/height) includes the
+                    // border, so inset the image content rect by the border widths.
+                    let content_x = img_x + border.left.width;
+                    let content_y = img_y + border.bottom.width;
+                    let content_w = (width - border.horizontal_width()).max(0.0);
+                    let content_h = (height - border.vertical_width()).max(0.0);
                     let placement = crate::layout::images::compute_image_placement(
-                        *width,
-                        *height,
+                        content_w,
+                        content_h,
                         image.source_width,
                         image.source_height,
                         *object_fit,
@@ -2636,21 +2721,27 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let img_name = format!("Im{img_obj_id}");
                     content.push_str("q\n");
                     if placement.clip {
-                        content.push_str(&format!("{img_x} {img_y} {width} {height} re\nW n\n",));
+                        content.push_str(&format!(
+                            "{content_x} {content_y} {content_w} {content_h} re\nW n\n",
+                        ));
                     }
                     content.push_str(&format!(
                         "{w} 0 0 {h} {x} {y} cm\n/{name} Do\nQ\n",
                         w = placement.width,
                         h = placement.height,
-                        x = img_x + placement.offset_x,
-                        // img_y is the box bottom; box top is img_y + height.
-                        y = img_y + height - placement.offset_y - placement.height,
+                        x = content_x + placement.offset_x,
+                        // content_y is the content-box bottom; top is content_y + content_h.
+                        y = content_y + content_h - placement.offset_y - placement.height,
                         name = img_name,
                     ));
                     page_images.push(ImageRef {
                         name: img_name,
                         obj_id: img_obj_id,
                     });
+                    // Stroke the border frame around the image box. Border-box
+                    // keeps the frame inside the box, so center each stroke half a
+                    // width inside the box edge.
+                    draw_image_border(&mut content, img_x, img_y, *width, *height, border);
                 }
                 LayoutElement::Svg {
                     tree,
@@ -3835,6 +3926,7 @@ fn render_container_children(
                 object_fit,
                 object_position,
                 background_color,
+                border,
                 ..
             } => {
                 cursor_y -= img_mt;
@@ -3853,9 +3945,16 @@ fn render_container_children(
                         h = img_h,
                     ));
                 }
+                // With box-sizing:border-box the box (img_w/img_h) includes the
+                // border, so inset the image content rect by the border widths.
+                let content_x = x + border.left.width;
+                let content_bottom = box_bottom + border.bottom.width;
+                let content_top = box_top - border.top.width;
+                let content_w = (img_w - border.horizontal_width()).max(0.0);
+                let content_h = (img_h - border.vertical_width()).max(0.0);
                 let placement = crate::layout::images::compute_image_placement(
-                    *img_w,
-                    *img_h,
+                    content_w,
+                    content_h,
                     image.source_width,
                     image.source_height,
                     *object_fit,
@@ -3872,24 +3971,26 @@ fn render_container_children(
                 content.push_str("q\n");
                 if placement.clip {
                     content.push_str(&format!(
-                        "{x} {by} {w} {h} re\nW n\n",
-                        by = box_bottom,
-                        w = img_w,
-                        h = img_h,
+                        "{content_x} {by} {w} {h} re\nW n\n",
+                        by = content_bottom,
+                        w = content_w,
+                        h = content_h,
                     ));
                 }
                 content.push_str(&format!(
                     "{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
                     w = placement.width,
                     h = placement.height,
-                    ix = x + placement.offset_x,
-                    iy = box_top - placement.offset_y - placement.height,
+                    ix = content_x + placement.offset_x,
+                    iy = content_top - placement.offset_y - placement.height,
                     name = img_name,
                 ));
                 page_images.push(ImageRef {
                     name: img_name,
                     obj_id: img_obj_id,
                 });
+                // Stroke the border frame around the image box.
+                draw_image_border(content, x, box_bottom, *img_w, *img_h, border);
                 cursor_y -= img_h;
                 y = cursor_y;
             }

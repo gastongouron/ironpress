@@ -4,7 +4,7 @@ use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BorderCollapse, BoxSizing, ComputedStyle, Display, FontStyle, FontWeight, TableLayout,
     TextAlign,
-    VerticalAlign, WhiteSpace, compute_style_with_context,
+    VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -674,6 +674,13 @@ pub(crate) fn flatten_table(
                 &row.attributes,
                 &sizing_row_ctx,
             );
+            // `display: none` and `visibility: collapse` rows are removed from the
+            // table entirely (no cells, no reserved height), so skip measuring them.
+            if row_style.display == Display::None
+                || row_style.visibility == Visibility::Collapse
+            {
+                continue;
+            }
             row_style.width = Some(inner_width);
             let mut col_pos: usize = 0;
             for child in &row.children {
@@ -873,6 +880,12 @@ pub(crate) fn flatten_table(
             &row.attributes,
             &row_selector_ctx,
         );
+        // `display: none` and `visibility: collapse` rows are removed from the
+        // table entirely: emit no row and reserve no height. The row's cells do
+        // not participate in rowspan, so leave `occupied` untouched.
+        if row_style.display == Display::None || row_style.visibility == Visibility::Collapse {
+            continue;
+        }
         row_style.width = Some(inner_width);
         let mut cells = Vec::new();
 

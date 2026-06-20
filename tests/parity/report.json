@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 57.51,
-    "pass": 150,
+    "score_pct": 57.8,
+    "pass": 151,
     "partial": 98,
-    "fail": 98,
+    "fail": 97,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -1603,11 +1603,11 @@
     },
     {
       "category": "color-opacity",
-      "score_pct": 92.86,
+      "score_pct": 96.43,
       "counts": {
         "pass": 13,
-        "partial": 0,
-        "fail": 1,
+        "partial": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -1915,11 +1915,11 @@
         },
         {
           "feature": "visibility",
-          "score_pct": 50.0,
+          "score_pct": 75.0,
           "counts": {
             "pass": 1,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -1930,8 +1930,8 @@
               "subfeature": "collapse-table-row",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 64.378,
+              "status": "PARTIAL",
+              "diff_pct": 7.8106,
               "weight": 1.0,
               "description": "visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).",
               "note": "",
@@ -4373,10 +4373,10 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 90.0,
+      "score_pct": 93.33,
       "counts": {
-        "pass": 13,
-        "partial": 1,
+        "pass": 14,
+        "partial": 0,
         "fail": 1,
         "unknown": 0
       },
@@ -4416,10 +4416,10 @@
         },
         {
           "feature": "img",
-          "score_pct": 90.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 4,
-            "partial": 1,
+            "pass": 5,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -4431,8 +4431,8 @@
               "subfeature": "border-on-image",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 9.7361,
+              "status": "PASS",
+              "diff_pct": 0.2467,
               "weight": 1.0,
               "description": "A replaced image with a 6px solid border framing it under border-box sizing.",
               "note": "",
@@ -4443,7 +4443,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "158fda1595e78cd31b756b5d6a2cc6faf4ed8ff84b4e22459c640ed661af9f09"
             },
             {

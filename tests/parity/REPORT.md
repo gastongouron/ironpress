@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 57.51%  (PASS 150 · PARTIAL 98 · FAIL 98 · UNKNOWN 0 · total 346)
+Overall: 57.80%  (PASS 151 · PARTIAL 98 · FAIL 97 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -115,14 +115,14 @@ None — every fixture's HTML matches `refs.lock`.
 | backgrounds-gradients | 71.43% | 9 | 2 | 3 | 0 |
 | block-box-model | 56.67% | 8 | 1 | 6 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
-| color-opacity | 92.86% | 13 | 0 | 1 | 0 |
+| color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
 | fonts-advanced | 75.00% | 8 | 2 | 2 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
 | grid | 3.13% | 0 | 1 | 15 | 0 |
-| images-replaced | 90.00% | 13 | 1 | 1 | 0 |
+| images-replaced | 93.33% | 14 | 0 | 1 | 0 |
 | inline-text | 50.00% | 1 | 14 | 1 | 0 |
 | interactions | 20.45% | 1 | 7 | 14 | 0 |
 | lists-counters | 75.00% | 6 | 6 | 0 | 0 |
@@ -160,7 +160,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.53 | color-opacity | color-format | color-rgba-alpha | Semi-transparent rgba() box composited over a solid background box. |
 | unsupported | PASS | 0.72 | color-opacity | color-keyword | color-currentcolor | currentColor resolves the color property into a thick solid border (aspirational; likely unsupported). |
 | unsupported | PASS | 0.73 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
-| unsupported | FAIL | 64.38 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
+| unsupported | PARTIAL | 7.81 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | FAIL | 20.39 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | PARTIAL | 3.44 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PARTIAL | 4.30 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
@@ -348,7 +348,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **mask-image: url()** — 0.00%
   - FAIL 49.48% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
 
-### color-opacity — 92.86%
+### color-opacity — 96.43%
 - **color-format** — 100.00%
   - PASS 0.00% color-format=hex-3-digit — `color-hex-rgb` — Box filled with a 3-digit shorthand hex color (#0a6).
   - PASS 0.00% color-format=hex-6-digit — `color-hex-rrggbb` — Box filled with a 6-digit hex color (#c2185b).
@@ -365,8 +365,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% display=none-removal — `display-none-removal` — display:none removes the first block entirely so the second block rises to the top of the page.
 - **opacity** — 100.00%
   - PASS 0.27% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
-- **visibility** — 50.00%
-  - FAIL 64.38% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
+- **visibility** — 75.00%
+  - PARTIAL 7.81% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
 ### effects — 45.45%
@@ -514,11 +514,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 50.00%
   - PARTIAL 9.28% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 90.00%
+### images-replaced — 93.33%
 - **aspect-ratio** — 100.00%
   - PASS 0.66% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
-- **img** — 90.00%
-  - PARTIAL 9.74% img=border-on-image — `img-border` — A replaced image with a 6px solid border framing it under border-box sizing.
+- **img** — 100.00%
+  - PASS 0.25% img=border-on-image — `img-border` — A replaced image with a 6px solid border framing it under border-box sizing.
   - PASS 0.00% img=data-uri-png-sized — `img-data-uri-intrinsic` — A data: URI PNG placed in an img with explicit 120x120 size, scaled up from its 4x4 intrinsic pixels.
   - PASS 0.25% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
   - PASS 0.49% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.

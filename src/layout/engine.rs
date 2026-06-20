@@ -363,6 +363,10 @@ pub enum LayoutElement {
         /// Background color painted behind the image box (visible when the image
         /// content does not cover the whole box under `contain`/`none`).
         background_color: Option<(f32, f32, f32, f32)>,
+        /// CSS `border` framing the image box. With `box-sizing: border-box` the
+        /// `width`/`height` already include the border, so the image content is
+        /// inset by the border widths and the frame is stroked on the perimeter.
+        border: LayoutBorder,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },

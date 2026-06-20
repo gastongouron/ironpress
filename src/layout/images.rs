@@ -7,7 +7,7 @@ use crate::style::computed::{
 use crate::util::decode_base64;
 use std::collections::HashMap;
 
-use super::engine::{ImageFormat, LayoutElement, PngMetadata, RasterImageAsset};
+use super::engine::{ImageFormat, LayoutBorder, LayoutElement, PngMetadata, RasterImageAsset};
 use super::text::resolve_style_font_family;
 
 /// Load raw bytes from a `src` attribute value.
@@ -217,6 +217,7 @@ pub(crate) fn load_image_from_element(
         object_fit: style.object_fit,
         object_position: style.object_position,
         background_color: style.background_color.map(|c| c.to_f32_rgba()),
+        border: LayoutBorder::from_computed(&style.border),
     })
 }
 
@@ -379,6 +380,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             object_fit,
             object_position,
             background_color,
+            border,
         } => LayoutElement::Image {
             image,
             width,
@@ -389,6 +391,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             object_fit,
             object_position,
             background_color,
+            border,
         },
         LayoutElement::Svg {
             tree,
