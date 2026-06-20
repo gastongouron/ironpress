@@ -7,9 +7,9 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 25.14,
-    "pass": 53,
-    "partial": 68,
+    "score_pct": 25.29,
+    "pass": 54,
+    "partial": 67,
     "fail": 225,
     "unknown": 0,
     "total": 346,
@@ -4373,10 +4373,10 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 63.33,
+      "score_pct": 66.67,
       "counts": {
-        "pass": 8,
-        "partial": 3,
+        "pass": 9,
+        "partial": 2,
         "fail": 4,
         "unknown": 0
       },
@@ -4534,10 +4534,10 @@
         },
         {
           "feature": "inline-svg",
-          "score_pct": 62.5,
+          "score_pct": 75.0,
           "counts": {
-            "pass": 2,
-            "partial": 1,
+            "pass": 3,
+            "partial": 0,
             "fail": 1,
             "unknown": 0
           },
@@ -4609,8 +4609,8 @@
               "subfeature": "text-element",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 9.3708,
+              "status": "PASS",
+              "diff_pct": 6.6245,
               "weight": 1.0,
               "description": "Inline SVG text element rendered in ParitySans at 36px over a light fill.",
               "note": "",
@@ -4620,7 +4620,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "partial",
-              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "attribution": "",
               "html_sha256": "763ee480d72b7adb03067ab13c018af0ec67d4910d03e245cd34369bc4cbd1a6"
             }
           ]
@@ -10471,7 +10471,7 @@
       "id": "probe-text-baseline",
       "feature": "font-metrics",
       "status": "FAIL",
-      "confounded_count": 91,
+      "confounded_count": 90,
       "confounded_ids": [
         "color-text-glyph",
         "counter-content-roman",
@@ -10530,7 +10530,6 @@
         "overflow-hidden-text-clip",
         "paged-orphans-widows",
         "paged-page-counter-content",
-        "svg-inline-text",
         "tables-caption",
         "tables-cell-text-align",
         "tables-th-header",

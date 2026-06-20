@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 25.14%  (PASS 53 · PARTIAL 68 · FAIL 225 · UNKNOWN 0 · total 346)
+Overall: 25.29%  (PASS 54 · PARTIAL 67 · FAIL 225 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -184,7 +184,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | FAIL | 91 | color-text-glyph, counter-content-roman, counter-reset-increment, counters-nested, fonts-advanced-font-face-custom-src, fonts-advanced-font-feature-settings-ligatures …(+85) |
+| 1 | `probe-text-baseline` | font-metrics | FAIL | 90 | color-text-glyph, counter-content-roman, counter-reset-increment, counters-nested, fonts-advanced-font-face-custom-src, fonts-advanced-font-feature-settings-ligatures …(+84) |
 | 2 | `flexbox-display-flex` | display | FAIL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
 | 3 | `positioning-position-absolute-top-left` | position | FAIL | 5 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, interactions-positioning-absolute-x-transforms-rotate, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
 | 4 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
@@ -222,7 +222,7 @@ None — every fixture's HTML matches `refs.lock`.
 | fonts-advanced | 0.00% | 0 | 0 | 12 | 0 |
 | generated-content | 15.00% | 0 | 3 | 7 | 0 |
 | grid | 37.50% | 1 | 10 | 5 | 0 |
-| images-replaced | 63.33% | 8 | 3 | 4 | 0 |
+| images-replaced | 66.67% | 9 | 2 | 4 | 0 |
 | inline-text | 3.13% | 0 | 1 | 15 | 0 |
 | interactions | 9.09% | 0 | 4 | 18 | 0 |
 | lists-counters | 12.50% | 0 | 3 | 9 | 0 |
@@ -298,7 +298,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 2.11 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PASS | 0.79 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
 | partial | FAIL | 33.85 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
-| partial | PARTIAL | 9.37 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
+| partial | PASS | 6.62 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
 | unsupported | PARTIAL | 11.86 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
 | unsupported | PASS | 1.71 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
 | unsupported | PASS | 1.71 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
@@ -614,7 +614,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 50.00%
   - PARTIAL 8.58% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 63.33%
+### images-replaced — 66.67%
 - **aspect-ratio** — 100.00%
   - PASS 0.95% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
 - **img** — 70.00%
@@ -623,11 +623,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.48% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
   - FAIL 15.95% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
   - PASS 2.11% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
-- **inline-svg** — 62.50%
+- **inline-svg** — 75.00%
   - PASS 0.79% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
   - FAIL 33.85% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
   - PASS 2.32% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
-  - PARTIAL 9.37% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
+  - PASS 6.62% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
 - **object-fit** — 62.50%
   - PARTIAL 11.86% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
   - PASS 1.71% object-fit=cover — `img-object-fit-cover` — object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.

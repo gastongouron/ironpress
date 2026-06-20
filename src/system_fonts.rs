@@ -456,6 +456,22 @@ fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
 /// Try to load the system's actual serif/sans-serif/monospace fonts
 /// (Times New Roman, Arial, Courier New) so the output matches Chromium
 /// exactly. Falls through to bundled Liberation fonts when unavailable.
+///
+/// These literal Windows family names are resolved from the in-process
+/// `fontdb` **only** — never via `fc-match`. On a host where they are absent
+/// (the common Linux case, where only Liberation*/DejaVu* are installed),
+/// `fontdb` returns nothing and the family is left unloaded, so the document
+/// falls through to the bundled Liberation faces exactly as before.
+///
+/// The previous implementation fell through to `fc-match`, which spawned 12
+/// subprocesses per *cold* render (one per family × variant). Those spawns
+/// also never contributed a font: `fc-match` substitutes e.g. Liberation Serif
+/// for "Times New Roman", and the family-match guard in `query_fontconfig_font`
+/// rejected that mismatch, so nothing was inserted. Restricting this probe to
+/// `fontdb` therefore preserves byte-identical output while eliminating the
+/// per-cold-render subprocess spawns. (`fc-match` remains available, cached and
+/// at-most-once, for genuinely *requested* unknown families via
+/// `load_requested_system_fonts`.)
 pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
     let families = [
         ("Times New Roman", "serif"),
@@ -471,9 +487,8 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
             if fonts.contains_key(&key) {
                 continue;
             }
-            if let Some(font) =
-                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-            {
+            // fontdb-only: do not fall through to query_fontconfig_font (fc-match).
+            if let Some(font) = query_fontdb_font(db, &query) {
                 fonts.insert(key, font);
             }
         }
