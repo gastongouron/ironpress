@@ -1024,14 +1024,17 @@ pub(crate) fn flatten_table(
                 .or(row_style.background_color)
                 .map(|c: crate::types::Color| c.to_f32_rgba());
 
-            // An explicit cell height is a minimum on the cell's content+padding
-            // box (table_cell_content_height excludes the border). Resolve
-            // border-box vs content-box so an empty `height:Npx` cell keeps its
-            // height instead of collapsing.
+            // An explicit cell height is a minimum on the cell's rendered box.
+            // Cell borders are painted *inside* the cell box, so the rendered
+            // height equals this value directly (no border is added later).
+            // For border-box, the declared height already includes the border,
+            // so keep it whole — subtracting the border would render the cell
+            // short by its border thickness. For content-box, add the padding
+            // (the border, drawn inside, needs no extra room).
             let cell_border = LayoutBorder::from_computed(&cell_style.border);
             let min_content_height = cell_style.height.map_or(0.0, |h| {
                 if cell_style.box_sizing == BoxSizing::BorderBox {
-                    (h - cell_border.vertical_width()).max(0.0)
+                    h
                 } else {
                     h + cell_style.padding.top + cell_style.padding.bottom
                 }

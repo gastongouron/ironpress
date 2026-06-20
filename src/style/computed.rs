@@ -909,24 +909,18 @@ pub fn compute_style_with_context(
         Display::Block
     };
 
-    // Reset block-level properties that don't inherit
-    if tag.is_block() {
-        style.margin = EdgeSizes::default();
-        style.margin_em_top = None;
-        style.margin_em_right = None;
-        style.margin_em_bottom = None;
-        style.margin_em_left = None;
-        style.padding = EdgeSizes::default();
-        style.background_color = None;
-        style.clear_background_images();
-    }
-
-    // Reset non-inherited properties for inline elements too
-    // (background-color does not inherit in CSS)
-    if !tag.is_block() {
-        style.background_color = None;
-        style.clear_background_images();
-    }
+    // Margin, padding, and background never inherit in CSS — reset them for
+    // every element regardless of display. (Previously these were reset only
+    // for block tags, so an inline tag such as a `display:inline-block`
+    // `<span>` wrongly inherited its parent's padding/margin.)
+    style.margin = EdgeSizes::default();
+    style.margin_em_top = None;
+    style.margin_em_right = None;
+    style.margin_em_bottom = None;
+    style.margin_em_left = None;
+    style.padding = EdgeSizes::default();
+    style.background_color = None;
+    style.clear_background_images();
 
     // Border does not inherit in CSS — reset for all elements
     style.border = BorderSides::default();

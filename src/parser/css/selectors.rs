@@ -325,19 +325,21 @@ fn simple_selector_core_matches(
         return true;
     }
 
+    // A `*` tag part matches any element (universal selector), just like an
+    // empty tag part. This applies to bare `*`, `*#id`, and `*.class`.
+    let tag_matches = |tag_part: &str| tag_part.is_empty() || tag_part == "*" || tag_part == tag;
+
     if let Some(hash_index) = selector.find('#') {
         let (tag_part, id_part) = selector.split_at(hash_index);
-        return (tag_part.is_empty() || tag_part == tag)
-            && id.is_some_and(|value| value == &id_part[1..]);
+        return tag_matches(tag_part) && id.is_some_and(|value| value == &id_part[1..]);
     }
 
     if let Some(dot_index) = selector.find('.') {
         let (tag_part, class_part) = selector.split_at(dot_index);
-        return (tag_part.is_empty() || tag_part == tag)
-            && classes.iter().any(|class| class == &&class_part[1..]);
+        return tag_matches(tag_part) && classes.iter().any(|class| class == &&class_part[1..]);
     }
 
-    selector == tag
+    selector == "*" || selector == tag
 }
 
 fn split_pseudo_class(selector: &str) -> (&str, Option<&str>) {

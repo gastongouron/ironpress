@@ -150,6 +150,12 @@ fn remove_event_handlers(html: &str) -> String {
     // Only remove onXXX attributes inside HTML tags
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
+    // Quote char of the attribute value currently being scanned (0 = none).
+    // The onXXX heuristic must NOT fire inside a quoted value, or an ordinary
+    // attribute value token that happens to start with "on" (e.g. the class
+    // name `one` in `class="chip one"`) would be mistaken for an event handler
+    // and deleted, breaking the quote and corrupting the rest of the tag.
+    let mut in_quote: u8 = 0;
 
     let bytes = html.as_bytes();
     let mut i = 0;
@@ -176,6 +182,24 @@ fn remove_event_handlers(html: &str) -> String {
         }
 
         let c = bytes[i] as char;
+
+        // Track quoted attribute values so tag-structure characters and the
+        // onXXX heuristic below are only interpreted outside of quotes.
+        if in_tag && in_quote != 0 {
+            if bytes[i] == in_quote {
+                in_quote = 0;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        if in_tag && (c == '"' || c == '\'') {
+            in_quote = bytes[i];
+            result.push(c);
+            i += 1;
+            continue;
+        }
 
         if c == '<' {
             in_tag = true;
@@ -300,6 +324,34 @@ mod tests {
         let result = sanitize_html(r#"<p onclick="alert('xss')">Hello</p>"#).unwrap();
         assert!(!result.contains("onclick"));
         assert!(!result.contains("alert"));
+    }
+
+    #[test]
+    fn preserves_attribute_value_token_starting_with_on() {
+        // Regression: the onXXX stripper must not treat a class token that
+        // happens to start with "on" (e.g. `one`, preceded by a space inside a
+        // quoted value) as an event handler. Doing so deleted the token and its
+        // closing quote, corrupting every following tag.
+        let result =
+            sanitize_html(r#"<span class="chip one"></span><span class="chip two"></span>"#)
+                .unwrap();
+        assert!(result.contains(r#"class="chip one""#), "got: {result}");
+        assert!(result.contains(r#"class="chip two""#), "got: {result}");
+    }
+
+    #[test]
+    fn preserves_single_quoted_on_token() {
+        let result = sanitize_html(r#"<span class='chip one'>x</span>"#).unwrap();
+        assert!(result.contains("class='chip one'"), "got: {result}");
+    }
+
+    #[test]
+    fn still_removes_event_handler_among_other_attributes() {
+        let result = sanitize_html(r#"<div class="one" onclick="bad()" id="x">Hi</div>"#).unwrap();
+        assert!(!result.contains("onclick"));
+        assert!(!result.contains("bad()"));
+        assert!(result.contains(r#"class="one""#), "got: {result}");
+        assert!(result.contains(r#"id="x""#), "got: {result}");
     }
 
     #[test]

@@ -1191,17 +1191,20 @@ pub(crate) fn layout_block_element(
         let mut ib_group_wrapper: Vec<&ElementNode> = Vec::new();
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
-                if recurses_as_layout_child(child_el.tag)
-                    && element_is_inline_block(
-                        child_el,
-                        style,
-                        env.rules,
-                        child_ancestors,
-                        child_el_idx,
-                        child_el_count,
-                        &[],
-                    )
-                {
+                // `element_is_inline_block` checks the *computed* display, so
+                // it correctly matches inline tags (e.g. `<span>`) styled with
+                // `display: inline-block`. Don't gate on `recurses_as_layout_child`
+                // here — that excludes inline tags and is the wrong test for an
+                // inline-block box, which lays out as a block regardless of tag.
+                if element_is_inline_block(
+                    child_el,
+                    style,
+                    env.rules,
+                    child_ancestors,
+                    child_el_idx,
+                    child_el_count,
+                    &[],
+                ) {
                     ib_group_wrapper.push(child_el);
                 } else {
                     // Flush any pending inline-block group
@@ -1408,7 +1411,19 @@ pub(crate) fn layout_block_element(
             margin_top: wrapper_margin_top,
             margin_bottom: wrapper_margin_bottom,
             block_width: Some(block_w),
-            block_height: if effective_height.is_some() || style.aspect_ratio.is_some() {
+            // `block_width` is the full border-box width (`block_w` is the
+            // declared width, which already includes border under border-box).
+            // The renderer and flow estimate both treat a Container's
+            // `block_height` as a border-box height too — they compare it against
+            // a content height that already includes the border. But
+            // `resolve_padding_box_height` returns the *padding-box* height, so
+            // add the border back to keep width and height symmetric. (Without
+            // this, an explicit-height box with a border rendered short by the
+            // border thickness.) The aspect-ratio case is left as-is: its height
+            // is derived from the border-box width and is already consistent.
+            block_height: if effective_height.is_some() {
+                Some(container_h + style.border.vertical_width())
+            } else if style.aspect_ratio.is_some() {
                 Some(container_h)
             } else {
                 None
