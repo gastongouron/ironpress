@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>after content string</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #102a43;
+    background: #a8dadc;
+    font-family: ParitySans;
+    font-size: 28px;
+    line-height: 1.2;
+    color: #1d3557;
+  }
+  .label::after {
+    content: " (done)";
+    color: #2a6f4d;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><span class="label">Task</span></div>
+</body>
+</html>

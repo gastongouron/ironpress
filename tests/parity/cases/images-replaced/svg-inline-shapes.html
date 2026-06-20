@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>inline svg shapes</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="5" width="40" height="40" fill="#2e7d32"></rect>
+      <circle cx="72" cy="25" r="20" fill="#1565c0"></circle>
+      <path d="M10 95 L50 55 L90 95 Z" fill="#c62828"></path>
+    </svg>
+  </div>
+</body>
+</html>

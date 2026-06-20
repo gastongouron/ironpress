@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>list-style-position inside</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px;
+    border: 2px solid #000000;
+    background: #e0f7fa;
+  }
+  ol {
+    list-style-type: decimal;
+    list-style-position: inside;
+  }
+  li {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.4;
+    color: #1b1b1b;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <ol>
+      <li>Inside marker one</li>
+      <li>Inside marker two</li>
+      <li>Inside marker three</li>
+    </ol>
+  </div>
+</body>
+</html>

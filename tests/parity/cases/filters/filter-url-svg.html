@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter url(#svgFilter)</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .frame { padding: 40px; }
+  .box {
+    width: 200px;
+    height: 140px;
+    background-color: #2e7d32;
+    filter: url(#sat);
+  }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="sat">
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </svg>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

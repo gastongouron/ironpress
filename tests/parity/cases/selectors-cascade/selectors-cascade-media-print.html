@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 160px;
+    height: 120px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+  }
+  /* In a print context the @media print block applies and the box turns green.
+     If print media queries are ignored the box stays gray. */
+  @media print {
+    .box { background: #2e9e4f; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

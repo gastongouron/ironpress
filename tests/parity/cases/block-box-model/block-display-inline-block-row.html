@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap {
+    width: 420px;
+    /* collapse inter-element whitespace so inline-block boxes butt together
+       deterministically across engines */
+    font-size: 0;
+    border: 2px solid #11305f;
+    padding: 10px;
+  }
+  .chip {
+    display: inline-block;
+    width: 100px;
+    height: 100px;
+    border: 4px solid #11305f;
+  }
+  .one { background: #2d6cdf; }
+  .two { background: #d94f4f; }
+  .three { background: #4caf50; }
+</style>
+</head>
+<body>
+  <div class="wrap"><span class="chip one"></span><span class="chip two"></span><span class="chip three"></span></div>
+</body>
+</html>

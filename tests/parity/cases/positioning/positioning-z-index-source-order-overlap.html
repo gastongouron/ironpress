@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; position: relative; height: 220px; }
+  /* with no z-index, positioned siblings stack in source order:
+     the later box paints over the earlier one */
+  .box { position: absolute; width: 120px; height: 120px; border: 2px solid #000000; }
+  .first  { top: 20px; left: 20px; background: #27ae60; }
+  .second { top: 70px; left: 70px; background: #8e44ad; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box first"></div>
+    <div class="box second"></div>
+  </div>
+</body>
+</html>

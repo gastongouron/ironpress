@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* a transform on a non-positioned ancestor makes it the containing block
+     for the absolutely positioned descendant (bottom/right resolve to this box) */
+  .outer {
+    transform: translate(0, 0);
+    width: 260px;
+    height: 220px;
+    background: #ecf0f4;
+    border: 2px solid #2c3e6e;
+  }
+  .box {
+    position: absolute;
+    bottom: 40px;
+    right: 50px;
+    width: 100px;
+    height: 70px;
+    background: #2980b9;
+    border: 2px solid #15324f;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="outer">
+      <div class="box"></div>
+    </div>
+  </div>
+</body>
+</html>

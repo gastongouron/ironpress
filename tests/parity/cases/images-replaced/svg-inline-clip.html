@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>inline svg clip-path</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="c">
+          <circle cx="80" cy="80" r="60"></circle>
+        </clipPath>
+      </defs>
+      <rect x="0" y="0" width="160" height="160" fill="#c62828" clip-path="url(#c)"></rect>
+    </svg>
+  </div>
+</body>
+</html>

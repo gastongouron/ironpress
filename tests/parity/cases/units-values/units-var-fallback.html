@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>var fallback value</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  :root {
+    --known-w: 240px;
+  }
+  /* --known-w resolves; --missing-h is undefined so the fallback 120px is used;
+     --missing-bg undefined so fallback color is used */
+  .box {
+    width: var(--known-w);
+    height: var(--missing-h, 120px);
+    background: var(--missing-bg, #1b9e77);
+    border: 4px solid var(--missing-border, #0b4a38);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img with solid border</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* 6px solid border framing the replaced image; box-sizing border-box keeps box 160x160. */
+  img {
+    display: block;
+    width: 160px;
+    height: 160px;
+    border: 6px solid #111111;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="160" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAIElEQVR42mM4IScHRHI9NkDEgMKRczsBRHdWiQARCgcAufsSwX2LXJUAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

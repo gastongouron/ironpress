@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow colored</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #fffde7; padding: 40px; }
+  .box {
+    width: 180px;
+    height: 110px;
+    background-color: #f9a825;
+    /* saturated colored hard shadow distinct from the fill */
+    box-shadow: 20px 20px 0 0 #d84315;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

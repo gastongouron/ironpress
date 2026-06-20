@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow spread</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #ede7f6; padding: 50px; }
+  .box {
+    width: 160px;
+    height: 100px;
+    background-color: #5e35b1;
+    /* zero offset, zero blur, positive spread -> hard symmetric halo */
+    box-shadow: 0 0 0 20px #311b92;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color rgba() alpha over solid</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .under {
+    width: 200px;
+    height: 120px;
+    background-color: #1565c0;
+    position: relative;
+  }
+  .over {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 120px;
+    height: 80px;
+    background-color: rgba(255, 87, 34, 0.5);
+  }
+</style>
+</head>
+<body>
+  <div class="under"><div class="over"></div></div>
+</body>
+</html>

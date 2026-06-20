@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter blur on box</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Padding so blurred edges stay on-page. */
+  .frame { padding: 40px; }
+  .box {
+    width: 200px;
+    height: 140px;
+    background-color: #1565c0;
+    filter: blur(6px);
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>inline svg linear gradient</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <svg width="200" height="120" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#1565c0"></stop>
+          <stop offset="1" stop-color="#c62828"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="200" height="120" fill="url(#g)"></rect>
+    </svg>
+  </div>
+</body>
+</html>

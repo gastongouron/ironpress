@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>percentage width and height</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent {
+    width: 400px;
+    height: 200px;
+    background: #cfd8e3;
+    border: 2px solid #11305f;
+  }
+  /* 75% of 400 = 300px wide, 50% of 200 = 100px tall */
+  .child {
+    width: 75%;
+    height: 50%;
+    background: #2d6cdf;
+    border: 3px solid #0b1f44;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

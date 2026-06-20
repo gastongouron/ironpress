@@ -1,0 +1,274 @@
+[
+  {
+    "id": "positioning-position-static",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "static",
+    "description": "position:static box ignores top/left offsets and stays in normal flow.",
+    "file": "cases/positioning/positioning-position-static.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-position-relative-offset",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "relative",
+    "description": "position:relative shifts the box by top/left from its in-flow position; flow space is preserved.",
+    "file": "cases/positioning/positioning-position-relative-offset.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-position-absolute-top-left",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "absolute",
+    "description": "position:absolute box placed by top/left within a relative containing block.",
+    "file": "cases/positioning/positioning-position-absolute-top-left.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-position-absolute-bottom-right",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "absolute-bottom-right",
+    "description": "position:absolute box anchored to bottom/right edges of its containing block.",
+    "file": "cases/positioning/positioning-position-absolute-bottom-right.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-position-absolute-stretch-inset",
+    "category": "positioning",
+    "feature": "inset",
+    "subfeature": "all-four-stretch",
+    "description": "All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.",
+    "file": "cases/positioning/positioning-position-absolute-stretch-inset.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-absolute-containing-block-relative-ancestor",
+    "category": "positioning",
+    "feature": "containing-block",
+    "subfeature": "nearest-positioned-ancestor",
+    "description": "Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.",
+    "file": "cases/positioning/positioning-absolute-containing-block-relative-ancestor.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-fixed-top-left",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "fixed",
+    "description": "position:fixed box placed by top/left relative to the page box on a single non-scrolling page.",
+    "file": "cases/positioning/positioning-fixed-top-left.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-z-index-stacking",
+    "category": "positioning",
+    "feature": "z-index",
+    "subfeature": "stacking",
+    "description": "Higher z-index paints on top of a later-in-source sibling with lower z-index.",
+    "file": "cases/positioning/positioning-z-index-stacking.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-z-index-source-order-overlap",
+    "category": "positioning",
+    "feature": "z-index",
+    "subfeature": "source-order",
+    "description": "Without z-index, positioned siblings stack in source order; the later box paints over the earlier.",
+    "file": "cases/positioning/positioning-z-index-source-order-overlap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-overflow-hidden-clip",
+    "category": "positioning",
+    "feature": "overflow",
+    "subfeature": "hidden",
+    "description": "overflow:hidden clips an oversized in-flow child to the parent box.",
+    "file": "cases/positioning/positioning-overflow-hidden-clip.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-overflow-visible-no-clip",
+    "category": "positioning",
+    "feature": "overflow",
+    "subfeature": "visible",
+    "description": "overflow:visible (default) does not clip; the child overflows the parent box.",
+    "file": "cases/positioning/positioning-overflow-visible-no-clip.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-overflow-hidden-absolute-child-clip",
+    "category": "positioning",
+    "feature": "overflow",
+    "subfeature": "hidden-clips-absolute",
+    "description": "overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.",
+    "file": "cases/positioning/positioning-overflow-hidden-absolute-child-clip.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-transform-establishes-containing-block",
+    "category": "positioning",
+    "feature": "containing-block",
+    "subfeature": "transform-establishes",
+    "description": "A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.",
+    "file": "cases/positioning/positioning-transform-establishes-containing-block.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-inset-negative-offset",
+    "category": "positioning",
+    "feature": "inset",
+    "subfeature": "negative-offset",
+    "description": "position:relative with negative top/left pulls the box up and left, overlapping prior flow.",
+    "file": "cases/positioning/positioning-inset-negative-offset.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-float-left",
+    "category": "positioning",
+    "feature": "float",
+    "subfeature": "left",
+    "description": "float:left removes the box from flow and shifts it left; the following block wraps around its right side.",
+    "file": "cases/positioning/positioning-float-left.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-clear-both",
+    "category": "positioning",
+    "feature": "clear",
+    "subfeature": "both",
+    "description": "clear:both pushes the cleared block below preceding floats instead of wrapping beside them.",
+    "file": "cases/positioning/positioning-clear-both.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  }
+]

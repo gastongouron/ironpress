@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Named pages (page: <ident>) select a named @page rule. The engine does not
+     support named pages, and fixtures may not declare @page, so this only
+     applies the `page` property to a block; rendered output must match a plain
+     block on the default page. Tracks the named-pages gap. */
+  .section {
+    page: cover;
+    width: 320px;
+    height: 200px;
+    margin: 28px;
+    background: #ffb703;
+    border: 4px solid #fb8500;
+  }
+</style>
+</head>
+<body>
+  <div class="section"></div>
+</body>
+</html>

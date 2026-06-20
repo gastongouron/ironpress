@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .frame {
+    width: 360px;
+    margin: 24px;
+    padding: 14px;
+    background: #e9ecef;
+    border: 2px solid #212529;
+  }
+  /* orphans/widows constrain line breaking across pages. With all lines on one
+     page they have no visible effect; this fixture tracks the orphans/widows
+     gap while keeping rendered text deterministic. */
+  .para {
+    orphans: 3;
+    widows: 3;
+    font-family: ParitySerif;
+    font-size: 18px;
+    line-height: 1.4;
+    color: #16161d;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="para">Orphans and widows<br>limit stray lines<br>at page boundaries.</div>
+  </div>
+</body>
+</html>

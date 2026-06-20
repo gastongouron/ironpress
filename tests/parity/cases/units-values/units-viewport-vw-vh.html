@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>viewport units vw and vh</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Aspirational: vw/vh resolve against the page (viewport) box.
+     30vw of the printable width and 20vh of the printable height. */
+  .box {
+    width: 30vw;
+    height: 20vh;
+    background: #e7298a;
+    border: 4px solid #6e1242;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

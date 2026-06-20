@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  /* interaction: a fixed-position box that is then translated by a transform.
+     position resolves top/left against the page box, then translate shifts it. */
+  .box {
+    position: fixed;
+    top: 40px;
+    left: 40px;
+    width: 110px;
+    height: 80px;
+    background: #2980b9;
+    border: 2px solid #15324f;
+    transform: translate(50px, 30px);
+  }
+  .filler {
+    margin: 20px;
+    width: 200px;
+    height: 120px;
+    background: #e8eef4;
+    border: 2px solid #93acc7;
+  }
+</style>
+</head>
+<body>
+  <div class="filler"></div>
+  <div class="box"></div>
+</body>
+</html>

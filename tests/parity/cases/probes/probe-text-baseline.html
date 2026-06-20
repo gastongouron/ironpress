@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>probe text baseline</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Substrate canary: a short line of text in the bundled ParitySans
+     at a known size, sitting on a solid baseline rule.
+     Tests font metrics / baseline placement. */
+  .line {
+    width: 300px;
+    padding: 0;
+    border-bottom: 2px solid #000000;
+  }
+  .t {
+    font-family: ParitySans;
+    font-size: 40px;
+    line-height: 1;
+    color: #102a43;
+  }
+</style>
+</head>
+<body>
+  <div class="line">
+    <span class="t">Baseline Hxy</span>
+  </div>
+</body>
+</html>

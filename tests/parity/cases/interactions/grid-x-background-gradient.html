@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid x background-gradient: linear gradient filling grid cells</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Each grid track is filled with a linear gradient: the grid sizing must
+     place the cells while the gradient paints across each cell's box. */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 80px 80px;
+    gap: 10px;
+    width: 320px;
+    margin: 30px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #f1f5f9;
+  }
+  .cell {
+    border: 2px solid #222222;
+    background: linear-gradient(90deg, #1d4ed8 0%, #f97316 100%);
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+  </div>
+</body>
+</html>

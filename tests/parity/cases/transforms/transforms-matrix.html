@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform matrix</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: matrix(a,b,c,d,e,f) combines scale + shear + translate in
+     one 2D affine matrix. Here: 1.4x horizontal scale, slight shear, and a
+     translate of (40,30). Aspirational: matrix() is not parsed by ironpress
+     (surface map: missing) */
+  .frame {
+    position: relative;
+    width: 360px;
+    height: 260px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 60px;
+    left: 40px;
+    width: 120px;
+    height: 90px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 40px;
+    width: 120px;
+    height: 90px;
+    background: #00695c;
+    transform: matrix(1.4, 0.25, 0, 1, 40, 30);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

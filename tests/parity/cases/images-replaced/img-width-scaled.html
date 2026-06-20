@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img width scaled aspect preserved</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 260px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* width set, height auto: a 2:1 intrinsic image stays 2:1 (180x90). */
+  img {
+    display: block;
+    width: 180px;
+    height: auto;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="180" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

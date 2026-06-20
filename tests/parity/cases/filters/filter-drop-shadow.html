@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter drop-shadow on alpha image</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Padding so the offset drop-shadow stays on-page. */
+  .frame { padding: 40px; }
+  img.t {
+    width: 160px;
+    height: 160px;
+    image-rendering: pixelated;
+    /* zero blur -> hard-edged shadow tracing the diamond alpha, not its box */
+    filter: drop-shadow(20px 20px 0 #424242);
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><img class="t" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA6UlEQVR42u2a2QmAMBAFtxz7r8deFH8F0ZhjjzcDFjADapKNGQCAE/u2HdcjLS8Z4S4vFeFJXiLCm3zpCF/lS0ZolS8V4a98iQi98qkjjJJPGWG0fKoIs+RTRJgtHzrCKvmQEVbLh4rgJR8igre8a4Qo8i4RoskvjRBVfkmE6PJTI2SRnxIhm/zQCFnlh0TILt8VoYr8rwjV5JsiVJX/HEE+gPwrwEeQ3yALIZbCbIbYDnMgwpEYh6IcizMYYTTGcJTxOBckuCLDJakAESwz0vK9EawS0vKtEawy0vJvEUwJafl7BAMAcOIE8NvBjJwtM6wAAAAASUVORK5CYII="></div>
+</body>
+</html>

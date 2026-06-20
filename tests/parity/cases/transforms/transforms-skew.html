@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform skew</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: skew() shears the box along X and Y about its center,
+     turning the rectangle into a parallelogram. Aspirational: skew is
+     not in the ironpress Transform enum or parser (surface map: missing) */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 240px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 70px;
+    left: 90px;
+    width: 140px;
+    height: 100px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 70px;
+    left: 90px;
+    width: 140px;
+    height: 100px;
+    background: #283593;
+    transform: skew(20deg, 10deg);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

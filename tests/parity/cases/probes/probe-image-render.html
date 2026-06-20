@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>probe image render</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Substrate canary: a small data:-URI PNG placed at a known size.
+     Tests raster image decode + placement. The source PNG is an
+     80x80 solid #1565c0 swatch, displayed at 80x80. */
+  .img {
+    display: block;
+    width: 80px;
+    height: 80px;
+  }
+</style>
+</head>
+<body>
+  <img class="img" width="80" height="80" alt=""
+       src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQAQMAAAC032DuAAAAA1BMVEUVZcA+eQETAAAAEUlEQVQoz2NgGAWjYBTQCwAAA3AAAZFaYx0AAAAASUVORK5CYII=">
+</body>
+</html>

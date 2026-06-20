@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content attr</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 340px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #1a1a2e;
+    background: #e9c46a;
+    font-family: ParitySans;
+    font-size: 26px;
+    line-height: 1.2;
+    color: #1a1a2e;
+  }
+  .tag::before {
+    content: attr(data-prefix);
+    color: #9b2226;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><span class="tag" data-prefix="SKU-7842 ">widget</span></div>
+</body>
+</html>

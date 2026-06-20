@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #11324f;
+    display: inline-block;
+  }
+  /* Two equal-specificity class rules target the same element.
+     The later declaration must win (green, not gray). */
+  .pick { background: #bdbdbd; }
+  .pick { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <span class="box pick"></span>
+  </div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>counter-reset and counter-increment</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px;
+    border: 2px solid #000000;
+    background: #e8eaf6;
+    counter-reset: step;
+  }
+  .row {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.5;
+    color: #1b1b1b;
+    counter-increment: step;
+  }
+  .row::before {
+    content: "Step " counter(step) ": ";
+    font-weight: bold;
+    color: #283593;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <div class="row">build phase</div>
+    <div class="row">test phase</div>
+    <div class="row">ship phase</div>
+  </div>
+</body>
+</html>

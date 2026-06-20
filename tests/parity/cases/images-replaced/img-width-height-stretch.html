@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img width and height non-uniform stretch</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 260px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* Explicit width AND height on a 1:1 intrinsic image stretches it to 200x100. */
+  img {
+    display: block;
+    width: 200px;
+    height: 100px;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="200" height="100" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAIElEQVR42mM4IScHRHI9NkDEgMKRczsBRHdWiQARCgcAufsSwX2LXJUAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

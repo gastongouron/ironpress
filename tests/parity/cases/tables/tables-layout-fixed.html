@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-layout-fixed</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; font-family: sans-serif; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 360px;
+  }
+  col.a { width: 60px; }
+  col.b { width: 120px; }
+  col.c { width: 180px; }
+  td {
+    height: 55px;
+    border: 3px solid #2d3142;
+    background: #bfc0c0;
+  }
+  .a { background: #ef8354; }
+  .b { background: #4f5d75; }
+  .c { background: #ffffff; }
+</style>
+</head>
+<body>
+  <table>
+    <colgroup>
+      <col class="a">
+      <col class="b">
+      <col class="c">
+    </colgroup>
+    <tr><td class="a"></td><td class="b"></td><td class="c"></td></tr>
+    <tr><td class="a"></td><td class="b"></td><td class="c"></td></tr>
+  </table>
+</body>
+</html>

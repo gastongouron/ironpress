@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nested overflow hidden</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* Nested overflow:hidden. The inner clip box overflows the outer clip
+     box on the right/bottom and is itself clipped by the outer box, while
+     the inner box clips its own oversized grandchild. Effective visible
+     region is the intersection of the two clip rectangles. */
+  .outer {
+    overflow: hidden;
+    width: 180px;
+    height: 140px;
+    background: #fef9e7;
+    border: 3px solid #9a7d0a;
+  }
+  .inner {
+    overflow: hidden;
+    margin: 30px 0 0 30px;
+    width: 200px;
+    height: 160px;
+    background: #f7dc6f;
+    border: 3px solid #9a7d0a;
+  }
+  .grandchild {
+    width: 300px;
+    height: 260px;
+    background: #b7950b;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="outer">
+      <div class="inner">
+        <div class="grandchild"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

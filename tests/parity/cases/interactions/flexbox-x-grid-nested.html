@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox x grid: grid nested in flex item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .flex {
+    display: flex;
+    flex-direction: row;
+    width: 400px;
+    margin: 20px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #e8e8e8;
+  }
+  .item {
+    flex: 1 1 0;
+    border: 2px solid #1d4ed8;
+    background: #bfdbfe;
+    padding: 8px;
+  }
+  /* The second flex item is itself a grid container. */
+  .gridhost {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .cell {
+    height: 40px;
+    border: 2px solid #b91c1c;
+    background: #fca5a5;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item">&nbsp;</div>
+    <div class="item gridhost">
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell"></div>
+    </div>
+  </div>
+</body>
+</html>

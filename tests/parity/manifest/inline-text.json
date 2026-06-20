@@ -1,0 +1,263 @@
+[
+  {
+    "id": "inline-text-line-height-numeric",
+    "category": "inline-text",
+    "feature": "line-height",
+    "subfeature": "numeric",
+    "description": "Three filled paragraphs with line-height:2; verifies inter-line spacing and line-box height.",
+    "file": "cases/inline-text/inline-text-line-height-numeric.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-vertical-align-baseline",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "baseline",
+    "description": "Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.",
+    "file": "cases/inline-text/inline-text-vertical-align-baseline.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-vertical-align-middle",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "middle",
+    "description": "Inline-block box vertical-align:middle centered on the line x-height.",
+    "file": "cases/inline-text/inline-text-vertical-align-middle.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-vertical-align-top",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "top",
+    "description": "Inline-block box vertical-align:top aligned to the top of the line box.",
+    "file": "cases/inline-text/inline-text-vertical-align-top.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-vertical-align-text-top",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "text-top",
+    "description": "Inline-block box vertical-align:text-top aligned to the top of the parent text content.",
+    "file": "cases/inline-text/inline-text-vertical-align-text-top.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-white-space-nowrap",
+    "category": "inline-text",
+    "feature": "white-space",
+    "subfeature": "nowrap",
+    "description": "white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.",
+    "file": "cases/inline-text/inline-text-white-space-nowrap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-white-space-pre",
+    "category": "inline-text",
+    "feature": "white-space",
+    "subfeature": "pre",
+    "description": "white-space:pre preserves runs of spaces and explicit newlines in monospace text.",
+    "file": "cases/inline-text/inline-text-white-space-pre.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-white-space-pre-wrap",
+    "category": "inline-text",
+    "feature": "white-space",
+    "subfeature": "pre-wrap",
+    "description": "white-space:pre-wrap preserves spaces while still wrapping at the box edge.",
+    "file": "cases/inline-text/inline-text-white-space-pre-wrap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-letter-spacing",
+    "category": "inline-text",
+    "feature": "letter-spacing",
+    "subfeature": "positive",
+    "description": "letter-spacing:8px on monospace text widens advance between every glyph.",
+    "file": "cases/inline-text/inline-text-letter-spacing.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-word-spacing",
+    "category": "inline-text",
+    "feature": "word-spacing",
+    "subfeature": "positive",
+    "description": "word-spacing:20px widens the gap at space characters between words on a single line.",
+    "file": "cases/inline-text/inline-text-word-spacing.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-text-align-right",
+    "category": "inline-text",
+    "feature": "text-align",
+    "subfeature": "right",
+    "description": "text-align:right pushes a short line to the right edge of the box content area.",
+    "file": "cases/inline-text/inline-text-text-align-right.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-text-align-center",
+    "category": "inline-text",
+    "feature": "text-align",
+    "subfeature": "center",
+    "description": "text-align:center horizontally centers a short line within the box content area.",
+    "file": "cases/inline-text/inline-text-text-align-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-text-align-justify",
+    "category": "inline-text",
+    "feature": "text-align",
+    "subfeature": "justify",
+    "description": "text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.",
+    "file": "cases/inline-text/inline-text-text-align-justify.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-text-decoration-underline",
+    "category": "inline-text",
+    "feature": "text-decoration",
+    "subfeature": "underline",
+    "description": "text-decoration:underline with a colored 2px line under an inline span.",
+    "file": "cases/inline-text/inline-text-text-decoration-underline.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-inline-block-baseline",
+    "category": "inline-text",
+    "feature": "inline-block",
+    "subfeature": "baseline-alignment",
+    "description": "Inline-block with content aligns its last-line baseline to the surrounding text baseline.",
+    "file": "cases/inline-text/inline-text-inline-block-baseline.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-wrapping-normal",
+    "category": "inline-text",
+    "feature": "wrapping",
+    "subfeature": "normal",
+    "description": "Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.",
+    "file": "cases/inline-text/inline-text-wrapping-normal.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  }
+]

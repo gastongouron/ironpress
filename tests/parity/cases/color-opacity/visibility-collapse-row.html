@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>visibility collapse on table row</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 200px;
+  }
+  td {
+    width: 200px;
+    height: 60px;
+    border: 2px solid #000000;
+  }
+  .r1 td { background-color: #1565c0; }
+  .r2 { visibility: collapse; }
+  .r2 td { background-color: #c62828; }
+  .r3 td { background-color: #2e7d32; }
+</style>
+</head>
+<body>
+  <table>
+    <tr class="r1"><td></td></tr>
+    <tr class="r2"><td></td></tr>
+    <tr class="r3"><td></td></tr>
+  </table>
+</body>
+</html>

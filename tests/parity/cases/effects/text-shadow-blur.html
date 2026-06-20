@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>text-shadow blur</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #f1f8e9; padding: 40px; }
+  .t {
+    font-family: ParitySans, sans-serif;
+    font-size: 48px;
+    line-height: 1;
+    color: #1b5e20;
+    /* offset plus blur radius -> soft glow behind glyphs */
+    text-shadow: 4px 4px 6px #2e7d32;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="t">Glow</div></div>
+</body>
+</html>

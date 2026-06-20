@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flex-wrap x gap: wrapping rows with row and column gaps</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* flex-wrap pushes the 5th item to a new line; gap must apply BOTH between
+     items in a row and between the wrapped rows (no gap on the outer edges). */
+  .flex {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 300px;
+    margin: 30px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #e8e8e8;
+  }
+  .item {
+    width: 80px;
+    height: 50px;
+    border: 2px solid #15803d;
+    background: #bbf7d0;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+  </div>
+</body>
+</html>

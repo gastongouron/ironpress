@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid column span</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 80px 80px 80px;
+    grid-template-rows: 80px 80px;
+    width: 240px;
+    height: 160px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #ff5a5f; grid-column: span 2; }
+  .b { background: #2ec4b6; }
+  .c { background: #ffbf00; }
+  .d { background: #5a3fff; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+    <div class="cell c"></div>
+    <div class="cell d"></div>
+  </div>
+</body>
+</html>

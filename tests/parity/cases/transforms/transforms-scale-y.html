@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform scaleY</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: scaleY() stretches the box vertically about its center */
+  .frame {
+    position: relative;
+    width: 200px;
+    height: 320px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 120px;
+    left: 50px;
+    width: 100px;
+    height: 70px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 120px;
+    left: 50px;
+    width: 100px;
+    height: 70px;
+    background: #ad1457;
+    transform: scaleY(2.5);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

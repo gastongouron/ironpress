@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; font-size: 0; }
+  /* interaction: inline-block boxes laid out on a line, with the middle one
+     position:relative and offset; its in-flow inline slot is preserved while
+     the painted box shifts down/right */
+  .ib {
+    display: inline-block;
+    width: 70px;
+    height: 70px;
+    border: 2px solid #000000;
+    vertical-align: top;
+  }
+  .one   { background: #2980b9; }
+  .two   { background: #c0392b; position: relative; top: 25px; left: 20px; }
+  .three { background: #27ae60; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="ib one"></span><span class="ib two"></span><span class="ib three"></span>
+  </div>
+</body>
+</html>

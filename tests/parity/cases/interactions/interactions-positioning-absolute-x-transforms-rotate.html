@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* interaction: an absolutely positioned box that is also rotated.
+     position resolves first (top/left in the containing block), then the
+     transform rotates about the box center */
+  .cb {
+    position: relative;
+    width: 260px;
+    height: 220px;
+    background: #f0ecf4;
+    border: 2px solid #5b2c6f;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 70px;
+    width: 110px;
+    height: 70px;
+    background: #8e44ad;
+    border: 2px solid #4a2259;
+    transform: rotate(30deg);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="cb">
+      <div class="box"></div>
+    </div>
+  </div>
+</body>
+</html>

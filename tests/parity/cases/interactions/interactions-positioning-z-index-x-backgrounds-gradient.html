@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; position: relative; height: 220px; }
+  /* interaction: z-index stacking of two positioned boxes where the upper
+     box carries a linear-gradient background, painting over the lower solid box */
+  .box { position: absolute; width: 130px; height: 130px; border: 2px solid #000000; }
+  .lower { top: 60px; left: 70px; background: #27ae60; z-index: 1; }
+  .upper {
+    top: 20px; left: 20px; z-index: 2;
+    background: linear-gradient(135deg, #c0392b 0%, #f1c40f 100%);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box lower"></div>
+    <div class="box upper"></div>
+  </div>
+</body>
+</html>

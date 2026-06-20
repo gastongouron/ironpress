@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-thead-tbody-tfoot</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; font-family: sans-serif; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 300px;
+  }
+  td {
+    width: 150px;
+    height: 50px;
+    border: 3px solid #22223b;
+  }
+  thead td { background: #4a4e69; }
+  tbody td { background: #9a8c98; }
+  tfoot td { background: #c9ada7; }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><td></td><td></td></tr>
+    </thead>
+    <tbody>
+      <tr><td></td><td></td></tr>
+      <tr><td></td><td></td></tr>
+    </tbody>
+    <tfoot>
+      <tr><td></td><td></td></tr>
+    </tfoot>
+  </table>
+</body>
+</html>

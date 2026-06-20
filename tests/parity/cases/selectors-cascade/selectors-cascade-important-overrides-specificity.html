@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #11324f;
+    display: inline-block;
+  }
+  /* #strong is an id (1,0,0) and would normally win, but the class rule
+     uses !important and must override it on the second box. */
+  #strong { background: #bdbdbd; }
+  .winner { background: #2e9e4f !important; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <span class="box" id="strong"></span><span class="box winner" id="strong2"></span><span class="box" id="strong"></span>
+  </div>
+</body>
+</html>

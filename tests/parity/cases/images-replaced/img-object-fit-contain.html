@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img object-fit contain</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* 2:1 image in a 160x160 box; contain letterboxes it to 160x80, centred vertically. */
+  img {
+    display: block;
+    width: 160px;
+    height: 160px;
+    background: #cccccc;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="160" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

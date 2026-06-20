@@ -164,6 +164,41 @@ HTML/Markdown → Sanitize → Parse (html5ever) → Style cascade → Layout en
 
 See [Architecture](../../wiki/Architecture) for the full pipeline.
 
+## Visual parity harness
+
+`tests/parity/` is a granular Chrome-parity test suite: one isolated fixture per
+CSS feature/value (plus feature-interaction fixtures), each rendered by ironpress
+**and** by headless Chrome, then compared with a perceptual **SSIM** metric
+(`image-compare`, anti-aliasing-robust) at 300 DPI. It tracks a per-feature /
+per-category / overall implementation score and pinpoints whether a failure is
+**REAL** (the feature itself) or **CONFOUNDED** (a substrate it depends on, via
+"probe" fixtures).
+
+```bash
+scripts/parity.sh                 # run the engine: cargo test --test feature_parity
+scripts/parity-gen-refs.sh --force  # regenerate the committed Chrome references (needs Chromium)
+```
+
+- **Run it:** `cargo test --test feature_parity` — renders each fixture in-process,
+  rasterizes via `pdftoppm`, diffs against the committed reference, and writes
+  `tests/parity/report.json` + `REPORT.md` + the per-category visual reports.
+- **Read it:** open `tests/parity/reports/index.html` — it summarizes every
+  category and links a page per category, grouped by feature (anchored, scored),
+  each fixture showing **Chrome ref ∣ ironpress ∣ SSIM diff**. (GitHub serves
+  committed HTML as source; view the rendered report via the `htmlpreview` link the
+  PR bot posts, the GitHub Pages site, or locally.)
+- **References are committed** (Git LFS) so the suite runs without Chrome. When you
+  change a fixture you must regenerate its reference: `scripts/parity-gen-refs.sh
+  --force` then commit `tests/parity/{refs,refs.lock}`. CI's freshness gate
+  (`refs.lock` = sha256 of every fixture) fails the build if a fixture changed
+  without its reference being regenerated.
+- **CI:** `.github/workflows/parity.yml` is the deterministic gate (no Chrome,
+  runs against committed refs + freshness check); `parity-visuals.yml` regenerates
+  refs with a pinned Chromium on PRs and posts a comment linking the rendered
+  report index.
+- **Git LFS** stores the reference/candidate/diff PNGs and bundled fonts — run
+  `git lfs install` once after cloning.
+
 ## License
 
 MIT

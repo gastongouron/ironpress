@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>probe border box</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Substrate canary: one box with a thick solid border and a
+     transparent fill. Tests border paint in isolation. */
+  .box {
+    width: 200px;
+    height: 140px;
+    background-color: transparent;
+    border: 12px solid #2e7d32;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

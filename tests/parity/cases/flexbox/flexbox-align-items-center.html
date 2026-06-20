@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-items:center</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    align-items: center;
+    width: 420px;
+    height: 200px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 80px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; height: 60px; }
+  .b { background: #2980b9; height: 100px; }
+  .c { background: #27ae60; height: 140px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

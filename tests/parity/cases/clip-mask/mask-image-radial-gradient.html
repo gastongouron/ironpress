@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mask-image radial-gradient</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 200px;
+    background-color: #1565c0;
+    /* Radial alpha mask leaves a solid disc fading to transparent at the edges. */
+    -webkit-mask-image: radial-gradient(circle at 100px 100px, #000000 0%, #000000 50%, rgba(0,0,0,0) 75%);
+    mask-image: radial-gradient(circle at 100px 100px, #000000 0%, #000000 50%, rgba(0,0,0,0) 75%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

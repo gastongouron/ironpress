@@ -1,0 +1,48 @@
+name: Parity Report Pages
+
+# Publishes the committed visual parity report (tests/parity/reports/) to GitHub
+# Pages so it is browsable at a real URL (https://<owner>.github.io/<repo>/),
+# instead of GitHub serving the committed HTML as source.
+#
+# One-time setup: repo Settings → Pages → Build and deployment → Source: GitHub
+# Actions. Then every push to main that touches the report redeploys it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/parity/reports/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: parity-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout (with LFS so report images are real files)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload report as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: tests/parity/reports
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -10,3 +10,7 @@ fuzz/target/
 tests/fixtures/references/**/*.png
 bindings/python/target/
 bindings/ruby/target/
+# Visual parity harness scratch (committed assets live in tests/parity/{refs,out,reports}).
+tests/parity/diffs/
+target/parity-tmp/
+/tmp/ironpress-parity-fontcache/

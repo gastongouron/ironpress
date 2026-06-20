@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter opacity()</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Solid grey backdrop so the half-opacity box composites to a known grey. */
+  .frame { padding: 40px; }
+  .bg { width: 200px; height: 140px; background-color: #b0bec5; }
+  .box {
+    width: 200px;
+    height: 140px;
+    background-color: #c62828;
+    filter: opacity(0.5);
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="bg"><div class="box"></div></div></div>
+</body>
+</html>

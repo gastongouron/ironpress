@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path inset rounded</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    height: 160px;
+    background-color: #6a1b9a;
+    /* Inset clip with a rounded-corner radius. */
+    clip-path: inset(20px round 40px);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

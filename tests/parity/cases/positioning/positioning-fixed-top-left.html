@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  /* fixed box is positioned relative to the page (viewport); on a single
+     non-scrolling page it sits at the given top/left offset from the page box */
+  .box {
+    position: fixed;
+    top: 40px;
+    left: 40px;
+    width: 120px;
+    height: 80px;
+    background: #c0392b;
+    border: 2px solid #6e2018;
+  }
+  .filler {
+    margin: 20px;
+    width: 200px;
+    height: 120px;
+    background: #f0e6e4;
+    border: 2px solid #c9a39d;
+  }
+</style>
+</head>
+<body>
+  <div class="filler"></div>
+  <div class="box"></div>
+</body>
+</html>

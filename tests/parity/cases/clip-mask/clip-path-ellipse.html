@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path ellipse</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    height: 160px;
+    background-color: #00838f;
+    /* Clip the rectangle to a centered ellipse with distinct x/y radii. */
+    clip-path: ellipse(100px 60px at 120px 80px);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

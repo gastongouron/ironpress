@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid template-rows</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 140px;
+    grid-template-rows: 50px 110px 70px;
+    width: 140px;
+    height: 230px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #ff5a5f; }
+  .b { background: #2ec4b6; }
+  .c { background: #ffbf00; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+    <div class="cell c"></div>
+  </div>
+</body>
+</html>

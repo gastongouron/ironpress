@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin top left</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform-origin shifts the pivot of a rotation from the default center
+     to the top-left corner, so the box swings about its own corner.
+     Aspirational: ironpress has no transform-origin parse; rotation is
+     always about the default origin (surface map: missing) */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    width: 160px;
+    height: 100px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    width: 160px;
+    height: 100px;
+    background: #4527a0;
+    transform: rotate(30deg);
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

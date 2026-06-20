@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform rotate</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: rotate() turns the box clockwise about its center
+     (default transform-origin) without disturbing layout flow */
+  .frame {
+    position: relative;
+    width: 300px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 90px;
+    left: 75px;
+    width: 150px;
+    height: 100px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 90px;
+    left: 75px;
+    width: 150px;
+    height: 100px;
+    background: #ef6c00;
+    transform: rotate(35deg);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

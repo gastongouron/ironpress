@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transforms x flexbox: rotate applied to a flex item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* The transform on the middle flex item is purely visual: it must NOT change
+     the flex layout, so the third item stays in its untransformed slot while
+     the middle box paints rotated about its center. */
+  .flex {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+    width: 360px;
+    height: 140px;
+    margin: 30px;
+    border: 2px solid #222222;
+    padding: 12px;
+    background: #e8e8e8;
+  }
+  .item {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #1d4ed8;
+    background: #bfdbfe;
+  }
+  .rotated {
+    transform: rotate(20deg);
+    transform-origin: center center;
+    border: 2px solid #b91c1c;
+    background: #fca5a5;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item"></div>
+    <div class="item rotated"></div>
+    <div class="item"></div>
+  </div>
+</body>
+</html>

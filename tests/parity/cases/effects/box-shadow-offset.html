@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow hard offset</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* non-white page region so the shadow is visible against it */
+  .stage { background: #fff3e0; padding: 40px; }
+  .box {
+    width: 180px;
+    height: 110px;
+    background-color: #1565c0;
+    /* zero blur -> deterministic hard-edged shadow both engines agree on */
+    box-shadow: 18px 18px 0 0 #37474f;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

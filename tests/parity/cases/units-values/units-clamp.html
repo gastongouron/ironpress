@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clamp value function</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent {
+    width: 600px;
+    height: 160px;
+    background: #cfd8e3;
+    border: 2px solid #11305f;
+  }
+  /* Aspirational: clamp(min, preferred, max).
+     preferred 50% of 600 = 300px, clamped to max 240px -> 240px wide.
+     height clamp(80px, 50%, 200px): 50% of 160 = 80px -> 80px. */
+  .child {
+    width: clamp(120px, 50%, 240px);
+    height: clamp(80px, 50%, 200px);
+    background: #33a02c;
+    border: 4px solid #154f12;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

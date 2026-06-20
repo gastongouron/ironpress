@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid named lines basic</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: [start] 100px [mid] 100px [end];
+    grid-template-rows: 120px;
+    width: 200px;
+    height: 120px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #ff5a5f; grid-column: start / end; }
+  .b { background: #2ec4b6; grid-column: mid / end; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path circle</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 200px;
+    background-color: #c62828;
+    /* Clip the square down to a centered circle. */
+    clip-path: circle(80px at 100px 100px);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

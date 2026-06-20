@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* Adjacent sibling: only the .box that immediately follows .marker
+     turns green. The marker itself and the third box stay gray. */
+  .marker + .box { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box marker"></div>
+    <div class="box"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

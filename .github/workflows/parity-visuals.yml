@@ -1,0 +1,204 @@
+name: Parity Visuals
+
+# On every pull request: regenerate the Chrome references with a PINNED Chromium,
+# re-run the parity engine (candidates + diff maps + report.json), rebuild the
+# committed visual report (refs | ironpress | diff side-by-side), and either
+#   * SAME-REPO PR  -> auto-commit tests/parity/{refs,out,reports,refs.lock} back
+#                      to the PR head branch (with [skip ci] so it doesn't loop), or
+#   * FORK PR        -> upload the report as a build artifact (no write token).
+# A PR summary with the overall % and PASS/PARTIAL/FAIL counts is always posted.
+#
+# This workflow is for VISUALS / refresh only — it is NOT the gate. If the pinned
+# Chromium fails to install, the browser-dependent steps are skipped so this job
+# never blocks merge; the deterministic gate lives in parity.yml.
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+  # Pin Chromium so references are reproducible across runs.
+  CHROME_VERSION: "1465706"  # Chromium snapshot pinned for ref stability.
+
+concurrency:
+  group: parity-visuals-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  parity-visuals:
+    runs-on: ubuntu-latest
+    # Don't run on the bot's own refresh commit (guards against an infinite loop).
+    if: >
+      github.event.pull_request.head.repo.full_name != '' &&
+      github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout PR head (with LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          # Use the default token; auto-commit needs write back to the head branch.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect fork PR
+        id: fork
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: parity-cargo-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+
+      - name: Install poppler-utils
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Install bundled Parity fonts
+        run: |
+          mkdir -p "$HOME/.local/share/fonts"
+          cp tests/parity/fonts/Parity*.ttf "$HOME/.local/share/fonts/"
+          fc-cache -f
+
+      - name: Install pinned Chromium (non-blocking)
+        id: chrome
+        continue-on-error: true
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: ${{ env.CHROME_VERSION }}
+
+      - name: Regenerate refs + candidates + diffs + report
+        id: parity
+        env:
+          FONTCONFIG_FILE: ${{ github.workspace }}/tests/parity/fonts/fonts.conf
+        run: |
+          set -e
+          CHROME_PATH="${{ steps.chrome.outputs.chrome-path }}"
+          if [ "${{ steps.chrome.outcome }}" = "success" ] && [ -n "$CHROME_PATH" ] && [ -x "$CHROME_PATH" ]; then
+            # gen-refs auto-detects `chromium`/`google-chrome` on PATH. Expose the
+            # pinned binary under a recognized name on a dir that is always on PATH.
+            sudo ln -sf "$CHROME_PATH" /usr/local/bin/chromium
+            echo "Using pinned Chromium at $CHROME_PATH"
+            scripts/parity-gen-refs.sh --force || echo "::warning::ref regeneration had failures; continuing with existing refs."
+          else
+            echo "::warning::pinned Chromium unavailable — keeping committed refs (visuals only, gate unaffected)."
+          fi
+          # Re-run the engine against whatever refs we have (regenerated or committed),
+          # producing candidates + diff maps + report.json. Don't fail the visuals job
+          # on a parity regression — the gate (parity.yml) owns that.
+          cargo test --test feature_parity || echo "::warning::parity test reported a regression (see parity.yml gate)."
+          # The engine run above already wrote tests/parity/out/ (ironpress candidates),
+          # tests/parity/reports/ (per-feature category pages + index.html), and the
+          # SSIM diff maps — no separate report-build step needed.
+
+      - name: PR summary
+        if: always()
+        run: |
+          python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, os
+          p = "tests/parity/report.json"
+          if not os.path.exists(p):
+              print("### Parity visuals\n\nreport.json not produced.")
+          else:
+              o = json.load(open(p))["overall"]
+              print("### Visual parity report")
+              print()
+              print(f"**Overall score:** {o['score_pct']:.2f}%  "
+                    f"(lower is better)")
+              print()
+              print("| status | count |")
+              print("|---|---|")
+              print(f"| PASS | {o['pass']} |")
+              print(f"| PARTIAL | {o['partial']} |")
+              print(f"| FAIL | {o['fail']} |")
+              print(f"| UNKNOWN | {o['unknown']} |")
+              print(f"| **total** | **{o['total']}** |")
+              print()
+              print("Side-by-side report committed to "
+                    "`tests/parity/reports/index.html` "
+                    "(or attached as the `parity-report` artifact for fork PRs).")
+          PY
+
+      - name: Auto-commit refreshed parity assets (same-repo PR)
+        if: steps.fork.outputs.is_fork == 'false'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(parity): refresh refs + visual report [skip ci]"
+          # Commit only the parity assets this workflow owns.
+          file_pattern: >-
+            tests/parity/refs/**
+            tests/parity/out/**
+            tests/parity/reports/**
+            tests/parity/refs.lock
+            tests/parity/report.json
+            tests/parity/REPORT.md
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Upload report artifact (fork PR)
+        if: steps.fork.outputs.is_fork == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-report
+          path: |
+            tests/parity/reports/**
+            tests/parity/report.json
+            tests/parity/REPORT.md
+          if-no-files-found: warn
+
+      - name: Comment report-index link on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- parity-visual-report -->';
+            let body = '## 🎨 Parity visual report\n\n';
+            try {
+              const o = JSON.parse(fs.readFileSync('tests/parity/report.json', 'utf8')).overall;
+              body += `**Overall:** ${o.score_pct.toFixed(2)}% _(lower is better)_ · `
+                    + `PASS ${o.pass} · PARTIAL ${o.partial} · FAIL ${o.fail} · UNKNOWN ${o.unknown} `
+                    + `(total ${o.total})\n\n`;
+            } catch (e) {
+              body += '_report.json not produced this run._\n\n';
+            }
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const isFork = '${{ steps.fork.outputs.is_fork }}' === 'true';
+            if (isFork) {
+              const run = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+              body += `📦 Fork PR — the rendered report is attached as the **parity-report** `
+                    + `artifact on [this run](${run}).\n`;
+            } else {
+              const headRepo = context.payload.pull_request.head.repo.full_name;
+              const headRef = context.payload.pull_request.head.ref;
+              const src = `${context.serverUrl}/${headRepo}/blob/${headRef}/tests/parity/reports/index.html`;
+              const preview = `https://htmlpreview.github.io/?${src}`;
+              body += `📊 **[Open the visual report index](${preview})** · [source](${src})\n\n`;
+              body += `Index summarizes every category; each category page groups fixtures by `
+                    + `feature (anchored) with **Chrome ref ∣ ironpress ∣ SSIM-diff** triptychs.\n`;
+            }
+            body += `\n${marker}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: context.issue.number, body });
+            }

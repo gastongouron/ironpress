@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow hidden clips text</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* overflow:hidden on a short, fixed-height box clips overflowing text
+     lines below the box edge. Bundled ParitySans for deterministic glyphs. */
+  .clip {
+    overflow: hidden;
+    width: 260px;
+    height: 64px;
+    background: #f2f4f4;
+    border: 3px solid #34495e;
+    font-family: ParitySans;
+    font-size: 20px;
+    line-height: 28px;
+    color: #1b2631;
+    padding: 4px 8px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">Line One Visible<br>Line Two Visible<br>Line Three Hidden<br>Line Four Hidden</div>
+  </div>
+</body>
+</html>

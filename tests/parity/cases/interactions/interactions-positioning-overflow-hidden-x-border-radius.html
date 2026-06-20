@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* interaction: overflow:hidden combined with border-radius clips the
+     overflowing child to the rounded corners of the clip box */
+  .clip {
+    overflow: hidden;
+    border-radius: 30px;
+    width: 160px;
+    height: 130px;
+    background: #fdf3e7;
+    border: 2px solid #8a4910;
+  }
+  .child {
+    width: 240px;
+    height: 200px;
+    background: #e67e22;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

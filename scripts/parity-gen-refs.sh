@@ -1,0 +1,292 @@
+#!/usr/bin/env bash
+#
+# parity-gen-refs.sh — one-time Chrome reference generator for the parity engine.
+#
+# For each fixture under tests/parity/cases/<category>/<id>.html this renders a
+# PDF with headless Chromium at US Letter + 0.4in (28.8pt) margins (Chrome's
+# --print-to-pdf defaults, matching the ironpress lib render in the engine), then
+# rasterizes page 1 with pdftoppm at the engine DPI to
+# tests/parity/refs/<category>/<id>.png.
+#
+# Idempotent: existing refs are skipped unless --force / FORCE=1. An optional
+# positional <category> argument limits generation to one bucket. Chrome is never
+# run at test time; this script is the only place it is invoked.
+#
+# PARALLELISM: fixtures are rendered concurrently across a bounded pool of
+# N = min(nproc-2, 8) workers (xargs -P N). Chromium cold-start dominates the
+# wall-clock cost, so overlapping launches is the single biggest win. Each
+# concurrent Chromium gets its OWN --user-data-dir (mktemp -d per job): Chromium
+# refuses (or silently serializes behind a profile lock) when multiple instances
+# share a profile, which would defeat the parallelism. Per-job temp dirs and the
+# intermediate PDF are removed when the job finishes. The produced PNG set is
+# byte-identical to the old serial version — only the order of console lines and
+# the wall-clock time change.
+#
+# Usage:
+#   scripts/parity-gen-refs.sh                # generate all missing refs
+#   scripts/parity-gen-refs.sh --force        # regenerate everything
+#   scripts/parity-gen-refs.sh flexbox        # only the flexbox bucket
+#   FORCE=1 scripts/parity-gen-refs.sh grid   # force one bucket
+
+set -euo pipefail
+
+DPI=300
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PARITY="$ROOT/tests/parity"
+CASES="$PARITY/cases"
+REFS="$PARITY/refs"
+FONTS="$PARITY/fonts"
+TMP="$ROOT/target/parity-tmp"
+mkdir -p "$TMP"
+
+# --- deterministic fonts -----------------------------------------------------
+# Point fontconfig (and therefore Chrome) at the bundled Parity faces so the
+# reference rasters use the SAME outlines as the ironpress in-process render
+# (which registers tests/parity/fonts/Parity*.ttf via HtmlConverter::add_font).
+# Without this, Chrome would shape with whatever system fonts happen to be
+# installed and text-bearing fixtures would measure noise, not parity.
+if [ -f "$FONTS/fonts.conf" ]; then
+  export FONTCONFIG_FILE="$FONTS/fonts.conf"
+  export FONTCONFIG_PATH="$FONTS"
+  mkdir -p /tmp/ironpress-parity-fontcache
+  echo "parity-gen-refs: FONTCONFIG_FILE=$FONTCONFIG_FILE"
+else
+  echo "parity-gen-refs: WARNING $FONTS/fonts.conf missing; refs will use system fonts (text parity = noise)." >&2
+fi
+
+FORCE="${FORCE:-0}"
+ONLY_CATEGORY=""
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    -*) echo "unknown flag: $arg" >&2; exit 2 ;;
+    *) ONLY_CATEGORY="$arg" ;;
+  esac
+done
+
+# --- locate chromium ---------------------------------------------------------
+CHROMIUM=""
+for cand in chromium-browser /snap/bin/chromium chromium google-chrome google-chrome-stable; do
+  if command -v "$cand" >/dev/null 2>&1; then CHROMIUM="$cand"; break; fi
+done
+if [ -z "$CHROMIUM" ]; then
+  echo "parity-gen-refs: chromium not found; skipping reference generation." >&2
+  echo "  (fixtures without a reference stay UNKNOWN and never fail CI.)" >&2
+  exit 0
+fi
+
+if ! command -v pdftoppm >/dev/null 2>&1; then
+  echo "parity-gen-refs: pdftoppm (poppler) not found; skipping." >&2
+  exit 0
+fi
+
+if [ ! -d "$CASES" ]; then
+  echo "parity-gen-refs: no cases dir at $CASES (nothing to do)." >&2
+  exit 0
+fi
+
+# --- size the worker pool ----------------------------------------------------
+# N = min(nproc-2, 8). Leave two cores for the OS / Chromium helper threads and
+# cap at 8 so we don't thrash memory with too many concurrent browsers.
+NCPU="$(nproc 2>/dev/null || echo 4)"
+JOBS=$((NCPU - 2))
+[ "$JOBS" -lt 1 ] && JOBS=1
+[ "$JOBS" -gt 8 ] && JOBS=8
+
+echo "parity-gen-refs: chromium='$CHROMIUM', dpi=$DPI, force=$FORCE, only='${ONLY_CATEGORY:-<all>}', jobs=$JOBS"
+
+# Make the bundled Parity faces discoverable by Chromium. CRITICAL: snap-packaged
+# Chromium IGNORES $FONTCONFIG_FILE, so pointing it at tests/parity/fonts/fonts.conf
+# is not enough — Chrome falls back to a serif and the text refs become wrong.
+# Installing the faces into the user font dir (which the snap desktop interface
+# exposes) + refreshing the cache makes Chrome AND ironpress select the same
+# outlines. Idempotent; in CI this targets the ephemeral runner's font dir.
+FONTS_SRC="$ROOT/tests/parity/fonts"
+USER_FONTS="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+if ls "$FONTS_SRC"/Parity*.ttf >/dev/null 2>&1; then
+  mkdir -p "$USER_FONTS"
+  cp -f "$FONTS_SRC"/Parity*.ttf "$USER_FONTS"/ 2>/dev/null || true
+  command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$USER_FONTS" >/dev/null 2>&1 || true
+  echo "parity-gen-refs: installed bundled Parity faces into $USER_FONTS"
+fi
+
+# --- per-job worker ----------------------------------------------------------
+# render_one <html>  — runs in its own subshell (one xargs slot). Emits exactly
+# one status token to stdout: "G" generated, "S" skipped, "F" failed. Human log
+# lines go to stderr so they don't pollute the status stream.
+render_one() {
+  local html="$1"
+  local rel category base ref pdf udd pages
+
+  rel="${html#"$CASES"/}"           # <category>/<id>.html
+  category="${rel%%/*}"
+  base="$(basename "$html" .html)"  # <id>
+
+  ref="$REFS/$category/$base.png"
+  if [ -f "$ref" ] && [ "$FORCE" != "1" ]; then
+    echo "S"
+    return 0
+  fi
+
+  mkdir -p "$REFS/$category"
+
+  # Unique scratch per job: a private Chromium profile dir (mandatory for
+  # concurrency — a shared profile lock serializes/aborts parallel runs) and a
+  # unique intermediate PDF path. Both are cleaned up on every exit path.
+  udd="$(mktemp -d "$TMP/udd.XXXXXX")"
+  pdf="$(mktemp "$TMP/ref.XXXXXX.pdf")"
+  trap 'rm -rf "$udd" "$pdf"' RETURN
+
+  # Render PDF, with retries. Under concurrent snap-Chromium cold starts,
+  # --headless=new sporadically aborts because its separate GPU process loses a
+  # namespace race ("Failed to open /dev/null" / "GPU process launch failed:
+  # error_code=1002" -> FATAL "GPU process isn't usable. Goodbye." -> SIGABRT).
+  # The failure is transient and independent, so retry with a FRESH profile and a
+  # short backoff. Fall back to legacy --headless only as a last resort, so the
+  # vast majority of refs come from one consistent headless mode (new).
+  # Each attempt is bounded by `timeout` so a HUNG Chromium (snap renders
+  # sometimes hang rather than exit) can never wedge a worker slot forever; after
+  # every attempt we reap the whole Chromium process tree for this profile so no
+  # orphan survives to pressure later launches. Legacy --headless is the last
+  # resort so the vast majority of refs come from one consistent mode (new).
+  local ok="" attempt
+  for attempt in 1 2 3; do
+    rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
+    timeout -k 5s 60s "$CHROMIUM" --headless=new --disable-gpu --no-sandbox \
+         --disable-software-rasterizer --user-data-dir="$udd" \
+         --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1
+    pkill -9 -f "$udd" 2>/dev/null || true
+    if [ -s "$pdf" ]; then ok=1; break; fi
+    sleep 0.4
+  done
+  if [ -z "$ok" ]; then
+    rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
+    timeout -k 5s 60s "$CHROMIUM" --headless --disable-gpu --no-sandbox \
+      --disable-software-rasterizer --user-data-dir="$udd" \
+      --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1 || true
+    pkill -9 -f "$udd" 2>/dev/null || true
+  fi
+
+  if [ ! -s "$pdf" ]; then
+    echo "  FAILED render after retries: $category/$base" >&2
+    echo "F"
+    return 0
+  fi
+
+  # Single-page assertion: refuse multi-page refs (would mask pagination diffs).
+  if command -v pdfinfo >/dev/null 2>&1; then
+    pages="$(pdfinfo "$pdf" 2>/dev/null | awk '/^Pages:/ {print $2}')"
+    if [ -n "${pages:-}" ] && [ "$pages" -gt 1 ]; then
+      echo "  SKIP multi-page ($pages) fixture: $category/$base (shrink to one Letter page)" >&2
+      echo "F"
+      return 0
+    fi
+  fi
+
+  # Rasterize page 1 to a TEMP file, then atomically move it into place — so an
+  # interrupted/killed run can never leave a half-written (corrupt) reference PNG
+  # behind (the engine treats a corrupt ref as UNKNOWN, but never producing one is
+  # better).
+  local tmp_prefix; tmp_prefix="$(mktemp -u "$TMP/png.XXXXXX")"
+  if timeout 60s pdftoppm -r "$DPI" -png -f 1 -l 1 -singlefile "$pdf" "$tmp_prefix" 2>/dev/null \
+     && [ -s "$tmp_prefix.png" ]; then
+    mv -f "$tmp_prefix.png" "$ref"
+    echo "  generated $category/$base.png" >&2
+    echo "G"
+  else
+    rm -f "$tmp_prefix.png" 2>/dev/null || true
+    echo "  FAILED rasterize: $category/$base" >&2
+    echo "F"
+  fi
+}
+
+# Export everything the worker subshells need.
+export -f render_one
+export CHROMIUM CASES REFS TMP FORCE DPI
+
+# --- dispatch concurrently ---------------------------------------------------
+# Collect the matching fixtures (NUL-delimited, sorted for stable selection),
+# then fan them out over the bounded pool. Each xargs slot is a fresh bash that
+# runs render_one on a single fixture, so the per-job mktemp profiles never
+# collide. We tally the one-letter status tokens streamed back on stdout.
+status_file="$(mktemp "$TMP/status.XXXXXX")"
+trap 'rm -f "$status_file"' EXIT
+
+select_fixtures() {
+  if [ -n "$ONLY_CATEGORY" ]; then
+    find "$CASES/$ONLY_CATEGORY" -type f -name '*.html' -print0 2>/dev/null | sort -z
+  else
+    find "$CASES" -type f -name '*.html' -print0 | sort -z
+  fi
+}
+
+select_fixtures | xargs -0 -P "$JOBS" -I {} bash -c 'render_one "$@"' _ {} > "$status_file"
+
+generated="$(grep -c '^G$' "$status_file" || true)"
+skipped="$(grep -c '^S$' "$status_file" || true)"
+failed="$(grep -c '^F$' "$status_file" || true)"
+
+echo "parity-gen-refs: done — generated=$generated skipped=$skipped failed=$failed"
+
+# --- refs.lock --------------------------------------------------------------
+# Record exactly which fixture CONTENT the committed references correspond to:
+# a pretty-printed JSON object mapping each fixture id -> sha256 of its
+# cases/<category>/<id>.html. CI's refs-freshness gate (parity.yml) recomputes
+# these hashes and FAILS if a fixture changed without its reference (and this
+# lock) being regenerated — that is what forces `scripts/parity-gen-refs.sh
+# --force` whenever fixtures change.
+#
+# We regenerate the WHOLE lock from every MANIFEST entry on each run (simpler and
+# always self-consistent) rather than patching only the ids touched this run. The
+# key is the manifest `id` and the value is sha256 of the fixture it points at
+# (`file` = cases/<category>/<id>.html). NOTE: the manifest id is NOT always the
+# html basename — e.g. cases/backgrounds-borders/box-shadow-offset.html has id
+# `border-box-shadow-offset` — so we MUST read the mapping from the manifests, not
+# infer it from filenames, otherwise the freshness gate would key on the wrong id.
+write_refs_lock() {
+  local lock="$PARITY/refs.lock"
+  local manifest_dir="$PARITY/manifest"
+
+  if [ ! -d "$manifest_dir" ]; then
+    echo "parity-gen-refs: no manifest dir at $manifest_dir; skipping refs.lock." >&2
+    return 0
+  fi
+
+  # Python builds the {id: sha256(file)} map from all manifests and writes pretty,
+  # key-sorted JSON. sha256 is computed over the exact bytes of each fixture html.
+  PARITY_DIR="$PARITY" python3 - "$lock" <<'PY'
+import glob, hashlib, json, os, sys
+
+lock_path = sys.argv[1]
+parity = os.environ["PARITY_DIR"]
+manifest_glob = os.path.join(parity, "manifest", "*.json")
+
+mapping = {}
+for mf in sorted(glob.glob(manifest_glob)):
+    with open(mf, "r", encoding="utf-8") as fh:
+        entries = json.load(fh)
+    for e in entries:
+        fid = e["id"]
+        rel = e["file"]  # cases/<category>/<id>.html
+        html_path = os.path.join(parity, rel)
+        try:
+            with open(html_path, "rb") as hf:
+                digest = hashlib.sha256(hf.read()).hexdigest()
+        except FileNotFoundError:
+            print(f"parity-gen-refs: WARNING fixture missing for id={fid}: {rel}",
+                  file=sys.stderr)
+            continue
+        mapping[fid] = digest
+
+ordered = {k: mapping[k] for k in sorted(mapping)}
+with open(lock_path, "w", encoding="utf-8") as out:
+    json.dump(ordered, out, indent=2, sort_keys=True)
+    out.write("\n")
+
+print(f"wrote refs.lock ({len(ordered)} entries)")
+PY
+}
+
+write_refs_lock

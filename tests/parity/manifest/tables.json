@@ -1,0 +1,277 @@
+[
+  {
+    "id": "tables-basic-grid",
+    "category": "tables",
+    "feature": "table",
+    "subfeature": "basic-grid",
+    "description": "2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.",
+    "file": "cases/tables/tables-basic-grid.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-collapse",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "collapse",
+    "description": "border-collapse:collapse merges adjacent 4px cell borders into shared single edges.",
+    "file": "cases/tables/tables-border-collapse.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-separate",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "separate",
+    "description": "border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.",
+    "file": "cases/tables/tables-border-separate.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-spacing",
+    "category": "tables",
+    "feature": "border-spacing",
+    "subfeature": "uniform-12px",
+    "description": "border-collapse:separate with 12px border-spacing exposes the table background between cells.",
+    "file": "cases/tables/tables-border-spacing.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-colspan",
+    "category": "tables",
+    "feature": "colspan",
+    "subfeature": "colspan-2",
+    "description": "A header cell with colspan=2 spans two fixed columns above a normal three-cell row.",
+    "file": "cases/tables/tables-colspan.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "rowspan-2",
+    "description": "A first-column cell with rowspan=2 spans both rows while later columns stay single-row.",
+    "file": "cases/tables/tables-rowspan.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-layout-fixed",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "fixed",
+    "description": "table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.",
+    "file": "cases/tables/tables-layout-fixed.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-layout-auto",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "auto",
+    "description": "table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).",
+    "file": "cases/tables/tables-layout-auto.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-thead-tbody-tfoot",
+    "category": "tables",
+    "feature": "table-sections",
+    "subfeature": "thead-tbody-tfoot",
+    "description": "thead, tbody and tfoot row groups render in document order with distinct section backgrounds.",
+    "file": "cases/tables/tables-thead-tbody-tfoot.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-width-percent-columns",
+    "category": "tables",
+    "feature": "column-width",
+    "subfeature": "percent",
+    "description": "Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.",
+    "file": "cases/tables/tables-width-percent-columns.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-cell-padding",
+    "category": "tables",
+    "feature": "cell-padding",
+    "subfeature": "padding-20px",
+    "description": "20px cell padding insets a filled inner box from the cell border on all sides.",
+    "file": "cases/tables/tables-cell-padding.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-cell-vertical-align",
+    "category": "tables",
+    "feature": "vertical-align",
+    "subfeature": "top-middle-bottom",
+    "description": "A 24px marker box aligns to top, middle and bottom within tall 120px cells.",
+    "file": "cases/tables/tables-cell-vertical-align.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-cell-text-align",
+    "category": "tables",
+    "feature": "text-align",
+    "subfeature": "left-center-right",
+    "description": "Short monospace text aligned left, center and right within three equal cells.",
+    "file": "cases/tables/tables-cell-text-align.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-caption",
+    "category": "tables",
+    "feature": "caption",
+    "subfeature": "caption-side-top",
+    "description": "A top-side caption renders as a full-width banner above the table body.",
+    "file": "cases/tables/tables-caption.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-th-header",
+    "category": "tables",
+    "feature": "th-cell",
+    "subfeature": "header-default",
+    "description": "th header cells in the first row vs td data cells, with distinct fills and text.",
+    "file": "cases/tables/tables-th-header.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-empty-cells-hide",
+    "category": "tables",
+    "feature": "empty-cells",
+    "subfeature": "hide",
+    "description": "empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.",
+    "file": "cases/tables/tables-empty-cells-hide.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  }
+]

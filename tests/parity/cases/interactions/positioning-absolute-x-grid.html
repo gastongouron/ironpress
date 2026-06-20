@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>positioning x grid: absolute child inside grid container</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Grid container establishes a containing block for an absolutely-positioned
+     child, which is removed from grid placement and offset from the corner. */
+  .grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    width: 360px;
+    height: 140px;
+    margin: 20px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #e8e8e8;
+  }
+  .cell {
+    border: 2px solid #4d7c0f;
+    background: #d9f99d;
+  }
+  .pinned {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    width: 70px;
+    height: 50px;
+    border: 2px solid #9333ea;
+    background: #e9d5ff;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="pinned"></div>
+  </div>
+</body>
+</html>

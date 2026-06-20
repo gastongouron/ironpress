@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox order</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    width: 420px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 90px;
+    height: 90px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; order: 3; }
+  .b { background: #2980b9; order: 1; }
+  .c { background: #27ae60; order: 2; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

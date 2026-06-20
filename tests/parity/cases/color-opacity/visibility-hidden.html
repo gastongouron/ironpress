@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>visibility hidden reserves space</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .a {
+    width: 200px;
+    height: 80px;
+    background-color: #c62828;
+    visibility: hidden;
+  }
+  .b {
+    width: 200px;
+    height: 80px;
+    background-color: #2e7d32;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+</body>
+</html>

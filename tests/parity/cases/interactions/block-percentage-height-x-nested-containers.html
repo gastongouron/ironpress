@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>block x box-model: percentage height resolved through nested containers</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* A definite height on the outer box must propagate so that a chain of
+     percentage-height children each resolve against their parent. */
+  .outer {
+    width: 200px;
+    height: 240px;
+    margin: 30px;
+    border: 2px solid #222222;
+    background: #e2e8f0;
+  }
+  .mid {
+    height: 50%;        /* 120px of 240px */
+    width: 100%;
+    border: 2px solid #1e3a8a;
+    background: #93c5fd;
+  }
+  .inner {
+    height: 50%;        /* 60px of 120px */
+    width: 100%;
+    border: 2px solid #b91c1c;
+    background: #fca5a5;
+  }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div class="mid">
+      <div class="inner"></div>
+    </div>
+  </div>
+</body>
+</html>

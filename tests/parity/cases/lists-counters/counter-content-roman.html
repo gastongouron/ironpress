@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>counter() with style argument</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px;
+    border: 2px solid #000000;
+    background: #e0f2f1;
+    counter-reset: chap;
+  }
+  .row {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.5;
+    color: #1b1b1b;
+    counter-increment: chap;
+  }
+  .row::before {
+    content: counter(chap, upper-roman) ". ";
+    font-weight: bold;
+    color: #00695c;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <div class="row">introduction</div>
+    <div class="row">methods</div>
+    <div class="row">results</div>
+  </div>
+</body>
+</html>

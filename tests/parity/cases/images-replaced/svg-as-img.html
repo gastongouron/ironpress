@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg as img data uri</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* SVG document referenced through an img element via a data: URI, drawn at 160x120. */
+  img {
+    display: block;
+    width: 160px;
+    height: 120px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="120" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTYwIDEyMCI+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjE2MCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNkOGYzZGMiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjYwIiByPSI0MCIgZmlsbD0iIzE1NjVjMCIvPjxyZWN0IHg9IjkwIiB5PSIyMCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjYzYyODI4Ii8+PC9zdmc+">
+  </div>
+</body>
+</html>

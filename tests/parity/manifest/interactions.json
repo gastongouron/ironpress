@@ -1,0 +1,552 @@
+[
+  {
+    "id": "flexbox-x-grid-nested",
+    "category": "interactions",
+    "feature": "flexbox-x-grid",
+    "subfeature": "grid-in-flex-item",
+    "description": "A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.",
+    "file": "cases/interactions/flexbox-x-grid-nested.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "flexbox",
+      "grid"
+    ],
+    "base_ids": [
+      "flexbox-display-flex",
+      "grid-display-grid"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-x-flexbox-nested",
+    "category": "interactions",
+    "feature": "grid-x-flexbox",
+    "subfeature": "flex-in-grid-cell",
+    "description": "A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.",
+    "file": "cases/interactions/grid-x-flexbox-nested.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "grid",
+      "flexbox"
+    ],
+    "base_ids": [
+      "grid-display-grid",
+      "flexbox-display-flex"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-absolute-x-flexbox",
+    "category": "interactions",
+    "feature": "positioning-x-flexbox",
+    "subfeature": "absolute-child-in-flex",
+    "description": "An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.",
+    "file": "cases/interactions/positioning-absolute-x-flexbox.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "flexbox"
+    ],
+    "base_ids": [
+      "positioning-position-absolute-top-left",
+      "flexbox-display-flex"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-absolute-x-grid",
+    "category": "interactions",
+    "feature": "positioning-x-grid",
+    "subfeature": "absolute-child-in-grid",
+    "description": "An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.",
+    "file": "cases/interactions/positioning-absolute-x-grid.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "grid"
+    ],
+    "base_ids": [
+      "positioning-position-absolute-top-left",
+      "grid-display-grid"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-float-x-margin-collapse",
+    "category": "interactions",
+    "feature": "float-x-margin-collapse",
+    "subfeature": "float-beside-collapsing-blocks",
+    "description": "A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.",
+    "file": "cases/interactions/interactions-float-x-margin-collapse.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "block-box-model"
+    ],
+    "base_ids": [
+      "positioning-float-left",
+      "block-margin-collapse-adjacent"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "inline-block-x-vertical-align",
+    "category": "interactions",
+    "feature": "inline-block-x-vertical-align",
+    "subfeature": "baseline-vs-middle-beside-text",
+    "description": "Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.",
+    "file": "cases/interactions/inline-block-x-vertical-align.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "base_ids": [
+      "inline-text-inline-block-baseline",
+      "inline-text-vertical-align-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-zindex-x-transforms-rotate",
+    "category": "interactions",
+    "feature": "z-index-x-transforms",
+    "subfeature": "stacking-with-transformed-box",
+    "description": "Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.",
+    "file": "cases/interactions/positioning-zindex-x-transforms-rotate.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "transforms"
+    ],
+    "base_ids": [
+      "positioning-z-index-stacking",
+      "transforms-rotate"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-model-overflow-hidden-x-border-radius",
+    "category": "interactions",
+    "feature": "overflow-hidden-x-border-radius",
+    "subfeature": "rounded-clip-of-child",
+    "description": "A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.",
+    "file": "cases/interactions/box-model-overflow-hidden-x-border-radius.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-border-box"
+    ],
+    "interaction_of": [
+      "positioning",
+      "backgrounds-borders"
+    ],
+    "base_ids": [
+      "border-radius-uniform",
+      "positioning-overflow-hidden-clip"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-x-flexbox-nested",
+    "category": "interactions",
+    "feature": "tables-x-flexbox",
+    "subfeature": "table-in-flex-item",
+    "description": "A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.",
+    "file": "cases/interactions/tables-x-flexbox-nested.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "tables",
+      "flexbox"
+    ],
+    "base_ids": [
+      "tables-basic-grid",
+      "flexbox-display-flex"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-percentage-height-x-nested-containers",
+    "category": "interactions",
+    "feature": "percentage-height-x-nested-block",
+    "subfeature": "height-chain-resolution",
+    "description": "A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).",
+    "file": "cases/interactions/block-percentage-height-x-nested-containers.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "block-box-model",
+      "positioning"
+    ],
+    "base_ids": [
+      "block-width-height-explicit",
+      "block-nested-containment"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-rotate-x-flexbox-item",
+    "category": "interactions",
+    "feature": "transforms-x-flexbox",
+    "subfeature": "rotate-on-flex-item",
+    "description": "A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.",
+    "file": "cases/interactions/transforms-rotate-x-flexbox-item.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "transforms",
+      "flexbox"
+    ],
+    "base_ids": [
+      "transforms-rotate",
+      "flexbox-display-flex"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-x-background-gradient",
+    "category": "interactions",
+    "feature": "grid-x-background-gradient",
+    "subfeature": "gradient-fill-in-cells",
+    "description": "Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.",
+    "file": "cases/interactions/grid-x-background-gradient.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "grid",
+      "backgrounds-borders"
+    ],
+    "base_ids": [
+      "grid-display-grid",
+      "background-linear-gradient"
+    ],
+    "weight": 1,
+    "smooth_gradient": true,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-wrap-x-gap",
+    "category": "interactions",
+    "feature": "flex-wrap-x-gap",
+    "subfeature": "row-and-column-gap-on-wrap",
+    "description": "flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.",
+    "file": "cases/interactions/flexbox-wrap-x-gap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "base_ids": [
+      "flexbox-flex-wrap",
+      "flexbox-gap"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-x-typography-bold",
+    "category": "interactions",
+    "feature": "tables-x-typography",
+    "subfeature": "bold-header-cells",
+    "description": "A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.",
+    "file": "cases/interactions/tables-x-typography-bold.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "interaction_of": [
+      "tables",
+      "typography"
+    ],
+    "base_ids": [
+      "tables-thead-tbody-tfoot",
+      "typography-font-weight-bold"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 4.0,
+    "partial_threshold_pct": 15.0
+  },
+  {
+    "id": "interactions-positioning-absolute-x-transforms-rotate",
+    "category": "interactions",
+    "feature": "position",
+    "subfeature": "absolute-rotated",
+    "description": "Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.",
+    "file": "cases/interactions/interactions-positioning-absolute-x-transforms-rotate.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "transforms"
+    ],
+    "base_ids": [
+      "positioning-position-absolute-top-left",
+      "transforms-rotate"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-float-x-margin-collapse",
+    "category": "interactions",
+    "feature": "float",
+    "subfeature": "with-margin-collapse",
+    "description": "Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.",
+    "file": "cases/interactions/interactions-positioning-float-x-margin-collapse.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "block-box-model"
+    ],
+    "base_ids": [
+      "positioning-float-left",
+      "block-margin-collapse-adjacent"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-absolute-x-box-model-padding",
+    "category": "interactions",
+    "feature": "containing-block",
+    "subfeature": "padding-box",
+    "description": "Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.",
+    "file": "cases/interactions/interactions-positioning-absolute-x-box-model-padding.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "block-box-model"
+    ],
+    "base_ids": [
+      "positioning-position-absolute-top-left",
+      "block-padding-all-sides"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-z-index-x-backgrounds-gradient",
+    "category": "interactions",
+    "feature": "z-index",
+    "subfeature": "with-gradient",
+    "description": "Interaction: z-index stacking where the upper positioned box carries a linear-gradient background over a lower solid box.",
+    "file": "cases/interactions/interactions-positioning-z-index-x-backgrounds-gradient.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "positioning",
+      "backgrounds-borders"
+    ],
+    "base_ids": [
+      "positioning-z-index-stacking",
+      "background-linear-gradient"
+    ],
+    "weight": 1,
+    "smooth_gradient": true,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-overflow-hidden-x-border-radius",
+    "category": "interactions",
+    "feature": "overflow",
+    "subfeature": "hidden-with-border-radius",
+    "description": "Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.",
+    "file": "cases/interactions/interactions-positioning-overflow-hidden-x-border-radius.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-border-box"
+    ],
+    "interaction_of": [
+      "positioning",
+      "backgrounds-borders"
+    ],
+    "base_ids": [
+      "positioning-overflow-hidden-clip",
+      "border-radius-uniform"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-relative-x-inline-block",
+    "category": "interactions",
+    "feature": "position",
+    "subfeature": "relative-on-inline-block",
+    "description": "Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.",
+    "file": "cases/interactions/interactions-positioning-relative-x-inline-block.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "interaction_of": [
+      "positioning",
+      "inline-text"
+    ],
+    "base_ids": [
+      "positioning-position-relative-offset",
+      "inline-text-inline-block-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-absolute-x-flexbox-container",
+    "category": "interactions",
+    "feature": "containing-block",
+    "subfeature": "absolute-in-flex",
+    "description": "Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.",
+    "file": "cases/interactions/interactions-positioning-absolute-x-flexbox-container.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "flexbox"
+    ],
+    "base_ids": [
+      "positioning-position-absolute-top-left",
+      "flexbox-display-flex"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "interactions-positioning-fixed-x-transforms-translate",
+    "category": "interactions",
+    "feature": "position",
+    "subfeature": "fixed-translated",
+    "description": "Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.",
+    "file": "cases/interactions/interactions-positioning-fixed-x-transforms-translate.html",
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "interaction_of": [
+      "positioning",
+      "transforms"
+    ],
+    "base_ids": [
+      "positioning-fixed-top-left",
+      "transforms-translate"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  }
+]

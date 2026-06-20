@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>aspect-ratio box</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 280px;
+    margin: 30px;
+    background: #eeeeee;
+  }
+  /* width fixed + aspect-ratio 2/1 should size the box to 200x100 (height derived). */
+  .ar {
+    width: 200px;
+    aspect-ratio: 2 / 1;
+    background: #2e7d32;
+    border: 4px solid #0b3d12;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="ar"></div>
+  </div>
+</body>
+</html>

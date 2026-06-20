@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* three nested blocks; each inner is inset by its parent's padding,
+     producing concentric frames to test nested block flow + containment */
+  .l1 {
+    width: 300px;
+    height: 300px;
+    padding: 24px;
+    background: #2d6cdf;
+  }
+  .l2 {
+    width: 100%;
+    height: 100%;
+    padding: 24px;
+    background: #d94f4f;
+  }
+  .l3 {
+    width: 100%;
+    height: 100%;
+    background: #f0e44a;
+    border: 4px solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="l1">
+    <div class="l2">
+      <div class="l3"></div>
+    </div>
+  </div>
+</body>
+</html>

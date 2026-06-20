@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent {
+    width: 360px;
+    background: #cfd8e3;
+    border: 2px solid #11305f;
+    padding: 20px;
+  }
+  .child {
+    /* width:auto -> block fills the parent content box */
+    height: 80px;
+    background: #2d6cdf;
+    border: 4px solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

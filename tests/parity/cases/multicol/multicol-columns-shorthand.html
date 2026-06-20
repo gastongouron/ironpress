@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol columns-shorthand</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    columns: 120px 3;
+    column-gap: 20px;
+    width: 440px;
+    height: 180px;
+    margin: 20px;
+    background: #e6f0ff;
+    border: 2px solid #0a3a8c;
+  }
+  .block {
+    height: 50px;
+    margin-bottom: 8px;
+    background: #5a3fff;
+    border: 2px solid #2a1a8c;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

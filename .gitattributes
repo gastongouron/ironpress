@@ -1,0 +1,12 @@
+# Parity harness binary assets are committed directly as Git blobs.
+# NOTE: Git LFS is intentionally NOT used — GitHub forbids a public fork from
+# uploading new LFS objects, and this repo is a fork of the upstream. Mark the
+# assets binary so git never tries to text-diff or line-normalize them.
+tests/parity/refs/**/*.png    -text -diff
+tests/parity/out/**/*.png     -text -diff
+tests/parity/reports/**/*.png -text -diff
+tests/parity/fonts/*.ttf      -text -diff
+
+# refs.lock records the sha256 of each fixture the committed refs correspond to;
+# plain JSON, text-tracked with stable LF endings.
+tests/parity/refs.lock        text eol=lf

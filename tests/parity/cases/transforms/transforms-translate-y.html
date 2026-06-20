@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform translateY</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: translateY() shifts the box vertically only */
+  .frame {
+    position: relative;
+    width: 200px;
+    height: 320px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    width: 100px;
+    height: 110px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    width: 100px;
+    height: 110px;
+    background: #6a1b9a;
+    transform: translateY(150px);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

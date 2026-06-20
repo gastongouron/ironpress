@@ -1,0 +1,274 @@
+[
+  {
+    "id": "flexbox-display-flex",
+    "category": "flexbox",
+    "feature": "display",
+    "subfeature": "flex",
+    "description": "display:flex lays three fixed-size boxes in a row along the main axis with default packing.",
+    "file": "cases/flexbox/flexbox-display-flex.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-direction-column",
+    "category": "flexbox",
+    "feature": "flex-direction",
+    "subfeature": "column",
+    "description": "flex-direction:column stacks items top-to-bottom along the vertical main axis.",
+    "file": "cases/flexbox/flexbox-flex-direction-column.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-justify-content-space-between",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "space-between",
+    "description": "justify-content:space-between pins first and last boxes to the edges with equal gaps between.",
+    "file": "cases/flexbox/flexbox-justify-content-space-between.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-justify-content-center",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "center",
+    "description": "justify-content:center groups items centered on the main axis with equal leftover space on both sides.",
+    "file": "cases/flexbox/flexbox-justify-content-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-justify-content-space-around",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "space-around",
+    "description": "justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.",
+    "file": "cases/flexbox/flexbox-justify-content-space-around.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-center",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "center",
+    "description": "align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.",
+    "file": "cases/flexbox/flexbox-align-items-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-stretch",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "stretch",
+    "description": "align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.",
+    "file": "cases/flexbox/flexbox-align-items-stretch.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-self-flex-end",
+    "category": "flexbox",
+    "feature": "align-self",
+    "subfeature": "flex-end",
+    "description": "align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.",
+    "file": "cases/flexbox/flexbox-align-self-flex-end.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-grow",
+    "category": "flexbox",
+    "feature": "flex-grow",
+    "subfeature": "ratio",
+    "description": "flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.",
+    "file": "cases/flexbox/flexbox-flex-grow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-shrink",
+    "category": "flexbox",
+    "feature": "flex-shrink",
+    "subfeature": "ratio",
+    "description": "flex-shrink removes overflow in a 1:2 ratio when two oversized boxes exceed the container width.",
+    "file": "cases/flexbox/flexbox-flex-shrink.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-basis",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "px",
+    "description": "flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).",
+    "file": "cases/flexbox/flexbox-flex-basis.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-wrap",
+    "category": "flexbox",
+    "feature": "flex-wrap",
+    "subfeature": "wrap",
+    "description": "flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.",
+    "file": "cases/flexbox/flexbox-flex-wrap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-gap",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "fixed",
+    "description": "gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.",
+    "file": "cases/flexbox/flexbox-gap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-order",
+    "category": "flexbox",
+    "feature": "order",
+    "subfeature": "reorder",
+    "description": "order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.",
+    "file": "cases/flexbox/flexbox-order.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-nested-flex",
+    "category": "flexbox",
+    "feature": "nested-flex",
+    "subfeature": "row-of-columns",
+    "description": "A row flex container holds two growing column flex containers, each space-between stacking two boxes.",
+    "file": "cases/flexbox/flexbox-nested-flex.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-min-width-constraint",
+    "category": "flexbox",
+    "feature": "min-width",
+    "subfeature": "shrink-floor",
+    "description": "min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.",
+    "file": "cases/flexbox/flexbox-min-width-constraint.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  }
+]

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* child larger than parent; overflow:hidden clips it to the parent box */
+  .clip {
+    overflow: hidden;
+    width: 150px;
+    height: 120px;
+    background: #eef4ec;
+    border: 2px solid #6e2018;
+  }
+  .child {
+    width: 240px;
+    height: 200px;
+    background: #c0392b;
+    border: 2px solid #6e2018;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow multiple</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #fce4ec; padding: 60px; }
+  .box {
+    width: 150px;
+    height: 100px;
+    background-color: #ad1457;
+    /* two stacked hard shadows in different directions and colors */
+    box-shadow: 16px 16px 0 0 #6a1b9a, -16px -16px 0 0 #00838f;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

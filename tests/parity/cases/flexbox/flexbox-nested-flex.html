@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox nested flex containers</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .outer {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 420px;
+    height: 200px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .col {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+    border: 2px solid #555555;
+    background: #dddddd;
+  }
+  .box {
+    height: 60px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+  .d { background: #8e44ad; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="outer">
+      <div class="col">
+        <div class="box a"></div>
+        <div class="box b"></div>
+      </div>
+      <div class="col">
+        <div class="box c"></div>
+        <div class="box d"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

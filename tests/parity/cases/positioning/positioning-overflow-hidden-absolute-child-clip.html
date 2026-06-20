@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* overflow:hidden on a positioned ancestor clips an absolutely positioned
+     descendant that extends past the clip box edges */
+  .clip {
+    position: relative;
+    overflow: hidden;
+    width: 160px;
+    height: 130px;
+    background: #f6ecdf;
+    border: 2px solid #8a4910;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 80px;
+    width: 160px;
+    height: 130px;
+    background: #e67e22;
+    border: 2px solid #8a4910;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="box"></div>
+    </div>
+  </div>
+</body>
+</html>

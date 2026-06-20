@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>length unit rem</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  /* root font-size 16px -> 1rem = 16px */
+  html { font-size: 16px; }
+  html, body { background: #ffffff; }
+  /* width 15rem = 240px, height 7.5rem = 120px; nested font-size must NOT affect rem */
+  .outer { font-size: 40px; }
+  .box {
+    font-size: 8px;
+    width: 15rem;
+    height: 7.5rem;
+    background: #1b9e77;
+    border: 4px solid #0b4a38;
+  }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

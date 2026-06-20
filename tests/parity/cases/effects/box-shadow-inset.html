@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow inset</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #e0f7fa; padding: 50px; }
+  .box {
+    width: 200px;
+    height: 130px;
+    background-color: #b2ebf2;
+    /* inset hard shadow draws an inner band on two sides */
+    box-shadow: inset 24px 24px 0 0 #006064;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

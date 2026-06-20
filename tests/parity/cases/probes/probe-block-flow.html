@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>probe block flow</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Substrate canary: two stacked solid blocks.
+     Tests block box generation + normal vertical flow. */
+  .a {
+    width: 220px;
+    height: 90px;
+    background-color: #1565c0;
+  }
+  .b {
+    width: 220px;
+    height: 90px;
+    background-color: #ef6c00;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+</body>
+</html>

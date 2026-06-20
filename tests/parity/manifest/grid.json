@@ -1,0 +1,274 @@
+[
+  {
+    "id": "grid-display-grid",
+    "category": "grid",
+    "feature": "display",
+    "subfeature": "grid",
+    "description": "2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.",
+    "file": "cases/grid/grid-display-grid.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-columns-fr-mix",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "fr-mix",
+    "description": "Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.",
+    "file": "cases/grid/grid-template-columns-fr-mix.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-columns-percent",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "percent",
+    "description": "Three columns sized 25% 50% 25% of a fixed-width grid container.",
+    "file": "cases/grid/grid-template-columns-percent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-columns-repeat",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "repeat",
+    "description": "Four equal 80px columns produced by repeat(4, 80px).",
+    "file": "cases/grid/grid-template-columns-repeat.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-columns-minmax",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "minmax",
+    "description": "Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.",
+    "file": "cases/grid/grid-template-columns-minmax.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-columns-auto",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "auto",
+    "description": "Three columns sized 100px auto 100px so the auto track absorbs the leftover width.",
+    "file": "cases/grid/grid-template-columns-auto.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-rows",
+    "category": "grid",
+    "feature": "grid-template-rows",
+    "subfeature": "px",
+    "description": "Single column with three explicit-px rows of 50px, 110px and 70px height.",
+    "file": "cases/grid/grid-template-rows.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-gap",
+    "category": "grid",
+    "feature": "gap",
+    "subfeature": "row-column-gap",
+    "description": "2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.",
+    "file": "cases/grid/grid-gap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-flow-column",
+    "category": "grid",
+    "feature": "grid-auto-flow",
+    "subfeature": "column",
+    "description": "grid-auto-flow: column places items down each column before wrapping to the next.",
+    "file": "cases/grid/grid-auto-flow-column.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-column-span",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "span",
+    "description": "First cell spans two columns (grid-column: span 2) within a 3x2 grid.",
+    "file": "cases/grid/grid-column-span.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-row-span",
+    "category": "grid",
+    "feature": "grid-row",
+    "subfeature": "span",
+    "description": "First cell spans two rows (grid-row: span 2) within a 2x2 grid.",
+    "file": "cases/grid/grid-row-span.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-place-items-center",
+    "category": "grid",
+    "feature": "place-items",
+    "subfeature": "center",
+    "description": "place-items: center centers smaller cells both horizontally and vertically inside larger tracks.",
+    "file": "cases/grid/grid-place-items-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-justify-items-end",
+    "category": "grid",
+    "feature": "justify-items",
+    "subfeature": "end",
+    "description": "justify-items: end aligns narrow cells to the inline (right) end of each track.",
+    "file": "cases/grid/grid-justify-items-end.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-align-items-start",
+    "category": "grid",
+    "feature": "align-items",
+    "subfeature": "start",
+    "description": "align-items: start aligns short cells to the block (top) start of each track.",
+    "file": "cases/grid/grid-align-items-start.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-named-lines-basic",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "named-lines",
+    "description": "Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.",
+    "file": "cases/grid/grid-named-lines-basic.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-implicit-tracks",
+    "category": "grid",
+    "feature": "grid-auto-rows",
+    "subfeature": "implicit-tracks",
+    "description": "Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.",
+    "file": "cases/grid/grid-implicit-tracks.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  }
+]

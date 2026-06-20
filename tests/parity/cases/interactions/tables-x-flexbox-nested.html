@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables x flexbox: table inside a flex item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .flex {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    width: 400px;
+    margin: 20px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #e8e8e8;
+    align-items: flex-start;
+  }
+  .item {
+    flex: 0 0 auto;
+    border: 2px solid #0e7490;
+    background: #cffafe;
+    padding: 8px;
+  }
+  /* A real table laid out inside the second flex item: the flex layout must
+     size the item around the table's intrinsic 2x2 grid. */
+  table {
+    border-collapse: collapse;
+  }
+  td {
+    width: 60px;
+    height: 36px;
+    border: 2px solid #7c2d12;
+    background: #fed7aa;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item" style="width:80px;height:90px;"></div>
+    <div class="item">
+      <table>
+        <tr><td></td><td></td></tr>
+        <tr><td></td><td></td></tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

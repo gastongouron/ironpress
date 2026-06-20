@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* :not(.skip): every .box except the one with class .skip turns green. */
+  .box:not(.skip) { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+    <div class="box skip"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

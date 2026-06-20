@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>float x margin-collapse: floated box beside collapsing block margins</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 360px;
+    margin: 20px;
+    border: 2px solid #222222;
+    background: #f1f5f9;
+    /* No padding so the float and the block-flow margins interact directly. */
+  }
+  .floater {
+    float: left;
+    width: 90px;
+    height: 120px;
+    border: 2px solid #b45309;
+    background: #fde68a;
+  }
+  /* Two stacked blocks whose adjacent vertical margins collapse to the larger
+     (40px), not sum to 70px. The float sits to their left. */
+  .a {
+    margin: 30px 0 40px 0;
+    height: 40px;
+    border: 2px solid #1e3a8a;
+    background: #93c5fd;
+    margin-left: 100px;
+  }
+  .b {
+    margin: 30px 0 0 0;
+    height: 40px;
+    border: 2px solid #166534;
+    background: #86efac;
+    margin-left: 100px;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="floater"></div>
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

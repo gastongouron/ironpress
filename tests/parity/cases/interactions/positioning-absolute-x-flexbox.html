@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>positioning x flexbox: absolute child inside flex container</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Flex container is the positioned ancestor; an absolute child is taken out
+     of flow and pinned to a corner while the flex items lay out normally. */
+  .flex {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    width: 360px;
+    height: 140px;
+    margin: 20px;
+    border: 2px solid #222222;
+    padding: 10px;
+    background: #e8e8e8;
+  }
+  .item {
+    flex: 1 1 0;
+    border: 2px solid #0e7490;
+    background: #a5f3fc;
+  }
+  .pinned {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 60px;
+    height: 60px;
+    border: 2px solid #be123c;
+    background: #fda4af;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="pinned"></div>
+  </div>
+</body>
+</html>

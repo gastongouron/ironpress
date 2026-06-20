@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* all four insets set with auto width/height => box stretches to fill, inset by 30px */
+  .cb {
+    position: relative;
+    width: 260px;
+    height: 220px;
+    background: #fdf3e7;
+    border: 2px solid #d8a868;
+  }
+  .box {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    bottom: 30px;
+    left: 30px;
+    background: #e67e22;
+    border: 2px solid #8a4910;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="cb">
+      <div class="box"></div>
+    </div>
+  </div>
+</body>
+</html>

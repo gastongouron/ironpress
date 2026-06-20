@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow visible no clip</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* overflow:visible (explicit) does not clip; the oversized child paints
+     beyond the parent box on the right and bottom. */
+  .clip {
+    overflow: visible;
+    width: 160px;
+    height: 120px;
+    background: #eaf2f8;
+    border: 3px solid #1f3a5f;
+  }
+  .child {
+    width: 250px;
+    height: 200px;
+    background: #117a65;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

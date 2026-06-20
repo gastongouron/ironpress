@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow hidden on flex item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* A flex container holds two items; the first flex item has
+     overflow:hidden and clips its oversized inner block. */
+  .row {
+    display: flex;
+    gap: 20px;
+    width: 360px;
+  }
+  .item {
+    overflow: hidden;
+    width: 150px;
+    height: 120px;
+    background: #e8f6f3;
+    border: 3px solid #0e6251;
+  }
+  .item .inner {
+    width: 240px;
+    height: 200px;
+    background: #16a085;
+  }
+  .plain {
+    width: 150px;
+    height: 120px;
+    background: #d5dbdb;
+    border: 3px solid #4d5656;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div class="item"><div class="inner"></div></div>
+      <div class="plain"></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-shrink</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 300px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 200px;
+    height: 90px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; flex-shrink: 1; }
+  .b { background: #2980b9; flex-shrink: 2; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+    </div>
+  </div>
+</body>
+</html>

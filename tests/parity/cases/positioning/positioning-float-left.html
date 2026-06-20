@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* float:left removes the box from normal flow and shifts it to the left edge
+     of its container; the following in-flow block wraps around its right side */
+  .container {
+    width: 300px;
+    background: #eef4ec;
+    border: 2px solid #6e6e6e;
+  }
+  .float {
+    float: left;
+    width: 100px;
+    height: 100px;
+    background: #16a085;
+    border: 2px solid #0a4d40;
+  }
+  .flow {
+    height: 140px;
+    background: #d6e6df;
+    border: 2px solid #6e6e6e;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="container">
+      <div class="float"></div>
+      <div class="flow"></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>outline solid with offset gap from border</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Padding around the box so the outset outline stays on-page and visible. */
+  .frame { padding: 24px; }
+  .box {
+    width: 160px;
+    height: 100px;
+    background-color: #ffffff;
+    border: 4px solid #1b5e20;
+    outline: 6px solid #b71c1c;
+    outline-offset: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

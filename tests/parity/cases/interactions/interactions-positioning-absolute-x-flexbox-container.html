@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* interaction: an absolutely positioned child of a flex container is taken
+     out of flow and does NOT participate in flex layout; it is positioned
+     against the (positioned) flex container's padding box, while the two
+     in-flow flex items are spaced by justify-content. */
+  .flex {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    width: 280px;
+    height: 160px;
+    background: #eef4ec;
+    border: 2px solid #0a4d40;
+  }
+  .item {
+    width: 70px;
+    height: 70px;
+    background: #16a085;
+    border: 2px solid #0a4d40;
+  }
+  .abs {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 90px;
+    height: 50px;
+    background: #c0392b;
+    border: 2px solid #6e2018;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="item"></div>
+      <div class="item"></div>
+      <div class="abs"></div>
+    </div>
+  </div>
+</body>
+</html>

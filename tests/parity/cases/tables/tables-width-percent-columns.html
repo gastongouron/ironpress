@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-width-percent-columns</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; font-family: sans-serif; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 400px;
+  }
+  td {
+    height: 55px;
+    border: 3px solid #0b3954;
+  }
+  .c1 { width: 25%; background: #bfd7ea; }
+  .c2 { width: 50%; background: #ff6663; }
+  .c3 { width: 25%; background: #e0ff4f; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="c1"></td><td class="c2"></td><td class="c3"></td></tr>
+    <tr><td class="c1"></td><td class="c2"></td><td class="c3"></td></tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform scale</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: scale() enlarges the box uniformly about its center
+     (default transform-origin), leaving layout flow unchanged */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 110px;
+    left: 110px;
+    width: 100px;
+    height: 60px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 110px;
+    left: 110px;
+    width: 100px;
+    height: 60px;
+    background: #2e7d32;
+    transform: scale(1.8);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

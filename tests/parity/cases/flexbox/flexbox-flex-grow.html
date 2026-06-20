@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-grow</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    width: 420px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    height: 90px;
+    border: 2px solid #102a43;
+    flex-basis: 0;
+  }
+  .a { background: #c0392b; flex-grow: 1; }
+  .b { background: #2980b9; flex-grow: 2; }
+  .c { background: #27ae60; flex-grow: 1; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

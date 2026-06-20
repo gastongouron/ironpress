@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>list-style-position outside</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px 16px 16px 48px;
+    border: 2px solid #000000;
+    background: #f1f8e9;
+  }
+  ol {
+    list-style-type: decimal;
+    list-style-position: outside;
+  }
+  li {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.4;
+    color: #1b1b1b;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <ol>
+      <li>Outside marker one</li>
+      <li>Outside marker two</li>
+      <li>Outside marker three</li>
+    </ol>
+  </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow scroll in print</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* overflow:scroll produces no scrollbars in print; the oversized child
+     is clipped to the box edges (no interactive scroll affordance). */
+  .clip {
+    overflow: scroll;
+    width: 160px;
+    height: 120px;
+    background: #fdf2e9;
+    border: 3px solid #7e5109;
+  }
+  .child {
+    width: 250px;
+    height: 200px;
+    background: #ca6f1e;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

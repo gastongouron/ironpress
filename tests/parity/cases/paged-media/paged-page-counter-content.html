@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .footer {
+    width: 300px;
+    margin: 30px;
+    padding: 12px;
+    background: #dee2e6;
+    border: 2px solid #343a40;
+  }
+  /* CSS page counters in content (counter(page)) are a paged-media margin-box
+     feature the engine does not implement. The ::after should resolve to the
+     current page number on the single Letter page. Tracks the gap. */
+  .pagenum { font-family: ParityMono; font-size: 20px; color: #16161d; }
+  .pagenum::after { content: "Page " counter(page); }
+</style>
+</head>
+<body>
+  <div class="footer">
+    <span class="pagenum"></span>
+  </div>
+</body>
+</html>

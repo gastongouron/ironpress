@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>probe fill box</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Substrate canary: one solid-filled box of known px size.
+     Tests box-sizing + fill paint + page geometry. */
+  .box {
+    width: 240px;
+    height: 160px;
+    background-color: #1565c0;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

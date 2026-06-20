@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multiple comma-separated background layers</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    height: 240px;
+    background-color: #37474f;
+    background-image:
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAIElEQVR42mO4rK8PRJJll4CIAYWjV2sERF/rxYEIhQMABxYT6ZMR6l4AAAAASUVORK5CYII="),
+      linear-gradient(to bottom, #ffd600, #00bcd4);
+    background-repeat: no-repeat, no-repeat;
+    background-position: top left, bottom right;
+    background-size: 90px 90px, 120px 120px;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid align-items start</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 120px 120px;
+    grid-template-rows: 160px;
+    align-items: start;
+    width: 240px;
+    height: 160px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell {
+    width: 120px;
+    height: 50px;
+    border: 2px solid #003a8c;
+  }
+  .a { background: #ff5a5f; }
+  .b { background: #2ec4b6; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>@font-face custom src</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  @font-face {
+    font-family: 'ParityCustom';
+    src: url('../../fonts/ParitySerif.ttf') format('truetype');
+  }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 10px;
+    border: 2px solid #000000;
+    background: #bdb2ff;
+  }
+  .t {
+    font-family: 'ParityCustom', ParitySerif;
+    font-size: 30px;
+    line-height: 1;
+    color: #240046;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <div class="t">Custom face</div>
+  </div>
+</body>
+</html>

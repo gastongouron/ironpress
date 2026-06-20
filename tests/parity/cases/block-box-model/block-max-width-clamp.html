@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .track {
+    width: 500px;
+    border: 2px solid #11305f;
+    padding: 12px;
+  }
+  /* width:auto would fill 476px, but max-width clamps it to 200px */
+  .clamped {
+    max-width: 200px;
+    height: 100px;
+    background: #2d6cdf;
+    border: 4px solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="track">
+    <div class="clamped"></div>
+  </div>
+</body>
+</html>

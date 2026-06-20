@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color transparent keyword over solid</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .under {
+    width: 200px;
+    height: 120px;
+    background-color: #283593;
+    position: relative;
+  }
+  .over {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    width: 140px;
+    height: 60px;
+    background-color: transparent;
+    border: 6px solid #ffeb3b;
+  }
+</style>
+</head>
+<body>
+  <div class="under"><div class="over"></div></div>
+</body>
+</html>

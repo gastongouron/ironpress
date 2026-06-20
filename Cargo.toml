@@ -50,6 +50,11 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 proptest = "1"
 criterion = { version = "0.8", features = ["html_reports"] }
 serde_json = "1"
+# Visual parity harness (tests/feature_parity.rs) deps.
+serde = { version = "1", features = ["derive"] }
+rayon = "1"
+image-compare = "0.5"
+sha2 = "0.10"
 
 [[bench]]
 name = "conversion"

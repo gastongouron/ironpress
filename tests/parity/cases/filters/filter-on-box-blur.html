@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter blur on box with border content</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .frame { padding: 40px; }
+  /* Box with a thick border + solid fill: blur should soften BOTH the fill and
+     the border edge. ironpress only blurs background/image rasters, so the
+     bordered foreground edge is the discriminator vs filter-on-img. */
+  .box {
+    width: 180px;
+    height: 180px;
+    background-color: #ef6c00;
+    border: 12px solid #4a148c;
+    filter: blur(5px);
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

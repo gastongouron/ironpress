@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>var custom property</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  :root {
+    --panel-w: 240px;
+    --panel-h: 120px;
+    --panel-bg: #2d6cdf;
+    --panel-border: #11305f;
+  }
+  .box {
+    width: var(--panel-w);
+    height: var(--panel-h);
+    background: var(--panel-bg);
+    border: 4px solid var(--panel-border);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

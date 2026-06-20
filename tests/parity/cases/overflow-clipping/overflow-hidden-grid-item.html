@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow hidden on grid item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* A two-column grid; the first grid cell has overflow:hidden and
+     clips its oversized inner block to the cell box. */
+  .grid {
+    display: grid;
+    grid-template-columns: 150px 150px;
+    gap: 20px;
+    width: 320px;
+  }
+  .cell {
+    overflow: hidden;
+    height: 120px;
+    background: #ebf5fb;
+    border: 3px solid #1a5276;
+  }
+  .cell .inner {
+    width: 240px;
+    height: 200px;
+    background: #2874a6;
+  }
+  .plain {
+    height: 120px;
+    background: #d6dbdf;
+    border: 3px solid #515a5a;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="grid">
+      <div class="cell"><div class="inner"></div></div>
+      <div class="plain"></div>
+    </div>
+  </div>
+</body>
+</html>

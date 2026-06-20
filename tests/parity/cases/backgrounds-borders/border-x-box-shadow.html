@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>interaction: solid border combined with a hard offset box-shadow</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Padding so the offset shadow stays on-page. */
+  .frame { padding: 30px; }
+  .box {
+    width: 160px;
+    height: 100px;
+    background-color: #eeeeee;
+    border: 8px solid #c62828;
+    /* zero blur -> deterministic hard-edged shadow */
+    box-shadow: 16px 16px 0 0 #424242;
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

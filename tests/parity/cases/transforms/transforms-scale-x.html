@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform scaleX</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform: scaleX() stretches the box horizontally about its center */
+  .frame {
+    position: relative;
+    width: 360px;
+    height: 200px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 60px;
+    left: 130px;
+    width: 100px;
+    height: 80px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 130px;
+    width: 100px;
+    height: 80px;
+    background: #c62828;
+    transform: scaleX(2.5);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

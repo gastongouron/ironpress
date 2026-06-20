@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* position:static must ignore top/left offsets; box stays in normal flow */
+  .box {
+    position: static;
+    top: 60px;
+    left: 80px;
+    width: 120px;
+    height: 80px;
+    background: #2f6fb3;
+    border: 2px solid #11324f;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

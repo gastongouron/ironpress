@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-wrap:wrap</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    flex-wrap: wrap;
+    width: 300px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 130px;
+    height: 80px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+  .d { background: #8e44ad; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+      <div class="box d"></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path inset</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    height: 160px;
+    background-color: #1565c0;
+    /* Clip away a rectangular frame, leaving a smaller solid rectangle. */
+    clip-path: inset(40px 60px 40px 60px);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

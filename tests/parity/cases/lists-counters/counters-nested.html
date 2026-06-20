@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>counters() nested</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px;
+    border: 2px solid #000000;
+    background: #efebe9;
+  }
+  ol {
+    list-style: none;
+    counter-reset: sec;
+  }
+  li {
+    font-family: ParitySans;
+    font-size: 20px;
+    line-height: 1.5;
+    color: #1b1b1b;
+    counter-increment: sec;
+    padding-left: 8px;
+  }
+  li::before {
+    content: counters(sec, ".") " ";
+    font-weight: bold;
+    color: #4e342e;
+  }
+  ol ol {
+    padding-left: 24px;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <ol>
+      <li>one</li>
+      <li>two
+        <ol>
+          <li>two-one</li>
+          <li>two-two</li>
+        </ol>
+      </li>
+      <li>three</li>
+    </ol>
+  </div>
+</body>
+</html>

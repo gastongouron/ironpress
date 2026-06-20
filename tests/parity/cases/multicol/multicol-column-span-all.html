@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-span-all</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 3;
+    column-gap: 20px;
+    width: 460px;
+    margin: 20px;
+    background: #eef7ff;
+    border: 2px solid #0a3a8c;
+    padding: 8px;
+  }
+  .banner {
+    column-span: all;
+    height: 40px;
+    margin-bottom: 10px;
+    background: #ff5a5f;
+    border: 2px solid #7a0010;
+  }
+  .block {
+    height: 44px;
+    margin-bottom: 8px;
+    background: #ffbf00;
+    border: 2px solid #7a5b00;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="banner"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

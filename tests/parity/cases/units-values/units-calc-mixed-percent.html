@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>calc mixed percent and px</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent {
+    width: 400px;
+    height: 160px;
+    background: #cfd8e3;
+    border: 2px solid #11305f;
+  }
+  /* calc(50% - 40px) of 400px = 200 - 40 = 160px wide; 160px - 60px = 100px tall */
+  .child {
+    width: calc(50% - 40px);
+    height: calc(100% - 60px);
+    background: #d95f02;
+    border: 3px solid #6e3001;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

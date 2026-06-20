@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* :first-child green, :last-child blue; the middle box stays gray. */
+  .box:first-child { background: #2e9e4f; }
+  .box:last-child { background: #2d6cdf; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+    <div class="box"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

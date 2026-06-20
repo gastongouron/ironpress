@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>text-shadow hard offset</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #eceff1; padding: 40px; }
+  .t {
+    font-family: ParitySans, sans-serif;
+    font-size: 48px;
+    line-height: 1;
+    color: #1a237e;
+    /* zero-blur hard offset shadow for deterministic diffing */
+    text-shadow: 6px 6px 0 #ff6f00;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="t">Shadow</div></div>
+</body>
+</html>

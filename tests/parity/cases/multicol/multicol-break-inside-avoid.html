@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol break-inside-avoid</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 2;
+    column-gap: 24px;
+    width: 420px;
+    margin: 20px;
+    background: #f7f0e6;
+    border: 2px solid #7a5b00;
+    padding: 8px;
+  }
+  .card {
+    break-inside: avoid;
+    height: 70px;
+    margin-bottom: 10px;
+    background: #2ec4b6;
+    border: 2px solid #0a4a44;
+  }
+  .card.alt { background: #5a3fff; border-color: #2a1a8c; }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="card"></div>
+    <div class="card alt"></div>
+    <div class="card"></div>
+    <div class="card alt"></div>
+    <div class="card"></div>
+    <div class="card alt"></div>
+  </div>
+</body>
+</html>

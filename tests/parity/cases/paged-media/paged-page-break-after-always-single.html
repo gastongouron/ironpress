@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* page-break-after:always on the LAST in-flow block must not push any visible
+     content onto a second page (nothing follows it), so the layout stays a
+     single Letter page identical to a no-break version. */
+  .block {
+    width: 320px;
+    height: 120px;
+    background: #4caf50;
+    border: 2px solid #1b5e20;
+  }
+  .first { background: #2d6cdf; border-color: #11305f; }
+  .breaker { page-break-after: always; }
+</style>
+</head>
+<body>
+  <div class="block first"></div>
+  <div class="block breaker"></div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>before decorative box</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row {
+    width: 300px;
+    margin: 24px;
+    padding: 12px;
+    border: 2px solid #0b3954;
+    background: #bfd7ea;
+    font-family: ParitySans;
+    font-size: 24px;
+    line-height: 1.4;
+    color: #0b3954;
+  }
+  .item::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    background: #ff6b6b;
+    border: 2px solid #0b3954;
+  }
+</style>
+</head>
+<body>
+  <div class="row"><span class="item">marker</span></div>
+</body>
+</html>

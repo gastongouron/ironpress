@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow blur</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #e8f5e9; padding: 50px; }
+  .box {
+    width: 180px;
+    height: 110px;
+    background-color: #2e7d32;
+    /* offset plus a soft blur radius */
+    box-shadow: 12px 12px 16px 0 #1b5e20;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

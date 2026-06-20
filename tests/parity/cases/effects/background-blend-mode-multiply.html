@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background-blend-mode multiply</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #eceff1; padding: 40px; }
+  .box {
+    width: 240px;
+    height: 160px;
+    /* a gradient blended against a solid background-color via multiply */
+    background-color: #ffb300;
+    background-image: linear-gradient(to right, #1e88e5, #d81b60);
+    background-blend-mode: multiply;
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

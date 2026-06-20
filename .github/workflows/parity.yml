@@ -1,0 +1,104 @@
+name: Parity Gate
+
+# Deterministic visual-parity gate. Renders every fixture in-process, diffs it
+# against the COMMITTED Chrome references (no browser is launched here), and
+# enforces the regression gate baked into the test. Then a refs-freshness check
+# fails the job if any fixture changed without its reference + refs.lock being
+# regenerated (scripts/parity-gen-refs.sh --force). Because no Chrome is involved,
+# this job is fully deterministic and always works.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  parity-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: parity-cargo-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+
+      - name: Install poppler-utils
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Install bundled Parity fonts
+        run: |
+          mkdir -p "$HOME/.local/share/fonts"
+          cp tests/parity/fonts/Parity*.ttf "$HOME/.local/share/fonts/"
+          fc-cache -f
+
+      - name: Run parity test (committed refs, deterministic)
+        env:
+          FONTCONFIG_FILE: ${{ github.workspace }}/tests/parity/fonts/fonts.conf
+        run: cargo test --test feature_parity
+
+      - name: Refs-freshness gate (refs.lock vs. current fixtures)
+        run: |
+          python3 - <<'PY'
+          import glob, hashlib, json, os, sys
+
+          parity = "tests/parity"
+          lock_path = os.path.join(parity, "refs.lock")
+          if not os.path.exists(lock_path):
+              print("::error::tests/parity/refs.lock is missing. Run "
+                    "scripts/parity-gen-refs.sh to create it.")
+              sys.exit(1)
+
+          lock = json.load(open(lock_path, encoding="utf-8"))
+
+          current = {}
+          for mf in sorted(glob.glob(os.path.join(parity, "manifest", "*.json"))):
+              for e in json.load(open(mf, encoding="utf-8")):
+                  p = os.path.join(parity, e["file"])
+                  try:
+                      with open(p, "rb") as fh:
+                          current[e["id"]] = hashlib.sha256(fh.read()).hexdigest()
+                  except FileNotFoundError:
+                      print(f"::error::fixture missing for id={e['id']}: {e['file']}")
+
+          changed = sorted(i for i in current if current[i] != lock.get(i))
+          added = sorted(i for i in current if i not in lock)
+          removed = sorted(i for i in lock if i not in current)
+
+          # `changed` already includes `added` (lock.get -> None). Separate them.
+          modified = sorted(i for i in changed if i in lock)
+
+          if modified or added or removed:
+              if modified:
+                  print("::error::These fixtures changed but refs.lock/refs were "
+                        "NOT regenerated:")
+                  for i in modified:
+                      print(f"  modified: {i}")
+              if added:
+                  print("::error::These fixtures are new but missing from refs.lock:")
+                  for i in added:
+                      print(f"  added: {i}")
+              if removed:
+                  print("::error::These ids are in refs.lock but no longer exist:")
+                  for i in removed:
+                      print(f"  removed: {i}")
+              print("")
+              print("Run: scripts/parity-gen-refs.sh --force  (regenerates Chrome "
+                    "refs + refs.lock), then commit tests/parity/{refs,refs.lock}.")
+              sys.exit(1)
+
+          print(f"refs.lock is fresh: {len(current)} fixtures match.")
+          PY

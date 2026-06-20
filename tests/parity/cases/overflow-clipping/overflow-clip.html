@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow clip</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 30px; }
+  /* overflow:clip clips the oversized child to the clip box with no
+     scroll container (similar visual result to overflow:hidden). */
+  .clip {
+    overflow: clip;
+    width: 160px;
+    height: 120px;
+    background: #f4ecf7;
+    border: 3px solid #512e5f;
+  }
+  .child {
+    width: 250px;
+    height: 200px;
+    background: #8e44ad;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="clip">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

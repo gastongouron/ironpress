@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 60px; }
+  /* relative box pulled up/left with negative offsets, overlapping prior flow */
+  .anchor {
+    width: 200px;
+    height: 120px;
+    background: #eef0e6;
+    border: 2px solid #8a8f5e;
+  }
+  .box {
+    position: relative;
+    top: -40px;
+    left: -30px;
+    width: 110px;
+    height: 80px;
+    background: #d35400;
+    border: 2px solid #7a2f00;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="anchor"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

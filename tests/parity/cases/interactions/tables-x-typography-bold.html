@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables x typography: bold header cells in a bordered table</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* A table whose header row uses bold typography: table cell layout must
+     coexist with the heavier glyph weight in the thead cells. */
+  table {
+    border-collapse: collapse;
+    margin: 30px;
+    font-family: sans-serif;
+    font-size: 16px;
+    color: #111111;
+  }
+  th, td {
+    width: 90px;
+    height: 34px;
+    border: 2px solid #222222;
+    text-align: center;
+  }
+  thead th {
+    font-weight: bold;
+    background: #cbd5e1;
+  }
+  tbody td {
+    font-weight: normal;
+    background: #f8fafc;
+  }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><th>AA</th><th>BB</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>cc</td><td>dd</td></tr>
+      <tr><td>ee</td><td>ff</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -1,0 +1,258 @@
+[
+  {
+    "id": "typography-font-size-px",
+    "category": "typography",
+    "feature": "font-size",
+    "subfeature": "px",
+    "description": "Text rendered at an explicit 32px font-size in a bordered, filled region.",
+    "file": "cases/typography/typography-font-size-px.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-size-pt",
+    "category": "typography",
+    "feature": "font-size",
+    "subfeature": "pt",
+    "description": "Text rendered at an explicit 24pt font-size to verify pt-to-px conversion.",
+    "file": "cases/typography/typography-font-size-pt.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-size-em",
+    "category": "typography",
+    "feature": "font-size",
+    "subfeature": "em",
+    "description": "font-size 2em resolved against the parent's 16px font-size.",
+    "file": "cases/typography/typography-font-size-em.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-size-rem",
+    "category": "typography",
+    "feature": "font-size",
+    "subfeature": "rem",
+    "description": "font-size 2rem resolved against the root 16px font-size, not the local 10px.",
+    "file": "cases/typography/typography-font-size-rem.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-size-percent",
+    "category": "typography",
+    "feature": "font-size",
+    "subfeature": "percent",
+    "description": "font-size 150% resolved against the parent's 16px font-size.",
+    "file": "cases/typography/typography-font-size-percent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-weight-bold",
+    "category": "typography",
+    "feature": "font-weight",
+    "subfeature": "bold",
+    "description": "Bold-weight text so heavier glyph strokes show up as pixel differences.",
+    "file": "cases/typography/typography-font-weight-bold.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-weight-normal",
+    "category": "typography",
+    "feature": "font-weight",
+    "subfeature": "normal",
+    "description": "Normal-weight text as the regular-stroke counterpart to the bold fixture.",
+    "file": "cases/typography/typography-font-weight-normal.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-style-italic",
+    "category": "typography",
+    "feature": "font-style",
+    "subfeature": "italic",
+    "description": "Italic serif text to verify slanted glyph selection and metrics.",
+    "file": "cases/typography/typography-font-style-italic.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-family-serif",
+    "category": "typography",
+    "feature": "font-family",
+    "subfeature": "serif",
+    "description": "Generic serif family fallback at 28px.",
+    "file": "cases/typography/typography-font-family-serif.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-family-sans-serif",
+    "category": "typography",
+    "feature": "font-family",
+    "subfeature": "sans-serif",
+    "description": "Generic sans-serif family fallback at 28px.",
+    "file": "cases/typography/typography-font-family-sans-serif.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-font-family-monospace",
+    "category": "typography",
+    "feature": "font-family",
+    "subfeature": "monospace",
+    "description": "Generic monospace family fallback at 28px with fixed-advance glyphs.",
+    "file": "cases/typography/typography-font-family-monospace.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-line-height-numeric",
+    "category": "typography",
+    "feature": "line-height",
+    "subfeature": "numeric",
+    "description": "Unitless line-height 2 across three stacked lines to verify line-box spacing.",
+    "file": "cases/typography/typography-line-height-numeric.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-line-height-length",
+    "category": "typography",
+    "feature": "line-height",
+    "subfeature": "length",
+    "description": "Length line-height 36px across three stacked lines to verify fixed line-box height.",
+    "file": "cases/typography/typography-line-height-length.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-heading-default-sizes",
+    "category": "typography",
+    "feature": "heading-default-size",
+    "subfeature": "h1-h3",
+    "description": "Default user-agent font-sizes for h1, h2 and h3 stacked in one region.",
+    "file": "cases/typography/typography-heading-default-sizes.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-vertical-align-sub",
+    "category": "typography",
+    "feature": "vertical-align",
+    "subfeature": "sub",
+    "description": "Subscript element (H2O) lowered below the baseline with reduced font-size.",
+    "file": "cases/typography/typography-vertical-align-sub.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-vertical-align-sup",
+    "category": "typography",
+    "feature": "vertical-align",
+    "subfeature": "sup",
+    "description": "Superscript element (x squared) raised above the baseline with reduced font-size.",
+    "file": "cases/typography/typography-vertical-align-sup.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  }
+]

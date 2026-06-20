@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>inline-block x vertical-align: baseline alignment beside text</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .line {
+    width: 380px;
+    margin: 30px 20px;
+    font-family: serif;
+    font-size: 20px;
+    line-height: 1.4;
+    color: #111111;
+  }
+  /* An inline-block box sits on the text baseline (default vertical-align)
+     next to a second box aligned to the middle of the line box. */
+  .baseline {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border: 2px solid #1d4ed8;
+    background: #bfdbfe;
+    vertical-align: baseline;
+  }
+  .middle {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border: 2px solid #b91c1c;
+    background: #fca5a5;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+  <p class="line">Ag <span class="baseline"></span> text <span class="middle"></span> Ag</p>
+</body>
+</html>

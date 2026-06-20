@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>overflow-hidden x border-radius: rounded clip of overflowing child</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* A rounded container with overflow:hidden must clip the square child to the
+     rounded corners, so the corners of the child are cut away. */
+  .clip {
+    width: 160px;
+    height: 160px;
+    margin: 30px;
+    border: 2px solid #222222;
+    border-radius: 40px;
+    overflow: hidden;
+    background: #e2e8f0;
+  }
+  .fill {
+    width: 160px;
+    height: 160px;
+    background: #f97316;
+    border: 2px solid #7c2d12;
+  }
+</style>
+</head>
+<body>
+  <div class="clip">
+    <div class="fill"></div>
+  </div>
+</body>
+</html>

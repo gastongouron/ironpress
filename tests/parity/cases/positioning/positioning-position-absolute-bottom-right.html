@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* absolute box anchored to bottom/right edges of its containing block */
+  .cb {
+    position: relative;
+    width: 240px;
+    height: 200px;
+    background: #f4eef4;
+    border: 2px solid #bf94bf;
+  }
+  .box {
+    position: absolute;
+    bottom: 40px;
+    right: 50px;
+    width: 100px;
+    height: 70px;
+    background: #8e44ad;
+    border: 2px solid #4a2259;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="cb">
+      <div class="box"></div>
+    </div>
+  </div>
+</body>
+</html>

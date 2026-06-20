@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox min-width constraint on shrink</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 300px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 200px;
+    height: 90px;
+    border: 2px solid #102a43;
+    flex-shrink: 1;
+  }
+  .a { background: #c0392b; min-width: 150px; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+    </div>
+  </div>
+</body>
+</html>
