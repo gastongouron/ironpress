@@ -1193,6 +1193,9 @@ pub(crate) fn layout_block_element(
             child_elements.push(inline_el);
         }
         let mut child_el_idx = 0;
+        // Accumulate preceding element siblings so sibling combinators (`+`, `~`)
+        // resolve during the cascade (these call sites previously passed `&[]`).
+        let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
         let mut ib_group_wrapper: Vec<&ElementNode> = Vec::new();
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
@@ -1208,7 +1211,7 @@ pub(crate) fn layout_block_element(
                     child_ancestors,
                     child_el_idx,
                     child_el_count,
-                    &[],
+                    &preceding_siblings,
                 ) {
                     ib_group_wrapper.push(child_el);
                 } else {
@@ -1255,11 +1258,15 @@ pub(crate) fn layout_block_element(
                             positioned_depth,
                             child_el_idx,
                             child_el_count,
-                            &[],
+                            &preceding_siblings,
                             env,
                         );
                     }
                 }
+                preceding_siblings.push((
+                    child_el.tag_name().to_string(),
+                    child_el.class_list().iter().map(|s| s.to_string()).collect(),
+                ));
                 child_el_idx += 1;
             }
         }
@@ -1458,6 +1465,8 @@ pub(crate) fn layout_block_element(
             background_position,
             background_repeat,
             background_origin,
+            outline_width: style.outline_width,
+            outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             z_index: style.z_index,
         });
     } else {

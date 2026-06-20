@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 60.69,
-    "pass": 160,
+    "score_pct": 61.56,
+    "pass": 163,
     "partial": 100,
-    "fail": 86,
+    "fail": 83,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -432,7 +432,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 15.7553,
+              "diff_pct": 29.403,
               "weight": 1.0,
               "description": "Box with a solid outline drawn outside its border via outline-offset.",
               "note": "",
@@ -2263,11 +2263,11 @@
     },
     {
       "category": "filters",
-      "score_pct": 53.57,
+      "score_pct": 60.71,
       "counts": {
-        "pass": 7,
+        "pass": 8,
         "partial": 1,
-        "fail": 6,
+        "fail": 5,
         "unknown": 0
       },
       "features": [
@@ -2580,11 +2580,11 @@
         },
         {
           "feature": "filter: opacity()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2595,8 +2595,8 @@
               "subfeature": "0.5-over-grey",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 99.067,
+              "status": "PASS",
+              "diff_pct": 0.5444,
               "weight": 1.0,
               "description": "filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.",
               "note": "",
@@ -2606,7 +2606,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "df547c3ccd395b8e3531fd932ca819db899dbf883bb9a4abad8e1e8d85324640"
             }
           ]
@@ -7834,11 +7834,11 @@
     },
     {
       "category": "selectors-cascade",
-      "score_pct": 80.0,
+      "score_pct": 93.33,
       "counts": {
-        "pass": 12,
+        "pass": 14,
         "partial": 0,
-        "fail": 3,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -7995,11 +7995,11 @@
         },
         {
           "feature": "combinator",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 4,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -8010,8 +8010,8 @@
               "subfeature": "adjacent-sibling",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 26.9922,
+              "status": "PASS",
+              "diff_pct": 0.2834,
               "weight": 1.0,
               "description": "The adjacent-sibling combinator (+) matches only the box immediately following .marker; the marker and the third box stay gray.",
               "note": "",
@@ -8023,7 +8023,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "0eac5da1a14deeedb44571ef95f03de71af5b5906233a5b72938a29f5bbef48f"
             },
             {
@@ -8079,8 +8079,8 @@
               "subfeature": "general-sibling",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 53.8537,
+              "status": "PASS",
+              "diff_pct": 0.2834,
               "weight": 1.0,
               "description": "The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.",
               "note": "",
@@ -8092,7 +8092,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3f826b79caaea7264276b163414089b34a0be4c36ee8d1d18c256c7f25a25039"
             }
           ]
@@ -10626,6 +10626,7 @@
     "filter-grayscale",
     "filter-hue-rotate",
     "filter-invert",
+    "filter-opacity-fn",
     "filter-saturate",
     "filter-sepia",
     "fonts-advanced-font-feature-settings-ligatures",

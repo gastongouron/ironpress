@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 60.69%  (PASS 160 · PARTIAL 100 · FAIL 86 · UNKNOWN 0 · total 346)
+Overall: 61.56%  (PASS 163 · PARTIAL 100 · FAIL 83 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**36 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
+**37 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-sepia`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `generated-content-first-line`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-skew`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -29,7 +29,7 @@ None — every fixture's HTML matches `refs.lock`.
 |--------|-------------|------:|----------|---------|-----------|----|------|
 | FAIL | REAL | 73.02 | backgrounds-borders | box-shadow | hard-offset | border-box-shadow-offset |  |
 | FAIL | REAL | 19.33 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow |  |
-| FAIL | REAL | 15.76 | backgrounds-borders | outline | solid-offset | outline-solid |  |
+| FAIL | REAL | 29.40 | backgrounds-borders | outline | solid-offset | outline-solid |  |
 | FAIL | REAL | 33.00 | block-box-model | border-width | per-side | block-border-width-thick |  |
 | FAIL | REAL | 33.21 | block-box-model | box-sizing | border-box | block-box-sizing-border-box |  |
 | FAIL | REAL | 25.88 | block-box-model | margin | collapse-adjacent | block-margin-collapse-adjacent |  |
@@ -73,8 +73,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 37.28 | positioning | overflow | visible | positioning-overflow-visible-no-clip |  |
 | FAIL | REAL | 39.67 | positioning | position | fixed | positioning-fixed-top-left |  |
 | FAIL | REAL | 16.92 | positioning | z-index | stacking | positioning-z-index-stacking |  |
-| FAIL | REAL | 26.99 | selectors-cascade | combinator | adjacent-sibling | selectors-cascade-adjacent-sibling |  |
-| FAIL | REAL | 53.85 | selectors-cascade | combinator | general-sibling | selectors-cascade-general-sibling |  |
 | FAIL | REAL | 15.73 | tables | border-collapse | separate | tables-border-separate |  |
 | FAIL | REAL | 58.42 | tables | border-spacing | uniform-12px | tables-border-spacing |  |
 | FAIL | REAL | 59.88 | tables | caption | caption-side-top | tables-caption |  |
@@ -112,7 +110,7 @@ None — every fixture's HTML matches `refs.lock`.
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 96.43% | 13 | 1 | 0 | 0 |
 | effects | 45.45% | 2 | 6 | 3 | 0 |
-| filters | 53.57% | 7 | 1 | 6 | 0 |
+| filters | 60.71% | 8 | 1 | 5 | 0 |
 | flexbox | 37.50% | 0 | 12 | 4 | 0 |
 | fonts-advanced | 87.50% | 9 | 3 | 0 | 0 |
 | generated-content | 60.00% | 2 | 8 | 0 | 0 |
@@ -126,7 +124,7 @@ None — every fixture's HTML matches `refs.lock`.
 | paged-media | 83.33% | 7 | 1 | 1 | 0 |
 | positioning | 53.13% | 5 | 7 | 4 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
-| selectors-cascade | 80.00% | 12 | 0 | 3 | 0 |
+| selectors-cascade | 93.33% | 14 | 0 | 1 | 0 |
 | tables | 53.13% | 7 | 3 | 6 | 0 |
 | text-advanced | 46.67% | 0 | 14 | 1 | 0 |
 | transforms | 90.91% | 10 | 0 | 1 | 0 |
@@ -175,7 +173,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.79 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
 | unsupported | PASS | 0.89 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
 | unsupported | PASS | 0.98 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
-| unsupported | FAIL | 99.07 | filters | filter: opacity() | filter-opacity-fn | filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property. |
+| unsupported | PASS | 0.54 | filters | filter: opacity() | filter-opacity-fn | filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property. |
 | unsupported | PASS | 0.89 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
 | unsupported | PASS | 0.70 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
 | unsupported | FAIL | 99.38 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
@@ -271,7 +269,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.53% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
   - PASS 0.30% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
 - **outline** — 0.00%
-  - FAIL 15.76% outline=solid-offset — `outline-solid` — Box with a solid outline drawn outside its border via outline-offset.
+  - FAIL 29.40% outline=solid-offset — `outline-solid` — Box with a solid outline drawn outside its border via outline-offset.
 - **radial-gradient** — 100.00%
   - PASS 0.30% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
 
@@ -381,7 +379,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.76% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
   - PASS 1.63% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
 
-### filters — 53.57%
+### filters — 60.71%
 - **filter: blur()** — 0.00%
   - FAIL 20.38% filter: blur()=on-box-background — `filter-blur-box` — filter: blur() applied to a box with a solid background-color fill.
   - FAIL 15.21% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
@@ -400,8 +398,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.89% filter: hue-rotate()=120deg — `filter-hue-rotate` — filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.
 - **filter: invert()** — 100.00%
   - PASS 0.98% filter: invert()=1 — `filter-invert` — filter: invert(1) inverting the colors of a four-quadrant color image.
-- **filter: opacity()** — 0.00%
-  - FAIL 99.07% filter: opacity()=0.5-over-grey — `filter-opacity-fn` — filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.
+- **filter: opacity()** — 100.00%
+  - PASS 0.54% filter: opacity()=0.5-over-grey — `filter-opacity-fn` — filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.
 - **filter: saturate()** — 100.00%
   - PASS 0.89% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
 - **filter: sepia()** — 100.00%
@@ -709,7 +707,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **image** — 100.00%
   - PASS 0.79% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
 
-### selectors-cascade — 80.00%
+### selectors-cascade — 93.33%
 - **at-rule** — 50.00%
   - PASS 0.00% at-rule=media-print — `selectors-cascade-media-print` — @media print { } applies in the print rendering context, turning the box green; ignoring print media queries leaves it gray.
   - FAIL 94.04% at-rule=supports — `selectors-cascade-supports-rule` — @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap.
@@ -718,11 +716,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **cascade** — 100.00%
   - PASS 0.42% cascade=important-over-id — `selectors-cascade-important-overrides-specificity` — A class rule with !important overrides an id selector that would otherwise win on specificity; only the !important box turns green.
   - PASS 0.63% cascade=source-order-tiebreak — `selectors-cascade-source-order-tiebreak` — Two equal-specificity rules target the same element; the later declaration wins, so the box renders green not gray.
-- **combinator** — 50.00%
-  - FAIL 26.99% combinator=adjacent-sibling — `selectors-cascade-adjacent-sibling` — The adjacent-sibling combinator (+) matches only the box immediately following .marker; the marker and the third box stay gray.
+- **combinator** — 100.00%
+  - PASS 0.28% combinator=adjacent-sibling — `selectors-cascade-adjacent-sibling` — The adjacent-sibling combinator (+) matches only the box immediately following .marker; the marker and the third box stay gray.
   - PASS 0.00% combinator=child — `selectors-cascade-child-combinator` — The child combinator (>) matches only immediate children of #parent; a nested .box stays gray while direct-child boxes turn green.
   - PASS 0.00% combinator=descendant — `selectors-cascade-descendant-combinator` — The descendant combinator (space) matches every .box inside #parent at any depth; a .box outside #parent stays gray.
-  - FAIL 53.85% combinator=general-sibling — `selectors-cascade-general-sibling` — The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.
+  - PASS 0.28% combinator=general-sibling — `selectors-cascade-general-sibling` — The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.
 - **pseudo-class** — 100.00%
   - PASS 0.28% pseudo-class=first-child-last-child — `selectors-cascade-first-last-child` — :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.
   - PASS 0.28% pseudo-class=not-negation — `selectors-cascade-not-negation` — :not(.skip) colors every .box except the one carrying .skip; the skipped box stays gray.

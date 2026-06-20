@@ -491,6 +491,12 @@ pub enum LayoutElement {
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        /// CSS `outline` width in points (0 = no outline). Painted just outside
+        /// the border box; does not affect layout.
+        outline_width: f32,
+        /// CSS `outline` color (RGB). `None` falls back to black when an
+        /// outline width is present.
+        outline_color: Option<(f32, f32, f32)>,
         z_index: i32,
     },
     /// A page break.

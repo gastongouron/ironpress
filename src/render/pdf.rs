@@ -4047,6 +4047,8 @@ fn render_container_children(
                 background_repeat: nk_bg_repeat,
                 background_origin: nk_bg_origin,
                 background_blur_radius: nk_bg_blur,
+                outline_width: nk_outline_width,
+                outline_color: nk_outline_color,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -4309,6 +4311,30 @@ fn render_container_children(
                         y = by2 + border.bottom.width * 0.5
                     ));
                     end_border_alpha(content, a);
+                }
+
+                // Draw outline if specified (a uniform stroke just outside the
+                // border box). The outline does not affect layout; offsetting the
+                // rect outward by half the outline width keeps the stroke entirely
+                // outside the box edge. Mirrors the TextBlock outline arm.
+                if *nk_outline_width > 0.0 {
+                    let ol_offset = *nk_outline_width / 2.0;
+                    let ol_x = bx1 - ol_offset;
+                    let ol_y = by2 - ol_offset;
+                    let ol_w = nk_w + *nk_outline_width;
+                    let ol_h = nk_total_h + *nk_outline_width;
+                    let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
+                    content.push_str(&format!(
+                        "{or} {og} {ob} RG\n{ow} w\n",
+                        ow = nk_outline_width
+                    ));
+                    if *cont_br > 0.0 {
+                        let ol_r = *cont_br + ol_offset;
+                        content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
+                    } else {
+                        content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                    }
+                    content.push_str("S\n");
                 }
 
                 // Clip if overflow:hidden (use rounded rect when border-radius > 0)

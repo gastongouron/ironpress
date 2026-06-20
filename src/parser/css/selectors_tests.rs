@@ -178,6 +178,83 @@ fn selector_matches_chained_sibling_combinators() {
 }
 
 #[test]
+fn selector_matches_class_sibling_combinators_like_fixtures() {
+    // Mirrors selectors-cascade-adjacent-sibling / general-sibling fixtures:
+    // <div class="box marker"></div><div class="box"></div><div class="box"></div>
+    // The first .box.marker is index 0; the second is index 1 (preceded by the marker);
+    // the third is index 2 (preceded by marker + plain box).
+    let second_box = SelectorContext {
+        ancestors: Vec::new(),
+        child_index: 1,
+        sibling_count: 3,
+        preceding_siblings: vec![(
+            "div".to_string(),
+            vec!["box".to_string(), "marker".to_string()],
+        )],
+    };
+    let third_box = SelectorContext {
+        ancestors: Vec::new(),
+        child_index: 2,
+        sibling_count: 3,
+        preceding_siblings: vec![
+            (
+                "div".to_string(),
+                vec!["box".to_string(), "marker".to_string()],
+            ),
+            ("div".to_string(), vec!["box".to_string()]),
+        ],
+    };
+
+    // Adjacent sibling: only the box immediately after the marker matches.
+    assert!(
+        selector_matches_with_context(
+            ".marker + .box",
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &second_box,
+        ),
+        "adjacent sibling should match the box immediately after the marker"
+    );
+    assert!(
+        !selector_matches_with_context(
+            ".marker + .box",
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &third_box,
+        ),
+        "adjacent sibling should NOT match the third box (not immediately after marker)"
+    );
+
+    // General sibling: every box following the marker matches.
+    assert!(
+        selector_matches_with_context(
+            ".marker ~ .box",
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &second_box,
+        ),
+        "general sibling should match the second box"
+    );
+    assert!(
+        selector_matches_with_context(
+            ".marker ~ .box",
+            "div",
+            &["box"],
+            None,
+            &HashMap::new(),
+            &third_box,
+        ),
+        "general sibling should match the third box"
+    );
+}
+
+#[test]
 fn selector_matches_attribute_variants() {
     let attrs = HashMap::from([
         ("href".to_string(), "https://example.com".to_string()),

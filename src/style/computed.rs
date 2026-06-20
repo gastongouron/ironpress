@@ -1979,12 +1979,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.page_break_after = k == "always";
     }
 
+    // `filter: opacity(<x>)` multiplies into the element's final opacity. The
+    // `opacity` property is parsed later, so remember the factor and fold it in
+    // after `style.opacity` is finalized to combine multiplicatively.
+    let mut filter_opacity = 1.0_f32;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
-        let (blur, ops) = parse_filter(k);
+        let (blur, ops, opacity) = parse_filter(k);
         if let Some(radius) = blur {
             style.blur_radius = radius;
         }
         style.color_filters = ops;
+        filter_opacity = opacity;
     }
 
     // Border shorthand: "1px solid black"
@@ -2117,6 +2122,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Length(v)) = get_non_special(map, "opacity") {
         // bare number parsed as Length
         style.opacity = v.clamp(0.0, 1.0);
+    }
+    // Fold any `filter: opacity()` factor into the finalized opacity.
+    if filter_opacity != 1.0 {
+        style.opacity = (style.opacity * filter_opacity).clamp(0.0, 1.0);
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "border-width") {
@@ -2974,16 +2983,20 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
     }
 }
 
-/// Parse a full CSS `filter` value into (blur_radius, ordered color ops).
-/// Recognizes blur/grayscale/sepia/invert/brightness/contrast/saturate/
-/// hue-rotate; unknown functions (e.g. drop-shadow) are ignored. `none` clears.
-fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>) {
+/// Parse a full CSS `filter` value into (blur_radius, ordered color ops,
+/// opacity multiplier). Recognizes blur/grayscale/sepia/invert/brightness/
+/// contrast/saturate/hue-rotate/opacity; unknown functions (e.g. drop-shadow)
+/// are ignored. `none` clears. The opacity multiplier is the product of all
+/// `opacity()` functions (1.0 when none are present) and is intended to be
+/// folded into the element's final `style.opacity`.
+fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32) {
     let raw = val.trim();
     if raw.is_empty() || raw.eq_ignore_ascii_case("none") {
-        return (Some(0.0), Vec::new());
+        return (Some(0.0), Vec::new(), 1.0);
     }
     let mut blur = None;
     let mut ops = Vec::new();
+    let mut opacity = 1.0_f32;
     let mut rest = raw;
     while let Some(open) = rest.find('(') {
         let name = rest[..open].trim().to_ascii_lowercase();
@@ -3030,11 +3043,14 @@ fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>) {
             "hue-rotate" => {
                 ops.push(ColorFilterOp::HueRotate(parse_filter_angle(arg)));
             }
+            "opacity" => {
+                opacity *= parse_filter_amount(arg, 1.0).clamp(0.0, 1.0);
+            }
             _ => {}
         }
         rest = &rest[open + 1 + close_rel + 1..];
     }
-    (blur, ops)
+    (blur, ops, opacity)
 }
 
 /// Parse a filter amount: `100%` -> 1.0, `1.5` -> 1.5, empty -> `default`.
@@ -8591,11 +8607,32 @@ mod tests {
         // bare function defaults to amount 1.0
         assert_eq!(parse_filter("sepia()").1, vec![ColorFilterOp::Sepia(1.0)]);
         // chained: blur goes to the blur slot, color ops preserve order
-        let (blur, ops) = parse_filter("grayscale(1) blur(2px) contrast(2)");
+        let (blur, ops, _opacity) = parse_filter("grayscale(1) blur(2px) contrast(2)");
         assert!(blur.is_some_and(|r| r > 0.0));
         assert_eq!(ops, vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]);
         // none clears everything
-        assert_eq!(parse_filter("none"), (Some(0.0), vec![]));
+        assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0));
+    }
+
+    #[test]
+    fn filter_opacity_fn_reduces_opacity() {
+        let parent = ComputedStyle::default();
+        // bare number argument
+        let style = compute_style(HtmlTag::Div, Some("filter: opacity(0.5)"), &parent);
+        assert!((style.opacity - 0.5).abs() < 0.01);
+        // percentage argument
+        let style = compute_style(HtmlTag::Div, Some("filter: opacity(50%)"), &parent);
+        assert!((style.opacity - 0.5).abs() < 0.01);
+        // combines multiplicatively with the opacity property
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("opacity: 0.5; filter: opacity(0.5)"),
+            &parent,
+        );
+        assert!((style.opacity - 0.25).abs() < 0.01);
+        // other filter functions leave opacity untouched
+        let style = compute_style(HtmlTag::Div, Some("filter: blur(2px)"), &parent);
+        assert!((style.opacity - 1.0).abs() < 0.01);
     }
 
     #[test]

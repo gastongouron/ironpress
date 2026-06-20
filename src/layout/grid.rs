@@ -401,6 +401,8 @@ pub(crate) fn layout_grid_container(
         background_position,
         background_repeat,
         background_origin,
+        outline_width: style.outline_width,
+        outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
         z_index: style.z_index,
     });
 }

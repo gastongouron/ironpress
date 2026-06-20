@@ -1375,6 +1375,8 @@ pub(crate) fn layout_flex_container(
                                 background_position: BackgroundPosition::default(),
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
+                                outline_width: 0.0,
+                                outline_color: None,
                                 z_index: 0,
                             });
                         }
