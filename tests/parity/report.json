@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 30.35,
+    "score_pct": 30.78,
     "pass": 63,
-    "partial": 84,
-    "fail": 199,
+    "partial": 87,
+    "fail": 196,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -2714,11 +2714,11 @@
     },
     {
       "category": "flexbox",
-      "score_pct": 12.5,
+      "score_pct": 21.88,
       "counts": {
         "pass": 0,
-        "partial": 4,
-        "fail": 12,
+        "partial": 7,
+        "fail": 9,
         "unknown": 0
       },
       "features": [
@@ -2976,11 +2976,11 @@
         },
         {
           "feature": "flex-wrap",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2991,8 +2991,8 @@
               "subfeature": "wrap",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.6507,
+              "status": "PARTIAL",
+              "diff_pct": 8.677,
               "weight": 1.0,
               "description": "flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.",
               "note": "",
@@ -3025,7 +3025,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 14.9127,
+              "diff_pct": 13.7411,
               "weight": 1.0,
               "description": "gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.",
               "note": "",
@@ -3042,11 +3042,11 @@
         },
         {
           "feature": "justify-content",
-          "score_pct": 0.0,
+          "score_pct": 33.33,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 3,
+            "partial": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -3057,8 +3057,8 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.5743,
+              "status": "PARTIAL",
+              "diff_pct": 11.8836,
               "weight": 1.0,
               "description": "justify-content:center groups items centered on the main axis with equal leftover space on both sides.",
               "note": "",
@@ -3079,7 +3079,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 17.3274,
+              "diff_pct": 13.3181,
               "weight": 1.0,
               "description": "justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.",
               "note": "",
@@ -3099,8 +3099,8 @@
               "subfeature": "space-between",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 16.0848,
+              "status": "PARTIAL",
+              "diff_pct": 11.9715,
               "weight": 1.0,
               "description": "justify-content:space-between pins first and last boxes to the edges with equal gaps between.",
               "note": "",
@@ -3166,7 +3166,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 17.3143,
+              "diff_pct": 16.7789,
               "weight": 1.0,
               "description": "A row flex container holds two growing column flex containers, each space-between stacking two boxes.",
               "note": "",
@@ -5262,7 +5262,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 14.9728,
+              "diff_pct": 14.2567,
               "weight": 1.0,
               "description": "Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.",
               "note": "",
@@ -6757,7 +6757,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "PARTIAL",
-              "diff_pct": 8.7594,
+              "diff_pct": 7.5246,
               "weight": 1.0,
               "description": "A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.",
               "note": "",
@@ -10706,7 +10706,7 @@
     {
       "id": "flexbox-flex-wrap",
       "feature": "flex-wrap",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "confounded_count": 1,
       "confounded_ids": [
         "flexbox-wrap-x-gap"

@@ -3643,11 +3643,16 @@ fn render_container_children(
                     }
                 }
 
-                // Render flex cells
-                let mut cell_x = x + flex_pl + border.left.width;
+                // Render flex cells. Anchor each cell to its layout-computed
+                // main-axis offset (which folds in justify-content spacing and
+                // `gap`) instead of accumulating widths — mirrors the top-level
+                // FlexRow arm. Without this, nested flex rows packed left and
+                // ignored justify-content/gap entirely.
+                let cell_base_x = x + flex_pl + border.left.width;
                 let content_y = y - flex_pt - border.top.width;
                 for cell in cells {
                     let cell_w = cell.width;
+                    let cell_x = cell_base_x + cell.x_offset;
                     // Draw cell background
                     if let Some((cr, cg, cb, ca)) = cell.background_color {
                         let needs_alpha = ca < 1.0;
@@ -3793,7 +3798,6 @@ fn render_container_children(
                             0.0,
                         );
                     }
-                    cell_x += cell_w;
                 }
                 cursor_y -= row_h + flex_mb;
                 y = cursor_y;

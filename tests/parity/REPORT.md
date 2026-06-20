@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 30.35%  (PASS 63 · PARTIAL 84 · FAIL 199 · UNKNOWN 0 · total 346)
+Overall: 30.78%  (PASS 63 · PARTIAL 87 · FAIL 196 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -47,12 +47,9 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | 12.57 | flexbox | flex-basis | px | flexbox-flex-basis |  |
 | FAIL | REAL | 22.32 | flexbox | flex-direction | column | flexbox-flex-direction-column |  |
 | FAIL | REAL | 13.04 | flexbox | flex-grow | ratio | flexbox-flex-grow |  |
-| FAIL | REAL | 19.65 | flexbox | flex-wrap | wrap | flexbox-flex-wrap |  |
-| FAIL | REAL | 14.91 | flexbox | gap | fixed | flexbox-gap |  |
-| FAIL | REAL | 16.57 | flexbox | justify-content | center | flexbox-justify-content-center |  |
-| FAIL | REAL | 17.33 | flexbox | justify-content | space-around | flexbox-justify-content-space-around |  |
-| FAIL | REAL | 16.08 | flexbox | justify-content | space-between | flexbox-justify-content-space-between |  |
-| FAIL | REAL | 17.31 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
+| FAIL | REAL | 13.74 | flexbox | gap | fixed | flexbox-gap |  |
+| FAIL | REAL | 13.32 | flexbox | justify-content | space-around | flexbox-justify-content-space-around |  |
+| FAIL | REAL | 16.78 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex |  |
 | FAIL | REAL | 13.48 | flexbox | order | reorder | flexbox-order |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 22.77 | fonts-advanced | font-size | em | fonts-advanced-font-size-em |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 19.03 | fonts-advanced | font-size | percent | fonts-advanced-font-size-percent |  |
@@ -86,7 +83,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 25.41 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 37.02 | inline-text | word-spacing | positive | inline-text-word-spacing |  |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | 39.17 | inline-text | wrapping | normal | inline-text-wrapping-normal |  |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 14.97 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
+| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | 14.26 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container |  |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | 25.94 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap |  |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | 30.12 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `grid-display-grid` already FAILs | flexbox-x-grid-nested |  |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | 23.79 | interactions | float | (interaction: positioning×block-box-model) DERIVATIVE: base `block-margin-collapse-adjacent` already FAILs | interactions-positioning-float-x-margin-collapse |  |
@@ -176,7 +173,7 @@ None — every fixture's HTML matches `refs.lock`.
 | 12 | `positioning-z-index-stacking` | z-index | FAIL | 2 | interactions-positioning-z-index-x-backgrounds-gradient, positioning-zindex-x-transforms-rotate |
 | 13 | `block-nested-containment` | nested-block-flow | PARTIAL | 1 | block-percentage-height-x-nested-containers |
 | 14 | `block-padding-all-sides` | padding | PARTIAL | 1 | interactions-positioning-absolute-x-box-model-padding |
-| 15 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
+| 15 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
 | 16 | `flexbox-gap` | gap | FAIL | 1 | flexbox-wrap-x-gap |
 | 17 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
 | 18 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
@@ -196,7 +193,7 @@ None — every fixture's HTML matches `refs.lock`.
 | color-opacity | 57.14% | 7 | 2 | 5 | 0 |
 | effects | 86.36% | 9 | 1 | 1 | 0 |
 | filters | 7.14% | 1 | 0 | 13 | 0 |
-| flexbox | 12.50% | 0 | 4 | 12 | 0 |
+| flexbox | 21.88% | 0 | 7 | 9 | 0 |
 | fonts-advanced | 0.00% | 0 | 0 | 12 | 0 |
 | generated-content | 15.00% | 0 | 3 | 7 | 0 |
 | grid | 37.50% | 1 | 10 | 5 | 0 |
@@ -492,7 +489,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **filter: url()** — 100.00%
   - PASS 5.65% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
-### flexbox — 12.50%
+### flexbox — 21.88%
 - **align-items** — 25.00%
   - FAIL 13.51% align-items=center — `flexbox-align-items-center` — align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.
   - PARTIAL 9.94% align-items=stretch — `flexbox-align-items-stretch` — align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.
@@ -508,18 +505,18 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 13.04% flex-grow=ratio — `flexbox-flex-grow` — flex-grow distributes free space in a 1:2:1 ratio over zero-basis boxes.
 - **flex-shrink** — 50.00%
   - PARTIAL 10.52% flex-shrink=ratio — `flexbox-flex-shrink` — flex-shrink removes overflow in a 1:2 ratio when two oversized boxes exceed the container width.
-- **flex-wrap** — 0.00%
-  - FAIL 19.65% flex-wrap=wrap — `flexbox-flex-wrap` — flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.
+- **flex-wrap** — 50.00%
+  - PARTIAL 8.68% flex-wrap=wrap — `flexbox-flex-wrap` — flex-wrap:wrap breaks four boxes onto two lines when they overflow the container width.
 - **gap** — 0.00%
-  - FAIL 14.91% gap=fixed — `flexbox-gap` — gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.
-- **justify-content** — 0.00%
-  - FAIL 16.57% justify-content=center — `flexbox-justify-content-center` — justify-content:center groups items centered on the main axis with equal leftover space on both sides.
-  - FAIL 17.33% justify-content=space-around — `flexbox-justify-content-space-around` — justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.
-  - FAIL 16.08% justify-content=space-between — `flexbox-justify-content-space-between` — justify-content:space-between pins first and last boxes to the edges with equal gaps between.
+  - FAIL 13.74% gap=fixed — `flexbox-gap` — gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.
+- **justify-content** — 33.33%
+  - PARTIAL 11.88% justify-content=center — `flexbox-justify-content-center` — justify-content:center groups items centered on the main axis with equal leftover space on both sides.
+  - FAIL 13.32% justify-content=space-around — `flexbox-justify-content-space-around` — justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.
+  - PARTIAL 11.97% justify-content=space-between — `flexbox-justify-content-space-between` — justify-content:space-between pins first and last boxes to the edges with equal gaps between.
 - **min-width** — 50.00%
   - PARTIAL 9.63% min-width=shrink-floor — `flexbox-min-width-constraint` — min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.
 - **nested-flex** — 0.00%
-  - FAIL 17.31% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
+  - FAIL 16.78% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
 - **order** — 0.00%
   - FAIL 13.48% order=reorder — `flexbox-order` — order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.
 
@@ -644,7 +641,7 @@ None — every fixture's HTML matches `refs.lock`.
 ### interactions — 13.64%
 - **containing-block** — 25.00%
   - PARTIAL 10.58% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
-  - FAIL 14.97% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
+  - FAIL 14.26% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 0.00%
   - FAIL 25.94% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 0.00%
@@ -725,7 +722,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 19.54% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
   - PARTIAL 10.42% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PASS 5.49% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
-  - PARTIAL 8.76% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
+  - PARTIAL 7.52% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - FAIL 100.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PARTIAL 11.16% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
   - FAIL 31.31% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
