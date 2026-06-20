@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 37.43,
-    "pass": 76,
-    "partial": 107,
-    "fail": 163,
+    "score_pct": 39.6,
+    "pass": 83,
+    "partial": 108,
+    "fail": 155,
     "unknown": 0,
     "total": 346,
     "scored_ratio_pct": 100.0
@@ -2263,11 +2263,11 @@
     },
     {
       "category": "filters",
-      "score_pct": 0.0,
+      "score_pct": 53.57,
       "counts": {
-        "pass": 0,
-        "partial": 0,
-        "fail": 14,
+        "pass": 7,
+        "partial": 1,
+        "fail": 6,
         "unknown": 0
       },
       "features": [
@@ -2310,7 +2310,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 77.0093,
+              "diff_pct": 15.3111,
               "weight": 1.0,
               "description": "filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.",
               "note": "",
@@ -2349,11 +2349,11 @@
         },
         {
           "feature": "filter: brightness()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2364,8 +2364,8 @@
               "subfeature": "1.6",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 99.6163,
+              "status": "PASS",
+              "diff_pct": 0.892,
               "weight": 1.0,
               "description": "filter: brightness(1.6) lightening a four-quadrant color image.",
               "note": "",
@@ -2375,18 +2375,18 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "1c0654eb681bacfd683216b9636ebfe50bd7be7080f091f712d897754fd70c6d"
             }
           ]
         },
         {
           "feature": "filter: chained",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2397,8 +2397,8 @@
               "subfeature": "blur-plus-brightness",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 95.6699,
+              "status": "PARTIAL",
+              "diff_pct": 11.6575,
               "weight": 1.0,
               "description": "Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.",
               "note": "",
@@ -2415,11 +2415,11 @@
         },
         {
           "feature": "filter: contrast()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2430,8 +2430,8 @@
               "subfeature": "2",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 95.3092,
+              "status": "PASS",
+              "diff_pct": 0.9936,
               "weight": 1.0,
               "description": "filter: contrast(2) increasing contrast of a four-quadrant color image.",
               "note": "",
@@ -2441,7 +2441,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "59bf376923761c0af556a764b246e06579cb66f858a8b050622d26c630a560d7"
             }
           ]
@@ -2464,7 +2464,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 86.4441,
+              "diff_pct": 57.326,
               "weight": 1.0,
               "description": "filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.",
               "note": "",
@@ -2481,11 +2481,11 @@
         },
         {
           "feature": "filter: grayscale()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2496,8 +2496,8 @@
               "subfeature": "1",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 99.6165,
+              "status": "PASS",
+              "diff_pct": 0.8917,
               "weight": 1.0,
               "description": "filter: grayscale(1) fully desaturating a four-quadrant color image.",
               "note": "",
@@ -2507,18 +2507,18 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c4d5159f531dffd2b6a89c80b15cc512285393785653fc451efb3f4de47cfa3d"
             }
           ]
         },
         {
           "feature": "filter: hue-rotate()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2529,8 +2529,8 @@
               "subfeature": "120deg",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 96.6002,
+              "status": "PASS",
+              "diff_pct": 0.9928,
               "weight": 1.0,
               "description": "filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.",
               "note": "",
@@ -2540,18 +2540,18 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "8c5396c62eba3d8bf40108f384393861b5f1ba452e70873bd2f87c964174a7a0"
             }
           ]
         },
         {
           "feature": "filter: invert()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2562,8 +2562,8 @@
               "subfeature": "1",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 93.6725,
+              "status": "PASS",
+              "diff_pct": 0.9849,
               "weight": 1.0,
               "description": "filter: invert(1) inverting the colors of a four-quadrant color image.",
               "note": "",
@@ -2573,7 +2573,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "54b7dd9d7022283d0e1bd7d6792b5c7404182644184887854e701f7209bfda60"
             }
           ]
@@ -2613,11 +2613,11 @@
         },
         {
           "feature": "filter: saturate()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2628,8 +2628,8 @@
               "subfeature": "3",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 96.4019,
+              "status": "PASS",
+              "diff_pct": 0.9944,
               "weight": 1.0,
               "description": "filter: saturate(3) boosting saturation of a four-quadrant color image.",
               "note": "",
@@ -2639,18 +2639,18 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "bc71a88e73c7243e44881c3c582a714f6e78e68473806ae652edbf84217aed7f"
             }
           ]
         },
         {
           "feature": "filter: sepia()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2661,8 +2661,8 @@
               "subfeature": "1",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 99.6173,
+              "status": "PASS",
+              "diff_pct": 0.6964,
               "weight": 1.0,
               "description": "filter: sepia(1) applying a sepia tone to a four-quadrant color image.",
               "note": "",
@@ -2672,7 +2672,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "a3fe487cd5bb240c78e63516c826cc3e58968ea2465fad2266e4316f051657f4"
             }
           ]
@@ -10754,6 +10754,13 @@
     "color-hsla-alpha",
     "color-transparent-keyword",
     "counters-nested",
+    "filter-brightness",
+    "filter-contrast",
+    "filter-grayscale",
+    "filter-hue-rotate",
+    "filter-invert",
+    "filter-saturate",
+    "filter-sepia",
     "img-aspect-ratio-box",
     "img-object-fit-cover",
     "img-object-fit-fill",

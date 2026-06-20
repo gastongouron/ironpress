@@ -667,6 +667,23 @@ pub struct ComputedStyle {
     pub column_gap: f32,
     pub row_gap: f32,
     pub blur_radius: f32,
+    /// CSS `filter` color functions (grayscale/brightness/.../hue-rotate),
+    /// applied in order to a replaced image's pixels. `blur(...)` stays in
+    /// `blur_radius`; this holds the non-blur ops.
+    pub color_filters: Vec<ColorFilterOp>,
+}
+
+/// A single CSS `filter` color function. Amounts are resolved fractions
+/// (`100%`/`1.0` -> 1.0); hue-rotate is in degrees.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColorFilterOp {
+    Grayscale(f32),
+    Sepia(f32),
+    Invert(f32),
+    Brightness(f32),
+    Contrast(f32),
+    Saturate(f32),
+    HueRotate(f32),
 }
 
 impl Default for ComputedStyle {
@@ -766,6 +783,7 @@ impl Default for ComputedStyle {
             column_gap: 0.0,
             row_gap: 0.0,
             blur_radius: 0.0,
+            color_filters: Vec::new(),
         }
     }
 }
@@ -934,6 +952,7 @@ pub fn compute_style_with_context(
     style.z_index = 0;
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
+    style.color_filters.clear();
     // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
@@ -1095,6 +1114,7 @@ pub fn compute_pseudo_element_style(
     style.z_index = 0;
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
+    style.color_filters.clear();
     // Default display for pseudo-elements is inline
     style.display = Display::Inline;
 
@@ -1287,7 +1307,10 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "counter-increment" => style.counter_increment = default.counter_increment,
         "column-count" | "columns" => style.column_count = default.column_count,
         "column-gap" => style.column_gap = default.column_gap,
-        "filter" => style.blur_radius = default.blur_radius,
+        "filter" => {
+            style.blur_radius = default.blur_radius;
+            style.color_filters = default.color_filters.clone();
+        }
         _ => {}
     }
 }
@@ -1427,7 +1450,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
         "column-count" | "columns" => style.column_count = parent.column_count,
         "column-gap" => style.column_gap = parent.column_gap,
-        "filter" => style.blur_radius = parent.blur_radius,
+        "filter" => {
+            style.blur_radius = parent.blur_radius;
+            style.color_filters = parent.color_filters.clone();
+        }
         _ => {}
     }
 }
@@ -1778,9 +1804,11 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
-        if let Some(radius) = parse_filter_blur(k) {
+        let (blur, ops) = parse_filter(k);
+        if let Some(radius) = blur {
             style.blur_radius = radius;
         }
+        style.color_filters = ops;
     }
 
     // Border shorthand: "1px solid black"
@@ -2686,6 +2714,95 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
     match crate::parser::css::parse_length(inner)? {
         CssValue::Length(length) if length >= 0.0 => Some(length),
         _ => None,
+    }
+}
+
+/// Parse a full CSS `filter` value into (blur_radius, ordered color ops).
+/// Recognizes blur/grayscale/sepia/invert/brightness/contrast/saturate/
+/// hue-rotate; unknown functions (e.g. drop-shadow) are ignored. `none` clears.
+fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>) {
+    let raw = val.trim();
+    if raw.is_empty() || raw.eq_ignore_ascii_case("none") {
+        return (Some(0.0), Vec::new());
+    }
+    let mut blur = None;
+    let mut ops = Vec::new();
+    let mut rest = raw;
+    while let Some(open) = rest.find('(') {
+        let name = rest[..open].trim().to_ascii_lowercase();
+        let Some(close_rel) = rest[open + 1..].find(')') else {
+            break;
+        };
+        let arg = rest[open + 1..open + 1 + close_rel].trim();
+        match name.as_str() {
+            "blur" => {
+                if let Some(r) = parse_filter_blur(&format!("blur({arg})")) {
+                    blur = Some(r);
+                }
+            }
+            "grayscale" => {
+                ops.push(ColorFilterOp::Grayscale(
+                    parse_filter_amount(arg, 1.0).clamp(0.0, 1.0),
+                ));
+            }
+            "sepia" => {
+                ops.push(ColorFilterOp::Sepia(
+                    parse_filter_amount(arg, 1.0).clamp(0.0, 1.0),
+                ));
+            }
+            "invert" => {
+                ops.push(ColorFilterOp::Invert(
+                    parse_filter_amount(arg, 1.0).clamp(0.0, 1.0),
+                ));
+            }
+            "brightness" => {
+                ops.push(ColorFilterOp::Brightness(
+                    parse_filter_amount(arg, 1.0).max(0.0),
+                ));
+            }
+            "contrast" => {
+                ops.push(ColorFilterOp::Contrast(
+                    parse_filter_amount(arg, 1.0).max(0.0),
+                ));
+            }
+            "saturate" => {
+                ops.push(ColorFilterOp::Saturate(
+                    parse_filter_amount(arg, 1.0).max(0.0),
+                ));
+            }
+            "hue-rotate" => {
+                ops.push(ColorFilterOp::HueRotate(parse_filter_angle(arg)));
+            }
+            _ => {}
+        }
+        rest = &rest[open + 1 + close_rel + 1..];
+    }
+    (blur, ops)
+}
+
+/// Parse a filter amount: `100%` -> 1.0, `1.5` -> 1.5, empty -> `default`.
+fn parse_filter_amount(arg: &str, default: f32) -> f32 {
+    let a = arg.trim();
+    if a.is_empty() {
+        return default;
+    }
+    if let Some(p) = a.strip_suffix('%') {
+        return p.trim().parse::<f32>().map_or(default, |v| v / 100.0);
+    }
+    a.parse::<f32>().unwrap_or(default)
+}
+
+/// Parse a hue-rotate angle to degrees (`90deg`, `90`, `0.25turn`, `1.57rad`).
+fn parse_filter_angle(arg: &str) -> f32 {
+    let a = arg.trim();
+    if let Some(d) = a.strip_suffix("deg") {
+        d.trim().parse::<f32>().unwrap_or(0.0)
+    } else if let Some(t) = a.strip_suffix("turn") {
+        t.trim().parse::<f32>().map_or(0.0, |v| v * 360.0)
+    } else if let Some(r) = a.strip_suffix("rad") {
+        r.trim().parse::<f32>().map_or(0.0, f32::to_degrees)
+    } else {
+        a.parse::<f32>().unwrap_or(0.0)
     }
 }
 
@@ -7876,6 +7993,23 @@ mod tests {
     fn parse_filter_blur_valid_px() {
         let parsed = parse_filter_blur("blur(5px)");
         assert!(parsed.is_some_and(|radius| (radius - 3.75).abs() < 0.01));
+    }
+
+    #[test]
+    fn parse_filter_color_functions() {
+        assert_eq!(parse_filter("grayscale(100%)").1, vec![ColorFilterOp::Grayscale(1.0)]);
+        assert_eq!(parse_filter("grayscale(0.5)").1, vec![ColorFilterOp::Grayscale(0.5)]);
+        assert_eq!(parse_filter("invert(1)").1, vec![ColorFilterOp::Invert(1.0)]);
+        assert_eq!(parse_filter("brightness(150%)").1, vec![ColorFilterOp::Brightness(1.5)]);
+        assert_eq!(parse_filter("hue-rotate(90deg)").1, vec![ColorFilterOp::HueRotate(90.0)]);
+        // bare function defaults to amount 1.0
+        assert_eq!(parse_filter("sepia()").1, vec![ColorFilterOp::Sepia(1.0)]);
+        // chained: blur goes to the blur slot, color ops preserve order
+        let (blur, ops) = parse_filter("grayscale(1) blur(2px) contrast(2)");
+        assert!(blur.is_some_and(|r| r > 0.0));
+        assert_eq!(ops, vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]);
+        // none clears everything
+        assert_eq!(parse_filter("none"), (Some(0.0), vec![]));
     }
 
     #[test]

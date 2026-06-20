@@ -1,7 +1,9 @@
 use crate::parser::dom::ElementNode;
 use crate::parser::png;
 use crate::parser::ttf::TtfFont;
-use crate::style::computed::{ComputedStyle, Display, FontStyle, FontWeight, VerticalAlign};
+use crate::style::computed::{
+    ColorFilterOp, ComputedStyle, Display, FontStyle, FontWeight, VerticalAlign,
+};
 use crate::util::decode_base64;
 use std::collections::HashMap;
 
@@ -175,11 +177,16 @@ pub(crate) fn load_image_from_element(
     }
 
     // Fall back to raster image using the same bytes.
-    let image = load_raster_image_bytes(raw, style.blur_radius)?;
+    let image = load_raster_image_bytes(raw, style.blur_radius, &style.color_filters)?;
 
-    // Determine dimensions from attributes
-    let attr_width = parse_html_image_dimension(el.attributes.get("width"));
-    let attr_height = parse_html_image_dimension(el.attributes.get("height"));
+    // Determine dimensions: CSS width/height take precedence over the HTML
+    // width/height attributes (matching the SVG path and the CSS cascade).
+    let attr_width = style
+        .width
+        .or_else(|| parse_html_image_dimension(el.attributes.get("width")));
+    let attr_height = style
+        .height
+        .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
     let (width, height) = match (attr_width, attr_height) {
         (Some(w), Some(h)) => (w, h),
@@ -656,11 +663,117 @@ pub(crate) fn raster_image_dimensions(raw: &[u8]) -> Option<(u32, u32)> {
     }
 }
 
-pub(crate) fn load_raster_image_bytes(raw: Vec<u8>, blur_radius: f32) -> Option<RasterImageAsset> {
-    if blur_radius > 0.0 {
+pub(crate) fn load_raster_image_bytes(
+    raw: Vec<u8>,
+    blur_radius: f32,
+    color_filters: &[ColorFilterOp],
+) -> Option<RasterImageAsset> {
+    if !color_filters.is_empty() {
+        apply_image_filters(&raw, blur_radius, color_filters)
+    } else if blur_radius > 0.0 {
         blur_image_bytes(&raw, blur_radius)
     } else {
         load_image_bytes(raw)
+    }
+}
+
+/// Decode an image, apply blur then the CSS color filters in order, and
+/// re-encode losslessly (RGB PNG) so flat-color filtered output stays crisp.
+fn apply_image_filters(
+    raw: &[u8],
+    blur_radius: f32,
+    color_filters: &[ColorFilterOp],
+) -> Option<RasterImageAsset> {
+    let mut decoded = decode_image_for_blur(raw)?;
+    if blur_radius > 0.0 {
+        decoded = image::DynamicImage::ImageRgba8(image::imageops::blur(&decoded, blur_radius));
+    }
+    let mut rgb = decoded.to_rgb8();
+    apply_color_filters(&mut rgb, color_filters);
+    let (width, height) = (rgb.width(), rgb.height());
+    let mut encoded = Vec::new();
+    image::DynamicImage::ImageRgb8(rgb)
+        .write_to(&mut std::io::Cursor::new(&mut encoded), image::ImageFormat::Png)
+        .ok()?;
+    let png_info = png::parse_png(&encoded)?;
+    Some(RasterImageAsset {
+        data: png_info.idat_data,
+        source_width: width,
+        source_height: height,
+        format: ImageFormat::Png,
+        png_metadata: Some(PngMetadata {
+            channels: png_info.channels,
+            bit_depth: png_info.bit_depth,
+        }),
+    })
+}
+
+/// Apply CSS `filter` color functions to an RGB image, in order. Matrices follow
+/// the CSS Filter Effects / SVG feColorMatrix definitions.
+fn apply_color_filters(img: &mut image::RgbImage, ops: &[ColorFilterOp]) {
+    for pixel in img.pixels_mut() {
+        let (mut r, mut g, mut b) = (pixel[0] as f32, pixel[1] as f32, pixel[2] as f32);
+        for op in ops {
+            let (nr, ng, nb) = apply_one_filter(op, r, g, b);
+            r = nr.clamp(0.0, 255.0);
+            g = ng.clamp(0.0, 255.0);
+            b = nb.clamp(0.0, 255.0);
+        }
+        pixel[0] = r.round() as u8;
+        pixel[1] = g.round() as u8;
+        pixel[2] = b.round() as u8;
+    }
+}
+
+fn apply_one_filter(op: &ColorFilterOp, r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+    match *op {
+        ColorFilterOp::Brightness(k) => (r * k, g * k, b * k),
+        ColorFilterOp::Contrast(c) => (
+            (r - 127.5) * c + 127.5,
+            (g - 127.5) * c + 127.5,
+            (b - 127.5) * c + 127.5,
+        ),
+        ColorFilterOp::Invert(a) => (
+            r * (1.0 - a) + (255.0 - r) * a,
+            g * (1.0 - a) + (255.0 - g) * a,
+            b * (1.0 - a) + (255.0 - b) * a,
+        ),
+        ColorFilterOp::Grayscale(amount) => {
+            let v = 1.0 - amount;
+            (
+                (0.2126 + 0.7874 * v) * r + (0.7152 - 0.7152 * v) * g + (0.0722 - 0.0722 * v) * b,
+                (0.2126 - 0.2126 * v) * r + (0.7152 + 0.2848 * v) * g + (0.0722 - 0.0722 * v) * b,
+                (0.2126 - 0.2126 * v) * r + (0.7152 - 0.7152 * v) * g + (0.0722 + 0.9278 * v) * b,
+            )
+        }
+        ColorFilterOp::Sepia(amount) => {
+            let v = 1.0 - amount;
+            (
+                (0.393 + 0.607 * v) * r + (0.769 - 0.769 * v) * g + (0.189 - 0.189 * v) * b,
+                (0.349 - 0.349 * v) * r + (0.686 + 0.314 * v) * g + (0.168 - 0.168 * v) * b,
+                (0.272 - 0.272 * v) * r + (0.534 - 0.534 * v) * g + (0.131 + 0.869 * v) * b,
+            )
+        }
+        ColorFilterOp::Saturate(s) => (
+            (0.213 + 0.787 * s) * r + (0.715 - 0.715 * s) * g + (0.072 - 0.072 * s) * b,
+            (0.213 - 0.213 * s) * r + (0.715 + 0.285 * s) * g + (0.072 - 0.072 * s) * b,
+            (0.213 - 0.213 * s) * r + (0.715 - 0.715 * s) * g + (0.072 + 0.928 * s) * b,
+        ),
+        ColorFilterOp::HueRotate(deg) => {
+            let rad = deg.to_radians();
+            let (c, s) = (rad.cos(), rad.sin());
+            (
+                (0.213 + c * 0.787 - s * 0.213) * r
+                    + (0.715 - c * 0.715 - s * 0.715) * g
+                    + (0.072 - c * 0.072 + s * 0.928) * b,
+                (0.213 - c * 0.213 + s * 0.143) * r
+                    + (0.715 + c * 0.285 + s * 0.140) * g
+                    + (0.072 - c * 0.072 - s * 0.283) * b,
+                (0.213 - c * 0.213 - s * 0.787) * r
+                    + (0.715 - c * 0.715 + s * 0.715) * g
+                    + (0.072 + c * 0.928 + s * 0.072) * b,
+            )
+        }
     }
 }
 

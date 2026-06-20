@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 37.43%  (PASS 76 · PARTIAL 107 · FAIL 163 · UNKNOWN 0 · total 346)
+Overall: 39.60%  (PASS 83 · PARTIAL 108 · FAIL 155 · UNKNOWN 0 · total 346)
 Scored coverage: 100.00% (346 / 346 fixtures have a reference)
 Env: DPI 300 · channel-tol 20 · white-tol 10 · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -15,7 +15,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**10 suspect(s):** `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `units-min-max`
+**17 suspect(s):** `color-hsla-alpha`, `color-transparent-keyword`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-saturate`, `filter-sepia`, `img-aspect-ratio-box`, `img-object-fit-cover`, `img-object-fit-fill`, `paged-break-before-page-modern`, `paged-orphans-widows`, `text-shadow-blur`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -162,7 +162,7 @@ None — every fixture's HTML matches `refs.lock`.
 | clip-mask | 0.00% | 0 | 0 | 8 | 0 |
 | color-opacity | 64.29% | 9 | 0 | 5 | 0 |
 | effects | 40.91% | 1 | 7 | 3 | 0 |
-| filters | 0.00% | 0 | 0 | 14 | 0 |
+| filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 18.75% | 0 | 6 | 10 | 0 |
 | fonts-advanced | 41.67% | 0 | 10 | 2 | 0 |
 | generated-content | 55.00% | 1 | 9 | 0 | 0 |
@@ -216,18 +216,18 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 2.71 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
 | unsupported | PARTIAL | 3.48 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
 | partial | FAIL | 20.38 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
-| partial | FAIL | 77.01 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
+| partial | FAIL | 15.31 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
 | partial | FAIL | 31.73 | filters | filter: blur() | filter-on-box-blur | filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path. |
-| unsupported | FAIL | 99.62 | filters | filter: brightness() | filter-brightness | filter: brightness(1.6) lightening a four-quadrant color image. |
-| unsupported | FAIL | 95.67 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
-| unsupported | FAIL | 95.31 | filters | filter: contrast() | filter-contrast | filter: contrast(2) increasing contrast of a four-quadrant color image. |
-| unsupported | FAIL | 86.44 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
-| unsupported | FAIL | 99.62 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
-| unsupported | FAIL | 96.60 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
-| unsupported | FAIL | 93.67 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
+| unsupported | PASS | 0.89 | filters | filter: brightness() | filter-brightness | filter: brightness(1.6) lightening a four-quadrant color image. |
+| unsupported | PARTIAL | 11.66 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
+| unsupported | PASS | 0.99 | filters | filter: contrast() | filter-contrast | filter: contrast(2) increasing contrast of a four-quadrant color image. |
+| unsupported | FAIL | 57.33 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
+| unsupported | PASS | 0.89 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
+| unsupported | PASS | 0.99 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
+| unsupported | PASS | 0.98 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
 | unsupported | FAIL | 99.23 | filters | filter: opacity() | filter-opacity-fn | filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property. |
-| unsupported | FAIL | 96.40 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
-| unsupported | FAIL | 99.62 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
+| unsupported | PASS | 0.99 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
+| unsupported | PASS | 0.70 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
 | unsupported | FAIL | 99.55 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
 | partial | PARTIAL | 6.80 | fonts-advanced | font-face | fonts-advanced-font-face-custom-src | An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism. |
 | unsupported | PARTIAL | 6.29 | fonts-advanced | font-feature-settings | fonts-advanced-font-feature-settings-ligatures | Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied). |
@@ -431,31 +431,31 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 2.71% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
   - PARTIAL 3.48% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
 
-### filters — 0.00%
+### filters — 53.57%
 - **filter: blur()** — 0.00%
   - FAIL 20.38% filter: blur()=on-box-background — `filter-blur-box` — filter: blur() applied to a box with a solid background-color fill.
-  - FAIL 77.01% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
+  - FAIL 15.31% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
   - FAIL 31.73% filter: blur()=on-box-vs-img — `filter-on-box-blur` — filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path.
-- **filter: brightness()** — 0.00%
-  - FAIL 99.62% filter: brightness()=1.6 — `filter-brightness` — filter: brightness(1.6) lightening a four-quadrant color image.
-- **filter: chained** — 0.00%
-  - FAIL 95.67% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
-- **filter: contrast()** — 0.00%
-  - FAIL 95.31% filter: contrast()=2 — `filter-contrast` — filter: contrast(2) increasing contrast of a four-quadrant color image.
+- **filter: brightness()** — 100.00%
+  - PASS 0.89% filter: brightness()=1.6 — `filter-brightness` — filter: brightness(1.6) lightening a four-quadrant color image.
+- **filter: chained** — 50.00%
+  - PARTIAL 11.66% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
+- **filter: contrast()** — 100.00%
+  - PASS 0.99% filter: contrast()=2 — `filter-contrast` — filter: contrast(2) increasing contrast of a four-quadrant color image.
 - **filter: drop-shadow()** — 0.00%
-  - FAIL 86.44% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
-- **filter: grayscale()** — 0.00%
-  - FAIL 99.62% filter: grayscale()=1 — `filter-grayscale` — filter: grayscale(1) fully desaturating a four-quadrant color image.
-- **filter: hue-rotate()** — 0.00%
-  - FAIL 96.60% filter: hue-rotate()=120deg — `filter-hue-rotate` — filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.
-- **filter: invert()** — 0.00%
-  - FAIL 93.67% filter: invert()=1 — `filter-invert` — filter: invert(1) inverting the colors of a four-quadrant color image.
+  - FAIL 57.33% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
+- **filter: grayscale()** — 100.00%
+  - PASS 0.89% filter: grayscale()=1 — `filter-grayscale` — filter: grayscale(1) fully desaturating a four-quadrant color image.
+- **filter: hue-rotate()** — 100.00%
+  - PASS 0.99% filter: hue-rotate()=120deg — `filter-hue-rotate` — filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image.
+- **filter: invert()** — 100.00%
+  - PASS 0.98% filter: invert()=1 — `filter-invert` — filter: invert(1) inverting the colors of a four-quadrant color image.
 - **filter: opacity()** — 0.00%
   - FAIL 99.23% filter: opacity()=0.5-over-grey — `filter-opacity-fn` — filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property.
-- **filter: saturate()** — 0.00%
-  - FAIL 96.40% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
-- **filter: sepia()** — 0.00%
-  - FAIL 99.62% filter: sepia()=1 — `filter-sepia` — filter: sepia(1) applying a sepia tone to a four-quadrant color image.
+- **filter: saturate()** — 100.00%
+  - PASS 0.99% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
+- **filter: sepia()** — 100.00%
+  - PASS 0.70% filter: sepia()=1 — `filter-sepia` — filter: sepia(1) applying a sepia tone to a four-quadrant color image.
 - **filter: url()** — 0.00%
   - FAIL 99.55% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
