@@ -170,7 +170,7 @@ pub(crate) enum ListContext {
 }
 
 pub use super::table::TableCell;
-pub(crate) use super::table::table_cell_content_height;
+pub(crate) use super::table::{table_cell_content_height, table_cell_intrinsic_content_height};
 
 /// A cell within a flex row, with its computed x-offset and width.
 #[derive(Debug, Clone)]
@@ -10885,3 +10885,7 @@ mod _removed {
         }
     }
 }
+
+
+
+

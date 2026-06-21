@@ -195,7 +195,10 @@ pub(super) fn render_cell_content(
             &cell.nested_rows,
             NestedLayoutFrame::new(
                 placement.cell_x + cell.padding_left,
-                content_top - text_h - cell.padding_bottom,
+                // `content_top` is already the content-box top (row top minus the
+                // cell's top padding). Nested block content starts just below any
+                // cell text; it must NOT be shifted down by the bottom padding.
+                content_top - text_h,
                 placement.nested_frame.initial_origin_x,
                 placement.nested_frame.initial_top_y,
                 (placement.col_width - cell.padding_left - cell.padding_right).max(0.0),
@@ -321,7 +324,10 @@ pub(super) fn render_cell_text(
 }
 
 fn table_cell_content_top(cell: &TableCell, row_y: f32, row_height: f32) -> f32 {
-    let content_height = table_cell_content_height(cell);
+    // `vertical-align` positions the cell's *actual* content within the (taller)
+    // cell box, so use the intrinsic content height — not the value clamped to
+    // the cell's own `min_content_height`, which would leave no room to offset.
+    let content_height = table_cell_intrinsic_content_height(cell);
     let offset = match cell.vertical_align {
         VerticalAlign::Middle => ((row_height - content_height) / 2.0).max(0.0),
         VerticalAlign::Bottom => (row_height - content_height).max(0.0),
@@ -740,6 +746,90 @@ pub(super) fn render_nested_layout_elements(
                     ctx,
                 );
             }
+            LayoutElement::Container {
+                children,
+                background_color,
+                border,
+                border_radius,
+                padding_top,
+                padding_bottom,
+                padding_left,
+                padding_right,
+                block_width,
+                block_height,
+                visible,
+                background_svg,
+                background_blur_radius,
+                background_size,
+                background_position,
+                background_repeat,
+                background_origin,
+                ..
+            } => {
+                if !*visible {
+                    continue;
+                }
+                let render_width = block_width
+                    .unwrap_or(planned_element.available_width)
+                    .max(0.0);
+                // Border-box height of the container: an explicit `block_height`
+                // (definite height) wins; otherwise derive from the children.
+                let children_h: f32 =
+                    children.iter().map(crate::layout::engine::estimate_element_height).sum();
+                let box_h =
+                    block_height.unwrap_or(*padding_top + children_h + *padding_bottom + border.vertical_width());
+                // Paint the container's own background + border box (no text).
+                render_nested_text_block(
+                    content,
+                    NestedTextBlock {
+                        lines: &[],
+                        text_align: TextAlign::Left,
+                        padding_top: *padding_top,
+                        padding_bottom: *padding_bottom,
+                        padding_left: *padding_left,
+                        padding_right: *padding_right,
+                        border: *border,
+                        block_width: Some(render_width),
+                        block_height: Some(box_h),
+                        background_color: *background_color,
+                        background_svg: background_svg.as_ref(),
+                        background_blur_radius: *background_blur_radius,
+                        background_size: *background_size,
+                        background_position: *background_position,
+                        background_repeat: *background_repeat,
+                        background_origin: *background_origin,
+                        background_blur_canvas_box: planned_element.blur_canvas_box,
+                        border_radius: *border_radius,
+                    },
+                    NestedLayoutFrame::new(
+                        planned_element.origin_x,
+                        planned_element.top_y,
+                        frame.initial_origin_x,
+                        frame.initial_top_y,
+                        render_width,
+                    ),
+                    ctx,
+                );
+                // Recurse into the container's children at its content origin.
+                if !children.is_empty() {
+                    render_nested_layout_elements(
+                        content,
+                        children,
+                        NestedLayoutFrame::new(
+                            planned_element.origin_x + *padding_left + border.left.width,
+                            planned_element.top_y - *padding_top - border.top.width,
+                            frame.initial_origin_x,
+                            frame.initial_top_y,
+                            (render_width
+                                - *padding_left
+                                - *padding_right
+                                - border.horizontal_width())
+                            .max(0.0),
+                        ),
+                        ctx,
+                    );
+                }
+            }
             _ => {}
         }
     }
@@ -841,6 +931,39 @@ pub(super) fn plan_nested_layout_elements(
                             *block_height,
                         )
                         - *margin_bottom;
+                }
+            }
+            LayoutElement::Container {
+                margin_top,
+                margin_bottom,
+                position,
+                offset_top,
+                offset_left,
+                ..
+            } => {
+                // A block child of a cell (e.g. a `<div>` with a background)
+                // flattens to a Container. Position it in the cell's flow like a
+                // TextBlock so its background/border/children paint instead of
+                // being silently dropped.
+                let base_top_y = cursor_y - *margin_top;
+                let element_top_y = match position {
+                    Position::Absolute | Position::Relative => base_top_y - *offset_top,
+                    Position::Static => base_top_y,
+                };
+                let element_origin_x = frame.origin_x + offset_left;
+                planned.push(PlannedNestedElement {
+                    element,
+                    source_index: element_idx,
+                    origin_x: element_origin_x,
+                    top_y: element_top_y,
+                    available_width: frame.available_width,
+                    blur_canvas_box: None,
+                });
+                if *position != Position::Absolute {
+                    let box_h = crate::layout::engine::estimate_element_height(element)
+                        - *margin_top
+                        - *margin_bottom;
+                    cursor_y = base_top_y - box_h - *margin_bottom;
                 }
             }
             _ => {}

@@ -1,7 +1,7 @@
 use crate::error::IronpressError;
 use crate::layout::engine::{
     ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
-    layout_element_paint_order, table_cell_content_height,
+    layout_element_paint_order, table_cell_content_height, table_cell_intrinsic_content_height,
 };
 use crate::parser::ttf::TtfFont;
 use crate::render::background::{

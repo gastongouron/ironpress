@@ -95,12 +95,19 @@ fn cell_has_no_content(cell_el: &ElementNode) -> bool {
 }
 
 pub(crate) fn table_cell_content_height(cell: &TableCell) -> f32 {
-    let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
-    let nested_h: f32 = cell.nested_rows.iter().map(estimate_element_height).sum();
-    let content = cell.padding_top + text_h + nested_h + cell.padding_bottom;
     // An explicit cell height acts as a minimum (CSS): an empty cell with
     // `height:Npx` must still occupy that height rather than collapsing.
-    content.max(cell.min_content_height)
+    table_cell_intrinsic_content_height(cell).max(cell.min_content_height)
+}
+
+/// The cell's *actual* content height (padding + text + nested content), WITHOUT
+/// the `min_content_height` floor. Used to position content within a taller cell
+/// (e.g. `vertical-align` offset), where the real content extent is needed
+/// rather than the cell's full height.
+pub(crate) fn table_cell_intrinsic_content_height(cell: &TableCell) -> f32 {
+    let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+    let nested_h: f32 = cell.nested_rows.iter().map(estimate_element_height).sum();
+    cell.padding_top + text_h + nested_h + cell.padding_bottom
 }
 
 /// Parse a width for a `<col>` / `<colgroup>` element.
@@ -1079,6 +1086,21 @@ pub(crate) fn flatten_table(
             let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
             let mut cell_content_style = cell_style.clone();
             cell_content_style.width = Some(cell_inner.max(0.0));
+            // A cell's `height` is its border-box; a child's `height: %` resolves
+            // against the cell's *content* box (height minus the cell's own
+            // padding and border). `cell_content_style` is the parent handed to
+            // child style resolution, so expose the content-box height here —
+            // otherwise `height: 100%` resolved against the full border-box and a
+            // padded cell's inner block rendered too tall (overflowing the cell).
+            cell_content_style.height = cell_style.height.map(|h| {
+                super::helpers::resolve_content_box_height(
+                    h,
+                    cell_style.padding.top,
+                    cell_style.padding.bottom,
+                    cell_style.border.vertical_width(),
+                    cell_style.box_sizing,
+                )
+            });
 
             let mut runs = Vec::new();
             let mut nested_rows = Vec::new();
