@@ -1222,7 +1222,20 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell borders when CSS specifies them (suppressed
                         // for empty cells under `empty-cells: hide`).
+                        //
+                        // PDF strokes are centered on the path. For
+                        // `border-collapse: collapse` the cell border-boxes abut,
+                        // so stroking centered on each box edge naturally puts
+                        // the (shared, winning) border on the grid line — the
+                        // default behavior here. For `border-collapse: separate`
+                        // each cell paints its OWN border fully INSIDE its
+                        // border-box, so the stroke must be inset by half its
+                        // width; two adjacent cells then show two abutting
+                        // borders (visually doubled) rather than one collapsed
+                        // one, matching Chrome.
                         if cell.border.has_any() && !cell.hide_if_empty {
+                            let separate = *border_collapse == BorderCollapse::Separate;
+                            let inset = |w: f32| if separate { w / 2.0 } else { 0.0 };
                             let x1 = cell_x;
                             let x2 = cell_x + cell_w;
                             let y_top = row_y;
@@ -1235,9 +1248,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     cell.border.top.alpha,
                                 );
+                                let y = y_top - inset(cell.border.top.width);
                                 content.push_str(dash_pattern_for_style(cell.border.top.style));
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
+                                    "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                     cell.border.top.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.top.style));
@@ -1251,9 +1265,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     cell.border.right.alpha,
                                 );
+                                let x = x2 - inset(cell.border.right.width);
                                 content.push_str(dash_pattern_for_style(cell.border.right.style));
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
+                                    "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                     cell.border.right.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.right.style));
@@ -1267,9 +1282,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     cell.border.bottom.alpha,
                                 );
+                                let y = y_bottom + inset(cell.border.bottom.width);
                                 content.push_str(dash_pattern_for_style(cell.border.bottom.style));
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
+                                    "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                     cell.border.bottom.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.bottom.style));
@@ -1283,9 +1299,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     cell.border.left.alpha,
                                 );
+                                let x = x1 + inset(cell.border.left.width);
                                 content.push_str(dash_pattern_for_style(cell.border.left.style));
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
+                                    "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                     cell.border.left.width
                                 ));
                                 content.push_str(reset_dash_pattern(cell.border.left.style));
@@ -5649,8 +5666,14 @@ fn render_nested_table_rows(
                         }
                     }
 
-                    // Draw cell borders
+                    // Draw cell borders. As in the top-level table path,
+                    // `separate` collapse paints each cell's border fully inside
+                    // its own border-box (stroke inset by half-width), while
+                    // `collapse` strokes centered on the abutting box edge so the
+                    // shared border lands on the grid line.
                     if cell.border.has_any() {
+                        let separate = *border_collapse == BorderCollapse::Separate;
+                        let inset = |w: f32| if separate { w / 2.0 } else { 0.0 };
                         let x1 = cell_x;
                         let x2 = cell_x + cell_w;
                         let y_top = row_y;
@@ -5663,8 +5686,9 @@ fn render_nested_table_rows(
                                 bg_alpha_counter,
                                 cell.border.top.alpha,
                             );
+                            let y = y_top - inset(cell.border.top.width);
                             content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
+                                "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                 cell.border.top.width
                             ));
                             end_border_alpha(content, a);
@@ -5677,8 +5701,9 @@ fn render_nested_table_rows(
                                 bg_alpha_counter,
                                 cell.border.right.alpha,
                             );
+                            let x = x2 - inset(cell.border.right.width);
                             content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
+                                "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                 cell.border.right.width
                             ));
                             end_border_alpha(content, a);
@@ -5691,8 +5716,9 @@ fn render_nested_table_rows(
                                 bg_alpha_counter,
                                 cell.border.bottom.alpha,
                             );
+                            let y = y_bottom + inset(cell.border.bottom.width);
                             content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
+                                "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                 cell.border.bottom.width
                             ));
                             end_border_alpha(content, a);
@@ -5705,8 +5731,9 @@ fn render_nested_table_rows(
                                 bg_alpha_counter,
                                 cell.border.left.alpha,
                             );
+                            let x = x1 + inset(cell.border.left.width);
                             content.push_str(&format!(
-                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
+                                "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                 cell.border.left.width
                             ));
                             end_border_alpha(content, a);

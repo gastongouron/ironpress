@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 64.93%  (PASS 197 · PARTIAL 54 · FAIL 94 · UNKNOWN 1 · total 346)
+Overall: 65.65%  (PASS 200 · PARTIAL 53 · FAIL 92 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -80,10 +80,8 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 39.82 | positioning | position | fixed | positioning-fixed-top-left | fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6) |
 | FAIL | REAL | ColorValue | 2.91 | positioning | position | absolute-bottom-right | positioning-position-absolute-bottom-right | fill recolour ΔRGB(+68,+34,+71) (ΔE 47.6) |
 | FAIL | REAL | Missing | 13.58 | tables | border-collapse | collapse | tables-border-collapse | content clipped/truncated (1.6% missing) |
-| FAIL | REAL | Extra | 14.60 | tables | border-collapse | separate | tables-border-separate | extra paint where Chrome is blank (3.5%) |
 | FAIL | REAL | ColorValue | 16.54 | tables | cell-padding | padding-20px | tables-cell-padding | fill recolour ΔRGB(-4,-7,-16) (ΔE 31.8) |
 | FAIL | REAL | ColorValue | 11.39 | tables | colspan | colspan-2 | tables-colspan | fill recolour ΔRGB(-23,+66,+44) (ΔE 51.5) |
-| FAIL | REAL | ColorValue | 6.04 | tables | empty-cells | hide | tables-empty-cells-hide | fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6) |
 | FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
 | FAIL | REAL | Missing | 12.39 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap | content clipped/truncated (8.5% missing) |
 | FAIL | REAL | Missing | 13.21 | typography | vertical-align | sub | typography-vertical-align-sub | content clipped/truncated (7.0% missing) |
@@ -128,7 +126,7 @@ None — every fixture's HTML matches `refs.lock`.
 | positioning | 59.38% | 9 | 1 | 6 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
-| tables | 31.25% | 0 | 10 | 6 | 0 |
+| tables | 46.88% | 3 | 9 | 4 | 0 |
 | text-advanced | 53.33% | 5 | 6 | 4 | 0 |
 | transforms | 100.00% | 11 | 0 | 0 | 0 |
 | typography | 84.38% | 13 | 1 | 2 | 0 |
@@ -733,12 +731,12 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.02% specificity=class-over-type — `selectors-cascade-specificity-class-over-type` — A class selector (0,1,0) overrides a type selector (0,0,1) regardless of source order; only the .pick box turns green.
   - PASS 0.92% specificity=id-over-class — `selectors-cascade-specificity-id-over-class` — An id selector (1,0,0) overrides a more numerous class selector (0,2,0) on the same element; only the box carrying the id turns green.
 
-### tables — 31.25%
-- **border-collapse** — 0.00%
+### tables — 46.88%
+- **border-collapse** — 50.00%
   - FAIL 13.58% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
-  - FAIL 14.60% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
-- **border-spacing** — 50.00%
-  - PARTIAL 7.81% border-spacing=uniform-12px — `tables-border-spacing` — border-collapse:separate with 12px border-spacing exposes the table background between cells.
+  - PASS 1.53% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
+- **border-spacing** — 100.00%
+  - PASS 1.67% border-spacing=uniform-12px — `tables-border-spacing` — border-collapse:separate with 12px border-spacing exposes the table background between cells.
 - **caption** — 50.00%
   - PARTIAL 6.13% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
 - **cell-padding** — 0.00%
@@ -747,8 +745,8 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 11.39% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
 - **column-width** — 50.00%
   - PARTIAL 7.49% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
-- **empty-cells** — 0.00%
-  - FAIL 6.04% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
+- **empty-cells** — 100.00%
+  - PASS 0.36% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
 - **rowspan** — 50.00%
   - PARTIAL 8.09% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
 - **table** — 50.00%

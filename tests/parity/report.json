@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 64.93,
-    "pass": 197,
-    "partial": 54,
-    "fail": 94,
+    "score_pct": 65.65,
+    "pass": 200,
+    "partial": 53,
+    "fail": 92,
     "unknown": 1,
     "total": 346,
     "scored_ratio_pct": 99.71
@@ -56727,21 +56727,21 @@
     },
     {
       "category": "tables",
-      "score_pct": 31.25,
+      "score_pct": 46.88,
       "counts": {
-        "pass": 0,
-        "partial": 10,
-        "fail": 6,
+        "pass": 3,
+        "partial": 9,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
         {
           "feature": "border-collapse",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -57008,8 +57008,8 @@
               "subfeature": "separate",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 14.6026,
+              "status": "PASS",
+              "diff_pct": 1.5297,
               "weight": 1.0,
               "description": "border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.",
               "note": "",
@@ -57019,29 +57019,27 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2c341656bed1b8ecc9c7f89504a49665e17befcbeb177bfcb842b33ddbd1026b",
               "diagnosis": {
-                "primary_class": "Extra",
-                "secondary": [
-                  "ColorValue"
-                ],
-                "headline": "extra paint where Chrome is blank (3.5%)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted ~0.3px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
-                    1.92,
-                    -1.92,
-                    1.92,
-                    -2.24
+                    0.0,
+                    0.0,
+                    0.0,
+                    -0.32
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 3.4992517246833517,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    194,
-                    197,
-                    178
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 70.60412958500535,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -57051,14 +57049,286 @@
                 },
                 "regions": [
                   {
-                    "class": "Extra",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      1.92,
-                      102.4,
-                      321.6,
-                      103.68
+                      3.84,
+                      53.76,
+                      75.52,
+                      95.68
                     ],
-                    "area_pct": 1.5202189115232594,
+                    "area_pct": 0.11373801916932907,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11865168539325843,
+                      0.20224719101123598
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      83.84,
+                      53.76,
+                      155.52,
+                      95.68
+                    ],
+                    "area_pct": 0.11373801916932907,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11865168539325843,
+                      0.20224719101123598
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      163.84,
+                      53.76,
+                      235.52,
+                      95.68
+                    ],
+                    "area_pct": 0.11373801916932907,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11865168539325843,
+                      0.20224719101123598
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      243.84,
+                      53.76,
+                      315.52,
+                      95.68
+                    ],
+                    "area_pct": 0.11373801916932907,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11865168539325843,
+                      0.20224719101123598
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      3.84,
+                      3.84,
+                      75.52,
+                      45.44
+                    ],
+                    "area_pct": 0.1134185303514377,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11808450704225353,
+                      0.2028169014084507
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      83.84,
+                      3.84,
+                      155.52,
+                      45.44
+                    ],
+                    "area_pct": 0.1134185303514377,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11808450704225353,
+                      0.2028169014084507
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "border-spacing",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "tables-border-spacing",
+              "category": "tables",
+              "feature": "border-spacing",
+              "subfeature": "uniform-12px",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 1.6748,
+              "weight": 1.0,
+              "description": "border-collapse:separate with 12px border-spacing exposes the table background between cells.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "c1c0da739df3c981bbef0ffe8304ef9f51c09bc1e3773a6020f722c2333e466c",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted ~0.0px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      12.16,
+                      73.92,
+                      99.84,
+                      123.84
+                    ],
+                    "area_pct": 0.10401206636500754,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57073,21 +57343,21 @@
                     "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11508120649651973,
+                      0.2019489559164733
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (1.5%)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      3.84,
-                      3.84,
-                      79.68,
-                      49.6
+                      212.16,
+                      73.92,
+                      299.84,
+                      123.84
                     ],
-                    "area_pct": 1.458498023715415,
+                    "area_pct": 0.10401206636500754,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57095,28 +57365,28 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      194,
-                      197,
-                      178
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 70.60412958500534,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11508120649651973,
+                      0.2019489559164733
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+194,+197,+178) (ΔE 70.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      83.84,
-                      3.84,
-                      159.68,
-                      49.6
+                      11.84,
+                      11.84,
+                      99.52,
+                      61.44
                     ],
-                    "area_pct": 1.458498023715415,
+                    "area_pct": 0.10377073906485672,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57124,28 +57394,28 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      194,
-                      197,
-                      178
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 70.60412958500534,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11609302325581396,
+                      0.20465116279069767
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+194,+197,+178) (ΔE 70.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      163.84,
-                      3.84,
-                      239.68,
-                      49.6
+                      211.84,
+                      11.84,
+                      299.52,
+                      61.44
                     ],
-                    "area_pct": 1.458498023715415,
+                    "area_pct": 0.10377073906485672,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57153,28 +57423,28 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      194,
-                      197,
-                      178
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 70.60412958500534,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11609302325581396,
+                      0.20465116279069767
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+194,+197,+178) (ΔE 70.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      243.84,
-                      3.84,
-                      319.68,
-                      49.6
+                      12.16,
+                      12.16,
+                      99.84,
+                      61.76
                     ],
-                    "area_pct": 1.458498023715415,
+                    "area_pct": 0.10377073906485672,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57182,28 +57452,28 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      194,
-                      197,
-                      178
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 70.60412958500534,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11534883720930232,
+                      0.20316279069767443
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+194,+197,+178) (ΔE 70.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      3.84,
-                      54.08,
-                      79.68,
-                      99.52
+                      212.16,
+                      12.16,
+                      299.84,
+                      61.76
                     ],
-                    "area_pct": 1.3177257525083612,
+                    "area_pct": 0.10377073906485672,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -57211,321 +57481,40 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      194,
-                      197,
-                      178
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 70.60412958500534,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.11534883720930232,
+                      0.20316279069767443
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+194,+197,+178) (ΔE 70.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.23952694261680688
-              },
-              "sub_verdicts": [
-                {
-                  "verifier": "RasterDiff",
-                  "status": "PARTIAL",
-                  "concern": "Geometry",
-                  "headline": "raster geometry: edge 2.24css shift 0.00css",
-                  "magnitude": 2.24
-                },
-                {
-                  "verifier": "RasterDiff",
-                  "status": "FAIL",
-                  "concern": "Appearance",
-                  "headline": "raster appearance: color 11.11% interiorΔE 70.60",
-                  "magnitude": 11.109759213520057
-                },
-                {
-                  "verifier": "RasterDiff",
-                  "status": "PARTIAL",
-                  "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 3.50%",
-                  "magnitude": 3.4992517246833517
-                },
-                {
-                  "verifier": "PdfGeometry",
-                  "status": "PASS",
-                  "concern": "Geometry",
-                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
-                  "magnitude": 1.4210854715202004e-14
-                }
-              ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 2.24css shift 0.00css"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "feature": "border-spacing",
-          "score_pct": 50.0,
-          "counts": {
-            "pass": 0,
-            "partial": 1,
-            "fail": 0,
-            "unknown": 0
-          },
-          "fixtures": [
-            {
-              "id": "tables-border-spacing",
-              "category": "tables",
-              "feature": "border-spacing",
-              "subfeature": "uniform-12px",
-              "interaction_of": [],
-              "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 7.8118,
-              "weight": 1.0,
-              "description": "border-collapse:separate with 12px border-spacing exposes the table background between cells.",
-              "note": "",
-              "kind": "feature",
-              "depends_on": [
-                "probe-fill-box",
-                "probe-block-flow"
-              ],
-              "expected_support": "implemented",
-              "attribution": "REAL",
-              "html_sha256": "c1c0da739df3c981bbef0ffe8304ef9f51c09bc1e3773a6020f722c2333e466c",
-              "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [],
-                "headline": "fill recolour ΔRGB(-248,-150,-26) (ΔE 60.7)",
-                "magnitude": {
-                  "edge_delta_css": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0
-                  ],
-                  "missing_area_pct": 0.0,
-                  "extra_area_pct": 0.0,
-                  "modal_drgb": [
-                    -248,
-                    -150,
-                    -26
-                  ],
-                  "delta_e": 60.693695102038625,
-                  "recovered_alpha": null,
-                  "residual_shift_css": [
-                    0.0,
-                    -0.6262365591397849
-                  ],
-                  "colorspace": null
-                },
-                "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      10.88,
-                      72.96,
-                      100.8,
-                      124.8
-                    ],
-                    "area_pct": 0.7297737556561086,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -248,
-                      -150,
-                      -26
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.21403508771929824,
-                      -0.38175438596491224
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-248,-150,-26) (ΔE 0.0)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      210.88,
-                      72.96,
-                      300.8,
-                      124.8
-                    ],
-                    "area_pct": 0.7297737556561086,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -248,
-                      -150,
-                      -26
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.21403508771929824,
-                      -0.38175438596491224
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-248,-150,-26) (ΔE 0.0)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      10.88,
-                      10.88,
-                      100.8,
-                      62.72
-                    ],
-                    "area_pct": 0.7283257918552036,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -248,
-                      -150,
-                      -26
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.2119298245614035,
-                      -0.38175438596491224
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-248,-150,-26) (ΔE 0.0)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      210.88,
-                      10.88,
-                      300.8,
-                      62.72
-                    ],
-                    "area_pct": 0.7283257918552036,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -248,
-                      -150,
-                      -26
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.2119298245614035,
-                      -0.38175438596491224
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-248,-150,-26) (ΔE 0.0)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      112.96,
-                      13.12,
-                      198.72,
-                      60.8
-                    ],
-                    "area_pct": 0.6327601809954752,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -1,
-                      155,
-                      84
-                    ],
-                    "delta_e": 60.69369510203862,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.1378171091445428,
-                      -0.3766371681415929
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-1,+155,+84) (ΔE 60.7)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      112.96,
-                      74.88,
-                      198.72,
-                      122.56
-                    ],
-                    "area_pct": 0.6327601809954752,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -1,
-                      155,
-                      84
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.13876106194690266,
-                      -0.000943952802359882
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-1,+155,+84) (ΔE 0.0)"
-                  }
-                ],
-                "residual_shift_css": [
-                  0.0,
-                  -0.6262365591397849
-                ],
-                "confidence": 0.7440222428174236
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 0.00css shift 0.63css",
-                  "magnitude": 0.6262365591397849
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 5.81% interiorΔE 60.69",
-                  "magnitude": 5.812126696832579
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -58617,11 +58606,11 @@
         },
         {
           "feature": "empty-cells",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -58632,8 +58621,8 @@
               "subfeature": "hide",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 6.0377,
+              "status": "PASS",
+              "diff_pct": 0.3564,
               "weight": 1.0,
               "description": "empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.",
               "note": "",
@@ -58643,137 +58632,77 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "1be9fd84c3a7aa2e20a1108f3e661f5fec120def234f8acc8718d1511cb4d4aa",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "Extra"
-                ],
-                "headline": "fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
-                    1.28,
-                    -1.6,
-                    1.28,
-                    -1.6
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 4.493496748374187,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    198,
-                    84,
-                    -153
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 59.56250810441264,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      2.88,
-                      2.88,
-                      99.84,
-                      49.6
+                      3.2,
+                      3.2,
+                      96.96,
+                      47.04
                     ],
-                    "area_pct": 1.3551128913048662,
+                    "area_pct": 0.1330115544143788,
                     "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
+                      -0.32,
+                      -0.32,
+                      -0.32,
                       0.0
                     ],
                     "modal_drgb": [
-                      198,
-                      84,
-                      -153
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 59.56250810441264,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
-                      0.0
+                      0.10097447795823665,
+                      0.21605568445475637
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      215.04,
-                      2.88,
-                      311.68,
-                      49.6
-                    ],
-                    "area_pct": 1.2704742150060797,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      198,
-                      84,
-                      -153
-                    ],
-                    "delta_e": 59.56250810441264,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6)"
-                  },
-                  {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       109.12,
-                      58.88,
-                      205.76,
-                      105.6
+                      103.04,
+                      202.88,
+                      103.04
                     ],
-                    "area_pct": 1.2704742150060797,
+                    "area_pct": 0.0907317795773257,
                     "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      198,
-                      84,
-                      -153
-                    ],
-                    "delta_e": 59.56250810441264,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6)"
-                  },
-                  {
-                    "class": "Extra",
-                    "bbox_css": [
-                      213.44,
-                      52.16,
-                      313.28,
-                      52.8
-                    ],
-                    "area_pct": 0.27984407410056505,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
+                      -0.32,
+                      -0.32,
+                      -0.32,
                       0.0
                     ],
                     "modal_drgb": [
@@ -58785,24 +58714,24 @@
                     "recovered_alpha": null,
                     "shift_css": [
                       0.0,
-                      0.0
+                      0.3178231292517007
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.3%)"
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
                   },
                   {
-                    "class": "Extra",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      107.52,
-                      108.16,
-                      207.36,
-                      108.8
+                      215.36,
+                      47.04,
+                      308.8,
+                      47.04
                     ],
-                    "area_pct": 0.27984407410056505,
+                    "area_pct": 0.09042316808216472,
                     "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
+                      -0.32,
+                      -0.32,
+                      -0.32,
                       0.0
                     ],
                     "modal_drgb": [
@@ -58814,24 +58743,24 @@
                     "recovered_alpha": null,
                     "shift_css": [
                       0.0,
-                      0.0
+                      0.3178156996587031
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.3%)"
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
                   },
                   {
-                    "class": "Extra",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      1.6,
-                      52.16,
-                      101.12,
-                      52.8
+                      215.04,
+                      3.2,
+                      215.04,
+                      46.72
                     ],
-                    "area_pct": 0.2789500035762821,
+                    "area_pct": 0.04227977483705313,
                     "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
+                      -0.32,
+                      -0.32,
+                      -0.32,
                       0.0
                     ],
                     "modal_drgb": [
@@ -58842,40 +58771,40 @@
                     "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
+                      0.32,
                       0.0
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.3%)"
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.6452934498247692
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 1.60css shift 0.00css",
-                  "magnitude": 1.6
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 8.17% interiorΔE 59.56",
-                  "magnitude": 8.174661238986749
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 4.49%",
-                  "magnitude": 4.493496748374187
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
@@ -58885,16 +58814,7 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 1.60css shift 0.00css"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
