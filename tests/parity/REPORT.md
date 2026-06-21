@@ -65,19 +65,19 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 4.52 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
 | FAIL | REAL | ColorValue | 9.22 | grid | grid-template-columns | minmax | grid-template-columns-minmax | fill recolour ΔRGB(-209,+106,+87) (ΔE 63.9) |
 | FAIL | REAL | Extra | 3.08 | grid | place-items | center | grid-place-items-center | extra paint where Chrome is blank (7.3%) |
-| FAIL | REAL | Missing | 48.41 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | content clipped/truncated (45.7% missing) |
+| FAIL | REAL | ColorValue | 12.48 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 21.6) |
 | FAIL | REAL | Missing | 23.11 | inline-text | letter-spacing | positive | inline-text-letter-spacing | content clipped/truncated (10.4% missing) |
 | FAIL | REAL | Missing | 23.20 | inline-text | text-align | center | inline-text-text-align-center | content clipped/truncated (10.3% missing) |
 | FAIL | REAL | Missing | 25.94 | inline-text | text-align | justify | inline-text-text-align-justify | content clipped/truncated (6.7% missing) |
 | FAIL | REAL | Missing | 26.00 | inline-text | text-align | right | inline-text-text-align-right | content clipped/truncated (10.3% missing) |
 | FAIL | REAL | Missing | 27.02 | inline-text | text-decoration | underline | inline-text-text-decoration-underline | content clipped/truncated (9.0% missing) |
-| FAIL | REAL | Missing | 40.99 | inline-text | vertical-align | baseline | inline-text-vertical-align-baseline | content clipped/truncated (30.0% missing) |
-| FAIL | REAL | Missing | 35.35 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | content clipped/truncated (22.6% missing) |
-| FAIL | REAL | Missing | 24.22 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | content clipped/truncated (9.7% missing) |
-| FAIL | REAL | ColorValue | 15.62 | inline-text | vertical-align | top | inline-text-vertical-align-top | fill recolour ΔRGB(+165,+154,+104) (ΔE 70.9) |
+| FAIL | REAL | Missing | 17.91 | inline-text | vertical-align | baseline | inline-text-vertical-align-baseline | content clipped/truncated (7.2% missing) |
+| FAIL | REAL | GeometrySize | 10.84 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | box −1.3px on right edge (size/box-model mismatch) |
+| FAIL | REAL | GeometrySize | 15.05 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | box −1.9px on bottom edge (size/box-model mismatch) |
+| FAIL | REAL | Missing | 13.64 | inline-text | vertical-align | top | inline-text-vertical-align-top | content clipped/truncated (3.7% missing) |
 | FAIL | REAL | Missing | 34.01 | inline-text | white-space | nowrap | inline-text-white-space-nowrap | content clipped/truncated (11.2% missing) |
 | FAIL | REAL | Missing | 14.52 | inline-text | white-space | pre | inline-text-white-space-pre | content clipped/truncated (7.4% missing) |
-| FAIL | REAL | Missing | 33.24 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | feature not rendered — candidate blank where Chrome paints |
+| FAIL | REAL | Missing | 27.59 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | content clipped/truncated (7.4% missing) |
 | FAIL | REAL | Missing | 23.71 | inline-text | word-spacing | positive | inline-text-word-spacing | content clipped/truncated (9.5% missing) |
 | FAIL | REAL | Missing | 18.49 | inline-text | wrapping | normal | inline-text-wrapping-normal | content clipped/truncated (2.7% missing) |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 2.20 | interactions | containing-block | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-position-absolute-top-left` already FAILs | interactions-positioning-absolute-x-box-model-padding | via positioning-position-absolute-top-left: fill recolour ΔRGB(+20,+78,+106) (ΔE 27.6) |
@@ -88,7 +88,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | Extra | 65.34 | interactions | float-x-margin-collapse | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-float-x-margin-collapse | via positioning-float-left: extra paint where Chrome is blank (43.9%) |
 | FAIL | CONFOUNDED: display (`grid-display-grid`) | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) DERIVATIVE: base `grid-display-grid` already FAILs | grid-x-background-gradient | via grid-display-grid: fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
 | FAIL | CONFOUNDED: display (`grid-display-grid`) | ColorValue | 4.26 | interactions | grid-x-flexbox | (interaction: grid×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | grid-x-flexbox-nested | via grid-display-grid: fill recolour ΔRGB(-34,+33,-46) (ΔE 31.8) |
-| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 38.66 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: feature not rendered — candidate blank where Chrome paints |
+| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 27.68 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (32.1% missing) |
 | FAIL | CONFOUNDED: overflow (`positioning-overflow-hidden-clip`) | ColorValue | 6.07 | interactions | overflow | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `border-radius-uniform` already FAILs | interactions-positioning-overflow-hidden-x-border-radius | via positioning-overflow-hidden-clip: fill recolour ΔRGB(+92,+53,+18) (ΔE 25.7) |
 | FAIL | CONFOUNDED: border-radius (`border-radius-uniform`) | ColorValue | 5.65 | interactions | overflow-hidden-x-border-radius | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `positioning-overflow-hidden-clip` already FAILs | box-model-overflow-hidden-x-border-radius | via border-radius-uniform: fill recolour ΔRGB(+192,+81,-12) (ΔE 52.2) |
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | ColorValue | 35.33 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `transforms-translate` already FAILs | interactions-positioning-fixed-x-transforms-translate | via positioning-fixed-top-left: fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5) |
@@ -134,7 +134,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Missing | 33.64 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap | content clipped/truncated (10.1% missing) |
 | FAIL | REAL | Missing | 10.56 | text-advanced | white-space | pre | text-advanced-white-space-pre | content clipped/truncated (3.6% missing) |
 | FAIL | REAL | ColorValue | 23.35 | text-advanced | white-space | pre-line | text-advanced-white-space-pre-line | fill recolour ΔRGB(-122,-100,-100) (ΔE 70.7) |
-| FAIL | REAL | Missing | 34.69 | text-advanced | white-space | pre-wrap | text-advanced-white-space-pre-wrap | content clipped/truncated (41.2% missing) |
+| FAIL | REAL | ColorValue | 27.37 | text-advanced | white-space | pre-wrap | text-advanced-white-space-pre-wrap | fill recolour ΔRGB(-63,-79,-71) (ΔE 77.6) |
 | FAIL | REAL | ColorValue | 2.10 | transforms | transform | scaleX | transforms-scale-x | fill recolour ΔRGB(+6,+26,+26) (ΔE 50.2) |
 | FAIL | REAL | Missing | 13.21 | typography | vertical-align | sub | typography-vertical-align-sub | content clipped/truncated (7.0% missing) |
 | FAIL | REAL | Missing | 14.42 | typography | vertical-align | sup | typography-vertical-align-sup | content clipped/truncated (8.3% missing) |
@@ -591,7 +591,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 ### inline-text — 6.25%
 - **inline-block** — 0.00%
-  - FAIL 48.41% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
+  - FAIL 12.48% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
 - **letter-spacing** — 0.00%
   - FAIL 23.11% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.
 - **line-height** — 100.00%
@@ -603,14 +603,14 @@ None — every fixture's HTML matches `refs.lock`.
 - **text-decoration** — 0.00%
   - FAIL 27.02% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
 - **vertical-align** — 0.00%
-  - FAIL 40.99% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
-  - FAIL 35.35% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
-  - FAIL 24.22% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
-  - FAIL 15.62% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
+  - FAIL 17.91% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
+  - FAIL 10.84% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
+  - FAIL 15.05% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
+  - FAIL 13.64% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
 - **white-space** — 0.00%
   - FAIL 34.01% white-space=nowrap — `inline-text-white-space-nowrap` — white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.
   - FAIL 14.52% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
-  - FAIL 33.24% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
+  - FAIL 27.59% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
 - **word-spacing** — 0.00%
   - FAIL 23.71% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
 - **wrapping** — 0.00%
@@ -633,7 +633,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **grid-x-flexbox** — 0.00%
   - FAIL 4.26% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
 - **inline-block-x-vertical-align** — 0.00%
-  - FAIL 38.66% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
+  - FAIL 27.68% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 0.00%
   - FAIL 6.07% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
 - **overflow-hidden-x-border-radius** — 0.00%
@@ -843,7 +843,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 33.64% white-space=nowrap — `text-advanced-white-space-nowrap` — white-space:nowrap forces a single line that is clipped by overflow:hidden in a narrow box.
   - FAIL 10.56% white-space=pre — `text-advanced-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text with no wrapping.
   - FAIL 23.35% white-space=pre-line — `text-advanced-white-space-pre-line` — white-space:pre-line collapses spaces but preserves explicit newlines, wrapping at the box edge.
-  - FAIL 34.69% white-space=pre-wrap — `text-advanced-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.
+  - FAIL 27.37% white-space=pre-wrap — `text-advanced-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.
 - **word-break** — 0.00%
   - FAIL 34.23% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
 - **writing-mode** — 0.00%
