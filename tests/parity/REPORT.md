@@ -57,7 +57,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Missing | 21.04 | generated-content | content-attr | before-attr | generated-content-attr | content clipped/truncated (4.7% missing) |
 | FAIL | REAL | Missing | 16.26 | generated-content | content-suppression | content-none | generated-content-content-none | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | Missing | 19.15 | generated-content | pseudo-element | after-content-string | generated-content-after-string | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Missing | 16.62 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
+| FAIL | REAL | Missing | 15.67 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
 | FAIL | REAL | Missing | 19.25 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | ColorValue | 4.48 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
 | FAIL | REAL | ColorValue | 12.48 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 21.6) |
@@ -123,7 +123,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 6.04 | tables | empty-cells | hide | tables-empty-cells-hide | fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6) |
 | FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
 | FAIL | REAL | Missing | 26.91 | text-advanced | overflow-wrap | break-word | text-advanced-overflow-wrap-break-word | content clipped/truncated (3.5% missing) |
-| FAIL | REAL | Missing | 25.09 | text-advanced | text-indent | length | text-advanced-text-indent | content clipped/truncated (3.5% missing) |
+| FAIL | REAL | Missing | 25.15 | text-advanced | text-indent | length | text-advanced-text-indent | content clipped/truncated (3.5% missing) |
 | FAIL | REAL | Missing | 25.32 | text-advanced | white-space | normal | text-advanced-white-space-normal | content clipped/truncated (3.5% missing) |
 | FAIL | REAL | Missing | 33.64 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap | content clipped/truncated (10.1% missing) |
 | FAIL | REAL | Missing | 10.56 | text-advanced | white-space | pre | text-advanced-white-space-pre | content clipped/truncated (3.6% missing) |
@@ -283,7 +283,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 36.17 | text-advanced | text-overflow | text-advanced-text-overflow-clip | text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis. |
 | partial | FAIL | 31.69 | text-advanced | text-overflow | text-advanced-text-overflow-ellipsis | text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped. |
 | unsupported | FAIL | 23.86 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
-| unsupported | FAIL | 34.23 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
+| unsupported | FAIL | 27.71 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
 | unsupported | FAIL | 8.32 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
 | unsupported | PARTIAL | 1.63 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
 | unsupported | PARTIAL | 1.67 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
@@ -526,7 +526,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 10.21% first-line=color-weight — `generated-content-first-line` — ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.
 - **pseudo-element** — 0.00%
   - FAIL 19.15% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
-  - FAIL 16.62% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
+  - FAIL 15.67% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
   - FAIL 19.25% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
 - **quotes** — 0.00%
   - FAIL 13.46% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
@@ -825,7 +825,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **tab-size** — 0.00%
   - FAIL 12.50% tab-size=eight — `text-advanced-tab-size` — tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.
 - **text-indent** — 0.00%
-  - FAIL 25.09% text-indent=length — `text-advanced-text-indent` — text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.
+  - FAIL 25.15% text-indent=length — `text-advanced-text-indent` — text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.
 - **text-overflow** — 0.00%
   - FAIL 36.17% text-overflow=clip — `text-advanced-text-overflow-clip` — text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis.
   - FAIL 31.69% text-overflow=ellipsis — `text-advanced-text-overflow-ellipsis` — text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped.
@@ -838,7 +838,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 23.35% white-space=pre-line — `text-advanced-white-space-pre-line` — white-space:pre-line collapses spaces but preserves explicit newlines, wrapping at the box edge.
   - FAIL 27.37% white-space=pre-wrap — `text-advanced-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.
 - **word-break** — 0.00%
-  - FAIL 34.23% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
+  - FAIL 27.71% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
 - **writing-mode** — 0.00%
   - FAIL 8.32% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
