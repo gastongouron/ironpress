@@ -7,13 +7,13 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 67.25,
-    "pass": 203,
-    "partial": 58,
+    "score_pct": 68.38,
+    "pass": 213,
+    "partial": 54,
     "fail": 84,
     "unknown": 1,
-    "total": 346,
-    "scored_ratio_pct": 99.71
+    "total": 352,
+    "scored_ratio_pct": 99.72
   },
   "categories": [
     {
@@ -10612,10 +10612,10 @@
     },
     {
       "category": "effects",
-      "score_pct": 36.36,
+      "score_pct": 70.59,
       "counts": {
-        "pass": 1,
-        "partial": 6,
+        "pass": 11,
+        "partial": 2,
         "fail": 4,
         "unknown": 0
       },
@@ -10773,10 +10773,10 @@
         },
         {
           "feature": "box-shadow",
-          "score_pct": 41.67,
+          "score_pct": 87.5,
           "counts": {
-            "pass": 0,
-            "partial": 5,
+            "pass": 10,
+            "partial": 1,
             "fail": 1,
             "unknown": 0
           },
@@ -11037,13 +11037,269 @@
               "disagreements": []
             },
             {
+              "id": "box-shadow-border-radius",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "border-radius",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PARTIAL",
+              "diff_pct": 0.7039,
+              "weight": 1.0,
+              "description": "Box-shadow on a border-radius element must adopt the same rounded corners.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "REAL",
+              "html_sha256": "9bd8be4cea6128d60b3ae1d527f7bb0019c2ed06b29b622acf79984ed2ddb2f7",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "ColorValue",
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -234,
+                    -142,
+                    -32
+                  ],
+                  "delta_e": 35.35038244273037,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.64
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      189.44
+                    ],
+                    "area_pct": 0.21543299488918824,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      197.44,
+                      40.0,
+                      219.84,
+                      149.76
+                    ],
+                    "area_pct": 0.2040982403520168,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -34,
+                      13,
+                      49
+                    ],
+                    "delta_e": 19.28494173447452,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.30321678321678325,
+                      0.020139860139860143
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-34,+13,+49) (ΔE 19.3)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      40.0,
+                      128.96,
+                      62.08,
+                      150.72
+                    ],
+                    "area_pct": 0.09133196444374692,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -234,
+                      -142,
+                      -32
+                    ],
+                    "delta_e": 53.837815031624544,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.08470588235294117,
+                      0.3764705882352941
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-234,-142,-32) (ΔE 53.8)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      40.0,
+                      40.0,
+                      60.48,
+                      60.48
+                    ],
+                    "area_pct": 0.08602788058981413,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -234,
+                      -142,
+                      -32
+                    ],
+                    "delta_e": 53.837815031624544,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.22857142857142856,
+                      -0.22857142857142856
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-234,-142,-32) (ΔE 53.8)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      61.44,
+                      39.68,
+                      196.8,
+                      39.68
+                    ],
+                    "area_pct": 0.03080728156256857,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      83,
+                      51,
+                      12
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      85.76,
+                      171.84,
+                      217.92,
+                      171.84
+                    ],
+                    "area_pct": 0.03008069473326271,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      -105,
+                      -90,
+                      -76
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.64
+                ],
+                "confidence": 0.3060487200660611
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.64css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.46% interiorΔE 35.81",
+                  "magnitude": 0.4556449181168808
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                }
+              ],
+              "disagreements": []
+            },
+            {
               "id": "box-shadow-color",
               "category": "effects",
               "feature": "box-shadow",
               "subfeature": "colored",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.2473,
               "weight": 1.0,
               "description": "Hard offset box-shadow in a saturated color distinct from the box fill.",
@@ -11054,7 +11310,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "1c6fa7b417eddb3ed534cde7df67c4bed821cff2fa1644ffdf032afb84d232bd",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -11171,9 +11427,180 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.17% extra 0.00%",
                   "magnitude": 0.17271157167530224
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 1.92css shift 0.00css"
+                }
+              ]
+            },
+            {
+              "id": "box-shadow-currentcolor",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "currentcolor",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2903,
+              "weight": 1.0,
+              "description": "Box-shadow with the color omitted, so it paints in the element's currentColor.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "237257083d45815bef3868edc61937d758c994766afdf8a9e5d7c8804b6f4924",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      189.44
+                    ],
+                    "area_pct": 0.21543299488918824,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      40.0,
+                      40.0,
+                      239.68,
+                      169.6
+                    ],
+                    "area_pct": 0.07483844341850385,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.1258252427184466,
+                      0.19355339805825242
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.7421777221526908
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.00css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             },
             {
               "id": "box-shadow-inset",
@@ -11182,7 +11609,7 @@
               "subfeature": "inset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.3593,
               "weight": 1.0,
               "description": "Inset hard box-shadow drawing an inner band on two sides of the box.",
@@ -11193,7 +11620,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "9c8a5a590ab95c2128d786d8240dc600aa2f2e92c80e69ec01b5c395945528c6",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -11339,9 +11766,296 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.22% extra 0.00%",
                   "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
+            },
+            {
+              "id": "box-shadow-inset-spread",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "inset-spread",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.4405,
+              "weight": 1.0,
+              "description": "Inset box-shadow with spread: a solid inner ring clipped to the padding box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "ff193ac2c65d5814db519e64a22e9dfd8c28de12e549c6a509c8215959c8c540",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    12,
+                    17,
+                    22
+                  ],
+                  "delta_e": 8.633796275169303,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      209.6
+                    ],
+                    "area_pct": 0.21579628830384118,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      40.0,
+                      40.0,
+                      240.0,
+                      169.92
+                    ],
+                    "area_pct": 0.06789688095413539,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -26,
+                      -22,
+                      -19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.000512,
+                      0.319488
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      39.68,
+                      39.68,
+                      239.36,
+                      169.6
+                    ],
+                    "area_pct": 0.06783108940282324,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      71,
+                      61,
+                      52
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      56.32,
+                      153.6,
+                      223.68,
+                      153.6
+                    ],
+                    "area_pct": 0.03447477288756487,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      12,
+                      17,
+                      22
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      56.32,
+                      56.0,
+                      223.36,
+                      56.0
+                    ],
+                    "area_pct": 0.034408981336252725,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -12,
+                      -17,
+                      -22
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      56.0,
+                      56.32,
+                      56.0,
+                      153.28
+                    ],
+                    "area_pct": 0.020000631598892597,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -12,
+                      -17,
+                      -22
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.48984468339307047
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.00css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.18% interiorΔE 0.00",
+                  "magnitude": 0.1835584281608893
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             },
             {
               "id": "box-shadow-multiple",
@@ -11350,7 +12064,7 @@
               "subfeature": "multiple",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.2768,
               "weight": 1.0,
               "description": "Two stacked hard box-shadows in different directions and colors.",
@@ -11361,7 +12075,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "cfc89b3fa3d0015e64f5559653d433a8402918cbbabb3c351fc618eca250a40a",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -11565,9 +12279,422 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.17% extra 0.00%",
                   "magnitude": 0.17271157167530224
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 2.9999999995311555e-6
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 1.92css shift 0.00css"
+                }
+              ]
+            },
+            {
+              "id": "box-shadow-negative-offset",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "negative-offset",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2761,
+              "weight": 1.0,
+              "description": "Box-shadow with negative offsets cast to the upper-left of the element.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "e97a8076c531b829f8a88cf788f17c3ed7c2e7c38de60442d101d4d9a61996fc",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      221.44
+                    ],
+                    "area_pct": 0.215485342643461,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      56.0,
+                      56.0,
+                      235.84,
+                      165.76
+                    ],
+                    "area_pct": 0.056343353660887635,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12079470198675496,
+                      0.19779249448123623
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      213.76,
+                      33.92,
+                      213.76,
+                      55.68
+                    ],
+                    "area_pct": 0.00429105011324641,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.31536231884057975,
+                      -0.00463768115942029
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.7804054054054054
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.00css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.499999996212864e-6
+                }
+              ],
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
+            },
+            {
+              "id": "box-shadow-negative-spread",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "negative-spread",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2864,
+              "weight": 1.0,
+              "description": "Hard-edged offset box-shadow with negative spread (-8px) shrinking the shadow smaller than the box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "12b7f74f86cc23310746f810fa84071d35f6f1d759092f6b9f78fcdf56b1a4d4",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      199.68
+                    ],
+                    "area_pct": 0.21579628830384118,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      76.16,
+                      76.16,
+                      259.84,
+                      179.84
+                    ],
+                    "area_pct": 0.06208027621924903,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.11497219132369299,
+                      0.20360400444938823
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      240.0,
+                      75.84,
+                      259.52,
+                      75.84
+                    ],
+                    "area_pct": 0.004281398359948209,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      75.84,
+                      160.0,
+                      75.84,
+                      179.52
+                    ],
+                    "area_pct": 0.004281398359948209,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.7533751205400193
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.00css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             },
             {
               "id": "box-shadow-offset",
@@ -11576,7 +12703,7 @@
               "subfeature": "hard-offset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.3063,
               "weight": 1.0,
               "description": "Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.",
@@ -11587,7 +12714,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b39f7f062c38388268195b391d7b438dcce66cd9992bac2f5494c8e5eb3052f7",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -11733,9 +12860,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.22% extra 0.00%",
                   "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             },
             {
               "id": "box-shadow-spread",
@@ -11744,7 +12887,7 @@
               "subfeature": "spread",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.2763,
               "weight": 1.0,
               "description": "Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.",
@@ -11755,7 +12898,7 @@
                 "probe-border-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "56e5532e0dd0859c092faba487bc2d069f798a6e1bd8f859ca002b8e34aced40",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -11901,9 +13044,209 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.17% extra 0.00%",
                   "magnitude": 0.17271157167530224
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.499999996212864e-6
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 1.92css shift 0.00css"
+                }
+              ]
+            },
+            {
+              "id": "box-shadow-spread-outline",
+              "category": "effects",
+              "feature": "box-shadow",
+              "subfeature": "spread-outline",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.3469,
+              "weight": 1.0,
+              "description": "Zero-offset zero-blur box-shadow with positive spread: a solid even ring of equal width on all four sides.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "188660bf2bcf345ceb5a0f3de3cbed069e5f374e21f92bee213708191329adb1",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "GeometrySize"
+                ],
+                "headline": "content clipped/truncated (0.2% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    2.24,
+                    0.0,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.21579628830384118,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      739.84,
+                      0.0,
+                      741.12,
+                      205.44
+                    ],
+                    "area_pct": 0.21546120089964266,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      35.84,
+                      35.84,
+                      239.68,
+                      169.6
+                    ],
+                    "area_pct": 0.07077045976672555,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12696969696969698,
+                      0.19333333333333333
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      48.0,
+                      48.0,
+                      227.84,
+                      157.76
+                    ],
+                    "area_pct": 0.06071783764077022,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12079470198675496,
+                      0.19779249448123623
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.6210160324512266
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 2.24css shift 0.00css",
+                  "magnitude": 2.24
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.22% extra 0.00%",
+                  "magnitude": 0.21579628830384118
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.499999996212864e-6
+                }
+              ],
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             }
           ]
         },
@@ -73322,7 +74665,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 238,
+    "implemented": 244,
     "partial": 34,
     "unsupported": 74
   },

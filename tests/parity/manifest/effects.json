@@ -11,7 +11,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "box-shadow-blur",
@@ -25,7 +28,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "box-shadow-spread",
@@ -39,7 +45,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "box-shadow-inset",
@@ -53,7 +62,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "box-shadow-multiple",
@@ -67,7 +79,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "box-shadow-color",
@@ -81,7 +96,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "text-shadow-offset",
@@ -95,7 +113,9 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline"]
+    "depends_on": [
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "text-shadow-blur",
@@ -109,7 +129,9 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline"]
+    "depends_on": [
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "mix-blend-mode-multiply",
@@ -123,7 +145,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "mix-blend-mode-screen",
@@ -137,7 +162,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "background-blend-mode-multiply",
@@ -151,6 +179,111 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Hard-edged offset box-shadow with negative spread (-8px) shrinking the shadow smaller than the box.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-negative-spread.html",
+    "id": "box-shadow-negative-spread",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "negative-spread",
+    "weight": 1
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Zero-offset zero-blur box-shadow with positive spread: a solid even ring of equal width on all four sides.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-spread-outline.html",
+    "id": "box-shadow-spread-outline",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "spread-outline",
+    "weight": 1
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Box-shadow with the color omitted, so it paints in the element's currentColor.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-currentcolor.html",
+    "id": "box-shadow-currentcolor",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "currentcolor",
+    "weight": 1
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Box-shadow on a border-radius element must adopt the same rounded corners.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-border-radius.html",
+    "id": "box-shadow-border-radius",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "border-radius",
+    "weight": 1
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Box-shadow with negative offsets cast to the upper-left of the element.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-negative-offset.html",
+    "id": "box-shadow-negative-offset",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "negative-offset",
+    "weight": 1
+  },
+  {
+    "category": "effects",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "description": "Inset box-shadow with spread: a solid inner ring clipped to the padding box.",
+    "expected_support": "implemented",
+    "feature": "box-shadow",
+    "file": "cases/effects/box-shadow-inset-spread.html",
+    "id": "box-shadow-inset-spread",
+    "kind": "feature",
+    "partial_threshold_pct": 10.0,
+    "pass_threshold_pct": 2.0,
+    "subfeature": "inset-spread",
+    "weight": 1
   }
 ]

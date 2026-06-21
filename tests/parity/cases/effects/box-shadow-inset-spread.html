@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>box-shadow inset spread</title><style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { background: #fff3e0; padding: 40px; }
+  /* inset, zero blur, 16px spread -> solid inner ring clipped to padding box */
+  .box { width: 200px; height: 130px; background-color: #90caf9; box-shadow: inset 0 0 0 16px #37474f; }
+</style></head><body><div class="stage"><div class="box"></div></div></body></html>

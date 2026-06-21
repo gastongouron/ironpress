@@ -144,6 +144,17 @@ def extract(path):
     return fills, borders
 
 
+# A fill spanning ~the full printable WIDTH is a margin-to-margin background
+# container (body/.stage/.wrap with a bg). Its width = (page - 2*margin), which
+# differs between ironpress (28.8pt margins, spec 0.4in) and Chrome (rounds to
+# ~27.75pt) by exactly 2*(28.8-27.75)=2.1pt — a frame-margin ROUNDING artifact,
+# NOT a layout bug. PdfGeometry would wrongly flag that 2.1pt width delta on every
+# such container, so drop them from the vector sidecar; the RasterDiff verifier
+# (with its calibrated frame offset) owns full-width backgrounds.
+PRINTABLE_W = PAGE_W - 2 * 27.75  # ~556.5pt
+FULL_WIDTH_FRAC = 0.9
+
+
 def keep(rect, printable_area):
     """A meaningful, colored, non-page-background rect?"""
     rgb, x, y, w, h = rect
@@ -153,6 +164,8 @@ def keep(rect, printable_area):
         return False
     if (w * h) > PAGE_AREA_FRAC * printable_area:
         return False  # page background fill
+    if w >= FULL_WIDTH_FRAC * PRINTABLE_W:
+        return False  # full-width frame-dominated background container (raster owns it)
     return True
 
 

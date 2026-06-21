@@ -3998,10 +3998,13 @@ fn parse_single_box_shadow(val: &str) -> Option<BoxShadow> {
         }
     }
 
+    // An omitted (or `currentColor`) shadow color defaults to the element's
+    // `color`, resolved later via the CURRENT_COLOR_SENTINEL in
+    // resolve_current_color (CSS Backgrounds & Borders L3 §7.2).
     let color = if idx < tokens.len() {
-        parse_border_color(&tokens[idx]).unwrap_or(Color::BLACK)
+        parse_border_color(&tokens[idx]).unwrap_or(CURRENT_COLOR_SENTINEL)
     } else {
-        Color::BLACK
+        CURRENT_COLOR_SENTINEL
     };
 
     Some(BoxShadow {
