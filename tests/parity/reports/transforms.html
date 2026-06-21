@@ -1,1 +1,489 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · transforms</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}</script></head><body><h1>transforms — 90.91%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 10 · PARTIAL 0 · FAIL 1 · UNKNOWN 0 · 11 fixtures · metric SSIM-hybrid · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-transform-origin">transform-origin <span class="sc">0%</span></a> <a href="#feat-transform">transform <span class="sc">100%</span></a> </nav><section class="feat"><h2 id="feat-transform-origin">transform-origin — 0.00% <span class="meta">PASS 0 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">17.80%</span> <strong>transforms-origin-top-left</strong> · top-left · <span class="real">REAL</span></div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-origin-top-left.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-origin-top-left.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-origin-top-left.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.</div></div></div></section><section class="feat"><h2 id="feat-transform">transform — 100.00% <span class="meta">PASS 10 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.97%</span> <strong>transforms-scale-x</strong> · scaleX</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-scale-x.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale-x.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale-x.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: scaleX() stretches the box horizontally about its center.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.64%</span> <strong>transforms-scale-y</strong> · scaleY</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-scale-y.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale-y.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale-y.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: scaleY() stretches the box vertically about its center.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.45%</span> <strong>transforms-translate-y</strong> · translateY</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-translate-y.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate-y.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate-y.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.39%</span> <strong>transforms-scale</strong> · scale</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-scale.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.29%</span> <strong>transforms-translate-x</strong> · translateX</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-translate-x.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate-x.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate-x.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.21%</span> <strong>transforms-translate</strong> · translate</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-translate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.03%</span> <strong>transforms-matrix</strong> · matrix</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-matrix.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-matrix.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-matrix.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.83%</span> <strong>transforms-skew</strong> · skew</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-skew.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-skew.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-skew.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.76%</span> <strong>transforms-rotate</strong> · rotate</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-rotate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-rotate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-rotate.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.</div></div><div class="card"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.72%</span> <strong>transforms-compound-rotate-translate</strong> · compound-rotate-translate</div><div class="trip"><figure><img loading="lazy" src="../refs/transforms/transforms-compound-rotate-translate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-compound-rotate-translate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-compound-rotate-translate.diff.png" alt="SSIM diff"><figcaption>SSIM diff</figcaption></figure></div><div class="desc">Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.</div></div></div></section></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · transforms</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>transforms — 27.27%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 0 · PARTIAL 6 · FAIL 5 · UNKNOWN 0 · 11 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-transform-origin">transform-origin <span class="sc">0%</span></a> <a href="#feat-transform">transform <span class="sc">30%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="ColorValue">ColorValue</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-transform-origin">transform-origin — 0.00% <span class="meta">PASS 0 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="18.5334"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">18.53%</span> <strong>transforms-origin-top-left</strong> · top-left · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−8.3px L</span><span class="chip">ΔE 61.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-origin-top-left.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-origin-top-left.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-origin-top-left.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-30,-26,-14) (ΔE 61.9)</div><div class="desc">transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,7 → 222,209</td><td class="num">18.33</td><td>ΔE 61.9 ΔRGB(-30,-26,-14) shift(-0.2,0.0)</td><td>fill recolour ΔRGB(-30,-26,-14) (ΔE 61.9)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>10,2 → 326,278</td><td class="num">0.21</td><td>shift(0.1,0.2)</td><td>box −8.3px on left edge (size/box-model mismatch)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-origin-top-left.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform-origin top left&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform-origin shifts the pivot of a rotation from the default center
+<span class="ln">10</span>     to the top-left corner, so the box swings about its own corner.
+<span class="ln">11</span>     Aspirational: ironpress has no transform-origin parse; rotation is
+<span class="ln">12</span>     always about the default origin (surface map: missing) */
+<span class="ln">13</span>  .frame {
+<span class="ln">14</span>    position: relative;
+<span class="ln">15</span>    width: 320px;
+<span class="ln">16</span>    height: 280px;
+<span class="ln">17</span>    margin: 30px;
+<span class="ln">18</span>    background: #eef2f7;
+<span class="ln">19</span>    border: 2px solid #b0bec5;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .guide {
+<span class="ln">22</span>    position: absolute;
+<span class="ln">23</span>    top: 40px;
+<span class="ln">24</span>    left: 40px;
+<span class="ln">25</span>    width: 160px;
+<span class="ln">26</span>    height: 100px;
+<span class="ln">27</span>    background: #cfd8dc;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .box {
+<span class="ln">30</span>    position: absolute;
+<span class="ln">31</span>    top: 40px;
+<span class="ln">32</span>    left: 40px;
+<span class="ln">33</span>    width: 160px;
+<span class="ln">34</span>    height: 100px;
+<span class="ln">35</span>    background: #4527a0;
+<span class="ln">36</span>    transform: rotate(30deg);
+<span class="ln">37</span>    transform-origin: top left;
+<span class="ln">38</span>  }
+<span class="ln">39</span>&lt;/style&gt;
+<span class="ln">40</span>&lt;/head&gt;
+<span class="ln">41</span>&lt;body&gt;
+<span class="ln">42</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">43</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">44</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">45</span>  &lt;/div&gt;
+<span class="ln">46</span>&lt;/body&gt;
+<span class="ln">47</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-transform">transform — 30.00% <span class="meta">PASS 0 · PARTIAL 6 · FAIL 4</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="2.7423"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">2.74%</span> <strong>transforms-translate-y</strong> · translateY · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 32.9</span><span class="chip">shift (0.2,0.2)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-translate-y.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate-y.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate-y.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+31,+26,+27) (ΔE 32.9)</div><div class="desc">transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.</div><details><summary>regions (5)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>40,170 → 140,280</td><td class="num">0.62</td><td>ΔE 59.2 ΔRGB(-132,-215,-93) shift(0.2,0.2)</td><td>fill recolour ΔRGB(-132,-215,-93) (ΔE 59.2)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>42,172 → 142,282</td><td class="num">0.62</td><td>ΔE 59.2 ΔRGB(132,215,93) shift(-0.2,-0.2)</td><td>fill recolour ΔRGB(+132,+215,+93) (ΔE 59.2)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>40,20 → 140,130</td><td class="num">0.62</td><td>ΔE 6.5 ΔRGB(-31,-26,-27)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>42,22 → 142,132</td><td class="num">0.62</td><td>ΔE 6.5 ΔRGB(31,26,27)</td><td>fill recolour ΔRGB(+31,+26,+27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 198,318</td><td class="num">0.26</td><td>shift(0.2,0.1)</td><td>content shifted (0.2,0.1)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-translate-y.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform translateY&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: translateY() shifts the box vertically only */
+<span class="ln">10</span>  .frame {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 200px;
+<span class="ln">13</span>    height: 320px;
+<span class="ln">14</span>    margin: 30px;
+<span class="ln">15</span>    background: #eef2f7;
+<span class="ln">16</span>    border: 2px solid #b0bec5;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .guide {
+<span class="ln">19</span>    position: absolute;
+<span class="ln">20</span>    top: 20px;
+<span class="ln">21</span>    left: 40px;
+<span class="ln">22</span>    width: 100px;
+<span class="ln">23</span>    height: 110px;
+<span class="ln">24</span>    background: #cfd8dc;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .box {
+<span class="ln">27</span>    position: absolute;
+<span class="ln">28</span>    top: 20px;
+<span class="ln">29</span>    left: 40px;
+<span class="ln">30</span>    width: 100px;
+<span class="ln">31</span>    height: 110px;
+<span class="ln">32</span>    background: #6a1b9a;
+<span class="ln">33</span>    transform: translateY(150px);
+<span class="ln">34</span>  }
+<span class="ln">35</span>&lt;/style&gt;
+<span class="ln">36</span>&lt;/head&gt;
+<span class="ln">37</span>&lt;body&gt;
+<span class="ln">38</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">39</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="2.4556"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">2.46%</span> <strong>transforms-translate-x</strong> · translateX · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 23.0</span><span class="chip">shift (0.2,0.2)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-translate-x.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate-x.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate-x.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+31,+26,+27) (ΔE 23.0)</div><div class="desc">transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.</div><details><summary>regions (5)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>170,40 → 280,140</td><td class="num">0.55</td><td>ΔE 39.5 ΔRGB(-238,-111,-104) shift(0.2,0.2)</td><td>fill recolour ΔRGB(-238,-111,-104) (ΔE 39.5)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>172,42 → 282,142</td><td class="num">0.55</td><td>ΔE 39.5 ΔRGB(238,111,104) shift(-0.2,-0.2)</td><td>fill recolour ΔRGB(+238,+111,+104) (ΔE 39.5)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>20,40 → 130,140</td><td class="num">0.55</td><td>ΔE 6.5 ΔRGB(-31,-26,-27)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>22,42 → 132,142</td><td class="num">0.55</td><td>ΔE 6.5 ΔRGB(31,26,27)</td><td>fill recolour ΔRGB(+31,+26,+27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 358,198</td><td class="num">0.24</td><td>shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-translate-x.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform translateX&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: translateX() shifts the box horizontally only */
+<span class="ln">10</span>  .frame {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 360px;
+<span class="ln">13</span>    height: 200px;
+<span class="ln">14</span>    margin: 30px;
+<span class="ln">15</span>    background: #eef2f7;
+<span class="ln">16</span>    border: 2px solid #b0bec5;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .guide {
+<span class="ln">19</span>    position: absolute;
+<span class="ln">20</span>    top: 40px;
+<span class="ln">21</span>    left: 20px;
+<span class="ln">22</span>    width: 110px;
+<span class="ln">23</span>    height: 100px;
+<span class="ln">24</span>    background: #cfd8dc;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .box {
+<span class="ln">27</span>    position: absolute;
+<span class="ln">28</span>    top: 40px;
+<span class="ln">29</span>    left: 20px;
+<span class="ln">30</span>    width: 110px;
+<span class="ln">31</span>    height: 100px;
+<span class="ln">32</span>    background: #00838f;
+<span class="ln">33</span>    transform: translateX(150px);
+<span class="ln">34</span>  }
+<span class="ln">35</span>&lt;/style&gt;
+<span class="ln">36</span>&lt;/head&gt;
+<span class="ln">37</span>&lt;body&gt;
+<span class="ln">38</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">39</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="2.1535"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">2.15%</span> <strong>transforms-translate</strong> · translate · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 34.9</span><span class="chip">shift (0.2,0.2)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-translate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-translate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-translate.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-31,-26,-27) (ΔE 34.9)</div><div class="desc">transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>22,22 → 250,170</td><td class="num">0.89</td><td>ΔE 45.4 ΔRGB(-186,-115,-28) shift(0.2,0.2)</td><td>fill recolour ΔRGB(-186,-115,-28) (ΔE 45.4)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>132,82 → 252,172</td><td class="num">0.52</td><td>ΔE 45.4 ΔRGB(217,141,55) shift(-0.2,-0.2)</td><td>fill recolour ΔRGB(+217,+141,+55) (ΔE 45.4)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>20,20 → 140,110</td><td class="num">0.52</td><td>ΔE 6.5 ΔRGB(-31,-26,-27)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 318,238</td><td class="num">0.23</td><td>shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-translate.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform translate&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: translate(x, y) shifts the box right and down from its
+<span class="ln">10</span>     in-flow position without affecting surrounding layout */
+<span class="ln">11</span>  .frame {
+<span class="ln">12</span>    position: relative;
+<span class="ln">13</span>    width: 320px;
+<span class="ln">14</span>    height: 240px;
+<span class="ln">15</span>    margin: 30px;
+<span class="ln">16</span>    background: #eef2f7;
+<span class="ln">17</span>    border: 2px solid #b0bec5;
+<span class="ln">18</span>  }
+<span class="ln">19</span>  .guide {
+<span class="ln">20</span>    position: absolute;
+<span class="ln">21</span>    top: 20px;
+<span class="ln">22</span>    left: 20px;
+<span class="ln">23</span>    width: 120px;
+<span class="ln">24</span>    height: 90px;
+<span class="ln">25</span>    background: #cfd8dc;
+<span class="ln">26</span>  }
+<span class="ln">27</span>  .box {
+<span class="ln">28</span>    position: absolute;
+<span class="ln">29</span>    top: 20px;
+<span class="ln">30</span>    left: 20px;
+<span class="ln">31</span>    width: 120px;
+<span class="ln">32</span>    height: 90px;
+<span class="ln">33</span>    background: #1565c0;
+<span class="ln">34</span>    transform: translate(110px, 60px);
+<span class="ln">35</span>  }
+<span class="ln">36</span>&lt;/style&gt;
+<span class="ln">37</span>&lt;/head&gt;
+<span class="ln">38</span>&lt;body&gt;
+<span class="ln">39</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">40</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">42</span>  &lt;/div&gt;
+<span class="ln">43</span>&lt;/body&gt;
+<span class="ln">44</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="2.1015"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">2.10%</span> <strong>transforms-scale-x</strong> · scaleX · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 50.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-scale-x.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale-x.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale-x.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+6,+26,+26) (ΔE 50.2)</div><div class="desc">transform: scaleX() stretches the box horizontally about its center.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>55,60 → 307,142</td><td class="num">1.86</td><td>ΔE 50.2 ΔRGB(6,26,26)</td><td>fill recolour ΔRGB(+6,+26,+26) (ΔE 50.2)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 358,198</td><td class="num">0.24</td><td>shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-scale-x.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform scaleX&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: scaleX() stretches the box horizontally about its center */
+<span class="ln">10</span>  .frame {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 360px;
+<span class="ln">13</span>    height: 200px;
+<span class="ln">14</span>    margin: 30px;
+<span class="ln">15</span>    background: #eef2f7;
+<span class="ln">16</span>    border: 2px solid #b0bec5;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .guide {
+<span class="ln">19</span>    position: absolute;
+<span class="ln">20</span>    top: 60px;
+<span class="ln">21</span>    left: 130px;
+<span class="ln">22</span>    width: 100px;
+<span class="ln">23</span>    height: 80px;
+<span class="ln">24</span>    background: #cfd8dc;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .box {
+<span class="ln">27</span>    position: absolute;
+<span class="ln">28</span>    top: 60px;
+<span class="ln">29</span>    left: 130px;
+<span class="ln">30</span>    width: 100px;
+<span class="ln">31</span>    height: 80px;
+<span class="ln">32</span>    background: #c62828;
+<span class="ln">33</span>    transform: scaleX(2.5);
+<span class="ln">34</span>  }
+<span class="ln">35</span>&lt;/style&gt;
+<span class="ln">36</span>&lt;/head&gt;
+<span class="ln">37</span>&lt;body&gt;
+<span class="ln">38</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">39</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.9066"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.91%</span> <strong>transforms-skew</strong> · skew · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 6.5</span><span class="chip">shift (-0.9,-0.0)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-skew.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-skew.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-skew.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+9,+9,+5) (ΔE 6.5)</div><div class="desc">transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>72,58 → 250,184</td><td class="num">1.68</td><td>ΔE 6.5 ΔRGB(9,9,5) shift(-0.9,-0.0)</td><td>fill recolour ΔRGB(+9,+9,+5) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 318,238</td><td class="num">0.23</td><td>shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-skew.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform skew&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: skew() shears the box along X and Y about its center,
+<span class="ln">10</span>     turning the rectangle into a parallelogram. Aspirational: skew is
+<span class="ln">11</span>     not in the ironpress Transform enum or parser (surface map: missing) */
+<span class="ln">12</span>  .frame {
+<span class="ln">13</span>    position: relative;
+<span class="ln">14</span>    width: 320px;
+<span class="ln">15</span>    height: 240px;
+<span class="ln">16</span>    margin: 30px;
+<span class="ln">17</span>    background: #eef2f7;
+<span class="ln">18</span>    border: 2px solid #b0bec5;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  .guide {
+<span class="ln">21</span>    position: absolute;
+<span class="ln">22</span>    top: 70px;
+<span class="ln">23</span>    left: 90px;
+<span class="ln">24</span>    width: 140px;
+<span class="ln">25</span>    height: 100px;
+<span class="ln">26</span>    background: #cfd8dc;
+<span class="ln">27</span>  }
+<span class="ln">28</span>  .box {
+<span class="ln">29</span>    position: absolute;
+<span class="ln">30</span>    top: 70px;
+<span class="ln">31</span>    left: 90px;
+<span class="ln">32</span>    width: 140px;
+<span class="ln">33</span>    height: 100px;
+<span class="ln">34</span>    background: #283593;
+<span class="ln">35</span>    transform: skew(20deg, 10deg);
+<span class="ln">36</span>  }
+<span class="ln">37</span>&lt;/style&gt;
+<span class="ln">38</span>&lt;/head&gt;
+<span class="ln">39</span>&lt;body&gt;
+<span class="ln">40</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">41</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">42</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">43</span>  &lt;/div&gt;
+<span class="ln">44</span>&lt;/body&gt;
+<span class="ln">45</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.8927"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.89%</span> <strong>transforms-scale-y</strong> · scaleY · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 53.6</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-scale-y.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale-y.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale-y.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+9,+28,+21) (ΔE 53.6)</div><div class="desc">transform: scaleY() stretches the box vertically about its center.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>50,68 → 152,244</td><td class="num">1.64</td><td>ΔE 53.6 ΔRGB(9,28,21)</td><td>fill recolour ΔRGB(+9,+28,+21) (ΔE 53.6)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 198,318</td><td class="num">0.26</td><td>shift(0.2,0.1)</td><td>content shifted (0.2,0.1)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-scale-y.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform scaleY&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: scaleY() stretches the box vertically about its center */
+<span class="ln">10</span>  .frame {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 200px;
+<span class="ln">13</span>    height: 320px;
+<span class="ln">14</span>    margin: 30px;
+<span class="ln">15</span>    background: #eef2f7;
+<span class="ln">16</span>    border: 2px solid #b0bec5;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .guide {
+<span class="ln">19</span>    position: absolute;
+<span class="ln">20</span>    top: 120px;
+<span class="ln">21</span>    left: 50px;
+<span class="ln">22</span>    width: 100px;
+<span class="ln">23</span>    height: 70px;
+<span class="ln">24</span>    background: #cfd8dc;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .box {
+<span class="ln">27</span>    position: absolute;
+<span class="ln">28</span>    top: 120px;
+<span class="ln">29</span>    left: 50px;
+<span class="ln">30</span>    width: 100px;
+<span class="ln">31</span>    height: 70px;
+<span class="ln">32</span>    background: #ad1457;
+<span class="ln">33</span>    transform: scaleY(2.5);
+<span class="ln">34</span>  }
+<span class="ln">35</span>&lt;/style&gt;
+<span class="ln">36</span>&lt;/head&gt;
+<span class="ln">37</span>&lt;body&gt;
+<span class="ln">38</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">39</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.6722"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.67%</span> <strong>transforms-matrix</strong> · matrix · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 33.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-matrix.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-matrix.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-matrix.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-31,-26,-27) (ΔE 33.9)</div><div class="desc">transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>42,62 → 226,197</td><td class="num">1.16</td><td>ΔE 43.9 ΔRGB(31,26,27) shift(-0.1,-0.1)</td><td>fill recolour ΔRGB(+31,+26,+27) (ΔE 43.9)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>40,60 → 160,150</td><td class="num">0.43</td><td>ΔE 6.5 ΔRGB(-31,-26,-27)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>358,2 → 358,258</td><td class="num">0.09</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-matrix.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform matrix&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: matrix(a,b,c,d,e,f) combines scale + shear + translate in
+<span class="ln">10</span>     one 2D affine matrix. Here: 1.4x horizontal scale, slight shear, and a
+<span class="ln">11</span>     translate of (40,30). Aspirational: matrix() is not parsed by ironpress
+<span class="ln">12</span>     (surface map: missing) */
+<span class="ln">13</span>  .frame {
+<span class="ln">14</span>    position: relative;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>    height: 260px;
+<span class="ln">17</span>    margin: 30px;
+<span class="ln">18</span>    background: #eef2f7;
+<span class="ln">19</span>    border: 2px solid #b0bec5;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .guide {
+<span class="ln">22</span>    position: absolute;
+<span class="ln">23</span>    top: 60px;
+<span class="ln">24</span>    left: 40px;
+<span class="ln">25</span>    width: 120px;
+<span class="ln">26</span>    height: 90px;
+<span class="ln">27</span>    background: #cfd8dc;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .box {
+<span class="ln">30</span>    position: absolute;
+<span class="ln">31</span>    top: 60px;
+<span class="ln">32</span>    left: 40px;
+<span class="ln">33</span>    width: 120px;
+<span class="ln">34</span>    height: 90px;
+<span class="ln">35</span>    background: #00695c;
+<span class="ln">36</span>    transform: matrix(1.4, 0.25, 0, 1, 40, 30);
+<span class="ln">37</span>  }
+<span class="ln">38</span>&lt;/style&gt;
+<span class="ln">39</span>&lt;/head&gt;
+<span class="ln">40</span>&lt;body&gt;
+<span class="ln">41</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">42</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">43</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">44</span>  &lt;/div&gt;
+<span class="ln">45</span>&lt;/body&gt;
+<span class="ln">46</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.6364"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.64%</span> <strong>transforms-rotate</strong> · rotate · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 32.8</span><span class="chip">shift (-1.0,-1.5)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-rotate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-rotate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-rotate.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+0,-10,-20) (ΔE 32.8)</div><div class="desc">transform: rotate() turns the box clockwise about its center (default transform-origin) without disturbing layout flow.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>60,56 → 242,226</td><td class="num">1.29</td><td>ΔE 37.6 ΔRGB(0,-6,-11) shift(0.2,-0.4)</td><td>fill recolour ΔRGB(+0,-6,-11) (ΔE 37.6)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>167,90 → 225,92</td><td class="num">0.13</td><td>ΔE 6.5 ΔRGB(-31,-26,-27) shift(0.0,-0.3)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>2,278 → 298,278</td><td class="num">0.11</td><td>shift(0.0,0.3)</td><td>box −0.3px on left edge (size/box-model mismatch)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>77,190 → 135,192</td><td class="num">0.11</td><td>ΔE 6.5 ΔRGB(31,26,27) shift(-1.0,-1.5)</td><td>fill recolour ΔRGB(+31,+26,+27) (ΔE 6.5)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-rotate.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform rotate&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: rotate() turns the box clockwise about its center
+<span class="ln">10</span>     (default transform-origin) without disturbing layout flow */
+<span class="ln">11</span>  .frame {
+<span class="ln">12</span>    position: relative;
+<span class="ln">13</span>    width: 300px;
+<span class="ln">14</span>    height: 280px;
+<span class="ln">15</span>    margin: 30px;
+<span class="ln">16</span>    background: #eef2f7;
+<span class="ln">17</span>    border: 2px solid #b0bec5;
+<span class="ln">18</span>  }
+<span class="ln">19</span>  .guide {
+<span class="ln">20</span>    position: absolute;
+<span class="ln">21</span>    top: 90px;
+<span class="ln">22</span>    left: 75px;
+<span class="ln">23</span>    width: 150px;
+<span class="ln">24</span>    height: 100px;
+<span class="ln">25</span>    background: #cfd8dc;
+<span class="ln">26</span>  }
+<span class="ln">27</span>  .box {
+<span class="ln">28</span>    position: absolute;
+<span class="ln">29</span>    top: 90px;
+<span class="ln">30</span>    left: 75px;
+<span class="ln">31</span>    width: 150px;
+<span class="ln">32</span>    height: 100px;
+<span class="ln">33</span>    background: #ef6c00;
+<span class="ln">34</span>    transform: rotate(35deg);
+<span class="ln">35</span>  }
+<span class="ln">36</span>&lt;/style&gt;
+<span class="ln">37</span>&lt;/head&gt;
+<span class="ln">38</span>&lt;body&gt;
+<span class="ln">39</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">40</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">42</span>  &lt;/div&gt;
+<span class="ln">43</span>&lt;/body&gt;
+<span class="ln">44</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.6312"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.63%</span> <strong>transforms-compound-rotate-translate</strong> · compound-rotate-translate · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 37.7</span><span class="chip">shift (-0.1,-0.8)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-compound-rotate-translate.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-compound-rotate-translate.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-compound-rotate-translate.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-6,-26,-27) (ΔE 37.7)</div><div class="desc">Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>32,32 → 295,185</td><td class="num">1.17</td><td>ΔE 47.5 ΔRGB(31,26,27) shift(-0.1,-0.8)</td><td>fill recolour ΔRGB(+31,+26,+27) (ΔE 47.5)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>30,30 → 160,120</td><td class="num">0.37</td><td>ΔE 6.5 ΔRGB(-31,-26,-27)</td><td>fill recolour ΔRGB(-31,-26,-27) (ΔE 6.5)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>358,2 → 358,258</td><td class="num">0.09</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-compound-rotate-translate.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform compound rotate translate&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* Chained functions: translate(120px,40px) then rotate(25deg), applied
+<span class="ln">10</span>     left-to-right in the box&#39;s own coordinate space. Aspirational:
+<span class="ln">11</span>     parse_transform returns a single Transform, so chaining is not
+<span class="ln">12</span>     supported by ironpress (surface map: missing) */
+<span class="ln">13</span>  .frame {
+<span class="ln">14</span>    position: relative;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>    height: 260px;
+<span class="ln">17</span>    margin: 30px;
+<span class="ln">18</span>    background: #eef2f7;
+<span class="ln">19</span>    border: 2px solid #b0bec5;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .guide {
+<span class="ln">22</span>    position: absolute;
+<span class="ln">23</span>    top: 30px;
+<span class="ln">24</span>    left: 30px;
+<span class="ln">25</span>    width: 130px;
+<span class="ln">26</span>    height: 90px;
+<span class="ln">27</span>    background: #cfd8dc;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .box {
+<span class="ln">30</span>    position: absolute;
+<span class="ln">31</span>    top: 30px;
+<span class="ln">32</span>    left: 30px;
+<span class="ln">33</span>    width: 130px;
+<span class="ln">34</span>    height: 90px;
+<span class="ln">35</span>    background: #bf360c;
+<span class="ln">36</span>    transform: translate(120px, 40px) rotate(25deg);
+<span class="ln">37</span>  }
+<span class="ln">38</span>&lt;/style&gt;
+<span class="ln">39</span>&lt;/head&gt;
+<span class="ln">40</span>&lt;body&gt;
+<span class="ln">41</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">42</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">43</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">44</span>  &lt;/div&gt;
+<span class="ln">45</span>&lt;/body&gt;
+<span class="ln">46</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PARTIAL" data-class="ColorValue" data-diff="1.4985"><div class="chead"><span class="badge" style="background:#9a6700">PARTIAL</span> <span class="num">1.50%</span> <strong>transforms-scale</strong> · scale · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px L</span><span class="chip">ΔE 46.3</span></div><div class="quad"><figure><img loading="lazy" src="../refs/transforms/transforms-scale.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/transforms/transforms-scale.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="transforms/transforms-scale.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-67,-40,-68) (ΔE 46.3)</div><div class="desc">transform: scale() enlarges the box uniformly about its center (default transform-origin) without changing layout flow.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>70,86 → 252,196</td><td class="num">1.29</td><td>ΔE 46.3 ΔRGB(-67,-40,-68)</td><td>fill recolour ΔRGB(-67,-40,-68) (ΔE 46.3)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 318,278</td><td class="num">0.21</td><td>shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/transforms/transforms-scale.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;transform scale&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">8</span>  html, body { background: #ffffff; }
+<span class="ln">9</span>  /* transform: scale() enlarges the box uniformly about its center
+<span class="ln">10</span>     (default transform-origin), leaving layout flow unchanged */
+<span class="ln">11</span>  .frame {
+<span class="ln">12</span>    position: relative;
+<span class="ln">13</span>    width: 320px;
+<span class="ln">14</span>    height: 280px;
+<span class="ln">15</span>    margin: 30px;
+<span class="ln">16</span>    background: #eef2f7;
+<span class="ln">17</span>    border: 2px solid #b0bec5;
+<span class="ln">18</span>  }
+<span class="ln">19</span>  .guide {
+<span class="ln">20</span>    position: absolute;
+<span class="ln">21</span>    top: 110px;
+<span class="ln">22</span>    left: 110px;
+<span class="ln">23</span>    width: 100px;
+<span class="ln">24</span>    height: 60px;
+<span class="ln">25</span>    background: #cfd8dc;
+<span class="ln">26</span>  }
+<span class="ln">27</span>  .box {
+<span class="ln">28</span>    position: absolute;
+<span class="ln">29</span>    top: 110px;
+<span class="ln">30</span>    left: 110px;
+<span class="ln">31</span>    width: 100px;
+<span class="ln">32</span>    height: 60px;
+<span class="ln">33</span>    background: #2e7d32;
+<span class="ln">34</span>    transform: scale(1.8);
+<span class="ln">35</span>  }
+<span class="ln">36</span>&lt;/style&gt;
+<span class="ln">37</span>&lt;/head&gt;
+<span class="ln">38</span>&lt;body&gt;
+<span class="ln">39</span>  &lt;div class=&quot;frame&quot;&gt;
+<span class="ln">40</span>    &lt;div class=&quot;guide&quot;&gt;&lt;/div&gt;
+<span class="ln">41</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">42</span>  &lt;/div&gt;
+<span class="ln">43</span>&lt;/body&gt;
+<span class="ln">44</span>&lt;/html&gt;
+</code></pre></details></div></div></section></body></html>

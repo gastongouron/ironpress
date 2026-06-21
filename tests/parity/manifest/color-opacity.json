@@ -24,6 +24,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
+    "geometry": "rigid",
     "expected_support": "implemented",
     "depends_on": ["probe-fill-box", "probe-color-swatch"]
   },

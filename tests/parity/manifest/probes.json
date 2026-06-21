@@ -10,6 +10,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "probe",
+    "geometry": "rigid",
     "expected_support": "implemented",
     "depends_on": []
   },
@@ -24,6 +25,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "probe",
+    "geometry": "rigid",
     "expected_support": "implemented",
     "depends_on": []
   },
