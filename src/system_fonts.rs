@@ -170,14 +170,6 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::Custom(name.clone());
             }
             FontFamily::TimesRoman => {
-                // A font registered directly under the generic keyword (e.g.
-                // `add_font("serif", ..)`) is the caller's explicit choice for
-                // this generic; use its real metrics rather than the AFM
-                // builtin so layout (baseline, line box) matches the outline
-                // that is actually shaped and embedded.
-                if find_font(fonts, "serif", bold, italic).is_some() {
-                    return FontFamily::Custom("serif".to_string());
-                }
                 // Prefer system Times New Roman (exact Chromium match),
                 // fall back to bundled Liberation Serif.
                 if find_font(fonts, "Times New Roman", bold, italic).is_some() {
@@ -189,9 +181,6 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::TimesRoman;
             }
             FontFamily::Helvetica => {
-                if find_font(fonts, "sans-serif", bold, italic).is_some() {
-                    return FontFamily::Custom("sans-serif".to_string());
-                }
                 if find_font(fonts, "Arial", bold, italic).is_some() {
                     return FontFamily::Custom("Arial".to_string());
                 }
@@ -201,9 +190,6 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::Helvetica;
             }
             FontFamily::Courier => {
-                if find_font(fonts, "monospace", bold, italic).is_some() {
-                    return FontFamily::Custom("monospace".to_string());
-                }
                 if find_font(fonts, "Courier New", bold, italic).is_some() {
                     return FontFamily::Custom("Courier New".to_string());
                 }
@@ -880,29 +866,6 @@ mod tests {
         let stack = parse_font_stack("Roboto, serif");
         let result = resolve_font_family(&stack, &fonts, false, false);
         assert_eq!(result, FontFamily::TimesRoman);
-    }
-
-    #[test]
-    fn resolve_font_family_uses_font_registered_under_generic_keyword() {
-        // A caller may register a face directly under a CSS generic keyword
-        // (e.g. `add_font("monospace", ..)`). CSS `font-family: monospace`
-        // must then resolve to that real face (so layout uses its true
-        // ascent/descent/widths) rather than the AFM builtin stand-in.
-        for (keyword, generic) in [
-            ("serif", FontFamily::TimesRoman),
-            ("sans-serif", FontFamily::Helvetica),
-            ("monospace", FontFamily::Courier),
-        ] {
-            let mut fonts = HashMap::new();
-            fonts.insert(keyword.to_string(), stub_font(keyword));
-            let stack = FontStack::from_family(generic);
-            let result = resolve_font_family(&stack, &fonts, false, false);
-            assert_eq!(
-                result,
-                FontFamily::Custom(keyword.to_string()),
-                "generic {keyword} should resolve to the registered face"
-            );
-        }
     }
 
     #[test]
