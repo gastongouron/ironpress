@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 62.46%  (PASS 190 · PARTIAL 51 · FAIL 104 · UNKNOWN 1 · total 346)
+Overall: 62.90%  (PASS 191 · PARTIAL 52 · FAIL 102 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -69,17 +69,16 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Extra | 41.17 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) GENUINE: both bases PASS, interaction FAILs | transforms-rotate-x-flexbox-item | extra paint where Chrome is blank (8.7%) |
 | FAIL | REAL | ColorValue | 9.00 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-72) (ΔE 75.8) |
 | FAIL | REAL | ColorValue | 12.05 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+12,+13,+13) (ΔE 84.6) |
-| FAIL | REAL | Extra | 31.01 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
-| FAIL | REAL | ColorValue | 7.97 | lists-counters | list-style-type | decimal | list-style-type-decimal | fill recolour ΔRGB(-9,-10,-10) (ΔE 84.0) |
-| FAIL | REAL | ColorValue | 7.36 | lists-counters | list-style-type | disc | list-style-type-disc | fill recolour ΔRGB(+17,+18,+17) (ΔE 84.4) |
-| FAIL | REAL | ColorValue | 8.77 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(+14,+13,+12) (ΔE 84.8) |
-| FAIL | REAL | ColorValue | 9.72 | lists-counters | list-style-type | none | list-style-type-none | fill recolour ΔRGB(+10,+10,+11) (ΔE 82.8) |
-| FAIL | REAL | ColorValue | 7.71 | lists-counters | list-style-type | upper-roman | list-style-type-upper-roman | fill recolour ΔRGB(+13,+12,+13) (ΔE 82.9) |
+| FAIL | REAL | Extra | 30.34 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
+| FAIL | REAL | GeometryShift | 7.47 | lists-counters | list-style-type | decimal | list-style-type-decimal | content shifted (0.0,0.5)px beyond page-origin calibration |
+| FAIL | REAL | GeometryShift | 7.48 | lists-counters | list-style-type | disc | list-style-type-disc | content shifted (0.0,0.6)px beyond page-origin calibration |
+| FAIL | REAL | ColorValue | 8.36 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(-8,-8,-7) (ΔE 84.8) |
+| FAIL | REAL | ColorValue | 7.83 | lists-counters | list-style-type | upper-roman | list-style-type-upper-roman | fill recolour ΔRGB(+9,+8,+9) (ΔE 82.9) |
 | FAIL | REAL | ColorValue | 7.10 | overflow-clipping | overflow | hidden-with-border-radius | overflow-hidden-border-radius | fill recolour ΔRGB(+69,+21,+15) (ΔE 14.9) |
 | FAIL | REAL | ColorValue | 4.50 | overflow-clipping | overflow | hidden | overflow-hidden-clip | fill recolour ΔRGB(+15,+76,+98) (ΔE 27.7) |
 | FAIL | REAL | ColorValue | 2.26 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | fill recolour ΔRGB(+8,+62,+52) (ΔE 22.5) |
 | FAIL | REAL | ColorValue | 3.62 | overflow-clipping | overflow | nested-clip-intersection | overflow-hidden-nested | fill recolour ΔRGB(+29,+24,+1) (ΔE 8.8) |
-| FAIL | REAL | ColorValue | 18.91 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(+190,+171,+150) (ΔE 70.4) |
+| FAIL | REAL | ColorValue | 20.05 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(+190,+171,+150) (ΔE 71.3) |
 | FAIL | REAL | ColorValue | 11.19 | positioning | containing-block | nearest-positioned-ancestor | positioning-absolute-containing-block-relative-ancestor | fill recolour ΔRGB(+12,+16,+56) (ΔE 32.4) |
 | FAIL | REAL | ColorValue | 2.66 | positioning | containing-block | transform-establishes | positioning-transform-establishes-containing-block | fill recolour ΔRGB(-20,-78,-59) (ΔE 37.3) |
 | FAIL | REAL | Extra | 70.22 | positioning | float | left | positioning-float-left | extra paint where Chrome is blank (41.1%) |
@@ -130,7 +129,7 @@ None — every fixture's HTML matches `refs.lock`.
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 50.00% | 4 | 8 | 4 | 0 |
 | interactions | 25.00% | 5 | 1 | 16 | 0 |
-| lists-counters | 4.17% | 0 | 1 | 11 | 0 |
+| lists-counters | 16.67% | 1 | 2 | 9 | 0 |
 | multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 10.00% | 1 | 0 | 9 | 0 |
 | paged-media | 72.22% | 6 | 1 | 2 | 0 |
@@ -210,9 +209,9 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.16 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
 | partial | PARTIAL | 5.11 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
-| unsupported | FAIL | 5.81 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
-| unsupported | FAIL | 11.72 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
-| unsupported | FAIL | 12.51 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
+| unsupported | PARTIAL | 3.72 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
+| unsupported | FAIL | 12.00 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
+| unsupported | FAIL | 12.21 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
 | unsupported | PASS | 1.29 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
 | partial | FAIL | 18.82 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 1.10 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
@@ -611,24 +610,24 @@ None — every fixture's HTML matches `refs.lock`.
 - **z-index-x-transforms** — 100.00%
   - PASS 0.93% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 4.17%
-- **counters** — 16.67%
+### lists-counters — 16.67%
+- **counters** — 33.33%
   - PARTIAL 5.11% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
   - FAIL 9.00% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
-  - FAIL 5.81% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
+  - PARTIAL 3.72% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
 - **list-style-image** — 0.00%
-  - FAIL 11.72% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
+  - FAIL 12.00% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
 - **list-style-position** — 0.00%
   - FAIL 12.05% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
-  - FAIL 31.01% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
-- **list-style-type** — 0.00%
-  - FAIL 7.97% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
-  - FAIL 7.36% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
-  - FAIL 8.77% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
-  - FAIL 9.72% list-style-type=none — `list-style-type-none` — Unordered list with markers suppressed via list-style-type:none.
-  - FAIL 7.71% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
+  - FAIL 30.34% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
+- **list-style-type** — 20.00%
+  - FAIL 7.47% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
+  - FAIL 7.48% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
+  - FAIL 8.36% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
+  - PASS 4.61% list-style-type=none — `list-style-type-none` — Unordered list with markers suppressed via list-style-type:none.
+  - FAIL 7.83% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
 - **marker-pseudo** — 0.00%
-  - FAIL 12.51% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
+  - FAIL 12.21% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
 ### multicol — 62.50%
 - **break-inside** — 100.00%
@@ -655,7 +654,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 2.26% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - FAIL 42.56% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - FAIL 3.62% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
-  - FAIL 18.91% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
+  - FAIL 20.05% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - FAIL 23.75% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - PASS 0.00% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
   - FAIL 67.67% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.

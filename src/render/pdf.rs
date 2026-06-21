@@ -4056,6 +4056,8 @@ fn render_container_children(
                 margin_top,
                 padding_top,
                 padding_bottom,
+                padding_left,
+                padding_right,
                 border,
                 border_radius: tb_border_radius,
                 block_height,
@@ -4392,10 +4394,20 @@ fn render_container_children(
                         .iter()
                         .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
                         .sum();
+                    // Horizontal padding insets the text from the border-box edge.
+                    // `render_x`/`render_w` are the border box; the content box is
+                    // `render_x + padding_left` wide by
+                    // `render_w - padding_left - padding_right`. For left/justify the
+                    // text starts at the content-box left; for right/center it is
+                    // aligned within the content box. (Previously this branch used the
+                    // raw `render_x`, so a nested block's left padding — e.g. a list's
+                    // `ul` padding-left carried onto each `li` — was dropped.)
+                    let content_x = render_x + padding_left;
+                    let content_w = (render_w - padding_left - padding_right).max(0.0);
                     let text_x = match text_align {
-                        TextAlign::Right => render_x + (render_w - line_width).max(0.0),
-                        TextAlign::Center => render_x + (render_w - line_width).max(0.0) / 2.0,
-                        _ => render_x,
+                        TextAlign::Right => content_x + (content_w - line_width).max(0.0),
+                        TextAlign::Center => content_x + (content_w - line_width).max(0.0) / 2.0,
+                        _ => content_x,
                     };
                     let mut lx = text_x;
                     for run in &merged {
