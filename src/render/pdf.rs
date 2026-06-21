@@ -854,7 +854,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         let line_text = line_text_content(line);
-                        if line_text.is_empty() {
+                        let has_inline_box = line.runs.iter().any(|r| r.inline_box.is_some());
+                        if line_text.is_empty() && !has_inline_box {
                             continue;
                         }
 
@@ -910,8 +911,29 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Phase 1: Draw backgrounds, decorations, and link
                         // annotations at estimated positions (visual-only).
+                        let line_top_y = text_y + metrics.ascender + metrics.half_leading;
+                        let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
                         let mut bg_x = text_x;
                         for run in &merged {
+                            // Atomic inline box (display: inline-block): paint the
+                            // box and its inner content, then advance the cursor.
+                            if let Some(inline) = run.inline_box.as_deref() {
+                                render_inline_box(
+                                    &mut content,
+                                    inline,
+                                    bg_x,
+                                    text_y,
+                                    line_top_y,
+                                    line_bottom_y,
+                                    run.font_size,
+                                    custom_fonts,
+                                    &prepared_custom_fonts,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                );
+                                bg_x += inline.width;
+                                continue;
+                            }
                             if run.text.is_empty() {
                                 continue;
                             }
@@ -3380,6 +3402,9 @@ fn resolve_font_name(
 
 /// Estimate run width using TTF metrics for custom fonts, falling back to fixed estimation.
 fn estimate_run_width_with_fonts(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+    if let Some(inline) = run.inline_box.as_deref() {
+        return inline.width;
+    }
     if let Some(width) = crate::text::measure_text_width(
         &run.text,
         run.font_size,
@@ -5823,6 +5848,98 @@ fn render_run_text(
 ///
 /// Falls back to per-run `render_run_text` when any run requires custom-font
 /// shaping (complex glyph positioning).
+/// Paint an atomic inline box (`display: inline-block`) inside a line of text.
+///
+/// `box_x` is the left edge of the box in PDF coordinates; `baseline_y` is the
+/// text baseline of the enclosing line; `line_top_y`/`line_bottom_y` bound the
+/// line box. The box is positioned vertically per its `vertical_align`, then its
+/// background, border, and pre-wrapped inner text are drawn.
+#[allow(clippy::too_many_arguments)]
+fn render_inline_box(
+    content: &mut String,
+    inline: &crate::layout::engine::InlineBox,
+    box_x: f32,
+    baseline_y: f32,
+    line_top_y: f32,
+    line_bottom_y: f32,
+    line_font_size: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+) {
+    let h = inline.height;
+    // Bottom edge of the box (PDF, y-up) for each vertical-align mode.
+    let box_bottom = match inline.vertical_align {
+        VerticalAlign::Top => line_top_y - h,
+        VerticalAlign::Bottom => line_bottom_y,
+        // Middle: box centre aligns roughly to the parent's mid-x-height, i.e.
+        // a quarter-em above the baseline.
+        VerticalAlign::Middle => baseline_y + line_font_size * 0.25 - h / 2.0,
+        // Baseline/sub/super: the box's bottom margin edge sits on the baseline.
+        _ => baseline_y,
+    };
+
+    // Background fill.
+    if let Some((r, g, b, a)) = inline.background_color {
+        let needs_alpha = a < 1.0;
+        if needs_alpha {
+            let gs_name = format!("GSib{bg_alpha_counter}");
+            *bg_alpha_counter += 1;
+            page_ext_gstates.push((gs_name.clone(), a));
+            content.push_str(&format!("/{gs_name} gs\n"));
+        }
+        content.push_str(&format!("{r} {g} {b} rg\n"));
+        if inline.border_radius > 0.0 {
+            content.push_str(&rounded_rect_path(
+                box_x,
+                box_bottom,
+                inline.width,
+                h,
+                inline.border_radius,
+            ));
+            content.push_str("\nf\n");
+        } else {
+            content.push_str(&format!("{box_x} {box_bottom} {w} {h} re\nf\n", w = inline.width));
+        }
+        if needs_alpha {
+            content.push_str("/GSDefault gs\n");
+        }
+    }
+
+    // Border (drawn inside the border box, matching border-box sizing).
+    draw_image_border(
+        content,
+        box_x,
+        box_bottom,
+        inline.width,
+        h,
+        &inline.border,
+        page_ext_gstates,
+        bg_alpha_counter,
+    );
+
+    // Inner text lines, laid out from the content-box top downward.
+    let content_top_y = box_bottom + h - inline.border.top.width - inline.padding_top;
+    let content_left_x = box_x + inline.border.left.width + inline.padding_left;
+    let mut inner_y = content_top_y;
+    for line in &inline.lines {
+        let metrics = line_box_metrics(line, custom_fonts);
+        inner_y -= metrics.half_leading + metrics.ascender;
+        let merged = merge_runs(&line.runs);
+        render_line_text(
+            content,
+            &merged,
+            content_left_x,
+            inner_y,
+            custom_fonts,
+            prepared_custom_fonts,
+            0.0,
+        );
+        inner_y -= metrics.descender + metrics.half_leading;
+    }
+}
+
 fn render_line_text(
     content: &mut String,
     runs: &[TextRun],
@@ -5832,19 +5949,28 @@ fn render_line_text(
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
 ) {
-    let non_empty: Vec<&TextRun> = runs.iter().filter(|r| !r.text.is_empty()).collect();
+    // Keep text runs plus any atomic inline boxes (empty text but real advance).
+    let non_empty: Vec<&TextRun> = runs
+        .iter()
+        .filter(|r| !r.text.is_empty() || r.inline_box.is_some())
+        .collect();
     if non_empty.is_empty() {
         return;
     }
 
+    // An inline box interrupts the glyph stream with a fixed advance, so the
+    // cursor must be positioned explicitly — force the per-run (mixed) path.
+    let has_inline_box = non_empty.iter().any(|r| r.inline_box.is_some());
+
     // Check whether every run can be rendered with standard PDF fonts
     // (no custom-font shaping needed).  Unicode-fallback runs also need
     // shaping, so they count as non-standard.
-    let all_standard = non_empty.iter().all(|run| {
-        crate::text::resolve_custom_font(&run.font_family, run.bold, run.italic, custom_fonts)
-            .is_none()
-            && crate::text::shape_with_unicode_fallback(run, custom_fonts).is_none()
-    });
+    let all_standard = !has_inline_box
+        && non_empty.iter().all(|run| {
+            crate::text::resolve_custom_font(&run.font_family, run.bold, run.italic, custom_fonts)
+                .is_none()
+                && crate::text::shape_with_unicode_fallback(run, custom_fonts).is_none()
+        });
 
     if all_standard {
         // Simple path: single BT block, one Td to set initial position,
@@ -5874,6 +6000,11 @@ fn render_line_text(
         // Fall back to per-run rendering with individual BT/ET blocks.
         let mut x = start_x;
         for run in &non_empty {
+            // Inline boxes are painted in Phase 1; here they only advance.
+            if let Some(inline) = run.inline_box.as_deref() {
+                x += inline.width;
+                continue;
+            }
             let run_width =
                 render_run_text(content, run, x, y, custom_fonts, prepared_custom_fonts, word_spacing);
             x += run_width;
@@ -5889,9 +6020,10 @@ struct LineBoxMetrics {
 }
 
 fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> LineBoxMetrics {
-    let (ascender, descender) =
+    let (mut ascender, descender) =
         line.runs
             .iter()
+            .filter(|r| r.inline_box.is_none())
             .fold((0.0f32, 0.0f32), |(max_ascender, max_descender), run| {
                 let (ascender_ratio, descender_ratio) = crate::fonts::font_metrics_ratios(
                     &run.font_family,
@@ -5904,6 +6036,21 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                     max_descender.max(descender_ratio * run.font_size),
                 )
             });
+    // A baseline-aligned inline box sits entirely above the baseline, so it
+    // raises the line's ascent (and thus pushes the baseline down) when it is
+    // taller than the surrounding text. Top/middle/bottom boxes don't move the
+    // baseline; they only widen the line box, which `line.height` already
+    // reflects from the wrap pass.
+    for run in &line.runs {
+        if let Some(inline) = run.inline_box.as_deref()
+            && matches!(
+                inline.vertical_align,
+                VerticalAlign::Baseline | VerticalAlign::Sub | VerticalAlign::Super
+            )
+        {
+            ascender = ascender.max(inline.height);
+        }
+    }
     let half_leading = (line.height - (ascender + descender)) / 2.0;
 
     LineBoxMetrics {
@@ -5956,11 +6103,18 @@ fn text_block_total_height(
 fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
     let mut merged: Vec<TextRun> = Vec::new();
     for run in runs {
+        // Keep atomic inline boxes as standalone runs (they carry geometry, not
+        // text) so the renderer can paint them; never merge them with text.
+        if run.inline_box.is_some() {
+            merged.push(run.clone());
+            continue;
+        }
         if run.text.is_empty() {
             continue;
         }
         let can_merge = if let Some(prev) = merged.last() {
-            prev.font_size == run.font_size
+            prev.inline_box.is_none()
+                && prev.font_size == run.font_size
                 && prev.bold == run.bold
                 && prev.italic == run.italic
                 && prev.underline == run.underline
@@ -7749,6 +7903,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         }
     }
 
@@ -9356,6 +9511,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -9372,6 +9528,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let cell = TableCell {
             lines: vec![
@@ -9459,6 +9616,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -9477,6 +9635,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -9495,6 +9654,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -10907,6 +11067,7 @@ mod tests {
             padding: (4.0, 2.0),
             border_radius: 3.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -10966,6 +11127,7 @@ mod tests {
             padding: (2.0, 1.0),
             border_radius: 4.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -10982,6 +11144,7 @@ mod tests {
             padding: (2.0, 1.0),
             border_radius: 8.0, // Different border_radius
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -11908,6 +12071,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let run_visible = TextRun {
             text: "Visible".to_string(),
@@ -12021,6 +12185,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -12109,6 +12274,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let mut border = LayoutBorder::default();
         border.top = LayoutBorderSide {
@@ -12228,6 +12394,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
 
         // Test right-align
@@ -12323,6 +12490,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let strike_run = TextRun {
             text: "Strike".to_string(),
@@ -12339,6 +12507,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -12413,6 +12582,7 @@ mod tests {
             padding: (3.0, 2.0),
             border_radius: 4.0, // Triggers rounded rect for inline background
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -12480,6 +12650,7 @@ mod tests {
             padding: (2.0, 1.0),
             border_radius: 0.0, // No rounding — should use rectangle
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
 
         let cell = crate::layout::engine::TableCell {

@@ -1602,6 +1602,7 @@ fn collect_table_cell_content_inner(
                             padding: pad,
                             border_radius: br,
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
+                            inline_box: None,
                         },
                     );
                 }
@@ -1773,6 +1774,7 @@ fn push_line_break_run(
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: resolved_line_height_factor(style, fonts),
+            inline_box: None,
         },
     );
 }

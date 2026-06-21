@@ -1,16 +1,16 @@
 use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
-use crate::parser::dom::{DomNode, HtmlTag};
+use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 // Re-export OverflowWrap so callers of TextWrapOptions::new can use it
 // without a separate import.
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
-    ComputedStyle, Display, FontFamily, FontStyle, FontWeight, WhiteSpace,
+    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, WhiteSpace,
     compute_style_with_context,
 };
 use std::collections::HashMap;
 
-use super::engine::{TextLine, TextRun};
+use super::engine::{InlineBox, LayoutBorder, TextLine, TextRun};
 
 // ---------------------------------------------------------------------------
 // resolve_style_font_family / resolved_line_height_factor
@@ -241,6 +241,12 @@ pub(crate) fn wrap_text_runs(
     // then split each segment by words.
     let mut styled_words: Vec<(String, TextRun, bool)> = Vec::new();
     for run in &runs {
+        if run.inline_box.is_some() {
+            // Atomic inline box: a single, unbreakable token. `preserve_spacing`
+            // is true so no inter-word space is injected before it.
+            styled_words.push((String::new(), run.clone(), true));
+            continue;
+        }
         if run.text == "\n" {
             styled_words.push(("\n".to_string(), run.clone(), false));
             continue;
@@ -307,6 +313,35 @@ pub(crate) fn wrap_text_runs(
             });
             current_width = 0.0;
             line_height = run_line_height(&template);
+            continue;
+        }
+
+        // Atomic inline box: advance by its border-box width and grow the line
+        // box to its height. It wraps to a fresh line if it overflows.
+        if let Some(inline) = template.inline_box.as_deref() {
+            let box_w = inline.width;
+            if current_width > 0.0 && current_width + box_w > options.max_width {
+                lines.push(TextLine {
+                    runs: std::mem::take(&mut current_runs),
+                    height: line_height,
+                });
+                current_width = 0.0;
+                line_height = run_line_height(&template);
+            }
+            current_width += box_w;
+            // A baseline-aligned box sits above the baseline, so the line must
+            // also leave room for the text descender beneath it. Approximate the
+            // descender as a fraction of the run's font size.
+            let box_extent = match inline.vertical_align {
+                crate::style::computed::VerticalAlign::Baseline
+                | crate::style::computed::VerticalAlign::Sub
+                | crate::style::computed::VerticalAlign::Super => {
+                    inline.height + template.font_size * 0.22
+                }
+                _ => inline.height,
+            };
+            line_height = line_height.max(box_extent);
+            current_runs.push(template);
             continue;
         }
 
@@ -420,6 +455,7 @@ pub(crate) fn wrap_text_runs(
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
                     line_height_factor: prev_run.line_height_factor,
+                    inline_box: None,
                 });
                 word
             } else {
@@ -623,6 +659,100 @@ pub(crate) fn push_text_run_with_fallback(
 // collect_text_runs / collect_text_runs_inner
 // ---------------------------------------------------------------------------
 
+/// Build the atomic inline box for a `display: inline-block` element that
+/// appears amongst inline text. Resolves the border-box geometry the same way
+/// `layout_inline_block_group` does and pre-wraps the inner text.
+fn build_inline_box(
+    style: &ComputedStyle,
+    el: &ElementNode,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+    ancestors: &[AncestorInfo],
+) -> Option<InlineBox> {
+    let has_explicit_width = style.width.is_some();
+    let child_w = style.width.unwrap_or(0.0);
+    let child_h = style.height.unwrap_or(0.0);
+
+    // Content width used to wrap the inner text.
+    let inner_width = if has_explicit_width {
+        if style.box_sizing == BoxSizing::BorderBox {
+            child_w - style.padding.left - style.padding.right - style.border.horizontal_width()
+        } else {
+            child_w
+        }
+        .max(0.0)
+    } else {
+        // Shrink-to-fit with no constraint: use a generous width so the
+        // inner text measures at its natural width on one line.
+        f32::MAX
+    };
+
+    let mut runs = Vec::new();
+    collect_text_runs(&el.children, style, &mut runs, None, rules, fonts, ancestors);
+    let lines = if runs.is_empty() {
+        Vec::new()
+    } else {
+        wrap_text_runs(
+            runs,
+            TextWrapOptions::new(
+                inner_width.max(1.0),
+                style.font_size,
+                resolved_line_height_factor(style, fonts),
+                style.overflow_wrap,
+            )
+            .with_rtl(style.direction_rtl),
+            fonts,
+        )
+    };
+
+    let content_w = if has_explicit_width {
+        if style.box_sizing == BoxSizing::BorderBox {
+            (child_w - style.padding.left - style.padding.right - style.border.horizontal_width())
+                .max(0.0)
+        } else {
+            child_w
+        }
+    } else {
+        lines
+            .iter()
+            .map(|l| {
+                l.runs
+                    .iter()
+                    .map(|r| crate::fonts::str_width(&r.text, r.font_size, &r.font_family, r.bold))
+                    .sum::<f32>()
+            })
+            .fold(0.0f32, f32::max)
+    };
+    let total_w =
+        content_w + style.padding.left + style.padding.right + style.border.horizontal_width();
+
+    let text_height: f32 = lines.iter().map(|l| l.height).sum();
+    let content_h = if child_h > 0.0 {
+        if style.box_sizing == BoxSizing::BorderBox {
+            (child_h - style.padding.top - style.padding.bottom - style.border.vertical_width())
+                .max(0.0)
+        } else {
+            child_h
+        }
+    } else {
+        text_height
+    };
+    let total_h =
+        content_h + style.padding.top + style.padding.bottom + style.border.vertical_width();
+
+    Some(InlineBox {
+        width: total_w,
+        height: total_h,
+        background_color: style.background_color.map(|c| c.to_f32_rgba()),
+        border: LayoutBorder::from_computed(&style.border),
+        border_radius: style.border_radius,
+        padding_top: style.padding.top,
+        padding_left: style.padding.left,
+        vertical_align: style.vertical_align,
+        lines,
+    })
+}
+
 pub(crate) fn collect_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
@@ -721,6 +851,7 @@ fn collect_text_runs_inner(
                             padding: pad,
                             border_radius: br,
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
+                            inline_box: None,
                         },
                         runs,
                         fonts,
@@ -745,6 +876,7 @@ fn collect_text_runs_inner(
                             padding: (0.0, 0.0),
                             border_radius: 0.0,
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
+                            inline_box: None,
                         });
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
@@ -780,6 +912,40 @@ fn collect_text_runs_inner(
                             sibling_count: nodes.len(),
                             preceding_siblings: Vec::new(),
                         });
+                        // `display: inline-block` is an atomic inline box: it
+                        // takes part in line layout with its own box geometry
+                        // rather than flowing its content as bare text. SVGs are
+                        // excluded (they need their own block layout via cm).
+                        let is_atomic_inline_block = style.display == Display::InlineBlock
+                            && el.tag != HtmlTag::Svg
+                            && !el.children.iter().any(|c| {
+                                matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Svg)
+                            });
+                        if is_atomic_inline_block {
+                            let line_height_factor = resolved_line_height_factor(parent_style, fonts);
+                            if let Some(boxed) =
+                                build_inline_box(&style, el, rules, fonts, &child_ancestors)
+                            {
+                                runs.push(TextRun {
+                                    text: String::new(),
+                                    font_size: parent_style.font_size,
+                                    bold: false,
+                                    italic: false,
+                                    underline: false,
+                                    line_through: false,
+                                    overline: false,
+                                    color: parent_style.color.to_f32_rgb(),
+                                    link_url: url.map(String::from),
+                                    font_family: resolve_style_font_family(parent_style, fonts),
+                                    background_color: None,
+                                    padding: (0.0, 0.0),
+                                    border_radius: 0.0,
+                                    line_height_factor,
+                                    inline_box: Some(Box::new(boxed)),
+                                });
+                            }
+                            continue;
+                        }
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -876,6 +1042,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                     parent_style,
                                     self.fonts,
                                 ),
+                                inline_box: None,
                             },
                             self.runs,
                             self.fonts,
@@ -940,6 +1107,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 parent_style,
                                 self.fonts,
                             ),
+                            inline_box: None,
                         });
                         continue;
                     }
@@ -977,6 +1145,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 &child_style,
                                 self.fonts,
                             ),
+                            inline_box: None,
                         });
                     }
                 }

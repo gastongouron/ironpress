@@ -248,6 +248,34 @@ pub struct TextRun {
     /// computed style. `NaN` means "unspecified" — the line-box height then
     /// falls back to the block-level line-height passed via `TextWrapOptions`.
     pub line_height_factor: f32,
+    /// Atomic inline-level box (`display: inline-block`) embedded in the line.
+    ///
+    /// When `Some`, this run is NOT text: it occupies `inline_box.width` of
+    /// horizontal advance, contributes `inline_box.height` to the line box, and
+    /// the renderer paints the box (background/border + inner text) at the
+    /// vertical position dictated by `inline_box.vertical_align`. `text` is kept
+    /// empty for such runs so the glyph pipeline ignores them.
+    pub inline_box: Option<Box<InlineBox>>,
+}
+
+/// An atomic inline-level box laid out inside a line of text, produced for
+/// `display: inline-block` elements that appear among inline text. It carries
+/// the resolved box geometry, paint properties, and pre-wrapped inner content.
+#[derive(Debug, Clone)]
+pub struct InlineBox {
+    /// Border-box width (advance the box contributes to the line).
+    pub width: f32,
+    /// Border-box height (used to grow the line box and for vertical-align).
+    pub height: f32,
+    pub background_color: Option<(f32, f32, f32, f32)>,
+    pub border: LayoutBorder,
+    pub border_radius: f32,
+    pub padding_top: f32,
+    pub padding_left: f32,
+    /// CSS `vertical-align` of the inline-block relative to the line baseline.
+    pub vertical_align: VerticalAlign,
+    /// Pre-wrapped inner text lines (empty for content-less boxes).
+    pub lines: Vec<TextLine>,
 }
 
 /// A laid-out line of text runs.
@@ -888,6 +916,7 @@ fn flatten_nodes(
                                 parent_style,
                                 env.fonts,
                             ),
+                            inline_box: None,
                         },
                         &mut text_runs,
                         env.fonts,
@@ -1128,6 +1157,7 @@ pub(crate) fn flatten_element(
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
                 line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                inline_box: None,
             }],
             height: style.font_size * resolved_line_height_factor(&style, env.fonts),
         };
@@ -1296,6 +1326,7 @@ pub(crate) fn flatten_element(
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
                     line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                    inline_box: None,
                 },
                 &mut runs,
                 env.fonts,
@@ -1455,6 +1486,7 @@ pub(crate) fn flatten_element(
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
                 line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                inline_box: None,
             },
             &mut runs,
             env.fonts,
@@ -1734,6 +1766,7 @@ pub(crate) fn flatten_element(
                         padding: (0.0, 0.0),
                         border_radius: 0.0,
                         line_height_factor: resolved_line_height_factor(ps, env.fonts),
+                        inline_box: None,
                     },
                     &mut runs,
                     env.fonts,
@@ -1785,6 +1818,7 @@ pub(crate) fn flatten_element(
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
                     line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                    inline_box: None,
                 },
                 &mut runs,
                 env.fonts,
@@ -5548,6 +5582,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -5593,6 +5628,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let lines = wrap_text_runs(
             vec![run],
@@ -5625,6 +5661,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         };
         let lines = wrap_text_runs(
             vec![run],

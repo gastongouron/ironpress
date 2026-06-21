@@ -2792,9 +2792,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.vertical_align = match k.as_str() {
             "super" => VerticalAlign::Super,
             "sub" => VerticalAlign::Sub,
-            "top" => VerticalAlign::Top,
+            // `text-top` aligns to the top of the parent's content (font) box;
+            // approximate with the line-box top, which matches closely for the
+            // single-line inline-block boxes we support.
+            "top" | "text-top" => VerticalAlign::Top,
             "middle" => VerticalAlign::Middle,
-            "bottom" => VerticalAlign::Bottom,
+            "bottom" | "text-bottom" => VerticalAlign::Bottom,
             _ => VerticalAlign::Baseline,
         };
     }

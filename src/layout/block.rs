@@ -976,7 +976,33 @@ pub(crate) fn layout_block_element(
         );
     }
 
-    let had_inline_runs = runs.iter().any(|r| !r.text.trim().is_empty()) || has_math_children;
+    let had_text_runs = runs.iter().any(|r| !r.text.trim().is_empty());
+    let has_inline_box_runs = runs.iter().any(|r| r.inline_box.is_some());
+    // Inline-block boxes that sit *amongst text* are part of the line and are
+    // laid out by the inline TextBlock path; the container must then NOT also
+    // re-run `layout_inline_block_group`. But a *visual* container whose children
+    // are only inline-blocks (no text) keeps the dedicated group path, which
+    // measures shrink-to-fit rows inside the wrapper. When there is no wrapper
+    // (a plain non-visual block), the group path never fires, so the inline-box
+    // runs must stay and render as a TextBlock.
+    let will_use_group_wrapper = has_inline_box_runs
+        && !had_text_runs
+        && (early_has_visual
+            || style.height.is_some()
+            || style.aspect_ratio.is_some()
+            || style.padding.left > 0.0
+            || style.padding.top > 0.0
+            || style.padding.right > 0.0
+            || style.padding.bottom > 0.0)
+        && nesting_depth < 40;
+    let had_inline_runs = had_text_runs
+        || (has_inline_box_runs && !will_use_group_wrapper)
+        || has_math_children;
+    if will_use_group_wrapper {
+        // Pure inline-block group inside a wrapper: drop the placeholder runs so
+        // `layout_inline_block_group` lays them out (unchanged behaviour).
+        runs.clear();
+    }
     let mut cb_info = None;
 
     // has_block_kids_for_wrapper is computed earlier (before has_math_children).

@@ -468,6 +468,7 @@ pub(crate) fn build_pseudo_block(
                 padding: (0.0, 0.0),
                 border_radius: 0.0,
                 line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+                inline_box: None,
             },
             &mut runs,
             fonts,
@@ -683,6 +684,7 @@ pub(crate) fn build_pseudo_inline_run(
         padding: (0.0, 0.0),
         border_radius: 0.0,
         line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+        inline_box: None,
     }
 }
 

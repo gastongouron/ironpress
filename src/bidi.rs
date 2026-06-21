@@ -145,6 +145,7 @@ mod tests {
             padding: (0.0, 0.0),
             border_radius: 0.0,
             line_height_factor: f32::NAN,
+            inline_box: None,
         }
     }
 
