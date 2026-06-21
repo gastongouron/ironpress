@@ -635,6 +635,7 @@ pub(crate) fn build_pseudo_block(
         visible: pseudo_style.visibility == Visibility::Visible,
         clip_rect: None,
         transform: pseudo_style.transform,
+        transform_origin: pseudo_style.transform_origin,
         border_radius: pseudo_style.border_radius,
         outline_width: pseudo_style.outline_width,
         outline_color: pseudo_style.outline_color.map(|c| c.to_f32_rgb()),

@@ -412,6 +412,40 @@ pub enum Transform {
     Matrix(f32, f32, f32, f32, f32, f32),
 }
 
+/// CSS `transform-origin`: the pivot point for an element's transform.
+///
+/// Each axis is `fraction * dimension + length`, where `fraction` resolves
+/// percentages/keywords against the box's own width/height and `length` is an
+/// absolute pixel offset. The default is the box centre (`50% 50%`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TransformOrigin {
+    pub x_fraction: f32,
+    pub x_length: f32,
+    pub y_fraction: f32,
+    pub y_length: f32,
+}
+
+impl Default for TransformOrigin {
+    fn default() -> Self {
+        Self {
+            x_fraction: 0.5,
+            x_length: 0.0,
+            y_fraction: 0.5,
+            y_length: 0.0,
+        }
+    }
+}
+
+impl TransformOrigin {
+    /// Resolve to a pixel offset from the box's top-left corner.
+    pub fn resolve(&self, width: f32, height: f32) -> (f32, f32) {
+        (
+            self.x_fraction * width + self.x_length,
+            self.y_fraction * height + self.y_length,
+        )
+    }
+}
+
 /// CSS box-sizing property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BoxSizing {
@@ -808,6 +842,8 @@ pub struct ComputedStyle {
     pub overflow: Overflow,
     pub visibility: Visibility,
     pub transform: Option<Transform>,
+    /// CSS `transform-origin` pivot (defaults to the box centre).
+    pub transform_origin: TransformOrigin,
     pub clip_path: Option<ClipPath>,
     pub grid_template_columns: Vec<GridTrack>,
     /// Explicit `grid-template-rows` track list (empty = auto rows).
@@ -995,6 +1031,7 @@ impl Default for ComputedStyle {
             overflow: Overflow::Visible,
             visibility: Visibility::Visible,
             transform: None,
+            transform_origin: TransformOrigin::default(),
             clip_path: None,
             grid_template_columns: Vec::new(),
             grid_template_rows: Vec::new(),
@@ -2687,6 +2724,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform-origin") {
+        if let Some(origin) = parse_transform_origin(k) {
+            style.transform_origin = origin;
+        }
+    }
+
     // Border-radius (single value shorthand)
     match get_non_special(map, "border-radius") {
         Some(CssValue::Length(v)) => style.border_radius = *v,
@@ -4007,6 +4050,72 @@ fn multiply_matrices(lhs: &[f32; 6], rhs: &[f32; 6]) -> [f32; 6] {
 ///
 /// Supports: rotate, scale, scaleX, scaleY, translate, translateX, translateY,
 /// skew, skewX, skewY, and chained transforms like `rotate(10deg) scale(1.1)`.
+/// Parse a single `transform-origin` axis component into
+/// `(fraction, length_px)`. `horizontal` selects which keywords are valid for
+/// disambiguating a bare `left`/`right`/`top`/`bottom`/`center`.
+fn parse_origin_component(token: &str) -> Option<(f32, f32)> {
+    let lowered = token.trim().to_ascii_lowercase();
+    let t = lowered.as_str();
+    match t {
+        "left" | "top" => Some((0.0, 0.0)),
+        "center" => Some((0.5, 0.0)),
+        "right" | "bottom" => Some((1.0, 0.0)),
+        _ => {
+            if let Some(pct) = t.strip_suffix('%') {
+                pct.trim().parse::<f32>().ok().map(|p| (p / 100.0, 0.0))
+            } else {
+                parse_length_px(t).map(|px| (0.0, px))
+            }
+        }
+    }
+}
+
+/// Parse a CSS length (px/pt/em-less absolute) token to pixels for
+/// `transform-origin`. Falls back to a bare number treated as pixels.
+fn parse_length_px(t: &str) -> Option<f32> {
+    let t = t.trim();
+    if let Some(v) = t.strip_suffix("px") {
+        v.trim().parse::<f32>().ok()
+    } else if let Some(v) = t.strip_suffix("pt") {
+        v.trim().parse::<f32>().ok().map(|pt| pt * 96.0 / 72.0)
+    } else {
+        t.parse::<f32>().ok()
+    }
+}
+
+fn parse_transform_origin(val: &str) -> Option<TransformOrigin> {
+    let val = val.trim();
+    if val.is_empty() {
+        return None;
+    }
+    let tokens: Vec<&str> = val.split_whitespace().collect();
+    // Vertical-only keywords that, when first, indicate the value order is
+    // swapped (e.g. `top left`). Otherwise the first token is the x axis.
+    let is_vertical = |s: &str| s.eq_ignore_ascii_case("top") || s.eq_ignore_ascii_case("bottom");
+    let is_horizontal =
+        |s: &str| s.eq_ignore_ascii_case("left") || s.eq_ignore_ascii_case("right");
+    let (x_tok, y_tok) = match tokens.as_slice() {
+        [a] => (*a, "center"),
+        [a, b] => {
+            if is_vertical(a) || is_horizontal(b) {
+                (*b, *a) // swapped: vertical keyword came first
+            } else {
+                (*a, *b)
+            }
+        }
+        [a, b, ..] => (*a, *b),
+        [] => return None,
+    };
+    let (x_fraction, x_length) = parse_origin_component(x_tok)?;
+    let (y_fraction, y_length) = parse_origin_component(y_tok)?;
+    Some(TransformOrigin {
+        x_fraction,
+        x_length,
+        y_fraction,
+        y_length,
+    })
+}
+
 fn parse_transform(val: &str) -> Option<Transform> {
     let val = val.trim();
     if val == "none" {

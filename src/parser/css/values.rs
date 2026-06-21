@@ -389,6 +389,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "overflow"
             | "visibility"
             | "transform"
+            | "transform-origin"
             | "filter"
             | "aspect-ratio"
             | "grid-template-columns"

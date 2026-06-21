@@ -373,6 +373,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     visible,
                     clip_rect,
                     transform,
+                    transform_origin,
                     background_gradient,
                     background_radial_gradient,
                     background_svg,
@@ -453,9 +454,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // which in PDF `cm` notation is a single 6-value matrix.
                     let needs_transform = transform.is_some();
                     if let Some(t) = transform {
-                        // Centre of the element in PDF (bottom-up) coordinates.
-                        let cx = block_x + render_width * 0.5;
-                        let cy = block_bottom + total_h * 0.5;
+                        // Resolve the transform-origin pivot (px from the box's
+                        // top-left) into PDF bottom-up coordinates.
+                        let (ox, oy) = transform_origin.resolve(render_width, total_h);
+                        let cx = block_x + ox;
+                        let cy = block_bottom + total_h - oy;
                         content.push_str("q\n");
                         push_transform_cm(&mut content, t, cx, cy);
                     }
@@ -1784,8 +1787,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Apply cell transform if set (rotate, scale, translate)
                         let cell_needs_transform = cell.transform.is_some();
                         if let Some(t) = &cell.transform {
-                            let cx = cell_x + cell.width * 0.5;
-                            let cy = text_area_top - cell_y_origin - line_cross * 0.5;
+                            let (ox, oy) = cell.transform_origin.resolve(cell.width, line_cross);
+                            let cx = cell_x + ox;
+                            let cy = text_area_top - cell_y_origin - oy;
                             content.push_str("q\n");
                             push_transform_cm(&mut content, t, cx, cy);
                         }
@@ -2679,6 +2683,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     offset_left: c_offset_left,
                     overflow: c_overflow,
                     transform: c_transform,
+                    transform_origin: c_transform_origin,
                     clip_path: c_clip_path,
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
@@ -2734,8 +2739,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // identically to text blocks / flex cells / nested boxes.
                     let c_needs_transform = c_transform.is_some();
                     if let Some(t) = c_transform {
-                        let cx = container_x + container_w * 0.5;
-                        let cy = container_y_top - total_h * 0.5;
+                        let (ox, oy) = c_transform_origin.resolve(container_w, total_h);
+                        let cx = container_x + ox;
+                        let cy = container_y_top - oy;
                         content.push_str("q\n");
                         push_transform_cm(&mut content, t, cx, cy);
                     }
@@ -4326,6 +4332,7 @@ fn render_container_children(
                 offset_top: nk_offset_top,
                 offset_left: nk_offset_left,
                 transform: nk_transform,
+                transform_origin: nk_transform_origin,
                 clip_path: nk_clip_path,
                 background_svg: nk_bg_svg,
                 background_size: nk_bg_size,
@@ -4410,8 +4417,9 @@ fn render_container_children(
                 // on nested / absolutely-positioned boxes were silently dropped.
                 let nk_needs_transform = nk_transform.is_some();
                 if let Some(t) = nk_transform {
-                    let cx = nk_x + nk_w * 0.5;
-                    let cy = nk_top_y - nk_total_h * 0.5;
+                    let (ox, oy) = nk_transform_origin.resolve(nk_w, nk_total_h);
+                    let cx = nk_x + ox;
+                    let cy = nk_top_y - oy;
                     content.push_str("q\n");
                     push_transform_cm(content, t, cx, cy);
                 }
@@ -7940,6 +7948,7 @@ mod tests {
             visible: true,
             clip_rect: None,
             transform: None,
+            transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             outline_width: 0.0,
             outline_color: None,
