@@ -13,6 +13,7 @@
 //! WORST-of-its-three-axes == `verdict.rs`'s single status by construction (see
 //! `raster.rs` for the equivalence argument, `goldens.rs` for the proof).
 
+use super::super::config::FLOOR_PRESENCE_PCT;
 use super::super::report::Status;
 use super::{Concern, Disagreement, SubVerdict, VerifierKind};
 
@@ -93,6 +94,16 @@ pub(crate) fn combine(subs: &[SubVerdict]) -> CombinedVerdict {
         v
     };
 
+    // The floor-forgiveness PROOF: PdfGeometry has measured EVERY committed Chrome
+    // box exact (Geometry=Pass within GEOM_TOL_PT). When present, a small residual
+    // RasterDiff Appearance/Presence PARTIAL is the cross-rasterizer edge floor at
+    // those VERIFIED boxes, not a real defect (§1.x / config FLOOR_* bounds).
+    let pdf_geom_exact = subs.iter().any(|s| {
+        s.verifier == VerifierKind::PdfGeometry
+            && s.concern == Concern::Geometry
+            && s.status == Status::Pass
+    });
+
     let mut per_concern: Vec<PerConcern> = Vec::new();
     let mut disagreements: Vec<Disagreement> = Vec::new();
     // Start from the worst *known* axis status; Unknown axes are excluded (mirrors
@@ -149,6 +160,53 @@ pub(crate) fn combine(subs: &[SubVerdict]) -> CombinedVerdict {
                     note: format!("vector FAIL capped to PARTIAL (image not broken): {note}"),
                 });
                 auth_status = Status::Partial;
+            }
+        }
+
+        // Floor-forgiveness (§1.x): once PdfGeometry has PROVEN the geometry exact,
+        // a SMALL RasterDiff PRESENCE PARTIAL is the cross-rasterizer edge floor at
+        // the verified box borders (Chrome and resvg cover slightly different pixels
+        // along a 2px border ⇒ ~0.5-0.8% missing/extra), not a real defect. Temper
+        // it to PASS, bounded by `config::FLOOR_PRESENCE_PCT` and PARTIAL-only.
+        //
+        // APPEARANCE is deliberately NOT forgiven: a real clip/fill difference at a
+        // box boundary (e.g. overflow clipped at the border box vs Chrome's padding
+        // box) shows up as a SMALL edge-band ColorErr indistinguishable by magnitude
+        // from genuine border-AA — and PdfGeometry verifies box rects, NOT clip
+        // regions or fill content. So Appearance must PASS on its own; only the
+        // coverage (Presence) floor is forgiven. The discrepancy is still surfaced.
+        if pdf_geom_exact
+            && owner == VerifierKind::RasterDiff
+            && auth_status == Status::Partial
+        {
+            let floor = match concern {
+                Concern::Presence => Some(FLOOR_PRESENCE_PCT),
+                Concern::Appearance | Concern::Geometry => None,
+            };
+            if let Some(bound) = floor {
+                let mag = subs
+                    .iter()
+                    .find(|s| s.concern == concern && s.verifier == owner)
+                    .map(|s| s.magnitude)
+                    .unwrap_or(f64::INFINITY);
+                if mag <= bound {
+                    let note = subs
+                        .iter()
+                        .find(|s| s.concern == concern && s.verifier == owner)
+                        .map(|s| s.headline.clone())
+                        .unwrap_or_default();
+                    disagreements.push(Disagreement {
+                        concern,
+                        authoritative: Status::Pass,
+                        authoritative_by: VerifierKind::PdfGeometry,
+                        challenger: auth_status,
+                        challenger_by: VerifierKind::RasterDiff,
+                        note: format!(
+                            "edge floor forgiven to PASS (geometry vector-exact, {mag:.2} <= {bound:.1}): {note}"
+                        ),
+                    });
+                    auth_status = Status::Pass;
+                }
             }
         }
 

@@ -7,9 +7,9 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 54.35,
-    "pass": 166,
-    "partial": 43,
+    "score_pct": 55.51,
+    "pass": 174,
+    "partial": 35,
     "fail": 136,
     "unknown": 1,
     "total": 346,
@@ -15045,20 +15045,20 @@
     },
     {
       "category": "flexbox",
-      "score_pct": 40.63,
+      "score_pct": 65.63,
       "counts": {
-        "pass": 0,
-        "partial": 13,
+        "pass": 8,
+        "partial": 5,
         "fail": 3,
         "unknown": 0
       },
       "features": [
         {
           "feature": "align-items",
-          "score_pct": 50.0,
+          "score_pct": 75.0,
           "counts": {
-            "pass": 0,
-            "partial": 2,
+            "pass": 1,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -15070,7 +15070,7 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 2.2664,
               "weight": 1.0,
               "description": "align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.",
@@ -15081,7 +15081,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2458b9461d81093db3010823a3b58acfca3c78219b08fc35a455b336ae204571",
               "diagnosis": {
                 "primary_class": "GeometrySize",
@@ -15331,6 +15331,14 @@
                   "challenger": "PARTIAL",
                   "challenger_by": "RasterDiff",
                   "note": "raster geometry: edge 1.28css shift 0.00css"
+                },
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.63 <= 1.5): raster presence: missing 0.00% extra 0.63%"
                 }
               ]
             },
@@ -15566,16 +15574,25 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.50 <= 1.5): raster presence: missing 0.00% extra 0.50%"
+                }
+              ]
             }
           ]
         },
         {
           "feature": "align-self",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -15587,7 +15604,7 @@
               "subfeature": "flex-end",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 2.2441,
               "weight": 1.0,
               "description": "align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.",
@@ -15598,7 +15615,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "5d3f993564a7981a6454b9cbc217dabedc00b36377b22c5978703e4193a711c7",
               "diagnosis": {
                 "primary_class": "GeometrySize",
@@ -15848,6 +15865,14 @@
                   "challenger": "PARTIAL",
                   "challenger_by": "RasterDiff",
                   "note": "raster geometry: edge 1.28css shift 0.00css"
+                },
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.63 <= 1.5): raster presence: missing 0.00% extra 0.63%"
                 }
               ]
             }
@@ -16139,10 +16164,10 @@
         },
         {
           "feature": "flex-basis",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -16154,7 +16179,7 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.2891,
               "weight": 1.0,
               "description": "flex-basis sets explicit main-size for non-growing non-shrinking boxes (60/160/100px).",
@@ -16165,7 +16190,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3836ebf16d31428e691cdc953a023d2690a6ab5dbaedf39ceea7dc9f434ec757",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -16408,7 +16433,16 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             }
           ]
         },
@@ -17207,7 +17241,16 @@
                   "magnitude": 0.2500000000000142
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.78 <= 1.5): raster presence: missing 0.00% extra 0.78%"
+                }
+              ]
             }
           ]
         },
@@ -17489,10 +17532,10 @@
         },
         {
           "feature": "gap",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -17504,7 +17547,7 @@
               "subfeature": "fixed",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.5254,
               "weight": 1.0,
               "description": "gap:24px inserts a fixed 24px gap between adjacent flex items on the main axis.",
@@ -17515,7 +17558,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "0210372c968e7c88e9a036494e6b24c4168012be9b4cc9911a69653f559b8f40",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -17758,16 +17801,25 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             }
           ]
         },
         {
           "feature": "justify-content",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 3,
+            "pass": 3,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -17779,7 +17831,7 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.3097,
               "weight": 1.0,
               "description": "justify-content:center groups items centered on the main axis with equal leftover space on both sides.",
@@ -17790,7 +17842,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "82db37711f13a6ad5348f74236d578450c86e999ea3deb9cc7b2880069697511",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -18033,7 +18085,16 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             },
             {
               "id": "flexbox-justify-content-space-around",
@@ -18042,7 +18103,7 @@
               "subfeature": "space-around",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.6279,
               "weight": 1.0,
               "description": "justify-content:space-around distributes items with equal space around each, so edge gaps are half the inner gaps.",
@@ -18053,7 +18114,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3c7a3963b746e439d9f528237777d0153d1487ce743a53596175886285620c17",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -18296,7 +18357,16 @@
                   "magnitude": 0.25
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             },
             {
               "id": "flexbox-justify-content-space-between",
@@ -18305,7 +18375,7 @@
               "subfeature": "space-between",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.4712,
               "weight": 1.0,
               "description": "justify-content:space-between pins first and last boxes to the edges with equal gaps between.",
@@ -18316,7 +18386,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "d5fb72f21364be9d7cae1936dd342b6a2a5bc73ec6390a538fbba34ef22ee872",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -18559,7 +18629,16 @@
                   "magnitude": 7.105427357601002e-15
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             }
           ]
         },
@@ -19036,10 +19115,10 @@
         },
         {
           "feature": "order",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -19051,7 +19130,7 @@
               "subfeature": "reorder",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 3.1634,
               "weight": 1.0,
               "description": "order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.",
@@ -19062,7 +19141,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c02f71c124084e83414f1c1ede43b07de6bfd169decd12833d342a1e871b3c84",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -19305,7 +19384,16 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 0.72 <= 1.5): raster presence: missing 0.00% extra 0.72%"
+                }
+              ]
             }
           ]
         }
@@ -38089,7 +38177,16 @@
                   "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Presence",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "edge floor forgiven to PASS (geometry vector-exact, 1.29 <= 1.5): raster presence: missing 0.00% extra 1.29%"
+                }
+              ]
             }
           ]
         },
@@ -73246,15 +73343,6 @@
       "id": "flexbox-flex-wrap",
       "feature": "flex-wrap",
       "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "flexbox-wrap-x-gap"
-      ]
-    },
-    {
-      "id": "flexbox-gap",
-      "feature": "gap",
-      "status": "PARTIAL",
       "confounded_count": 1,
       "confounded_ids": [
         "flexbox-wrap-x-gap"

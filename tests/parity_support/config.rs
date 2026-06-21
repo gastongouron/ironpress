@@ -108,6 +108,20 @@ pub(crate) const COLOR_DE_PASS: f64 = 2.5;
 /// ΔE2000: at/above this is a hard colour failure regardless of area.
 pub(crate) const COLOR_DE_FAIL: f64 = 6.0;
 
+// --- floor-forgiveness (combine.rs §1.x) -----------------------------------
+// When `PdfGeometry` has PROVEN a fixture's geometry exact (Geometry=Pass — every
+// committed Chrome box matched within `GEOM_TOL_PT`), a SMALL residual RasterDiff
+// PRESENCE PARTIAL is the cross-rasterizer edge floor: border coverage differences
+// where Chrome and resvg paint slightly different pixels along a 2px box border
+// (~0.5-0.8% missing/extra), not a real defect. Only Presence is forgiven —
+// Appearance is NOT, because a real clip/fill difference at a box boundary is a
+// small edge-band ColorErr indistinguishable by magnitude from genuine border AA,
+// and PdfGeometry verifies box rects, not clip regions or fills. PARTIAL-only,
+// never FAIL; well below the PARTIAL→FAIL bound (6.0).
+/// Max RasterDiff Presence missing/extra (%) forgiven to PASS under a PdfGeometry
+/// geometry proof. Box-edge coverage AA floor measured ≤ ~0.8%.
+pub(crate) const FLOOR_PRESENCE_PCT: f64 = 1.5;
+
 // ===========================================================================
 // PDF-GEOMETRY VERIFIER CONSTANTS (spec §2.3 / Phase 2a)
 // ===========================================================================
