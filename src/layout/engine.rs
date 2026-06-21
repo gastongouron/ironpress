@@ -1822,7 +1822,17 @@ pub(crate) fn flatten_element(
                 None => 0.0,
             }
         };
-        if !marker.is_empty() {
+        // For `list-style-position: outside` (the default) the marker must HANG
+        // to the left of the li content edge, sitting inside the ul's padding
+        // band, while the li text starts AT the content edge. We render the
+        // marker as the first run(s) of the first line, then shift only the
+        // first line left by the marker's measured width via a negative
+        // text-indent, so the marker lands in the padding and the following text
+        // lands at the content edge. For `inside`, the marker stays inline and
+        // pushes the text (no hang).
+        let has_marker = !marker.is_empty();
+        let marker_run_start = runs.len();
+        if has_marker {
             push_text_run_with_fallback(
                 TextRun {
                     text: marker,
@@ -1845,6 +1855,11 @@ pub(crate) fn flatten_element(
                 env.fonts,
             );
         }
+        let marker_hang = if has_marker && style.list_style_position == ListStylePosition::Outside {
+            measure_runs_width(&runs[marker_run_start..], env.fonts)
+        } else {
+            0.0
+        };
 
         let runs_before_inline = runs.len();
         collect_text_runs(
@@ -1928,7 +1943,10 @@ pub(crate) fn flatten_element(
                 border_radius: style.border_radius,
                 outline_width: style.outline_width,
                 outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
-                text_indent: style.text_indent,
+                // Hang an `outside` marker into the padding by pulling the first
+                // line (which carries the marker) left by the marker width; any
+                // author `text-indent` still applies additively on top.
+                text_indent: style.text_indent - marker_hang,
                 letter_spacing: style.letter_spacing,
                 word_spacing: style.word_spacing,
                 vertical_align: style.vertical_align,

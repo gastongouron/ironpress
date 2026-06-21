@@ -87,6 +87,10 @@ pub(super) struct CellTextPlacement {
     cell_x: f32,
     content_top: f32,
     col_width: f32,
+    /// Extra horizontal offset applied to the FIRST rendered line only (CSS
+    /// `text-indent`). Negative values pull the first line left, used to hang a
+    /// list marker into the surrounding padding.
+    first_line_indent: f32,
 }
 
 impl CellTextPlacement {
@@ -95,7 +99,13 @@ impl CellTextPlacement {
             cell_x,
             content_top,
             col_width,
+            first_line_indent: 0.0,
         }
+    }
+
+    pub(super) const fn with_first_line_indent(mut self, first_line_indent: f32) -> Self {
+        self.first_line_indent = first_line_indent;
+        self
     }
 }
 
@@ -149,6 +159,9 @@ pub(super) struct NestedTextBlock<'a> {
     pub(super) background_origin: BackgroundOrigin,
     pub(super) background_blur_canvas_box: Option<SvgViewportBox>,
     pub(super) border_radius: f32,
+    /// CSS `text-indent` applied to the first line only. List items use a
+    /// negative value here to hang an `outside` marker into the padding band.
+    pub(super) text_indent: f32,
 }
 
 /// Compute the height of a table row from its cells.
@@ -228,6 +241,7 @@ pub(super) fn render_cell_text(
 ) {
     let cell_inner_w = placement.col_width - cell.padding_left - cell.padding_right;
     let mut text_y = placement.content_top;
+    let mut first_drawn_line = true;
     for line in &cell.lines {
         let metrics = line_box_metrics(line, ctx.custom_fonts);
         text_y -= metrics.half_leading + metrics.ascender;
@@ -239,6 +253,16 @@ pub(super) fn render_cell_text(
         if text_content.is_empty() {
             continue;
         }
+        // CSS `text-indent` shifts the start of the first rendered line. List
+        // items pass a negative value so an `outside` marker (the first run)
+        // hangs left into the padding while the following text lands at the
+        // content edge.
+        let first_line_indent = if first_drawn_line {
+            placement.first_line_indent
+        } else {
+            0.0
+        };
+        first_drawn_line = false;
         let merged = merge_runs(&line.runs);
         let line_width: f32 = merged
             .iter()
@@ -251,7 +275,7 @@ pub(super) fn render_cell_text(
             TextAlign::Center => {
                 placement.cell_x + cell.padding_left + ((cell_inner_w - line_width) / 2.0).max(0.0)
             }
-            _ => placement.cell_x + cell.padding_left,
+            _ => placement.cell_x + cell.padding_left + first_line_indent,
         };
         let mut x = text_x;
         for run in &merged {
@@ -542,7 +566,8 @@ pub(super) fn render_nested_text_block(
                 frame.origin_x,
                 frame.top_y - block.padding_top,
                 render_width,
-            ),
+            )
+            .with_first_line_indent(block.text_indent),
             &mut ctx.text,
         );
     }
@@ -718,6 +743,7 @@ pub(super) fn render_nested_layout_elements(
                 background_position,
                 background_repeat,
                 background_origin,
+                text_indent,
                 ..
             } => {
                 render_nested_text_block(
@@ -742,6 +768,7 @@ pub(super) fn render_nested_layout_elements(
                         background_origin: *background_origin,
                         background_blur_canvas_box: planned_element.blur_canvas_box,
                         border_radius: *border_radius,
+                        text_indent: *text_indent,
                     },
                     NestedLayoutFrame::new(
                         planned_element.origin_x,
@@ -813,6 +840,7 @@ pub(super) fn render_nested_layout_elements(
                         background_origin: *background_origin,
                         background_blur_canvas_box: planned_element.blur_canvas_box,
                         border_radius: *border_radius,
+                        text_indent: 0.0,
                     },
                     NestedLayoutFrame::new(
                         planned_element.origin_x,

@@ -4074,6 +4074,7 @@ fn render_container_children(
                 background_blend_mode: tb_bg_blend,
                 block_width: tb_block_width,
                 clip_rect: tb_clip_rect,
+                text_indent: tb_text_indent,
                 ..
             } => {
                 // Absolute-positioned children render at offset from the
@@ -4386,6 +4387,7 @@ fn render_container_children(
 
                 // Draw child text
                 let mut text_y = render_y - padding_top;
+                let mut tb_first_line = true;
                 for line in lines {
                     let metrics = line_box_metrics(line, custom_fonts);
                     text_y -= metrics.half_leading + metrics.ascender;
@@ -4394,6 +4396,12 @@ fn render_container_children(
                         .iter()
                         .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
                         .sum();
+                    // CSS `text-indent` shifts only the first line's start. List
+                    // items pass a negative value so an `outside` marker (the
+                    // leading run) hangs left into the padding while the text
+                    // lands at the content edge.
+                    let first_line_indent = if tb_first_line { *tb_text_indent } else { 0.0 };
+                    tb_first_line = false;
                     // Horizontal padding insets the text from the border-box edge.
                     // `render_x`/`render_w` are the border box; the content box is
                     // `render_x + padding_left` wide by
@@ -4407,7 +4415,7 @@ fn render_container_children(
                     let text_x = match text_align {
                         TextAlign::Right => content_x + (content_w - line_width).max(0.0),
                         TextAlign::Center => content_x + (content_w - line_width).max(0.0) / 2.0,
-                        _ => content_x,
+                        _ => content_x + first_line_indent,
                     };
                     let mut lx = text_x;
                     for run in &merged {
@@ -10589,6 +10597,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
             &mut without_padding_context,
@@ -10629,6 +10638,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
             &mut with_padding_context,
@@ -11788,6 +11798,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 8.0, // Triggers rounded rect path
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
             &mut ctx,
@@ -11877,6 +11888,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
             &mut ctx,
@@ -11957,6 +11969,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 80.0),
             &mut ctx,
@@ -12061,6 +12074,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
             &mut ctx,
@@ -12144,6 +12158,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Content,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
             &mut ctx,
@@ -12201,6 +12216,7 @@ mod tests {
                 background_origin: BackgroundOrigin::Padding,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
+                text_indent: 0.0,
             },
             NestedLayoutFrame::new(10.0, 100.0, 10.0, 100.0, 100.0),
             &mut ctx,

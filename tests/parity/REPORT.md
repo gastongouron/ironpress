@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 62.90%  (PASS 191 · PARTIAL 52 · FAIL 102 · UNKNOWN 1 · total 346)
+Overall: 64.06%  (PASS 194 · PARTIAL 54 · FAIL 97 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -69,11 +69,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Extra | 41.17 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) GENUINE: both bases PASS, interaction FAILs | transforms-rotate-x-flexbox-item | extra paint where Chrome is blank (8.7%) |
 | FAIL | REAL | ColorValue | 9.00 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-72) (ΔE 75.8) |
 | FAIL | REAL | ColorValue | 12.05 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+12,+13,+13) (ΔE 84.6) |
-| FAIL | REAL | Extra | 30.34 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
-| FAIL | REAL | GeometryShift | 7.47 | lists-counters | list-style-type | decimal | list-style-type-decimal | content shifted (0.0,0.5)px beyond page-origin calibration |
-| FAIL | REAL | GeometryShift | 7.48 | lists-counters | list-style-type | disc | list-style-type-disc | content shifted (0.0,0.6)px beyond page-origin calibration |
-| FAIL | REAL | ColorValue | 8.36 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(-8,-8,-7) (ΔE 84.8) |
-| FAIL | REAL | ColorValue | 7.83 | lists-counters | list-style-type | upper-roman | list-style-type-upper-roman | fill recolour ΔRGB(+9,+8,+9) (ΔE 82.9) |
+| FAIL | REAL | Extra | 26.21 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
 | FAIL | REAL | ColorValue | 7.10 | overflow-clipping | overflow | hidden-with-border-radius | overflow-hidden-border-radius | fill recolour ΔRGB(+69,+21,+15) (ΔE 14.9) |
 | FAIL | REAL | ColorValue | 4.50 | overflow-clipping | overflow | hidden | overflow-hidden-clip | fill recolour ΔRGB(+15,+76,+98) (ΔE 27.7) |
 | FAIL | REAL | ColorValue | 2.26 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | fill recolour ΔRGB(+8,+62,+52) (ΔE 22.5) |
@@ -129,7 +125,7 @@ None — every fixture's HTML matches `refs.lock`.
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 50.00% | 4 | 8 | 4 | 0 |
 | interactions | 25.00% | 5 | 1 | 16 | 0 |
-| lists-counters | 16.67% | 1 | 2 | 9 | 0 |
+| lists-counters | 50.00% | 4 | 4 | 4 | 0 |
 | multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 10.00% | 1 | 0 | 9 | 0 |
 | paged-media | 72.22% | 6 | 1 | 2 | 0 |
@@ -210,8 +206,8 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
 | partial | PARTIAL | 5.11 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
 | unsupported | PARTIAL | 3.72 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
-| unsupported | FAIL | 12.00 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
-| unsupported | FAIL | 12.21 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
+| unsupported | FAIL | 6.93 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
+| unsupported | PARTIAL | 6.40 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
 | unsupported | PASS | 1.29 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
 | partial | FAIL | 18.82 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 1.10 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
@@ -610,24 +606,24 @@ None — every fixture's HTML matches `refs.lock`.
 - **z-index-x-transforms** — 100.00%
   - PASS 0.93% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 16.67%
+### lists-counters — 50.00%
 - **counters** — 33.33%
   - PARTIAL 5.11% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
   - FAIL 9.00% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
   - PARTIAL 3.72% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
 - **list-style-image** — 0.00%
-  - FAIL 12.00% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
+  - FAIL 6.93% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
 - **list-style-position** — 0.00%
   - FAIL 12.05% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
-  - FAIL 30.34% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
-- **list-style-type** — 20.00%
-  - FAIL 7.47% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
-  - FAIL 7.48% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
-  - FAIL 8.36% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
+  - FAIL 26.21% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
+- **list-style-type** — 90.00%
+  - PASS 3.84% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
+  - PARTIAL 4.05% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
+  - PASS 4.38% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
   - PASS 4.61% list-style-type=none — `list-style-type-none` — Unordered list with markers suppressed via list-style-type:none.
-  - FAIL 7.83% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
-- **marker-pseudo** — 0.00%
-  - FAIL 12.21% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
+  - PASS 3.70% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
+- **marker-pseudo** — 50.00%
+  - PARTIAL 6.40% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
 ### multicol — 62.50%
 - **break-inside** — 100.00%
