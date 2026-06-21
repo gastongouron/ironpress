@@ -427,6 +427,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "white-space"
             | "overflow-wrap"
             | "word-wrap"
+            | "word-break"
             | "text-transform"
             | "direction"
             | "object-fit"

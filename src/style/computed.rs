@@ -2862,6 +2862,16 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => OverflowWrap::Normal,
         };
     }
+    // `word-break: break-all` permits a break between any two characters so a
+    // long unbreakable run fills each line and wraps within the box. We map it
+    // onto the same per-character split path the wrapper uses for
+    // `overflow-wrap: anywhere`; the visual line-breaking is equivalent for
+    // print output. (`keep-all` / `normal` leave the default behavior.)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "word-break") {
+        if k == "break-all" && style.overflow_wrap == OverflowWrap::Normal {
+            style.overflow_wrap = OverflowWrap::Anywhere;
+        }
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-collapse") {
         style.border_collapse = match k.as_str() {
             "collapse" => BorderCollapse::Collapse,
@@ -7961,6 +7971,24 @@ mod tests {
     fn word_wrap_alias_parsed() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("word-wrap: break-word"), &parent);
+        assert_eq!(s.overflow_wrap, OverflowWrap::BreakWord);
+    }
+
+    #[test]
+    fn word_break_break_all_enables_per_char_wrapping() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("word-break: break-all"), &parent);
+        assert_eq!(s.overflow_wrap, OverflowWrap::Anywhere);
+    }
+
+    #[test]
+    fn word_break_does_not_override_explicit_overflow_wrap() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("overflow-wrap: break-word; word-break: break-all"),
+            &parent,
+        );
         assert_eq!(s.overflow_wrap, OverflowWrap::BreakWord);
     }
 
