@@ -4859,6 +4859,7 @@ fn render_container_children(
                 margin_bottom: flex_mb,
                 background_color,
                 border,
+                border_radius: flex_border_radius,
                 container_width,
                 padding_top: flex_pt,
                 padding_left: flex_pl,
@@ -4895,6 +4896,134 @@ fn render_container_children(
                     ));
                     if needs_alpha {
                         content.push_str("/GSDefault gs\n");
+                    }
+                }
+
+                // Draw the flex container's own border. Mirrors the top-level
+                // FlexRow arm; the nested arm previously painted the background
+                // but never the container border, so a bordered flex box nested
+                // inside a block lost its frame entirely.
+                if border.has_any() {
+                    let bx = x;
+                    let by = y - row_h;
+                    let uniform = border.top.width == border.right.width
+                        && border.top.width == border.bottom.width
+                        && border.top.width == border.left.width
+                        && border.top.color == border.right.color
+                        && border.top.color == border.bottom.color
+                        && border.top.color == border.left.color
+                        && border.top.style == border.right.style
+                        && border.top.style == border.bottom.style
+                        && border.top.style == border.left.style;
+                    if uniform && *flex_border_radius > 0.0 {
+                        let (r, g, b) = border.top.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.top.alpha,
+                        );
+                        content.push_str(dash_pattern_for_style(border.top.style));
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n",
+                            bw = border.top.width
+                        ));
+                        content.push_str(&rounded_rect_path(
+                            bx,
+                            by,
+                            flex_w,
+                            row_h,
+                            *flex_border_radius,
+                        ));
+                        content.push_str("S\n");
+                        content.push_str(reset_dash_pattern(border.top.style));
+                        end_border_alpha(content, a);
+                    } else if uniform {
+                        let (r, g, b) = border.top.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.top.alpha,
+                        );
+                        content.push_str(dash_pattern_for_style(border.top.style));
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
+                            bw = border.top.width,
+                            w = flex_w,
+                            h = row_h,
+                        ));
+                        content.push_str(reset_dash_pattern(border.top.style));
+                        end_border_alpha(content, a);
+                    } else {
+                        let x1 = bx;
+                        let x2 = bx + flex_w;
+                        let y_top = y;
+                        let y_bottom = by;
+                        if border.top.width > 0.0 {
+                            let (r, g, b) = border.top.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.top.alpha,
+                            );
+                            content.push_str(dash_pattern_for_style(border.top.style));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
+                                border.top.width
+                            ));
+                            content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.right.width > 0.0 {
+                            let (r, g, b) = border.right.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.right.alpha,
+                            );
+                            content.push_str(dash_pattern_for_style(border.right.style));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
+                                border.right.width
+                            ));
+                            content.push_str(reset_dash_pattern(border.right.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.bottom.width > 0.0 {
+                            let (r, g, b) = border.bottom.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.bottom.alpha,
+                            );
+                            content.push_str(dash_pattern_for_style(border.bottom.style));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
+                                border.bottom.width
+                            ));
+                            content.push_str(reset_dash_pattern(border.bottom.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.left.width > 0.0 {
+                            let (r, g, b) = border.left.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.left.alpha,
+                            );
+                            content.push_str(dash_pattern_for_style(border.left.style));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
+                                border.left.width
+                            ));
+                            content.push_str(reset_dash_pattern(border.left.style));
+                            end_border_alpha(content, a);
+                        }
                     }
                 }
 
