@@ -16,7 +16,7 @@ use crate::render::shading::{
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BorderCollapse, BorderStyle, Float, FontFamily, LinearGradient, Overflow, Position,
+    BorderCollapse, BorderStyle, Clear, Float, FontFamily, LinearGradient, Overflow, Position,
     RadialGradient, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
@@ -3831,6 +3831,31 @@ fn collapsed_margin_top_extra(margin_top: f32, prev_margin_bottom: f32) -> f32 {
     collapsed - prev_margin_bottom
 }
 
+/// Apply CSS `clear` to a flow cursor (PDF y, where down = smaller y). Pushes
+/// the cursor down to the bottom of the relevant float(s) when it currently sits
+/// above them, and breaks the margin-collapse chain (clearance is not a margin).
+/// `left_bottom` / `right_bottom` are the lowest float bottoms per side in PDF y.
+fn clear_cursor(
+    cursor_y: f32,
+    clear: Clear,
+    left_bottom: f32,
+    right_bottom: f32,
+    prev_margin_bottom: &mut f32,
+) -> f32 {
+    let clear_to = match clear {
+        Clear::Left => left_bottom,
+        Clear::Right => right_bottom,
+        Clear::Both => left_bottom.min(right_bottom),
+        Clear::None => return cursor_y,
+    };
+    if clear_to < cursor_y {
+        *prev_margin_bottom = 0.0;
+        clear_to
+    } else {
+        cursor_y
+    }
+}
+
 /// How a child participates in adjacent-sibling vertical margin collapse,
 /// mirroring the per-arm handling in `render_container_children`.
 enum CollapseRole {
@@ -3909,6 +3934,16 @@ fn collapse_role(element: &LayoutElement) -> CollapseRole {
 /// subtracts the collapse "savings" between consecutive in-flow siblings so a
 /// container's painted height matches the collapsed flow.
 fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
+    // When any direct child floats, the auto content height excludes the floats
+    // (they don't stretch the box) but includes any `clear` gap. Delegate to the
+    // shared flow simulator so the painted box matches the measured height. The
+    // plain (no-float) accumulation below is kept identical to avoid regressions.
+    if children
+        .iter()
+        .any(|c| crate::layout::paginate::element_float(c) != Float::None)
+    {
+        return crate::layout::paginate::simulate_block_flow(children).height;
+    }
     let mut total = 0.0f32;
     let mut prev_mb: Option<f32> = None;
     for child in children {
@@ -3949,17 +3984,28 @@ fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
 fn child_paint_order(element: &LayoutElement) -> (u8, i32) {
     match element {
         LayoutElement::TextBlock {
-            position, z_index, ..
+            position,
+            z_index,
+            float,
+            ..
         }
         | LayoutElement::Container {
-            position, z_index, ..
+            position,
+            z_index,
+            float,
+            ..
         } => {
-            // Only out-of-flow (absolute) siblings are safe to reorder for paint
-            // without disturbing in-flow cursor advancement: they take no flow
-            // space and are positioned from the fixed container top. In-flow
-            // children (static / relative / float) stay in source order.
+            // CSS stacking layers: in-flow / non-positioned content paints first
+            // (layer 0, kept in source order by a stable sort), then floats
+            // (layer 1, so a float paints over the in-flow block it overlaps),
+            // then out-of-flow absolutely-positioned boxes (layer 2, ordered by
+            // ascending z-index). Float positions are precomputed before the
+            // paint loop, so moving floats to paint last does not disturb the
+            // in-flow flow cursor.
             if *position == Position::Absolute {
-                (1, *z_index)
+                (2, *z_index)
+            } else if *float != Float::None {
+                (1, 0)
             } else {
                 (0, 0)
             }
@@ -4006,22 +4052,48 @@ fn render_container_children(
     // do not participate in collapse.
     let mut prev_margin_bottom: f32 = 0.0;
 
-    // Paint children in CSS stacking order: in-flow / non-positioned content
-    // first (kept in source order), then absolutely-positioned siblings sorted
-    // by ascending z-index. A *stable* sort preserves source order for ties and,
-    // critically, for all in-flow children — so flow-cursor advancement below is
-    // identical to iterating `children` directly. Only the paint order of
-    // out-of-flow absolute boxes (which consume no flow space) changes.
-    let needs_reorder = children.iter().any(|c| child_paint_order(c) != (0, 0));
-    let paint_order: Vec<&LayoutElement> = if needs_reorder {
-        let mut ordered: Vec<&LayoutElement> = children.iter().collect();
-        ordered.sort_by_key(|c| child_paint_order(c));
-        ordered
+    // Simplified CSS floats: precompute each floated child's top (relative to the
+    // content-box top) and per-side running bottoms via the shared flow
+    // simulator, keyed by source index. Floats are removed from normal flow — the
+    // cursor below does not advance for them — but in-flow blocks with `clear`
+    // are pushed below the relevant float bottoms. Only computed when a child
+    // actually floats, so the common case pays nothing.
+    let has_floats = children
+        .iter()
+        .any(|c| crate::layout::paginate::element_float(c) != Float::None);
+    let (float_top_by_index, left_float_bottom, right_float_bottom) = if has_floats {
+        let flow = crate::layout::paginate::simulate_block_flow(children);
+        let tops: HashMap<usize, f32> = flow.floats.iter().map(|f| (f.index, f.top)).collect();
+        // Float bottoms in PDF y (down = smaller y) for `clear`. Floats always
+        // precede the blocks that clear them in source order, so the per-side
+        // totals from the simulator are exactly what those blocks must clear.
+        (
+            tops,
+            container_top_y - flow.left_float_bottom,
+            container_top_y - flow.right_float_bottom,
+        )
     } else {
-        children.iter().collect()
+        (HashMap::new(), container_top_y, container_top_y)
     };
 
-    for child in paint_order {
+    // Paint children in CSS stacking order: in-flow / non-positioned content
+    // first (kept in source order), then floats (so they paint over the in-flow
+    // block they overlap), then absolutely-positioned siblings sorted by
+    // ascending z-index. A *stable* sort preserves source order for ties and,
+    // critically, for all in-flow children — so flow-cursor advancement below is
+    // identical to iterating `children` directly. Floats and absolute boxes are
+    // placed from precomputed/fixed positions, so reordering their paint does not
+    // disturb the flow cursor.
+    let needs_reorder = children.iter().any(|c| child_paint_order(c) != (0, 0));
+    let paint_order: Vec<(usize, &LayoutElement)> = if needs_reorder {
+        let mut ordered: Vec<(usize, &LayoutElement)> = children.iter().enumerate().collect();
+        ordered.sort_by_key(|(_, c)| child_paint_order(c));
+        ordered
+    } else {
+        children.iter().enumerate().collect()
+    };
+
+    for (child_index, child) in paint_order {
         let handled_by_nested = matches!(
             child,
             LayoutElement::TableRow { .. } | LayoutElement::GridRow { .. }
@@ -4066,6 +4138,7 @@ fn render_container_children(
                 background_radial_gradient: tb_bg_radial,
                 text_align,
                 float: tb_float,
+                clear: tb_clear,
                 position,
                 offset_top,
                 offset_left,
@@ -4178,14 +4251,30 @@ fn render_container_children(
                     continue;
                 }
 
-                // Collapse this block's margin-top against the previous in-flow
-                // sibling's margin-bottom (only floats are out of flow here).
-                if *tb_float == Float::None {
-                    cursor_y -= collapsed_margin_top_extra(*margin_top, prev_margin_bottom);
+                // A floated block is out of normal flow: it is pinned at its
+                // precomputed top (the flow cursor at its source position) and
+                // does NOT advance `cursor_y`. An in-flow block collapses its
+                // margin-top with the previous sibling, after first clearing any
+                // floats it must drop below.
+                let is_float = *tb_float != Float::None;
+                if is_float {
+                    // Place the float from the shared simulator's top so its
+                    // paint position (it paints last) matches the flow.
+                    let rel_top = float_top_by_index.get(&child_index).copied().unwrap_or(0.0);
+                    y = container_top_y - rel_top;
                 } else {
-                    cursor_y -= margin_top;
+                    if *tb_clear != Clear::None {
+                        cursor_y = clear_cursor(
+                            cursor_y,
+                            *tb_clear,
+                            left_float_bottom,
+                            right_float_bottom,
+                            &mut prev_margin_bottom,
+                        );
+                    }
+                    cursor_y -= collapsed_margin_top_extra(*margin_top, prev_margin_bottom);
+                    y = cursor_y;
                 }
-                y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();
                 // `block_height` is a *padding-box* height (TextBlock convention),
                 // so the painted border box adds the border on top. Compute the
@@ -4432,12 +4521,20 @@ fn render_container_children(
                     }
                     text_y -= metrics.descender + metrics.half_leading;
                 }
-                cursor_y -= child_h;
-                y = cursor_y;
-                // This arm never subtracts margin-bottom from the cursor, so a
-                // following sibling has nothing already-subtracted to collapse
-                // against (its margin-top applies in full).
-                prev_margin_bottom = 0.0;
+                if is_float {
+                    // A float does not advance the flow cursor (its bottom is
+                    // already tracked via the simulator for `clear`). It breaks
+                    // the margin-collapse chain for the next in-flow sibling.
+                    let _ = child_h;
+                    prev_margin_bottom = 0.0;
+                } else {
+                    cursor_y -= child_h;
+                    y = cursor_y;
+                    // This arm never subtracts margin-bottom from the cursor, so a
+                    // following sibling has nothing already-subtracted to collapse
+                    // against (its margin-top applies in full).
+                    prev_margin_bottom = 0.0;
+                }
             }
             LayoutElement::Container {
                 children: nested_kids,
@@ -4459,6 +4556,7 @@ fn render_container_children(
                 background_blend_mode: nk_bg_blend,
                 visible: nk_visible,
                 float: nk_float,
+                clear: nk_clear,
                 overflow,
                 position: nk_position,
                 offset_top: nk_offset_top,
@@ -4485,13 +4583,29 @@ fn render_container_children(
                 // In-flow containers collapse their margin-top against the
                 // previous in-flow sibling's margin-bottom; floats and absolutes
                 // are out of flow and take their margin-top in full.
-                let nk_in_flow = !nk_is_abs && *nk_float == Float::None;
+                let nk_is_float = !nk_is_abs && *nk_float != Float::None;
+                let nk_in_flow = !nk_is_abs && !nk_is_float;
                 if nk_in_flow {
+                    if *nk_clear != Clear::None {
+                        cursor_y = clear_cursor(
+                            cursor_y,
+                            *nk_clear,
+                            left_float_bottom,
+                            right_float_bottom,
+                            &mut prev_margin_bottom,
+                        );
+                    }
                     cursor_y -= collapsed_margin_top_extra(*margin_top, prev_margin_bottom);
-                } else if !nk_is_abs {
-                    cursor_y -= margin_top;
+                    y = cursor_y;
+                } else if nk_is_float {
+                    // Floated container: pinned at its precomputed top (the flow
+                    // cursor at its source position); does not advance the cursor.
+                    let rel_top = float_top_by_index.get(&child_index).copied().unwrap_or(0.0);
+                    y = container_top_y - rel_top;
+                } else {
+                    // Absolute: positioned from the container top below.
+                    y = cursor_y;
                 }
-                y = cursor_y;
                 let nk_w = block_width.unwrap_or(width);
                 let nk_x = if nk_is_abs {
                     (x - abs_pad_left) + nk_offset_left
@@ -4860,13 +4974,17 @@ fn render_container_children(
                         content.push_str("Q\n");
                     }
                 } // end if *nk_visible
-                // Absolute containers are out of flow — don't advance the cursor.
-                if !nk_is_abs {
+                // Out-of-flow containers (absolute / float) don't advance the
+                // flow cursor. A float's bottom is tracked via the simulator for
+                // later `clear` siblings; it breaks the margin-collapse chain.
+                if nk_is_float {
+                    prev_margin_bottom = 0.0;
+                } else if !nk_is_abs {
                     cursor_y -= nk_total_h + margin_bottom;
                     y = cursor_y;
                     // Remember this in-flow block's margin-bottom so the next
                     // sibling collapses against it; floats don't collapse.
-                    prev_margin_bottom = if nk_in_flow { *margin_bottom } else { 0.0 };
+                    prev_margin_bottom = *margin_bottom;
                 }
             }
             LayoutElement::Image {

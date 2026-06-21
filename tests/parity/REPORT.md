@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 64.06%  (PASS 194 · PARTIAL 54 · FAIL 97 · UNKNOWN 1 · total 346)
+Overall: 64.93%  (PASS 197 · PARTIAL 54 · FAIL 94 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -54,8 +54,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 36.12 | interactions | containing-block | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-absolute-x-flexbox-container | fill recolour ΔRGB(+46,-84,-90) (ΔE 49.6) |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | Extra | 42.29 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap | via flexbox-flex-wrap: extra paint where Chrome is blank (10.6%) |
 | FAIL | REAL | Extra | 26.14 | interactions | flexbox-x-grid | (interaction: flexbox×grid) GENUINE: both bases PASS, interaction FAILs | flexbox-x-grid-nested | extra paint where Chrome is blank (5.9%) |
-| FAIL | CONFOUNDED: float (`positioning-float-left`) | Extra | 65.89 | interactions | float | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-positioning-float-x-margin-collapse | via positioning-float-left: extra paint where Chrome is blank (31.8%) |
-| FAIL | CONFOUNDED: float (`positioning-float-left`) | Extra | 65.34 | interactions | float-x-margin-collapse | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-float-x-margin-collapse | via positioning-float-left: extra paint where Chrome is blank (43.9%) |
 | FAIL | REAL | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) GENUINE: both bases PASS, interaction FAILs | grid-x-background-gradient | fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
 | FAIL | REAL | ColorValue | 4.26 | interactions | grid-x-flexbox | (interaction: grid×flexbox) GENUINE: both bases PASS, interaction FAILs | grid-x-flexbox-nested | fill recolour ΔRGB(-34,+33,-46) (ΔE 31.8) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 19.01 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (20.7% missing) |
@@ -77,7 +75,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 20.05 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(+190,+171,+150) (ΔE 71.3) |
 | FAIL | REAL | ColorValue | 11.19 | positioning | containing-block | nearest-positioned-ancestor | positioning-absolute-containing-block-relative-ancestor | fill recolour ΔRGB(+12,+16,+56) (ΔE 32.4) |
 | FAIL | REAL | ColorValue | 2.66 | positioning | containing-block | transform-establishes | positioning-transform-establishes-containing-block | fill recolour ΔRGB(-20,-78,-59) (ΔE 37.3) |
-| FAIL | REAL | Extra | 70.22 | positioning | float | left | positioning-float-left | extra paint where Chrome is blank (41.1%) |
 | FAIL | REAL | ColorValue | 48.59 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset | fill recolour ΔRGB(+23,+117,+197) (ΔE 33.1) |
 | FAIL | REAL | ColorValue | 3.63 | positioning | overflow | hidden | positioning-overflow-hidden-clip | fill recolour ΔRGB(+82,+25,+19) (ΔE 17.6) |
 | FAIL | REAL | ColorValue | 39.82 | positioning | position | fixed | positioning-fixed-top-left | fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6) |
@@ -100,13 +97,12 @@ None — every fixture's HTML matches `refs.lock`.
 |-----:|----|---------|--------|----------:|------------|
 | 1 | `border-radius-uniform` | border-radius | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
 | 2 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 3 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 4 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 5 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 6 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 7 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 8 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
-| 9 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
+| 3 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 4 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 5 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
+| 6 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 7 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
+| 8 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -124,12 +120,12 @@ None — every fixture's HTML matches `refs.lock`.
 | grid | 93.75% | 15 | 0 | 1 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 50.00% | 4 | 8 | 4 | 0 |
-| interactions | 25.00% | 5 | 1 | 16 | 0 |
+| interactions | 34.09% | 7 | 1 | 14 | 0 |
 | lists-counters | 50.00% | 4 | 4 | 4 | 0 |
 | multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 10.00% | 1 | 0 | 9 | 0 |
 | paged-media | 72.22% | 6 | 1 | 2 | 0 |
-| positioning | 53.13% | 8 | 1 | 7 | 0 |
+| positioning | 59.38% | 9 | 1 | 6 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
 | tables | 31.25% | 0 | 10 | 6 | 0 |
@@ -563,7 +559,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 5.05% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 25.00%
+### interactions — 34.09%
 - **containing-block** — 50.00%
   - PASS 0.59% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 36.12% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -571,10 +567,10 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 42.29% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 0.00%
   - FAIL 26.14% flexbox-x-grid=grid-in-flex-item — `flexbox-x-grid-nested` — A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.
-- **float** — 0.00%
-  - FAIL 65.89% float=with-margin-collapse — `interactions-positioning-float-x-margin-collapse` — Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.
-- **float-x-margin-collapse** — 0.00%
-  - FAIL 65.34% float-x-margin-collapse=float-beside-collapsing-blocks — `interactions-float-x-margin-collapse` — A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.
+- **float** — 100.00%
+  - PASS 1.62% float=with-margin-collapse — `interactions-positioning-float-x-margin-collapse` — Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.
+- **float-x-margin-collapse** — 100.00%
+  - PASS 1.44% float-x-margin-collapse=float-beside-collapsing-blocks — `interactions-float-x-margin-collapse` — A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.
 - **grid-x-background-gradient** — 0.00%
   - FAIL 68.71% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
 - **grid-x-flexbox** — 0.00%
@@ -675,14 +671,14 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 53.13%
+### positioning — 59.38%
 - **clear** — 100.00%
   - PASS 0.43% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
 - **containing-block** — 0.00%
   - FAIL 11.19% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
   - FAIL 2.66% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
-- **float** — 0.00%
-  - FAIL 70.22% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
+- **float** — 100.00%
+  - PASS 0.25% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
 - **inset** — 50.00%
   - PASS 0.43% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
   - FAIL 48.59% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.

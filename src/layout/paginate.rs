@@ -145,10 +145,18 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             if *position == Position::Absolute {
                 return 0.0;
             }
-            let children_h: f32 = children
-                .iter()
-                .map(|c| estimate_element_height_bounded(c, depth - 1))
-                .sum();
+            // When any direct child floats, the auto content height excludes the
+            // floats (they don't stretch the box) but includes any clearance gap;
+            // `simulate_block_flow` is the shared source of truth for that. The
+            // plain (no-float) sum is kept byte-for-byte to avoid regressions.
+            let children_h: f32 = if children.iter().any(|c| element_float(c) != Float::None) {
+                simulate_block_flow(children).height
+            } else {
+                children
+                    .iter()
+                    .map(|c| estimate_element_height_bounded(c, depth - 1))
+                    .sum()
+            };
             let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
             // A definite `block_height` (set only for an explicit `height`) is a
             // hard border-box size: overflowing content spills past it rather than
@@ -157,6 +165,245 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             margin_top + effective_h + margin_bottom
         }
         _ => 0.0,
+    }
+}
+
+/// The CSS `float` value of a block-level layout element (`None` for anything
+/// that cannot float, e.g. table rows).
+pub(crate) fn element_float(element: &LayoutElement) -> Float {
+    match element {
+        LayoutElement::TextBlock { float, .. } | LayoutElement::Container { float, .. } => *float,
+        _ => Float::None,
+    }
+}
+
+/// The CSS `clear` value of a block-level layout element.
+fn element_clear(element: &LayoutElement) -> Clear {
+    match element {
+        LayoutElement::TextBlock { clear, .. } | LayoutElement::Container { clear, .. } => *clear,
+        _ => Clear::None,
+    }
+}
+
+/// Whether a layout element is out of normal flow (absolutely positioned) and so
+/// contributes no height to its container and does not advance the flow cursor.
+fn element_is_absolute(element: &LayoutElement) -> bool {
+    matches!(
+        element,
+        LayoutElement::TextBlock {
+            position: Position::Absolute,
+            ..
+        } | LayoutElement::Container {
+            position: Position::Absolute,
+            ..
+        }
+    )
+}
+
+/// Whether an in-flow element participates in adjacent-sibling vertical margin
+/// collapse. Table/grid rows and other non-block content do not (they break the
+/// collapse chain), mirroring `collapse_role` in the renderer.
+fn element_collapses_margins(element: &LayoutElement) -> bool {
+    matches!(
+        element,
+        LayoutElement::TextBlock { .. }
+            | LayoutElement::Container { .. }
+            | LayoutElement::Image { .. }
+            | LayoutElement::Svg { .. }
+            | LayoutElement::FlexRow { .. }
+            | LayoutElement::HorizontalRule { .. }
+            | LayoutElement::ProgressBar { .. }
+            | LayoutElement::MathBlock { .. }
+    )
+}
+
+/// The top/bottom margins of a layout element, used for adjacent-sibling
+/// vertical margin collapse. Returns `(margin_top, margin_bottom)`.
+fn element_margins(element: &LayoutElement) -> (f32, f32) {
+    match element {
+        LayoutElement::TextBlock {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::Container {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::Image {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::Svg {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::FlexRow {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::HorizontalRule {
+            margin_top,
+            margin_bottom,
+        }
+        | LayoutElement::ProgressBar {
+            margin_top,
+            margin_bottom,
+            ..
+        }
+        | LayoutElement::MathBlock {
+            margin_top,
+            margin_bottom,
+            ..
+        } => (*margin_top, *margin_bottom),
+        _ => (0.0, 0.0),
+    }
+}
+
+/// The collapsed vertical gap between two adjacent block margins (CSS 2.1
+/// § 8.3.1): positive margins overlap, negative margins overlap, and a mixed
+/// pair sums.
+fn collapse_pair(margin_top: f32, prev_margin_bottom: f32) -> f32 {
+    if margin_top >= 0.0 && prev_margin_bottom >= 0.0 {
+        margin_top.max(prev_margin_bottom)
+    } else if margin_top < 0.0 && prev_margin_bottom < 0.0 {
+        margin_top.min(prev_margin_bottom)
+    } else {
+        margin_top + prev_margin_bottom
+    }
+}
+
+/// The placement of a single floated child, relative to the container's
+/// content-box top-left, computed by [`simulate_block_flow`]. The float's side
+/// is read from the element itself at paint time, so only its index and top are
+/// recorded here.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct FloatPlacement {
+    /// Index of the float within the original `children` slice.
+    pub index: usize,
+    /// Distance of the float's border-box top below the content-box top.
+    pub top: f32,
+}
+
+/// Result of simulating normal-flow block layout with simplified CSS floats.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct BlockFlowResult {
+    /// Total in-flow content height (border-box heights of in-flow children plus
+    /// collapsed margins and any `clear` offsets). Floats do not extend it.
+    pub height: f32,
+    /// Placement of each floated child, in source order.
+    pub floats: Vec<FloatPlacement>,
+    /// Lowest bottom edge of any left float, below the content-box top.
+    pub left_float_bottom: f32,
+    /// Lowest bottom edge of any right float, below the content-box top.
+    pub right_float_bottom: f32,
+}
+
+/// Simulate normal-flow block layout of `children` with simplified floats and
+/// `clear`, returning the in-flow content height and the resolved top of every
+/// float. This is the single source of truth shared by the wrapper-height
+/// estimate and the renderer's float placement, so the painted geometry always
+/// matches the measured height.
+///
+/// The in-flow accumulation mirrors `collapsed_children_height` in the renderer
+/// (sum of each child's outer `estimate_element_height` minus adjacent-sibling
+/// margin-collapse overlap), so for the common no-float case the measured height
+/// is byte-for-byte identical and nothing regresses.
+///
+/// Float model (block-sibling case): a `float: left|right` child is removed from
+/// normal flow — it does not advance the flow cursor and does not stretch the
+/// container — but it is pinned to the left/right content edge at the cursor's
+/// current position (its top below the content origin). A later in-flow block
+/// with `clear` is pushed below the bottom of the relevant float(s); that
+/// clearance gap *does* extend the container because the cleared block is in
+/// flow. Adjacent in-flow blocks collapse their vertical margins across
+/// out-of-flow (float / absolute) siblings.
+pub(crate) fn simulate_block_flow(children: &[LayoutElement]) -> BlockFlowResult {
+    // Running in-flow content bottom, below the content-box top. Accumulated the
+    // same way as `collapsed_children_height`: add each child's full outer
+    // height, then back out the collapsed overlap with the previous sibling.
+    let mut cursor = 0.0f32;
+    // Previous in-flow sibling's margin-bottom for adjacent collapse; `None`
+    // breaks the chain (start, after a float, or after clearance).
+    let mut prev_mb: Option<f32> = None;
+    // Bottom edges of placed floats per side (below the content origin), for
+    // `clear` and for stacking successive same-side floats.
+    let mut left_bottom = 0.0f32;
+    let mut right_bottom = 0.0f32;
+    let mut floats = Vec::new();
+
+    for (index, child) in children.iter().enumerate() {
+        if element_is_absolute(child) {
+            // Out of flow: contributes nothing and leaves the collapse chain.
+            continue;
+        }
+        let float = element_float(child);
+        let outer_h = estimate_element_height(child);
+        let (mt, mb) = element_margins(child);
+
+        if float != Float::None {
+            // Float: pinned at the current content bottom plus its margin-top,
+            // stacked below any earlier same-side float. Floats don't collapse
+            // margins and don't advance the in-flow cursor, but they do break
+            // the running collapse chain for the next in-flow sibling.
+            let side_bottom = if float == Float::Left {
+                left_bottom
+            } else {
+                right_bottom
+            };
+            let float_top = (cursor + mt).max(side_bottom);
+            let border_box_h = (outer_h - mt - mb).max(0.0);
+            let float_bottom = float_top + border_box_h;
+            if float == Float::Left {
+                left_bottom = float_bottom;
+            } else {
+                right_bottom = float_bottom;
+            }
+            floats.push(FloatPlacement {
+                index,
+                top: float_top,
+            });
+            prev_mb = None;
+            continue;
+        }
+
+        // In-flow block. Apply `clear` first: push the content bottom below the
+        // relevant float(s). Clearance breaks the margin-collapse chain.
+        let clear = element_clear(child);
+        let clear_to = match clear {
+            Clear::Left => left_bottom,
+            Clear::Right => right_bottom,
+            Clear::Both => left_bottom.max(right_bottom),
+            Clear::None => f32::NEG_INFINITY,
+        };
+        if clear != Clear::None && clear_to > cursor {
+            cursor = clear_to;
+            prev_mb = None;
+        }
+
+        // Add the full outer box, then remove the collapse overlap with the
+        // previous in-flow sibling (mirrors `collapsed_children_height`).
+        cursor += outer_h;
+        if element_collapses_margins(child) {
+            if let Some(pmb) = prev_mb {
+                cursor -= pmb + mt - collapse_pair(mt, pmb);
+            }
+            prev_mb = Some(mb);
+        } else {
+            // Non-collapsing in-flow content (table/grid rows): breaks the chain.
+            prev_mb = None;
+        }
+    }
+
+    BlockFlowResult {
+        height: cursor,
+        floats,
+        left_float_bottom: left_bottom,
+        right_float_bottom: right_bottom,
     }
 }
 

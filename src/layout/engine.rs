@@ -533,6 +533,9 @@ pub enum LayoutElement {
         /// (the box still occupies space but is not painted).
         visible: bool,
         float: Float,
+        /// CSS `clear`: pushes this in-flow container below preceding floats on
+        /// the relevant side(s) when it is itself in normal flow.
+        clear: Clear,
         position: Position,
         offset_top: f32,
         offset_left: f32,

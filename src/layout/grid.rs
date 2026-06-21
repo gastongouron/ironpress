@@ -773,6 +773,7 @@ pub(crate) fn layout_grid_container(
         background_blend_mode: style.background_blend_mode,
         visible: style.visibility == Visibility::Visible,
         float: style.float,
+        clear: style.clear,
         position: style.position,
         offset_top: 0.0,
         offset_left: h_offset,

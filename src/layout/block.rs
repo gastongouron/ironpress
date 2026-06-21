@@ -1574,6 +1574,7 @@ pub(crate) fn layout_block_element(
             background_blend_mode: style.background_blend_mode,
             visible: style.visibility == Visibility::Visible,
             float: style.float,
+            clear: style.clear,
             position: style.position,
             offset_top: wrapper_top,
             offset_left: wrapper_left + auto_offset_left,

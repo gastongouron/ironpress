@@ -1629,6 +1629,7 @@ pub(crate) fn layout_flex_container(
                                 background_blend_mode: crate::style::computed::BlendMode::Normal,
                                 visible: true,
                                 float: Float::None,
+                                clear: Clear::None,
                                 position: if x_offset > 0.0
                                     || style.padding.left > 0.0
                                     || style.border.left.width > 0.0
