@@ -42,7 +42,14 @@ pub(crate) fn layout_flex_container(
         block_w = block_w.min(mw);
     }
 
-    let inner_width = block_w - style.padding.left - style.padding.right;
+    // Content width for flex main-axis distribution. `block_w` is the BORDER-box
+    // width under `box-sizing: border-box` (so subtract border AND padding to reach
+    // the content box); under `content-box` it already excludes the border.
+    let inner_width = if style.box_sizing == BoxSizing::BorderBox {
+        block_w - style.border.horizontal_width() - style.padding.left - style.padding.right
+    } else {
+        block_w - style.padding.left - style.padding.right
+    };
 
     // Resolve percentage border-radius for flex containers
     let resolved_border_radius = if let Some(pct) = style.border_radius_pct {
