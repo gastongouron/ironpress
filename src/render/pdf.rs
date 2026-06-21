@@ -17,7 +17,7 @@ use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
     BorderCollapse, BorderStyle, Clear, Float, FontFamily, LinearGradient, Overflow, Position,
-    RadialGradient, TextAlign, VerticalAlign,
+    RadialGradient, RadialShape, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -6468,6 +6468,102 @@ fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
 /// interpolate smoothly. The shading entry is collected and later written as a
 /// PDF object in `finish_to_writer`.
 #[allow(clippy::too_many_arguments)]
+/// A single placed gradient tile in PDF coordinates (origin bottom-left).
+struct GradientTile {
+    /// Left edge (PDF x).
+    x: f32,
+    /// Bottom edge (PDF y).
+    y: f32,
+    width: f32,
+    height: f32,
+}
+
+/// Resolve the per-layer size/position/repeat of a gradient into the set of
+/// tile rectangles to paint within the box `(x, y, width, height)` (PDF coords,
+/// origin bottom-left). When no `layer_box` is set the gradient fills the whole
+/// box as a single tile (historical single-layer behaviour).
+fn gradient_layer_tiles(
+    layer_box: &crate::style::computed::GradientLayerBox,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) -> Vec<GradientTile> {
+    let resolve_axis = |value: f32, is_percent: bool, extent: f32| {
+        if is_percent {
+            extent * (value / 100.0)
+        } else {
+            value
+        }
+    };
+
+    // Tile size. `None`/`Auto`/`Cover`/`Contain` fall back to the full box (a
+    // gradient has no intrinsic size, so `auto` is `100% 100%`).
+    let (tile_w, tile_h) = match layer_box.size {
+        Some(BackgroundSize::Explicit {
+            width: w,
+            height: h,
+            width_is_percent,
+            height_is_percent,
+        }) => {
+            let tw = resolve_axis(w, width_is_percent, width);
+            let th = h
+                .map(|hv| resolve_axis(hv, height_is_percent, height))
+                .unwrap_or(height);
+            (tw, th)
+        }
+        _ => (width, height),
+    };
+    if tile_w <= 0.0 || tile_h <= 0.0 {
+        return Vec::new();
+    }
+
+    // Position offset in CSS coords (origin top-left of the box).
+    let (offset_x, offset_y) = match layer_box.position {
+        Some(pos) => {
+            let ox = if pos.x_is_percent {
+                (width - tile_w) * pos.x
+            } else {
+                pos.x
+            };
+            let oy = if pos.y_is_percent {
+                (height - tile_h) * pos.y
+            } else {
+                pos.y
+            };
+            (ox, oy)
+        }
+        None => (0.0, 0.0),
+    };
+
+    let repeat = layer_box.repeat.unwrap_or(BackgroundRepeat::Repeat);
+    let xs = match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatY => vec![offset_x],
+        _ => tile_offsets(offset_x, tile_w, width),
+    };
+    let ys = match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatX => vec![offset_y],
+        _ => tile_offsets(offset_y, tile_h, height),
+    };
+
+    let mut tiles = Vec::new();
+    for &css_oy in &ys {
+        for &css_ox in &xs {
+            // Convert the CSS top-left offset into a PDF bottom-left origin.
+            let tile_x = x + css_ox;
+            let tile_y = y + (height - css_oy - tile_h);
+            tiles.push(GradientTile {
+                x: tile_x,
+                y: tile_y,
+                width: tile_w,
+                height: tile_h,
+            });
+        }
+    }
+    tiles
+}
+
+#[allow(clippy::too_many_arguments)]
 fn render_linear_gradient(
     content: &mut String,
     gradient: &LinearGradient,
@@ -6478,14 +6574,47 @@ fn render_linear_gradient(
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
 ) {
-    *shading_counter += 1;
+    let stops: Vec<(f32, (f32, f32, f32))> = gradient
+        .stops
+        .iter()
+        .map(|s| (s.position, s.color.to_f32_rgb()))
+        .collect();
 
+    for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
+        *shading_counter += 1;
+        render_linear_gradient_tile(
+            content,
+            gradient.angle,
+            tile.x,
+            tile.y,
+            tile.width,
+            tile.height,
+            &stops,
+            shadings,
+            shading_counter,
+        );
+    }
+}
+
+/// Paint a single axial-gradient tile clipped to its rectangle.
+#[allow(clippy::too_many_arguments)]
+fn render_linear_gradient_tile(
+    content: &mut String,
+    angle: f32,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    stops: &[(f32, (f32, f32, f32))],
+    shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
+) {
     // CSS angle convention: 0° = to top (bottom-to-top), 90° = to right, 180° = to bottom
     // In PDF coordinate space, y-axis is bottom-up, so:
     //   CSS 0° (to top) => PDF line from bottom center to top center
     //   CSS 90° (to right) => PDF line from left center to right center
     //   CSS 180° (to bottom) => PDF line from top center to bottom center
-    let angle_rad = gradient.angle * std::f32::consts::PI / 180.0;
+    let angle_rad = angle * std::f32::consts::PI / 180.0;
     let sin_a = angle_rad.sin();
     let cos_a = angle_rad.cos();
 
@@ -6504,12 +6633,7 @@ fn render_linear_gradient(
     let x1 = cx + dx;
     let y1 = cy + dy;
 
-    let stops: Vec<(f32, (f32, f32, f32))> = gradient
-        .stops
-        .iter()
-        .map(|s| (s.position, s.color.to_f32_rgb()))
-        .collect();
-    let name = push_axial_shading(shadings, shading_counter, [x0, y0, x1, y1], stops);
+    let name = push_axial_shading(shadings, shading_counter, [x0, y0, x1, y1], stops.to_vec());
 
     // Clip to the gradient area and paint with shading
     content.push_str("q\n");
@@ -6530,40 +6654,98 @@ fn render_radial_gradient(
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
 ) {
-    // `center` measures from the box's left/top edges (CSS top-down). PDF y is
-    // bottom-up and `y` is the box's bottom edge, so flip the y offset.
-    let (cx_pos, cy_pos) = gradient.center;
-    let off_x = cx_pos.resolve(width);
-    let off_y = cy_pos.resolve(height);
-    let cx = x + off_x;
-    let cy = y + (height - off_y);
-    // Use the explicit circle radius when given; otherwise the CSS default
-    // extent for an unspecified size is `farthest-corner`: the radius reaches
-    // from the center to the farthest box corner. With an off-center anchor
-    // that corner is determined per axis by which side is farther.
-    let max_radius = gradient.radius.unwrap_or_else(|| {
-        let dx = off_x.max(width - off_x);
-        let dy = off_y.max(height - off_y);
-        (dx * dx + dy * dy).sqrt()
-    });
-
     let stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops
         .iter()
         .map(|s| (s.position, s.color.to_f32_rgb()))
         .collect();
-    let name = push_radial_shading(
-        shadings,
-        shading_counter,
-        [cx, cy, 0.0, cx, cy, max_radius],
-        stops,
-    );
 
-    // Clip to the gradient area and paint with shading
-    content.push_str("q\n");
-    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
-    content.push_str(&format!("/{name} sh\n"));
-    content.push_str("Q\n");
+    for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
+        render_radial_gradient_tile(
+            content,
+            gradient,
+            tile.x,
+            tile.y,
+            tile.width,
+            tile.height,
+            &stops,
+            shadings,
+            shading_counter,
+        );
+    }
+}
+
+/// Paint a single radial-gradient tile clipped to its rectangle.
+#[allow(clippy::too_many_arguments)]
+fn render_radial_gradient_tile(
+    content: &mut String,
+    gradient: &RadialGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    stops: &[(f32, (f32, f32, f32))],
+    shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
+) {
+    // `center` measures from the tile's left/top edges (CSS top-down). PDF y is
+    // bottom-up and `y` is the tile's bottom edge, so flip the y offset.
+    let (cx_pos, cy_pos) = gradient.center;
+    let off_x = cx_pos.resolve(width);
+    let off_y = cy_pos.resolve(height);
+    let cx = x + off_x;
+    let cy = y + (height - off_y);
+
+    // Distances from the center to the farthest tile edge along each axis.
+    let dx = off_x.max(width - off_x);
+    let dy = off_y.max(height - off_y);
+
+    match gradient.shape {
+        RadialShape::Circle => {
+            // Use the explicit circle radius when given; otherwise the CSS
+            // default extent is `farthest-corner`: the radius reaches from the
+            // center to the farthest tile corner.
+            let max_radius = gradient
+                .radius
+                .unwrap_or_else(|| (dx * dx + dy * dy).sqrt());
+            let name = push_radial_shading(
+                shadings,
+                shading_counter,
+                [cx, cy, 0.0, cx, cy, max_radius],
+                stops.to_vec(),
+            );
+            content.push_str("q\n");
+            content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+            content.push_str(&format!("/{name} sh\n"));
+            content.push_str("Q\n");
+        }
+        RadialShape::Ellipse => {
+            // Ellipse with the default `farthest-corner` extent. The ending
+            // shape has the aspect ratio of the farthest-side ellipse (dx, dy)
+            // but is enlarged to pass through the farthest corner, which scales
+            // both radii by √2 (CSS Images Level 3).
+            let rx = dx * std::f32::consts::SQRT_2;
+            let ry = dy * std::f32::consts::SQRT_2;
+            if rx <= 0.0 || ry <= 0.0 {
+                return;
+            }
+            // PDF radial shadings are circular, so paint a unit-radius circular
+            // shading at the origin and squash it into the desired ellipse via a
+            // `cm` transform applied after clipping to the tile (clip stays in
+            // page space; the shading evaluates in the transformed space).
+            let name = push_radial_shading(
+                shadings,
+                shading_counter,
+                [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                stops.to_vec(),
+            );
+            content.push_str("q\n");
+            content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+            content.push_str(&format!("{rx} 0 0 {ry} {cx} {cy} cm\n"));
+            content.push_str(&format!("/{name} sh\n"));
+            content.push_str("Q\n");
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -10067,7 +10249,9 @@ mod tests {
                 crate::style::computed::RadialPos::Fraction(0.5),
                 crate::style::computed::RadialPos::Fraction(0.5),
             ),
+            shape: RadialShape::Circle,
             radius: None,
+            layer_box: crate::style::computed::GradientLayerBox::default(),
         };
         render_radial_gradient(
             &mut content,

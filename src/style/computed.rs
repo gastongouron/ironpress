@@ -495,6 +495,21 @@ pub struct GradientStop {
     pub position: f32,
 }
 
+/// Per-layer painting parameters for a gradient background layer. Populated
+/// only when a gradient coexists with other layers in a comma-separated
+/// `background-image` list and that layer has its own `background-size` /
+/// `-position` / `-repeat` entry. When fields are `None` the gradient fills the
+/// whole painting area (the historical single-layer behaviour).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GradientLayerBox {
+    /// Size of one gradient tile (`background-size` for this layer).
+    pub size: Option<BackgroundSize>,
+    /// Position of the gradient tile (`background-position` for this layer).
+    pub position: Option<BackgroundPosition>,
+    /// Repeat mode of the gradient tile (`background-repeat` for this layer).
+    pub repeat: Option<BackgroundRepeat>,
+}
+
 /// A CSS linear gradient.
 #[derive(Debug, Clone)]
 pub struct LinearGradient {
@@ -502,6 +517,9 @@ pub struct LinearGradient {
     pub angle: f32,
     /// Color stops (at least 2).
     pub stops: Vec<GradientStop>,
+    /// Per-layer size/position/repeat when this gradient is one of several
+    /// comma-separated background layers.
+    pub layer_box: GradientLayerBox,
 }
 
 /// A position component of a radial gradient's center, resolvable against the
@@ -525,7 +543,18 @@ impl RadialPos {
     }
 }
 
-/// A CSS radial gradient (simplified: always circular).
+/// The ending shape of a CSS radial gradient.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RadialShape {
+    /// `circle` — a single radius along both axes.
+    Circle,
+    /// `ellipse` — independent horizontal/vertical radii. This is the CSS
+    /// default when no shape keyword is given.
+    #[default]
+    Ellipse,
+}
+
+/// A CSS radial gradient.
 #[derive(Debug, Clone)]
 pub struct RadialGradient {
     /// Color stops (at least 2).
@@ -533,9 +562,16 @@ pub struct RadialGradient {
     /// Center position parsed from `at <pos>`, as `(x, y)` measured from the
     /// box's left/top edges (CSS top-down). Defaults to box center.
     pub center: (RadialPos, RadialPos),
+    /// Ending shape (circle vs ellipse). Determines how the unspecified extent
+    /// (`farthest-corner`) is resolved into radii at render time.
+    pub shape: RadialShape,
     /// Explicit circular radius in points (e.g. `circle 60px` → 45pt). When
-    /// `None`, the `farthest-corner` extent is used.
+    /// `None`, the `farthest-corner` extent is used. Only meaningful for
+    /// `RadialShape::Circle`.
     pub radius: Option<f32>,
+    /// Per-layer size/position/repeat when this gradient is one of several
+    /// comma-separated background layers.
+    pub layer_box: GradientLayerBox,
 }
 
 /// CSS text-overflow property.
@@ -2898,25 +2934,54 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => EmptyCells::Show,
         };
     }
+    // Per-layer slot mapping for a comma-separated `background-image` list. Index
+    // i names the paint slot ("raster" / "gradient" / "none") that list position
+    // occupies, so the matching comma-separated `background-size` / `-position` /
+    // `-repeat` entry can be routed to the right slot.
+    let layer_slots: Vec<String> = get_non_special(map, "background-layer-slots")
+        .and_then(|v| match v {
+            CssValue::Keyword(k) => Some(k.split(',').map(|s| s.trim().to_string()).collect()),
+            _ => None,
+        })
+        .unwrap_or_default();
+    let raster_layer_index = layer_slots.iter().position(|s| s == "raster");
+    let gradient_layer_index = layer_slots.iter().position(|s| s == "gradient");
+
+    // For the raster slot the single `background_*` fields are used directly; when
+    // it is a non-first layer in a multi-layer list, route its comma-separated
+    // entry into those fields. The gradient slot stores its own entry on the
+    // gradient struct (`layer_box`).
+    let raster_size_idx = raster_layer_index.unwrap_or(0);
+    let raster_pos_idx = raster_layer_index.unwrap_or(0);
+    let raster_repeat_idx = raster_layer_index.unwrap_or(0);
+
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-size") {
-        style.background_size = match k.as_str() {
-            "cover" => BackgroundSize::Cover,
-            "contain" => BackgroundSize::Contain,
-            "auto" => BackgroundSize::Auto,
-            _ => parse_background_size_explicit(k).unwrap_or(BackgroundSize::Auto),
-        };
+        if let Some(part) = nth_layer_value(k, raster_size_idx) {
+            style.background_size = parse_background_size_value(&part);
+        }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-repeat") {
-        style.background_repeat = match k.as_str() {
-            "no-repeat" => BackgroundRepeat::NoRepeat,
-            "repeat-x" => BackgroundRepeat::RepeatX,
-            "repeat-y" => BackgroundRepeat::RepeatY,
-            _ => BackgroundRepeat::Repeat,
-        };
+        if let Some(part) = nth_layer_value(k, raster_repeat_idx) {
+            style.background_repeat = parse_background_repeat_value(&part);
+        }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-position") {
-        if let Some(pos) = parse_background_position(k) {
-            style.background_position = pos;
+        if let Some(part) = nth_layer_value(k, raster_pos_idx) {
+            if let Some(pos) = parse_background_position(&part) {
+                style.background_position = pos;
+            }
+        }
+    }
+
+    // Route the gradient layer's own size/position/repeat entry onto the gradient
+    // struct so the renderer can paint it as a positioned, sized tile.
+    if let Some(gradient_idx) = gradient_layer_index {
+        let gradient_box = resolve_gradient_layer_box(map, gradient_idx);
+        if let Some(ref mut lg) = style.background_gradient {
+            lg.layer_box = gradient_box;
+        }
+        if let Some(ref mut rg) = style.background_radial_gradient {
+            rg.layer_box = gradient_box;
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
@@ -3623,6 +3688,94 @@ fn parse_filter_angle(arg: &str) -> f32 {
         r.trim().parse::<f32>().map_or(0.0, f32::to_degrees)
     } else {
         a.parse::<f32>().unwrap_or(0.0)
+    }
+}
+
+/// Split a comma-separated background property value into its top-level layers
+/// (commas inside parentheses are ignored) and return the layer at `index`.
+///
+/// CSS repeats the shorter list to cover all layers, so an out-of-range index
+/// wraps around modulo the layer count. Returns `None` only when there are no
+/// layers at all.
+fn nth_layer_value(val: &str, index: usize) -> Option<String> {
+    let parts = split_top_level_commas_value(val);
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts[index % parts.len()].clone())
+}
+
+/// Split a value on top-level commas (ignoring commas inside parentheses).
+fn split_top_level_commas_value(val: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0u32;
+    for ch in val.chars() {
+        match ch {
+            '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            ')' if depth > 0 => {
+                depth -= 1;
+                current.push(ch);
+            }
+            ',' if depth == 0 => parts.push(std::mem::take(&mut current)),
+            _ => current.push(ch),
+        }
+    }
+    if !current.trim().is_empty() || !parts.is_empty() {
+        parts.push(current);
+    }
+    parts.into_iter().map(|p| p.trim().to_string()).collect()
+}
+
+/// Parse a single (non-comma) `background-size` layer value.
+fn parse_background_size_value(val: &str) -> BackgroundSize {
+    match val {
+        "cover" => BackgroundSize::Cover,
+        "contain" => BackgroundSize::Contain,
+        "auto" => BackgroundSize::Auto,
+        _ => parse_background_size_explicit(val).unwrap_or(BackgroundSize::Auto),
+    }
+}
+
+/// Parse a single (non-comma) `background-repeat` layer value.
+fn parse_background_repeat_value(val: &str) -> BackgroundRepeat {
+    match val {
+        "no-repeat" => BackgroundRepeat::NoRepeat,
+        "repeat-x" => BackgroundRepeat::RepeatX,
+        "repeat-y" => BackgroundRepeat::RepeatY,
+        _ => BackgroundRepeat::Repeat,
+    }
+}
+
+/// Build the per-layer size/position/repeat box for the gradient layer at
+/// `gradient_idx`, pulling the matching comma-separated entry from each of the
+/// `background-size` / `-position` / `-repeat` properties.
+fn resolve_gradient_layer_box(map: &StyleMap, gradient_idx: usize) -> GradientLayerBox {
+    let size = get_non_special(map, "background-size").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).map(|part| parse_background_size_value(&part))
+        }
+        _ => None,
+    });
+    let repeat = get_non_special(map, "background-repeat").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).map(|part| parse_background_repeat_value(&part))
+        }
+        _ => None,
+    });
+    let position = get_non_special(map, "background-position").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).and_then(|part| parse_background_position(&part))
+        }
+        _ => None,
+    });
+    GradientLayerBox {
+        size,
+        position,
+        repeat,
     }
 }
 
@@ -4676,7 +4829,11 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
 
     let stops = parse_gradient_stops(color_parts)?;
 
-    Some(LinearGradient { angle, stops })
+    Some(LinearGradient {
+        angle,
+        stops,
+        layer_box: GradientLayerBox::default(),
+    })
 }
 
 /// Parse a CSS `radial-gradient(...)` function value into a `RadialGradient`.
@@ -4713,18 +4870,45 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
     let color_start = usize::from(is_shape_or_size);
 
     // Honor the `at <position>` clause and a leading explicit radius, else
-    // default to a box-centered farthest-corner gradient.
-    let (center, radius) = if color_start == 1 {
+    // default to a box-centered farthest-corner gradient. The shape is `circle`
+    // when the `circle` keyword is present OR when a single length size is given
+    // (a lone radius implies a circle, e.g. lightningcss serializes
+    // `circle 60px at center` to `60px`); CSS otherwise defaults to `ellipse`.
+    let (center, shape, radius) = if color_start == 1 {
         let center = parse_radial_center(&first);
-        // A leading bare length (before any `at`) is the explicit circle radius.
+        // The size keywords/lengths precede any `at` clause.
         let size_part = first.split("at").next().unwrap_or("").trim();
-        let radius = size_part
+        let size_tokens: Vec<&str> = size_part
             .split_whitespace()
-            .next()
-            .and_then(parse_radial_length_pt);
-        (center, radius)
+            .filter(|t| !t.is_empty() && *t != "circle" && *t != "ellipse")
+            .collect();
+        let length_count = size_tokens
+            .iter()
+            .filter(|t| parse_radial_length_pt(t).is_some())
+            .count();
+        let shape = if first.starts_with("circle") {
+            RadialShape::Circle
+        } else if first.starts_with("ellipse") {
+            RadialShape::Ellipse
+        } else if length_count == 1 {
+            // A lone length size denotes a circle of that radius.
+            RadialShape::Circle
+        } else {
+            RadialShape::Ellipse
+        };
+        // For a circle, the leading bare length is the explicit radius.
+        let radius = if shape == RadialShape::Circle {
+            size_tokens.first().and_then(|t| parse_radial_length_pt(t))
+        } else {
+            None
+        };
+        (center, shape, radius)
     } else {
-        ((RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)), None)
+        (
+            (RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)),
+            RadialShape::Ellipse,
+            None,
+        )
     };
 
     let color_parts = &parts[color_start..];
@@ -4737,7 +4921,9 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
     Some(RadialGradient {
         stops,
         center,
+        shape,
         radius,
+        layer_box: GradientLayerBox::default(),
     })
 }
 
@@ -6281,6 +6467,24 @@ mod tests {
     fn parse_radial_gradient_with_circle() {
         let rg = parse_radial_gradient("radial-gradient(circle, red, blue)").unwrap();
         assert_eq!(rg.stops.len(), 2);
+        assert_eq!(rg.shape, RadialShape::Circle);
+    }
+
+    #[test]
+    fn parse_radial_gradient_default_shape_is_ellipse() {
+        // CSS default shape is `ellipse` when no shape keyword is present.
+        let rg = parse_radial_gradient("radial-gradient(red, blue)").unwrap();
+        assert_eq!(rg.shape, RadialShape::Ellipse);
+    }
+
+    #[test]
+    fn parse_radial_gradient_ellipse_at_corner() {
+        let rg = parse_radial_gradient("radial-gradient(ellipse at top left, #00897b, #b71c1c)")
+            .unwrap();
+        assert_eq!(rg.shape, RadialShape::Ellipse);
+        assert_eq!(rg.center.0, RadialPos::Fraction(0.0));
+        assert_eq!(rg.center.1, RadialPos::Fraction(0.0));
+        assert_eq!(rg.radius, None);
     }
 
     #[test]
@@ -10173,6 +10377,7 @@ mod tests {
         parent.background_gradient = Some(LinearGradient {
             angle: 90.0,
             stops: vec![],
+            layer_box: GradientLayerBox::default(),
         });
         let rules = parse_stylesheet(".box::after { content: ''; background-image: inherit; }");
         let ctx = SelectorContext::default();

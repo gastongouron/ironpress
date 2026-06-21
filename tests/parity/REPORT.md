@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 66.67%  (PASS 201 · PARTIAL 58 · FAIL 86 · UNKNOWN 1 · total 346)
+Overall: 67.25%  (PASS 203 · PARTIAL 58 · FAIL 84 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -22,7 +22,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**38 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-word-break-break-all`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-clamp`, `units-min-max`
+**39 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-width`, `multiple-backgrounds-layered`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-word-break-break-all`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -103,7 +103,7 @@ None — every fixture's HTML matches `refs.lock`.
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
 | backgrounds-borders | 53.13% | 8 | 1 | 7 | 1 |
-| backgrounds-gradients | 57.14% | 8 | 0 | 6 | 0 |
+| backgrounds-gradients | 71.43% | 10 | 0 | 4 | 0 |
 | block-box-model | 96.67% | 14 | 1 | 0 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 92.86% | 13 | 0 | 1 | 0 |
@@ -136,8 +136,8 @@ None — every fixture's HTML matches `refs.lock`.
 |----------|--------|------:|----------|---------|----|-------------|
 | unsupported | FAIL | 30.60 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | FAIL | 100.00 | backgrounds-gradients | conic-gradient | conic-gradient-basic | Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture. |
-| unsupported | FAIL | 97.47 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
-| partial | FAIL | 69.94 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
+| unsupported | PASS | 0.33 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
+| partial | PASS | 0.00 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
 | unsupported | PASS | 0.45 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.47 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
@@ -271,7 +271,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **radial-gradient** — 100.00%
   - PASS 0.00% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
 
-### backgrounds-gradients — 57.14%
+### backgrounds-gradients — 71.43%
 - **background-clip** — 0.00%
   - FAIL 30.60% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
 - **background-origin** — 0.00%
@@ -288,11 +288,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.25% linear-gradient=angle-90deg — `linear-gradient-angle-90deg` — Two-stop linear-gradient using an explicit 90deg angle (paints left-to-right).
   - PASS 0.21% linear-gradient=three-stops-percent — `linear-gradient-multi-stop` — Three-stop linear-gradient with explicit 0%/50%/100% color-stop positions, to right.
   - PASS 0.00% linear-gradient=to-bottom-right — `linear-gradient-to-corner` — Two-stop linear-gradient using the 'to bottom right' corner keyword on a square box.
-- **multiple-backgrounds** — 0.00%
-  - FAIL 97.47% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
-- **radial-gradient** — 66.67%
+- **multiple-backgrounds** — 100.00%
+  - PASS 0.33% multiple-backgrounds=image-over-gradient — `multiple-backgrounds-layered` — Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture.
+- **radial-gradient** — 100.00%
   - PASS 0.00% radial-gradient=circle-at-center — `radial-gradient-circle-center` — Centered circular two-stop radial-gradient (the shape ironpress natively supports).
-  - FAIL 69.94% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
+  - PASS 0.00% radial-gradient=ellipse-at-top-left — `radial-gradient-ellipse-corner` — Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored.
   - PASS 0.29% radial-gradient=explicit-pixel-size — `radial-gradient-sized-px` — Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome.
 
 ### block-box-model — 96.67%

@@ -124,6 +124,7 @@ fn clear_background_image_keys(map: &mut StyleMap) {
         "background-svg",
         "background-gradient",
         "background-radial-gradient",
+        "background-layer-slots",
     ] {
         map.remove(key);
     }
@@ -182,6 +183,29 @@ fn split_top_level_commas(val: &str) -> Vec<String> {
     parts
 }
 
+/// The paint slot a single `background-image` layer maps to. The data model
+/// carries one raster/SVG slot and one gradient slot, so each comma-separated
+/// layer is classified into one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BackgroundLayerSlot {
+    /// A raster (`url(...)`) or SVG (`data:image/svg+xml`) image layer.
+    Raster,
+    /// A `linear-gradient(...)` or `radial-gradient(...)` layer.
+    Gradient,
+    /// A `none` layer (occupies a list position but paints nothing).
+    None,
+}
+
+impl BackgroundLayerSlot {
+    fn as_str(self) -> &'static str {
+        match self {
+            BackgroundLayerSlot::Raster => "raster",
+            BackgroundLayerSlot::Gradient => "gradient",
+            BackgroundLayerSlot::None => "none",
+        }
+    }
+}
+
 /// Apply a `background-image` value, supporting multiple comma-separated layers.
 ///
 /// Each layer is parsed independently via [`apply_single_background_image_value`].
@@ -191,28 +215,47 @@ fn split_top_level_commas(val: &str) -> Vec<String> {
 /// list can populate both keys. Per CSS the first listed layer paints on top,
 /// which matches the renderer's gradient-then-raster paint order.
 ///
+/// When more than one layer is present, the slot of each list position is
+/// recorded in the `background-layer-slots` key (a comma-joined keyword list,
+/// e.g. `raster,gradient`). The style cascade uses that mapping to assign the
+/// matching comma-separated `background-size` / `-position` / `-repeat` entry to
+/// each slot.
+///
 /// Returns `true` if at least one layer was recognised and applied.
 fn apply_background_image_value(map: &mut StyleMap, value: &str, is_important: bool) -> bool {
     let layers = split_top_level_commas(value);
     if layers.len() <= 1 {
-        return apply_single_background_image_value(map, value, is_important);
+        return apply_single_background_image_value(map, value, is_important).is_some();
     }
 
     let mut applied = false;
+    let mut slots: Vec<&'static str> = Vec::with_capacity(layers.len());
     for layer in &layers {
-        if apply_single_background_image_value(map, layer, is_important) {
-            applied = true;
+        match apply_single_background_image_value(map, layer, is_important) {
+            Some(slot) => {
+                slots.push(slot.as_str());
+                applied = true;
+            }
+            None => slots.push(BackgroundLayerSlot::None.as_str()),
         }
+    }
+    if applied {
+        map.set_with_importance(
+            "background-layer-slots",
+            CssValue::Keyword(slots.join(",")),
+            is_important,
+        );
     }
     applied
 }
 
-/// Apply a single (non-comma-separated) `background-image` layer.
+/// Apply a single (non-comma-separated) `background-image` layer. Returns the
+/// paint slot it occupies, or `None` if the layer was not recognised.
 fn apply_single_background_image_value(
     map: &mut StyleMap,
     value: &str,
     is_important: bool,
-) -> bool {
+) -> Option<BackgroundLayerSlot> {
     let trimmed = value.trim();
     let lower = trimmed.to_ascii_lowercase();
 
@@ -222,7 +265,7 @@ fn apply_single_background_image_value(
             CssValue::Keyword(trimmed.to_string()),
             is_important,
         );
-        return true;
+        return Some(BackgroundLayerSlot::Gradient);
     }
 
     if lower.starts_with("radial-gradient(") {
@@ -231,7 +274,7 @@ fn apply_single_background_image_value(
             CssValue::Keyword(trimmed.to_string()),
             is_important,
         );
-        return true;
+        return Some(BackgroundLayerSlot::Gradient);
     }
 
     if lower == "none" {
@@ -240,12 +283,12 @@ fn apply_single_background_image_value(
             CssValue::Keyword("none".to_string()),
             is_important,
         );
-        return true;
+        return Some(BackgroundLayerSlot::None);
     }
 
     if let Some(svg_text) = extract_svg_data_uri(trimmed) {
         map.set_with_importance("background-svg", CssValue::Keyword(svg_text), is_important);
-        return true;
+        return Some(BackgroundLayerSlot::Raster);
     }
 
     // A non-SVG `url(...)` is a raster image layer. Preserve the full `url(...)`
@@ -256,10 +299,10 @@ fn apply_single_background_image_value(
             CssValue::Keyword(trimmed.to_string()),
             is_important,
         );
-        return true;
+        return Some(BackgroundLayerSlot::Raster);
     }
 
-    false
+    None
 }
 
 fn apply_background_shorthand_defaults(map: &mut StyleMap, is_important: bool) {
