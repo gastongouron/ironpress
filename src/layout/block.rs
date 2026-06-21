@@ -268,7 +268,8 @@ pub(crate) fn layout_block_element(
                 resolved_line_height_factor(style, fonts),
                 style.overflow_wrap,
             )
-            .with_rtl(style.direction_rtl),
+            .with_rtl(style.direction_rtl)
+            .with_text_indent(style.text_indent),
             fonts,
         );
         if lines.is_empty() {

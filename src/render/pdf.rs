@@ -400,6 +400,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     outline_color,
                     letter_spacing,
                     word_spacing: css_word_spacing,
+                    text_indent,
                     heading_level,
                     clip_children_count,
                     ..
@@ -880,7 +881,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Calculate word spacing for justified text
                         let justify_ws = if *text_align == TextAlign::Justify && !is_last_line {
-                            let content_width = render_width - padding_left - padding_right;
+                            let first_line_indent = if line_idx == 0 { *text_indent } else { 0.0 };
+                            let content_width =
+                                render_width - padding_left - padding_right - first_line_indent;
                             let remaining = content_width - line_width;
                             let space_count = line_text.matches(' ').count();
                             if space_count > 0 && remaining > 0.0 {
@@ -893,11 +896,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
                         let total_ws = justify_ws + *css_word_spacing;
 
+                        // CSS `text-indent` shifts the start of the FIRST line's
+                        // inline content. For start-edge alignment (left/justify)
+                        // it offsets the text origin; for center/right it consumes
+                        // available width on the start side, recentring/reflowing
+                        // the first line within the remaining space.
+                        let first_line_indent = if line_idx == 0 { *text_indent } else { 0.0 };
                         let text_x = match text_align {
-                            TextAlign::Left | TextAlign::Justify => block_x + padding_left,
+                            TextAlign::Left | TextAlign::Justify => {
+                                block_x + padding_left + first_line_indent
+                            }
                             TextAlign::Center => {
                                 let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
-                                block_x + (render_width - line_width) / 2.0 + first_pad
+                                block_x
+                                    + first_line_indent
+                                    + (render_width - first_line_indent - line_width) / 2.0
+                                    + first_pad
                             }
                             TextAlign::Right => {
                                 // Account for inline padding: text_x is where the

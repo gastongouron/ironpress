@@ -106,6 +106,10 @@ pub(crate) struct TextWrapOptions {
     /// wrapping at space boundaries. Distinguishes pre-wrap (wraps) from `pre`
     /// (which the caller renders with an unbounded width so it never wraps).
     pub(crate) pre_wrap: bool,
+    /// CSS `text-indent` applied to the first formatted line: it consumes inline
+    /// space at the start of the first line, so that line has less room before it
+    /// wraps. Subsequent lines are unaffected.
+    pub(crate) text_indent: f32,
 }
 
 impl TextWrapOptions {
@@ -122,6 +126,7 @@ impl TextWrapOptions {
             overflow_wrap,
             paragraph_rtl: false,
             pre_wrap: false,
+            text_indent: 0.0,
         }
     }
 
@@ -132,6 +137,11 @@ impl TextWrapOptions {
 
     pub(crate) const fn with_pre_wrap(mut self, pre_wrap: bool) -> Self {
         self.pre_wrap = pre_wrap;
+        self
+    }
+
+    pub(crate) const fn with_text_indent(mut self, text_indent: f32) -> Self {
+        self.text_indent = text_indent;
         self
     }
 }
@@ -308,6 +318,17 @@ pub(crate) fn wrap_text_runs(
     let mut queue: std::collections::VecDeque<(String, TextRun, bool)> =
         styled_words.into_iter().collect();
 
+    // CSS `text-indent` only shortens the FIRST formatted line: the inline
+    // content available before wrapping is `max_width - text_indent` while no
+    // line has been emitted yet, and the full `max_width` afterwards.
+    let line_max_width = |emitted: usize| {
+        if emitted == 0 {
+            (options.max_width - options.text_indent).max(0.0)
+        } else {
+            options.max_width
+        }
+    };
+
     while let Some((word, template, preserve_spacing)) = queue.pop_front() {
         if word == "\n" {
             // Line break
@@ -324,7 +345,7 @@ pub(crate) fn wrap_text_runs(
         // box to its height. It wraps to a fresh line if it overflows.
         if let Some(inline) = template.inline_box.as_deref() {
             let box_w = inline.width;
-            if current_width > 0.0 && current_width + box_w > options.max_width {
+            if current_width > 0.0 && current_width + box_w > line_max_width(lines.len()) {
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
@@ -372,13 +393,14 @@ pub(crate) fn wrap_text_runs(
             word_width
         };
 
-        let overflows = current_width + needed > options.max_width;
+        let effective_max_width = line_max_width(lines.len());
+        let overflows = current_width + needed > effective_max_width;
 
         if overflows && !preserve_spacing && options.overflow_wrap != OverflowWrap::Normal {
             let available_width = if current_width > 0.0 {
-                options.max_width - current_width - space_width
+                effective_max_width - current_width - space_width
             } else {
-                options.max_width
+                effective_max_width
             };
             if let Some((prefix, remainder)) = split_word_to_fit(
                 &word,
@@ -1223,5 +1245,63 @@ impl<'a> FlexTextRunCollector<'a> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod indent_tests {
+    use super::*;
+
+    fn plain_run(text: &str) -> TextRun {
+        TextRun {
+            text: text.to_string(),
+            font_size: 16.0,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            overline: false,
+            color: (0.0, 0.0, 0.0),
+            link_url: None,
+            font_family: FontFamily::Helvetica,
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+            line_height_factor: f32::NAN,
+            inline_box: None,
+        }
+    }
+
+    #[test]
+    fn text_indent_shrinks_only_the_first_line() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let runs = vec![plain_run("aaaa bbbb cccc dddd")];
+        // Width chosen so several words fit on the first line with no indent,
+        // but a large indent forces an earlier first-line wrap.
+        let opts = TextWrapOptions::new(140.0, 16.0, 1.2, OverflowWrap::Normal);
+
+        let no_indent = wrap_text_runs(runs.clone(), opts, &fonts);
+        let indented = wrap_text_runs(runs, opts.with_text_indent(60.0), &fonts);
+
+        let count_words = |line: &TextLine| {
+            line.runs
+                .iter()
+                .map(|r| r.text.split_whitespace().count())
+                .sum::<usize>()
+        };
+        // The indent consumes inline space on the FIRST line only, so it holds
+        // fewer words than the un-indented first line.
+        assert!(
+            count_words(&indented[0]) < count_words(&no_indent[0]),
+            "indented first line should hold fewer words: {} vs {}",
+            count_words(&indented[0]),
+            count_words(&no_indent[0])
+        );
+        // A subsequent line is unaffected by the indent and can still hold the
+        // full un-indented width's worth of words.
+        assert!(
+            indented.len() >= 2,
+            "indented paragraph should wrap to at least two lines"
+        );
     }
 }
