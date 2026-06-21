@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 55.51%  (PASS 174 · PARTIAL 35 · FAIL 136 · UNKNOWN 1 · total 346)
+Overall: 61.30%  (PASS 186 · PARTIAL 51 · FAIL 108 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -22,7 +22,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**36 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-clamp`, `units-min-max`
+**38 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-word-break-break-all`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -49,27 +49,11 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 11.94 | flexbox | flex-direction | column | flexbox-flex-direction-column | fill recolour ΔRGB(+23,+64,+29) (ΔE 39.1) |
 | FAIL | REAL | Missing | 9.46 | flexbox | flex-wrap | wrap | flexbox-flex-wrap | content clipped/truncated (3.8% missing) |
 | FAIL | REAL | ColorValue | 72.72 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex | fill recolour ΔRGB(+17,+17,+17) (ΔE 38.2) |
-| FAIL | REAL | Missing | 21.04 | generated-content | content-attr | before-attr | generated-content-attr | content clipped/truncated (4.7% missing) |
-| FAIL | REAL | Missing | 16.26 | generated-content | content-suppression | content-none | generated-content-content-none | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Missing | 19.15 | generated-content | pseudo-element | after-content-string | generated-content-after-string | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Missing | 15.67 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
-| FAIL | REAL | Missing | 19.25 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | ColorValue | 4.48 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
-| FAIL | REAL | ColorValue | 12.48 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 21.6) |
-| FAIL | REAL | Missing | 23.11 | inline-text | letter-spacing | positive | inline-text-letter-spacing | content clipped/truncated (10.4% missing) |
-| FAIL | REAL | Missing | 23.20 | inline-text | text-align | center | inline-text-text-align-center | content clipped/truncated (10.3% missing) |
-| FAIL | REAL | Missing | 25.94 | inline-text | text-align | justify | inline-text-text-align-justify | content clipped/truncated (6.7% missing) |
-| FAIL | REAL | Missing | 26.00 | inline-text | text-align | right | inline-text-text-align-right | content clipped/truncated (10.3% missing) |
-| FAIL | REAL | Missing | 27.02 | inline-text | text-decoration | underline | inline-text-text-decoration-underline | content clipped/truncated (9.0% missing) |
-| FAIL | REAL | Missing | 17.91 | inline-text | vertical-align | baseline | inline-text-vertical-align-baseline | content clipped/truncated (7.2% missing) |
-| FAIL | REAL | Missing | 15.42 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | content clipped/truncated (5.3% missing) |
-| FAIL | REAL | Missing | 18.22 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Missing | 13.38 | inline-text | vertical-align | top | inline-text-vertical-align-top | content clipped/truncated (3.7% missing) |
-| FAIL | REAL | Missing | 34.01 | inline-text | white-space | nowrap | inline-text-white-space-nowrap | content clipped/truncated (11.2% missing) |
-| FAIL | REAL | Missing | 14.52 | inline-text | white-space | pre | inline-text-white-space-pre | content clipped/truncated (7.4% missing) |
-| FAIL | REAL | Missing | 27.59 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | content clipped/truncated (7.4% missing) |
-| FAIL | REAL | Missing | 23.71 | inline-text | word-spacing | positive | inline-text-word-spacing | content clipped/truncated (9.5% missing) |
-| FAIL | REAL | Missing | 18.49 | inline-text | wrapping | normal | inline-text-wrapping-normal | content clipped/truncated (2.7% missing) |
+| FAIL | REAL | Extra | 14.95 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | extra paint where Chrome is blank (5.6%) |
+| FAIL | REAL | Missing | 18.13 | inline-text | white-space | nowrap | inline-text-white-space-nowrap | content clipped/truncated (9.4% missing) |
+| FAIL | REAL | ColorValue | 7.31 | inline-text | white-space | pre | inline-text-white-space-pre | fill recolour ΔRGB(-213,-205,-214) (ΔE 82.0) |
+| FAIL | REAL | ColorValue | 17.94 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | fill recolour ΔRGB(-101,-85,-83) (ΔE 75.4) |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | ColorValue | 36.12 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container | via flexbox-display-flex: fill recolour ΔRGB(+46,-84,-90) (ΔE 49.6) |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | Missing | 48.13 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap | via flexbox-flex-wrap: content clipped/truncated (14.0% missing) |
 | FAIL | CONFOUNDED: display (`flexbox-display-flex`) | Extra | 26.14 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `flexbox-display-flex` already FAILs | flexbox-x-grid-nested | via flexbox-display-flex: extra paint where Chrome is blank (5.9%) |
@@ -113,13 +97,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 11.39 | tables | colspan | colspan-2 | tables-colspan | fill recolour ΔRGB(-23,+66,+44) (ΔE 51.5) |
 | FAIL | REAL | ColorValue | 6.04 | tables | empty-cells | hide | tables-empty-cells-hide | fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6) |
 | FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
-| FAIL | REAL | Missing | 26.91 | text-advanced | overflow-wrap | break-word | text-advanced-overflow-wrap-break-word | content clipped/truncated (3.5% missing) |
-| FAIL | REAL | Missing | 25.15 | text-advanced | text-indent | length | text-advanced-text-indent | content clipped/truncated (3.5% missing) |
-| FAIL | REAL | Missing | 25.32 | text-advanced | white-space | normal | text-advanced-white-space-normal | content clipped/truncated (3.5% missing) |
-| FAIL | REAL | Missing | 33.64 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap | content clipped/truncated (10.1% missing) |
-| FAIL | REAL | Missing | 10.56 | text-advanced | white-space | pre | text-advanced-white-space-pre | content clipped/truncated (3.6% missing) |
-| FAIL | REAL | ColorValue | 23.35 | text-advanced | white-space | pre-line | text-advanced-white-space-pre-line | fill recolour ΔRGB(-122,-100,-100) (ΔE 70.7) |
-| FAIL | REAL | ColorValue | 27.37 | text-advanced | white-space | pre-wrap | text-advanced-white-space-pre-wrap | fill recolour ΔRGB(-63,-79,-71) (ΔE 77.6) |
+| FAIL | REAL | Missing | 12.39 | text-advanced | white-space | nowrap | text-advanced-white-space-nowrap | content clipped/truncated (8.5% missing) |
 | FAIL | REAL | Missing | 13.21 | typography | vertical-align | sub | typography-vertical-align-sub | content clipped/truncated (7.0% missing) |
 | FAIL | REAL | Missing | 14.42 | typography | vertical-align | sup | typography-vertical-align-sup | content clipped/truncated (8.3% missing) |
 | FAIL | REAL | ColorValue | 9.78 | units-values | length-units | em | units-length-em | fill recolour ΔRGB(+28,+60,+128) (ΔE 24.0) |
@@ -135,7 +113,7 @@ None — every fixture's HTML matches `refs.lock`.
 | 4 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
 | 5 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
 | 6 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
-| 7 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
+| 7 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
 | 8 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
 | 9 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
 | 10 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
@@ -152,20 +130,20 @@ None — every fixture's HTML matches `refs.lock`.
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 65.63% | 8 | 5 | 3 | 0 |
 | fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
-| generated-content | 15.00% | 1 | 1 | 8 | 0 |
+| generated-content | 60.00% | 5 | 2 | 3 | 0 |
 | grid | 93.75% | 15 | 0 | 1 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
-| inline-text | 6.25% | 1 | 0 | 15 | 0 |
+| inline-text | 50.00% | 4 | 8 | 4 | 0 |
 | interactions | 25.00% | 5 | 1 | 16 | 0 |
 | lists-counters | 4.17% | 0 | 1 | 11 | 0 |
 | multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 0.00% | 0 | 0 | 10 | 0 |
-| paged-media | 66.67% | 6 | 0 | 3 | 0 |
+| paged-media | 72.22% | 6 | 1 | 2 | 0 |
 | positioning | 50.00% | 7 | 2 | 7 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
 | tables | 31.25% | 0 | 10 | 6 | 0 |
-| text-advanced | 0.00% | 0 | 0 | 15 | 0 |
+| text-advanced | 53.33% | 5 | 6 | 4 | 0 |
 | transforms | 100.00% | 11 | 0 | 0 | 0 |
 | typography | 84.38% | 13 | 1 | 2 | 0 |
 | units-values | 83.33% | 9 | 2 | 1 | 0 |
@@ -222,10 +200,10 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 19.40 | fonts-advanced | font-size | fonts-advanced-font-size-ex | font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing). |
 | unsupported | PASS | 4.07 | fonts-advanced | font-stretch | fonts-advanced-font-stretch-condensed | Text with font-stretch: condensed selecting a narrower face/width (aspirational; font-stretch is not parsed or matched). |
 | unsupported | FAIL | 10.25 | fonts-advanced | font-variant | fonts-advanced-font-variant-small-caps | Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support). |
-| unsupported | FAIL | 17.28 | generated-content | content-url | generated-content-content-url-image | content: url(data:png) on ::before places a small decoded raster image before the element text. |
+| unsupported | FAIL | 6.67 | generated-content | content-url | generated-content-content-url-image | content: url(data:png) on ::before places a small decoded raster image before the element text. |
 | unsupported | FAIL | 17.09 | generated-content | first-letter | generated-content-first-letter-dropcap | ::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it. |
 | unsupported | PARTIAL | 10.21 | generated-content | first-line | generated-content-first-line | ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal. |
-| unsupported | FAIL | 13.46 | generated-content | quotes | generated-content-open-close-quote | content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property. |
+| unsupported | FAIL | 5.85 | generated-content | quotes | generated-content-open-close-quote | content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property. |
 | unsupported | PASS | 0.33 | images-replaced | aspect-ratio | img-aspect-ratio-box | A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height. |
 | partial | PARTIAL | 0.58 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PARTIAL | 0.28 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
@@ -257,20 +235,20 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 36.11 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
 | partial | PASS | 0.14 | paged-media | page-break-before | paged-page-break-before-avoid-noop | page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap. |
 | unsupported | FAIL | 29.53 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
-| unsupported | FAIL | 16.80 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
+| unsupported | PARTIAL | 2.07 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
 | unsupported | PASS | 0.45 | selectors-cascade | at-rule | selectors-cascade-supports-rule | @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap. |
 | partial | PASS | 1.15 | selectors-cascade | attribute-selector | selectors-cascade-attribute-equals | [data-pick="yes"] colors only the box whose attribute equals the value; boxes with a different value or no attribute stay gray. |
 | partial | PASS | 1.15 | selectors-cascade | pseudo-class | selectors-cascade-first-last-child | :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray. |
 | partial | PASS | 1.15 | selectors-cascade | pseudo-class | selectors-cascade-not-negation | :not(.skip) colors every .box except the one carrying .skip; the skipped box stays gray. |
 | partial | PARTIAL | 0.23 | selectors-cascade | pseudo-class | selectors-cascade-root-element | :root paints the page background green behind a centered white bordered panel; if :root is unmatched the page stays white. |
-| unsupported | FAIL | 32.32 | text-advanced | direction | text-advanced-direction-rtl | direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress. |
-| unsupported | FAIL | 32.80 | text-advanced | hyphens | text-advanced-hyphens-auto | hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress. |
-| unsupported | FAIL | 12.50 | text-advanced | tab-size | text-advanced-tab-size | tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress. |
-| partial | FAIL | 36.17 | text-advanced | text-overflow | text-advanced-text-overflow-clip | text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis. |
-| partial | FAIL | 31.69 | text-advanced | text-overflow | text-advanced-text-overflow-ellipsis | text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped. |
-| unsupported | FAIL | 23.86 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
-| unsupported | FAIL | 27.71 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
-| unsupported | FAIL | 8.32 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
+| unsupported | PASS | 4.83 | text-advanced | direction | text-advanced-direction-rtl | direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress. |
+| unsupported | PARTIAL | 6.32 | text-advanced | hyphens | text-advanced-hyphens-auto | hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress. |
+| unsupported | PARTIAL | 2.50 | text-advanced | tab-size | text-advanced-tab-size | tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress. |
+| partial | FAIL | 14.07 | text-advanced | text-overflow | text-advanced-text-overflow-clip | text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis. |
+| partial | FAIL | 12.50 | text-advanced | text-overflow | text-advanced-text-overflow-ellipsis | text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped. |
+| unsupported | PARTIAL | 5.02 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
+| unsupported | PASS | 5.00 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
+| unsupported | FAIL | 3.75 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
 | unsupported | PASS | 0.21 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
 | unsupported | PASS | 0.27 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
 | unsupported | PASS | 0.38 | transforms | transform | transforms-skew | transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser. |
@@ -497,25 +475,25 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 3.81% text-transform=lowercase — `fonts-advanced-text-transform-lowercase` — Uppercase source text rendered with text-transform: lowercase so every glyph is lowercased before shaping.
   - PASS 3.73% text-transform=uppercase — `fonts-advanced-text-transform-uppercase` — Lowercase source text rendered with text-transform: uppercase so every glyph is uppercased before shaping.
 
-### generated-content — 15.00%
-- **content-attr** — 0.00%
-  - FAIL 21.04% content-attr=before-attr — `generated-content-attr` — content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.
+### generated-content — 60.00%
+- **content-attr** — 100.00%
+  - PASS 4.03% content-attr=before-attr — `generated-content-attr` — content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.
 - **content-counter** — 100.00%
   - PASS 2.04% content-counter=counter-reset-increment — `generated-content-counter` — counter-reset plus counter-increment with content: counter(step) numbers three stacked items via ::before.
-- **content-suppression** — 0.00%
-  - FAIL 16.26% content-suppression=content-none — `generated-content-content-none` — content: none on ::before suppresses the pseudo-element so only the original element text renders.
+- **content-suppression** — 100.00%
+  - PASS 2.06% content-suppression=content-none — `generated-content-content-none` — content: none on ::before suppresses the pseudo-element so only the original element text renders.
 - **content-url** — 0.00%
-  - FAIL 17.28% content-url=before-image — `generated-content-content-url-image` — content: url(data:png) on ::before places a small decoded raster image before the element text.
+  - FAIL 6.67% content-url=before-image — `generated-content-content-url-image` — content: url(data:png) on ::before places a small decoded raster image before the element text.
 - **first-letter** — 0.00%
   - FAIL 17.09% first-letter=drop-cap — `generated-content-first-letter-dropcap` — ::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it.
 - **first-line** — 50.00%
   - PARTIAL 10.21% first-line=color-weight — `generated-content-first-line` — ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.
-- **pseudo-element** — 0.00%
-  - FAIL 19.15% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
-  - FAIL 15.67% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
-  - FAIL 19.25% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
+- **pseudo-element** — 83.33%
+  - PASS 2.78% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
+  - PARTIAL 4.58% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
+  - PASS 2.87% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
 - **quotes** — 0.00%
-  - FAIL 13.46% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
+  - FAIL 5.85% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
 ### grid — 93.75%
 - **align-items** — 100.00%
@@ -568,32 +546,32 @@ None — every fixture's HTML matches `refs.lock`.
 - **object-position** — 100.00%
   - PASS 0.07% object-position=bottom-with-contain — `img-object-position` — object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box.
 
-### inline-text — 6.25%
+### inline-text — 50.00%
 - **inline-block** — 0.00%
-  - FAIL 12.48% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
-- **letter-spacing** — 0.00%
-  - FAIL 23.11% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.
+  - FAIL 14.95% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
+- **letter-spacing** — 50.00%
+  - PARTIAL 9.11% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.
 - **line-height** — 100.00%
   - PASS 4.94% line-height=numeric — `inline-text-line-height-numeric` — Three filled paragraphs with line-height:2; verifies inter-line spacing and line-box height.
-- **text-align** — 0.00%
-  - FAIL 23.20% text-align=center — `inline-text-text-align-center` — text-align:center horizontally centers a short line within the box content area.
-  - FAIL 25.94% text-align=justify — `inline-text-text-align-justify` — text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.
-  - FAIL 26.00% text-align=right — `inline-text-text-align-right` — text-align:right pushes a short line to the right edge of the box content area.
-- **text-decoration** — 0.00%
-  - FAIL 27.02% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
-- **vertical-align** — 0.00%
-  - FAIL 17.91% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
-  - FAIL 15.42% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
-  - FAIL 18.22% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
-  - FAIL 13.38% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
+- **text-align** — 66.67%
+  - PARTIAL 5.69% text-align=center — `inline-text-text-align-center` — text-align:center horizontally centers a short line within the box content area.
+  - PASS 6.00% text-align=justify — `inline-text-text-align-justify` — text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.
+  - PARTIAL 5.72% text-align=right — `inline-text-text-align-right` — text-align:right pushes a short line to the right edge of the box content area.
+- **text-decoration** — 100.00%
+  - PASS 7.16% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
+- **vertical-align** — 50.00%
+  - PARTIAL 4.34% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
+  - PARTIAL 4.50% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
+  - PARTIAL 4.10% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
+  - PARTIAL 2.79% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
 - **white-space** — 0.00%
-  - FAIL 34.01% white-space=nowrap — `inline-text-white-space-nowrap` — white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.
-  - FAIL 14.52% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
-  - FAIL 27.59% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
-- **word-spacing** — 0.00%
-  - FAIL 23.71% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
-- **wrapping** — 0.00%
-  - FAIL 18.49% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
+  - FAIL 18.13% white-space=nowrap — `inline-text-white-space-nowrap` — white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.
+  - FAIL 7.31% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
+  - FAIL 17.94% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
+- **word-spacing** — 50.00%
+  - PARTIAL 6.58% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
+- **wrapping** — 100.00%
+  - PASS 5.05% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
 ### interactions — 25.00%
 - **containing-block** — 50.00%
@@ -687,7 +665,7 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 1.44% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
   - FAIL 68.08% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
 
-### paged-media — 66.67%
+### paged-media — 72.22%
 - **break-before** — 100.00%
   - PASS 0.12% break-before=page-leading-noop — `paged-break-before-page-modern` — Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine.
 - **break-inside** — 100.00%
@@ -702,8 +680,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.14% page-break-before=avoid-noop — `paged-page-break-before-avoid-noop` — page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap.
 - **page-break-inside** — 0.00%
   - FAIL 29.53% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
-- **page-counter** — 0.00%
-  - FAIL 16.80% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
+- **page-counter** — 50.00%
+  - PARTIAL 2.07% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
@@ -801,32 +779,32 @@ None — every fixture's HTML matches `refs.lock`.
 - **vertical-align** — 0.00%
   - FAIL 7.89% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
 
-### text-advanced — 0.00%
-- **direction** — 0.00%
-  - FAIL 32.32% direction=rtl — `text-advanced-direction-rtl` — direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress.
-- **hyphens** — 0.00%
-  - FAIL 32.80% hyphens=auto — `text-advanced-hyphens-auto` — hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress.
-- **overflow-wrap** — 0.00%
-  - FAIL 26.91% overflow-wrap=break-word — `text-advanced-overflow-wrap-break-word` — overflow-wrap:break-word breaks an over-long word so it does not overflow the narrow fixed-width box.
-- **tab-size** — 0.00%
-  - FAIL 12.50% tab-size=eight — `text-advanced-tab-size` — tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.
-- **text-indent** — 0.00%
-  - FAIL 25.15% text-indent=length — `text-advanced-text-indent` — text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.
+### text-advanced — 53.33%
+- **direction** — 100.00%
+  - PASS 4.83% direction=rtl — `text-advanced-direction-rtl` — direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress.
+- **hyphens** — 50.00%
+  - PARTIAL 6.32% hyphens=auto — `text-advanced-hyphens-auto` — hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress.
+- **overflow-wrap** — 50.00%
+  - PARTIAL 15.04% overflow-wrap=break-word — `text-advanced-overflow-wrap-break-word` — overflow-wrap:break-word breaks an over-long word so it does not overflow the narrow fixed-width box.
+- **tab-size** — 50.00%
+  - PARTIAL 2.50% tab-size=eight — `text-advanced-tab-size` — tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.
+- **text-indent** — 100.00%
+  - PASS 4.54% text-indent=length — `text-advanced-text-indent` — text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.
 - **text-overflow** — 0.00%
-  - FAIL 36.17% text-overflow=clip — `text-advanced-text-overflow-clip` — text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis.
-  - FAIL 31.69% text-overflow=ellipsis — `text-advanced-text-overflow-ellipsis` — text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped.
-- **unicode-bidi** — 0.00%
-  - FAIL 23.86% unicode-bidi=bidi-override — `text-advanced-unicode-bidi-override` — unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress.
-- **white-space** — 0.00%
-  - FAIL 25.32% white-space=normal — `text-advanced-white-space-normal` — white-space:normal collapses runs of spaces and newlines into single soft-wrappable spaces.
-  - FAIL 33.64% white-space=nowrap — `text-advanced-white-space-nowrap` — white-space:nowrap forces a single line that is clipped by overflow:hidden in a narrow box.
-  - FAIL 10.56% white-space=pre — `text-advanced-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text with no wrapping.
-  - FAIL 23.35% white-space=pre-line — `text-advanced-white-space-pre-line` — white-space:pre-line collapses spaces but preserves explicit newlines, wrapping at the box edge.
-  - FAIL 27.37% white-space=pre-wrap — `text-advanced-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.
-- **word-break** — 0.00%
-  - FAIL 27.71% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
+  - FAIL 14.07% text-overflow=clip — `text-advanced-text-overflow-clip` — text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis.
+  - FAIL 12.50% text-overflow=ellipsis — `text-advanced-text-overflow-ellipsis` — text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped.
+- **unicode-bidi** — 50.00%
+  - PARTIAL 5.02% unicode-bidi=bidi-override — `text-advanced-unicode-bidi-override` — unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress.
+- **white-space** — 60.00%
+  - PASS 4.76% white-space=normal — `text-advanced-white-space-normal` — white-space:normal collapses runs of spaces and newlines into single soft-wrappable spaces.
+  - FAIL 12.39% white-space=nowrap — `text-advanced-white-space-nowrap` — white-space:nowrap forces a single line that is clipped by overflow:hidden in a narrow box.
+  - PASS 0.62% white-space=pre — `text-advanced-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text with no wrapping.
+  - PARTIAL 8.53% white-space=pre-line — `text-advanced-white-space-pre-line` — white-space:pre-line collapses spaces but preserves explicit newlines, wrapping at the box edge.
+  - PARTIAL 9.10% white-space=pre-wrap — `text-advanced-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still soft-wrapping at the box edge.
+- **word-break** — 100.00%
+  - PASS 5.00% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
 - **writing-mode** — 0.00%
-  - FAIL 8.32% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
+  - FAIL 3.75% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
 ### transforms — 100.00%
 - **transform** — 100.00%

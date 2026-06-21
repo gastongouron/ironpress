@@ -452,13 +452,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Use explicit block_width if set, otherwise available_width
                     let render_width = block_width.unwrap_or(available_width);
+                    // `total_h` is the PADDING-box height (content + padding, no
+                    // border).  The block FLOW advance already accounts for the
+                    // vertical border (see layout::block / paginate), so `block_y`
+                    // is the BORDER-box top.  The rendered box geometry (fill,
+                    // border stroke, box-shadow, clip, text origin) must therefore
+                    // use the BORDER box so it matches the flow and Chrome.
                     let total_h = text_block_total_height(
                         lines,
                         *padding_top,
                         *padding_bottom,
                         *block_height,
                     );
-                    let block_bottom = block_y - total_h;
+                    // Border-box height = padding-box height + vertical border.
+                    // `render_width` is already the border-box width, so the box
+                    // is `render_width` × `border_box_h`, top at `block_y`.
+                    let border_vert = border.top.width + border.bottom.width;
+                    let border_box_h = total_h + border_vert;
+                    let block_bottom = block_y - border_box_h;
 
                     // Apply transform if set (wrap in q/Q).
                     // Rotate and scale are applied around the element's centre so
@@ -470,9 +481,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     if let Some(t) = transform {
                         // Resolve the transform-origin pivot (px from the box's
                         // top-left) into PDF bottom-up coordinates.
-                        let (ox, oy) = transform_origin.resolve(render_width, total_h);
+                        let (ox, oy) = transform_origin.resolve(render_width, border_box_h);
                         let cx = block_x + ox;
-                        let cy = block_bottom + total_h - oy;
+                        let cy = block_bottom + border_box_h - oy;
                         content.push_str("q\n");
                         push_transform_cm(&mut content, t, cx, cy);
                     }
@@ -505,7 +516,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str(&format!("/{gs_name} gs\n"));
                     }
 
-                    // Draw box-shadow with blur
+                    // Draw box-shadow with blur (references the border box).
                     if let Some(shadow) = box_shadow {
                         render_box_shadow(
                             &mut content,
@@ -513,7 +524,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             block_x,
                             block_bottom,
                             render_width,
-                            total_h,
+                            border_box_h,
                             *border_radius,
                             &mut page_ext_gstates,
                             &mut bg_alpha_counter,
@@ -536,7 +547,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 block_x,
                                 bg_y,
                                 render_width,
-                                total_h,
+                                border_box_h,
                                 *border_radius,
                             ));
                         } else {
@@ -545,7 +556,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 x = block_x,
                                 y = bg_y,
                                 w = render_width,
-                                h = total_h,
+                                h = border_box_h,
                             ));
                         }
                         content.push_str("f\n");
@@ -570,7 +581,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 block_x,
                                 bg_y,
                                 render_width,
-                                total_h,
+                                border_box_h,
                                 *border_radius,
                             ));
                             content.push_str("W n\n");
@@ -581,7 +592,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             block_x,
                             bg_y,
                             render_width,
-                            total_h,
+                            border_box_h,
                             &mut page_shadings,
                             &mut shading_counter,
                         );
@@ -599,7 +610,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 block_x,
                                 bg_y,
                                 render_width,
-                                total_h,
+                                border_box_h,
                                 *border_radius,
                             ));
                             content.push_str("W n\n");
@@ -610,7 +621,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             block_x,
                             bg_y,
                             render_width,
-                            total_h,
+                            border_box_h,
                             &mut page_shadings,
                             &mut shading_counter,
                         );
@@ -629,37 +640,47 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             block_x,
                             block_bottom,
                             render_width,
-                            total_h,
+                            border_box_h,
                             *border_radius,
                             &mut page_ext_gstates,
                             &mut bg_alpha_counter,
                         );
                     }
 
-                    // Draw SVG background image if specified
+                    // Draw SVG background image if specified.
+                    // `block_x` / `block_y` are the border-box top-left and
+                    // `render_width` × `border_box_h` is the border box (border
+                    // paints inward).  Derive the padding/content boxes by
+                    // insetting with the per-side border / padding widths.
                     if let Some(svg_tree) = background_svg {
-                        let text_height: f32 = lines.iter().map(|l| l.height).sum();
-                        let content_h = padding_top + text_height + padding_bottom;
-                        let total_h = match block_height {
-                            Some(h) => content_h.max(*h),
-                            None => content_h,
-                        };
-                        let bg_y = block_y - total_h;
+                        let border_left = border.left.width;
+                        let border_right = border.right.width;
+                        let border_box_x = block_x;
+                        let border_box_y = block_bottom;
+                        let border_box_w = render_width;
                         // Adjust reference box based on background-origin
                         let (ref_x, ref_y, ref_w, ref_h) = match background_origin {
-                            BackgroundOrigin::Border => (
-                                block_x - border.left.width,
-                                bg_y - border.bottom.width,
-                                render_width + border.left.width + border.right.width,
-                                total_h + border.top.width + border.bottom.width,
-                            ),
+                            BackgroundOrigin::Border => {
+                                (border_box_x, border_box_y, border_box_w, border_box_h)
+                            }
                             BackgroundOrigin::Content => (
-                                block_x + padding_left,
-                                bg_y + padding_bottom,
-                                (render_width - padding_left - padding_right).max(0.0),
-                                (total_h - padding_top - padding_bottom).max(0.0),
+                                border_box_x + border_left + padding_left,
+                                border_box_y + border.bottom.width + padding_bottom,
+                                (border_box_w
+                                    - border_left
+                                    - border_right
+                                    - padding_left
+                                    - padding_right)
+                                    .max(0.0),
+                                (border_box_h - border_vert - padding_top - padding_bottom)
+                                    .max(0.0),
                             ),
-                            BackgroundOrigin::Padding => (block_x, bg_y, render_width, total_h),
+                            BackgroundOrigin::Padding => (
+                                border_box_x + border_left,
+                                border_box_y + border.bottom.width,
+                                (border_box_w - border_left - border_right).max(0.0),
+                                (border_box_h - border_vert).max(0.0),
+                            ),
                         };
                         render_svg_background(
                             &mut content,
@@ -672,10 +693,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             BackgroundPaintContext::new(
                                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
                                 SvgViewportBox::new(
-                                    block_x - border.left.width,
-                                    bg_y - border.bottom.width,
-                                    render_width + border.left.width + border.right.width,
-                                    total_h + border.top.width + border.bottom.width,
+                                    border_box_x,
+                                    border_box_y,
+                                    border_box_w,
+                                    border_box_h,
                                 ),
                                 *border_radius,
                                 *background_blur_radius,
@@ -686,9 +707,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         );
                     }
 
-                    // Draw border if specified
+                    // Draw border if specified.  The border paints INSIDE the
+                    // border box (CSS box model): the stroke centerline sits half
+                    // a border-width inside each border-box edge, so the stroke's
+                    // outer edge coincides with the border-box edge.
                     if border.has_any() {
-                        let border_y = block_bottom;
                         // Check if all sides are uniform (same width & color)
                         let uniform = border.top.width == border.right.width
                             && border.top.width == border.bottom.width
@@ -700,6 +723,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.style == border.bottom.style
                             && border.top.style == border.left.style;
                         if uniform && *border_radius > 0.0 {
+                            let bw = border.top.width;
                             let (br, bg, bb) = border.top.color;
                             let a = begin_border_alpha(
                                 &mut content,
@@ -708,21 +732,21 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 border.top.alpha,
                             );
                             content.push_str(dash_pattern_for_style(border.top.style));
-                            content.push_str(&format!(
-                                "{br} {bg} {bb} RG\n{bw} w\n",
-                                bw = border.top.width
-                            ));
+                            content.push_str(&format!("{br} {bg} {bb} RG\n{bw} w\n"));
+                            // Inset the stroke path by half the border width so the
+                            // outer edge aligns with the border-box edge.
                             content.push_str(&rounded_rect_path(
-                                block_x,
-                                border_y,
-                                render_width,
-                                total_h,
-                                *border_radius,
+                                block_x + bw / 2.0,
+                                block_bottom + bw / 2.0,
+                                (render_width - bw).max(0.0),
+                                (border_box_h - bw).max(0.0),
+                                (*border_radius - bw / 2.0).max(0.0),
                             ));
                             content.push_str("S\n");
                             content.push_str(reset_dash_pattern(border.top.style));
                             end_border_alpha(&mut content, a);
                         } else if uniform {
+                            let bw = border.top.width;
                             let (br, bg, bb) = border.top.color;
                             let a = begin_border_alpha(
                                 &mut content,
@@ -731,29 +755,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 border.top.alpha,
                             );
                             content.push_str(dash_pattern_for_style(border.top.style));
-                            content.push_str(&format!(
-                                "{br} {bg} {bb} RG\n{bw} w\n",
-                                bw = border.top.width
-                            ));
+                            content.push_str(&format!("{br} {bg} {bb} RG\n{bw} w\n"));
                             content.push_str(&format!(
                                 "{x} {y} {w} {h} re\n",
-                                x = block_x,
-                                y = border_y,
-                                w = render_width,
-                                h = total_h,
+                                x = block_x + bw / 2.0,
+                                y = block_bottom + bw / 2.0,
+                                w = (render_width - bw).max(0.0),
+                                h = (border_box_h - bw).max(0.0),
                             ));
                             content.push_str("S\n");
                             content.push_str(reset_dash_pattern(border.top.style));
                             end_border_alpha(&mut content, a);
                         } else {
+                            // Per-side stroke centerlines sit half a border-width
+                            // inside the border-box edges (border paints inward).
                             let x1 = block_x;
                             let x2 = block_x + render_width;
-                            // Offset borders by half their width so the inner edge
-                            // aligns with the padding boundary (CSS box model).
-                            let y_top = block_y + border.top.width / 2.0;
-                            let y_bottom = border_y - border.bottom.width / 2.0;
-                            let x_left = block_x - border.left.width / 2.0;
-                            let x_right = block_x + render_width + border.right.width / 2.0;
+                            let y_top = block_y - border.top.width / 2.0;
+                            let y_bottom = block_bottom + border.bottom.width / 2.0;
+                            let x_left = block_x + border.left.width / 2.0;
+                            let x_right = block_x + render_width - border.right.width / 2.0;
                             // Top border
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
@@ -838,7 +859,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let outline_x = block_x - offset;
                         let outline_y = block_bottom - offset;
                         let outline_w = render_width + *outline_width;
-                        let outline_h = total_h + *outline_width;
+                        let outline_h = border_box_h + *outline_width;
                         let (or, og, ob) = outline_color.unwrap_or((0.0, 0.0, 0.0));
                         content
                             .push_str(&format!("{or} {og} {ob} RG\n{ow} w\n", ow = outline_width,));
@@ -859,7 +880,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("S\n");
                     }
 
-                    let mut text_y = block_y - padding_top;
+                    // Text content is inset from the border-box top by the top
+                    // border width and the top padding.
+                    let mut text_y = block_y - border.top.width - padding_top;
+
+                    // Horizontal insets: `block_x` / `render_width` are the
+                    // border-box left / width, so the content area starts after
+                    // the left border + left padding and is narrowed by the
+                    // horizontal borders + paddings.
+                    let border_left = border.left.width;
+                    let border_right = border.right.width;
+                    // Content-box left edge and width (content + padding ⇒ here we
+                    // keep padding in `content_x`/`content_width` because the text
+                    // branches add `padding_left`/`padding_right` themselves; this
+                    // pair is the PADDING box).
+                    let padding_box_x = block_x + border_left;
+                    let padding_box_w = (render_width - border_left - border_right).max(0.0);
 
                     let line_count = lines.len();
                     for (line_idx, line) in lines.iter().enumerate() {
@@ -883,7 +919,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let justify_ws = if *text_align == TextAlign::Justify && !is_last_line {
                             let first_line_indent = if line_idx == 0 { *text_indent } else { 0.0 };
                             let content_width =
-                                render_width - padding_left - padding_right - first_line_indent;
+                                padding_box_w - padding_left - padding_right - first_line_indent;
                             let remaining = content_width - line_width;
                             let space_count = line_text.matches(' ').count();
                             if space_count > 0 && remaining > 0.0 {
@@ -904,13 +940,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let first_line_indent = if line_idx == 0 { *text_indent } else { 0.0 };
                         let text_x = match text_align {
                             TextAlign::Left | TextAlign::Justify => {
-                                block_x + padding_left + first_line_indent
+                                padding_box_x + padding_left + first_line_indent
                             }
                             TextAlign::Center => {
                                 let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
-                                block_x
+                                padding_box_x
                                     + first_line_indent
-                                    + (render_width - first_line_indent - line_width) / 2.0
+                                    + (padding_box_w - first_line_indent - line_width) / 2.0
                                     + first_pad
                             }
                             TextAlign::Right => {
@@ -920,7 +956,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 // spans).  Offset by the first run's left padding so
                                 // the visual right edge aligns with the right boundary.
                                 let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
-                                block_x + render_width - padding_right - line_width + first_pad
+                                padding_box_x + padding_box_w - padding_right - line_width
+                                    + first_pad
                             }
                         };
 
