@@ -171,6 +171,13 @@ pub(crate) fn layout_multicol_container(
     // the running vertical cursor so successive segments stack.
     let pad_left = style.border.left.width + style.padding.left;
     let pad_top = style.border.top.width + style.padding.top;
+    // Column/band/rule containers are emitted as `Position::Absolute` children of
+    // the multicol wrapper. The renderer places absolute children at the wrapper's
+    // PADDING-box origin (CSS §10.1), so their offsets must be padding-box-relative:
+    // strip the wrapper border from the border-box-relative cursors below. The
+    // height accounting (`cursor_y`/`max_bottom`) stays in border-box coordinates.
+    let bl = style.border.left.width;
+    let bt = style.border.top.width;
 
     let mut column_children: Vec<LayoutElement> = Vec::new();
     let mut cursor_y = pad_top; // distance from border-box top to current band top
@@ -183,8 +190,8 @@ pub(crate) fn layout_multicol_container(
             let band_h = items[i].height;
             let band = make_band_container(
                 std::mem::take(&mut items[i].elements),
-                pad_left,
-                cursor_y,
+                pad_left - bl,
+                cursor_y - bt,
                 inner_width,
                 band_h,
             );
@@ -219,7 +226,11 @@ pub(crate) fn layout_multicol_container(
             }
             run_max_h = run_max_h.max(col_height);
             column_children.push(make_column_container(
-                col_kids, col_x, cursor_y, col_width, col_height,
+                col_kids,
+                col_x - bl,
+                cursor_y - bt,
+                col_width,
+                col_height,
             ));
         }
 
@@ -235,7 +246,11 @@ pub(crate) fn layout_multicol_container(
                 let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
                 let rule_x = gap_center - rule_w / 2.0;
                 column_children.push(make_rule_container(
-                    rule_x, cursor_y, rule_w, run_max_h, rule_color,
+                    rule_x - bl,
+                    cursor_y - bt,
+                    rule_w,
+                    run_max_h,
+                    rule_color,
                 ));
             }
         }

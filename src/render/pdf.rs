@@ -2670,8 +2670,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             &mut shading_counter,
                                             &mut pdf_writer,
                                             &mut page_images,
-                                            *cont_pl + cont_border.left.width,
-                                            *cont_pt + cont_border.top.width,
+                                            *cont_pl,
+                                            *cont_pt,
                                         );
                                         if clip {
                                             content.push_str("Q\n");
@@ -3115,8 +3115,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &mut shading_counter,
                         &mut pdf_writer,
                         &mut page_images,
-                        *c_pl + border.left.width,
-                        *c_pt + border.top.width,
+                        *c_pl,
+                        *c_pt,
                     );
 
                     // Restore clip
@@ -4752,8 +4752,8 @@ fn render_container_children(
                         shading_counter,
                         pdf_writer,
                         page_images,
-                        *padding_left + border.left.width,
-                        *padding_top + border.top.width,
+                        *padding_left,
+                        *padding_top,
                     );
 
                     if clip {
