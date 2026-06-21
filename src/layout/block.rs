@@ -67,7 +67,17 @@ pub(crate) fn layout_block_element(
         // container inner width, which differs from the per-slot
         // `available_width` passed to this block layout). Prefer it over the
         // late-bound `percentage_sizing.width` hint when both are set.
-        block_w = (w + content_box_extra).min(available_width);
+        //
+        // A definite length width (`width: 250px`) is honoured exactly and the
+        // box overflows its parent when wider — CSS does not shrink it to fit
+        // (that is what `overflow` is for). Only percentage/auto widths clamp to
+        // the available width. `percentage_sizing.width` is set when the width
+        // came from a `%`, so a pure length has it as `None`.
+        block_w = if style.percentage_sizing.width.is_none() {
+            w + content_box_extra
+        } else {
+            (w + content_box_extra).min(available_width)
+        };
     } else if let Some(pct) = style.percentage_sizing.width {
         // Fallback: style.width was not resolved at style time (for example,
         // because the style-time parent width was unknown). Resolve the
