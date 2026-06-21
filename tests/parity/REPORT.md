@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 47.25%  (PASS 136 · PARTIAL 54 · FAIL 155 · UNKNOWN 1 · total 346)
+Overall: 47.68%  (PASS 137 · PARTIAL 55 · FAIL 153 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -60,9 +60,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Missing | 16.62 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
 | FAIL | REAL | Missing | 19.25 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | Extra | 2.80 | grid | align-items | start | grid-align-items-start | extra paint where Chrome is blank (3.5%) |
-| FAIL | REAL | Extra | 2.78 | grid | gap | row-column-gap | grid-gap | extra paint where Chrome is blank (1.9%) |
 | FAIL | REAL | ColorValue | 4.52 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
-| FAIL | REAL | ColorValue | 9.22 | grid | grid-template-columns | minmax | grid-template-columns-minmax | fill recolour ΔRGB(-209,+106,+87) (ΔE 63.9) |
 | FAIL | REAL | Extra | 3.08 | grid | place-items | center | grid-place-items-center | extra paint where Chrome is blank (7.3%) |
 | FAIL | REAL | ColorValue | 12.48 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 21.6) |
 | FAIL | REAL | Missing | 23.11 | inline-text | letter-spacing | positive | inline-text-letter-spacing | content clipped/truncated (10.4% missing) |
@@ -93,7 +91,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | ColorValue | 35.33 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `transforms-translate` already FAILs | interactions-positioning-fixed-x-transforms-translate | via positioning-fixed-top-left: fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 28.20 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: content clipped/truncated (12.6% missing) |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 35.71 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox | via positioning-position-absolute-top-left: fill recolour ΔRGB(+67,-11,-20) (ΔE 19.2) |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 86.03 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid | via positioning-position-absolute-top-left: fill recolour ΔRGB(+15,-17,+75) (ΔE 23.9) |
+| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 73.89 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid | via positioning-position-absolute-top-left: fill recolour ΔRGB(+15,-17,+75) (ΔE 24.0) |
 | FAIL | CONFOUNDED: table (`tables-basic-grid`) | Extra | 27.91 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested | via tables-basic-grid: extra paint where Chrome is blank (5.4%) |
 | FAIL | CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`) | Missing | 22.56 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `tables-thead-tbody-tfoot` already FAILs | tables-x-typography-bold | via tables-thead-tbody-tfoot: content clipped/truncated (24.7% missing) |
 | FAIL | CONFOUNDED: transform (`transforms-rotate`) | Extra | 41.17 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item | via transforms-rotate: extra paint where Chrome is blank (8.7%) |
@@ -174,7 +172,7 @@ None — every fixture's HTML matches `refs.lock`.
 | flexbox | 25.00% | 0 | 8 | 8 | 0 |
 | fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
 | generated-content | 15.00% | 1 | 1 | 8 | 0 |
-| grid | 34.38% | 0 | 11 | 5 | 0 |
+| grid | 43.75% | 1 | 12 | 3 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 6.25% | 1 | 0 | 15 | 0 |
 | interactions | 11.36% | 2 | 1 | 19 | 0 |
@@ -538,13 +536,13 @@ None — every fixture's HTML matches `refs.lock`.
 - **quotes** — 0.00%
   - FAIL 13.46% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
-### grid — 34.38%
+### grid — 43.75%
 - **align-items** — 0.00%
   - FAIL 2.80% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
 - **display** — 50.00%
   - PARTIAL 1.84% display=grid — `grid-display-grid` — 2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.
-- **gap** — 0.00%
-  - FAIL 2.78% gap=row-column-gap — `grid-gap` — 2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.
+- **gap** — 100.00%
+  - PASS 0.62% gap=row-column-gap — `grid-gap` — 2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.
 - **grid-auto-flow** — 50.00%
   - PARTIAL 2.30% grid-auto-flow=column — `grid-auto-flow-column` — grid-auto-flow: column places items down each column before wrapping to the next.
 - **grid-auto-rows** — 50.00%
@@ -553,11 +551,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 2.42% grid-column=span — `grid-column-span` — First cell spans two columns (grid-column: span 2) within a 3x2 grid.
 - **grid-row** — 50.00%
   - PARTIAL 2.19% grid-row=span — `grid-row-span` — First cell spans two rows (grid-row: span 2) within a 2x2 grid.
-- **grid-template-columns** — 33.33%
+- **grid-template-columns** — 41.67%
   - FAIL 4.52% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
   - PARTIAL 2.69% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
   - PARTIAL 2.31% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
-  - FAIL 9.22% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
+  - PARTIAL 2.81% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
   - PARTIAL 2.20% grid-template-columns=percent — `grid-template-columns-percent` — Three columns sized 25% 50% 25% of a fixed-width grid container.
   - PARTIAL 3.15% grid-template-columns=repeat — `grid-template-columns-repeat` — Four equal 80px columns produced by repeat(4, 80px).
 - **grid-template-rows** — 50.00%
@@ -647,7 +645,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **positioning-x-flexbox** — 0.00%
   - FAIL 35.71% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
 - **positioning-x-grid** — 0.00%
-  - FAIL 86.03% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
+  - FAIL 73.89% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
   - FAIL 27.91% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
 - **tables-x-typography** — 0.00%
