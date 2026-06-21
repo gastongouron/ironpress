@@ -463,6 +463,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         *padding_top,
                         *padding_bottom,
                         *block_height,
+                        clip_rect.is_some(),
                     );
                     // Border-box height = padding-box height + vertical border.
                     // `render_width` is already the border-box width, so the box
@@ -4061,6 +4062,7 @@ fn render_container_children(
                 mix_blend_mode: tb_mix_blend,
                 background_blend_mode: tb_bg_blend,
                 block_width: tb_block_width,
+                clip_rect: tb_clip_rect,
                 ..
             } => {
                 // Absolute-positioned children render at offset from the
@@ -4174,7 +4176,16 @@ fn render_container_children(
                 y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();
                 let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
-                let child_h = block_height.map_or(child_h, |h| child_h.max(h));
+                // A definite `block_height` is a hard size when the box clips
+                // (`overflow: hidden`/`scroll`): overflowing text is clipped to it
+                // rather than growing the box. Without a clip the height is a floor
+                // (min-height / auto) and grows to fit content. Mirrors paginate's
+                // `estimate_element_height` so the painted box matches the flow.
+                let child_h = if tb_clip_rect.is_some() {
+                    block_height.unwrap_or(child_h)
+                } else {
+                    block_height.map_or(child_h, |h| child_h.max(h))
+                };
 
                 let render_w = tb_block_width.unwrap_or(width);
 
@@ -4464,14 +4475,15 @@ fn render_container_children(
                 let nk_children_h: f32 = collapsed_children_height(nested_kids);
                 let nk_content_h =
                     padding_top + nk_children_h + padding_bottom + border.vertical_width();
-                // When an explicit block_height is given, use it directly so that
-                // overflow:hidden clips to the declared box (rather than expanding
-                // to fit oversized children and leaving them visible).
-                let nk_total_h = if *overflow == Overflow::Hidden {
-                    nk_block_height.unwrap_or(nk_content_h)
-                } else {
-                    nk_block_height.map_or(nk_content_h, |h| nk_content_h.max(h))
-                };
+                // A definite `block_height` (set only for an explicit `height`)
+                // is a hard border-box size: per CSS, oversized content overflows
+                // the box (clipped or visible per `overflow`) rather than growing
+                // it. Honour the declared height directly regardless of `overflow`
+                // — only an auto height (`None`) expands to fit children. (The old
+                // `content_h.max(h)` for non-hidden overflow wrongly inflated the
+                // box to the child height, e.g. an `overflow:visible` box grew to
+                // its oversized child instead of letting the child spill out.)
+                let nk_total_h = nk_block_height.unwrap_or(nk_content_h);
 
                 // `visibility: hidden` keeps the box's space (cursor still
                 // advances below) but paints nothing — gate all drawing on it.
@@ -6190,10 +6202,20 @@ fn text_block_total_height(
     padding_top: f32,
     padding_bottom: f32,
     block_height: Option<f32>,
+    clips: bool,
 ) -> f32 {
     let text_height: f32 = lines.iter().map(|l| l.height).sum();
     let content_h = padding_top + text_height + padding_bottom;
-    block_height.map_or(content_h, |h| content_h.max(h))
+    // When the box clips (`overflow: hidden`/`scroll`), a definite `block_height`
+    // is a hard size: overflowing text is clipped to it rather than growing the
+    // box. Otherwise `block_height` acts as a floor (min-height / auto) and the
+    // box still grows to fit content. Mirrors `estimate_element_height` in
+    // paginate so the painted box matches the flow advance.
+    if clips {
+        block_height.unwrap_or(content_h)
+    } else {
+        block_height.map_or(content_h, |h| content_h.max(h))
+    }
 }
 
 /// Merge consecutive text runs that share the same visual properties (font,
@@ -10520,6 +10542,7 @@ mod tests {
             &mut without_padding,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 0.0,
                 padding_bottom: 0.0,
@@ -10559,6 +10582,7 @@ mod tests {
             &mut with_padding,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 12.0,
                 padding_bottom: 0.0,
@@ -11717,6 +11741,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 4.0,
                 padding_bottom: 4.0,
@@ -11805,6 +11830,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 2.0,
                 padding_bottom: 2.0,
@@ -11884,6 +11910,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 0.0,
                 padding_bottom: 0.0,
@@ -11986,6 +12013,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 0.0,
                 padding_bottom: 0.0,
@@ -12068,6 +12096,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &lines,
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 5.0,
                 padding_bottom: 5.0,
@@ -12125,6 +12154,7 @@ mod tests {
             &mut content,
             NestedTextBlock {
                 lines: &[], // No lines
+                clips: false,
                 text_align: TextAlign::Left,
                 padding_top: 0.0,
                 padding_bottom: 0.0,

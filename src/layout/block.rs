@@ -107,6 +107,12 @@ pub(crate) fn layout_block_element(
             }
         }
     }
+    // A *definite* height (`height` / resolvable `height: %`) is a hard size: per
+    // CSS, oversized content overflows the box rather than growing it. A
+    // `min-height` floor (with no definite height) is NOT definite — the box
+    // still grows to fit taller content. Track which case `effective_height`
+    // came from so the box height is clamped only for the definite case.
+    let has_definite_height = effective_height.is_some();
     if let Some(min_h) = style.min_height {
         effective_height = Some(effective_height.map_or(min_h, |h| h.max(min_h)));
     }
@@ -1405,14 +1411,29 @@ pub(crate) fn layout_block_element(
 
         // Measure children total height
         let children_h_raw: f32 = child_elements.iter().map(estimate_element_height).sum();
+        // A definite `height` clamps the padding-box to that size (content
+        // overflows). A `min-height`-only floor (`effective_height` set but not
+        // definite) must still grow to fit taller content — pass `None` so the
+        // content height is used, then apply the floor as a `max` below.
         let mut container_h = resolve_padding_box_height(
             children_h_raw,
-            effective_height,
+            effective_height.filter(|_| has_definite_height),
             style.padding.top,
             style.padding.bottom,
             style.border.vertical_width(),
             style.box_sizing,
         );
+        if !has_definite_height && let Some(min_h) = effective_height {
+            let min_padding_box = resolve_padding_box_height(
+                0.0,
+                Some(min_h),
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            );
+            container_h = container_h.max(min_padding_box);
+        }
         if effective_height.is_none()
             && let Some(aspect_h) = aspect_ratio_height(block_w, style)
         {

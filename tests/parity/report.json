@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 61.3,
-    "pass": 186,
-    "partial": 51,
-    "fail": 108,
+    "score_pct": 61.74,
+    "pass": 188,
+    "partial": 50,
+    "fail": 107,
     "unknown": 1,
     "total": 346,
     "scored_ratio_pct": 99.71
@@ -46282,21 +46282,21 @@
     },
     {
       "category": "overflow-clipping",
-      "score_pct": 0.0,
+      "score_pct": 10.0,
       "counts": {
-        "pass": 0,
+        "pass": 1,
         "partial": 0,
-        "fail": 10,
+        "fail": 9,
         "unknown": 0
       },
       "features": [
         {
           "feature": "overflow",
-          "score_pct": 0.0,
+          "score_pct": 10.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 10,
+            "fail": 9,
             "unknown": 0
           },
           "fixtures": [
@@ -47197,7 +47197,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 61.0114,
+              "diff_pct": 23.0384,
               "weight": 1.0,
               "description": "overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).",
               "note": "",
@@ -47211,44 +47211,74 @@
               "attribution": "REAL",
               "html_sha256": "534cb9c193be91ea2aff178c35f0e010a87642131c691c2ad5b15b54de6fa69e",
               "diagnosis": {
-                "primary_class": "Extra",
+                "primary_class": "Missing",
                 "secondary": [
                   "ColorValue",
+                  "Extra",
                   "GeometrySize"
                 ],
-                "headline": "extra paint where Chrome is blank (50.2%)",
+                "headline": "content clipped/truncated (6.5% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     1.28,
                     -1.6,
                     1.28,
-                    -63.68
+                    -45.44
                   ],
-                  "missing_area_pct": 0.0,
-                  "extra_area_pct": 50.16154552262241,
+                  "missing_area_pct": 6.470479704797048,
+                  "extra_area_pct": 10.69116532544995,
                   "modal_drgb": [
-                    190,
-                    171,
-                    150
+                    -54,
+                    -52,
+                    -49
                   ],
-                  "delta_e": 77.03416984838262,
+                  "delta_e": 72.46256085863321,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
-                    0.0
+                    0.64
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "Extra",
+                    "class": "Missing",
                     "bbox_css": [
-                      0.0,
-                      1.6,
-                      262.72,
-                      128.64
+                      1.28,
+                      57.92,
+                      261.12,
+                      64.96
                     ],
-                    "area_pct": 53.79000561482313,
+                    "area_pct": 6.487419658804832,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -190,
+                      -171,
+                      -150
+                    ],
+                    "delta_e": 56.625589948120115,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.6857142857142857
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (6.5% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      2.88,
+                      2.88,
+                      259.84,
+                      57.6
+                    ],
+                    "area_pct": 2.214744806829529,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47264,10 +47294,10 @@
                     "recovered_alpha": null,
                     "shift_css": [
                       -0.5485714285714285,
-                      0.0
+                      0.27428571428571424
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (53.8%)"
+                    "headline": "fill recolour ΔRGB(+190,+171,+150) (ΔE 56.6)"
                   },
                   {
                     "class": "ColorValue",
@@ -47277,7 +47307,7 @@
                       76.16,
                       29.12
                     ],
-                    "area_pct": 0.6900798753871511,
+                    "area_pct": 0.8037635542804101,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47306,7 +47336,7 @@
                       85.44,
                       56.96
                     ],
-                    "area_pct": 0.6004238285848834,
+                    "area_pct": 0.6993375806927977,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47335,7 +47365,7 @@
                       261.12,
                       0.32
                     ],
-                    "area_pct": 0.4902404714036454,
+                    "area_pct": 0.571002629987483,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47354,7 +47384,7 @@
                       0.0
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.5%)"
+                    "headline": "extra paint where Chrome is blank (0.6%)"
                   },
                   {
                     "class": "ColorValue",
@@ -47364,7 +47394,7 @@
                       113.28,
                       29.12
                     ],
-                    "area_pct": 0.48722174928909096,
+                    "area_pct": 0.567486603940762,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47384,71 +47414,42 @@
                     ],
                     "selector": null,
                     "headline": "fill recolour ΔRGB(+24,+23,+22) (ΔE 77.0)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      143.68,
-                      10.88,
-                      160.64,
-                      29.12
-                    ],
-                    "area_pct": 0.4226210960376254,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      71,
-                      68,
-                      65
-                    ],
-                    "delta_e": 77.03416984838262,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.030651340996168584,
-                      -0.1189272030651341
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+71,+68,+65) (ΔE 77.0)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
-                  0.0
+                  0.64
                 ],
-                "confidence": 0.8219434961159765
+                "confidence": 0.16056712044441732
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 63.68css shift 0.00css",
-                  "magnitude": 63.68
+                  "headline": "raster geometry: edge 45.44css shift 0.64css",
+                  "magnitude": 45.44
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 9.92% interiorΔE 61.02",
-                  "magnitude": 9.924904205304113
+                  "headline": "raster appearance: color 18.16% interiorΔE 60.62",
+                  "magnitude": 18.16243975837931
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 50.16%",
-                  "magnitude": 50.16154552262241
+                  "headline": "raster presence: missing 6.47% extra 10.69%",
+                  "magnitude": 10.69116532544995
                 },
                 {
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: worst fill#0 h Δ46.500pt (offset 1.050pt cancelled)",
-                  "magnitude": 46.5
+                  "headline": "pdf-geom: worst fill#0 h Δ4.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 4.5
                 }
               ],
               "disagreements": []
@@ -47615,8 +47616,8 @@
               "subfeature": "visible",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 1.4351,
+              "status": "PASS",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.",
               "note": "",
@@ -47626,21 +47627,21 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "f1172a8462f4fc07c280780e060bc71ec31388a5f0f421258872757530c4ae0e",
               "diagnosis": {
-                "primary_class": "Extra",
+                "primary_class": "AaOnly",
                 "secondary": [],
-                "headline": "extra paint where Chrome is blank (1.5%)",
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
                     0.0,
                     -0.32,
-                    -3.2
+                    0.0
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 1.454942871336314,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
                     0,
                     0,
@@ -47654,37 +47655,7 @@
                   ],
                   "colorspace": null
                 },
-                "regions": [
-                  {
-                    "class": "Extra",
-                    "bbox_css": [
-                      0.32,
-                      120.64,
-                      160.0,
-                      206.08
-                    ],
-                    "area_pct": 1.435137545448309,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "extra paint where Chrome is blank (1.4%)"
-                  }
-                ],
+                "regions": [],
                 "residual_shift_css": [
                   0.0,
                   0.0
@@ -47694,10 +47665,10 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 3.20css shift 0.00css",
-                  "magnitude": 3.2
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
@@ -47708,17 +47679,17 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 1.45%",
-                  "magnitude": 1.454942871336314
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: worst border#0 h Δ64.500pt (offset 1.050pt cancelled)",
-                  "magnitude": 64.5
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -47731,7 +47702,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 68.0828,
+              "diff_pct": 67.6694,
               "weight": 1.0,
               "description": "overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.",
               "note": "",
@@ -47746,16 +47717,16 @@
               "diagnosis": {
                 "primary_class": "Extra",
                 "secondary": [],
-                "headline": "extra paint where Chrome is blank (66.5%)",
+                "headline": "extra paint where Chrome is blank (66.0%)",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
                     -93.12,
                     -0.32,
-                    -86.08
+                    -83.2
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 66.4914481662694,
+                  "extra_area_pct": 66.0078187807708,
                   "modal_drgb": [
                     14,
                     63,
@@ -47773,12 +47744,12 @@
                   {
                     "class": "Extra",
                     "bbox_css": [
-                      0.32,
+                      2.88,
                       2.88,
                       252.8,
-                      195.84
+                      192.96
                     ],
-                    "area_pct": 68.08281585454635,
+                    "area_pct": 67.66939325692182,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -47797,14 +47768,14 @@
                       0.0
                     ],
                     "selector": null,
-                    "headline": "extra paint where Chrome is blank (68.1%)"
+                    "headline": "extra paint where Chrome is blank (67.7%)"
                   }
                 ],
                 "residual_shift_css": [
                   -0.48,
                   0.0
                 ],
-                "confidence": 0.9632863002162837
+                "confidence": 0.9625115991339314
               },
               "sub_verdicts": [
                 {
@@ -47818,22 +47789,22 @@
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 2.53% interiorΔE 22.12",
-                  "magnitude": 2.528892534590683
+                  "headline": "raster appearance: color 2.57% interiorΔE 22.12",
+                  "magnitude": 2.565470745671986
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 66.49%",
-                  "magnitude": 66.4914481662694
+                  "headline": "raster presence: missing 0.00% extra 66.01%",
+                  "magnitude": 66.0078187807708
                 },
                 {
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: border#0 h Δ64.500pt",
-                  "magnitude": 64.5
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 2.250pt)",
+                  "magnitude": 2.25
                 }
               ],
               "disagreements": []
@@ -49582,10 +49553,10 @@
     },
     {
       "category": "positioning",
-      "score_pct": 50.0,
+      "score_pct": 53.13,
       "counts": {
-        "pass": 7,
-        "partial": 2,
+        "pass": 8,
+        "partial": 1,
         "fail": 7,
         "unknown": 0
       },
@@ -50776,10 +50747,10 @@
         },
         {
           "feature": "overflow",
-          "score_pct": 33.33,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 0,
-            "partial": 2,
+            "pass": 1,
+            "partial": 1,
             "fail": 1,
             "unknown": 0
           },
@@ -51139,8 +51110,8 @@
               "subfeature": "visible",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
-              "diff_pct": 1.5304,
+              "status": "PASS",
+              "diff_pct": 0.5913,
               "weight": 1.0,
               "description": "overflow:visible (default) does not clip; the child overflows the parent box.",
               "note": "",
@@ -51150,23 +51121,21 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2b9b08685cdfa7f8a6ffb196bdc5014fb0089b733b86883633626cd39eac1bb8",
               "diagnosis": {
-                "primary_class": "Extra",
-                "secondary": [
-                  "GeometrySize"
-                ],
-                "headline": "extra paint where Chrome is blank (1.0%)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted ~0.0px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
                     0.0,
                     0.0,
-                    -1.92
+                    0.0
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 0.9516867685283237,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
                     0,
                     0,
@@ -51182,48 +51151,19 @@
                 },
                 "regions": [
                   {
-                    "class": "Extra",
-                    "bbox_css": [
-                      0.0,
-                      120.64,
-                      149.76,
-                      193.6
-                    ],
-                    "area_pct": 0.9450324342779105,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.9%)"
-                  },
-                  {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       3.84,
                       3.84,
                       229.44,
                       189.44
                     ],
-                    "area_pct": 0.29270513258222375,
+                    "area_pct": 0.29563218390804596,
                     "edge_delta_css": [
                       0.0,
                       0.0,
                       0.0,
-                      -1.92
+                      0.0
                     ],
                     "modal_drgb": [
                       0,
@@ -51237,22 +51177,22 @@
                       0.17567651632970452
                     ],
                     "selector": null,
-                    "headline": "box −1.9px on bottom edge (size/box-model mismatch)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       4.16,
                       4.16,
                       229.76,
                       189.76
                     ],
-                    "area_pct": 0.29270513258222375,
+                    "area_pct": 0.29563218390804596,
                     "edge_delta_css": [
                       0.0,
                       0.0,
                       0.0,
-                      -1.92
+                      0.0
                     ],
                     "modal_drgb": [
                       0,
@@ -51266,22 +51206,22 @@
                       0.17493001555209953
                     ],
                     "selector": null,
-                    "headline": "box −1.9px on bottom edge (size/box-model mismatch)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.6174895895300416
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 1.92css shift 0.00css",
-                  "magnitude": 1.92
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -51292,10 +51232,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 0.95%",
-                  "magnitude": 0.9516867685283237
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []

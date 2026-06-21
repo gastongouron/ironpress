@@ -136,6 +136,10 @@ pub(super) struct NestedTextBlock<'a> {
     pub(super) border: crate::layout::engine::LayoutBorder,
     pub(super) block_width: Option<f32>,
     pub(super) block_height: Option<f32>,
+    /// Whether the box clips overflow (`overflow: hidden`/`scroll`). When true a
+    /// definite `block_height` is a hard size and content is clipped to it rather
+    /// than growing the box.
+    pub(super) clips: bool,
     pub(super) background_color: Option<(f32, f32, f32, f32)>,
     pub(super) background_svg: Option<&'a crate::parser::svg::SvgTree>,
     pub(super) background_blur_radius: f32,
@@ -363,6 +367,7 @@ pub(super) fn render_nested_text_block(
         block.padding_top,
         block.padding_bottom,
         block.block_height,
+        block.clips,
     );
     let block_bottom = frame.top_y - total_height;
 
@@ -704,6 +709,7 @@ pub(super) fn render_nested_layout_elements(
                 block_width,
                 block_height,
                 border_radius,
+                clip_rect,
                 background_gradient: _,
                 background_radial_gradient: _,
                 background_svg,
@@ -726,6 +732,7 @@ pub(super) fn render_nested_layout_elements(
                         border: *border,
                         block_width: *block_width,
                         block_height: *block_height,
+                        clips: clip_rect.is_some(),
                         background_color: *background_color,
                         background_svg: background_svg.as_ref(),
                         background_blur_radius: *background_blur_radius,
@@ -794,6 +801,9 @@ pub(super) fn render_nested_layout_elements(
                         border: *border,
                         block_width: Some(render_width),
                         block_height: Some(box_h),
+                        // `box_h` already resolves the definite/auto height, and
+                        // there are no lines to grow it, so clipping is moot here.
+                        clips: false,
                         background_color: *background_color,
                         background_svg: background_svg.as_ref(),
                         background_blur_radius: *background_blur_radius,
@@ -887,6 +897,7 @@ pub(super) fn plan_nested_layout_elements(
                 padding_top,
                 padding_bottom,
                 block_height,
+                clip_rect,
                 ..
             } => {
                 let containing_origin =
@@ -932,6 +943,7 @@ pub(super) fn plan_nested_layout_elements(
                             *padding_top,
                             *padding_bottom,
                             *block_height,
+                            clip_rect.is_some(),
                         )
                         - *margin_bottom;
                 }
