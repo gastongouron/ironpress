@@ -419,6 +419,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "direction"
             | "object-fit"
             | "object-position"
+            | "vertical-align"
     ) {
         return Some(CssValue::Keyword(val.to_string()));
     }
