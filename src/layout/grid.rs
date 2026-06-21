@@ -19,10 +19,15 @@ use super::text::{
 /// - Auto: sized to the column's max-content intrinsic width (passed in via
 ///   `auto_intrinsic_widths`, indexed by track). When the sum of fixed + auto
 ///   exceeds the available space, auto columns shrink proportionally.
-/// - Fr(v): distributes remaining space proportional to `v` after fixed + auto
-///   are resolved. If no Fr tracks exist and slack remains, Auto columns
-///   absorb it (so `auto auto` fills the row like Chrome does).
-/// - Minmax(min, max): treated as min + fr share, clamped to [min, max].
+/// - Fr(v) / Minmax(min, max): flexible tracks. The space left after the
+///   fixed/percent/auto tracks is divided among them by the CSS Grid
+///   "find the size of an fr" algorithm — each flexible track resolves to
+///   `flex_size × flex_factor`, floored at its base (`0` for a bare `fr`, the
+///   `min` for a `minmax`) and capped at its `max`, with `flex_size` found by
+///   iteratively freezing clamped tracks. Equal `fr` peers therefore resolve
+///   to equal widths even when their `minmax` minimums differ. If no flexible
+///   tracks exist and slack remains, Auto columns absorb it (so `auto auto`
+///   fills the row like Chrome does).
 ///
 /// `auto_intrinsic_widths` must have length == tracks.len(); the value at
 /// each Auto track index is that column's max-content width. Non-Auto
@@ -60,8 +65,10 @@ fn resolve_grid_columns(
                 auto_total += auto_intrinsic_widths.get(i).copied().unwrap_or(0.0);
                 auto_count += 1;
             }
-            GridTrack::Minmax(min, _) => {
-                fixed_total += min;
+            GridTrack::Minmax(_, _) => {
+                // `minmax` tracks are flexible: their base (`min`) participates
+                // in the fr resolution below, not in `fixed_total`, so the
+                // shared flex space includes the whole track.
                 minmax_count += 1;
             }
         }
@@ -70,25 +77,127 @@ fn resolve_grid_columns(
     let after_fixed = (space - fixed_total).max(0.0);
     let has_fr = fr_total + minmax_count as f32 > 0.0;
 
-    // Two regimes:
-    // * Fr peers exist → auto tracks size to their intrinsic max-content
-    //   width; remaining space goes entirely to fr/minmax tracks.
-    // * No fr peers → auto tracks take their intrinsic width, then split the
-    //   remaining space EQUALLY among themselves (additive), matching
-    //   Chrome's track-sizing algorithm for `auto auto` layouts.
-    let (auto_extra, fr_per, auto_shrink_scale) = if has_fr {
-        let remaining_after_auto = (after_fixed - auto_total).max(0.0);
-        let per = remaining_after_auto / (fr_total + minmax_count as f32);
-        let shrink = if auto_total > after_fixed && auto_total > 0.0 {
+    if has_fr {
+        // Flexible-track regime (`fr` / `minmax(min, ...fr)` present). Auto
+        // tracks size to their intrinsic max-content width; the rest of the
+        // space is distributed among the flexible tracks by the CSS Grid
+        // "find the size of an fr" algorithm (§12.7): every flexible track is
+        // sized to `flex_size × flex_factor`, but no smaller than its base
+        // minimum (0 for a bare `fr`, the `min` for a `minmax`) and no larger
+        // than its `max` cap. `flex_size` is found by iteratively freezing
+        // tracks whose floor/ceiling clamps them, then re-dividing the
+        // remaining space among the still-flexible tracks. This makes equal
+        // `1fr` peers resolve to equal widths even when their minimums differ
+        // (e.g. `minmax(80px,1fr) minmax(120px,1fr)` → two equal tracks),
+        // matching Chrome — unlike the old `min + share` formula which inflated
+        // the larger-min track.
+        let space_for_flex = (after_fixed - auto_total).max(0.0);
+
+        // Per flexible track: (flex_factor, base_min, max_cap).
+        struct Flex {
+            factor: f32,
+            base: f32,
+            cap: f32,
+        }
+        let flex: Vec<Option<Flex>> = tracks
+            .iter()
+            .map(|track| match track {
+                GridTrack::Fr(v) => Some(Flex {
+                    factor: *v,
+                    base: 0.0,
+                    cap: f32::MAX,
+                }),
+                GridTrack::Minmax(min, max) => Some(Flex {
+                    factor: 1.0,
+                    base: *min,
+                    cap: *max,
+                }),
+                _ => None,
+            })
+            .collect();
+
+        // Iteratively resolve the shared flex size, freezing any track that
+        // its base (floor) or cap (ceiling) pins, then re-dividing.
+        let mut frozen = vec![false; tracks.len()];
+        let mut resolved = vec![0.0_f32; tracks.len()];
+        loop {
+            let mut remaining = space_for_flex;
+            let mut active_factor = 0.0_f32;
+            for (i, f) in flex.iter().enumerate() {
+                let Some(f) = f else { continue };
+                if frozen[i] {
+                    remaining -= resolved[i];
+                } else {
+                    active_factor += f.factor;
+                }
+            }
+            remaining = remaining.max(0.0);
+            if active_factor <= 0.0 {
+                break;
+            }
+            let flex_size = remaining / active_factor;
+            // Freeze the first track pinned below its base or above its cap;
+            // restart so the freed/consumed space redistributes correctly.
+            let mut changed = false;
+            for (i, f) in flex.iter().enumerate() {
+                let Some(f) = f else { continue };
+                if frozen[i] {
+                    continue;
+                }
+                let want = flex_size * f.factor;
+                if want < f.base {
+                    resolved[i] = f.base;
+                    frozen[i] = true;
+                    changed = true;
+                    break;
+                }
+                if want > f.cap {
+                    resolved[i] = f.cap;
+                    frozen[i] = true;
+                    changed = true;
+                    break;
+                }
+            }
+            if !changed {
+                for (i, f) in flex.iter().enumerate() {
+                    if let Some(f) = f {
+                        if !frozen[i] {
+                            resolved[i] = flex_size * f.factor;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        let auto_shrink_scale = if auto_total > after_fixed && auto_total > 0.0 {
             after_fixed / auto_total
         } else {
             1.0
         };
-        (0.0, per, shrink)
-    } else if auto_count > 0 {
+
+        return tracks
+            .iter()
+            .enumerate()
+            .map(|(i, track)| match track {
+                GridTrack::Fixed(v) => *v,
+                GridTrack::Percent(p) => *p * space,
+                GridTrack::Fr(_) | GridTrack::Minmax(_, _) => resolved[i],
+                GridTrack::Auto => {
+                    let intrinsic = auto_intrinsic_widths.get(i).copied().unwrap_or(0.0);
+                    intrinsic * auto_shrink_scale
+                }
+            })
+            .collect();
+    }
+
+    // No flexible tracks: auto tracks take their intrinsic width, then split
+    // the remaining space EQUALLY among themselves (additive), matching
+    // Chrome's track-sizing for `auto auto` layouts.
+    let (auto_extra, auto_shrink_scale) = if auto_count > 0 {
         let slack = after_fixed - auto_total;
         if slack >= 0.0 {
-            (slack / auto_count as f32, 0.0, 1.0)
+            (slack / auto_count as f32, 1.0)
         } else {
             // Overflow — shrink auto tracks proportionally so the row fits.
             let scale = if auto_total > 0.0 {
@@ -96,10 +205,10 @@ fn resolve_grid_columns(
             } else {
                 0.0
             };
-            (0.0, 0.0, scale)
+            (0.0, scale)
         }
     } else {
-        (0.0, 0.0, 1.0)
+        (0.0, 1.0)
     };
 
     tracks
@@ -108,19 +217,12 @@ fn resolve_grid_columns(
         .map(|(i, track)| match track {
             GridTrack::Fixed(v) => *v,
             GridTrack::Percent(p) => *p * space,
-            GridTrack::Fr(v) => fr_per * *v,
+            GridTrack::Fr(_) => 0.0,
             GridTrack::Auto => {
                 let intrinsic = auto_intrinsic_widths.get(i).copied().unwrap_or(0.0);
                 intrinsic * auto_shrink_scale + auto_extra
             }
-            GridTrack::Minmax(min, max) => {
-                let desired = min + fr_per;
-                if *max < f32::MAX {
-                    desired.clamp(*min, *max)
-                } else {
-                    desired
-                }
-            }
+            GridTrack::Minmax(min, _) => *min,
         })
         .collect()
 }
@@ -485,6 +587,32 @@ pub(crate) fn layout_grid_container(
         }
     }
 
+    // Natural content-box height of the grid: the resolved row tracks plus the
+    // row gaps between them. With fixed row tracks (no fr/auto growth), this is
+    // the height the grid rows actually occupy; any surplus from an explicit
+    // container `height` stays as blank free space below the last row (Chrome's
+    // default `align-content: start` for definite tracks), rather than being
+    // absorbed by stretching the tracks.
+    let content_height: f32 =
+        row_heights.iter().sum::<f32>() + row_gap * num_rows.saturating_sub(1) as f32;
+    // Honour an explicit container `height` so the container's border-box ends
+    // where Chrome paints it (and any free space below the last row is left
+    // blank), mirroring the block-level convention where a Container's
+    // `block_height` is a border-box value compared against a content height
+    // that already includes the border.
+    let border_v = style.border.top.width + style.border.bottom.width;
+    let block_height = style.height.map(|_| {
+        let padding_box_h = super::helpers::resolve_padding_box_height(
+            content_height,
+            style.height,
+            style.padding.top,
+            style.padding.bottom,
+            border_v,
+            style.box_sizing,
+        );
+        padding_box_h + border_v
+    });
+
     // Helper to compute the x-offset of a column index.
     let col_x = |c: usize| -> f32 {
         col_widths.iter().take(c).sum::<f32>() + column_gap * c as f32
@@ -640,7 +768,7 @@ pub(crate) fn layout_grid_container(
         margin_top: style.margin.top,
         margin_bottom: style.margin.bottom,
         block_width: Some(border_box_w),
-        block_height: None,
+        block_height,
         opacity: style.opacity,
         mix_blend_mode: style.mix_blend_mode,
         background_blend_mode: style.background_blend_mode,
