@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 65.65,
-    "pass": 200,
-    "partial": 53,
-    "fail": 92,
+    "score_pct": 66.67,
+    "pass": 201,
+    "partial": 58,
+    "fail": 86,
     "unknown": 1,
     "total": 346,
     "scored_ratio_pct": 99.71
@@ -18,11 +18,11 @@
   "categories": [
     {
       "category": "backgrounds-borders",
-      "score_pct": 46.88,
+      "score_pct": 53.13,
       "counts": {
-        "pass": 7,
+        "pass": 8,
         "partial": 1,
-        "fail": 8,
+        "fail": 7,
         "unknown": 1
       },
       "features": [
@@ -2186,11 +2186,11 @@
         },
         {
           "feature": "box-shadow",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 1
           },
           "fixtures": [
@@ -2279,8 +2279,8 @@
               "subfeature": "x-border",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 19.5963,
+              "status": "PASS",
+              "diff_pct": 0.6185,
               "weight": 1.0,
               "description": "Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).",
               "note": "",
@@ -2290,80 +2290,49 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "226c8e22cb7089ad98ce0494ee3375b574077ff6bbea258afb9dc4d661640b07",
               "diagnosis": {
-                "primary_class": "Missing",
-                "secondary": [
-                  "GeometrySize"
-                ],
-                "headline": "content clipped/truncated (19.5% missing)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.3,0.0)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
-                    15.68,
                     -0.32,
-                    16.0
+                    -0.32,
+                    0.0
                   ],
-                  "missing_area_pct": 19.464166452607245,
+                  "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    132,
-                    -26,
-                    -26
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 30.644039967908796,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    0.32,
+                    0.0012167300380228137
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "Missing",
-                    "bbox_css": [
-                      16.0,
-                      16.0,
-                      175.68,
-                      115.84
-                    ],
-                    "area_pct": 19.108439769596796,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      132,
-                      -26,
-                      -26
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "content clipped/truncated (19.1% missing)"
-                  },
-                  {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       8.0,
                       8.0,
                       151.68,
                       91.84
                     ],
-                    "area_pct": 0.35662409216128227,
+                    "area_pct": 0.35597686150400226,
                     "edge_delta_css": [
                       -0.32,
-                      15.68,
                       -0.32,
-                      16.0
+                      -0.32,
+                      0.0
                     ],
                     "modal_drgb": [
                       0,
@@ -2377,22 +2346,51 @@
                       0.20224719101123598
                     ],
                     "selector": null,
-                    "headline": "box +15.7px right / +16.0px bottom — box-sizing:border-box likely not applied"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      160.0,
+                      16.0,
+                      160.0,
+                      99.84
+                    ],
+                    "area_pct": 0.13149145305555138,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0012167300380228137
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
                     "bbox_css": [
                       152.0,
                       8.32,
                       152.0,
                       91.84
                     ],
-                    "area_pct": 0.13122965189080893,
+                    "area_pct": 0.13099148555343904,
                     "edge_delta_css": [
                       -0.32,
-                      15.68,
                       -0.32,
-                      16.0
+                      -0.32,
+                      0.0
                     ],
                     "modal_drgb": [
                       0,
@@ -2406,43 +2404,43 @@
                       -0.0012213740458015267
                     ],
                     "selector": null,
-                    "headline": "box +15.7px right / +16.0px bottom — box-sizing:border-box likely not applied"
+                    "headline": "content shifted (0.3,-0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  0.32,
+                  0.0012167300380228137
                 ],
-                "confidence": 0.9683825784684592
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 16.00css shift 0.00css",
-                  "magnitude": 16.0
+                  "headline": "raster geometry: edge 0.32css shift 0.32css",
+                  "magnitude": 0.3200023131666167
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 0.14% interiorΔE 0.00",
-                  "magnitude": 0.1350803034427501
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 19.46% extra 0.00%",
-                  "magnitude": 19.464166452607245
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 12.000pt)",
-                  "magnitude": 12.0
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -10731,11 +10729,11 @@
     },
     {
       "category": "effects",
-      "score_pct": 13.64,
+      "score_pct": 36.36,
       "counts": {
         "pass": 1,
-        "partial": 1,
-        "fail": 9,
+        "partial": 6,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -10892,11 +10890,11 @@
         },
         {
           "feature": "box-shadow",
-          "score_pct": 0.0,
+          "score_pct": 41.67,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 6,
+            "partial": 5,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -10908,7 +10906,7 @@
               "interaction_of": [],
               "base_ids": [],
               "status": "FAIL",
-              "diff_pct": 4.9962,
+              "diff_pct": 2.6331,
               "weight": 1.0,
               "description": "Offset box-shadow with a soft blur radius on a non-white stage.",
               "note": "",
@@ -10925,7 +10923,7 @@
                 "secondary": [
                   "Missing"
                 ],
-                "headline": "fill recolour ΔRGB(+82,+60,+80) (ΔE 18.4)",
+                "headline": "fill recolour ΔRGB(+58,+42,+57) (ΔE 15.9)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -10936,15 +10934,15 @@
                   "missing_area_pct": 0.17271157167530224,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    82,
-                    60,
-                    80
+                    58,
+                    42,
+                    57
                   ],
-                  "delta_e": 18.424097168406874,
+                  "delta_e": 15.871087574382003,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    0.32,
+                    0.4218181818181818
                   ],
                   "colorspace": null
                 },
@@ -10952,12 +10950,12 @@
                   {
                     "class": "ColorValue",
                     "bbox_css": [
-                      49.28,
-                      48.64,
-                      254.08,
-                      183.68
+                      61.76,
+                      49.92,
+                      242.24,
+                      172.16
                     ],
-                    "area_pct": 4.770301508066894,
+                    "area_pct": 2.1606717848266563,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -10965,18 +10963,18 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      82,
-                      61,
-                      81
+                      66,
+                      48,
+                      64
                     ],
-                    "delta_e": 18.601339963576752,
+                    "delta_e": 17.473131064484722,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.29714285714285715,
-                      -0.022857142857142857
+                      0.32,
+                      0.4218181818181818
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+82,+61,+81) (ΔE 18.6)"
+                    "headline": "fill recolour ΔRGB(+66,+48,+64) (ΔE 17.5)"
                   },
                   {
                     "class": "Missing",
@@ -11010,12 +11008,12 @@
                   {
                     "class": "ColorValue",
                     "bbox_css": [
-                      48.96,
-                      69.76,
-                      49.6,
-                      159.04
+                      233.92,
+                      162.56,
+                      251.2,
+                      181.44
                     ],
-                    "area_pct": 0.05318252664391929,
+                    "area_pct": 0.10827383209065251,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -11023,40 +11021,127 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      12,
-                      9,
-                      12
+                      -19,
+                      -15,
+                      -19
                     ],
-                    "delta_e": 2.5259887773959875,
+                    "delta_e": 4.37633216241246,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      3.203404255319149,
+                      2.645106382978723
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-19,-15,-19) (ΔE 4.4)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      52.48,
+                      164.8,
+                      69.44,
+                      181.44
+                    ],
+                    "area_pct": 0.09510984034710813,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -18,
+                      -14,
+                      -19
+                    ],
+                    "delta_e": 4.235037977818282,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -2.2895774647887324,
+                      3.213521126760563
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-18,-14,-19) (ΔE 4.2)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      234.24,
+                      52.48,
+                      251.2,
+                      70.72
+                    ],
+                    "area_pct": 0.09405672100762458,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -19,
+                      -14,
+                      -19
+                    ],
+                    "delta_e": 4.235037977818282,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      3.2408510638297874,
+                      -2.3693617021276596
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-19,-14,-19) (ΔE 4.2)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      77.12,
+                      173.76,
+                      79.68,
+                      173.76
+                    ],
+                    "area_pct": 0.000592379628459497,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      11,
+                      8,
+                      10
+                    ],
+                    "delta_e": 2.570951108379193,
                     "recovered_alpha": null,
                     "shift_css": [
                       0.0,
                       0.0
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+12,+9,+12) (ΔE 2.5)"
+                    "headline": "fill recolour ΔRGB(+11,+8,+10) (ΔE 2.6)"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  0.32,
+                  0.4218181818181818
                 ],
-                "confidence": 0.9652469469218913
+                "confidence": 0.9268323167683231
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 1.92css shift 0.00css",
+                  "headline": "raster geometry: edge 1.92css shift 0.53css",
                   "magnitude": 1.92
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "FAIL",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 4.82% interiorΔE 18.54",
-                  "magnitude": 4.822562555288766
+                  "headline": "raster appearance: color 2.44% interiorΔE 15.87",
+                  "magnitude": 2.4404066093769745
                 },
                 {
                   "verifier": "RasterDiff",
@@ -11075,8 +11160,8 @@
               "subfeature": "colored",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 4.0465,
+              "status": "PARTIAL",
+              "diff_pct": 0.2473,
               "weight": 1.0,
               "description": "Hard offset box-shadow in a saturated color distinct from the box fill.",
               "note": "",
@@ -11089,11 +11174,11 @@
               "attribution": "REAL",
               "html_sha256": "1c6fa7b417eddb3ed534cde7df67c4bed821cff2fa1644ffdf032afb84d232bd",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "Missing",
                 "secondary": [
-                  "Missing"
+                  "GeometrySize"
                 ],
-                "headline": "fill recolour ΔRGB(+39,+186,+210) (ΔE 47.4)",
+                "headline": "content clipped/truncated (0.2% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -11104,11 +11189,11 @@
                   "missing_area_pct": 0.17271157167530224,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    39,
-                    186,
-                    210
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 47.43638344125276,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -11117,35 +11202,6 @@
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      40.0,
-                      40.0,
-                      239.68,
-                      169.6
-                    ],
-                    "area_pct": 3.874089193605601,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      39,
-                      186,
-                      210
-                    ],
-                    "delta_e": 47.43638344125276,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.15483870967741936,
-                      0.15483870967741936
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+39,+186,+210) (ΔE 47.4)"
-                  },
                   {
                     "class": "Missing",
                     "bbox_css": [
@@ -11174,13 +11230,42 @@
                     ],
                     "selector": null,
                     "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      40.0,
+                      40.0,
+                      239.68,
+                      169.6
+                    ],
+                    "area_pct": 0.0748707570814652,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.1258252427184466,
+                      0.19355339805825242
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9551627505928002
+                "confidence": 0.6972369194591417
               },
               "sub_verdicts": [
                 {
@@ -11192,10 +11277,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 3.87% interiorΔE 47.44",
-                  "magnitude": 3.8650924839608694
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -11214,8 +11299,8 @@
               "subfeature": "inset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 4.5859,
+              "status": "PARTIAL",
+              "diff_pct": 0.3593,
               "weight": 1.0,
               "description": "Inset hard box-shadow drawing an inner band on two sides of the box.",
               "note": "",
@@ -11228,11 +11313,11 @@
               "attribution": "REAL",
               "html_sha256": "9c8a5a590ab95c2128d786d8240dc600aa2f2e92c80e69ec01b5c395945528c6",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "Missing",
                 "secondary": [
-                  "Missing"
+                  "GeometrySize"
                 ],
-                "headline": "fill recolour ΔRGB(+178,+139,+142) (ΔE 44.9)",
+                "headline": "content clipped/truncated (0.2% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -11243,11 +11328,11 @@
                   "missing_area_pct": 0.21579628830384118,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    178,
-                    139,
-                    142
+                    29,
+                    19,
+                    19
                   ],
-                  "delta_e": 44.87787143886247,
+                  "delta_e": 10.696601885816923,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -11256,35 +11341,6 @@
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      49.6,
-                      49.6,
-                      249.6,
-                      179.84
-                    ],
-                    "area_pct": 4.370370059120379,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      178,
-                      139,
-                      142
-                    ],
-                    "delta_e": 44.87787143886247,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+178,+139,+142) (ΔE 44.9)"
-                  },
                   {
                     "class": "Missing",
                     "bbox_css": [
@@ -11313,13 +11369,71 @@
                     ],
                     "selector": null,
                     "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      49.6,
+                      49.6,
+                      249.6,
+                      179.84
+                    ],
+                    "area_pct": 0.08637854210548747,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      29,
+                      19,
+                      19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      73.92,
+                      49.92,
+                      249.92,
+                      179.84
+                    ],
+                    "area_pct": 0.05744563224110598,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      -63,
+                      -50,
+                      -51
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9530086259931673
+                "confidence": 0.5997327096558637
               },
               "sub_verdicts": [
                 {
@@ -11331,10 +11445,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 4.37% interiorΔE 44.88",
-                  "magnitude": 4.370388422945695
+                  "headline": "raster appearance: color 0.14% interiorΔE 0.00",
+                  "magnitude": 0.14382477868031762
                 },
                 {
                   "verifier": "RasterDiff",
@@ -11353,8 +11467,8 @@
               "subfeature": "multiple",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 4.8154,
+              "status": "PARTIAL",
+              "diff_pct": 0.2768,
               "weight": 1.0,
               "description": "Two stacked hard box-shadows in different directions and colors.",
               "note": "",
@@ -11367,11 +11481,11 @@
               "attribution": "REAL",
               "html_sha256": "cfc89b3fa3d0015e64f5559653d433a8402918cbbabb3c351fc618eca250a40a",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "Missing",
                 "secondary": [
-                  "Missing"
+                  "GeometrySize"
                 ],
-                "headline": "fill recolour ΔRGB(+146,+201,+93) (ΔE 56.7)",
+                "headline": "content clipped/truncated (0.2% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -11382,11 +11496,11 @@
                   "missing_area_pct": 0.17271157167530224,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    146,
-                    201,
-                    93
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 56.7368949106556,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -11395,64 +11509,6 @@
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      43.84,
-                      43.84,
-                      209.6,
-                      159.68
-                    ],
-                    "area_pct": 2.345977929067759,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      252,
-                      97,
-                      93
-                    ],
-                    "delta_e": 53.93462964638232,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.16,
-                      0.16
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+252,+97,+93) (ΔE 53.9)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      75.84,
-                      75.84,
-                      225.6,
-                      175.68
-                    ],
-                    "area_pct": 2.2969634895770574,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      146,
-                      201,
-                      82
-                    ],
-                    "delta_e": 59.59895714682499,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+146,+201,+82) (ΔE 59.6)"
-                  },
                   {
                     "class": "Missing",
                     "bbox_css": [
@@ -11481,13 +11537,129 @@
                     ],
                     "selector": null,
                     "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      43.84,
+                      43.84,
+                      193.6,
+                      143.68
+                    ],
+                    "area_pct": 0.04901443949070169,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12824583866837388,
+                      0.19216389244558257
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      59.84,
+                      59.84,
+                      209.6,
+                      159.68
+                    ],
+                    "area_pct": 0.04901443949070169,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12824583866837388,
+                      0.19216389244558257
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      209.92,
+                      75.84,
+                      225.6,
+                      75.84
+                    ],
+                    "area_pct": 0.003137928264449532,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      75.84,
+                      160.0,
+                      75.84,
+                      175.68
+                    ],
+                    "area_pct": 0.003137928264449532,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9628302206466915
+                "confidence": 0.6231292517006802
               },
               "sub_verdicts": [
                 {
@@ -11499,10 +11671,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 4.64% interiorΔE 56.77",
-                  "magnitude": 4.636431986403934
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -11521,8 +11693,8 @@
               "subfeature": "hard-offset",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 3.7189,
+              "status": "PARTIAL",
+              "diff_pct": 0.3063,
               "weight": 1.0,
               "description": "Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.",
               "note": "",
@@ -11535,11 +11707,11 @@
               "attribution": "REAL",
               "html_sha256": "b39f7f062c38388268195b391d7b438dcce66cd9992bac2f5494c8e5eb3052f7",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "Missing",
                 "secondary": [
-                  "Missing"
+                  "GeometrySize"
                 ],
-                "headline": "fill recolour ΔRGB(+200,+172,+145) (ΔE 59.1)",
+                "headline": "content clipped/truncated (0.2% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -11550,11 +11722,11 @@
                   "missing_area_pct": 0.21579628830384118,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    200,
-                    172,
-                    145
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 59.11686790597948,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -11563,35 +11735,6 @@
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      40.0,
-                      40.0,
-                      237.44,
-                      167.68
-                    ],
-                    "area_pct": 3.503456373547008,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      200,
-                      172,
-                      145
-                    ],
-                    "delta_e": 59.11686790597949,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.15428571428571428,
-                      0.15428571428571428
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+200,+172,+145) (ΔE 59.1)"
-                  },
                   {
                     "class": "Missing",
                     "bbox_css": [
@@ -11620,13 +11763,71 @@
                     ],
                     "selector": null,
                     "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      40.0,
+                      40.0,
+                      219.84,
+                      149.76
+                    ],
+                    "area_pct": 0.06582876673511115,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12079470198675496,
+                      0.19779249448123623
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      237.76,
+                      57.92,
+                      237.76,
+                      167.68
+                    ],
+                    "area_pct": 0.024994586928121672,
+                    "edge_delta_css": [
+                      0.0,
+                      2.24,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.31906976744186044,
+                      -0.0009302325581395348
+                    ],
+                    "selector": null,
+                    "headline": "box +2.2px on right edge (size/box-model mismatch)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9398823828224215
+                "confidence": 0.7034400948991696
               },
               "sub_verdicts": [
                 {
@@ -11638,10 +11839,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 3.50% interiorΔE 59.12",
-                  "magnitude": 3.4953363787164196
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -11660,8 +11861,8 @@
               "subfeature": "spread",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 8.2729,
+              "status": "PARTIAL",
+              "diff_pct": 0.2763,
               "weight": 1.0,
               "description": "Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.",
               "note": "",
@@ -11674,11 +11875,11 @@
               "attribution": "REAL",
               "html_sha256": "56e5532e0dd0859c092faba487bc2d069f798a6e1bd8f859ca002b8e34aced40",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "Missing",
                 "secondary": [
-                  "Missing"
+                  "GeometrySize"
                 ],
-                "headline": "fill recolour ΔRGB(+188,+204,+100) (ΔE 68.7)",
+                "headline": "content clipped/truncated (0.2% missing)",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -11689,11 +11890,11 @@
                   "missing_area_pct": 0.17271157167530224,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    188,
-                    204,
-                    100
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 68.65236069975293,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -11702,35 +11903,6 @@
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      29.76,
-                      29.76,
-                      229.44,
-                      169.6
-                    ],
-                    "area_pct": 8.100172711571675,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      188,
-                      204,
-                      100
-                    ],
-                    "delta_e": 68.65236069975293,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+188,+204,+100) (ΔE 68.7)"
-                  },
                   {
                     "class": "Missing",
                     "bbox_css": [
@@ -11759,13 +11931,71 @@
                     ],
                     "selector": null,
                     "headline": "content clipped/truncated (0.2% missing)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      29.76,
+                      29.76,
+                      229.44,
+                      169.6
+                    ],
+                    "area_pct": 0.07336787564766839,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.1319774011299435,
+                      0.18832391713747648
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      229.76,
+                      30.08,
+                      229.76,
+                      169.6
+                    ],
+                    "area_pct": 0.030189982728842834,
+                    "edge_delta_css": [
+                      0.0,
+                      1.92,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.3192677345537758,
+                      -0.0007322654462242563
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on right edge (size/box-model mismatch)"
                   }
                 ],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9791231732776617
+                "confidence": 0.6251562890722681
               },
               "sub_verdicts": [
                 {
@@ -11777,10 +12007,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 8.10% interiorΔE 68.65",
-                  "magnitude": 8.100172711571675
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",

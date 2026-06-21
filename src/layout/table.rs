@@ -1307,7 +1307,7 @@ pub(crate) fn flatten_table(
             offset_right: 0.0,
             containing_block: None,
             clip_children_count: 0,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: None,
@@ -1420,7 +1420,7 @@ pub(crate) fn flatten_table(
             offset_right: 0.0,
             containing_block: None,
             clip_children_count: 0,
-            box_shadow: caption_style.box_shadow,
+            box_shadow: caption_style.box_shadow.clone(),
             visible: caption_style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: None,
@@ -1699,7 +1699,7 @@ fn collect_table_cell_content_inner(
                         && el.children.is_empty()
                         && (has_background_paint(&style)
                             || style.border.has_any()
-                            || style.box_shadow.is_some()
+                            || !style.box_shadow.is_empty()
                             || style.aspect_ratio.is_some()
                             || style.height.is_some()
                             || style.width.is_some()))

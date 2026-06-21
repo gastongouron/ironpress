@@ -781,7 +781,7 @@ pub(crate) fn layout_grid_container(
         transform: style.transform,
         transform_origin: style.transform_origin,
         clip_path: style.clip_path.clone(),
-        box_shadow: style.box_shadow,
+        box_shadow: style.box_shadow.clone(),
         background_gradient,
         background_radial_gradient,
         background_svg,

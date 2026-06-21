@@ -824,7 +824,10 @@ pub struct ComputedStyle {
     pub bottom: Option<f32>,
     pub left: Option<f32>,
     pub percentage_insets: PercentageInsets,
-    pub box_shadow: Option<BoxShadow>,
+    /// CSS `box-shadow` may list several shadows (comma separated). They paint
+    /// back-to-front: the FIRST listed shadow is painted LAST (on top). Empty
+    /// when no shadow is set.
+    pub box_shadow: Vec<BoxShadow>,
     pub flex_direction: FlexDirection,
     pub justify_content: JustifyContent,
     pub align_items: AlignItems,
@@ -1017,7 +1020,7 @@ impl Default for ComputedStyle {
             bottom: None,
             left: None,
             percentage_insets: PercentageInsets::default(),
-            box_shadow: None,
+            box_shadow: Vec::new(),
             flex_direction: FlexDirection::Row,
             justify_content: JustifyContent::FlexStart,
             align_items: AlignItems::Stretch,
@@ -1215,7 +1218,7 @@ pub fn compute_style_with_context(
     style.bottom = None;
     style.left = None;
     style.percentage_insets = PercentageInsets::default();
-    style.box_shadow = None;
+    style.box_shadow = Vec::new();
     style.flex_direction = FlexDirection::Row;
     style.justify_content = JustifyContent::FlexStart;
     style.align_items = AlignItems::Stretch;
@@ -1373,10 +1376,10 @@ fn resolve_current_color(style: &mut ComputedStyle) {
     if matches!(style.background_color, Some(c) if is_sentinel(&c)) {
         style.background_color = Some(resolved);
     }
-    if let Some(shadow) = style.box_shadow.as_mut()
-        && is_sentinel(&shadow.color)
-    {
-        shadow.color = resolved;
+    for shadow in style.box_shadow.iter_mut() {
+        if is_sentinel(&shadow.color) {
+            shadow.color = resolved;
+        }
     }
 }
 
@@ -1448,7 +1451,7 @@ pub fn compute_pseudo_element_style(
     style.bottom = None;
     style.left = None;
     style.percentage_insets = PercentageInsets::default();
-    style.box_shadow = None;
+    style.box_shadow = Vec::new();
     style.flex_direction = FlexDirection::Row;
     style.justify_content = JustifyContent::FlexStart;
     style.align_items = AlignItems::Stretch;
@@ -1656,7 +1659,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         }
         "overflow" => style.overflow = default.overflow,
         "transform" => style.transform = default.transform,
-        "box-shadow" => style.box_shadow = default.box_shadow,
+        "box-shadow" => style.box_shadow = default.box_shadow.clone(),
         "flex-direction" => style.flex_direction = default.flex_direction,
         "justify-content" => style.justify_content = default.justify_content,
         "align-items" => style.align_items = default.align_items,
@@ -1814,7 +1817,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         }
         "overflow" => style.overflow = parent.overflow,
         "transform" => style.transform = parent.transform,
-        "box-shadow" => style.box_shadow = parent.box_shadow,
+        "box-shadow" => style.box_shadow = parent.box_shadow.clone(),
         "flex-direction" => style.flex_direction = parent.flex_direction,
         "justify-content" => style.justify_content = parent.justify_content,
         "align-items" => style.align_items = parent.align_items,
@@ -2596,10 +2599,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.percentage_insets.left = None;
     }
 
-    // Box-shadow: parse from keyword (stored as full shorthand string)
+    // Box-shadow: parse from keyword (stored as full shorthand string).
+    // A comma-separated list yields multiple stacked shadows.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "box-shadow") {
-        if let Some(shadow) = parse_box_shadow(k) {
-            style.box_shadow = Some(shadow);
+        let shadows = parse_box_shadow(k);
+        if !shadows.is_empty() {
+            style.box_shadow = shadows;
         }
     }
 
@@ -3757,20 +3762,26 @@ fn is_background_position_keyword(token: &str) -> bool {
 /// - `inset 0 2px 8px rgba(0,0,0,0.3)`
 /// - `4px 4px 8px 2px #ccc`  (with spread)
 /// - Multiple shadows separated by commas — only the first is retained.
-fn parse_box_shadow(val: &str) -> Option<BoxShadow> {
+fn parse_box_shadow(val: &str) -> Vec<BoxShadow> {
     let val = val.trim();
     if val == "none" {
-        return None;
+        return Vec::new();
     }
 
-    // If the input has top-level commas (outside parens), split and take
-    // the first shadow. Chromium layers multiple shadows, but ironpress
-    // currently renders one; first is the most visible in common cases.
-    let first = split_top_level_comma(val)
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| val.to_string());
-    let val = first.trim();
+    // A `box-shadow` may list several shadows separated by top-level commas
+    // (outside parens). They paint back-to-front, the first listed on top.
+    split_top_level_comma(val)
+        .iter()
+        .filter_map(|s| parse_single_box_shadow(s))
+        .collect()
+}
+
+/// Parse one shadow from a `box-shadow` list entry.
+fn parse_single_box_shadow(val: &str) -> Option<BoxShadow> {
+    let val = val.trim();
+    if val.is_empty() {
+        return None;
+    }
 
     // Tokenize: spaces delimit tokens, but rgba(...) / rgb(...) / hsl(...)
     // and keyword `inset` are each a single token.
@@ -5797,7 +5808,7 @@ mod tests {
     fn box_shadow_simple_parsed() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("box-shadow: 3px 3px black"), &parent);
-        let shadow = style.box_shadow.unwrap();
+        let shadow = style.box_shadow[0];
         assert!((shadow.offset_x - 2.25).abs() < 0.1); // 3px * 0.75
         assert!((shadow.offset_y - 2.25).abs() < 0.1);
         assert!((shadow.blur - 0.0).abs() < 0.1);
@@ -5810,7 +5821,7 @@ mod tests {
     fn box_shadow_with_blur() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("box-shadow: 2px 2px 4px black"), &parent);
-        let shadow = style.box_shadow.unwrap();
+        let shadow = style.box_shadow[0];
         assert!((shadow.offset_x - 1.5).abs() < 0.1); // 2px * 0.75
         assert!((shadow.offset_y - 1.5).abs() < 0.1);
         assert!((shadow.blur - 3.0).abs() < 0.1); // 4px * 0.75
@@ -5821,7 +5832,7 @@ mod tests {
     fn box_shadow_with_pt_units() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("box-shadow: 3pt 3pt red"), &parent);
-        let shadow = style.box_shadow.unwrap();
+        let shadow = style.box_shadow[0];
         assert!((shadow.offset_x - 3.0).abs() < 0.1);
         assert!((shadow.offset_y - 3.0).abs() < 0.1);
         assert_eq!(shadow.color.r, 255);
@@ -5831,28 +5842,45 @@ mod tests {
     fn box_shadow_none() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("box-shadow: none"), &parent);
-        assert!(style.box_shadow.is_none());
+        assert!(style.box_shadow.is_empty());
     }
 
     #[test]
     fn box_shadow_default_is_none() {
         let style = ComputedStyle::default();
-        assert!(style.box_shadow.is_none());
+        assert!(style.box_shadow.is_empty());
+    }
+
+    #[test]
+    fn box_shadow_multiple_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("box-shadow: 16px 16px 0 0 #6a1b9a, -16px -16px 0 0 #00838f"),
+            &parent,
+        );
+        assert_eq!(style.box_shadow.len(), 2);
+        // First listed shadow.
+        assert!((style.box_shadow[0].offset_x - 12.0).abs() < 0.1); // 16px * 0.75
+        assert_eq!(style.box_shadow[0].color.r, 0x6a);
+        // Second listed shadow.
+        assert!((style.box_shadow[1].offset_x + 12.0).abs() < 0.1); // -16px * 0.75
+        assert_eq!(style.box_shadow[1].color.g, 0x83);
     }
 
     #[test]
     fn box_shadow_not_inherited() {
         let mut parent = ComputedStyle::default();
-        parent.box_shadow = Some(BoxShadow {
+        parent.box_shadow = vec![BoxShadow {
             offset_x: 3.0,
             offset_y: 3.0,
             blur: 0.0,
             spread: 0.0,
             color: Color::BLACK,
             inset: false,
-        });
+        }];
         let style = compute_style(HtmlTag::Div, None, &parent);
-        assert!(style.box_shadow.is_none());
+        assert!(style.box_shadow.is_empty());
     }
 
     #[test]
@@ -6590,7 +6618,7 @@ mod tests {
     fn box_shadow_initial_resets() {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("box-shadow: initial"), &parent);
-        assert!(style.box_shadow.is_none());
+        assert!(style.box_shadow.is_empty());
     }
 
     #[test]
@@ -6869,17 +6897,17 @@ mod tests {
     #[test]
     fn box_shadow_inherit_from_parent() {
         let mut parent = ComputedStyle::default();
-        parent.box_shadow = Some(BoxShadow {
+        parent.box_shadow = vec![BoxShadow {
             offset_x: 1.0,
             offset_y: 2.0,
             blur: 3.0,
             spread: 0.0,
             color: Color::BLACK,
             inset: false,
-        });
+        }];
         let style = compute_style(HtmlTag::Div, Some("box-shadow: inherit"), &parent);
-        assert!(style.box_shadow.is_some());
-        assert!((style.box_shadow.unwrap().offset_x - 1.0).abs() < 0.1);
+        assert!(!style.box_shadow.is_empty());
+        assert!((style.box_shadow[0].offset_x - 1.0).abs() < 0.1);
     }
 
     #[test]
@@ -7264,7 +7292,7 @@ mod tests {
 
     #[test]
     fn parse_box_shadow_with_rgba() {
-        let shadow = parse_box_shadow("2px 2px 4px rgba(0,0,0,0.3)");
+        let shadow = parse_single_box_shadow("2px 2px 4px rgba(0,0,0,0.3)");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
         assert!((s.blur - 3.0).abs() < 0.1); // 4px * 0.75
@@ -7273,7 +7301,7 @@ mod tests {
     #[test]
     fn parse_box_shadow_too_few_tokens() {
         // CSS allows just offset-x + offset-y (no blur/spread/color). Should parse.
-        let shadow = parse_box_shadow("2px 2px");
+        let shadow = parse_single_box_shadow("2px 2px");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
         assert!((s.blur - 0.0).abs() < 0.1);
@@ -7281,12 +7309,12 @@ mod tests {
         assert!(!s.inset);
 
         // Single token is not enough.
-        assert!(parse_box_shadow("2px").is_none());
+        assert!(parse_single_box_shadow("2px").is_none());
     }
 
     #[test]
     fn parse_box_shadow_inset_keyword() {
-        let shadow = parse_box_shadow("inset 2px 2px 4px rgba(0,0,0,0.3)");
+        let shadow = parse_single_box_shadow("inset 2px 2px 4px rgba(0,0,0,0.3)");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
         assert!(s.inset);
@@ -7295,7 +7323,7 @@ mod tests {
 
     #[test]
     fn parse_box_shadow_with_spread() {
-        let shadow = parse_box_shadow("4px 4px 8px 2px #000");
+        let shadow = parse_single_box_shadow("4px 4px 8px 2px #000");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
         assert!((s.blur - 6.0).abs() < 0.1); // 8px * 0.75
@@ -7303,18 +7331,21 @@ mod tests {
     }
 
     #[test]
-    fn parse_box_shadow_multi_takes_first() {
-        let shadow = parse_box_shadow("2px 2px 4px black, 0 0 8px red");
-        assert!(shadow.is_some());
-        let s = shadow.unwrap();
-        assert!((s.blur - 3.0).abs() < 0.1);
-        assert_eq!(s.color.r, 0);
+    fn parse_box_shadow_multi_returns_all() {
+        let shadows = parse_box_shadow("2px 2px 4px black, 0 0 8px red");
+        assert_eq!(shadows.len(), 2);
+        // First listed shadow.
+        assert!((shadows[0].blur - 3.0).abs() < 0.1);
+        assert_eq!(shadows[0].color.r, 0);
+        // Second listed shadow.
+        assert!((shadows[1].blur - 6.0).abs() < 0.1); // 8px * 0.75
+        assert_eq!(shadows[1].color.r, 255);
     }
 
     #[test]
     fn parse_box_shadow_non_parseable_blur_uses_as_color() {
         // "2px 2px notanumber black" — 4 tokens, but third is not a length
-        let shadow = parse_box_shadow("2px 2px notanumber black");
+        let shadow = parse_single_box_shadow("2px 2px notanumber black");
         // blur parse fails, so blur = 0.0, color_start = 2, color = parse "notanumber" which fails
         // Actually color_start=2 means color_str = "notanumber" which is not a valid color -> Color::BLACK fallback
         assert!(shadow.is_some());
@@ -7325,7 +7356,7 @@ mod tests {
     #[test]
     fn parse_box_shadow_no_color_token() {
         // Exactly 3 tokens where third is a valid blur, so color_start=3, no color token
-        let shadow = parse_box_shadow("2px 2px 4px");
+        let shadow = parse_single_box_shadow("2px 2px 4px");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
         assert_eq!(s.color.r, 0); // defaults to BLACK
@@ -9632,7 +9663,7 @@ mod tests {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("box-shadow: 2pt 2pt 0pt"), &parent);
         // When there are only 3 tokens and all parse as lengths, color defaults to BLACK
-        if let Some(shadow) = s.box_shadow {
+        if let Some(shadow) = s.box_shadow.first() {
             assert_eq!(shadow.color.r, 0);
             assert_eq!(shadow.color.g, 0);
             assert_eq!(shadow.color.b, 0);

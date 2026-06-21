@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 65.65%  (PASS 200 · PARTIAL 53 · FAIL 92 · UNKNOWN 1 · total 346)
+Overall: 66.67%  (PASS 201 · PARTIAL 58 · FAIL 86 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -40,12 +40,9 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Extra | 5.51 | backgrounds-borders | border-style | dashed | border-style-dashed | extra paint where Chrome is blank (27.9%) |
 | FAIL | REAL | Extra | 8.18 | backgrounds-borders | border-style | dotted | border-style-dotted | extra paint where Chrome is blank (46.0%) |
 | FAIL | REAL | Extra | 6.40 | backgrounds-borders | border-style | double | border-style-double | extra paint where Chrome is blank (25.8%) |
-| FAIL | REAL | Missing | 19.60 | backgrounds-borders | box-shadow | x-border | border-x-box-shadow | content clipped/truncated (19.5% missing) |
 | FAIL | REAL | Missing | 26.51 | backgrounds-borders | outline | solid-offset | outline-solid | feature not rendered — candidate blank where Chrome paints |
 | FAIL | REAL | ColorValue | 8.97 | backgrounds-gradients | background-origin | content-box | background-origin-content-box | fill recolour ΔRGB(-9,+71,-24) (ΔE 45.0) |
 | FAIL | REAL | ColorValue | 8.40 | backgrounds-gradients | background-size | explicit-length | background-size-length | fill recolour ΔRGB(+190,+114,+194) (ΔE 45.0) |
-| FAIL | REAL | ColorValue | 4.05 | effects | box-shadow | colored | box-shadow-color | fill recolour ΔRGB(+39,+186,+210) (ΔE 47.4) |
-| FAIL | REAL | ColorValue | 3.72 | effects | box-shadow | hard-offset | box-shadow-offset | fill recolour ΔRGB(+200,+172,+145) (ΔE 59.1) |
 | FAIL | REAL | ColorValue | 4.48 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
 | FAIL | REAL | Extra | 14.95 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | extra paint where Chrome is blank (5.6%) |
 | FAIL | REAL | Missing | 18.13 | inline-text | white-space | nowrap | inline-text-white-space-nowrap | content clipped/truncated (9.4% missing) |
@@ -105,12 +102,12 @@ None — every fixture's HTML matches `refs.lock`.
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 46.88% | 7 | 1 | 8 | 1 |
+| backgrounds-borders | 53.13% | 8 | 1 | 7 | 1 |
 | backgrounds-gradients | 57.14% | 8 | 0 | 6 | 0 |
 | block-box-model | 96.67% | 14 | 1 | 0 | 0 |
 | clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 92.86% | 13 | 0 | 1 | 0 |
-| effects | 13.64% | 1 | 1 | 9 | 0 |
+| effects | 36.36% | 1 | 6 | 4 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 81.25% | 10 | 6 | 0 | 0 |
 | fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
@@ -156,10 +153,10 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.74 | color-opacity | color-keyword | color-transparent-keyword | transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported). |
 | unsupported | FAIL | 11.79 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | FAIL | 0.34 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
-| partial | FAIL | 5.00 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
-| partial | FAIL | 4.59 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
-| partial | FAIL | 4.82 | effects | box-shadow | box-shadow-multiple | Two stacked hard box-shadows in different directions and colors. |
-| partial | FAIL | 8.27 | effects | box-shadow | box-shadow-spread | Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo. |
+| partial | FAIL | 2.63 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
+| partial | PARTIAL | 0.36 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
+| partial | PARTIAL | 0.28 | effects | box-shadow | box-shadow-multiple | Two stacked hard box-shadows in different directions and colors. |
+| partial | PARTIAL | 0.28 | effects | box-shadow | box-shadow-spread | Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo. |
 | unsupported | PARTIAL | 0.63 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
 | unsupported | PASS | 0.78 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
 | unsupported | FAIL | 3.27 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
@@ -247,7 +244,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.30 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 46.88%
+### backgrounds-borders — 53.13%
 - **background-color** — 100.00%
   - PASS 0.53% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
@@ -263,9 +260,9 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 5.51% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
   - FAIL 8.18% border-style=dotted — `border-style-dotted` — Box with a 6px dotted border.
   - FAIL 6.40% border-style=double — `border-style-double` — Box with a 10px double border (two solid rules separated by a gap).
-- **box-shadow** — 0.00%
+- **box-shadow** — 100.00%
   - UNKNOWN 0.00% box-shadow=hard-offset — `border-box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.
-  - FAIL 19.60% box-shadow=x-border — `border-x-box-shadow` — Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).
+  - PASS 0.62% box-shadow=x-border — `border-x-box-shadow` — Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).
 - **linear-gradient** — 100.00%
   - PASS 0.27% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
   - PASS 0.00% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
@@ -363,16 +360,16 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 11.79% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
-### effects — 13.64%
+### effects — 36.36%
 - **background-blend-mode** — 0.00%
   - FAIL 0.34% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
-- **box-shadow** — 0.00%
-  - FAIL 5.00% box-shadow=blur — `box-shadow-blur` — Offset box-shadow with a soft blur radius on a non-white stage.
-  - FAIL 4.05% box-shadow=colored — `box-shadow-color` — Hard offset box-shadow in a saturated color distinct from the box fill.
-  - FAIL 4.59% box-shadow=inset — `box-shadow-inset` — Inset hard box-shadow drawing an inner band on two sides of the box.
-  - FAIL 4.82% box-shadow=multiple — `box-shadow-multiple` — Two stacked hard box-shadows in different directions and colors.
-  - FAIL 3.72% box-shadow=hard-offset — `box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.
-  - FAIL 8.27% box-shadow=spread — `box-shadow-spread` — Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.
+- **box-shadow** — 41.67%
+  - FAIL 2.63% box-shadow=blur — `box-shadow-blur` — Offset box-shadow with a soft blur radius on a non-white stage.
+  - PARTIAL 0.25% box-shadow=colored — `box-shadow-color` — Hard offset box-shadow in a saturated color distinct from the box fill.
+  - PARTIAL 0.36% box-shadow=inset — `box-shadow-inset` — Inset hard box-shadow drawing an inner band on two sides of the box.
+  - PARTIAL 0.28% box-shadow=multiple — `box-shadow-multiple` — Two stacked hard box-shadows in different directions and colors.
+  - PARTIAL 0.31% box-shadow=hard-offset — `box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow cast onto a non-white stage.
+  - PARTIAL 0.28% box-shadow=spread — `box-shadow-spread` — Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo.
 - **mix-blend-mode** — 75.00%
   - PARTIAL 0.63% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
   - PASS 0.78% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).

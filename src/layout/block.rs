@@ -351,7 +351,7 @@ pub(crate) fn layout_block_element(
             offset_bottom: style.bottom.unwrap_or(0.0),
             offset_right: style.right.unwrap_or(0.0),
             containing_block: None,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: style.transform,
@@ -394,7 +394,7 @@ pub(crate) fn layout_block_element(
     let early_has_visual = has_background_paint(style)
         || style.border.has_any()
         || style.border_radius > 0.0
-        || style.box_shadow.is_some();
+        || !style.box_shadow.is_empty();
     // Limit nesting depth to prevent stack overflow on deeply nested HTML.
     // Beyond depth 40, fall back to flat text collection instead of Containers.
     let nesting_depth = ancestors.len();
@@ -498,7 +498,7 @@ pub(crate) fn layout_block_element(
         let parent_has_visual = has_background_paint(style)
             || style.border.has_any()
             || style.border_radius > 0.0
-            || style.box_shadow.is_some();
+            || !style.box_shadow.is_empty();
         // Check early if this positioned container has absolute children.
         // When true, skip the has_block_children fast path so we use the
         // Container/wrapper path instead, preserving the containing block.
@@ -613,7 +613,7 @@ pub(crate) fn layout_block_element(
                     offset_right: style.right.unwrap_or(0.0),
                     containing_block: None,
                     clip_children_count: 0,
-                    box_shadow: style.box_shadow,
+                    box_shadow: style.box_shadow.clone(),
                     visible: style.visibility == Visibility::Visible,
                     clip_rect: if style.overflow == Overflow::Hidden {
                         Some((0.0, 0.0, block_w, wrapper_h))
@@ -674,7 +674,7 @@ pub(crate) fn layout_block_element(
                         offset_right: 0.0,
                         containing_block: None,
                         clip_children_count: 0,
-                        box_shadow: None,
+                        box_shadow: Vec::new(),
                         visible: true,
                         clip_rect: None,
                         transform: None,
@@ -861,7 +861,7 @@ pub(crate) fn layout_block_element(
                         offset_right: 0.0,
                         containing_block: None,
                         clip_children_count: 0,
-                        box_shadow: None,
+                        box_shadow: Vec::new(),
                         visible: true,
                         clip_rect: None,
                         transform: None,
@@ -1160,7 +1160,7 @@ pub(crate) fn layout_block_element(
             offset_bottom: style.bottom.unwrap_or(0.0),
             offset_right: style.right.unwrap_or(0.0),
             containing_block: elem_cb,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect,
             transform: style.transform,
@@ -1191,7 +1191,7 @@ pub(crate) fn layout_block_element(
         let early_has_visual_for_wrapper = has_background_paint(style)
             || style.border.has_any()
             || style.border_radius > 0.0
-            || style.box_shadow.is_some();
+            || !style.box_shadow.is_empty();
         let early_needs_wrapper = early_has_visual_for_wrapper
             || style.aspect_ratio.is_some()
             || style.height.is_some()
@@ -1240,7 +1240,7 @@ pub(crate) fn layout_block_element(
     let has_visual = has_background_paint(style)
         || style.border.has_any()
         || style.border_radius > 0.0
-        || style.box_shadow.is_some();
+        || !style.box_shadow.is_empty();
     // A positioned container (position: relative/absolute) needs the
     // Container element to establish a containing block for absolute children.
     let has_abs_children = positioned_container
@@ -1582,7 +1582,7 @@ pub(crate) fn layout_block_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             clip_path: style.clip_path.clone(),
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             background_gradient,
             background_radial_gradient,
             background_svg,

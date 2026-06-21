@@ -83,7 +83,7 @@ pub(crate) fn layout_flex_container(
         if has_background_paint(style)
             || style.border.has_any()
             || resolved_border_radius > 0.0
-            || style.box_shadow.is_some()
+            || !style.box_shadow.is_empty()
             || style.aspect_ratio.is_some()
             || style.height.is_some()
             || before_abs
@@ -142,7 +142,7 @@ pub(crate) fn layout_flex_container(
                 offset_bottom: 0.0,
                 offset_right: 0.0,
                 containing_block: None,
-                box_shadow: style.box_shadow,
+                box_shadow: style.box_shadow.clone(),
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: if style.overflow == Overflow::Hidden {
                     Some((0.0, 0.0, block_w, container_h))
@@ -578,7 +578,7 @@ pub(crate) fn layout_flex_container(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: child_style.box_shadow,
+            box_shadow: child_style.box_shadow.clone(),
             visible: child_style.visibility == Visibility::Visible,
             clip_rect: if child_style.overflow == Overflow::Hidden {
                 Some((0.0, 0.0, child_w, child_h))
@@ -888,7 +888,7 @@ pub(crate) fn layout_flex_container(
 
     // For column direction, emit container background separately
     let emitted_column_bg = direction == FlexDirection::Column
-        && (has_background_paint(style) || style.border.has_any() || style.box_shadow.is_some());
+        && (has_background_paint(style) || style.border.has_any() || !style.box_shadow.is_empty());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
         // It advances y by its full height in paginate.  We then emit a
@@ -934,7 +934,7 @@ pub(crate) fn layout_flex_container(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: if style.overflow == Overflow::Hidden {
                 Some((0.0, 0.0, block_w, container_h))
@@ -999,7 +999,7 @@ pub(crate) fn layout_flex_container(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,
@@ -1193,7 +1193,7 @@ pub(crate) fn layout_flex_container(
                                 transform: None,
                                 transform_origin: crate::style::computed::TransformOrigin::default(
                                 ),
-                                box_shadow: None,
+                                box_shadow: Vec::new(),
                                 nested_elements: item.elements.clone(),
                                 y_offset: 0.0,
                                 line_cross_size: 0.0,
@@ -1261,7 +1261,7 @@ pub(crate) fn layout_flex_container(
                             background_origin: BackgroundOrigin::Padding,
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
-                            box_shadow: None,
+                            box_shadow: Vec::new(),
                             nested_elements: Vec::new(),
                             y_offset: 0.0,
                             line_cross_size: 0.0,
@@ -1332,7 +1332,7 @@ pub(crate) fn layout_flex_container(
                             background_origin: *tb_bg_origin,
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
-                            box_shadow: *tb_bs,
+                            box_shadow: tb_bs.clone(),
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
@@ -1368,7 +1368,7 @@ pub(crate) fn layout_flex_container(
                             background_origin: BackgroundOrigin::Padding,
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
-                            box_shadow: None,
+                            box_shadow: Vec::new(),
                             nested_elements: item.elements.clone(),
                             y_offset: 0.0,
                             line_cross_size: 0.0,
@@ -1563,7 +1563,7 @@ pub(crate) fn layout_flex_container(
                                 offset_bottom: 0.0,
                                 offset_right: 0.0,
                                 containing_block: None,
-                                box_shadow: *tb_bs,
+                                box_shadow: tb_bs.clone(),
                                 visible: *tb_vis,
                                 clip_rect: *tb_clip,
                                 transform: *tb_transform,
@@ -1647,7 +1647,7 @@ pub(crate) fn layout_flex_container(
                                 transform_origin: crate::style::computed::TransformOrigin::default(
                                 ),
                                 clip_path: None,
-                                box_shadow: None,
+                                box_shadow: Vec::new(),
                                 background_gradient: None,
                                 background_radial_gradient: None,
                                 background_svg: None,
@@ -1690,7 +1690,7 @@ pub(crate) fn layout_flex_container(
             padding_right: style.padding.right,
             border: LayoutBorder::from_computed(&style.border),
             border_radius: style.border_radius,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             background_gradient: style.background_gradient.clone(),
             background_radial_gradient: style.background_radial_gradient.clone(),
             background_svg: background_svg_for_style(style),
@@ -1734,7 +1734,7 @@ pub(crate) fn layout_flex_container(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,

@@ -518,19 +518,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw box-shadow with blur (references the border box).
-                    if let Some(shadow) = box_shadow {
-                        render_box_shadow(
-                            &mut content,
-                            shadow,
-                            block_x,
-                            block_bottom,
-                            render_width,
-                            border_box_h,
-                            *border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows(
+                        &mut content,
+                        box_shadow,
+                        block_x,
+                        block_bottom,
+                        render_width,
+                        border_box_h,
+                        *border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw background if specified
                     if let Some((r, g, b, a)) = background_color {
@@ -632,21 +630,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw inset box-shadow (after backgrounds, before content).
-                    if let Some(shadow) = box_shadow
-                        && shadow.inset
-                    {
-                        render_box_shadow_inset(
-                            &mut content,
-                            shadow,
-                            block_x,
-                            block_bottom,
-                            render_width,
-                            border_box_h,
-                            *border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows_inset(
+                        &mut content,
+                        box_shadow,
+                        block_x,
+                        block_bottom,
+                        render_width,
+                        border_box_h,
+                        *border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw SVG background image if specified.
                     // `block_x` / `block_y` are the border-box top-left and
@@ -1522,19 +1516,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         padding_top + row_height + padding_bottom + border.vertical_width();
 
                     // Draw box shadow with blur
-                    if let Some(shadow) = box_shadow {
-                        render_box_shadow(
-                            &mut content,
-                            shadow,
-                            margin.left,
-                            row_y - full_height,
-                            *container_width,
-                            full_height,
-                            *border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows(
+                        &mut content,
+                        box_shadow,
+                        margin.left,
+                        row_y - full_height,
+                        *container_width,
+                        full_height,
+                        *border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw container background
                     if let Some((r, g, b, a)) = background_color {
@@ -1631,21 +1623,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw inset box-shadow for flex container (after backgrounds).
-                    if let Some(shadow) = box_shadow
-                        && shadow.inset
-                    {
-                        render_box_shadow_inset(
-                            &mut content,
-                            shadow,
-                            margin.left,
-                            row_y - full_height,
-                            *container_width,
-                            full_height,
-                            *border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows_inset(
+                        &mut content,
+                        box_shadow,
+                        margin.left,
+                        row_y - full_height,
+                        *container_width,
+                        full_height,
+                        *border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw SVG background image for flex container
                     if let Some(svg_tree) = background_svg {
@@ -1879,12 +1867,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // Draw per-cell box-shadow (e.g. inline-block items
                         // with `box-shadow`). We draw it before the background
                         // so the shadow sits behind the cell.
-                        if let Some(shadow) = &cell.box_shadow {
+                        {
                             let cell_bg_x = margin.left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
-                            render_box_shadow(
+                            render_box_shadows(
                                 &mut content,
-                                shadow,
+                                &cell.box_shadow,
                                 cell_bg_x,
                                 cell_bg_y,
                                 cell.width,
@@ -1929,14 +1917,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         // Draw inset box-shadow (after cell background, before borders).
-                        if let Some(shadow) = &cell.box_shadow
-                            && shadow.inset
                         {
                             let cell_bg_x = margin.left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
-                            render_box_shadow_inset(
+                            render_box_shadows_inset(
                                 &mut content,
-                                shadow,
+                                &cell.box_shadow,
                                 cell_bg_x,
                                 cell_bg_y,
                                 cell.width,
@@ -2859,19 +2845,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw box-shadow with blur
-                    if let Some(shadow) = c_box_shadow {
-                        render_box_shadow(
-                            &mut content,
-                            shadow,
-                            container_x,
-                            container_y_top - total_h,
-                            container_w,
-                            total_h,
-                            *c_border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows(
+                        &mut content,
+                        c_box_shadow,
+                        container_x,
+                        container_y_top - total_h,
+                        container_w,
+                        total_h,
+                        *c_border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw background
                     if let Some((r, g, b, a)) = background_color {
@@ -3008,21 +2992,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     }
 
                     // Draw inset box-shadow (after container background, before borders).
-                    if let Some(shadow) = c_box_shadow
-                        && shadow.inset
-                    {
-                        render_box_shadow_inset(
-                            &mut content,
-                            shadow,
-                            container_x,
-                            container_y_top - total_h,
-                            container_w,
-                            total_h,
-                            *c_border_radius,
-                            &mut page_ext_gstates,
-                            &mut bg_alpha_counter,
-                        );
-                    }
+                    render_box_shadows_inset(
+                        &mut content,
+                        c_box_shadow,
+                        container_x,
+                        container_y_top - total_h,
+                        container_w,
+                        total_h,
+                        *c_border_radius,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
 
                     // Draw all 4 borders
                     if border.has_any() {
@@ -4581,6 +4561,7 @@ fn render_container_children(
                 transform: nk_transform,
                 transform_origin: nk_transform_origin,
                 clip_path: nk_clip_path,
+                box_shadow: nk_box_shadow,
                 background_svg: nk_bg_svg,
                 background_size: nk_bg_size,
                 background_position: nk_bg_position,
@@ -4692,6 +4673,22 @@ fn render_container_children(
                         content.push_str("q\n");
                         push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
                     }
+
+                    // Draw outset box-shadow (before the background, so it sits
+                    // behind the element). Nested containers previously dropped
+                    // box-shadow entirely; the top-level Container arm handles it
+                    // the same way.
+                    render_box_shadows(
+                        content,
+                        nk_box_shadow,
+                        nk_x,
+                        nk_top_y - nk_total_h,
+                        nk_w,
+                        nk_total_h,
+                        *cont_br,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                    );
 
                     // Draw background with proper alpha support
                     if let Some((r, g, b, a)) = background_color {
@@ -4828,6 +4825,20 @@ fn render_container_children(
                             ),
                         );
                     }
+
+                    // Draw inset box-shadow (after the backgrounds, before the
+                    // borders/content) so it paints over the element fill.
+                    render_box_shadows_inset(
+                        content,
+                        nk_box_shadow,
+                        nk_x,
+                        nk_top_y - nk_total_h,
+                        nk_w,
+                        nk_total_h,
+                        *cont_br,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                    );
 
                     // Draw all 4 borders
                     let bx1 = nk_x;
@@ -6804,10 +6815,69 @@ fn tile_offsets(origin: f32, step: f32, extent: f32) -> Vec<f32> {
     }
     offsets
 }
-/// Generate a PDF path for a rounded rectangle.
-///
-/// Uses cubic Bezier curves to approximate circular arcs at each corner.
-/// The magic number k = r * 0.5522847498 gives the best circular approximation.
+/// Render every outset shadow in a `box-shadow` list. CSS paints shadows
+/// back-to-front: the FIRST listed shadow ends up on top, so the list is
+/// iterated in reverse so earlier entries are painted last. Inset shadows in
+/// the list are skipped here (drawn by `render_box_shadows_inset` after the
+/// background).
+#[allow(clippy::too_many_arguments)]
+fn render_box_shadows(
+    content: &mut String,
+    shadows: &[crate::style::computed::BoxShadow],
+    box_x: f32,
+    box_y_bottom: f32,
+    box_w: f32,
+    box_h: f32,
+    border_radius: f32,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    gs_counter: &mut usize,
+) {
+    for shadow in shadows.iter().rev() {
+        render_box_shadow(
+            content,
+            shadow,
+            box_x,
+            box_y_bottom,
+            box_w,
+            box_h,
+            border_radius,
+            page_ext_gstates,
+            gs_counter,
+        );
+    }
+}
+
+/// Render every inset shadow in a `box-shadow` list (reverse paint order, as
+/// `render_box_shadows`). Call after the element background.
+#[allow(clippy::too_many_arguments)]
+fn render_box_shadows_inset(
+    content: &mut String,
+    shadows: &[crate::style::computed::BoxShadow],
+    box_x: f32,
+    box_y_bottom: f32,
+    box_w: f32,
+    box_h: f32,
+    border_radius: f32,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    gs_counter: &mut usize,
+) {
+    for shadow in shadows.iter().rev() {
+        if shadow.inset {
+            render_box_shadow_inset(
+                content,
+                shadow,
+                box_x,
+                box_y_bottom,
+                box_w,
+                box_h,
+                border_radius,
+                page_ext_gstates,
+                gs_counter,
+            );
+        }
+    }
+}
+
 /// Render a box-shadow with optional Gaussian blur approximation.
 ///
 /// When `blur > 0`, draws multiple concentric semi-transparent layers that
@@ -8241,7 +8311,7 @@ mod tests {
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,

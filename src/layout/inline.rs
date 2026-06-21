@@ -126,7 +126,7 @@ pub(crate) fn layout_inline_block_group(
         text_align: TextAlign,
         margin_left: f32,
         margin_right: f32,
-        box_shadow: Option<crate::style::computed::BoxShadow>,
+        box_shadow: Vec<crate::style::computed::BoxShadow>,
     }
 
     let mut items: Vec<InlineBlockItem> = Vec::new();
@@ -281,7 +281,7 @@ pub(crate) fn layout_inline_block_group(
             text_align: child_style.text_align,
             margin_left: child_style.margin.left,
             margin_right: child_style.margin.right,
-            box_shadow: child_style.box_shadow,
+            box_shadow: child_style.box_shadow.clone(),
         });
     }
 
@@ -331,7 +331,7 @@ pub(crate) fn layout_inline_block_group(
             background_origin: item.background_origin,
             transform: item.transform,
             transform_origin: item.transform_origin,
-            box_shadow: item.box_shadow,
+            box_shadow: item.box_shadow.clone(),
             nested_elements: Vec::new(),
             y_offset: 0.0,
             line_cross_size: 0.0,
@@ -358,7 +358,7 @@ pub(crate) fn layout_inline_block_group(
             padding_right: 0.0,
             border: LayoutBorder::default(),
             border_radius: 0.0,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             background_gradient: None,
             background_radial_gradient: None,
             background_svg: None,

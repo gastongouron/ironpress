@@ -631,7 +631,7 @@ pub(crate) fn build_pseudo_block(
         offset_bottom: pseudo_style.bottom.unwrap_or(0.0),
         offset_right: pseudo_style.right.unwrap_or(0.0),
         containing_block: containing_block_info,
-        box_shadow: pseudo_style.box_shadow,
+        box_shadow: pseudo_style.box_shadow.clone(),
         visible: pseudo_style.visibility == Visibility::Visible,
         clip_rect: None,
         transform: pseudo_style.transform,

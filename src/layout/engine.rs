@@ -209,7 +209,7 @@ pub struct FlexCell {
     /// CSS `transform-origin` pivot for this cell's transform.
     pub transform_origin: TransformOrigin,
     /// Box shadow to render behind this cell (CSS `box-shadow`).
-    pub box_shadow: Option<BoxShadow>,
+    pub box_shadow: Vec<BoxShadow>,
     /// Nested layout elements for complex flex items (tables, images, etc.)
     pub nested_elements: Vec<LayoutElement>,
     /// Cross-axis offset of this cell within the FlexRow. For single-line
@@ -363,7 +363,7 @@ pub enum LayoutElement {
         /// be rendered within this element's clip rect (overflow: hidden).
         /// The renderer keeps the clipping path active for this many elements.
         clip_children_count: usize,
-        box_shadow: Option<BoxShadow>,
+        box_shadow: Vec<BoxShadow>,
         visible: bool,
         clip_rect: Option<(f32, f32, f32, f32)>,
         transform: Option<Transform>,
@@ -471,7 +471,7 @@ pub enum LayoutElement {
         padding_right: f32,
         border: LayoutBorder,
         border_radius: f32,
-        box_shadow: Option<BoxShadow>,
+        box_shadow: Vec<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
@@ -543,7 +543,7 @@ pub enum LayoutElement {
         transform: Option<Transform>,
         transform_origin: TransformOrigin,
         clip_path: Option<crate::style::computed::ClipPath>,
-        box_shadow: Option<BoxShadow>,
+        box_shadow: Vec<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
@@ -779,7 +779,7 @@ pub fn layout_with_rules_and_fonts(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,
@@ -977,7 +977,7 @@ fn flatten_nodes(
                             offset_bottom: 0.0,
                             offset_right: 0.0,
                             containing_block: None,
-                            box_shadow: None,
+                            box_shadow: Vec::new(),
                             visible: true,
                             clip_rect: None,
                             transform: None,
@@ -1206,7 +1206,7 @@ pub(crate) fn flatten_element(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,
@@ -1406,7 +1406,7 @@ pub(crate) fn flatten_element(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: style.transform,
@@ -1558,7 +1558,7 @@ pub(crate) fn flatten_element(
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: style.box_shadow,
+            box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: style.transform,
@@ -1938,7 +1938,7 @@ pub(crate) fn flatten_element(
                 offset_bottom: style.bottom.unwrap_or(0.0),
                 offset_right: style.right.unwrap_or(0.0),
                 containing_block: None,
-                box_shadow: style.box_shadow,
+                box_shadow: style.box_shadow.clone(),
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: None,
                 transform: style.transform,
@@ -3663,7 +3663,7 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         assert_eq!(pages.len(), 1);
         if let (_, LayoutElement::TextBlock { box_shadow, .. }) = &pages[0].elements[0] {
-            let shadow = box_shadow.unwrap();
+            let shadow = box_shadow[0];
             assert!((shadow.offset_x - 2.25).abs() < 0.1); // 3px * 0.75
             assert!((shadow.offset_y - 2.25).abs() < 0.1);
             assert_eq!(shadow.color.r, 0);
@@ -4846,7 +4846,7 @@ mod tests {
                 offset_bottom: 0.0,
                 offset_right: 0.0,
                 containing_block: None,
-                box_shadow: None,
+                box_shadow: Vec::new(),
                 visible: true,
                 clip_rect: None,
                 transform: None,
@@ -4978,7 +4978,7 @@ mod tests {
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,
@@ -6566,17 +6566,10 @@ mod tests {
         let html = r#"<div class="shadow"><p>shadowed</p></div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout_with_rules(&nodes, PageSize::A4, Margin::default(), &rules);
-        let has_shadow = pages[0].elements.iter().any(|(_, el)| {
-            matches!(
-                el,
-                LayoutElement::TextBlock {
-                    box_shadow: Some(_),
-                    ..
-                } | LayoutElement::Container {
-                    box_shadow: Some(_),
-                    ..
-                }
-            )
+        let has_shadow = pages[0].elements.iter().any(|(_, el)| match el {
+            LayoutElement::TextBlock { box_shadow, .. }
+            | LayoutElement::Container { box_shadow, .. } => !box_shadow.is_empty(),
+            _ => false,
         });
         assert!(
             has_shadow,
@@ -9756,7 +9749,7 @@ line 3</pre>
             offset_right: 40.0,
             containing_block: None,
             clip_children_count: 0,
-            box_shadow: None,
+            box_shadow: Vec::new(),
             visible: true,
             clip_rect: None,
             transform: None,
