@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 46.96%  (PASS 135 · PARTIAL 54 · FAIL 156 · UNKNOWN 1 · total 346)
+Overall: 47.25%  (PASS 136 · PARTIAL 54 · FAIL 155 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -54,12 +54,11 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 6.95 | flexbox | justify-content | space-around | flexbox-justify-content-space-around | fill recolour ΔRGB(+25,+132,+118) (ΔE 74.5) |
 | FAIL | REAL | ColorValue | 6.36 | flexbox | justify-content | space-between | flexbox-justify-content-space-between | fill recolour ΔRGB(+199,+140,+142) (ΔE 57.6) |
 | FAIL | REAL | ColorValue | 72.69 | flexbox | nested-flex | row-of-columns | flexbox-nested-flex | fill recolour ΔRGB(+17,+17,+17) (ΔE 38.2) |
-| FAIL | REAL | Missing | 20.90 | generated-content | content-attr | before-attr | generated-content-attr | content clipped/truncated (4.7% missing) |
-| FAIL | REAL | ColorValue | 5.53 | generated-content | content-counter | counter-reset-increment | generated-content-counter | fill recolour ΔRGB(+3,+7,+6) (ΔE 80.9) |
+| FAIL | REAL | Missing | 21.04 | generated-content | content-attr | before-attr | generated-content-attr | content clipped/truncated (4.7% missing) |
 | FAIL | REAL | Missing | 16.26 | generated-content | content-suppression | content-none | generated-content-content-none | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Missing | 18.14 | generated-content | pseudo-element | after-content-string | generated-content-after-string | content clipped/truncated (5.5% missing) |
+| FAIL | REAL | Missing | 19.15 | generated-content | pseudo-element | after-content-string | generated-content-after-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | Missing | 16.62 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
-| FAIL | REAL | Missing | 19.57 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
+| FAIL | REAL | Missing | 19.25 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | Extra | 2.80 | grid | align-items | start | grid-align-items-start | extra paint where Chrome is blank (3.5%) |
 | FAIL | REAL | Extra | 2.78 | grid | gap | row-column-gap | grid-gap | extra paint where Chrome is blank (1.9%) |
 | FAIL | REAL | ColorValue | 4.52 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
@@ -99,13 +98,14 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`) | Missing | 22.56 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `tables-thead-tbody-tfoot` already FAILs | tables-x-typography-bold | via tables-thead-tbody-tfoot: content clipped/truncated (24.7% missing) |
 | FAIL | CONFOUNDED: transform (`transforms-rotate`) | Extra | 41.17 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item | via transforms-rotate: extra paint where Chrome is blank (8.7%) |
 | FAIL | CONFOUNDED: transform (`transforms-rotate`) | ColorValue | 6.55 | interactions | z-index-x-transforms | (interaction: positioning×transforms) DERIVATIVE: base `transforms-rotate` already FAILs | positioning-zindex-x-transforms-rotate | via transforms-rotate: fill recolour ΔRGB(+38,-10,-5) (ΔE 50.4) |
-| FAIL | REAL | ColorValue | 9.12 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-73) (ΔE 76.0) |
-| FAIL | REAL | ColorValue | 12.36 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+10,+10,+11) (ΔE 84.6) |
-| FAIL | REAL | Extra | 49.36 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (42.2%) |
-| FAIL | REAL | ColorValue | 7.87 | lists-counters | list-style-type | decimal | list-style-type-decimal | fill recolour ΔRGB(+10,+10,+11) (ΔE 84.0) |
-| FAIL | REAL | GeometryShift | 7.44 | lists-counters | list-style-type | disc | list-style-type-disc | content shifted (0.0,0.5)px beyond page-origin calibration |
-| FAIL | REAL | ColorValue | 8.72 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(-12,-12,-11) (ΔE 84.8) |
+| FAIL | REAL | ColorValue | 9.00 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-72) (ΔE 75.8) |
+| FAIL | REAL | ColorValue | 12.05 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+12,+13,+13) (ΔE 84.6) |
+| FAIL | REAL | Extra | 31.01 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
+| FAIL | REAL | ColorValue | 7.97 | lists-counters | list-style-type | decimal | list-style-type-decimal | fill recolour ΔRGB(-9,-10,-10) (ΔE 84.0) |
+| FAIL | REAL | ColorValue | 7.36 | lists-counters | list-style-type | disc | list-style-type-disc | fill recolour ΔRGB(+17,+18,+17) (ΔE 84.4) |
+| FAIL | REAL | ColorValue | 8.77 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(+14,+13,+12) (ΔE 84.8) |
 | FAIL | REAL | ColorValue | 9.72 | lists-counters | list-style-type | none | list-style-type-none | fill recolour ΔRGB(+10,+10,+11) (ΔE 82.8) |
+| FAIL | REAL | ColorValue | 7.71 | lists-counters | list-style-type | upper-roman | list-style-type-upper-roman | fill recolour ΔRGB(+13,+12,+13) (ΔE 82.9) |
 | FAIL | REAL | ColorValue | 6.08 | overflow-clipping | overflow | hidden-with-border-radius | overflow-hidden-border-radius | fill recolour ΔRGB(+69,+21,+15) (ΔE 14.9) |
 | FAIL | REAL | ColorValue | 2.55 | overflow-clipping | overflow | hidden | overflow-hidden-clip | fill recolour ΔRGB(+15,+76,+98) (ΔE 27.7) |
 | FAIL | REAL | Missing | 3.87 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | content clipped/truncated (1.9% missing) |
@@ -173,12 +173,12 @@ None — every fixture's HTML matches `refs.lock`.
 | filters | 53.57% | 7 | 1 | 6 | 0 |
 | flexbox | 25.00% | 0 | 8 | 8 | 0 |
 | fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
-| generated-content | 5.00% | 0 | 1 | 9 | 0 |
+| generated-content | 15.00% | 1 | 1 | 8 | 0 |
 | grid | 34.38% | 0 | 11 | 5 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 6.25% | 1 | 0 | 15 | 0 |
 | interactions | 11.36% | 2 | 1 | 19 | 0 |
-| lists-counters | 8.33% | 0 | 2 | 10 | 0 |
+| lists-counters | 4.17% | 0 | 1 | 11 | 0 |
 | multicol | 75.00% | 6 | 0 | 2 | 0 |
 | overflow-clipping | 0.00% | 0 | 0 | 10 | 0 |
 | paged-media | 66.67% | 6 | 0 | 3 | 0 |
@@ -187,7 +187,7 @@ None — every fixture's HTML matches `refs.lock`.
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
 | tables | 31.25% | 0 | 10 | 6 | 0 |
 | text-advanced | 0.00% | 0 | 0 | 15 | 0 |
-| transforms | 27.27% | 0 | 6 | 5 | 0 |
+| transforms | 31.82% | 0 | 7 | 4 | 0 |
 | typography | 84.38% | 13 | 1 | 2 | 0 |
 | units-values | 83.33% | 9 | 2 | 1 | 0 |
 
@@ -246,7 +246,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 17.28 | generated-content | content-url | generated-content-content-url-image | content: url(data:png) on ::before places a small decoded raster image before the element text. |
 | unsupported | FAIL | 17.09 | generated-content | first-letter | generated-content-first-letter-dropcap | ::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it. |
 | unsupported | PARTIAL | 10.21 | generated-content | first-line | generated-content-first-line | ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal. |
-| unsupported | FAIL | 14.40 | generated-content | quotes | generated-content-open-close-quote | content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property. |
+| unsupported | FAIL | 13.46 | generated-content | quotes | generated-content-open-close-quote | content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property. |
 | unsupported | PASS | 0.33 | images-replaced | aspect-ratio | img-aspect-ratio-box | A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height. |
 | partial | PARTIAL | 0.58 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PARTIAL | 0.28 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
@@ -257,10 +257,10 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.00 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
 | unsupported | PASS | 0.16 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
-| partial | PARTIAL | 5.09 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
-| unsupported | FAIL | 5.76 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
-| unsupported | FAIL | 11.39 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
-| unsupported | FAIL | 12.66 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
+| partial | PARTIAL | 5.11 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
+| unsupported | FAIL | 5.81 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
+| unsupported | FAIL | 11.72 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
+| unsupported | FAIL | 12.51 | lists-counters | marker-pseudo | marker-pseudo-color | Ordered list whose markers are recolored and bolded via the ::marker pseudo-element. |
 | unsupported | PASS | 1.29 | multicol | break-inside | multicol-break-inside-avoid | Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap). |
 | partial | FAIL | 18.82 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 1.10 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
@@ -278,7 +278,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 36.11 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
 | partial | PASS | 0.14 | paged-media | page-break-before | paged-page-break-before-avoid-noop | page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap. |
 | unsupported | FAIL | 29.53 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
-| unsupported | FAIL | 50.40 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
+| unsupported | FAIL | 16.80 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
 | unsupported | PASS | 0.45 | selectors-cascade | at-rule | selectors-cascade-supports-rule | @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap. |
 | partial | PASS | 1.15 | selectors-cascade | attribute-selector | selectors-cascade-attribute-equals | [data-pick="yes"] colors only the box whose attribute equals the value; boxes with a different value or no attribute stay gray. |
 | partial | PASS | 1.15 | selectors-cascade | pseudo-class | selectors-cascade-first-last-child | :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray. |
@@ -298,7 +298,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 2.15 | transforms | transform | transforms-translate | transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout. |
 | partial | FAIL | 2.46 | transforms | transform | transforms-translate-x | transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged. |
 | partial | FAIL | 2.74 | transforms | transform | transforms-translate-y | transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged. |
-| unsupported | FAIL | 18.53 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
+| unsupported | PARTIAL | 1.71 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
 | partial | PASS | 0.97 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
 | partial | PASS | 0.76 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
 | unsupported | PASS | 0.45 | units-values | math-functions | units-clamp | Aspirational: clamp(120px,50%,240px) x clamp(80px,50%,200px) against a 600x160px parent resolves to a 240x80px child; clamp() is unsupported in ironpress. |
@@ -518,11 +518,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 3.81% text-transform=lowercase — `fonts-advanced-text-transform-lowercase` — Uppercase source text rendered with text-transform: lowercase so every glyph is lowercased before shaping.
   - PASS 3.73% text-transform=uppercase — `fonts-advanced-text-transform-uppercase` — Lowercase source text rendered with text-transform: uppercase so every glyph is uppercased before shaping.
 
-### generated-content — 5.00%
+### generated-content — 15.00%
 - **content-attr** — 0.00%
-  - FAIL 20.90% content-attr=before-attr — `generated-content-attr` — content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.
-- **content-counter** — 0.00%
-  - FAIL 5.53% content-counter=counter-reset-increment — `generated-content-counter` — counter-reset plus counter-increment with content: counter(step) numbers three stacked items via ::before.
+  - FAIL 21.04% content-attr=before-attr — `generated-content-attr` — content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.
+- **content-counter** — 100.00%
+  - PASS 2.04% content-counter=counter-reset-increment — `generated-content-counter` — counter-reset plus counter-increment with content: counter(step) numbers three stacked items via ::before.
 - **content-suppression** — 0.00%
   - FAIL 16.26% content-suppression=content-none — `generated-content-content-none` — content: none on ::before suppresses the pseudo-element so only the original element text renders.
 - **content-url** — 0.00%
@@ -532,11 +532,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **first-line** — 50.00%
   - PARTIAL 10.21% first-line=color-weight — `generated-content-first-line` — ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.
 - **pseudo-element** — 0.00%
-  - FAIL 18.14% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
+  - FAIL 19.15% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
   - FAIL 16.62% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
-  - FAIL 19.57% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
+  - FAIL 19.25% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
 - **quotes** — 0.00%
-  - FAIL 14.40% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
+  - FAIL 13.46% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
 ### grid — 34.38%
 - **align-items** — 0.00%
@@ -659,24 +659,24 @@ None — every fixture's HTML matches `refs.lock`.
 - **z-index-x-transforms** — 0.00%
   - FAIL 6.55% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 8.33%
+### lists-counters — 4.17%
 - **counters** — 16.67%
-  - PARTIAL 5.09% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
-  - FAIL 9.12% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
-  - FAIL 5.76% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
+  - PARTIAL 5.11% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
+  - FAIL 9.00% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
+  - FAIL 5.81% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
 - **list-style-image** — 0.00%
-  - FAIL 11.39% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
+  - FAIL 11.72% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
 - **list-style-position** — 0.00%
-  - FAIL 12.36% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
-  - FAIL 49.36% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
-- **list-style-type** — 10.00%
-  - FAIL 7.87% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
-  - FAIL 7.44% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
-  - FAIL 8.72% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
+  - FAIL 12.05% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
+  - FAIL 31.01% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
+- **list-style-type** — 0.00%
+  - FAIL 7.97% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
+  - FAIL 7.36% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
+  - FAIL 8.77% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
   - FAIL 9.72% list-style-type=none — `list-style-type-none` — Unordered list with markers suppressed via list-style-type:none.
-  - PARTIAL 6.93% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
+  - FAIL 7.71% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
 - **marker-pseudo** — 0.00%
-  - FAIL 12.66% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
+  - FAIL 12.51% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
 ### multicol — 75.00%
 - **break-inside** — 100.00%
@@ -724,7 +724,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-break-inside** — 0.00%
   - FAIL 29.53% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
 - **page-counter** — 0.00%
-  - FAIL 50.40% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
+  - FAIL 16.80% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
@@ -849,7 +849,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **writing-mode** — 0.00%
   - FAIL 8.32% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
-### transforms — 27.27%
+### transforms — 31.82%
 - **transform** — 30.00%
   - PARTIAL 1.63% transform=compound-rotate-translate — `transforms-compound-rotate-translate` — Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported.
   - PARTIAL 1.67% transform=matrix — `transforms-matrix` — transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress.
@@ -861,8 +861,8 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 2.15% transform=translate — `transforms-translate` — transform: translate(x, y) shifts a positioned box right and down from its in-flow slot without affecting surrounding layout.
   - FAIL 2.46% transform=translateX — `transforms-translate-x` — transform: translateX() shifts the box horizontally only, leaving its vertical position unchanged.
   - FAIL 2.74% transform=translateY — `transforms-translate-y` — transform: translateY() shifts the box vertically only, leaving its horizontal position unchanged.
-- **transform-origin** — 0.00%
-  - FAIL 18.53% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
+- **transform-origin** — 50.00%
+  - PARTIAL 1.71% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
 
 ### typography — 84.38%
 - **font-family** — 83.33%
