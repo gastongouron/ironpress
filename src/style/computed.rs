@@ -7585,9 +7585,13 @@ mod tests {
         let shadow = parse_single_box_shadow("2px 2px 4px");
         assert!(shadow.is_some());
         let s = shadow.unwrap();
-        assert_eq!(s.color.r, 0); // defaults to BLACK
-        assert_eq!(s.color.g, 0);
-        assert_eq!(s.color.b, 0);
+        // Per CSS Backgrounds & Borders L3 §7.2 an omitted shadow color defaults to
+        // currentColor: parsed as CURRENT_COLOR_SENTINEL, resolved to the element's
+        // `color` later in resolve_current_color.
+        assert_eq!(s.color.r, CURRENT_COLOR_SENTINEL.r);
+        assert_eq!(s.color.g, CURRENT_COLOR_SENTINEL.g);
+        assert_eq!(s.color.b, CURRENT_COLOR_SENTINEL.b);
+        assert_eq!(s.color.a, CURRENT_COLOR_SENTINEL.a);
     }
 
     #[test]
