@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [],
+  "borders": [
+    {
+      "role": "border",
+      "rect_pt": [
+        47.25,
+        47.25,
+        117.0,
+        72.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        39.0,
+        39.0,
+        133.5,
+        88.5
+      ],
+      "selector": null
+    }
+  ],
+  "text_runs": []
+}

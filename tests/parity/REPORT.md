@@ -22,7 +22,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**31 suspect(s):** `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-span-all`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `units-clamp`, `units-min-max`
+**32 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `color-currentcolor`, `color-hsla-alpha`, `color-transparent-keyword`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multicol-break-inside-avoid`, `multicol-column-width`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `units-clamp`, `units-min-max`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -160,7 +160,7 @@ None — every fixture's HTML matches `refs.lock`.
 | backgrounds-borders | 46.88% | 7 | 1 | 8 | 1 |
 | backgrounds-gradients | 57.14% | 8 | 0 | 6 | 0 |
 | block-box-model | 96.67% | 14 | 1 | 0 | 0 |
-| clip-mask | 50.00% | 3 | 2 | 3 | 0 |
+| clip-mask | 62.50% | 5 | 0 | 3 | 0 |
 | color-opacity | 92.86% | 13 | 0 | 1 | 0 |
 | effects | 13.64% | 1 | 1 | 9 | 0 |
 | filters | 53.57% | 7 | 1 | 6 | 0 |
@@ -172,7 +172,7 @@ None — every fixture's HTML matches `refs.lock`.
 | inline-text | 6.25% | 1 | 0 | 15 | 0 |
 | interactions | 13.64% | 2 | 2 | 18 | 0 |
 | lists-counters | 4.17% | 0 | 1 | 11 | 0 |
-| multicol | 75.00% | 6 | 0 | 2 | 0 |
+| multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 0.00% | 0 | 0 | 10 | 0 |
 | paged-media | 66.67% | 6 | 0 | 3 | 0 |
 | positioning | 40.63% | 6 | 1 | 9 | 0 |
@@ -194,8 +194,8 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | FAIL | 97.47 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | FAIL | 69.94 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
-| unsupported | PARTIAL | 0.45 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
-| unsupported | PARTIAL | 0.47 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.45 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
+| unsupported | PASS | 0.47 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.53 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
 | unsupported | PASS | 0.66 | clip-mask | clip-path: inset() | clip-path-inset-round | clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.40 | clip-mask | clip-path: polygon() | clip-path-polygon | clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported. |
@@ -258,7 +258,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | FAIL | 18.82 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 1.10 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
 | unsupported | FAIL | 1.84 | multicol | column-rule | multicol-column-rule | Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap). |
-| unsupported | PASS | 1.89 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
+| unsupported | PARTIAL | 1.89 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
 | unsupported | PASS | 1.20 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
 | partial | PASS | 0.46 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
 | unsupported | FAIL | 4.49 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
@@ -377,11 +377,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **width-height** — 100.00%
   - PASS 0.76% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
-### clip-mask — 50.00%
-- **clip-path: circle()** — 50.00%
-  - PARTIAL 0.45% clip-path: circle()=centered — `clip-path-circle` — clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.
-- **clip-path: ellipse()** — 50.00%
-  - PARTIAL 0.47% clip-path: ellipse()=distinct-radii — `clip-path-ellipse` — clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.
+### clip-mask — 62.50%
+- **clip-path: circle()** — 100.00%
+  - PASS 0.45% clip-path: circle()=centered — `clip-path-circle` — clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.
+- **clip-path: ellipse()** — 100.00%
+  - PASS 0.47% clip-path: ellipse()=distinct-radii — `clip-path-ellipse` — clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.
 - **clip-path: inset()** — 100.00%
   - PASS 0.53% clip-path: inset()=rectangular — `clip-path-inset` — clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs).
   - PASS 0.66% clip-path: inset()=rounded — `clip-path-inset-round` — clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported.
@@ -671,18 +671,18 @@ None — every fixture's HTML matches `refs.lock`.
 - **marker-pseudo** — 0.00%
   - FAIL 12.51% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
-### multicol — 75.00%
+### multicol — 62.50%
 - **break-inside** — 100.00%
   - PASS 1.29% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).
 - **column-count** — 50.00%
   - FAIL 18.82% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
   - PASS 1.10% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
-- **column-gap** — 100.00%
-  - PASS 0.96% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
+- **column-gap** — 50.00%
+  - PARTIAL 0.96% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
 - **column-rule** — 0.00%
   - FAIL 1.84% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).
-- **column-span** — 100.00%
-  - PASS 1.89% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
+- **column-span** — 50.00%
+  - PARTIAL 1.89% column-span=all — `multicol-column-span-all` — A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).
 - **column-width** — 100.00%
   - PASS 1.20% column-width=px — `multicol-column-width` — Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).
 - **columns** — 100.00%

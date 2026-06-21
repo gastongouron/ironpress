@@ -11,8 +11,28 @@
       "rect_pt": [
         42.75,
         42.75,
-        90.0,
-        240.0
+        240.0,
+        145.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        44.25,
+        66.75,
+        237.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        44.25,
+        126.75,
+        237.0,
+        37.5
       ],
       "selector": null
     },
@@ -21,28 +41,8 @@
       "rect_pt": [
         44.25,
         44.25,
-        60.0,
-        60.0
-      ],
-      "selector": null
-    },
-    {
-      "role": "fill",
-      "rect_pt": [
-        44.25,
-        104.25,
-        60.0,
-        60.0
-      ],
-      "selector": null
-    },
-    {
-      "role": "fill",
-      "rect_pt": [
-        44.25,
-        164.25,
-        60.0,
-        60.0
+        67.5,
+        67.5
       ],
       "selector": null
     }
@@ -53,8 +53,28 @@
       "rect_pt": [
         43.5,
         43.5,
-        88.5,
-        238.5
+        238.5,
+        144.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        45.0,
+        67.5,
+        235.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        45.0,
+        127.5,
+        235.5,
+        36.0
       ],
       "selector": null
     },
@@ -63,28 +83,8 @@
       "rect_pt": [
         45.0,
         45.0,
-        58.5,
-        58.5
-      ],
-      "selector": null
-    },
-    {
-      "role": "border",
-      "rect_pt": [
-        45.0,
-        105.0,
-        58.5,
-        58.5
-      ],
-      "selector": null
-    },
-    {
-      "role": "border",
-      "rect_pt": [
-        45.0,
-        165.0,
-        58.5,
-        58.5
+        66.0,
+        66.0
       ],
       "selector": null
     }

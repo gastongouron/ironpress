@@ -169,6 +169,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -246,6 +253,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -502,6 +516,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -2141,9 +2162,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 25.81%",
                   "magnitude": 25.806451612903224
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: border#0 unmatched (nearest 2.625pt)",
+                  "magnitude": 2.625
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: border#0 unmatched (nearest 2.625pt)"
+                }
+              ]
             }
           ]
         },
@@ -2399,6 +2436,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 19.46% extra 0.00%",
                   "magnitude": 19.464166452607245
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 12.000pt)",
+                  "magnitude": 12.0
                 }
               ],
               "disagreements": []
@@ -2779,6 +2823,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 57.46% extra 53.71%",
                   "magnitude": 57.46458141674333
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 4.800pt (> 3pt) — content displaced; worst border#0 unmatched (nearest 3.000pt)",
+                  "magnitude": 3.0
                 }
               ],
               "disagreements": []
@@ -6951,25 +7002,9 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
-                },
-                {
-                  "verifier": "PdfGeometry",
-                  "status": "FAIL",
-                  "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#2 unmatched (nearest 145.500pt)",
-                  "magnitude": 145.5
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#2 unmatched (nearest 145.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -7133,20 +7168,20 @@
     },
     {
       "category": "clip-mask",
-      "score_pct": 50.0,
+      "score_pct": 62.5,
       "counts": {
-        "pass": 3,
-        "partial": 2,
+        "pass": 5,
+        "partial": 0,
         "fail": 3,
         "unknown": 0
       },
       "features": [
         {
           "feature": "clip-path: circle()",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -7158,7 +7193,7 @@
               "subfeature": "centered",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.4474,
               "weight": 1.0,
               "description": "clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.",
@@ -7169,7 +7204,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "7d29ed5a6798de7239abce0c13052d76276aaf56f72efa127064ecb52cccdb43",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -7400,18 +7435,34 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.03% extra 0.05%",
                   "magnitude": 0.04969649639700401
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.00css shift 1.28css"
+                }
+              ]
             }
           ]
         },
         {
           "feature": "clip-path: ellipse()",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -7423,7 +7474,7 @@
               "subfeature": "distinct-radii",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.4669,
               "weight": 1.0,
               "description": "clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported.",
@@ -7434,7 +7485,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3bf7bc5a101809e59c0a3da40d9d86d3bfbd5913f0c9dc7a89aca383c1f25443",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -7665,9 +7716,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.02% extra 0.04%",
                   "magnitude": 0.0356718192627824
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.00css shift 1.60css"
+                }
+              ]
             }
           ]
         },
@@ -7813,6 +7880,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -8011,6 +8085,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.01% extra 0.02%",
                   "magnitude": 0.01532442713685615
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -8161,6 +8242,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -8802,6 +8890,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -8880,6 +8975,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -8957,6 +9059,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -9095,6 +9204,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -9173,6 +9289,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -9250,6 +9373,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -9388,6 +9518,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -9792,6 +9929,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -9959,6 +10103,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -10049,6 +10200,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -10470,6 +10628,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.03% extra 2.21%",
                   "magnitude": 4.0344756823312125
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)",
+                  "magnitude": 1.5
                 }
               ],
               "disagreements": []
@@ -10548,6 +10713,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -16503,25 +16675,9 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.80% extra 0.88%",
                   "magnitude": 0.878683239433281
-                },
-                {
-                  "verifier": "PdfGeometry",
-                  "status": "FAIL",
-                  "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#3 unmatched (nearest 4.500pt)",
-                  "magnitude": 4.5
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#3 unmatched (nearest 4.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -22268,9 +22424,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.67% extra 0.88%",
                   "magnitude": 4.665146859616083
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ2.850pt (offset 1.050pt cancelled)",
+                  "magnitude": 2.8500000000000227
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 h Δ2.850pt (offset 1.050pt cancelled)"
+                }
+              ]
             }
           ]
         },
@@ -22537,6 +22709,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.150pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.1499939999999924
                 }
               ],
               "disagreements": []
@@ -22808,6 +22987,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 5.51% extra 0.77%",
                   "magnitude": 5.51049723756906
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ3.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 3.2999999999999545
                 }
               ],
               "disagreements": []
@@ -23080,9 +23266,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.66% extra 0.80%",
                   "magnitude": 4.663157894736842
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ2.850pt (offset 1.050pt cancelled)",
+                  "magnitude": 2.8500000000000227
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 h Δ2.850pt (offset 1.050pt cancelled)"
+                }
+              ]
             }
           ]
         },
@@ -23348,6 +23550,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -23618,6 +23827,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 9.999999974752427e-6
                 }
               ],
               "disagreements": []
@@ -23889,6 +24105,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 5.51% extra 0.77%",
                   "magnitude": 5.51049723756906
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ3.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 3.2999999999999545
                 }
               ],
               "disagreements": []
@@ -24148,6 +24371,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 5.17% extra 0.85%",
                   "magnitude": 5.168075823513473
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ3.300pt (offset 0.716pt cancelled)",
+                  "magnitude": 3.300002999999947
                 }
               ],
               "disagreements": []
@@ -24407,6 +24637,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 5.51% extra 0.77%",
                   "magnitude": 5.51049723756906
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ3.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 3.2999999999999545
                 }
               ],
               "disagreements": []
@@ -24678,9 +24915,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 3.21% extra 0.73%",
                   "magnitude": 3.2085561497326203
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ2.700pt (offset 1.050pt cancelled)",
+                  "magnitude": 2.7000000000000455
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 h Δ2.700pt (offset 1.050pt cancelled)"
+                }
+              ]
             }
           ]
         }
@@ -26572,25 +26825,9 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 1.32% extra 0.64%",
                   "magnitude": 1.3249043556537572
-                },
-                {
-                  "verifier": "PdfGeometry",
-                  "status": "FAIL",
-                  "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#1 unmatched (nearest 74.250pt)",
-                  "magnitude": 74.25
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#1 unmatched (nearest 74.250pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "grid-template-columns-auto",
@@ -34986,9 +35223,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)",
+                  "magnitude": 0.75
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)"
+                }
+              ]
             },
             {
               "id": "interactions-positioning-absolute-x-flexbox-container",
@@ -35460,6 +35713,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 14.05% extra 10.15%",
                   "magnitude": 14.04891508842343
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 22.950pt (> 3pt) — content displaced; worst fill#4 unmatched (nearest 3.000pt)",
+                  "magnitude": 3.0
                 }
               ],
               "disagreements": []
@@ -35734,6 +35994,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.71% extra 5.86%",
                   "magnitude": 5.855477244336146
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 13.950pt (> 3pt) — content displaced; worst fill#2 w/size Δ4.500pt",
+                  "magnitude": 4.5
                 }
               ],
               "disagreements": []
@@ -35950,6 +36217,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 31.79%",
                   "magnitude": 31.788726042841038
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 4.800pt (> 3pt) — content displaced; worst fill#1 unmatched (nearest 63.750pt)",
+                  "magnitude": 63.75
                 }
               ],
               "disagreements": []
@@ -36166,6 +36440,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 43.92%",
                   "magnitude": 43.921703011422636
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 16.050pt (> 3pt) — content displaced; worst fill#1 unmatched (nearest 75.000pt)",
+                  "magnitude": 75.0
                 }
               ],
               "disagreements": []
@@ -36984,6 +37265,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 20.67% extra 20.20%",
                   "magnitude": 20.674405749032616
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 4.246pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 1.879pt)",
+                  "magnitude": 1.8786599999999964
                 }
               ],
               "disagreements": []
@@ -37259,6 +37547,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.01% extra 3.17%",
                   "magnitude": 3.171366081456523
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -37533,6 +37828,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 1.29%",
                   "magnitude": 1.2919290447380336
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -37745,6 +38047,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -38194,6 +38503,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.21% extra 26.84%",
                   "magnitude": 26.84354272337105
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 46.050pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 45.000pt)",
+                  "magnitude": 45.0
                 }
               ],
               "disagreements": []
@@ -38428,6 +38744,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 12.64% extra 17.48%",
                   "magnitude": 17.477764725625104
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#2 unmatched (nearest 18.750pt)",
+                  "magnitude": 18.75
                 }
               ],
               "disagreements": []
@@ -38643,6 +38966,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 5.24% extra 6.16%",
                   "magnitude": 6.164121681363061
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 14.700pt (> 3pt) — content displaced; worst fill#2 unmatched (nearest 25.500pt)",
+                  "magnitude": 25.5
                 }
               ],
               "disagreements": []
@@ -39190,6 +39520,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 4.97% extra 5.42%",
                   "magnitude": 5.4217803324530065
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 15.450pt (> 3pt) — content displaced; worst fill#2 w/size Δ16.500pt",
+                  "magnitude": 16.500000000000014
                 }
               ],
               "disagreements": []
@@ -39465,6 +39802,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 24.74% extra 24.72%",
                   "magnitude": 24.74063382006109
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 22.200pt (> 3pt) — content displaced; worst fill#1 w/size Δ0.000pt",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -39740,6 +40084,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 7.99% extra 8.69%",
                   "magnitude": 8.685455848217583
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 22.950pt (> 3pt) — content displaced; worst fill#3 unmatched (nearest 12.070pt)",
+                  "magnitude": 12.069999999999993
                 }
               ],
               "disagreements": []
@@ -40481,6 +40832,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -40738,9 +41096,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.32css shift 3.02css"
+                }
+              ]
             },
             {
               "id": "counters-nested",
@@ -40995,9 +41369,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.32css shift 3.58css"
+                }
+              ]
             }
           ]
         },
@@ -41265,6 +41655,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -41534,6 +41931,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -41792,6 +42196,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 19.68%",
                   "magnitude": 19.683293121980796
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ23.400pt (offset 1.050pt cancelled)",
+                  "magnitude": 23.399999999999977
                 }
               ],
               "disagreements": []
@@ -42061,6 +42472,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -42318,6 +42736,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -42575,6 +43000,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -42832,6 +43264,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -43089,6 +43528,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
               "disagreements": []
@@ -43358,9 +43804,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.300pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2999999999999545
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.64css shift 2.31css"
+                }
+              ]
             }
           ]
         }
@@ -43368,10 +43830,10 @@
     },
     {
       "category": "multicol",
-      "score_pct": 75.0,
+      "score_pct": 62.5,
       "counts": {
-        "pass": 6,
-        "partial": 0,
+        "pass": 4,
+        "partial": 2,
         "fail": 2,
         "unknown": 0
       },
@@ -43636,6 +44098,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -43908,6 +44377,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 5.28%",
                   "magnitude": 5.276503260082106
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ7.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 7.5
                 }
               ],
               "disagreements": []
@@ -44163,6 +44639,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -44171,10 +44654,10 @@
         },
         {
           "feature": "column-gap",
-          "score_pct": 100.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 1,
-            "partial": 0,
+            "pass": 0,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -44186,7 +44669,7 @@
               "subfeature": "px",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PASS",
+              "status": "PARTIAL",
               "diff_pct": 0.9596,
               "weight": 1.0,
               "description": "Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.",
@@ -44199,7 +44682,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "",
+              "attribution": "REAL",
               "html_sha256": "29496b48b12caa204a9ab7b75cb223e03b5227b46d006adfdab19173774addaf",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -44430,6 +44913,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#3 w/size Δ0.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.5
                 }
               ],
               "disagreements": []
@@ -44707,10 +45197,10 @@
         },
         {
           "feature": "column-span",
-          "score_pct": 100.0,
+          "score_pct": 50.0,
           "counts": {
-            "pass": 1,
-            "partial": 0,
+            "pass": 0,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -44722,7 +45212,7 @@
               "subfeature": "all",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PASS",
+              "status": "PARTIAL",
               "diff_pct": 1.8891,
               "weight": 1.0,
               "description": "A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).",
@@ -44735,7 +45225,7 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "",
+              "attribution": "REAL",
               "html_sha256": "023009ddb06da468ef060698da77aa63a14a5911024613c391b58bcd9c4d937c",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -44966,6 +45456,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#4 w/size Δ0.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.5
                 }
               ],
               "disagreements": []
@@ -45235,6 +45732,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -45502,6 +46006,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -45634,6 +46145,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.46%",
                   "magnitude": 0.45653333333333335
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -45892,9 +46410,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.29% extra 2.55%",
                   "magnitude": 2.549323464785475
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 0.32css shift 3.53css"
+                }
+              ]
             },
             {
               "id": "overflow-hidden-clip",
@@ -46000,6 +46534,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.46%",
                   "magnitude": 0.45653333333333335
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -46108,6 +46649,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.23%",
                   "magnitude": 0.2345415778251599
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -46216,9 +46764,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 2.250pt)",
+                  "magnitude": 2.250000000000007
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#0 unmatched (nearest 2.250pt)"
+                }
+              ]
             },
             {
               "id": "overflow-hidden-nested",
@@ -46355,6 +46919,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.32%",
                   "magnitude": 0.31860317872623667
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -46612,6 +47183,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 50.16%",
                   "magnitude": 50.16154552262241
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ46.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 46.5
                 }
               ],
               "disagreements": []
@@ -46751,9 +47329,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 14.61%",
                   "magnitude": 14.605866666666667
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 2.250pt)",
+                  "magnitude": 2.25
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#0 unmatched (nearest 2.250pt)"
+                }
+              ]
             },
             {
               "id": "overflow-visible-no-clip",
@@ -46859,6 +47453,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 1.45%",
                   "magnitude": 1.454942871336314
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 h Δ64.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 64.5
                 }
               ],
               "disagreements": []
@@ -46967,6 +47568,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 66.49%",
                   "magnitude": 66.4914481662694
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: border#0 h Δ64.500pt",
+                  "magnitude": 64.5
                 }
               ],
               "disagreements": []
@@ -47098,6 +47706,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -47335,6 +47950,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -47424,6 +48046,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -47692,6 +48321,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 31.78%",
                   "magnitude": 31.77561853351327
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ37.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 37.5
                 }
               ],
               "disagreements": []
@@ -47841,6 +48477,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -47960,6 +48603,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -48229,6 +48879,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 7.13% extra 7.13%",
                   "magnitude": 7.133259536191928
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 17.700pt (> 3pt) — content displaced; worst fill#1 w/size Δ0.000pt",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -48497,6 +49154,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 6.73% extra 0.11%",
                   "magnitude": 6.726228628984787
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ3.539pt (offset 1.050pt cancelled)",
+                  "magnitude": 3.539062000000058
                 }
               ],
               "disagreements": []
@@ -48645,6 +49309,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -48864,6 +49535,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -49271,9 +49949,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.750pt (offset 1.800pt cancelled)",
+                  "magnitude": 0.75
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 pos Δ0.750pt (offset 1.800pt cancelled)"
+                }
+              ]
             }
           ]
         },
@@ -49452,6 +50146,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 41.07%",
                   "magnitude": 41.06827228240013
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 75.000pt)",
+                  "magnitude": 75.0
                 }
               ],
               "disagreements": []
@@ -49630,6 +50331,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.499999996212864e-6
                 }
               ],
               "disagreements": []
@@ -49798,6 +50506,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.19%",
                   "magnitude": 0.1884068084101364
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 10.950pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 12.000pt)",
+                  "magnitude": 12.0
                 }
               ],
               "disagreements": []
@@ -49978,9 +50693,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.23%",
                   "magnitude": 0.22758172252763492
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)",
+                  "magnitude": 0.75
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)"
+                }
+              ]
             },
             {
               "id": "positioning-overflow-hidden-clip",
@@ -50115,6 +50846,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.47%",
                   "magnitude": 0.469099159033144
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -50464,6 +51202,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 28.57%",
                   "magnitude": 28.571428571428573
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: gross page offset 6.450pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 7.500pt)",
+                  "magnitude": 7.5
                 }
               ],
               "disagreements": []
@@ -50632,9 +51377,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.750pt (offset 1.800pt cancelled)",
+                  "magnitude": 0.75
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 pos Δ0.750pt (offset 1.800pt cancelled)"
+                }
+              ]
             },
             {
               "id": "positioning-position-absolute-top-left",
@@ -50829,9 +51590,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)",
+                  "magnitude": 0.75
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#0 pos Δ0.750pt (offset 0.300pt cancelled)"
+                }
+              ]
             },
             {
               "id": "positioning-position-relative-offset",
@@ -50995,6 +51772,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -51103,6 +51887,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -51281,6 +52072,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -51447,6 +52245,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -56107,9 +56912,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 3.50%",
                   "magnitude": 3.4992517246833517
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 2.24css shift 0.00css"
+                }
+              ]
             }
           ]
         },
@@ -57715,9 +58536,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 4.49%",
                   "magnitude": 4.493496748374187
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#2 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "PASS",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "raster geometry: edge 1.60css shift 0.00css"
+                }
+              ]
             }
           ]
         },
@@ -59851,9 +60688,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.70% extra 1.03%",
                   "magnitude": 1.0300429184549356
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: fill#13 unmatched (nearest 88.500pt)",
+                  "magnitude": 88.5
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PARTIAL",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#13 unmatched (nearest 88.500pt)"
+                }
+              ]
             }
           ]
         }
@@ -70092,9 +70945,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ1.500pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.5000000000000142
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#1 w/size Δ1.500pt (offset 1.050pt cancelled)"
+                }
+              ]
             }
           ]
         },
@@ -70242,6 +71111,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -70379,6 +71255,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -70530,6 +71413,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 h Δ0.289pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.2893699999999626
                 }
               ],
               "disagreements": []
@@ -70639,9 +71529,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom FAIL: border#0 missing (no candidate)",
+                  "magnitude": 2.2
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: border#0 missing (no candidate)"
+                }
+              ]
             },
             {
               "id": "units-length-in",
@@ -70776,6 +71682,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -70915,6 +71828,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -71052,6 +71972,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -71232,6 +72159,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -71369,6 +72303,13 @@
                   "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
                   "magnitude": 0.0
                 }
               ],
@@ -71551,9 +72492,25 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ2.250pt (offset 1.050pt cancelled)",
+                  "magnitude": 2.25
                 }
               ],
-              "disagreements": []
+              "disagreements": [
+                {
+                  "concern": "Geometry",
+                  "authoritative": "FAIL",
+                  "authoritative_by": "PdfGeometry",
+                  "challenger": "PASS",
+                  "challenger_by": "RasterDiff",
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: worst fill#1 w/size Δ2.250pt (offset 1.050pt cancelled)"
+                }
+              ]
             }
           ]
         },
@@ -71672,6 +72629,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.180pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.18000000000000682
                 }
               ],
               "disagreements": []
@@ -72033,6 +72997,8 @@
   ],
   "ref_mismatches": [],
   "suspect_unsupported_pass": [
+    "clip-path-circle",
+    "clip-path-ellipse",
     "clip-path-inset",
     "clip-path-inset-round",
     "clip-path-polygon",
@@ -72056,7 +73022,6 @@
     "img-object-position",
     "mix-blend-mode-screen",
     "multicol-break-inside-avoid",
-    "multicol-column-span-all",
     "multicol-column-width",
     "paged-break-before-page-modern",
     "paged-break-inside-avoid",
