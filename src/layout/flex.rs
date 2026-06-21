@@ -288,11 +288,22 @@ pub(crate) fn layout_flex_container(
                 w
             }
         };
+        // An item's outer (border-box) main size can never be smaller than its
+        // own border + padding — the content box floors at 0, not the border
+        // box. Under `box-sizing: border-box` a `flex-basis: 0` therefore yields
+        // an outer width equal to the horizontal border + padding, NOT 0; the
+        // grow free space is then `inner - Σ(these floors)` and each item's
+        // final width = its floor + its share. Without this floor a bordered
+        // `flex-basis: 0` item lost its border thickness from the distribution
+        // (e.g. widths 78/156/78 instead of Chrome's 78.75/154.5/78.75).
+        let item_box_floor = child_style.border.horizontal_width()
+            + child_style.padding.left
+            + child_style.padding.right;
         let child_w_initial = match child_style.flex_basis.or(child_style.width) {
-            Some(w) => inflate_outer(w),
+            Some(w) => inflate_outer(w).max(item_box_floor),
             None => {
                 if child_style.flex_grow > 0.0 {
-                    0.0
+                    item_box_floor
                 } else {
                     width_for_percentages / child_count as f32
                 }
@@ -322,7 +333,7 @@ pub(crate) fn layout_flex_container(
         // child_w_for_layout is the content width used to lay out children so
         // percentage resolution against the parent content area is correct.
         let child_w_for_flex = match child_style.flex_basis.or(child_style.width) {
-            Some(w) => inflate_outer(w),
+            Some(w) => inflate_outer(w).max(item_box_floor),
             None => width_for_percentages / child_count as f32,
         };
         let child_w_for_layout = if child_style.flex_grow > 0.0
@@ -368,43 +379,72 @@ pub(crate) fn layout_flex_container(
                 &[],
                 env,
             );
-            let child_h = child_elements_buf
-                .iter()
-                .map(|el| match el {
+            // A nested flex/block container that paints its own background emits
+            // a leading background TextBlock (carrying the container's full
+            // padding-box `block_height`) immediately followed by a
+            // negative-margin spacer that pulls the flowed children back *inside*
+            // that background. In that layout the background block already
+            // accounts for the children's vertical extent, so summing the
+            // pulled-back children as well double-counts the column's height.
+            // Detect that pattern and take the background block's border-box
+            // height as the item's natural height instead.
+            let self_bg_natural = match child_elements_buf.as_slice() {
+                [
                     LayoutElement::TextBlock {
-                        lines,
-                        padding_top,
-                        padding_bottom,
-                        border,
-                        block_height,
+                        block_height: Some(bg_h),
+                        border: bg_border,
                         ..
-                    } => {
-                        let text_h: f32 = lines.iter().map(|l| l.height).sum();
-                        let content =
-                            padding_top + text_h + padding_bottom + border.vertical_width();
-                        // Don't include margins here — they are added as spacer
-                        // lines in the merged FlexCell, so counting them would
-                        // double the vertical space.
-                        block_height.map_or(content, |h| content.max(h))
-                    }
-                    LayoutElement::FlexRow {
-                        cells,
-                        margin_top,
-                        margin_bottom,
+                    },
+                    LayoutElement::TextBlock {
+                        margin_top: spacer_mt,
+                        lines: spacer_lines,
                         ..
-                    } => {
-                        let row_h = cells
-                            .iter()
-                            .map(|c| {
-                                let text_h: f32 = c.lines.iter().map(|l| l.height).sum();
-                                c.padding_top + text_h + c.padding_bottom
-                            })
-                            .fold(0.0f32, f32::max);
-                        margin_top + row_h + margin_bottom
-                    }
-                    other => estimate_element_height(other),
-                })
-                .sum::<f32>();
+                    },
+                    ..,
+                ] if *spacer_mt < 0.0 && spacer_lines.is_empty() => {
+                    Some(bg_h + bg_border.vertical_width())
+                }
+                _ => None,
+            };
+            let child_h = self_bg_natural.unwrap_or_else(|| {
+                child_elements_buf
+                    .iter()
+                    .map(|el| match el {
+                        LayoutElement::TextBlock {
+                            lines,
+                            padding_top,
+                            padding_bottom,
+                            border,
+                            block_height,
+                            ..
+                        } => {
+                            let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                            let content =
+                                padding_top + text_h + padding_bottom + border.vertical_width();
+                            // Don't include margins here — they are added as spacer
+                            // lines in the merged FlexCell, so counting them would
+                            // double the vertical space.
+                            block_height.map_or(content, |h| content.max(h))
+                        }
+                        LayoutElement::FlexRow {
+                            cells,
+                            margin_top,
+                            margin_bottom,
+                            ..
+                        } => {
+                            let row_h = cells
+                                .iter()
+                                .map(|c| {
+                                    let text_h: f32 = c.lines.iter().map(|l| l.height).sum();
+                                    c.padding_top + text_h + c.padding_bottom
+                                })
+                                .fold(0.0f32, f32::max);
+                            margin_top + row_h + margin_bottom
+                        }
+                        other => estimate_element_height(other),
+                    })
+                    .sum::<f32>()
+            });
 
             items.push(FlexItem {
                 elements: child_elements_buf,
@@ -569,14 +609,21 @@ pub(crate) fn layout_flex_container(
             clip_children_count: 0,
         };
 
+        // `child_h` is the item's *padding-box* height (the TextBlock
+        // convention used for `block_height`). The flex *item*'s main- and
+        // cross-axis extent is its border box, so add the border back here —
+        // otherwise a `box-sizing: border-box` item with an explicit height
+        // measured short by its border, collapsing wrapped-line cross sizes and
+        // column main-axis spacing.
+        let item_border_box_h = child_h + child_style.border.vertical_width();
         items.push(FlexItem {
             elements: vec![elem],
             width: child_w,
             base_width: child_w,
             flex_grow: child_style.flex_grow,
             flex_shrink: child_style.flex_shrink,
-            height: child_h + child_style.margin.top + child_style.margin.bottom,
-            natural_height: child_h + child_style.margin.top + child_style.margin.bottom,
+            height: item_border_box_h + child_style.margin.top + child_style.margin.bottom,
+            natural_height: item_border_box_h + child_style.margin.top + child_style.margin.bottom,
             has_explicit_width,
             has_explicit_height,
             align_self: child_style.align_self,
@@ -729,6 +776,95 @@ pub(crate) fn layout_flex_container(
     // against — otherwise a tall `min-height` container collapses visually
     // to the natural item height.
     let inner_cross_size = (container_h - style.padding.top - style.padding.bottom).max(0.0);
+
+    // Cross-axis stretch for nested flex containers (row direction).
+    //
+    // A flex item with the default `align-items: stretch` and no definite cross
+    // size (here `height`) must stretch to the container's content cross size.
+    // For a *nested flex container* item, that stretched height is also its main
+    // size when laid out as its own column flex, so its internal
+    // `justify-content` (e.g. `space-between`) distributes against the stretched
+    // height — not its natural content height. The first flatten produced the
+    // item at natural height; re-flatten it with the stretched height forced so
+    // its inner layout (and its painted background/border) fill the cross axis.
+    if direction == FlexDirection::Row && lines.len() == 1 && inner_cross_size > 0.0 {
+        for item in items.iter_mut() {
+            let stretches = match item.align_self {
+                AlignSelf::Stretch => true,
+                AlignSelf::Auto => align == AlignItems::Stretch,
+                _ => false,
+            };
+            if !stretches || item.has_explicit_height || item.height >= inner_cross_size - 0.01 {
+                continue;
+            }
+            let child_el = child_elements[item.child_idx];
+            // Only flex containers carry their own main-axis distribution that
+            // depends on the stretched height. Simple items are stretched purely
+            // visually by the renderer (cell_render_h = line_cross).
+            let classes = child_el.class_list();
+            let selector_ctx = SelectorContext {
+                ancestors: ancestors.to_vec(),
+                child_index: item.child_idx,
+                sibling_count: child_count,
+                preceding_siblings: Vec::new(),
+            };
+            let mut child_style = compute_style_with_context(
+                child_el.tag,
+                child_el.style_attr(),
+                &parent_for_children,
+                env.rules,
+                child_el.tag_name(),
+                &classes,
+                child_el.id(),
+                &child_el.attributes,
+                &selector_ctx,
+            );
+            if child_style.display != Display::Flex {
+                continue;
+            }
+            // Force the item's cross size (its main size as a column flex) to the
+            // stretched height. Translate the padding-box `inner_cross_size` to a
+            // value the container's box-sizing interprets as that border-box.
+            let forced_h = match child_style.box_sizing {
+                BoxSizing::BorderBox => inner_cross_size,
+                BoxSizing::ContentBox => (inner_cross_size
+                    - child_style.border.vertical_width()
+                    - child_style.padding.top
+                    - child_style.padding.bottom)
+                    .max(0.0),
+            };
+            child_style.height = Some(forced_h);
+
+            let mut child_ancestors = ancestors.to_vec();
+            child_ancestors.push(AncestorInfo {
+                element: child_el,
+                child_index: item.child_idx,
+                sibling_count: child_count,
+                preceding_siblings: Vec::new(),
+            });
+            let mut buf = Vec::new();
+            let child_ctx = ctx
+                .with_parent(item.width, Some(inner_cross_size), style.font_size)
+                .with_containing_block(None);
+            layout_flex_container(
+                child_el,
+                &child_style,
+                &child_ctx,
+                &mut buf,
+                &child_ancestors,
+                None,
+                None,
+                positioned_depth,
+                env,
+            );
+            if !buf.is_empty() {
+                item.elements = buf;
+                item.height = inner_cross_size;
+                item.natural_height = inner_cross_size;
+            }
+        }
+    }
+
     if direction == FlexDirection::Row && lines.len() == 1 {
         if let Some(line) = lines.first_mut() {
             line.cross_size = line.cross_size.max(inner_cross_size);
@@ -758,12 +894,12 @@ pub(crate) fn layout_flex_container(
         // It advances y by its full height in paginate.  We then emit a
         // negative-margin spacer to pull y back so children flow *inside*
         // the background rather than after it.
-        // The background block advances the cursor by its padding-box height
-        // (`block_height = container_h`); its border is painted outside that
-        // advance, so the pull-back spacer must match `container_h` exactly.
-        // (Adding the border height here over-pulls and floats the first item
-        // above the container's top border.)
-        let bg_flow_height = container_h;
+        // The background block is a bordered TextBlock, so it advances the
+        // cursor by its *border-box* height (`block_height` + vertical border)
+        // in the flow. The pull-back spacer undoes that whole advance back to
+        // the border-box top; the first item then re-adds the container's
+        // top border + padding in its own leading to flow inside the box.
+        let bg_flow_height = container_h + style.border.vertical_width();
         let BackgroundFields {
             gradient: background_gradient,
             radial_gradient: background_radial_gradient,
@@ -1251,18 +1387,42 @@ pub(crate) fn layout_flex_container(
                 all_flex_cells.extend(flex_cells);
             }
             FlexDirection::Column => {
-                let _total_item_height: f32 = line_items.iter().map(|&i| items[i].height).sum();
-                let _total_gap = if line_item_count > 1 {
+                let total_item_height: f32 = line_items.iter().map(|&i| items[i].height).sum();
+                let total_gap = if line_item_count > 1 {
                     (line_item_count - 1) as f32 * gap
                 } else {
                     0.0
                 };
-                let free_space = 0.0f32; // column doesn't constrain main axis to container width
-                let _ = free_space;
+                // Main-axis (vertical) free space within the container's content
+                // box. `justify-content` distributes it as leading before the
+                // first item and extra spacing between items. `inner_cross_size`
+                // is the resolved content height once an explicit `height` /
+                // `min-height` has been honored.
+                let main_free_space = (inner_cross_size - total_item_height - total_gap).max(0.0);
+                let (leading, extra_gap) = match justify {
+                    JustifyContent::FlexStart => (0.0, 0.0),
+                    JustifyContent::FlexEnd => (main_free_space, 0.0),
+                    JustifyContent::Center => (main_free_space / 2.0, 0.0),
+                    JustifyContent::SpaceBetween => {
+                        if line_item_count > 1 {
+                            (0.0, main_free_space / (line_item_count - 1) as f32)
+                        } else {
+                            (0.0, 0.0)
+                        }
+                    }
+                    JustifyContent::SpaceAround => {
+                        let around = main_free_space / line_item_count as f32;
+                        (around / 2.0, around)
+                    }
+                };
 
                 let mut y = 0.0;
+                // Leading is applied as part of the first item's top spacing
+                // (which already folds in the container's border + padding); a
+                // nonzero leading bumps `y` so subsequent gap math stays correct.
+                let mut pending_leading = leading;
 
-                for &item_idx in &line_items {
+                for (item_pos, &item_idx) in line_items.iter().enumerate() {
                     let item = &items[item_idx];
 
                     // `align-self` overrides the container's `align-items` on the
@@ -1292,6 +1452,18 @@ pub(crate) fn layout_flex_container(
                         } else {
                             Some(item.width)
                         };
+
+                    // Extra main-axis spacing this item contributes from
+                    // `justify-content`: the leading for the first item, an
+                    // even slice between items otherwise. Applied only to the
+                    // item's first emitted element so multi-element items aren't
+                    // over-spaced.
+                    let item_justify_lead = if item_pos == 0 {
+                        std::mem::take(&mut pending_leading)
+                    } else {
+                        extra_gap
+                    };
+                    let mut item_first_elem = true;
 
                     for elem in &item.elements {
                         if let LayoutElement::TextBlock {
@@ -1333,21 +1505,33 @@ pub(crate) fn layout_flex_container(
                             ..
                         } = elem
                         {
+                            // `justify-content` leading/spacing applies once per
+                            // item, to its first emitted element.
+                            let justify_lead = if item_first_elem {
+                                item_first_elem = false;
+                                item_justify_lead
+                            } else {
+                                0.0
+                            };
                             output.push(LayoutElement::TextBlock {
                                 lines: tb_lines.clone(),
                                 margin_top: if y == 0.0 && !emitted_column_bg {
                                     style.margin.top
                                         + style.border.top.width
                                         + style.padding.top
+                                        + justify_lead
                                         + *tb_mt
                                 } else if y == 0.0 {
                                     // Background element already accounts for margin;
                                     // add the container's top border + padding so the
                                     // first item flows inside the container's border box.
-                                    style.border.top.width + style.padding.top + *tb_mt
+                                    style.border.top.width
+                                        + style.padding.top
+                                        + justify_lead
+                                        + *tb_mt
                                 } else {
                                     // Apply gap between column-direction flex items.
-                                    gap + *tb_mt
+                                    gap + justify_lead + *tb_mt
                                 },
                                 margin_bottom: *tb_mb,
                                 text_align: *tb_ta,
@@ -1411,12 +1595,21 @@ pub(crate) fn layout_flex_container(
                             // main-axis (vertical) leading and cross-axis
                             // (horizontal) alignment are applied; otherwise the
                             // element would be silently dropped by this loop.
-                            let leading = if y == 0.0 && !emitted_column_bg {
-                                style.margin.top + style.border.top.width + style.padding.top
-                            } else if y == 0.0 {
-                                style.border.top.width + style.padding.top
+                            let justify_lead = if item_first_elem {
+                                item_first_elem = false;
+                                item_justify_lead
                             } else {
-                                gap
+                                0.0
+                            };
+                            let leading = if y == 0.0 && !emitted_column_bg {
+                                style.margin.top
+                                    + style.border.top.width
+                                    + style.padding.top
+                                    + justify_lead
+                            } else if y == 0.0 {
+                                style.border.top.width + style.padding.top + justify_lead
+                            } else {
+                                gap + justify_lead
                             };
                             output.push(LayoutElement::Container {
                                 children: vec![elem.clone()],

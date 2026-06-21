@@ -2268,9 +2268,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         nested_y -= n_mt;
                                         let n_width = n_bw.unwrap_or(cell.width);
                                         let text_h: f32 = n_lines.iter().map(|l| l.height).sum();
-                                        let total_h =
+                                        let content_total =
                                             n_pt + text_h + n_pb + n_border.vertical_width();
-                                        let total_h = n_bh.map_or(total_h, |h| total_h.max(h));
+                                        // `block_height` is a padding-box height
+                                        // (TextBlock convention), so the painted
+                                        // border box is `block_height + border`.
+                                        // Without adding the border back, a
+                                        // border-box-sized child (e.g. an empty
+                                        // box with an explicit height) rendered
+                                        // short by its border thickness.
+                                        let total_h = n_bh.map_or(content_total, |h| {
+                                            (h + n_border.vertical_width()).max(content_total)
+                                        });
 
                                         if let Some((r, g, b, a)) = n_bg {
                                             if *a >= 1.0 {
@@ -4175,17 +4184,25 @@ fn render_container_children(
                 }
                 y = cursor_y;
                 let text_h: f32 = lines.iter().map(|l| l.height).sum();
-                let child_h = padding_top + text_h + padding_bottom + border.vertical_width();
+                // `block_height` is a *padding-box* height (TextBlock convention),
+                // so the painted border box adds the border on top. Compute the
+                // padding-box height first (content vs. explicit), then add the
+                // border once — mirroring paginate's `estimate_element_height`
+                // (`effective_h + border.vertical_width()`) so the painted box
+                // matches the flow. Folding the border into the value compared
+                // against `block_height` (the old `max(content+border, bh)`)
+                // rendered a border-box-sized child short by its border.
+                let content_pad_box = padding_top + text_h + padding_bottom;
                 // A definite `block_height` is a hard size when the box clips
                 // (`overflow: hidden`/`scroll`): overflowing text is clipped to it
                 // rather than growing the box. Without a clip the height is a floor
-                // (min-height / auto) and grows to fit content. Mirrors paginate's
-                // `estimate_element_height` so the painted box matches the flow.
-                let child_h = if tb_clip_rect.is_some() {
-                    block_height.unwrap_or(child_h)
+                // (min-height / auto) and grows to fit content.
+                let pad_box_h = if tb_clip_rect.is_some() {
+                    block_height.unwrap_or(content_pad_box)
                 } else {
-                    block_height.map_or(child_h, |h| child_h.max(h))
+                    block_height.map_or(content_pad_box, |h| content_pad_box.max(h))
                 };
+                let child_h = pad_box_h + border.vertical_width();
 
                 let render_w = tb_block_width.unwrap_or(width);
 
