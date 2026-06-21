@@ -3036,26 +3036,35 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         } // else (non-rounded borders)
                     }
 
-                    // Apply clip if overflow:hidden
+                    // Apply clip if overflow:hidden. Per CSS, `overflow` clips to
+                    // the *padding box* — the border is painted outside the clip
+                    // region and stays visible. Inset the clip rect by the border
+                    // widths so an oversized child can't paint over the border.
                     let needs_clip = *c_overflow == Overflow::Hidden;
                     if needs_clip {
                         content.push_str("q\n");
+                        let clip_x = container_x + border.left.width;
+                        let clip_w =
+                            (container_w - border.left.width - border.right.width).max(0.0);
+                        let clip_h =
+                            (total_h - border.top.width - border.bottom.width).max(0.0);
+                        let clip_y = container_y_top - total_h + border.bottom.width;
                         if *c_border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
-                                container_x,
-                                container_y_top - total_h,
-                                container_w,
-                                total_h,
+                                clip_x,
+                                clip_y,
+                                clip_w,
+                                clip_h,
                                 *c_border_radius,
                             ));
                             content.push_str("\nW n\n");
                         } else {
                             content.push_str(&format!(
                                 "{x} {y} {w} {h} re W n\n",
-                                x = container_x,
-                                y = container_y_top - total_h,
-                                w = container_w,
-                                h = total_h,
+                                x = clip_x,
+                                y = clip_y,
+                                w = clip_w,
+                                h = clip_h,
                             ));
                         }
                     }
