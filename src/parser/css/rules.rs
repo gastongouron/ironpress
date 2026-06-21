@@ -55,6 +55,7 @@ pub(crate) fn extract_pseudo_element(selector: &str) -> (String, Option<PseudoEl
     for (suffix, pseudo_element) in [
         ("::before", PseudoElement::Before),
         ("::after", PseudoElement::After),
+        ("::marker", PseudoElement::Marker),
         (":before", PseudoElement::Before),
         (":after", PseudoElement::After),
     ] {

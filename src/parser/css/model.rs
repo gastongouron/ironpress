@@ -136,11 +136,14 @@ impl StyleMap {
     }
 }
 
-/// Pseudo-element type for `::before` and `::after`.
+/// Pseudo-element type for `::before`, `::after`, and `::marker`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PseudoElement {
     Before,
     After,
+    /// The list-item marker box (`::marker`). Only a limited set of properties
+    /// apply (color, font, content); see `compute_pseudo_element_style`.
+    Marker,
 }
 
 /// A CSS rule: a selector and its declarations.

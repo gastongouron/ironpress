@@ -311,6 +311,30 @@ pub(crate) fn to_roman_upper(n: usize) -> String {
     to_roman_lower(n).to_uppercase()
 }
 
+/// Format a single counter value in the given list-style-type, WITHOUT any
+/// marker suffix (unlike `format_list_marker`). Used by `counter()`/`counters()`
+/// in the `content` property, where the CSS author supplies their own separators
+/// and suffixes. Geometric markers (disc/circle/square) and `none` have no
+/// numeric textual form, so they fall back to decimal — matching how browsers
+/// render `counter(x, disc)` as the raw number.
+pub(crate) fn format_counter_value(style: ListStyleType, value: i32) -> String {
+    // Roman/alpha styles are only defined for positive integers; negative or
+    // zero values fall back to decimal (CSS counter-style fallback behavior).
+    if value <= 0 {
+        return value.to_string();
+    }
+    let n = value as usize;
+    match style {
+        ListStyleType::DecimalLeadingZero => format!("{n:02}"),
+        ListStyleType::LowerAlpha => to_alpha_lower(n),
+        ListStyleType::UpperAlpha => to_alpha_upper(n),
+        ListStyleType::LowerRoman => to_roman_lower(n),
+        ListStyleType::UpperRoman => to_roman_upper(n),
+        // decimal, disc, circle, square, none → plain decimal text.
+        _ => value.to_string(),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Group 1 — Pseudo-element helpers
 // ---------------------------------------------------------------------------
@@ -329,11 +353,11 @@ pub(crate) fn resolve_content(
                     result.push_str(val);
                 }
             }
-            ContentItem::Counter(name) => {
-                result.push_str(&counter_state.get(name).to_string());
+            ContentItem::Counter(name, style) => {
+                result.push_str(&format_counter_value(*style, counter_state.get(name)));
             }
-            ContentItem::Counters(name, sep) => {
-                result.push_str(&counter_state.get_all(name, sep));
+            ContentItem::Counters(name, sep, style) => {
+                result.push_str(&counter_state.get_all_styled(name, sep, *style));
             }
             // Default `quotes` (first nesting level): U+201C / U+201D.
             ContentItem::OpenQuote => result.push('\u{201C}'),

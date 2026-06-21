@@ -688,8 +688,12 @@ pub enum ListStylePosition {
 pub enum ContentItem {
     String(String),
     Attr(String),
-    Counter(String),
-    Counters(String, String),
+    /// `counter(name)` or `counter(name, style)`. The style governs how the
+    /// numeric value is rendered (decimal by default, e.g. upper-roman).
+    Counter(String, ListStyleType),
+    /// `counters(name, separator)` or `counters(name, separator, style)`. Joins
+    /// every nested level of `name` with `separator`, each formatted in `style`.
+    Counters(String, String, ListStyleType),
     /// `open-quote` keyword — resolves to the opening quotation mark.
     OpenQuote,
     /// `close-quote` keyword — resolves to the closing quotation mark.
@@ -1536,8 +1540,11 @@ pub fn compute_pseudo_element_style(
         apply_style_map(&mut style, declarations, parent_style);
     }
 
-    // `content: none` and `content: normal` suppress pseudo-element generation.
-    if style.content.is_empty() {
+    // `content: none`/`normal` suppress `::before`/`::after` generation (no box
+    // without content). `::marker`, however, always has a box — its content
+    // defaults to the list marker symbol — so author rules that only restyle it
+    // (e.g. `li::marker { color: … }`) must still apply even with empty content.
+    if style.content.is_empty() && pseudo != crate::parser::css::PseudoElement::Marker {
         return None;
     }
 
@@ -3451,18 +3458,30 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
             items.push(ContentItem::Attr(name.trim().to_string()));
             rest = tail;
         } else if let Some((inner, tail)) = parse_content_function(rest, "counters(") {
-            let (name, sep) = inner
-                .split_once(',')
-                .map_or((inner.trim(), "."), |(name, sep)| {
-                    (
-                        name.trim(),
-                        sep.trim().trim_matches(|c: char| c == '"' || c == '\''),
-                    )
-                });
-            items.push(ContentItem::Counters(name.to_string(), sep.to_string()));
+            // counters(name, sep[, style])
+            let mut parts = inner.splitn(3, ',');
+            let name = parts.next().unwrap_or("").trim().to_string();
+            let sep = parts
+                .next()
+                .map(|s| {
+                    s.trim()
+                        .trim_matches(|c: char| c == '"' || c == '\'')
+                        .to_string()
+                })
+                .unwrap_or_else(|| ".".to_string());
+            let style = parts
+                .next()
+                .map(|s| parse_list_style_type(s.trim()))
+                .unwrap_or(ListStyleType::Decimal);
+            items.push(ContentItem::Counters(name, sep, style));
             rest = tail;
-        } else if let Some((name, tail)) = parse_content_function(rest, "counter(") {
-            items.push(ContentItem::Counter(name.trim().to_string()));
+        } else if let Some((inner, tail)) = parse_content_function(rest, "counter(") {
+            // counter(name[, style])
+            let (name, style) = inner.split_once(',').map_or_else(
+                || (inner.trim().to_string(), ListStyleType::Decimal),
+                |(name, style)| (name.trim().to_string(), parse_list_style_type(style.trim())),
+            );
+            items.push(ContentItem::Counter(name, style));
             rest = tail;
         } else if let Some(tail) = rest.strip_prefix("open-quote") {
             items.push(ContentItem::OpenQuote);
@@ -8589,7 +8608,30 @@ mod tests {
     fn content_counter() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("content: counter(section)"), &parent);
-        assert_eq!(s.content, vec![ContentItem::Counter("section".to_string())]);
+        assert_eq!(
+            s.content,
+            vec![ContentItem::Counter(
+                "section".to_string(),
+                ListStyleType::Decimal
+            )]
+        );
+    }
+
+    #[test]
+    fn content_counter_with_style_argument() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("content: counter(chap, upper-roman)"),
+            &parent,
+        );
+        assert_eq!(
+            s.content,
+            vec![ContentItem::Counter(
+                "chap".to_string(),
+                ListStyleType::UpperRoman
+            )]
+        );
     }
 
     #[test]
@@ -8604,7 +8646,26 @@ mod tests {
             s.content,
             vec![ContentItem::Counters(
                 "section".to_string(),
-                ".".to_string()
+                ".".to_string(),
+                ListStyleType::Decimal
+            )]
+        );
+    }
+
+    #[test]
+    fn content_counters_with_style_argument() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("content: counters(section, \".\", lower-alpha)"),
+            &parent,
+        );
+        assert_eq!(
+            s.content,
+            vec![ContentItem::Counters(
+                "section".to_string(),
+                ".".to_string(),
+                ListStyleType::LowerAlpha
             )]
         );
     }
@@ -9483,7 +9544,13 @@ mod tests {
     #[test]
     fn content_counter_function() {
         let items = parse_content_value_pub("counter(section)");
-        assert_eq!(items, vec![ContentItem::Counter("section".to_string())]);
+        assert_eq!(
+            items,
+            vec![ContentItem::Counter(
+                "section".to_string(),
+                ListStyleType::Decimal
+            )]
+        );
     }
 
     #[test]
@@ -9500,7 +9567,8 @@ mod tests {
             items,
             vec![ContentItem::Counters(
                 "section".to_string(),
-                ".".to_string()
+                ".".to_string(),
+                ListStyleType::Decimal
             )]
         );
     }
@@ -9513,7 +9581,8 @@ mod tests {
             items,
             vec![ContentItem::Counters(
                 "section".to_string(),
-                ".".to_string()
+                ".".to_string(),
+                ListStyleType::Decimal
             )]
         );
     }

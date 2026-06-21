@@ -150,15 +150,20 @@ impl CounterState {
             .unwrap_or(0)
     }
     pub(crate) fn get_all(&self, name: &str, sep: &str) -> String {
+        self.get_all_styled(name, sep, ListStyleType::Decimal)
+    }
+    /// Like `get_all`, but renders every nested level with the given
+    /// list-style-type (e.g. `counters(x, '.', upper-roman)`).
+    pub(crate) fn get_all_styled(&self, name: &str, sep: &str, style: ListStyleType) -> String {
         self.stacks
             .get(name)
             .map(|s| {
                 s.iter()
-                    .map(|v| v.to_string())
+                    .map(|v| super::helpers::format_counter_value(style, *v))
                     .collect::<Vec<_>>()
                     .join(sep)
             })
-            .unwrap_or_else(|| "0".to_string())
+            .unwrap_or_else(|| super::helpers::format_counter_value(style, 0))
     }
 }
 
@@ -1681,8 +1686,17 @@ pub(crate) fn flatten_element(
         };
         let total_indent = parent_indent + list_indent;
         let mut ctx = if el.tag == HtmlTag::Ol {
+            // `<ol start="N">` sets the first item's marker number (default 1).
+            // The marker pipeline numbers from a `usize`, so a (rare) negative
+            // start is clamped to 0 rather than wrapping.
+            let start = el
+                .attributes
+                .get("start")
+                .and_then(|s| s.trim().parse::<i64>().ok())
+                .unwrap_or(1)
+                .max(0) as usize;
             ListContext::Ordered {
-                index: 1,
+                index: start,
                 indent: total_indent,
             }
         } else {
@@ -1836,22 +1850,45 @@ pub(crate) fn flatten_element(
         let has_marker = !marker.is_empty();
         let marker_run_start = runs.len();
         if has_marker {
+            // The `::marker` pseudo-element can recolour/restyle the marker box
+            // (CSS limits it to color/font/content). Resolve it relative to the
+            // <li>; absent any `::marker` rule, `marker_style` falls back to the
+            // <li>'s own computed style so the marker matches the text colour.
+            let marker_pseudo = compute_pseudo_element_style(
+                &style,
+                env.rules,
+                el.tag_name(),
+                &classes,
+                el.id(),
+                &el.attributes,
+                &li_selector_ctx,
+                PseudoElement::Marker,
+            );
+            let marker_style = marker_pseudo.as_ref().unwrap_or(&style);
+            // `::marker { content: … }` replaces the default marker symbol with
+            // author-supplied content (which may itself reference counters).
+            let marker_text = match marker_pseudo.as_ref() {
+                Some(ps) if !ps.content.is_empty() => {
+                    resolve_content(&ps.content, &el.attributes, env.counter_state)
+                }
+                _ => marker,
+            };
             push_text_run_with_fallback(
                 TextRun {
-                    text: marker,
-                    font_size: style.font_size,
-                    bold: style.font_weight == FontWeight::Bold,
-                    italic: style.font_style == FontStyle::Italic,
+                    text: marker_text,
+                    font_size: marker_style.font_size,
+                    bold: marker_style.font_weight == FontWeight::Bold,
+                    italic: marker_style.font_style == FontStyle::Italic,
                     underline: false,
                     line_through: false,
                     overline: false,
-                    color: style.color.to_f32_rgb(),
+                    color: marker_style.color.to_f32_rgb(),
                     link_url: None,
-                    font_family: resolve_style_font_family(&style, env.fonts),
+                    font_family: resolve_style_font_family(marker_style, env.fonts),
                     background_color: None,
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
-                    line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                    line_height_factor: resolved_line_height_factor(marker_style, env.fonts),
                     inline_box: None,
                 },
                 &mut runs,
@@ -5291,8 +5328,24 @@ mod tests {
         cs.apply_resets(&[("section".to_string(), 0)]);
         cs.apply_increments(&[("section".to_string(), 3)]);
         let attrs = HashMap::new();
-        let items = vec![ContentItem::Counter("section".to_string())];
+        let items = vec![ContentItem::Counter(
+            "section".to_string(),
+            ListStyleType::Decimal,
+        )];
         assert_eq!(resolve_content(&items, &attrs, &cs), "3");
+    }
+
+    #[test]
+    fn resolve_content_counter_upper_roman() {
+        let mut cs = CounterState::default();
+        cs.apply_resets(&[("chap".to_string(), 0)]);
+        cs.apply_increments(&[("chap".to_string(), 4)]);
+        let attrs = HashMap::new();
+        let items = vec![ContentItem::Counter(
+            "chap".to_string(),
+            ListStyleType::UpperRoman,
+        )];
+        assert_eq!(resolve_content(&items, &attrs, &cs), "IV");
     }
 
     #[test]
@@ -5304,6 +5357,7 @@ mod tests {
         let items = vec![ContentItem::Counters(
             "section".to_string(),
             ".".to_string(),
+            ListStyleType::Decimal,
         )];
         assert_eq!(resolve_content(&items, &attrs, &cs), "1.2");
     }
