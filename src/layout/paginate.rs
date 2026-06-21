@@ -150,7 +150,10 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
                 .map(|c| estimate_element_height_bounded(c, depth - 1))
                 .sum();
             let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
-            let effective_h = block_height.map_or(content_h, |h| content_h.max(h));
+            // A definite `block_height` (set only for an explicit `height`) is a
+            // hard border-box size: overflowing content spills past it rather than
+            // growing the box, so honour it directly instead of `content_h.max(h)`.
+            let effective_h = block_height.unwrap_or(content_h);
             margin_top + effective_h + margin_bottom
         }
         _ => 0.0,

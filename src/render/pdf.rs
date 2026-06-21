@@ -2712,14 +2712,20 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Use explicit block_height if set, otherwise compute from
                     // children (with adjacent-sibling margin collapse so the
                     // painted box height matches the collapsed child flow).
+                    //
+                    // A Container's `block_height` is a definite border-box height
+                    // (set only when the element has an explicit `height`). Per
+                    // CSS, a definite height is a hard size: content that exceeds
+                    // it overflows the box rather than growing it (the box border
+                    // stays at the declared height regardless of `overflow`). This
+                    // matters for grids/flex whose definite tracks can overflow the
+                    // content box — Chrome keeps the container border-box at the
+                    // declared height and lets the cells spill past it. Honour the
+                    // declared height directly instead of `content_h.max(h)`, which
+                    // wrongly inflated the border-box by the overflow amount.
                     let children_h: f32 = collapsed_children_height(children);
                     let content_h = c_pt + children_h + c_pb + border.vertical_width();
-                    let total_h = if *c_overflow == Overflow::Hidden {
-                        // When clipping, use declared height to constrain the box
-                        c_block_height.unwrap_or(content_h)
-                    } else {
-                        c_block_height.map_or(content_h, |h| content_h.max(h))
-                    };
+                    let total_h = c_block_height.unwrap_or(content_h);
 
                     // Apply CSS opacity to the whole subtree as a single group
                     // (background + border + children composite together, matching
