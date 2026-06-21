@@ -951,7 +951,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 render_inline_box(
                                     &mut content,
                                     inline,
-                                    bg_x,
+                                    bg_x + inline.margin_left,
                                     text_y,
                                     line_top_y,
                                     line_bottom_y,
@@ -961,7 +961,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
                                 );
-                                bg_x += inline.width;
+                                bg_x += inline.outer_width();
                                 continue;
                             }
                             if run.text.is_empty() {
@@ -3450,7 +3450,7 @@ fn resolve_font_name(
 /// Estimate run width using TTF metrics for custom fonts, falling back to fixed estimation.
 fn estimate_run_width_with_fonts(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
     if let Some(inline) = run.inline_box.as_deref() {
-        return inline.width;
+        return inline.outer_width();
     }
     if let Some(width) = crate::text::measure_text_width(
         &run.text,
@@ -6060,7 +6060,7 @@ fn render_line_text(
         for run in &non_empty {
             // Inline boxes are painted in Phase 1; here they only advance.
             if let Some(inline) = run.inline_box.as_deref() {
-                x += inline.width;
+                x += inline.outer_width();
                 continue;
             }
             let run_width = render_run_text(

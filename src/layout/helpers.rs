@@ -8,7 +8,7 @@ use crate::style::computed::{
 use std::collections::HashMap;
 
 use super::context::ContainingBlock;
-use super::engine::{CounterState, LayoutBorder, LayoutElement, TextRun};
+use super::engine::{CounterState, InlineBox, LayoutBorder, LayoutElement, TextLine, TextRun};
 use super::images::build_raster_background_tree;
 use super::text::{
     TextWrapOptions, estimate_word_width, push_text_run_with_fallback, resolve_style_font_family,
@@ -673,6 +673,32 @@ pub(crate) fn build_pseudo_inline_run(
     counter_state: &CounterState,
 ) -> TextRun {
     let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
+
+    // `display: inline-block` pseudo-elements (e.g. a decorative
+    // `::before { content: ""; display: inline-block; width/height/background }`)
+    // are atomic boxes, not text. Emit an InlineBox so the box and any inner
+    // text paint; a plain text run would drop the box entirely.
+    if pseudo_style.display == Display::InlineBlock {
+        let inline = build_pseudo_inline_box(pseudo_style, &content_text, fonts);
+        return TextRun {
+            text: String::new(),
+            font_size: pseudo_style.font_size,
+            bold: pseudo_style.font_weight == FontWeight::Bold,
+            italic: pseudo_style.font_style == FontStyle::Italic,
+            underline: false,
+            line_through: false,
+            overline: false,
+            color: pseudo_style.color.to_f32_rgb(),
+            link_url: None,
+            font_family: resolve_style_font_family(pseudo_style, fonts),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+            line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+            inline_box: Some(Box::new(inline)),
+        };
+    }
+
     TextRun {
         text: content_text,
         font_size: pseudo_style.font_size,
@@ -689,6 +715,99 @@ pub(crate) fn build_pseudo_inline_run(
         border_radius: 0.0,
         line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
         inline_box: None,
+    }
+}
+
+/// Build the atomic `InlineBox` for a `display: inline-block` pseudo-element.
+/// Sizes follow CSS box-sizing; any text content is wrapped to one line inside
+/// the content box.
+fn build_pseudo_inline_box(
+    pseudo_style: &ComputedStyle,
+    content_text: &str,
+    fonts: &HashMap<String, TtfFont>,
+) -> InlineBox {
+    let border = LayoutBorder::from_computed(&pseudo_style.border);
+    let pad_h = pseudo_style.padding.left + pseudo_style.padding.right;
+    let pad_v = pseudo_style.padding.top + pseudo_style.padding.bottom;
+
+    // Inner text lines (empty content -> no lines).
+    let lines: Vec<TextLine> = if content_text.is_empty() {
+        Vec::new()
+    } else {
+        let run = TextRun {
+            text: content_text.to_string(),
+            font_size: pseudo_style.font_size,
+            bold: pseudo_style.font_weight == FontWeight::Bold,
+            italic: pseudo_style.font_style == FontStyle::Italic,
+            underline: pseudo_style.text_decoration_underline,
+            line_through: pseudo_style.text_decoration_line_through,
+            overline: pseudo_style.text_decoration_overline,
+            color: pseudo_style.color.to_f32_rgb(),
+            link_url: None,
+            font_family: resolve_style_font_family(pseudo_style, fonts),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+            line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+            inline_box: None,
+        };
+        wrap_text_runs(
+            vec![run],
+            TextWrapOptions::new(
+                f32::MAX,
+                pseudo_style.font_size,
+                resolved_line_height_factor(pseudo_style, fonts),
+                pseudo_style.overflow_wrap,
+            ),
+            fonts,
+        )
+    };
+
+    let text_w = lines
+        .iter()
+        .map(|l| {
+            l.runs
+                .iter()
+                .map(|r| {
+                    estimate_word_width(
+                        &r.text,
+                        r.font_size,
+                        &r.font_family,
+                        r.bold,
+                        r.italic,
+                        fonts,
+                    )
+                })
+                .sum::<f32>()
+        })
+        .fold(0.0f32, f32::max);
+    let text_h: f32 = lines.iter().map(|l| l.height).sum();
+
+    // Resolve the painted border-box width/height from the explicit size
+    // (honoring box-sizing) or the intrinsic content size when unspecified.
+    let width = match pseudo_style.width {
+        Some(w) if pseudo_style.box_sizing == BoxSizing::BorderBox => w.max(0.0),
+        Some(w) => (w + pad_h + border.horizontal_width()).max(0.0),
+        None => text_w + pad_h + border.horizontal_width(),
+    };
+    let height = match pseudo_style.height {
+        Some(h) if pseudo_style.box_sizing == BoxSizing::BorderBox => h.max(0.0),
+        Some(h) => (h + pad_v + border.vertical_width()).max(0.0),
+        None => text_h + pad_v + border.vertical_width(),
+    };
+
+    InlineBox {
+        width,
+        height,
+        margin_left: pseudo_style.margin.left.max(0.0),
+        margin_right: pseudo_style.margin.right.max(0.0),
+        background_color: pseudo_style.background_color.map(|c| c.to_f32_rgba()),
+        border,
+        border_radius: pseudo_style.border_radius,
+        padding_top: pseudo_style.padding.top,
+        padding_left: pseudo_style.padding.left,
+        vertical_align: pseudo_style.vertical_align,
+        lines,
     }
 }
 

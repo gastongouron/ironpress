@@ -341,10 +341,10 @@ pub(crate) fn wrap_text_runs(
             continue;
         }
 
-        // Atomic inline box: advance by its border-box width and grow the line
+        // Atomic inline box: advance by its margin-box width and grow the line
         // box to its height. It wraps to a fresh line if it overflows.
         if let Some(inline) = template.inline_box.as_deref() {
-            let box_w = inline.width;
+            let box_w = inline.outer_width();
             if current_width > 0.0 && current_width + box_w > line_max_width(lines.len()) {
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
@@ -788,6 +788,8 @@ fn build_inline_box(
     Some(InlineBox {
         width: total_w,
         height: total_h,
+        margin_left: style.margin.left.max(0.0),
+        margin_right: style.margin.right.max(0.0),
         background_color: style.background_color.map(|c| c.to_f32_rgba()),
         border: LayoutBorder::from_computed(&style.border),
         border_radius: style.border_radius,

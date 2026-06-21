@@ -265,10 +265,14 @@ pub struct TextRun {
 /// the resolved box geometry, paint properties, and pre-wrapped inner content.
 #[derive(Debug, Clone)]
 pub struct InlineBox {
-    /// Border-box width (advance the box contributes to the line).
+    /// Border-box width (the painted box width).
     pub width: f32,
     /// Border-box height (used to grow the line box and for vertical-align).
     pub height: f32,
+    /// Horizontal margins (left, right). They add inline advance around the
+    /// painted border box but are not themselves painted.
+    pub margin_left: f32,
+    pub margin_right: f32,
     pub background_color: Option<(f32, f32, f32, f32)>,
     pub border: LayoutBorder,
     pub border_radius: f32,
@@ -278,6 +282,14 @@ pub struct InlineBox {
     pub vertical_align: VerticalAlign,
     /// Pre-wrapped inner text lines (empty for content-less boxes).
     pub lines: Vec<TextLine>,
+}
+
+impl InlineBox {
+    /// Total inline advance the box contributes to its line: the painted
+    /// border-box width plus its left/right margins.
+    pub fn outer_width(&self) -> f32 {
+        self.width + self.margin_left + self.margin_right
+    }
 }
 
 /// A laid-out line of text runs.
