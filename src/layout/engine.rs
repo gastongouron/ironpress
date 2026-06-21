@@ -1834,6 +1834,7 @@ pub(crate) fn flatten_element(
             env.rules,
             env.fonts,
             ancestors,
+            env.counter_state,
         );
 
         // "Loose" list items (Markdown with blank lines between items) wrap each
@@ -2069,6 +2070,7 @@ fn inline_loose_list_p(
                     env.rules,
                     env.fonts,
                     child_ancestors,
+                    env.counter_state,
                 );
                 return (Some(raw_idx), p_style.margin.top, p_style.margin.bottom);
             }

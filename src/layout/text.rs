@@ -10,7 +10,7 @@ use crate::style::computed::{
 };
 use std::collections::HashMap;
 
-use super::engine::{InlineBox, LayoutBorder, TextLine, TextRun};
+use super::engine::{CounterState, InlineBox, LayoutBorder, TextLine, TextRun};
 
 // ---------------------------------------------------------------------------
 // resolve_style_font_family / resolved_line_height_factor
@@ -419,7 +419,16 @@ pub(crate) fn wrap_text_runs(
         // When transitioning between runs with different backgrounds,
         // emit the inter-word space as a separate unstyled run so the
         // background doesn't bleed from a highlighted span into plain text.
-        let needs_space = current_width > 0.0 && !preserve_spacing;
+        //
+        // Skip the injected inter-word space when the previous run already
+        // ends in whitespace: a generated-content string like "Note: " keeps
+        // its own trailing space (preserved spacing), so adding another would
+        // double the gap. CSS collapses whitespace across inline boundaries.
+        let prev_ends_ws = current_runs
+            .last()
+            .and_then(|r: &TextRun| r.text.chars().last())
+            .is_some_and(char::is_whitespace);
+        let needs_space = current_width > 0.0 && !preserve_spacing && !prev_ends_ws;
         let prev_bg = current_runs
             .last()
             .and_then(|r: &TextRun| r.background_color);
@@ -668,6 +677,7 @@ fn build_inline_box(
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
     ancestors: &[AncestorInfo],
+    counter_state: &CounterState,
 ) -> Option<InlineBox> {
     let has_explicit_width = style.width.is_some();
     let child_w = style.width.unwrap_or(0.0);
@@ -688,7 +698,16 @@ fn build_inline_box(
     };
 
     let mut runs = Vec::new();
-    collect_text_runs(&el.children, style, &mut runs, None, rules, fonts, ancestors);
+    collect_text_runs(
+        &el.children,
+        style,
+        &mut runs,
+        None,
+        rules,
+        fonts,
+        ancestors,
+        counter_state,
+    );
     let lines = if runs.is_empty() {
         Vec::new()
     } else {
@@ -761,6 +780,7 @@ pub(crate) fn collect_text_runs(
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
     ancestors: &[AncestorInfo],
+    counter_state: &CounterState,
 ) {
     collect_text_runs_inner(
         nodes,
@@ -771,6 +791,7 @@ pub(crate) fn collect_text_runs(
         fonts,
         false,
         ancestors,
+        counter_state,
     )
 }
 
@@ -784,6 +805,7 @@ fn collect_text_runs_inner(
     fonts: &HashMap<String, TtfFont>,
     inline_parent: bool,
     ancestors: &[AncestorInfo],
+    counter_state: &CounterState,
 ) {
     let preserve_ws = matches!(
         parent_style.white_space,
@@ -924,7 +946,7 @@ fn collect_text_runs_inner(
                         if is_atomic_inline_block {
                             let line_height_factor = resolved_line_height_factor(parent_style, fonts);
                             if let Some(boxed) =
-                                build_inline_box(&style, el, rules, fonts, &child_ancestors)
+                                build_inline_box(&style, el, rules, fonts, &child_ancestors, counter_state)
                             {
                                 runs.push(TextRun {
                                     text: String::new(),
@@ -946,6 +968,36 @@ fn collect_text_runs_inner(
                             }
                             continue;
                         }
+                        // Emit ::before / ::after generated content for inline
+                        // elements (e.g. <span class="label">). These flow as
+                        // inline text runs around the element's own children.
+                        let before = crate::style::computed::compute_pseudo_element_style(
+                            &style,
+                            rules,
+                            el.tag_name(),
+                            &classes,
+                            el.id(),
+                            &el.attributes,
+                            &selector_ctx,
+                            crate::parser::css::PseudoElement::Before,
+                        );
+                        let after = crate::style::computed::compute_pseudo_element_style(
+                            &style,
+                            rules,
+                            el.tag_name(),
+                            &classes,
+                            el.id(),
+                            &el.attributes,
+                            &selector_ctx,
+                            crate::parser::css::PseudoElement::After,
+                        );
+                        super::helpers::append_pseudo_inline_run(
+                            runs,
+                            before.as_ref(),
+                            el,
+                            fonts,
+                            counter_state,
+                        );
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -955,6 +1007,14 @@ fn collect_text_runs_inner(
                             fonts,
                             true,
                             &child_ancestors,
+                            counter_state,
+                        );
+                        super::helpers::append_pseudo_inline_run(
+                            runs,
+                            after.as_ref(),
+                            el,
+                            fonts,
+                            counter_state,
                         );
                     }
                 }

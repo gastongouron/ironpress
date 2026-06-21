@@ -620,6 +620,10 @@ pub enum ContentItem {
     Attr(String),
     Counter(String),
     Counters(String, String),
+    /// `open-quote` keyword — resolves to the opening quotation mark.
+    OpenQuote,
+    /// `close-quote` keyword — resolves to the closing quotation mark.
+    CloseQuote,
 }
 
 /// CSS box-shadow value.
@@ -3337,6 +3341,12 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
             rest = tail;
         } else if let Some((name, tail)) = parse_content_function(rest, "counter(") {
             items.push(ContentItem::Counter(name.trim().to_string()));
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("open-quote") {
+            items.push(ContentItem::OpenQuote);
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("close-quote") {
+            items.push(ContentItem::CloseQuote);
             rest = tail;
         } else if let Some(space) = rest.find(char::is_whitespace) {
             rest = &rest[space..];

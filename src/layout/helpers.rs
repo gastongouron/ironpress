@@ -335,6 +335,9 @@ pub(crate) fn resolve_content(
             ContentItem::Counters(name, sep) => {
                 result.push_str(&counter_state.get_all(name, sep));
             }
+            // Default `quotes` (first nesting level): U+201C / U+201D.
+            ContentItem::OpenQuote => result.push('\u{201C}'),
+            ContentItem::CloseQuote => result.push('\u{201D}'),
         }
     }
     result
