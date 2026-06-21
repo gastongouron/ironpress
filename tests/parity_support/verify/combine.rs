@@ -175,10 +175,7 @@ pub(crate) fn combine(subs: &[SubVerdict]) -> CombinedVerdict {
         // from genuine border-AA — and PdfGeometry verifies box rects, NOT clip
         // regions or fill content. So Appearance must PASS on its own; only the
         // coverage (Presence) floor is forgiven. The discrepancy is still surfaced.
-        if pdf_geom_exact
-            && owner == VerifierKind::RasterDiff
-            && auth_status == Status::Partial
-        {
+        if pdf_geom_exact && owner == VerifierKind::RasterDiff && auth_status == Status::Partial {
             let floor = match concern {
                 Concern::Presence => Some(FLOOR_PRESENCE_PCT),
                 Concern::Appearance | Concern::Geometry => None,
