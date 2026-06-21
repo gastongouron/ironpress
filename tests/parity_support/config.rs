@@ -107,3 +107,18 @@ pub(crate) const G_SHIFT_CSS: (f64, f64) = (1.0, 4.0);
 pub(crate) const COLOR_DE_PASS: f64 = 2.5;
 /// ΔE2000: at/above this is a hard colour failure regardless of area.
 pub(crate) const COLOR_DE_FAIL: f64 = 6.0;
+
+// ===========================================================================
+// PDF-GEOMETRY VERIFIER CONSTANTS (spec §2.3 / Phase 2a)
+// ===========================================================================
+
+/// Page height in pt (LETTER 612x792). The PDF geometry tokenizer normalizes
+/// bottom-left-origin PDF y to a top-left-origin y via `y_tl = PAGE_H_PT - y`.
+pub(crate) const PAGE_H_PT: f64 = 792.0;
+/// Per-coordinate vector-geometry tolerance (pt) for the PDF geometry verifier.
+/// 0.30 pt ≈ 0.40 CSS px ≈ 1.25 device px @300dpi — sub-0.5pt, so a real 1px shift
+/// (0.72pt) fails, but f32 rounding in ironpress's `format_pdf_number` (≤ ~1e-3 pt)
+/// and the calibration residual never trip it. PASS = every coord within this;
+/// PARTIAL = within 2x on some coord, none beyond; FAIL = any coord beyond 2x (or a
+/// missing primitive within 4x, or a gross page offset). See `verify/pdf_geom.rs`.
+pub(crate) const GEOM_TOL_PT: f64 = 0.30;

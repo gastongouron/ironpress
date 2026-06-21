@@ -42,6 +42,7 @@ mod rasterize;
 mod render;
 mod report;
 mod util;
+mod verify;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -52,8 +53,8 @@ use calibrate::{assert_calibration, calibrate};
 use compare::compare_v2;
 use diagnose::compute_attribution;
 use gate::{
-    build_report, check_refs_freshness, collect_suspect_unsupported_pass, compute_coverage,
-    compute_fix_first, enforce_gate,
+    build_report, check_coords_freshness, check_refs_freshness, collect_suspect_unsupported_pass,
+    compute_coverage, compute_fix_first, enforce_gate,
 };
 use manifest::{find_ref_mismatches, load_manifests, ManifestEntry};
 use render::{check_pdf_valid, load_bundled_fonts, render_pdf, SharedFonts};
@@ -226,6 +227,9 @@ pub fn run() -> Result<(), String> {
     // READ + verify). Non-gating here — surfaced in report.json + REPORT.md + a
     // loud WARNING line; CI enforces the hard fail.
     let (stale_refs, refs_lock_present) = check_refs_freshness(&parity_dir, &results);
+    // Sidecar (coords.lock) freshness — same machinery, only sidecar-bearing
+    // fixtures tracked (Phase 2b ships the starter set). Non-gating; surfaced.
+    let (stale_coords, coords_lock_present) = check_coords_freshness(&parity_dir, &results);
 
     let mut report = build_report(results, pdftoppm_available);
     report.coverage = compute_coverage(&report);
@@ -234,6 +238,8 @@ pub fn run() -> Result<(), String> {
     report.suspect_unsupported_pass = suspect_unsupported_pass;
     report.stale_refs = stale_refs;
     report.refs_lock_present = refs_lock_present;
+    report.stale_coords = stale_coords;
+    report.coords_lock_present = coords_lock_present;
     report.calibration = calibration;
 
     // A filtered dev run (`PARITY_ONLY`) scores only a subset, so it must NOT
@@ -299,6 +305,15 @@ pub fn run() -> Result<(), String> {
             "parity: WARNING {} STALE reference(s) (fixture changed since ref was generated) — \
              regenerate with scripts/parity-gen-refs.sh: {}",
             report.stale_refs.len(),
+            ids.join(", ")
+        );
+    }
+    if report.coords_lock_present && !report.stale_coords.is_empty() {
+        let ids: Vec<&str> = report.stale_coords.iter().map(|s| s.id.as_str()).collect();
+        eprintln!(
+            "parity: WARNING {} STALE coordinate sidecar(s) (fixture changed since sidecar was \
+             generated) — regenerate with scripts/parity-gen-coords.sh: {}",
+            report.stale_coords.len(),
             ids.join(", ")
         );
     }
@@ -437,10 +452,63 @@ fn process_entry(
         }
         let _ = outcome.overlay.save(&out);
     }
+    // Pluggable multi-verifier seam (spec §1.4). PHASE 1 = a PROVABLE NO-OP: the
+    // only verifier present is the `RasterVerifier` adapter, which re-partitions
+    // the ALREADY-COMPUTED `outcome` (its `tally`/`verdict`) into three concern
+    // sub-verdicts using the SAME `config.rs` gates — it does NOT re-run the
+    // comparator. With only the RasterVerifier, the combiner's WORST-of-concern
+    // status reproduces `outcome.status` exactly (see `verify/raster.rs` for the
+    // equivalence and `verify/goldens.rs` for the proof), so the committed
+    // baseline does not move. The Phase-2 `PdfGeometry` verifier (which reads the
+    // PDF bytes + sidecar) plugs into this same `verifiers` list; the ctx already
+    // carries the artifacts it will need.
+    // PHASE 2a: load the committed coordinate sidecar (if any). NO sidecar files
+    // exist yet, so this is `None` for every fixture -> `PdfGeomVerifier.applies()`
+    // is false everywhere and the combined status is still byte-identical to today
+    // (proven no-op). Sidecar generation is Phase 2b.
+    let coords = verify::coords::load_coords_sidecar(parity_dir, entry);
+    let ctx = verify::VerifyCtx {
+        entry,
+        pdf: &pdf,
+        cand: &cand_cal,
+        reference: &reference,
+        coords: coords.as_ref(),
+    };
+    let raster_verifier = verify::raster::RasterVerifier::from_outcome(&outcome, entry);
+    let pdf_geom_verifier = verify::pdf_geom::PdfGeomVerifier;
+    let verifiers: [&dyn verify::Verifier; 2] = [&raster_verifier, &pdf_geom_verifier];
+    let mut subs: Vec<verify::SubVerdict> = Vec::new();
+    for v in verifiers {
+        if v.applies(&ctx) {
+            subs.extend(v.verify(&ctx));
+        }
+    }
+    let combined = verify::combine::combine(&subs);
+
+    // Surface the per-verifier sub-verdicts (incl. the new PdfGeometry axis) under
+    // the same PARITY_DEBUG_TALLY flag the raster tally uses — non-gating, dev only.
+    if std::env::var("PARITY_DEBUG_TALLY").is_ok() {
+        for s in &subs {
+            eprintln!(
+                "subverdict {}/{}: {:?} {:?}={} mag={:.3} :: {}",
+                entry.category, entry.id, s.verifier, s.concern, s.status.as_str(), s.magnitude, s.headline
+            );
+        }
+        for d in &combined.disagreements {
+            eprintln!(
+                "disagree   {}/{}: {:?} auth={}({:?}) chal={}({:?}) :: {}",
+                entry.category, entry.id, d.concern, d.authoritative.as_str(), d.authoritative_by,
+                d.challenger.as_str(), d.challenger_by, d.note
+            );
+        }
+    }
+
     // ADDITIVE: attach the V2 diagnosis (spec §2). The attribution prefix
     // (`via {dep}: …` for confounded fixtures) is applied later in `run()` by
     // `compute_attribution`, once every fixture's status is known.
-    let mut result = report::fixture_base(entry, outcome.status, diff_pct, String::new());
+    let mut result = report::fixture_base(entry, combined.status, diff_pct, String::new());
     result.diagnosis = Some(outcome.diagnosis);
+    result.sub_verdicts = subs;
+    result.disagreements = combined.disagreements;
     with_sha(result)
 }

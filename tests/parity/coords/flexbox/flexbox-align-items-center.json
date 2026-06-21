@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [
+    {
+      "role": "fill",
+      "rect_pt": [
+        42.75,
+        42.75,
+        315.0,
+        150.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        44.25,
+        95.25,
+        60.0,
+        45.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        104.25,
+        80.25,
+        60.0,
+        75.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        164.25,
+        65.25,
+        60.0,
+        105.0
+      ],
+      "selector": null
+    }
+  ],
+  "borders": [
+    {
+      "role": "border",
+      "rect_pt": [
+        43.5,
+        43.5,
+        313.5,
+        148.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        45.0,
+        96.0,
+        58.5,
+        43.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        105.0,
+        81.0,
+        58.5,
+        73.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        165.0,
+        66.0,
+        58.5,
+        103.5
+      ],
+      "selector": null
+    }
+  ],
+  "text_runs": []
+}

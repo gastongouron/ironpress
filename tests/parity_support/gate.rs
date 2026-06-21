@@ -212,6 +212,8 @@ pub(crate) fn build_report(mut results: Vec<FixtureResult>, pdftoppm_available: 
         suspect_unsupported_pass: Vec::new(),
         stale_refs: Vec::new(),
         refs_lock_present: false,
+        stale_coords: Vec::new(),
+        coords_lock_present: false,
         calibration: None,
     }
 }
@@ -306,6 +308,50 @@ pub(crate) fn check_refs_freshness(parity_dir: &Path, results: &[FixtureResult])
                 current_sha256: r.html_sha256.clone(),
                 locked_sha256: String::new(),
             }),
+        }
+    }
+    stale.sort_by(|a, b| (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str())));
+    (stale, true)
+}
+
+/// Read the committed `coords.lock` (a flat JSON map `{ "<id>": "<sha256>" }`,
+/// mirroring `refs.lock`) and compare each scored fixture's current HTML hash
+/// against it. Returns `(stale_coords, lock_present)`. Mirrors
+/// `check_refs_freshness` BUT only fixtures that actually have a committed
+/// coordinate SIDECAR are tracked: unlike refs (one per fixture), sidecars exist
+/// only for the curated geometry-clean starter set (probes/block/grid/flex in
+/// Phase 2b), so a fixture absent from the lock is expected (raster-only) and
+/// must NOT be flagged. A fixture that IS in the lock but whose HTML hash differs
+/// is STALE — its sidecar describes an older fixture and must be regenerated with
+/// `scripts/parity-gen-coords.sh`. Non-gating here: CI enforces, this surfaces.
+pub(crate) fn check_coords_freshness(
+    parity_dir: &Path,
+    results: &[FixtureResult],
+) -> (Vec<StaleRef>, bool) {
+    let lock_path = parity_dir.join("coords.lock");
+    let lock: Option<BTreeMap<String, String>> = std::fs::read_to_string(&lock_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok());
+    let Some(lock) = lock else {
+        return (Vec::new(), false);
+    };
+    let mut stale: Vec<StaleRef> = Vec::new();
+    for r in results {
+        if r.html_sha256.is_empty() {
+            continue;
+        }
+        // Only fixtures with a committed sidecar are in the lock; absence is
+        // expected (raster-only) and never a staleness defect.
+        match lock.get(&r.id) {
+            Some(locked) if *locked == r.html_sha256 => {} // fresh
+            Some(locked) => stale.push(StaleRef {
+                id: r.id.clone(),
+                category: r.category.clone(),
+                reason: "hash-mismatch".to_string(),
+                current_sha256: r.html_sha256.clone(),
+                locked_sha256: locked.clone(),
+            }),
+            None => {} // no sidecar for this fixture — fine.
         }
     }
     stale.sort_by(|a, b| (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str())));

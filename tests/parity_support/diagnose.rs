@@ -1048,6 +1048,8 @@ mod tests {
                 headline: "feature not rendered — candidate blank where Chrome paints".into(),
                 ..Diagnosis::default()
             }),
+            sub_verdicts: Vec::new(),
+            disagreements: Vec::new(),
         };
         let probe = FixtureResult {
             id: "probe-x".into(),
@@ -1067,6 +1069,8 @@ mod tests {
             attribution: String::new(),
             html_sha256: String::new(),
             diagnosis: None,
+            sub_verdicts: Vec::new(),
+            disagreements: Vec::new(),
         };
         let mut results = vec![target.clone(), probe];
         compute_attribution(&mut results);

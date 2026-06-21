@@ -89,6 +89,16 @@ pub(crate) struct FixtureResult {
     /// results and on pre-V2 baselines (the `serde(default)` keeps them parseable).
     #[serde(default)]
     pub(crate) diagnosis: Option<super::diagnose::Diagnosis>,
+    /// Per-concern sub-verdicts from the pluggable multi-verifier layer (spec §1).
+    /// ADDITIVE and non-gating: in Phase 1 these are the `RasterVerifier`'s three
+    /// concern opinions (Geometry/Appearance/Presence) that combine to `status`.
+    /// `#[serde(default)]` keeps pre-verifier baselines parseable.
+    #[serde(default)]
+    pub(crate) sub_verdicts: Vec<super::verify::SubVerdict>,
+    /// Recorded cross-verifier disagreements (spec §1.3). Empty in Phase 1 (a
+    /// single verifier cannot disagree with itself). ADDITIVE, non-gating.
+    #[serde(default)]
+    pub(crate) disagreements: Vec<super::verify::Disagreement>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -207,6 +217,17 @@ pub(crate) struct Report {
     /// claim can be made (every fixture is implicitly "unverified").
     #[serde(default)]
     pub(crate) refs_lock_present: bool,
+    /// Fixtures whose committed COORDINATE SIDECAR (`coords/<cat>/<id>.json`) is
+    /// STALE relative to `coords.lock`: the fixture HTML's SHA-256 differs from the
+    /// locked hash. Only sidecar-bearing fixtures are tracked (Phase 2b ships
+    /// sidecars for the starter set only); a fixture with no sidecar is never
+    /// flagged. Surfaced (not gated here) so CI can enforce regeneration with
+    /// `scripts/parity-gen-coords.sh`.
+    #[serde(default)]
+    pub(crate) stale_coords: Vec<StaleRef>,
+    /// Whether a `coords.lock` file was present and parsed.
+    #[serde(default)]
+    pub(crate) coords_lock_present: bool,
     /// V2 page-origin calibration audit (spec §1.3). `Some` on every scoring run;
     /// `None` only when pdftoppm is unavailable or on a filtered dev run.
     #[serde(default)]
@@ -289,6 +310,8 @@ pub(crate) fn fixture_base(entry: &ManifestEntry, status: Status, diff_pct: f64,
         attribution: String::new(),
         html_sha256: String::new(),
         diagnosis: None,
+        sub_verdicts: Vec::new(),
+        disagreements: Vec::new(),
     }
 }
 
