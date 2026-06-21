@@ -983,8 +983,10 @@ pub(crate) fn layout_block_element(
     let mut saved_inline_element: Option<LayoutElement> = None;
 
     if !runs.is_empty() {
-        // When white-space: nowrap, prevent wrapping by using a huge width
-        let wrap_width = if style.white_space == WhiteSpace::NoWrap {
+        // `white-space: nowrap` and `pre` never soft-wrap: render with an
+        // unbounded width so only explicit newlines break lines. `pre-wrap`
+        // keeps spaces but still wraps at the box edge.
+        let wrap_width = if matches!(style.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre) {
             f32::MAX
         } else {
             inner_width
@@ -997,7 +999,8 @@ pub(crate) fn layout_block_element(
                 resolved_line_height_factor(style, env.fonts),
                 style.overflow_wrap,
             )
-            .with_rtl(style.direction_rtl),
+            .with_rtl(style.direction_rtl)
+            .with_pre_wrap(style.white_space == WhiteSpace::PreWrap),
             env.fonts,
         );
 

@@ -102,6 +102,10 @@ pub(crate) struct TextWrapOptions {
     /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
     /// when the containing block has `direction: rtl` (or `dir="rtl"`).
     pub(crate) paragraph_rtl: bool,
+    /// `white-space: pre-wrap`: preserve spaces/newlines but still allow soft
+    /// wrapping at space boundaries. Distinguishes pre-wrap (wraps) from `pre`
+    /// (which the caller renders with an unbounded width so it never wraps).
+    pub(crate) pre_wrap: bool,
 }
 
 impl TextWrapOptions {
@@ -117,12 +121,41 @@ impl TextWrapOptions {
             line_height_factor,
             overflow_wrap,
             paragraph_rtl: false,
+            pre_wrap: false,
         }
     }
 
     pub(crate) const fn with_rtl(mut self, rtl: bool) -> Self {
         self.paragraph_rtl = rtl;
         self
+    }
+
+    pub(crate) const fn with_pre_wrap(mut self, pre_wrap: bool) -> Self {
+        self.pre_wrap = pre_wrap;
+        self
+    }
+}
+
+/// Split a segment of text that preserves its internal whitespace into
+/// alternating word-runs and space-runs. Used for `white-space: pre-wrap`,
+/// where spaces must be preserved verbatim but lines may still wrap at the
+/// boundary between a space-run and the following word. Each emitted token is
+/// flagged `preserve_spacing = true` so the wrapper never injects its own
+/// inter-word space; soft wrapping then happens via the generic
+/// "token overflows the line" break.
+fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<(String, TextRun, bool)>) {
+    let mut current = String::new();
+    let mut current_is_space: Option<bool> = None;
+    for ch in segment.chars() {
+        let is_space = ch == ' ' || ch == '\t';
+        if current_is_space != Some(is_space) && !current.is_empty() {
+            out.push((std::mem::take(&mut current), template.clone(), true));
+        }
+        current_is_space = Some(is_space);
+        current.push(ch);
+    }
+    if !current.is_empty() {
+        out.push((current, template.clone(), true));
     }
 }
 
@@ -224,11 +257,17 @@ pub(crate) fn wrap_text_runs(
                 if segment.is_empty() {
                     continue;
                 }
-                if segment.chars().next().is_some_and(char::is_whitespace)
+                let preserved = segment.chars().next().is_some_and(char::is_whitespace)
                     || segment.chars().last().is_some_and(char::is_whitespace)
-                    || segment.contains("  ")
-                {
-                    styled_words.push((segment.to_string(), run.clone(), true));
+                    || segment.contains("  ");
+                if preserved {
+                    if options.pre_wrap {
+                        // pre-wrap preserves spaces but still wraps at space
+                        // boundaries; split so the generic overflow break can act.
+                        split_preserving_spaces(segment, run, &mut styled_words);
+                    } else {
+                        styled_words.push((segment.to_string(), run.clone(), true));
+                    }
                 } else {
                     for word in segment.split_whitespace() {
                         styled_words.push((word.to_string(), run.clone(), false));
@@ -236,7 +275,11 @@ pub(crate) fn wrap_text_runs(
                 }
             }
         } else if has_preserved_spacing {
-            styled_words.push((run.text.clone(), run.clone(), true));
+            if options.pre_wrap {
+                split_preserving_spaces(&run.text, run, &mut styled_words);
+            } else {
+                styled_words.push((run.text.clone(), run.clone(), true));
+            }
         } else {
             for word in run.text.split_whitespace() {
                 styled_words.push((word.to_string(), run.clone(), false));
