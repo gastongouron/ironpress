@@ -93,10 +93,18 @@ pub(crate) fn render_classed_overlay(
     for region in regions {
         let [r, g, b] = class_rgb(region.dominant);
         let frame = Rgba([r, g, b, 255]);
-        let x0 = (region.bbox_css[0] * CSS_PX).round().clamp(0.0, (w - 1) as f64) as u32;
-        let y0 = (region.bbox_css[1] * CSS_PX).round().clamp(0.0, (h - 1) as f64) as u32;
-        let x1 = (region.bbox_css[2] * CSS_PX).round().clamp(0.0, (w - 1) as f64) as u32;
-        let y1 = (region.bbox_css[3] * CSS_PX).round().clamp(0.0, (h - 1) as f64) as u32;
+        let x0 = (region.bbox_css[0] * CSS_PX)
+            .round()
+            .clamp(0.0, (w - 1) as f64) as u32;
+        let y0 = (region.bbox_css[1] * CSS_PX)
+            .round()
+            .clamp(0.0, (h - 1) as f64) as u32;
+        let x1 = (region.bbox_css[2] * CSS_PX)
+            .round()
+            .clamp(0.0, (w - 1) as f64) as u32;
+        let y1 = (region.bbox_css[3] * CSS_PX)
+            .round()
+            .clamp(0.0, (h - 1) as f64) as u32;
         for x in x0..=x1 {
             out.put_pixel(x, y0, frame);
             out.put_pixel(x, y1, frame);

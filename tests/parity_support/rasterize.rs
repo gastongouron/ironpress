@@ -7,11 +7,25 @@ use std::process::Command;
 
 use super::config::DPI;
 
-pub(crate) fn rasterize(pdf: &Path, out_png: &Path, tmp_dir: &Path, id: &str) -> Result<(), String> {
+pub(crate) fn rasterize(
+    pdf: &Path,
+    out_png: &Path,
+    tmp_dir: &Path,
+    id: &str,
+) -> Result<(), String> {
     // pdftoppm -singlefile writes <prefix>.png
     let prefix = tmp_dir.join(id);
     let status = Command::new("pdftoppm")
-        .args(["-r", &DPI.to_string(), "-png", "-f", "1", "-l", "1", "-singlefile"])
+        .args([
+            "-r",
+            &DPI.to_string(),
+            "-png",
+            "-f",
+            "1",
+            "-l",
+            "1",
+            "-singlefile",
+        ])
         .arg(pdf)
         .arg(&prefix)
         .status()

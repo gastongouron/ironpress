@@ -82,7 +82,10 @@ pub(crate) fn default_geometry() -> String {
 // Manifest loading + validation
 // ---------------------------------------------------------------------------
 
-pub(crate) fn load_manifests(manifest_dir: &Path, parity_dir: &Path) -> Result<Vec<ManifestEntry>, String> {
+pub(crate) fn load_manifests(
+    manifest_dir: &Path,
+    parity_dir: &Path,
+) -> Result<Vec<ManifestEntry>, String> {
     let mut frag_files: Vec<PathBuf> = Vec::new();
     if manifest_dir.is_dir() {
         for ent in std::fs::read_dir(manifest_dir)

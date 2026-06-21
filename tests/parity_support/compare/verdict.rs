@@ -53,8 +53,7 @@ pub(crate) fn verdict(t: &ClassTally, regions: &[DiffRegion], entry: &ManifestEn
     //     CORRECT, the boundary moved -> all ColorErr in the edge band, review §1-B),
     //   * a curved/coloured AA ring (border-radius-circle: interior byte-identical,
     //     only the perimeter AA differs -> interior_color_pct ~0).
-    let hard_color =
-        t.interior_color_de >= COLOR_DE_FAIL && t.interior_color_pct >= G_COLOR_PCT.0;
+    let hard_color = t.interior_color_de >= COLOR_DE_FAIL && t.interior_color_pct >= G_COLOR_PCT.0;
 
     let any_fail = hard_color
         || t.color_pct > color_partial
@@ -102,7 +101,8 @@ fn elect_dominant(regions: &[DiffRegion]) -> PixelClass {
             None => Some(r),
             Some(b) => {
                 if r.area_pct > b.area_pct + 1e-9
-                    || ((r.area_pct - b.area_pct).abs() <= 1e-9 && severity(r.dominant) > severity(b.dominant))
+                    || ((r.area_pct - b.area_pct).abs() <= 1e-9
+                        && severity(r.dominant) > severity(b.dominant))
                 {
                     Some(r)
                 } else {

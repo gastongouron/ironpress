@@ -3,8 +3,7 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BorderCollapse, BoxSizing, ComputedStyle, Display, FontStyle, FontWeight, TableLayout,
-    TextAlign,
-    VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
+    TextAlign, VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -674,8 +673,7 @@ pub(crate) fn flatten_table(
     let has_explicit_widths = explicit_col_widths.iter().any(|width| width.is_some());
     // A table with no explicit `width` shrinks to fit its content/column widths
     // (CSS auto table layout) instead of stretching to the containing block.
-    let table_has_explicit_width =
-        style.width.is_some() || style.percentage_sizing.width.is_some();
+    let table_has_explicit_width = style.width.is_some() || style.percentage_sizing.width.is_some();
     // When `border-collapse: separate`, horizontal `border-spacing` is drawn between
     // every pair of adjacent cells AND on the outer edges, so the space available for
     // the N columns is `inner_width - (N+1) * border_spacing`. Without this reduction
@@ -742,9 +740,7 @@ pub(crate) fn flatten_table(
             );
             // `display: none` and `visibility: collapse` rows are removed from the
             // table entirely (no cells, no reserved height), so skip measuring them.
-            if row_style.display == Display::None
-                || row_style.visibility == Visibility::Collapse
-            {
+            if row_style.display == Display::None || row_style.visibility == Visibility::Collapse {
                 continue;
             }
             row_style.width = Some(inner_width);
@@ -1172,8 +1168,7 @@ pub(crate) fn flatten_table(
             // border and background suppressed so the table background shows
             // through. Emptiness is decided from the DOM, not the collapsed
             // text, because `&nbsp;` is content yet whitespace-collapses away.
-            let hide_if_empty = cell_style.empty_cells
-                == crate::style::computed::EmptyCells::Hide
+            let hide_if_empty = cell_style.empty_cells == crate::style::computed::EmptyCells::Hide
                 && cell_has_no_content(cell_el);
             cells.push(TableCell {
                 lines,
@@ -1254,8 +1249,7 @@ pub(crate) fn flatten_table(
                 .fold(0.0f32, f32::max);
         }
     }
-    let box_height = rows_height
-        + edge_spacing * (emitted_rows.saturating_add(1) as f32);
+    let box_height = rows_height + edge_spacing * (emitted_rows.saturating_add(1) as f32);
 
     // Width of the table content box: the resolved column widths plus, for
     // `separate` collapse, one `border-spacing` on each outer edge and between
@@ -1263,8 +1257,7 @@ pub(crate) fn flatten_table(
     // `inner_width`, so the background must follow the columns, not the
     // containing block.
     let columns_sum: f32 = col_widths.iter().sum();
-    let box_width =
-        columns_sum + edge_spacing * (col_widths.len().saturating_add(1) as f32);
+    let box_width = columns_sum + edge_spacing * (col_widths.len().saturating_add(1) as f32);
 
     // The last row carries the bottom `border-spacing` gap plus the table's own
     // `margin-bottom`, so the in-flow height below the rows matches the box.

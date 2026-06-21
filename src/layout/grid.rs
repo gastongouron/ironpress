@@ -345,8 +345,10 @@ pub(crate) fn layout_grid_container(
     // explicit `width` is set it wins (resolving box-sizing: a border-box
     // width already includes border+padding, so subtract them; a content-box
     // width is used directly). Otherwise fall back to the available width.
-    let border_pad_w =
-        style.border.left.width + style.border.right.width + style.padding.left + style.padding.right;
+    let border_pad_w = style.border.left.width
+        + style.border.right.width
+        + style.padding.left
+        + style.padding.right;
     let inner_width = match style.width {
         Some(w) => {
             if style.box_sizing == crate::style::computed::BoxSizing::BorderBox {
@@ -508,9 +510,7 @@ pub(crate) fn layout_grid_container(
             }
             for rr in cursor_row..cursor_row + row_span {
                 ensure_row(&mut occupied, rr, num_cols);
-                for cc in cursor_col..cursor_col + col_span {
-                    occupied[rr][cc] = true;
-                }
+                occupied[rr][cursor_col..cursor_col + col_span].fill(true);
             }
             placed.push(Placed {
                 idx,
@@ -570,9 +570,7 @@ pub(crate) fn layout_grid_container(
             .grid_template_rows
             .get(r)
             .and_then(grid_track_fixed_height);
-        *h = explicit
-            .or(style.grid_auto_rows)
-            .unwrap_or(0.0);
+        *h = explicit.or(style.grid_auto_rows).unwrap_or(0.0);
     }
     // Grow rows to fit any item content / explicit item height that exceeds
     // the track height (auto rows, or items taller than their fixed track).
@@ -614,9 +612,8 @@ pub(crate) fn layout_grid_container(
     });
 
     // Helper to compute the x-offset of a column index.
-    let col_x = |c: usize| -> f32 {
-        col_widths.iter().take(c).sum::<f32>() + column_gap * c as f32
-    };
+    let col_x =
+        |c: usize| -> f32 { col_widths.iter().take(c).sum::<f32>() + column_gap * c as f32 };
     let span_width = |c: usize, cs: usize| -> f32 {
         let w: f32 = col_widths.iter().skip(c).take(cs).sum();
         w + column_gap * cs.saturating_sub(1) as f32
@@ -675,7 +672,9 @@ pub(crate) fn layout_grid_container(
                 env.fonts,
             );
 
-            let bg = cs.background_color.map(|c: crate::types::Color| c.to_f32_rgba());
+            let bg = cs
+                .background_color
+                .map(|c: crate::types::Color| c.to_f32_rgba());
 
             // Per-item alignment: when the item has an explicit smaller size
             // than its track, position the painted box per justify/align-items.

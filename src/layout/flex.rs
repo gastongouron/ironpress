@@ -1048,7 +1048,8 @@ pub(crate) fn layout_flex_container(
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
                                 transform: None,
-                                transform_origin: crate::style::computed::TransformOrigin::default(),
+                                transform_origin: crate::style::computed::TransformOrigin::default(
+                                ),
                                 box_shadow: None,
                                 nested_elements: item.elements.clone(),
                                 y_offset: 0.0,
@@ -1098,7 +1099,7 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
-                                align_self: item.align_self,
+                            align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: first_bg,
                             padding_top: first_pt,
@@ -1192,7 +1193,7 @@ pub(crate) fn layout_flex_container(
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
-                                align_self: item.align_self,
+                            align_self: item.align_self,
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                         });
@@ -1205,7 +1206,7 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: item.height,
                             has_explicit_height: item.has_explicit_height,
-                                align_self: item.align_self,
+                            align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: None,
                             padding_top: 0.0,
@@ -1278,13 +1279,12 @@ pub(crate) fn layout_flex_container(
                     // align-items: stretch only stretches items whose cross size
                     // (width, for a column container) is auto. An item with an
                     // explicit width keeps it.
-                    let effective_width = if effective_align == AlignItems::Stretch
-                        && !item.has_explicit_width
-                    {
-                        Some(inner_width)
-                    } else {
-                        Some(item.width)
-                    };
+                    let effective_width =
+                        if effective_align == AlignItems::Stretch && !item.has_explicit_width {
+                            Some(inner_width)
+                        } else {
+                            Some(item.width)
+                        };
 
                     for elem in &item.elements {
                         if let LayoutElement::TextBlock {
@@ -1443,7 +1443,8 @@ pub(crate) fn layout_flex_container(
                                     + style.border.left.width,
                                 overflow: Overflow::Visible,
                                 transform: None,
-                                transform_origin: crate::style::computed::TransformOrigin::default(),
+                                transform_origin: crate::style::computed::TransformOrigin::default(
+                                ),
                                 clip_path: None,
                                 box_shadow: None,
                                 background_gradient: None,

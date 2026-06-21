@@ -2476,8 +2476,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     for (prop, setter) in &[
         (
             "border-top-width",
-            (|s: &mut ComputedStyle, w| s.border.top.width = w)
-                as fn(&mut ComputedStyle, f32),
+            (|s: &mut ComputedStyle, w| s.border.top.width = w) as fn(&mut ComputedStyle, f32),
         ),
         (
             "border-right-width",
@@ -3998,7 +3997,10 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         return Some(Transform::Matrix(1.0, tan_y, 0.0, 1.0, 0.0, 0.0));
     }
 
-    if let Some(inner) = val.strip_prefix("matrix(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = val
+        .strip_prefix("matrix(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let nums: Vec<f32> = inner
             .split(',')
             .filter_map(|p| p.trim().parse::<f32>().ok())
@@ -4092,8 +4094,7 @@ fn parse_transform_origin(val: &str) -> Option<TransformOrigin> {
     // Vertical-only keywords that, when first, indicate the value order is
     // swapped (e.g. `top left`). Otherwise the first token is the x axis.
     let is_vertical = |s: &str| s.eq_ignore_ascii_case("top") || s.eq_ignore_ascii_case("bottom");
-    let is_horizontal =
-        |s: &str| s.eq_ignore_ascii_case("left") || s.eq_ignore_ascii_case("right");
+    let is_horizontal = |s: &str| s.eq_ignore_ascii_case("left") || s.eq_ignore_ascii_case("right");
     let (x_tok, y_tok) = match tokens.as_slice() {
         [a] => (*a, "center"),
         [a, b] => {
@@ -4200,13 +4201,19 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
         let y = it.next().and_then(parse_clip_len).unwrap_or(center);
         (x, y)
     };
-    if let Some(inner) = raw.strip_prefix("circle(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = raw
+        .strip_prefix("circle(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
         let r = parse_clip_len(shape.trim())?;
         let (cx, cy) = parse_pos(pos);
         return Some(ClipPath::Circle { r, cx, cy });
     }
-    if let Some(inner) = raw.strip_prefix("ellipse(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = raw
+        .strip_prefix("ellipse(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
         let mut radii = shape.split_whitespace();
         let rx = radii.next().and_then(parse_clip_len)?;
@@ -4239,7 +4246,10 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
             radius,
         });
     }
-    if let Some(inner) = raw.strip_prefix("polygon(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = raw
+        .strip_prefix("polygon(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
         let points: Vec<((f32, bool), (f32, bool))> = inner
             .split(',')
             .filter_map(|pair| {
@@ -4693,10 +4703,7 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
             .and_then(parse_radial_length_pt);
         (center, radius)
     } else {
-        (
-            (RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)),
-            None,
-        )
+        ((RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)), None)
     };
 
     let color_parts = &parts[color_start..];
@@ -4739,7 +4746,10 @@ fn parse_radial_length_pt(tok: &str) -> Option<f32> {
 /// fraction, a length becomes an absolute point offset.
 fn parse_radial_pos(tok: &str) -> Option<RadialPos> {
     if let Some(n) = tok.strip_suffix('%') {
-        return n.parse::<f32>().ok().map(|p| RadialPos::Fraction(p / 100.0));
+        return n
+            .parse::<f32>()
+            .ok()
+            .map(|p| RadialPos::Fraction(p / 100.0));
     }
     parse_radial_length_pt(tok).map(RadialPos::Points)
 }
@@ -4997,7 +5007,11 @@ mod tests {
         let mut parent = ComputedStyle::default();
         parent.width = Some(600.0);
         parent.height = Some(120.0);
-        let style = compute_style(HtmlTag::Div, Some("width: clamp(120px, 50%, 240px)"), &parent);
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("width: clamp(120px, 50%, 240px)"),
+            &parent,
+        );
         assert!(
             matches!(style.width, Some(w) if (w - 180.0).abs() < 0.01),
             "got {:?}",
@@ -5012,7 +5026,11 @@ mod tests {
         let mut parent = ComputedStyle::default();
         parent.width = Some(600.0);
         parent.height = Some(160.0);
-        let style = compute_style(HtmlTag::Div, Some("height: clamp(80px, 50%, 200px)"), &parent);
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("height: clamp(80px, 50%, 200px)"),
+            &parent,
+        );
         // 50% of 160 = 80pt, within [60, 150] -> 80pt.
         assert!(
             matches!(style.height, Some(h) if (h - 80.0).abs() < 0.01),
@@ -5363,8 +5381,15 @@ mod tests {
         // computed `color` (here the default, black) rather than staying unset.
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("border: 1px solid foobar"), &parent);
-        let c = style.border.top.color.expect("visible border resolves a color");
-        assert_eq!((c.r, c.g, c.b), (style.color.r, style.color.g, style.color.b));
+        let c = style
+            .border
+            .top
+            .color
+            .expect("visible border resolves a color");
+        assert_eq!(
+            (c.r, c.g, c.b),
+            (style.color.r, style.color.g, style.color.b)
+        );
     }
 
     #[test]
@@ -9423,17 +9448,35 @@ mod tests {
 
     #[test]
     fn parse_filter_color_functions() {
-        assert_eq!(parse_filter("grayscale(100%)").1, vec![ColorFilterOp::Grayscale(1.0)]);
-        assert_eq!(parse_filter("grayscale(0.5)").1, vec![ColorFilterOp::Grayscale(0.5)]);
-        assert_eq!(parse_filter("invert(1)").1, vec![ColorFilterOp::Invert(1.0)]);
-        assert_eq!(parse_filter("brightness(150%)").1, vec![ColorFilterOp::Brightness(1.5)]);
-        assert_eq!(parse_filter("hue-rotate(90deg)").1, vec![ColorFilterOp::HueRotate(90.0)]);
+        assert_eq!(
+            parse_filter("grayscale(100%)").1,
+            vec![ColorFilterOp::Grayscale(1.0)]
+        );
+        assert_eq!(
+            parse_filter("grayscale(0.5)").1,
+            vec![ColorFilterOp::Grayscale(0.5)]
+        );
+        assert_eq!(
+            parse_filter("invert(1)").1,
+            vec![ColorFilterOp::Invert(1.0)]
+        );
+        assert_eq!(
+            parse_filter("brightness(150%)").1,
+            vec![ColorFilterOp::Brightness(1.5)]
+        );
+        assert_eq!(
+            parse_filter("hue-rotate(90deg)").1,
+            vec![ColorFilterOp::HueRotate(90.0)]
+        );
         // bare function defaults to amount 1.0
         assert_eq!(parse_filter("sepia()").1, vec![ColorFilterOp::Sepia(1.0)]);
         // chained: blur goes to the blur slot, color ops preserve order
         let (blur, ops, _opacity) = parse_filter("grayscale(1) blur(2px) contrast(2)");
         assert!(blur.is_some_and(|r| r > 0.0));
-        assert_eq!(ops, vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]);
+        assert_eq!(
+            ops,
+            vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]
+        );
         // none clears everything
         assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0));
     }
@@ -10088,4 +10131,3 @@ mod tests {
         assert!(ps.background_gradient.is_some());
     }
 }
-

@@ -229,7 +229,10 @@ fn decode_png_to_rgb_asset(raw: &[u8]) -> Option<RasterImageAsset> {
     let (width, height) = (rgb.width(), rgb.height());
     let mut encoded = Vec::new();
     image::DynamicImage::ImageRgb8(rgb)
-        .write_to(&mut std::io::Cursor::new(&mut encoded), image::ImageFormat::Png)
+        .write_to(
+            &mut std::io::Cursor::new(&mut encoded),
+            image::ImageFormat::Png,
+        )
         .ok()?;
     let png_info = png::parse_png(&encoded)?;
     Some(RasterImageAsset {
@@ -781,7 +784,10 @@ fn apply_image_filters(
     let (width, height) = (rgb.width(), rgb.height());
     let mut encoded = Vec::new();
     image::DynamicImage::ImageRgb8(rgb)
-        .write_to(&mut std::io::Cursor::new(&mut encoded), image::ImageFormat::Png)
+        .write_to(
+            &mut std::io::Cursor::new(&mut encoded),
+            image::ImageFormat::Png,
+        )
         .ok()?;
     let png_info = png::parse_png(&encoded)?;
     Some(RasterImageAsset {

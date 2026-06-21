@@ -1015,9 +1015,8 @@ pub(crate) fn layout_block_element(
             || style.padding.right > 0.0
             || style.padding.bottom > 0.0)
         && nesting_depth < 40;
-    let had_inline_runs = had_text_runs
-        || (has_inline_box_runs && !will_use_group_wrapper)
-        || has_math_children;
+    let had_inline_runs =
+        had_text_runs || (has_inline_box_runs && !will_use_group_wrapper) || has_math_children;
     if will_use_group_wrapper {
         // Pure inline-block group inside a wrapper: drop the placeholder runs so
         // `layout_inline_block_group` lays them out (unchanged behaviour).
@@ -1362,7 +1361,11 @@ pub(crate) fn layout_block_element(
                 }
                 preceding_siblings.push((
                     child_el.tag_name().to_string(),
-                    child_el.class_list().iter().map(|s| s.to_string()).collect(),
+                    child_el
+                        .class_list()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
                 ));
                 child_el_idx += 1;
             }

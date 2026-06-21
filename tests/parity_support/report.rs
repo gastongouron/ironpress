@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use super::diagnose::Diagnosis;
 use super::manifest::ManifestEntry;
-use super::overlay::{class_label, class_rgb, LEGEND_ORDER};
+use super::overlay::{LEGEND_ORDER, class_label, class_rgb};
 
 // ---------------------------------------------------------------------------
 // Report schema (also the regression baseline)
@@ -291,7 +291,12 @@ impl Report {
 // Result constructors
 // ---------------------------------------------------------------------------
 
-pub(crate) fn fixture_base(entry: &ManifestEntry, status: Status, diff_pct: f64, note: String) -> FixtureResult {
+pub(crate) fn fixture_base(
+    entry: &ManifestEntry,
+    status: Status,
+    diff_pct: f64,
+    note: String,
+) -> FixtureResult {
     FixtureResult {
         id: entry.id.clone(),
         category: entry.category.clone(),
@@ -351,7 +356,11 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
         "Env: DPI {} · white-tol {} · V2 multi-gate verdict · pdftoppm {}\n",
         report.env.dpi,
         report.env.white_tol,
-        if report.env.pdftoppm_available { "yes" } else { "MISSING" }
+        if report.env.pdftoppm_available {
+            "yes"
+        } else {
+            "MISSING"
+        }
     ));
     o.push_str(&format!(
         "Breadth: {} distinct category/feature pairs have a fixture (NOT a % of all CSS).\n",
@@ -388,7 +397,11 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
             ));
             o.push_str(&format!(
                 "- drifted: **{}**\n\n",
-                if cal.drifted { "YES — see WARNING above" } else { "no" }
+                if cal.drifted {
+                    "YES — see WARNING above"
+                } else {
+                    "no"
+                }
             ));
         }
     }
@@ -464,7 +477,11 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
         o.push_str("|----------|----|--------|----------------|---------------|\n");
         for s in &report.stale_refs {
             let short = |h: &str| -> String {
-                if h.len() >= 12 { h[..12].to_string() } else { h.to_string() }
+                if h.len() >= 12 {
+                    h[..12].to_string()
+                } else {
+                    h.to_string()
+                }
             };
             let locked = if s.locked_sha256.is_empty() {
                 "—".to_string()
@@ -473,7 +490,11 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
             };
             o.push_str(&format!(
                 "| {} | `{}` | {} | `{}` | `{}` |\n",
-                s.category, s.id, s.reason, short(&s.current_sha256), locked
+                s.category,
+                s.id,
+                s.reason,
+                short(&s.current_sha256),
+                locked
             ));
         }
         o.push('\n');
@@ -519,7 +540,14 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
             let reason = diag_reason(fx).unwrap_or_else(|| fx.note.clone());
             o.push_str(&format!(
                 "| FAIL | {} | {} | {:.2} | {} | {} | {} | {} | {} |\n",
-                attr, diag_class(fx), fx.diff_pct, fx.category, fx.feature, sub, fx.id, reason
+                attr,
+                diag_class(fx),
+                fx.diff_pct,
+                fx.category,
+                fx.feature,
+                sub,
+                fx.id,
+                reason
             ));
         }
         o.push('\n');
@@ -565,7 +593,12 @@ pub(crate) fn write_report_md(path: &Path, report: &Report) -> Result<(), String
     for c in &report.categories {
         o.push_str(&format!(
             "| {} | {:.2}% | {} | {} | {} | {} |\n",
-            c.category, c.score_pct, c.counts.pass, c.counts.partial, c.counts.fail, c.counts.unknown
+            c.category,
+            c.score_pct,
+            c.counts.pass,
+            c.counts.partial,
+            c.counts.fail,
+            c.counts.unknown
         ));
     }
     o.push('\n');
@@ -819,15 +852,15 @@ pub(crate) fn status_badge(s: Status) -> String {
 /// own readable hues so the chip is self-describing. AaOnly is the muted ceiling.
 pub(crate) fn diag_class_color(class: &str) -> &'static str {
     match class {
-        "Missing" => "#e600e6",        // magenta (overlay Missing)
-        "Extra" => "#1a9e3c",          // green (overlay Extra)
-        "ColorValue" => "#2850ff",     // blue (overlay ColorErr)
-        "ColorSpace" => "#0a8a8a",     // teal (gradient/blend drift)
+        "Missing" => "#e600e6",          // magenta (overlay Missing)
+        "Extra" => "#1a9e3c",            // green (overlay Extra)
+        "ColorValue" => "#2850ff",       // blue (overlay ColorErr)
+        "ColorSpace" => "#0a8a8a",       // teal (gradient/blend drift)
         "AlphaCompositing" => "#7a3cc0", // purple (opacity)
-        "GeometryShift" => "#d2691e",  // orange (overlay GeomShift)
-        "GeometrySize" => "#b8860b",   // dark goldenrod (box-size)
-        "AaOnly" => "#9a6700",         // amber (measurement ceiling)
-        _ => "#57606a",                // grey (unknown / none)
+        "GeometryShift" => "#d2691e",    // orange (overlay GeomShift)
+        "GeometrySize" => "#b8860b",     // dark goldenrod (box-size)
+        "AaOnly" => "#9a6700",           // amber (measurement ceiling)
+        _ => "#57606a",                  // grey (unknown / none)
     }
 }
 
@@ -882,10 +915,16 @@ fn render_diag_chips(diag: &Diagnosis) -> String {
         ));
     }
     if m.missing_area_pct >= 0.1 {
-        o.push_str(&format!("<span class=\"chip\">missing {:.1}%</span>", m.missing_area_pct));
+        o.push_str(&format!(
+            "<span class=\"chip\">missing {:.1}%</span>",
+            m.missing_area_pct
+        ));
     }
     if m.extra_area_pct >= 0.1 {
-        o.push_str(&format!("<span class=\"chip\">extra {:.1}%</span>", m.extra_area_pct));
+        o.push_str(&format!(
+            "<span class=\"chip\">extra {:.1}%</span>",
+            m.extra_area_pct
+        ));
     }
     if m.delta_e >= 0.1 {
         o.push_str(&format!("<span class=\"chip\">ΔE {:.1}</span>", m.delta_e));
@@ -895,7 +934,9 @@ fn render_diag_chips(diag: &Diagnosis) -> String {
     }
     let (dx, dy) = (m.residual_shift_css[0], m.residual_shift_css[1]);
     if dx.abs() >= 0.1 || dy.abs() >= 0.1 {
-        o.push_str(&format!("<span class=\"chip\">shift ({dx:.1},{dy:.1})px</span>"));
+        o.push_str(&format!(
+            "<span class=\"chip\">shift ({dx:.1},{dy:.1})px</span>"
+        ));
     }
     o
 }
@@ -931,7 +972,10 @@ fn render_region_table(diag: &Diagnosis) -> String {
             ));
         }
         if r.shift_css[0].abs() >= 0.1 || r.shift_css[1].abs() >= 0.1 {
-            mag.push_str(&format!("shift({:.1},{:.1}) ", r.shift_css[0], r.shift_css[1]));
+            mag.push_str(&format!(
+                "shift({:.1},{:.1}) ",
+                r.shift_css[0], r.shift_css[1]
+            ));
         }
         if let Some(a) = r.recovered_alpha {
             mag.push_str(&format!("α{a:.2} "));
@@ -992,7 +1036,13 @@ fn render_source_pane(cases_dir: &Path, category: &str, id: &str) -> String {
 pub(crate) fn feat_slug(feature: &str) -> String {
     feature
         .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '-' })
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -1009,7 +1059,11 @@ pub(crate) fn feat_slug(feature: &str) -> String {
 /// from `cases_dir/<cat>/<id>.html`), and a per-region table. `cases_dir` is the
 /// committed fixtures root (`tests/parity/cases`); the source is read at write time
 /// so no fixture text needs threading through the report model.
-pub(crate) fn write_html_reports(reports_dir: &Path, cases_dir: &Path, report: &Report) -> Result<(), String> {
+pub(crate) fn write_html_reports(
+    reports_dir: &Path,
+    cases_dir: &Path,
+    report: &Report,
+) -> Result<(), String> {
     std::fs::create_dir_all(reports_dir)
         .map_err(|e| format!("cannot create reports dir {}: {e}", reports_dir.display()))?;
 
@@ -1139,7 +1193,10 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                 let attr_html = if fx.status == Status::Pass {
                     String::new()
                 } else if fx.attribution.starts_with("CONFOUNDED") {
-                    format!(" · <span class=\"confound\">{}</span>", html_escape(&fx.attribution))
+                    format!(
+                        " · <span class=\"confound\">{}</span>",
+                        html_escape(&fx.attribution)
+                    )
                 } else {
                     " · <span class=\"real\">REAL</span>".to_string()
                 };
@@ -1160,7 +1217,10 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                     None => (String::new(), String::new()),
                 };
                 let reason_html = match diag_reason(fx) {
-                    Some(r) => format!("<div class=\"desc\"><strong>why:</strong> {}</div>", html_escape(&r)),
+                    Some(r) => format!(
+                        "<div class=\"desc\"><strong>why:</strong> {}</div>",
+                        html_escape(&r)
+                    ),
                     None => String::new(),
                 };
                 // The fixture HTML source pane (the headline C5 requirement).
@@ -1199,8 +1259,7 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
         o.push_str("</body></html>");
 
         let page = reports_dir.join(format!("{}.html", c.category));
-        std::fs::write(&page, o)
-            .map_err(|e| format!("cannot write {}: {e}", page.display()))?;
+        std::fs::write(&page, o).map_err(|e| format!("cannot write {}: {e}", page.display()))?;
     }
 
     // index.html
@@ -1211,7 +1270,10 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
     o.push_str("<title>ironpress parity report</title>");
     o.push_str(report_css());
     o.push_str("</head><body>");
-    o.push_str(&format!("<h1>ironpress Chrome-parity — {:.2}%</h1>", ov.score_pct));
+    o.push_str(&format!(
+        "<h1>ironpress Chrome-parity — {:.2}%</h1>",
+        ov.score_pct
+    ));
     o.push_str(&format!(
         "<p class=\"meta\">PASS {} · PARTIAL {} · FAIL {} · UNKNOWN {} · total {} · \
          scored {:.2}%</p>",
@@ -1221,7 +1283,11 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
         "<p class=\"meta\"><strong>Env:</strong> {} DPI · V2 classed-diff \
          (multi-gate verdict) · pdftoppm {}</p>",
         report.env.dpi,
-        if report.env.pdftoppm_available { "yes" } else { "MISSING" }
+        if report.env.pdftoppm_available {
+            "yes"
+        } else {
+            "MISSING"
+        }
     ));
 
     // Calibration banner (spec §1.3 / §3.3): the page-origin correction + drift.
@@ -1235,8 +1301,13 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
             "<p class=\"meta\"><strong>Calibration:</strong> offset ({},{}) device px \
              ({:.2},{:.2} CSS px) · measured ({},{}) · residual {} px · \
              <span style=\"color:{col};font-weight:600\">{state}</span></p>",
-            cal.offset_px[0], cal.offset_px[1], cal.offset_css[0], cal.offset_css[1],
-            cal.measured_px[0], cal.measured_px[1], cal.residual_px,
+            cal.offset_px[0],
+            cal.offset_px[1],
+            cal.offset_css[0],
+            cal.offset_css[1],
+            cal.measured_px[0],
+            cal.measured_px[1],
+            cal.residual_px,
         ));
     }
 
@@ -1270,7 +1341,9 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
         .iter()
         .enumerate()
     {
-        o.push_str(&format!("<th onclick=\"sortTable(this.closest('table'),{i})\">{h}</th>"));
+        o.push_str(&format!(
+            "<th onclick=\"sortTable(this.closest('table'),{i})\">{h}</th>"
+        ));
     }
     o.push_str("</tr></thead><tbody>");
     for c in &report.categories {
@@ -1312,7 +1385,11 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
         rows.sort_by(|a, b| {
             status_rank(a.status)
                 .cmp(&status_rank(b.status))
-                .then(b.diff_pct.partial_cmp(&a.diff_pct).unwrap_or(std::cmp::Ordering::Equal))
+                .then(
+                    b.diff_pct
+                        .partial_cmp(&a.diff_pct)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                )
                 .then(a.id.cmp(&b.id))
         });
         o.push_str("<h2>Fix-by-class worklist</h2>");
@@ -1324,7 +1401,10 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
 onchange=\"filterWorklist()\"><option value=\"\">all</option>",
             );
             for cl in &classes {
-                o.push_str(&format!("<option value=\"{v}\">{v}</option>", v = html_escape(cl)));
+                o.push_str(&format!(
+                    "<option value=\"{v}\">{v}</option>",
+                    v = html_escape(cl)
+                ));
             }
             o.push_str(
                 "</select></label><span class=\"meta\">click a header to sort · click an id to jump</span></div>",
@@ -1334,7 +1414,9 @@ onchange=\"filterWorklist()\"><option value=\"\">all</option>",
                 .iter()
                 .enumerate()
             {
-                o.push_str(&format!("<th onclick=\"sortTable(this.closest('table'),{i})\">{h}</th>"));
+                o.push_str(&format!(
+                    "<th onclick=\"sortTable(this.closest('table'),{i})\">{h}</th>"
+                ));
             }
             o.push_str("</tr></thead><tbody>");
             for fx in &rows {
@@ -1398,17 +1480,22 @@ onchange=\"filterWorklist()\"><option value=\"\">all</option>",
         o.push_str("</ul></details>");
     }
 
-    o.push_str("<p class=\"meta\">Generated by <code>cargo test --test feature_parity</code>. \
+    o.push_str(
+        "<p class=\"meta\">Generated by <code>cargo test --test feature_parity</code>. \
                 Each category page groups fixtures by feature; each card shows Chrome ref | \
                 ironpress | classed diff, a colour legend, the fixture HTML source, and a \
-                per-region table.</p>");
+                per-region table.</p>",
+    );
     o.push_str("</body></html>");
 
     let index = reports_dir.join("index.html");
     std::fs::write(&index, o).map_err(|e| format!("cannot write {}: {e}", index.display()))
 }
 
-pub(crate) fn interaction_kind(fx: &FixtureResult, by_id: &BTreeMap<String, FixtureResult>) -> String {
+pub(crate) fn interaction_kind(
+    fx: &FixtureResult,
+    by_id: &BTreeMap<String, FixtureResult>,
+) -> String {
     if fx.base_ids.is_empty() {
         return String::new();
     }

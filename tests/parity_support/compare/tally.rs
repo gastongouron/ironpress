@@ -63,7 +63,10 @@ impl ClassTally {
             .filter(|c| {
                 matches!(
                     c,
-                    PixelClass::ColorErr | PixelClass::Missing | PixelClass::Extra | PixelClass::GeomShift
+                    PixelClass::ColorErr
+                        | PixelClass::Missing
+                        | PixelClass::Extra
+                        | PixelClass::GeomShift
                 )
             })
             .count() as u64;
@@ -118,7 +121,13 @@ pub(crate) fn aggregate(
             }
         }
     }
-    let pct = |num: u64, den: u64| if den == 0 { 0.0 } else { 100.0 * num as f64 / den as f64 };
+    let pct = |num: u64, den: u64| {
+        if den == 0 {
+            0.0
+        } else {
+            100.0 * num as f64 / den as f64
+        }
+    };
 
     let color_pct = pct(color, union_content);
     let missing_pct = pct(missing, ref_content);
@@ -150,7 +159,11 @@ pub(crate) fn aggregate(
             de_area += r.area_px;
         }
     }
-    let color_de = if de_area > 0 { de_weight / de_area as f64 } else { 0.0 };
+    let color_de = if de_area > 0 {
+        de_weight / de_area as f64
+    } else {
+        0.0
+    };
 
     // INTERIOR-ColorErr aggregate (the hard-colour gate signal). Sum the per-region
     // interior ColorErr px (edge-band ColorErr excluded by `segment`) and the
@@ -166,7 +179,11 @@ pub(crate) fn aggregate(
         }
     }
     let interior_color_pct = pct(interior_px, union_content);
-    let interior_color_de = if interior_px > 0 { interior_de_weight / interior_px as f64 } else { 0.0 };
+    let interior_color_de = if interior_px > 0 {
+        interior_de_weight / interior_px as f64
+    } else {
+        0.0
+    };
 
     let modal_drgb = modal_colorerr_drgb(cm, cand, reference);
     // If ColorErr pixels exist but no ColorErr-dominant region cleared the speck
@@ -229,14 +246,13 @@ fn sampled_colorerr_de(cm: &ClassMap, cand: &RgbaImage, reference: &RgbaImage) -
         let y = (i as u32) / w;
         let c = cand.get_pixel(x, y).0;
         let r = reference.get_pixel(x, y).0;
-        sum += ciede2000(srgb_to_lab([r[0], r[1], r[2]]), srgb_to_lab([c[0], c[1], c[2]]));
+        sum += ciede2000(
+            srgb_to_lab([r[0], r[1], r[2]]),
+            srgb_to_lab([c[0], c[1], c[2]]),
+        );
         n += 1;
     }
-    if n > 0 {
-        sum / n as f64
-    } else {
-        0.0
-    }
+    if n > 0 { sum / n as f64 } else { 0.0 }
 }
 
 fn median(v: &mut [i16]) -> i16 {

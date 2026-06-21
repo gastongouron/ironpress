@@ -361,7 +361,7 @@ fn simple_selector_core_matches(
         let name = &rest[start + 1..end];
         match marker {
             '.' => {
-                if !classes.iter().any(|class| *class == name) {
+                if !classes.contains(&name) {
                     return false;
                 }
             }

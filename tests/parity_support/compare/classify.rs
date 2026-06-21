@@ -9,7 +9,7 @@
 
 use image::RgbaImage;
 
-use super::super::config::{t_aa, t_match, COLOR_DE_PASS, EDGE_JITTER_PX};
+use super::super::config::{COLOR_DE_PASS, EDGE_JITTER_PX, t_aa, t_match};
 use super::super::geom::Mask;
 use super::color::{ciede2000, srgb_to_lab};
 use super::color_delta;
@@ -43,7 +43,14 @@ pub(crate) struct ClassMap {
 /// Whether `target` colour reappears within `radius` of `(x,y)` in `img`, within
 /// the match budget. Used for the ±1px `GeomShift` test (a real recolour or a
 /// >1px shift has no such local match and is NOT forgiven).
-fn color_present_near(img: &RgbaImage, target: &image::Rgba<u8>, x: u32, y: u32, radius: i32, budget: f64) -> bool {
+fn color_present_near(
+    img: &RgbaImage,
+    target: &image::Rgba<u8>,
+    x: u32,
+    y: u32,
+    radius: i32,
+    budget: f64,
+) -> bool {
     let (w, h) = img.dimensions();
     for dy in -radius..=radius {
         for dx in -radius..=radius {

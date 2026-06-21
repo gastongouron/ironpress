@@ -12,10 +12,10 @@
 use std::path::Path;
 
 use super::config::{GLOBAL_OFFSET, PROBE_JITTER_PX};
-use super::geom::{content_bbox, shift_image, BBox};
+use super::geom::{BBox, content_bbox, shift_image};
 use super::manifest::ManifestEntry;
+use super::render::{SharedFonts, check_pdf_valid, render_pdf};
 use super::report::Calibration;
-use super::render::{check_pdf_valid, render_pdf, SharedFonts};
 
 /// Apply the fixed page-origin correction to a candidate: shift by
 /// `-GLOBAL_OFFSET`, filling the exposed edges with white. This is the ONLY
@@ -93,27 +93,43 @@ pub(crate) fn assert_calibration(
     let mut measured = GLOBAL_OFFSET;
     let mut probed = 0u32;
 
-    for entry in entries.iter().filter(|e| e.kind == "probe" && e.geometry == "rigid") {
+    for entry in entries
+        .iter()
+        .filter(|e| e.kind == "probe" && e.geometry == "rigid")
+    {
         let fixture = parity_dir.join(&entry.file);
         let html = std::fs::read_to_string(&fixture)
             .map_err(|e| format!("calibration: cannot read probe {}: {e}", entry.id))?;
         let pdf = render_pdf(&html, entry.sanitize, fonts)
             .map_err(|e| format!("calibration: render probe {} failed: {e}", entry.id))?;
-        check_pdf_valid(&pdf).map_err(|e| format!("calibration: probe {} PDF invalid: {e}", entry.id))?;
+        check_pdf_valid(&pdf)
+            .map_err(|e| format!("calibration: probe {} PDF invalid: {e}", entry.id))?;
 
         let pdf_path = tmp_dir.join(format!("calib-{}.pdf", entry.id));
         std::fs::write(&pdf_path, &pdf)
             .map_err(|e| format!("calibration: cannot write probe pdf: {e}"))?;
         let cand_png = tmp_dir.join(format!("calib-{}.png", entry.id));
-        super::rasterize::rasterize(&pdf_path, &cand_png, tmp_dir, &format!("calib-{}", entry.id))
-            .map_err(|e| format!("calibration: rasterize probe {} failed: {e}", entry.id))?;
+        super::rasterize::rasterize(
+            &pdf_path,
+            &cand_png,
+            tmp_dir,
+            &format!("calib-{}", entry.id),
+        )
+        .map_err(|e| format!("calibration: rasterize probe {} failed: {e}", entry.id))?;
         let cand = image::open(&cand_png)
             .map_err(|e| format!("calibration: decode probe {} failed: {e}", entry.id))?
             .to_rgba8();
 
-        let ref_path = refs_dir.join(&entry.category).join(format!("{}.png", entry.id));
+        let ref_path = refs_dir
+            .join(&entry.category)
+            .join(format!("{}.png", entry.id));
         let reference = image::open(&ref_path)
-            .map_err(|e| format!("calibration: probe {} has no/unreadable reference: {e}", entry.id))?
+            .map_err(|e| {
+                format!(
+                    "calibration: probe {} has no/unreadable reference: {e}",
+                    entry.id
+                )
+            })?
             .to_rgba8();
 
         let cand_bb = content_bbox(&cand)

@@ -113,6 +113,7 @@ fn begin_blend_mode(
 /// are the border-box dimensions. With `box-sizing: border-box` the frame is
 /// drawn inside the box, so each stroke is centered half its width inside the
 /// corresponding box edge (the inner edge meets the image content rect).
+#[allow(clippy::too_many_arguments)]
 fn draw_image_border(
     content: &mut String,
     box_x: f32,
@@ -141,7 +142,12 @@ fn draw_image_border(
         let bw = border.top.width;
         let half = bw / 2.0;
         let (r, g, b) = border.top.color;
-        let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, border.top.alpha);
+        let a = begin_border_alpha(
+            content,
+            page_ext_gstates,
+            bg_alpha_counter,
+            border.top.alpha,
+        );
         content.push_str(dash_pattern_for_style(border.top.style));
         content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
         content.push_str(&format!(
@@ -162,7 +168,12 @@ fn draw_image_border(
     let x_right = box_right - border.right.width / 2.0;
     if border.top.width > 0.0 {
         let (r, g, b) = border.top.color;
-        let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, border.top.alpha);
+        let a = begin_border_alpha(
+            content,
+            page_ext_gstates,
+            bg_alpha_counter,
+            border.top.alpha,
+        );
         content.push_str(dash_pattern_for_style(border.top.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
         content.push_str(&format!("{box_x} {y_top} m {box_right} {y_top} l S\n"));
@@ -193,7 +204,9 @@ fn draw_image_border(
         );
         content.push_str(dash_pattern_for_style(border.bottom.style));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.bottom.width));
-        content.push_str(&format!("{box_x} {y_bottom} m {box_right} {y_bottom} l S\n"));
+        content.push_str(&format!(
+            "{box_x} {y_bottom} m {box_right} {y_bottom} l S\n"
+        ));
         content.push_str(reset_dash_pattern(border.bottom.style));
         end_border_alpha(content, a);
     }
@@ -3046,8 +3059,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let clip_x = container_x + border.left.width;
                         let clip_w =
                             (container_w - border.left.width - border.right.width).max(0.0);
-                        let clip_h =
-                            (total_h - border.top.width - border.bottom.width).max(0.0);
+                        let clip_h = (total_h - border.top.width - border.bottom.width).max(0.0);
                         let clip_y = container_y_top - total_h + border.bottom.width;
                         if *c_border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
@@ -3602,7 +3614,12 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
 /// caller wraps the element's drawing in `q` ... `Q`. Shared by every render
 /// arm so transforms behave identically for top-level, flex-cell, and nested
 /// (container / absolutely-positioned) elements.
-fn push_transform_cm(content: &mut String, t: &crate::style::computed::Transform, cx: f32, cy: f32) {
+fn push_transform_cm(
+    content: &mut String,
+    t: &crate::style::computed::Transform,
+    cx: f32,
+    cy: f32,
+) {
     use crate::style::computed::Transform;
     match t {
         Transform::Rotate(deg) => {
@@ -3611,7 +3628,10 @@ fn push_transform_cm(content: &mut String, t: &crate::style::computed::Transform
             let sin_v = rad.sin();
             let tx = cx - cx * cos_v + cy * sin_v;
             let ty = cy - cx * sin_v - cy * cos_v;
-            content.push_str(&format!("{cos_v} {sin_v} {} {cos_v} {tx} {ty} cm\n", -sin_v));
+            content.push_str(&format!(
+                "{cos_v} {sin_v} {} {cos_v} {tx} {ty} cm\n",
+                -sin_v
+            ));
         }
         Transform::Scale(sx, sy) => {
             let tx = cx - cx * sx;
@@ -3634,7 +3654,7 @@ fn push_transform_cm(content: &mut String, t: &crate::style::computed::Transform
 /// Emit a circle/ellipse as four cubic Bézier arcs (PDF `c` operators) starting
 /// from a `move` to the right vertex. Caller terminates the path (e.g. `W n`).
 fn emit_ellipse_path(content: &mut String, cx: f32, cy: f32, rx: f32, ry: f32) {
-    const K: f32 = 0.552_284_75; // 4/3*(sqrt(2)-1): circle->bezier constant
+    const K: f32 = 0.552_284_8; // 4/3*(sqrt(2)-1): circle->bezier constant
     let (kx, ky) = (K * rx, K * ry);
     content.push_str(&format!("{} {cy} m\n", cx + rx));
     content.push_str(&format!(
@@ -3931,9 +3951,7 @@ fn render_container_children(
     // critically, for all in-flow children — so flow-cursor advancement below is
     // identical to iterating `children` directly. Only the paint order of
     // out-of-flow absolute boxes (which consume no flow space) changes.
-    let needs_reorder = children
-        .iter()
-        .any(|c| child_paint_order(c) != (0, 0));
+    let needs_reorder = children.iter().any(|c| child_paint_order(c) != (0, 0));
     let paint_order: Vec<&LayoutElement> = if needs_reorder {
         let mut ordered: Vec<&LayoutElement> = children.iter().collect();
         ordered.sort_by_key(|c| child_paint_order(c));
@@ -4407,338 +4425,340 @@ fn render_container_children(
                 // `visibility: hidden` keeps the box's space (cursor still
                 // advances below) but paints nothing — gate all drawing on it.
                 if *nk_visible {
-                // `mix-blend-mode`: composite the whole box (background + border +
-                // children) with the backdrop. Outermost q..Q so the blend gstate
-                // scopes the entire element and is restored by `Q` afterwards.
-                let nk_blended = *nk_mix_blend != crate::style::computed::BlendMode::Normal;
-                if nk_blended {
-                    content.push_str("q\n");
-                    begin_blend_mode(content, page_ext_gstates, *nk_mix_blend);
-                }
-                // Apply CSS opacity to the whole subtree as one group (background +
-                // border + children composite together), mirroring the top-level
-                // arm. Outermost q..Q so the alpha applies to the entire box.
-                let nk_needs_opacity = *nk_opacity < 1.0;
-                if nk_needs_opacity {
-                    let gs_name = format!("GScca{bg_alpha_counter}");
-                    *bg_alpha_counter += 1;
-                    page_ext_gstates.push((gs_name.clone(), *nk_opacity));
-                    content.push_str("q\n");
-                    content.push_str(&format!("/{gs_name} gs\n"));
-                }
-
-                // Apply a CSS transform around the box centre (wrap all drawing
-                // in q..Q), mirroring the top-level arm. Without this, transforms
-                // on nested / absolutely-positioned boxes were silently dropped.
-                let nk_needs_transform = nk_transform.is_some();
-                if let Some(t) = nk_transform {
-                    let (ox, oy) = nk_transform_origin.resolve(nk_w, nk_total_h);
-                    let cx = nk_x + ox;
-                    let cy = nk_top_y - oy;
-                    content.push_str("q\n");
-                    push_transform_cm(content, t, cx, cy);
-                }
-                let nk_needs_clip_path = nk_clip_path.is_some();
-                if let Some(cp) = nk_clip_path {
-                    content.push_str("q\n");
-                    push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
-                }
-
-                // Draw background with proper alpha support
-                if let Some((r, g, b, a)) = background_color {
-                    let needs_alpha = *a < 1.0;
-                    if needs_alpha {
+                    // `mix-blend-mode`: composite the whole box (background + border +
+                    // children) with the backdrop. Outermost q..Q so the blend gstate
+                    // scopes the entire element and is restored by `Q` afterwards.
+                    let nk_blended = *nk_mix_blend != crate::style::computed::BlendMode::Normal;
+                    if nk_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *nk_mix_blend);
+                    }
+                    // Apply CSS opacity to the whole subtree as one group (background +
+                    // border + children composite together), mirroring the top-level
+                    // arm. Outermost q..Q so the alpha applies to the entire box.
+                    let nk_needs_opacity = *nk_opacity < 1.0;
+                    if nk_needs_opacity {
                         let gs_name = format!("GScca{bg_alpha_counter}");
                         *bg_alpha_counter += 1;
-                        page_ext_gstates.push((gs_name.clone(), *a));
+                        page_ext_gstates.push((gs_name.clone(), *nk_opacity));
+                        content.push_str("q\n");
                         content.push_str(&format!("/{gs_name} gs\n"));
                     }
-                    content.push_str(&format!(
-                        "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
-                        cx = nk_x,
-                        cy = nk_top_y - nk_total_h,
-                        cw = nk_w,
-                        ch = nk_total_h,
-                    ));
-                    if needs_alpha {
-                        content.push_str("/GSDefault gs\n");
-                    }
-                }
 
-                // `background-blend-mode`: the background image layers (gradient /
-                // SVG) blend against the background color painted above. Scope the
-                // blend gstate to a `q`..`Q` around each background-image paint.
-                let nk_bg_blended = *nk_bg_blend != crate::style::computed::BlendMode::Normal;
-
-                // Draw linear gradient
-                if let Some(gradient) = background_gradient {
-                    let bg_x = nk_x;
-                    let bg_y = nk_top_y - nk_total_h;
-                    if nk_bg_blended {
+                    // Apply a CSS transform around the box centre (wrap all drawing
+                    // in q..Q), mirroring the top-level arm. Without this, transforms
+                    // on nested / absolutely-positioned boxes were silently dropped.
+                    let nk_needs_transform = nk_transform.is_some();
+                    if let Some(t) = nk_transform {
+                        let (ox, oy) = nk_transform_origin.resolve(nk_w, nk_total_h);
+                        let cx = nk_x + ox;
+                        let cy = nk_top_y - oy;
                         content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                        push_transform_cm(content, t, cx, cy);
                     }
-                    if *cont_br > 0.0 {
+                    let nk_needs_clip_path = nk_clip_path.is_some();
+                    if let Some(cp) = nk_clip_path {
                         content.push_str("q\n");
-                        content
-                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
-                        content.push_str("W n\n");
+                        push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
                     }
-                    render_linear_gradient(
-                        content,
-                        gradient,
-                        bg_x,
-                        bg_y,
-                        nk_w,
-                        nk_total_h,
-                        page_shadings,
-                        shading_counter,
-                    );
-                    if *cont_br > 0.0 {
-                        content.push_str("Q\n");
-                    }
-                    if nk_bg_blended {
-                        content.push_str("Q\n");
-                    }
-                }
 
-                // Draw radial gradient
-                if let Some(gradient) = background_radial_gradient {
-                    let bg_x = nk_x;
-                    let bg_y = nk_top_y - nk_total_h;
-                    if nk_bg_blended {
-                        content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
-                    }
-                    if *cont_br > 0.0 {
-                        content.push_str("q\n");
-                        content
-                            .push_str(&rounded_rect_path(bg_x, bg_y, nk_w, nk_total_h, *cont_br));
-                        content.push_str("W n\n");
-                    }
-                    render_radial_gradient(
-                        content,
-                        gradient,
-                        bg_x,
-                        bg_y,
-                        nk_w,
-                        nk_total_h,
-                        page_shadings,
-                        shading_counter,
-                    );
-                    if *cont_br > 0.0 {
-                        content.push_str("Q\n");
-                    }
-                    if nk_bg_blended {
-                        content.push_str("Q\n");
-                    }
-                }
-
-                // Draw SVG background image if specified
-                if let Some(svg_tree) = nk_bg_svg {
-                    let bg_y = nk_top_y - nk_total_h;
-                    // Adjust reference box based on background-origin
-                    let (ref_x, ref_y, ref_w, ref_h) = match nk_bg_origin {
-                        BackgroundOrigin::Border => (
-                            nk_x - border.left.width,
-                            bg_y - border.bottom.width,
-                            nk_w + border.left.width + border.right.width,
-                            nk_total_h + border.top.width + border.bottom.width,
-                        ),
-                        BackgroundOrigin::Content => (
-                            nk_x + padding_left,
-                            bg_y + padding_bottom,
-                            (nk_w - padding_left - padding_right).max(0.0),
-                            (nk_total_h - padding_top - padding_bottom).max(0.0),
-                        ),
-                        BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
-                    };
-                    render_svg_background(
-                        content,
-                        svg_tree,
-                        pdf_writer,
-                        page_images,
-                        page_shadings,
-                        shading_counter,
-                        Some(page_ext_gstates),
-                        BackgroundPaintContext::new(
-                            SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                            SvgViewportBox::new(
-                                nk_x - border.left.width,
-                                bg_y - border.bottom.width,
-                                nk_w + border.left.width + border.right.width,
-                                nk_total_h + border.top.width + border.bottom.width,
-                            ),
-                            *cont_br,
-                            *nk_bg_blur,
-                            *nk_bg_size,
-                            *nk_bg_position,
-                            *nk_bg_repeat,
-                        ),
-                    );
-                }
-
-                // Draw all 4 borders
-                let bx1 = nk_x;
-                let bx2 = nk_x + nk_w;
-                let by1 = nk_top_y;
-                let by2 = nk_top_y - nk_total_h;
-                if border.left.width > 0.0 {
-                    let (r, g, b) = border.left.color;
-                    let a = begin_border_alpha(
-                        content,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                        border.left.alpha,
-                    );
-                    content.push_str(&format!(
-                        "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                        bw = border.left.width,
-                        x = bx1 + border.left.width * 0.5,
-                        y1 = by1,
-                        y2 = by2
-                    ));
-                    end_border_alpha(content, a);
-                }
-                if border.right.width > 0.0 {
-                    let (r, g, b) = border.right.color;
-                    let a = begin_border_alpha(
-                        content,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                        border.right.alpha,
-                    );
-                    content.push_str(&format!(
-                        "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                        bw = border.right.width,
-                        x = bx2 - border.right.width * 0.5,
-                        y1 = by1,
-                        y2 = by2
-                    ));
-                    end_border_alpha(content, a);
-                }
-                if border.top.width > 0.0 {
-                    let (r, g, b) = border.top.color;
-                    let a = begin_border_alpha(
-                        content,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                        border.top.alpha,
-                    );
-                    content.push_str(&format!(
-                        "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                        bw = border.top.width,
-                        x1 = bx1,
-                        x2 = bx2,
-                        y = by1 - border.top.width * 0.5
-                    ));
-                    end_border_alpha(content, a);
-                }
-                if border.bottom.width > 0.0 {
-                    let (r, g, b) = border.bottom.color;
-                    let a = begin_border_alpha(
-                        content,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                        border.bottom.alpha,
-                    );
-                    content.push_str(&format!(
-                        "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                        bw = border.bottom.width,
-                        x1 = bx1,
-                        x2 = bx2,
-                        y = by2 + border.bottom.width * 0.5
-                    ));
-                    end_border_alpha(content, a);
-                }
-
-                // Draw outline if specified (a uniform stroke just outside the
-                // border box). The outline does not affect layout; offsetting the
-                // rect outward by half the outline width keeps the stroke entirely
-                // outside the box edge. Mirrors the TextBlock outline arm.
-                if *nk_outline_width > 0.0 {
-                    let ol_offset = *nk_outline_width / 2.0;
-                    let ol_x = bx1 - ol_offset;
-                    let ol_y = by2 - ol_offset;
-                    let ol_w = nk_w + *nk_outline_width;
-                    let ol_h = nk_total_h + *nk_outline_width;
-                    let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
-                    content.push_str(&format!(
-                        "{or} {og} {ob} RG\n{ow} w\n",
-                        ow = nk_outline_width
-                    ));
-                    if *cont_br > 0.0 {
-                        let ol_r = *cont_br + ol_offset;
-                        content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
-                    } else {
-                        content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
-                    }
-                    content.push_str("S\n");
-                }
-
-                // Clip if overflow:hidden (use rounded rect when border-radius > 0)
-                let clip = *overflow == Overflow::Hidden;
-                if clip {
-                    content.push_str("q\n");
-                    if *cont_br > 0.0 {
-                        content.push_str(&rounded_rect_path(
-                            nk_x,
-                            nk_top_y - nk_total_h,
-                            nk_w,
-                            nk_total_h,
-                            *cont_br,
-                        ));
-                        content.push_str("\nW n\n");
-                    } else {
+                    // Draw background with proper alpha support
+                    if let Some((r, g, b, a)) = background_color {
+                        let needs_alpha = *a < 1.0;
+                        if needs_alpha {
+                            let gs_name = format!("GScca{bg_alpha_counter}");
+                            *bg_alpha_counter += 1;
+                            page_ext_gstates.push((gs_name.clone(), *a));
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                        }
                         content.push_str(&format!(
-                            "{cx} {cy} {cw} {ch} re W n\n",
+                            "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
                             cx = nk_x,
                             cy = nk_top_y - nk_total_h,
                             cw = nk_w,
                             ch = nk_total_h,
                         ));
+                        if needs_alpha {
+                            content.push_str("/GSDefault gs\n");
+                        }
                     }
-                }
 
-                // Recurse into nested children
-                let inner_x = nk_x + padding_left + border.left.width;
-                let inner_w = nk_w - padding_left - padding_right - border.horizontal_width();
-                let inner_y = nk_top_y - padding_top - border.top.width;
-                render_container_children(
-                    content,
-                    nested_kids,
-                    inner_x,
-                    inner_y,
-                    inner_w,
-                    custom_fonts,
-                    prepared_custom_fonts,
-                    page_ext_gstates,
-                    bg_alpha_counter,
-                    page_shadings,
-                    shading_counter,
-                    pdf_writer,
-                    page_images,
-                    *padding_left + border.left.width,
-                    *padding_top + border.top.width,
-                );
+                    // `background-blend-mode`: the background image layers (gradient /
+                    // SVG) blend against the background color painted above. Scope the
+                    // blend gstate to a `q`..`Q` around each background-image paint.
+                    let nk_bg_blended = *nk_bg_blend != crate::style::computed::BlendMode::Normal;
 
-                if clip {
-                    content.push_str("Q\n");
-                }
-                if nk_needs_clip_path {
-                    content.push_str("Q\n");
-                }
-                if nk_needs_transform {
-                    content.push_str("Q\n");
-                }
-                // Close the opacity group (outermost q..Q).
-                if nk_needs_opacity {
-                    content.push_str("Q\n");
-                }
-                // Close the mix-blend-mode scope (restores the prior gstate).
-                if nk_blended {
-                    content.push_str("Q\n");
-                }
+                    // Draw linear gradient
+                    if let Some(gradient) = background_gradient {
+                        let bg_x = nk_x;
+                        let bg_y = nk_top_y - nk_total_h;
+                        if nk_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                        }
+                        if *cont_br > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_linear_gradient(
+                            content,
+                            gradient,
+                            bg_x,
+                            bg_y,
+                            nk_w,
+                            nk_total_h,
+                            page_shadings,
+                            shading_counter,
+                        );
+                        if *cont_br > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                        if nk_bg_blended {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw radial gradient
+                    if let Some(gradient) = background_radial_gradient {
+                        let bg_x = nk_x;
+                        let bg_y = nk_top_y - nk_total_h;
+                        if nk_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                        }
+                        if *cont_br > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_radial_gradient(
+                            content,
+                            gradient,
+                            bg_x,
+                            bg_y,
+                            nk_w,
+                            nk_total_h,
+                            page_shadings,
+                            shading_counter,
+                        );
+                        if *cont_br > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                        if nk_bg_blended {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw SVG background image if specified
+                    if let Some(svg_tree) = nk_bg_svg {
+                        let bg_y = nk_top_y - nk_total_h;
+                        // Adjust reference box based on background-origin
+                        let (ref_x, ref_y, ref_w, ref_h) = match nk_bg_origin {
+                            BackgroundOrigin::Border => (
+                                nk_x - border.left.width,
+                                bg_y - border.bottom.width,
+                                nk_w + border.left.width + border.right.width,
+                                nk_total_h + border.top.width + border.bottom.width,
+                            ),
+                            BackgroundOrigin::Content => (
+                                nk_x + padding_left,
+                                bg_y + padding_bottom,
+                                (nk_w - padding_left - padding_right).max(0.0),
+                                (nk_total_h - padding_top - padding_bottom).max(0.0),
+                            ),
+                            BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
+                        };
+                        render_svg_background(
+                            content,
+                            svg_tree,
+                            pdf_writer,
+                            page_images,
+                            page_shadings,
+                            shading_counter,
+                            Some(page_ext_gstates),
+                            BackgroundPaintContext::new(
+                                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                                SvgViewportBox::new(
+                                    nk_x - border.left.width,
+                                    bg_y - border.bottom.width,
+                                    nk_w + border.left.width + border.right.width,
+                                    nk_total_h + border.top.width + border.bottom.width,
+                                ),
+                                *cont_br,
+                                *nk_bg_blur,
+                                *nk_bg_size,
+                                *nk_bg_position,
+                                *nk_bg_repeat,
+                            ),
+                        );
+                    }
+
+                    // Draw all 4 borders
+                    let bx1 = nk_x;
+                    let bx2 = nk_x + nk_w;
+                    let by1 = nk_top_y;
+                    let by2 = nk_top_y - nk_total_h;
+                    if border.left.width > 0.0 {
+                        let (r, g, b) = border.left.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.left.alpha,
+                        );
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                            bw = border.left.width,
+                            x = bx1 + border.left.width * 0.5,
+                            y1 = by1,
+                            y2 = by2
+                        ));
+                        end_border_alpha(content, a);
+                    }
+                    if border.right.width > 0.0 {
+                        let (r, g, b) = border.right.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.right.alpha,
+                        );
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                            bw = border.right.width,
+                            x = bx2 - border.right.width * 0.5,
+                            y1 = by1,
+                            y2 = by2
+                        ));
+                        end_border_alpha(content, a);
+                    }
+                    if border.top.width > 0.0 {
+                        let (r, g, b) = border.top.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.top.alpha,
+                        );
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                            bw = border.top.width,
+                            x1 = bx1,
+                            x2 = bx2,
+                            y = by1 - border.top.width * 0.5
+                        ));
+                        end_border_alpha(content, a);
+                    }
+                    if border.bottom.width > 0.0 {
+                        let (r, g, b) = border.bottom.color;
+                        let a = begin_border_alpha(
+                            content,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            border.bottom.alpha,
+                        );
+                        content.push_str(&format!(
+                            "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                            bw = border.bottom.width,
+                            x1 = bx1,
+                            x2 = bx2,
+                            y = by2 + border.bottom.width * 0.5
+                        ));
+                        end_border_alpha(content, a);
+                    }
+
+                    // Draw outline if specified (a uniform stroke just outside the
+                    // border box). The outline does not affect layout; offsetting the
+                    // rect outward by half the outline width keeps the stroke entirely
+                    // outside the box edge. Mirrors the TextBlock outline arm.
+                    if *nk_outline_width > 0.0 {
+                        let ol_offset = *nk_outline_width / 2.0;
+                        let ol_x = bx1 - ol_offset;
+                        let ol_y = by2 - ol_offset;
+                        let ol_w = nk_w + *nk_outline_width;
+                        let ol_h = nk_total_h + *nk_outline_width;
+                        let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
+                        content.push_str(&format!(
+                            "{or} {og} {ob} RG\n{ow} w\n",
+                            ow = nk_outline_width
+                        ));
+                        if *cont_br > 0.0 {
+                            let ol_r = *cont_br + ol_offset;
+                            content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
+                        } else {
+                            content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                        }
+                        content.push_str("S\n");
+                    }
+
+                    // Clip if overflow:hidden (use rounded rect when border-radius > 0)
+                    let clip = *overflow == Overflow::Hidden;
+                    if clip {
+                        content.push_str("q\n");
+                        if *cont_br > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                nk_x,
+                                nk_top_y - nk_total_h,
+                                nk_w,
+                                nk_total_h,
+                                *cont_br,
+                            ));
+                            content.push_str("\nW n\n");
+                        } else {
+                            content.push_str(&format!(
+                                "{cx} {cy} {cw} {ch} re W n\n",
+                                cx = nk_x,
+                                cy = nk_top_y - nk_total_h,
+                                cw = nk_w,
+                                ch = nk_total_h,
+                            ));
+                        }
+                    }
+
+                    // Recurse into nested children
+                    let inner_x = nk_x + padding_left + border.left.width;
+                    let inner_w = nk_w - padding_left - padding_right - border.horizontal_width();
+                    let inner_y = nk_top_y - padding_top - border.top.width;
+                    render_container_children(
+                        content,
+                        nested_kids,
+                        inner_x,
+                        inner_y,
+                        inner_w,
+                        custom_fonts,
+                        prepared_custom_fonts,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                        page_shadings,
+                        shading_counter,
+                        pdf_writer,
+                        page_images,
+                        *padding_left + border.left.width,
+                        *padding_top + border.top.width,
+                    );
+
+                    if clip {
+                        content.push_str("Q\n");
+                    }
+                    if nk_needs_clip_path {
+                        content.push_str("Q\n");
+                    }
+                    if nk_needs_transform {
+                        content.push_str("Q\n");
+                    }
+                    // Close the opacity group (outermost q..Q).
+                    if nk_needs_opacity {
+                        content.push_str("Q\n");
+                    }
+                    // Close the mix-blend-mode scope (restores the prior gstate).
+                    if nk_blended {
+                        content.push_str("Q\n");
+                    }
                 } // end if *nk_visible
                 // Absolute containers are out of flow — don't advance the cursor.
                 if !nk_is_abs {
@@ -4972,10 +4992,8 @@ fn render_container_children(
                             border.top.alpha,
                         );
                         content.push_str(dash_pattern_for_style(border.top.style));
-                        content.push_str(&format!(
-                            "{r} {g} {b} RG\n{bw} w\n",
-                            bw = border.top.width
-                        ));
+                        content
+                            .push_str(&format!("{r} {g} {b} RG\n{bw} w\n", bw = border.top.width));
                         content.push_str(&rounded_rect_path(
                             bx,
                             by,
@@ -5923,7 +5941,10 @@ fn render_inline_box(
             ));
             content.push_str("\nf\n");
         } else {
-            content.push_str(&format!("{box_x} {box_bottom} {w} {h} re\nf\n", w = inline.width));
+            content.push_str(&format!(
+                "{box_x} {box_bottom} {w} {h} re\nf\n",
+                w = inline.width
+            ));
         }
         if needs_alpha {
             content.push_str("/GSDefault gs\n");
@@ -6028,8 +6049,15 @@ fn render_line_text(
                 x += inline.width;
                 continue;
             }
-            let run_width =
-                render_run_text(content, run, x, y, custom_fonts, prepared_custom_fonts, word_spacing);
+            let run_width = render_run_text(
+                content,
+                run,
+                x,
+                y,
+                custom_fonts,
+                prepared_custom_fonts,
+                word_spacing,
+            );
             x += run_width;
         }
     }
@@ -6043,22 +6071,21 @@ struct LineBoxMetrics {
 }
 
 fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> LineBoxMetrics {
-    let (mut ascender, descender) =
-        line.runs
-            .iter()
-            .filter(|r| r.inline_box.is_none())
-            .fold((0.0f32, 0.0f32), |(max_ascender, max_descender), run| {
-                let (ascender_ratio, descender_ratio) = crate::fonts::font_metrics_ratios(
-                    &run.font_family,
-                    run.bold,
-                    run.italic,
-                    custom_fonts,
-                );
-                (
-                    max_ascender.max(ascender_ratio * run.font_size),
-                    max_descender.max(descender_ratio * run.font_size),
-                )
-            });
+    let (mut ascender, descender) = line.runs.iter().filter(|r| r.inline_box.is_none()).fold(
+        (0.0f32, 0.0f32),
+        |(max_ascender, max_descender), run| {
+            let (ascender_ratio, descender_ratio) = crate::fonts::font_metrics_ratios(
+                &run.font_family,
+                run.bold,
+                run.italic,
+                custom_fonts,
+            );
+            (
+                max_ascender.max(ascender_ratio * run.font_size),
+                max_descender.max(descender_ratio * run.font_size),
+            )
+        },
+    );
     // A baseline-aligned inline box sits entirely above the baseline, so it
     // raises the line's ascent (and thus pushes the baseline down) when it is
     // taller than the surrounding text. Top/middle/bottom boxes don't move the

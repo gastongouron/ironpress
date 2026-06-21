@@ -224,7 +224,9 @@ pub(crate) fn build_report(mut results: Vec<FixtureResult>, pdftoppm_available: 
 
 pub(crate) fn enforce_gate(baseline: Option<&Report>, current: &Report) -> Result<(), String> {
     let Some(base) = baseline else {
-        eprintln!("parity: no committed baseline report.json — first run, writing baseline and passing.");
+        eprintln!(
+            "parity: no committed baseline report.json — first run, writing baseline and passing."
+        );
         return Ok(());
     };
 
@@ -278,7 +280,10 @@ pub(crate) fn enforce_gate(baseline: Option<&Report>, current: &Report) -> Resul
 /// the lock (no recorded ref) or the recorded hash differs (fixture changed since
 /// the ref was generated). Fixtures with no computed hash (skipped/error before
 /// the read) are ignored. Non-gating here: CI enforces, this only surfaces.
-pub(crate) fn check_refs_freshness(parity_dir: &Path, results: &[FixtureResult]) -> (Vec<StaleRef>, bool) {
+pub(crate) fn check_refs_freshness(
+    parity_dir: &Path,
+    results: &[FixtureResult],
+) -> (Vec<StaleRef>, bool) {
     let lock_path = parity_dir.join("refs.lock");
     let lock: Option<BTreeMap<String, String>> = std::fs::read_to_string(&lock_path)
         .ok()
@@ -310,7 +315,9 @@ pub(crate) fn check_refs_freshness(parity_dir: &Path, results: &[FixtureResult])
             }),
         }
     }
-    stale.sort_by(|a, b| (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str())));
+    stale.sort_by(|a, b| {
+        (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str()))
+    });
     (stale, true)
 }
 
@@ -354,6 +361,8 @@ pub(crate) fn check_coords_freshness(
             None => {} // no sidecar for this fixture — fine.
         }
     }
-    stale.sort_by(|a, b| (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str())));
+    stale.sort_by(|a, b| {
+        (a.category.as_str(), a.id.as_str()).cmp(&(b.category.as_str(), b.id.as_str()))
+    });
     (stale, true)
 }

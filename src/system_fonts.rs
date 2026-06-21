@@ -284,15 +284,14 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     });
     if let Some(font) = cached {
         fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font.clone());
-        return;
+    } else {
+        // In WASM builds there are no system fonts available via fontdb —
+        // fall back to a bundled Noto Sans CJK subset so Chinese/Japanese
+        // kanji + kana at least render. Not bundled in native builds to keep
+        // the CLI binary small (users have access to real system CJK fonts).
+        #[cfg(feature = "wasm")]
+        load_bundled_cjk_font(fonts);
     }
-
-    // In WASM builds there are no system fonts available via fontdb —
-    // fall back to a bundled Noto Sans CJK subset so Chinese/Japanese
-    // kanji + kana at least render. Not bundled in native builds to keep
-    // the CLI binary small (users have access to real system CJK fonts).
-    #[cfg(feature = "wasm")]
-    load_bundled_cjk_font(fonts);
 }
 
 /// Bundled Noto Sans CJK subset (~1.4 MB TTF) — covers CJK Unified Ideographs

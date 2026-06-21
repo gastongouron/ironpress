@@ -16,7 +16,7 @@ use super::super::calibrate::{calibrate, check_probe_offset};
 use super::super::config::CSS_PX;
 use super::super::manifest::ManifestEntry;
 use super::super::report::Status;
-use super::{compare_v2, PixelClass, V2Outcome};
+use super::{PixelClass, V2Outcome, compare_v2};
 
 // ----------------------------------------------------------------------------
 // Synthetic image builders
@@ -119,7 +119,11 @@ fn golden_identical() {
     let o = run(&a, &a);
     dump("identical", &o);
     assert_eq!(o.status, Status::Pass, "identical must PASS");
-    assert!(o.diff_pct < 1e-9, "identical diff must be 0, got {}", o.diff_pct);
+    assert!(
+        o.diff_pct < 1e-9,
+        "identical diff must be 0, got {}",
+        o.diff_pct
+    );
     assert!(o.tally.color_pct == 0.0 && o.tally.missing_pct == 0.0 && o.tally.extra_pct == 0.0);
     assert!(o.tally.edge_max_css == 0.0 && o.tally.shift_max_css == 0.0);
 }
@@ -134,8 +138,16 @@ fn golden_origin_offset_4px() {
     let o = run(&cand, &reference);
     dump("origin_offset_4px", &o);
     assert_eq!(o.status, Status::Pass, "calibrated 4px offset must PASS");
-    assert!(o.tally.edge_max_css < 1e-9, "residual edge must be ~0, got {}", o.tally.edge_max_css);
-    assert!(o.tally.shift_max_css < 1e-9, "residual shift must be ~0, got {}", o.tally.shift_max_css);
+    assert!(
+        o.tally.edge_max_css < 1e-9,
+        "residual edge must be ~0, got {}",
+        o.tally.edge_max_css
+    );
+    assert!(
+        o.tally.shift_max_css < 1e-9,
+        "residual shift must be ~0, got {}",
+        o.tally.shift_max_css
+    );
 }
 
 #[test]
@@ -151,7 +163,11 @@ fn golden_real_shift_5px() {
     let cand = translate(&reference, 5, 5);
     let o = run(&cand, &reference);
     dump("real_shift_5px", &o);
-    assert_ne!(o.status, Status::Pass, "a 5px shift must NOT pass (spec: NOT PASS)");
+    assert_ne!(
+        o.status,
+        Status::Pass,
+        "a 5px shift must NOT pass (spec: NOT PASS)"
+    );
     let band = (5.0 / CSS_PX).abs(); // 1.6
     assert!(
         (o.tally.edge_max_css - band).abs() < 0.2,
@@ -203,7 +219,10 @@ fn golden_box_too_tall_13px() {
     // Asymmetric: bottom side dominates, others ~0.
     let d = o.tally.edge_delta_css;
     assert!(d[3].abs() > 3.0, "bottom delta must dominate, got {d:?}");
-    assert!(d[0].abs() < 0.5 && d[1].abs() < 0.5 && d[2].abs() < 0.5, "other sides ~0, got {d:?}");
+    assert!(
+        d[0].abs() < 0.5 && d[1].abs() < 0.5 && d[2].abs() < 0.5,
+        "other sides ~0, got {d:?}"
+    );
 }
 
 #[test]
@@ -231,7 +250,11 @@ fn golden_box_offby1() {
         "edge_max_css ~= {band:.2}, got {:.3}",
         o.tally.edge_max_css
     );
-    assert_eq!(o.status, Status::Pass, "a 1-device-px (0.32 CSS px) diff is below the edge gate -> PASS");
+    assert_eq!(
+        o.status,
+        Status::Pass,
+        "a 1-device-px (0.32 CSS px) diff is below the edge gate -> PASS"
+    );
 }
 
 #[test]
@@ -246,8 +269,16 @@ fn golden_box_offby1_css() {
     fill(&mut cand, 5, 5, 508, 508, BLACK); // +4 device px R & B ~= 1.28 CSS px
     let o = run(&cand, &reference);
     dump("box_offby1_css", &o);
-    assert_ne!(o.status, Status::Pass, "a 1-CSS-px size error must NOT pass");
-    assert!(o.tally.edge_max_css > 1.0, "edge_max_css must clear the PASS bound, got {:.3}", o.tally.edge_max_css);
+    assert_ne!(
+        o.status,
+        Status::Pass,
+        "a 1-CSS-px size error must NOT pass"
+    );
+    assert!(
+        o.tally.edge_max_css > 1.0,
+        "edge_max_css must clear the PASS bound, got {:.3}",
+        o.tally.edge_max_css
+    );
 }
 
 #[test]
@@ -268,7 +299,11 @@ fn golden_recolor_c00_d00() {
     let o = run(&cand, &reference);
     dump("recolor_c00_d00", &o);
     assert_eq!(o.status, Status::Fail, "a full-area recolour must FAIL");
-    assert_eq!(o.verdict.dominant_class, PixelClass::ColorErr, "dominant must be ColorErr");
+    assert_eq!(
+        o.verdict.dominant_class,
+        PixelClass::ColorErr,
+        "dominant must be ColorErr"
+    );
     assert!(
         o.tally.color_de > 2.5 && o.tally.color_de < 5.0,
         "ΔE for #cc0000 vs #dd0000 is ~3.56, got {:.3}",
@@ -304,8 +339,16 @@ fn golden_colorspace_gamma() {
     }
     let o = run(&lin, &srgb);
     dump("colorspace_gamma", &o);
-    assert_ne!(o.status, Status::Pass, "a gamma/colour-space drift must NOT pass");
-    assert_eq!(o.verdict.dominant_class, PixelClass::ColorErr, "dominant must be ColorErr");
+    assert_ne!(
+        o.status,
+        Status::Pass,
+        "a gamma/colour-space drift must NOT pass"
+    );
+    assert_eq!(
+        o.verdict.dominant_class,
+        PixelClass::ColorErr,
+        "dominant must be ColorErr"
+    );
 }
 
 #[test]
@@ -319,8 +362,16 @@ fn golden_opacity_half() {
     let o = run(&cand, &reference);
     dump("opacity_half", &o);
     assert_eq!(o.status, Status::Fail, "uncomposited opacity must FAIL");
-    assert_eq!(o.verdict.dominant_class, PixelClass::ColorErr, "dominant must be ColorErr");
-    assert!(o.tally.color_de >= 6.0, "0.5-blend ΔE must be large, got {:.3}", o.tally.color_de);
+    assert_eq!(
+        o.verdict.dominant_class,
+        PixelClass::ColorErr,
+        "dominant must be ColorErr"
+    );
+    assert!(
+        o.tally.color_de >= 6.0,
+        "0.5-blend ΔE must be large, got {:.3}",
+        o.tally.color_de
+    );
 }
 
 #[test]
@@ -331,8 +382,16 @@ fn golden_missing_box() {
     let o = run(&cand, &reference);
     dump("missing_box", &o);
     assert_eq!(o.status, Status::Fail, "a blank candidate must FAIL");
-    assert_eq!(o.verdict.dominant_class, PixelClass::Missing, "dominant must be Missing");
-    assert!(o.tally.missing_pct >= 50.0, "missing_pct must be ~100, got {:.2}", o.tally.missing_pct);
+    assert_eq!(
+        o.verdict.dominant_class,
+        PixelClass::Missing,
+        "dominant must be Missing"
+    );
+    assert!(
+        o.tally.missing_pct >= 50.0,
+        "missing_pct must be ~100, got {:.2}",
+        o.tally.missing_pct
+    );
 }
 
 #[test]
@@ -343,9 +402,20 @@ fn golden_extra_box() {
     let reference = canvas(200, 200);
     let o = run(&cand, &reference);
     dump("extra_box", &o);
-    assert!(o.status == Status::Fail || o.status == Status::Partial, "extra paint must NOT pass");
-    assert_eq!(o.verdict.dominant_class, PixelClass::Extra, "dominant must be Extra");
-    assert!(o.tally.extra_pct > 6.0, "extra_pct must exceed the partial bound, got {:.2}", o.tally.extra_pct);
+    assert!(
+        o.status == Status::Fail || o.status == Status::Partial,
+        "extra paint must NOT pass"
+    );
+    assert_eq!(
+        o.verdict.dominant_class,
+        PixelClass::Extra,
+        "dominant must be Extra"
+    );
+    assert!(
+        o.tally.extra_pct > 6.0,
+        "extra_pct must exceed the partial bound, got {:.2}",
+        o.tally.extra_pct
+    );
 }
 
 #[test]
@@ -368,8 +438,16 @@ fn golden_pure_glyph_aa() {
     let o = run(&b, &a);
     dump("pure_glyph_aa", &o);
     assert_eq!(o.status, Status::Pass, "pure shared-edge AA must PASS");
-    assert!(o.tally.color_pct == 0.0, "no ColorErr on pure AA, got {:.3}", o.tally.color_pct);
-    assert!(o.tally.aa_pct > 0.0, "the AA pixels must be counted as AaEdge, got {:.3}", o.tally.aa_pct);
+    assert!(
+        o.tally.color_pct == 0.0,
+        "no ColorErr on pure AA, got {:.3}",
+        o.tally.color_pct
+    );
+    assert!(
+        o.tally.aa_pct > 0.0,
+        "the AA pixels must be counted as AaEdge, got {:.3}",
+        o.tally.aa_pct
+    );
 }
 
 #[test]
@@ -386,11 +464,18 @@ fn golden_wrong_font() {
     dump("wrong_font", &o);
     assert_ne!(o.status, Status::Pass, "wrong stroke weight must NOT pass");
     assert!(
-        matches!(o.verdict.dominant_class, PixelClass::Missing | PixelClass::ColorErr),
+        matches!(
+            o.verdict.dominant_class,
+            PixelClass::Missing | PixelClass::ColorErr
+        ),
         "wrong weight surfaces as Missing/ColorErr, got {:?}",
         o.verdict.dominant_class
     );
-    assert!(o.tally.missing_pct > 6.0, "stroke-thickness Missing must exceed the partial bound, got {:.2}", o.tally.missing_pct);
+    assert!(
+        o.tally.missing_pct > 6.0,
+        "stroke-thickness Missing must exceed the partial bound, got {:.2}",
+        o.tally.missing_pct
+    );
 }
 
 #[test]
@@ -416,7 +501,11 @@ fn golden_miter_vs_square_corner() {
     fill(&mut cand, 10, 10, 109, 30, BLACK); // no miter triangle (butt join)
     let o = run(&cand, &reference);
     dump("miter_vs_square_corner", &o);
-    assert_ne!(o.status, Status::Pass, "a mitered-vs-butt corner must NOT pass");
+    assert_ne!(
+        o.status,
+        Status::Pass,
+        "a mitered-vs-butt corner must NOT pass"
+    );
 }
 
 #[test]
@@ -438,7 +527,10 @@ fn golden_calibration_drift() {
     // Drifted probe: cand - ref == +8,+8 -> outside (4,4)±1 -> Err.
     let drift_ref = (2u32, 2u32, 102u32, 102u32);
     let res = check_probe_offset(cand_bb, drift_ref);
-    assert!(res.is_err(), "a (8,8) raw offset must be reported as drift, got {res:?}");
+    assert!(
+        res.is_err(),
+        "a (8,8) raw offset must be reported as drift, got {res:?}"
+    );
 
     // A scale (not a pure translation) -> Err even if TL is in band.
     // cand - ref: TL +4, BR +14 -> non-uniform.

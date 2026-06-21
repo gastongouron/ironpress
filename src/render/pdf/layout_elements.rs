@@ -774,10 +774,13 @@ pub(super) fn render_nested_layout_elements(
                     .max(0.0);
                 // Border-box height of the container: an explicit `block_height`
                 // (definite height) wins; otherwise derive from the children.
-                let children_h: f32 =
-                    children.iter().map(crate::layout::engine::estimate_element_height).sum();
-                let box_h =
-                    block_height.unwrap_or(*padding_top + children_h + *padding_bottom + border.vertical_width());
+                let children_h: f32 = children
+                    .iter()
+                    .map(crate::layout::engine::estimate_element_height)
+                    .sum();
+                let box_h = block_height.unwrap_or(
+                    *padding_top + children_h + *padding_bottom + border.vertical_width(),
+                );
                 // Paint the container's own background + border box (no text).
                 render_nested_text_block(
                     content,

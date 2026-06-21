@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 47.68%  (PASS 137 · PARTIAL 55 · FAIL 153 · UNKNOWN 1 · total 346)
+Overall: 50.29%  (PASS 151 · PARTIAL 45 · FAIL 149 · UNKNOWN 1 · total 346)
 Scored coverage: 99.71% (345 / 346 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 199 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -59,9 +59,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Missing | 19.15 | generated-content | pseudo-element | after-content-string | generated-content-after-string | content clipped/truncated (5.5% missing) |
 | FAIL | REAL | Missing | 16.62 | generated-content | pseudo-element | before-empty-decorative-box | generated-content-before-decorative-box | content clipped/truncated (5.2% missing) |
 | FAIL | REAL | Missing | 19.25 | generated-content | pseudo-element | before-content-string | generated-content-before-string | content clipped/truncated (5.5% missing) |
-| FAIL | REAL | Extra | 2.80 | grid | align-items | start | grid-align-items-start | extra paint where Chrome is blank (3.5%) |
-| FAIL | REAL | ColorValue | 4.52 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
-| FAIL | REAL | Extra | 3.08 | grid | place-items | center | grid-place-items-center | extra paint where Chrome is blank (7.3%) |
+| FAIL | REAL | ColorValue | 4.48 | grid | grid-template-columns | named-lines | grid-named-lines-basic | fill recolour ΔRGB(-255,-58,-95) (ΔE 51.3) |
 | FAIL | REAL | ColorValue | 12.48 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 21.6) |
 | FAIL | REAL | Missing | 23.11 | inline-text | letter-spacing | positive | inline-text-letter-spacing | content clipped/truncated (10.4% missing) |
 | FAIL | REAL | Missing | 23.20 | inline-text | text-align | center | inline-text-text-align-center | content clipped/truncated (10.3% missing) |
@@ -69,9 +67,9 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | Missing | 26.00 | inline-text | text-align | right | inline-text-text-align-right | content clipped/truncated (10.3% missing) |
 | FAIL | REAL | Missing | 27.02 | inline-text | text-decoration | underline | inline-text-text-decoration-underline | content clipped/truncated (9.0% missing) |
 | FAIL | REAL | Missing | 17.91 | inline-text | vertical-align | baseline | inline-text-vertical-align-baseline | content clipped/truncated (7.2% missing) |
-| FAIL | REAL | GeometrySize | 10.84 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | box −1.3px on right edge (size/box-model mismatch) |
-| FAIL | REAL | GeometrySize | 15.05 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | box −1.9px on bottom edge (size/box-model mismatch) |
-| FAIL | REAL | Missing | 13.64 | inline-text | vertical-align | top | inline-text-vertical-align-top | content clipped/truncated (3.7% missing) |
+| FAIL | REAL | Missing | 15.42 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | content clipped/truncated (5.3% missing) |
+| FAIL | REAL | Missing | 18.22 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | content clipped/truncated (5.5% missing) |
+| FAIL | REAL | Missing | 13.38 | inline-text | vertical-align | top | inline-text-vertical-align-top | content clipped/truncated (3.7% missing) |
 | FAIL | REAL | Missing | 34.01 | inline-text | white-space | nowrap | inline-text-white-space-nowrap | content clipped/truncated (11.2% missing) |
 | FAIL | REAL | Missing | 14.52 | inline-text | white-space | pre | inline-text-white-space-pre | content clipped/truncated (7.4% missing) |
 | FAIL | REAL | Missing | 27.59 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | content clipped/truncated (7.4% missing) |
@@ -80,18 +78,17 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 2.20 | interactions | containing-block | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-position-absolute-top-left` already FAILs | interactions-positioning-absolute-x-box-model-padding | via positioning-position-absolute-top-left: fill recolour ΔRGB(+20,+78,+106) (ΔE 27.6) |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 35.78 | interactions | containing-block | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | interactions-positioning-absolute-x-flexbox-container | via positioning-position-absolute-top-left: fill recolour ΔRGB(+46,-84,-90) (ΔE 49.9) |
 | FAIL | CONFOUNDED: flex-wrap (`flexbox-flex-wrap`) | Missing | 48.13 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap | via flexbox-flex-wrap: content clipped/truncated (14.0% missing) |
-| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | Extra | 25.11 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `grid-display-grid` already FAILs | flexbox-x-grid-nested | via flexbox-display-flex: extra paint where Chrome is blank (5.9%) |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | Extra | 25.11 | interactions | flexbox-x-grid | (interaction: flexbox×grid) DERIVATIVE: base `flexbox-display-flex` already FAILs | flexbox-x-grid-nested | via flexbox-display-flex: extra paint where Chrome is blank (5.9%) |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | Extra | 65.89 | interactions | float | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-positioning-float-x-margin-collapse | via positioning-float-left: extra paint where Chrome is blank (31.8%) |
 | FAIL | CONFOUNDED: float (`positioning-float-left`) | Extra | 65.34 | interactions | float-x-margin-collapse | (interaction: positioning×block-box-model) DERIVATIVE: base `positioning-float-left` already FAILs | interactions-float-x-margin-collapse | via positioning-float-left: extra paint where Chrome is blank (43.9%) |
-| FAIL | CONFOUNDED: display (`grid-display-grid`) | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) DERIVATIVE: base `grid-display-grid` already FAILs | grid-x-background-gradient | via grid-display-grid: fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
-| FAIL | CONFOUNDED: display (`grid-display-grid`) | ColorValue | 4.26 | interactions | grid-x-flexbox | (interaction: grid×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | grid-x-flexbox-nested | via grid-display-grid: fill recolour ΔRGB(-34,+33,-46) (ΔE 31.8) |
-| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 27.68 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (32.1% missing) |
-| FAIL | CONFOUNDED: overflow (`positioning-overflow-hidden-clip`) | ColorValue | 6.07 | interactions | overflow | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `border-radius-uniform` already FAILs | interactions-positioning-overflow-hidden-x-border-radius | via positioning-overflow-hidden-clip: fill recolour ΔRGB(+92,+53,+18) (ΔE 25.7) |
-| FAIL | CONFOUNDED: border-radius (`border-radius-uniform`) | ColorValue | 5.65 | interactions | overflow-hidden-x-border-radius | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `positioning-overflow-hidden-clip` already FAILs | box-model-overflow-hidden-x-border-radius | via border-radius-uniform: fill recolour ΔRGB(+192,+81,-12) (ΔE 52.2) |
+| FAIL | REAL | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) GENUINE: both bases PASS, interaction FAILs | grid-x-background-gradient | fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
+| FAIL | CONFOUNDED: display (`flexbox-display-flex`) | ColorValue | 4.26 | interactions | grid-x-flexbox | (interaction: grid×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | grid-x-flexbox-nested | via flexbox-display-flex: fill recolour ΔRGB(-34,+33,-46) (ΔE 31.8) |
+| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 19.01 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (20.7% missing) |
+| FAIL | CONFOUNDED: overflow (`positioning-overflow-hidden-clip`) | ColorValue | 6.85 | interactions | overflow | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `border-radius-uniform` already FAILs | interactions-positioning-overflow-hidden-x-border-radius | via positioning-overflow-hidden-clip: fill recolour ΔRGB(+92,+53,+18) (ΔE 25.7) |
 | FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | ColorValue | 35.33 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `transforms-translate` already FAILs | interactions-positioning-fixed-x-transforms-translate | via positioning-fixed-top-left: fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 28.20 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: content clipped/truncated (12.6% missing) |
 | FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 35.71 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | positioning-absolute-x-flexbox | via positioning-position-absolute-top-left: fill recolour ΔRGB(+67,-11,-20) (ΔE 19.2) |
-| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 73.89 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `grid-display-grid` already FAILs | positioning-absolute-x-grid | via positioning-position-absolute-top-left: fill recolour ΔRGB(+15,-17,+75) (ΔE 24.0) |
+| FAIL | CONFOUNDED: position (`positioning-position-absolute-top-left`) | ColorValue | 73.89 | interactions | positioning-x-grid | (interaction: positioning×grid) DERIVATIVE: base `positioning-position-absolute-top-left` already FAILs | positioning-absolute-x-grid | via positioning-position-absolute-top-left: fill recolour ΔRGB(+15,-17,+75) (ΔE 24.0) |
 | FAIL | CONFOUNDED: table (`tables-basic-grid`) | Extra | 27.91 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | tables-x-flexbox-nested | via tables-basic-grid: extra paint where Chrome is blank (5.4%) |
 | FAIL | CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`) | Missing | 22.56 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `tables-thead-tbody-tfoot` already FAILs | tables-x-typography-bold | via tables-thead-tbody-tfoot: content clipped/truncated (24.7% missing) |
 | FAIL | CONFOUNDED: transform (`transforms-rotate`) | Extra | 41.17 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) DERIVATIVE: base `flexbox-display-flex` already FAILs | transforms-rotate-x-flexbox-item | via transforms-rotate: extra paint where Chrome is blank (8.7%) |
@@ -104,28 +101,27 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 8.77 | lists-counters | list-style-type | lower-alpha | list-style-type-lower-alpha | fill recolour ΔRGB(+14,+13,+12) (ΔE 84.8) |
 | FAIL | REAL | ColorValue | 9.72 | lists-counters | list-style-type | none | list-style-type-none | fill recolour ΔRGB(+10,+10,+11) (ΔE 82.8) |
 | FAIL | REAL | ColorValue | 7.71 | lists-counters | list-style-type | upper-roman | list-style-type-upper-roman | fill recolour ΔRGB(+13,+12,+13) (ΔE 82.9) |
-| FAIL | REAL | ColorValue | 6.08 | overflow-clipping | overflow | hidden-with-border-radius | overflow-hidden-border-radius | fill recolour ΔRGB(+69,+21,+15) (ΔE 14.9) |
-| FAIL | REAL | ColorValue | 2.55 | overflow-clipping | overflow | hidden | overflow-hidden-clip | fill recolour ΔRGB(+15,+76,+98) (ΔE 27.7) |
-| FAIL | REAL | Missing | 3.87 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | content clipped/truncated (1.9% missing) |
+| FAIL | REAL | ColorValue | 7.10 | overflow-clipping | overflow | hidden-with-border-radius | overflow-hidden-border-radius | fill recolour ΔRGB(+69,+21,+15) (ΔE 14.9) |
+| FAIL | REAL | ColorValue | 4.50 | overflow-clipping | overflow | hidden | overflow-hidden-clip | fill recolour ΔRGB(+15,+76,+98) (ΔE 27.7) |
+| FAIL | REAL | ColorValue | 2.26 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | fill recolour ΔRGB(+8,+62,+52) (ΔE 22.5) |
 | FAIL | REAL | ColorValue | 3.62 | overflow-clipping | overflow | nested-clip-intersection | overflow-hidden-nested | fill recolour ΔRGB(+29,+24,+1) (ΔE 8.8) |
 | FAIL | REAL | Extra | 61.01 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | extra paint where Chrome is blank (50.2%) |
-| FAIL | REAL | Missing | 38.18 | overflow-clipping | overflow | visible | overflow-visible-no-clip | content clipped/truncated (36.5% missing) |
+| FAIL | REAL | Extra | 1.44 | overflow-clipping | overflow | visible | overflow-visible-no-clip | extra paint where Chrome is blank (1.5%) |
 | FAIL | REAL | ColorValue | 10.52 | positioning | containing-block | nearest-positioned-ancestor | positioning-absolute-containing-block-relative-ancestor | fill recolour ΔRGB(-12,-57,-69) (ΔE 32.4) |
 | FAIL | REAL | ColorValue | 2.83 | positioning | containing-block | transform-establishes | positioning-transform-establishes-containing-block | fill recolour ΔRGB(-20,-78,-106) (ΔE 48.4) |
 | FAIL | REAL | Extra | 70.22 | positioning | float | left | positioning-float-left | extra paint where Chrome is blank (41.1%) |
 | FAIL | REAL | ColorValue | 49.51 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset | fill recolour ΔRGB(+23,+117,+197) (ΔE 33.5) |
 | FAIL | REAL | ColorValue | 4.49 | positioning | overflow | hidden-clips-absolute | positioning-overflow-hidden-absolute-child-clip | fill recolour ΔRGB(+92,+53,+18) (ΔE 25.7) |
-| FAIL | REAL | ColorValue | 3.18 | positioning | overflow | hidden | positioning-overflow-hidden-clip | fill recolour ΔRGB(+82,+25,+19) (ΔE 17.6) |
-| FAIL | REAL | Missing | 37.63 | positioning | overflow | visible | positioning-overflow-visible-no-clip | content clipped/truncated (35.2% missing) |
+| FAIL | REAL | ColorValue | 3.63 | positioning | overflow | hidden | positioning-overflow-hidden-clip | fill recolour ΔRGB(+82,+25,+19) (ΔE 17.6) |
 | FAIL | REAL | ColorValue | 39.82 | positioning | position | fixed | positioning-fixed-top-left | fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6) |
 | FAIL | REAL | ColorValue | 2.95 | positioning | position | absolute-bottom-right | positioning-position-absolute-bottom-right | fill recolour ΔRGB(+68,+34,+71) (ΔE 69.1) |
 | FAIL | REAL | ColorValue | 3.11 | positioning | position | absolute | positioning-position-absolute-top-left | fill recolour ΔRGB(+17,+67,+40) (ΔE 57.1) |
 | FAIL | REAL | Missing | 13.58 | tables | border-collapse | collapse | tables-border-collapse | content clipped/truncated (1.6% missing) |
 | FAIL | REAL | Extra | 14.60 | tables | border-collapse | separate | tables-border-separate | extra paint where Chrome is blank (3.5%) |
-| FAIL | REAL | Extra | 57.26 | tables | cell-padding | padding-20px | tables-cell-padding | extra paint where Chrome is blank (35.0%) |
+| FAIL | REAL | ColorValue | 16.54 | tables | cell-padding | padding-20px | tables-cell-padding | fill recolour ΔRGB(-4,-7,-16) (ΔE 31.8) |
 | FAIL | REAL | ColorValue | 11.39 | tables | colspan | colspan-2 | tables-colspan | fill recolour ΔRGB(-23,+66,+44) (ΔE 51.5) |
 | FAIL | REAL | ColorValue | 6.04 | tables | empty-cells | hide | tables-empty-cells-hide | fill recolour ΔRGB(+198,+84,-153) (ΔE 59.6) |
-| FAIL | REAL | ColorValue | 15.64 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+120,+89,+86) (ΔE 37.5) |
+| FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
 | FAIL | REAL | Missing | 26.91 | text-advanced | overflow-wrap | break-word | text-advanced-overflow-wrap-break-word | content clipped/truncated (3.5% missing) |
 | FAIL | REAL | Missing | 25.09 | text-advanced | text-indent | length | text-advanced-text-indent | content clipped/truncated (3.5% missing) |
 | FAIL | REAL | Missing | 25.32 | text-advanced | white-space | normal | text-advanced-white-space-normal | content clipped/truncated (3.5% missing) |
@@ -145,19 +141,18 @@ None — every fixture's HTML matches `refs.lock`.
 |-----:|----|---------|--------|----------:|------------|
 | 1 | `flexbox-display-flex` | display | PARTIAL | 6 | flexbox-x-grid-nested, grid-x-flexbox-nested, interactions-positioning-absolute-x-flexbox-container, positioning-absolute-x-flexbox, tables-x-flexbox-nested, transforms-rotate-x-flexbox-item |
 | 2 | `positioning-position-absolute-top-left` | position | FAIL | 5 | interactions-positioning-absolute-x-box-model-padding, interactions-positioning-absolute-x-flexbox-container, interactions-positioning-absolute-x-transforms-rotate, positioning-absolute-x-flexbox, positioning-absolute-x-grid |
-| 3 | `grid-display-grid` | display | PARTIAL | 4 | flexbox-x-grid-nested, grid-x-background-gradient, grid-x-flexbox-nested, positioning-absolute-x-grid |
-| 4 | `transforms-rotate` | transform | PARTIAL | 3 | interactions-positioning-absolute-x-transforms-rotate, positioning-zindex-x-transforms-rotate, transforms-rotate-x-flexbox-item |
-| 5 | `border-radius-uniform` | border-radius | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 6 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 7 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
-| 8 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 9 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
-| 10 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
-| 11 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
-| 12 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 13 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
-| 14 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
-| 15 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 3 | `transforms-rotate` | transform | PARTIAL | 3 | interactions-positioning-absolute-x-transforms-rotate, positioning-zindex-x-transforms-rotate, transforms-rotate-x-flexbox-item |
+| 4 | `border-radius-uniform` | border-radius | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 5 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
+| 6 | `positioning-float-left` | float | FAIL | 2 | interactions-float-x-margin-collapse, interactions-positioning-float-x-margin-collapse |
+| 7 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
+| 8 | `flexbox-flex-wrap` | flex-wrap | FAIL | 1 | flexbox-wrap-x-gap |
+| 9 | `flexbox-gap` | gap | PARTIAL | 1 | flexbox-wrap-x-gap |
+| 10 | `inline-text-vertical-align-baseline` | vertical-align | FAIL | 1 | inline-block-x-vertical-align |
+| 11 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
+| 12 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
+| 13 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
+| 14 | `transforms-translate` | transform | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -172,15 +167,15 @@ None — every fixture's HTML matches `refs.lock`.
 | flexbox | 25.00% | 0 | 8 | 8 | 0 |
 | fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
 | generated-content | 15.00% | 1 | 1 | 8 | 0 |
-| grid | 43.75% | 1 | 12 | 3 | 0 |
+| grid | 93.75% | 15 | 0 | 1 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 6.25% | 1 | 0 | 15 | 0 |
-| interactions | 11.36% | 2 | 1 | 19 | 0 |
+| interactions | 13.64% | 2 | 2 | 18 | 0 |
 | lists-counters | 4.17% | 0 | 1 | 11 | 0 |
 | multicol | 75.00% | 6 | 0 | 2 | 0 |
 | overflow-clipping | 0.00% | 0 | 0 | 10 | 0 |
 | paged-media | 66.67% | 6 | 0 | 3 | 0 |
-| positioning | 37.50% | 6 | 0 | 10 | 0 |
+| positioning | 40.63% | 6 | 1 | 9 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
 | tables | 31.25% | 0 | 10 | 6 | 0 |
@@ -266,10 +261,10 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 1.89 | multicol | column-span | multicol-column-span-all | A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap). |
 | unsupported | PASS | 1.20 | multicol | column-width | multicol-column-width | Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap). |
 | partial | PASS | 0.46 | multicol | columns | multicol-columns-shorthand | columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap). |
-| unsupported | FAIL | 2.54 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
+| unsupported | FAIL | 4.49 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
 | partial | FAIL | 42.56 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
-| partial | FAIL | 21.80 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
-| unsupported | FAIL | 50.31 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
+| partial | FAIL | 23.75 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
+| unsupported | FAIL | 68.08 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
 | unsupported | PASS | 0.12 | paged-media | break-before | paged-break-before-page-modern | Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine. |
 | unsupported | PASS | 0.85 | paged-media | break-inside | paged-break-inside-avoid | Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap. |
 | unsupported | PASS | 0.00 | paged-media | named-page | paged-named-page | The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap. |
@@ -536,34 +531,34 @@ None — every fixture's HTML matches `refs.lock`.
 - **quotes** — 0.00%
   - FAIL 13.46% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
-### grid — 43.75%
-- **align-items** — 0.00%
-  - FAIL 2.80% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
-- **display** — 50.00%
-  - PARTIAL 1.84% display=grid — `grid-display-grid` — 2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.
+### grid — 93.75%
+- **align-items** — 100.00%
+  - PASS 0.51% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
+- **display** — 100.00%
+  - PASS 0.91% display=grid — `grid-display-grid` — 2x2 grid of fixed-px tracks establishing a grid formatting context; four colored cells fill the tracks.
 - **gap** — 100.00%
   - PASS 0.62% gap=row-column-gap — `grid-gap` — 2x2 grid with distinct row-gap (20px) and column-gap (40px) separating the cells.
-- **grid-auto-flow** — 50.00%
-  - PARTIAL 2.30% grid-auto-flow=column — `grid-auto-flow-column` — grid-auto-flow: column places items down each column before wrapping to the next.
-- **grid-auto-rows** — 50.00%
-  - PARTIAL 2.19% grid-auto-rows=implicit-tracks — `grid-implicit-tracks` — Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.
-- **grid-column** — 50.00%
-  - PARTIAL 2.42% grid-column=span — `grid-column-span` — First cell spans two columns (grid-column: span 2) within a 3x2 grid.
-- **grid-row** — 50.00%
-  - PARTIAL 2.19% grid-row=span — `grid-row-span` — First cell spans two rows (grid-row: span 2) within a 2x2 grid.
-- **grid-template-columns** — 41.67%
-  - FAIL 4.52% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
-  - PARTIAL 2.69% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
-  - PARTIAL 2.31% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
-  - PARTIAL 2.81% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
-  - PARTIAL 2.20% grid-template-columns=percent — `grid-template-columns-percent` — Three columns sized 25% 50% 25% of a fixed-width grid container.
-  - PARTIAL 3.15% grid-template-columns=repeat — `grid-template-columns-repeat` — Four equal 80px columns produced by repeat(4, 80px).
-- **grid-template-rows** — 50.00%
-  - PARTIAL 1.43% grid-template-rows=px — `grid-template-rows` — Single column with three explicit-px rows of 50px, 110px and 70px height.
-- **justify-items** — 50.00%
-  - PARTIAL 3.13% justify-items=end — `grid-justify-items-end` — justify-items: end aligns narrow cells to the inline (right) end of each track.
-- **place-items** — 0.00%
-  - FAIL 3.08% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
+- **grid-auto-flow** — 100.00%
+  - PASS 0.76% grid-auto-flow=column — `grid-auto-flow-column` — grid-auto-flow: column places items down each column before wrapping to the next.
+- **grid-auto-rows** — 100.00%
+  - PASS 1.00% grid-auto-rows=implicit-tracks — `grid-implicit-tracks` — Six items in a two-column grid generate implicit rows sized by grid-auto-rows: 60px.
+- **grid-column** — 100.00%
+  - PASS 0.89% grid-column=span — `grid-column-span` — First cell spans two columns (grid-column: span 2) within a 3x2 grid.
+- **grid-row** — 100.00%
+  - PASS 1.04% grid-row=span — `grid-row-span` — First cell spans two rows (grid-row: span 2) within a 2x2 grid.
+- **grid-template-columns** — 83.33%
+  - FAIL 4.48% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
+  - PASS 0.54% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
+  - PASS 0.76% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
+  - PASS 0.67% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
+  - PASS 0.51% grid-template-columns=percent — `grid-template-columns-percent` — Three columns sized 25% 50% 25% of a fixed-width grid container.
+  - PASS 1.14% grid-template-columns=repeat — `grid-template-columns-repeat` — Four equal 80px columns produced by repeat(4, 80px).
+- **grid-template-rows** — 100.00%
+  - PASS 0.62% grid-template-rows=px — `grid-template-rows` — Single column with three explicit-px rows of 50px, 110px and 70px height.
+- **justify-items** — 100.00%
+  - PASS 0.71% justify-items=end — `grid-justify-items-end` — justify-items: end aligns narrow cells to the inline (right) end of each track.
+- **place-items** — 100.00%
+  - PASS 0.00% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
 ### images-replaced — 86.67%
 - **aspect-ratio** — 100.00%
@@ -602,9 +597,9 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 27.02% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
 - **vertical-align** — 0.00%
   - FAIL 17.91% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
-  - FAIL 10.84% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
-  - FAIL 15.05% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
-  - FAIL 13.64% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
+  - FAIL 15.42% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
+  - FAIL 18.22% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
+  - FAIL 13.38% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
 - **white-space** — 0.00%
   - FAIL 34.01% white-space=nowrap — `inline-text-white-space-nowrap` — white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.
   - FAIL 14.52% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
@@ -614,7 +609,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 0.00%
   - FAIL 18.49% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 11.36%
+### interactions — 13.64%
 - **containing-block** — 0.00%
   - FAIL 2.20% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 35.78% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -631,11 +626,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **grid-x-flexbox** — 0.00%
   - FAIL 4.26% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
 - **inline-block-x-vertical-align** — 0.00%
-  - FAIL 27.68% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
+  - FAIL 19.01% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 0.00%
-  - FAIL 6.07% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
-- **overflow-hidden-x-border-radius** — 0.00%
-  - FAIL 5.65% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
+  - FAIL 6.85% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
+- **overflow-hidden-x-border-radius** — 50.00%
+  - PARTIAL 4.80% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 100.00%
   - PASS 0.63% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
 - **position** — 16.67%
@@ -695,16 +690,16 @@ None — every fixture's HTML matches `refs.lock`.
 
 ### overflow-clipping — 0.00%
 - **overflow** — 0.00%
-  - FAIL 2.54% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
-  - FAIL 6.08% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
-  - FAIL 2.55% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
-  - FAIL 3.87% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
+  - FAIL 4.49% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
+  - FAIL 7.10% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
+  - FAIL 4.50% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
+  - FAIL 2.26% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - FAIL 42.56% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - FAIL 3.62% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
   - FAIL 61.01% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
-  - FAIL 21.80% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
-  - FAIL 38.18% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
-  - FAIL 50.31% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
+  - FAIL 23.75% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
+  - FAIL 1.44% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
+  - FAIL 68.08% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
 
 ### paged-media — 66.67%
 - **break-before** — 100.00%
@@ -726,7 +721,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 37.50%
+### positioning — 40.63%
 - **clear** — 100.00%
   - PASS 0.43% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
 - **containing-block** — 0.00%
@@ -737,10 +732,10 @@ None — every fixture's HTML matches `refs.lock`.
 - **inset** — 50.00%
   - PASS 0.43% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
   - FAIL 49.51% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
-- **overflow** — 0.00%
+- **overflow** — 16.67%
   - FAIL 4.49% overflow=hidden-clips-absolute — `positioning-overflow-hidden-absolute-child-clip` — overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.
-  - FAIL 3.18% overflow=hidden — `positioning-overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the parent box.
-  - FAIL 37.63% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
+  - FAIL 3.63% overflow=hidden — `positioning-overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the parent box.
+  - PARTIAL 1.53% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
 - **position** — 40.00%
   - FAIL 39.82% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
   - FAIL 2.95% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
@@ -797,7 +792,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **caption** — 50.00%
   - PARTIAL 6.13% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
 - **cell-padding** — 0.00%
-  - FAIL 57.26% cell-padding=padding-20px — `tables-cell-padding` — 20px cell padding insets a filled inner box from the cell border on all sides.
+  - FAIL 16.54% cell-padding=padding-20px — `tables-cell-padding` — 20px cell padding insets a filled inner box from the cell border on all sides.
 - **colspan** — 0.00%
   - FAIL 11.39% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
 - **column-width** — 50.00%
@@ -818,7 +813,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **th-cell** — 50.00%
   - PARTIAL 10.07% th-cell=header-default — `tables-th-header` — th header cells in the first row vs td data cells, with distinct fills and text.
 - **vertical-align** — 0.00%
-  - FAIL 15.64% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
+  - FAIL 7.89% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
 
 ### text-advanced — 0.00%
 - **direction** — 0.00%

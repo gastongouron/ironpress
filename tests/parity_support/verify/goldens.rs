@@ -282,7 +282,13 @@ fn unknown_outcome_is_noop() {
     let rv = RasterVerifier::from_outcome(&outcome, &e);
     let px = ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255]));
     let pdf: &[u8] = b"";
-    let ctx = VerifyCtx { entry: &e, pdf, cand: &px, reference: &px, coords: None };
+    let ctx = VerifyCtx {
+        entry: &e,
+        pdf,
+        cand: &px,
+        reference: &px,
+        coords: None,
+    };
     let subs = rv.verify(&ctx);
     assert!(subs.iter().all(|s| s.status == Status::Unknown));
     assert_eq!(combine(&subs).status, Status::Unknown);
@@ -297,21 +303,33 @@ fn all_subverdicts_are_raster_in_phase1() {
     let rv = RasterVerifier::from_outcome(&outcome, &e);
     let px = ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255]));
     let pdf: &[u8] = b"";
-    let ctx = VerifyCtx { entry: &e, pdf, cand: &px, reference: &px, coords: None };
+    let ctx = VerifyCtx {
+        entry: &e,
+        pdf,
+        cand: &px,
+        reference: &px,
+        coords: None,
+    };
     assert_eq!(rv.kind(), VerifierKind::RasterDiff);
     let subs = rv.verify(&ctx);
     assert!(subs.iter().all(|s| s.verifier == VerifierKind::RasterDiff));
     let combined = combine(&subs);
     assert_eq!(combined.per_concern.len(), 3);
-    assert!(combined
-        .per_concern
-        .iter()
-        .all(|p| p.authority == VerifierKind::RasterDiff));
+    assert!(
+        combined
+            .per_concern
+            .iter()
+            .all(|p| p.authority == VerifierKind::RasterDiff)
+    );
     // Each axis status equals the corresponding raster sub-verdict (no challenger
     // can move it in Phase 1).
     for p in &combined.per_concern {
         let sub = subs.iter().find(|s| s.concern == p.concern).unwrap();
-        assert_eq!(p.status, sub.status, "axis {:?} must mirror its sub-verdict", p.concern);
+        assert_eq!(
+            p.status, sub.status,
+            "axis {:?} must mirror its sub-verdict",
+            p.concern
+        );
     }
 }
 
@@ -322,12 +340,12 @@ fn all_subverdicts_are_raster_in_phase1() {
 // PAGE_H_PT = 792; top-left y = 792 - pdf_top.
 // ============================================================================
 
-use super::coords::{spec_fill_rect_pt, CoordBox, CoordSidecar, CoordText};
-use super::pdf_geom::{
-    extract_from_body, extract_geometry, verify_geometry_for_test, BorderRect, FillRect,
-    PdfGeometry, TextRun,
-};
 use super::Concern;
+use super::coords::{CoordBox, CoordSidecar, CoordText, spec_fill_rect_pt};
+use super::pdf_geom::{
+    BorderRect, FillRect, PdfGeometry, TextRun, extract_from_body, extract_geometry,
+    verify_geometry_for_test,
+};
 
 /// Helper: assert two f64 are within `eps`.
 fn near(a: f64, b: f64, eps: f64) -> bool {
@@ -376,20 +394,32 @@ BT\n/F1 12 Tf\n1 0 0 1 120.96 134.4 Tm\n<0048> Tj\nET\n";
     assert!(near(b.rect_pt[2], 200.0, 1e-6), "border w");
     assert!(near(b.rect_pt[3], 100.0, 1e-6), "border h");
     assert!(near(b.width_pt, 2.0, 1e-6), "stroke width");
-    assert!(b.from_segments, "a `m..l..S` run reconstructs the OUTER bbox (from_segments)");
+    assert!(
+        b.from_segments,
+        "a `m..l..S` run reconstructs the OUTER bbox (from_segments)"
+    );
 
     // Clip.
     assert_eq!(g.clips.len(), 1, "one clip rect");
     let c = &g.clips[0];
     assert!(near(c.rect_pt[0], 45.3, 1e-6), "clip x");
-    assert!(near(c.rect_pt[1], 45.3, 1e-6), "clip y_tl = 792-746.7 (validated grid cell)");
-    assert!(near(c.rect_pt[2], 75.0, 1e-6) && near(c.rect_pt[3], 75.0, 1e-6), "clip size");
+    assert!(
+        near(c.rect_pt[1], 45.3, 1e-6),
+        "clip y_tl = 792-746.7 (validated grid cell)"
+    );
+    assert!(
+        near(c.rect_pt[2], 75.0, 1e-6) && near(c.rect_pt[3], 75.0, 1e-6),
+        "clip size"
+    );
 
     // Text run — baseline origin + size only (no glyph advances).
     assert_eq!(g.text_runs.len(), 1, "one text run");
     let t = &g.text_runs[0];
     assert!(near(t.origin_pt[0], 120.96, 1e-6), "text origin x = Tm tx");
-    assert!(near(t.origin_pt[1], 657.6, 1e-6), "text origin y_tl = 792-134.4");
+    assert!(
+        near(t.origin_pt[1], 657.6, 1e-6),
+        "text origin y_tl = 792-134.4"
+    );
     assert!(near(t.size_pt, 12.0, 1e-6), "font size from Tf");
 }
 
@@ -415,12 +445,21 @@ Q\n\
     // scale is still active: 5x5 at (5,5) -> x in [50,100] (w 50), y unscaled.
     assert_eq!(g.fills.len(), 1);
     let f = &g.fills[0];
-    assert!(near(f.rect_pt[0], 50.0, 1e-6), "fill x scaled by cm a=10: 5*10");
-    assert!(near(f.rect_pt[2], 50.0, 1e-6), "fill w scaled by cm a=10: 5*10");
+    assert!(
+        near(f.rect_pt[0], 50.0, 1e-6),
+        "fill x scaled by cm a=10: 5*10"
+    );
+    assert!(
+        near(f.rect_pt[2], 50.0, 1e-6),
+        "fill w scaled by cm a=10: 5*10"
+    );
     assert!(near(f.rect_pt[3], 5.0, 1e-6), "fill h unscaled (d=1)");
     // Text origin x reflects the composed scale*translate.
     assert_eq!(g.text_runs.len(), 1);
-    assert!(near(g.text_runs[0].origin_pt[0], 1100.0, 1e-6), "text x = (100+10)*10");
+    assert!(
+        near(g.text_runs[0].origin_pt[0], 1100.0, 1e-6),
+        "text x = (100+10)*10"
+    );
 }
 
 #[test]
@@ -461,8 +500,16 @@ fn sidecar_2box_1text() -> CoordSidecar {
         frame: "chrome-ref-pt".into(),
         page_pt: [612.0, 792.0],
         boxes: vec![
-            CoordBox { role: "fill".into(), rect_pt: [100.0, 100.0, 200.0, 150.0], selector: None },
-            CoordBox { role: "fill".into(), rect_pt: [400.0, 300.0, 80.0, 60.0], selector: None },
+            CoordBox {
+                role: "fill".into(),
+                rect_pt: [100.0, 100.0, 200.0, 150.0],
+                selector: None,
+            },
+            CoordBox {
+                role: "fill".into(),
+                rect_pt: [400.0, 300.0, 80.0, 60.0],
+                selector: None,
+            },
         ],
         borders: vec![],
         text_runs: vec![CoordText {
@@ -476,11 +523,7 @@ fn sidecar_2box_1text() -> CoordSidecar {
 
 /// Build a candidate geometry mirroring the sidecar, with optional per-element
 /// position perturbations (dx,dy applied to each fill) and a uniform offset.
-fn cand_from(
-    boxes: &[[f64; 4]],
-    text: &[([f64; 2], f64)],
-    uniform: (f64, f64),
-) -> PdfGeometry {
+fn cand_from(boxes: &[[f64; 4]], text: &[([f64; 2], f64)], uniform: (f64, f64)) -> PdfGeometry {
     PdfGeometry {
         fills: boxes
             .iter()
@@ -493,7 +536,10 @@ fn cand_from(
         clips: vec![],
         text_runs: text
             .iter()
-            .map(|(o, s)| TextRun { origin_pt: [o[0] + uniform.0, o[1] + uniform.1], size_pt: *s })
+            .map(|(o, s)| TextRun {
+                origin_pt: [o[0] + uniform.0, o[1] + uniform.1],
+                size_pt: *s,
+            })
             .collect(),
     }
 }
@@ -539,7 +585,8 @@ fn verifier_border_centerline_normalization_matches_chrome() {
         v.status,
         Status::Pass,
         "outer-bbox border insets to Chrome centerline -> PASS (mag {}, {})",
-        v.magnitude, v.headline
+        v.magnitude,
+        v.headline
     );
 
     // A border genuinely the wrong size (size is frame-INDEPENDENT) must still
@@ -556,7 +603,12 @@ fn verifier_border_centerline_normalization_matches_chrome() {
         text_runs: vec![],
     };
     let vw = verify_geometry_for_test(&cand_wrong, &sc);
-    assert_eq!(vw.status, Status::Fail, "12pt-undersized border -> FAIL ({})", vw.headline);
+    assert_eq!(
+        vw.status,
+        Status::Fail,
+        "12pt-undersized border -> FAIL ({})",
+        vw.headline
+    );
 }
 
 #[test]
@@ -574,7 +626,11 @@ fn verifier_re_s_centerline_border_not_double_inset() {
         schema: 1,
         frame: "chrome-ref-pt".into(),
         page_pt: [612.0, 792.0],
-        boxes: vec![CoordBox { role: "fill".into(), rect_pt: [45.3, 45.3, 75.0, 75.0], selector: None }],
+        boxes: vec![CoordBox {
+            role: "fill".into(),
+            rect_pt: [45.3, 45.3, 75.0, 75.0],
+            selector: None,
+        }],
         borders: vec![CoordBox {
             role: "border".into(),
             rect_pt: [46.05, 46.05, 73.5, 73.5],
@@ -583,7 +639,10 @@ fn verifier_re_s_centerline_border_not_double_inset() {
         text_runs: vec![],
     };
     let cand = PdfGeometry {
-        fills: vec![FillRect { rect_pt: [45.3, 45.3, 75.0, 75.0], fill: [1.0, 0.0, 0.0] }],
+        fills: vec![FillRect {
+            rect_pt: [45.3, 45.3, 75.0, 75.0],
+            fill: [1.0, 0.0, 0.0],
+        }],
         // The `re S` border at the centerline (from_segments == false).
         borders: vec![BorderRect {
             rect_pt: [45.3, 45.3, 73.5, 73.5],
@@ -598,9 +657,14 @@ fn verifier_re_s_centerline_border_not_double_inset() {
         v.status,
         Status::Pass,
         "centerline `re S` border is NOT inset twice -> PASS (mag {}, {})",
-        v.magnitude, v.headline
+        v.magnitude,
+        v.headline
     );
-    assert!(v.magnitude <= 0.30 + 1e-9, "size matches exactly (mag {})", v.magnitude);
+    assert!(
+        v.magnitude <= 0.30 + 1e-9,
+        "size matches exactly (mag {})",
+        v.magnitude
+    );
 }
 
 #[test]
@@ -626,9 +690,15 @@ fn verifier_does_not_match_box_to_full_page_background() {
     let cand = PdfGeometry {
         fills: vec![
             // The full-page background (printable area), same top-left corner.
-            FillRect { rect_pt: [28.8, 28.8, 554.4, 734.4], fill: [1.0, 1.0, 1.0] },
+            FillRect {
+                rect_pt: [28.8, 28.8, 554.4, 734.4],
+                fill: [1.0, 1.0, 1.0],
+            },
             // The real parent box (~1.05pt frame offset, exact size).
-            FillRect { rect_pt: [28.8, 28.8, 300.0, 105.0], fill: [0.8, 0.85, 0.9] },
+            FillRect {
+                rect_pt: [28.8, 28.8, 300.0, 105.0],
+                fill: [0.8, 0.85, 0.9],
+            },
         ],
         borders: vec![],
         clips: vec![],
@@ -639,9 +709,14 @@ fn verifier_does_not_match_box_to_full_page_background() {
         v.status,
         Status::Pass,
         "the 300x105 box matches the real box, not the page bg -> PASS (mag {}, {})",
-        v.magnitude, v.headline
+        v.magnitude,
+        v.headline
     );
-    assert!(v.magnitude < 1.0, "no ~629pt phantom size delta (mag {})", v.magnitude);
+    assert!(
+        v.magnitude < 1.0,
+        "no ~629pt phantom size delta (mag {})",
+        v.magnitude
+    );
 }
 
 #[test]
@@ -656,9 +731,21 @@ fn verifier_concentric_nested_border_uses_own_background() {
         frame: "chrome-ref-pt".into(),
         page_pt: [612.0, 792.0],
         boxes: vec![
-            CoordBox { role: "fill".into(), rect_pt: [27.75, 27.75, 225.0, 225.0], selector: None },
-            CoordBox { role: "fill".into(), rect_pt: [45.75, 45.75, 189.0, 189.0], selector: None },
-            CoordBox { role: "fill".into(), rect_pt: [63.75, 63.75, 153.0, 153.0], selector: None },
+            CoordBox {
+                role: "fill".into(),
+                rect_pt: [27.75, 27.75, 225.0, 225.0],
+                selector: None,
+            },
+            CoordBox {
+                role: "fill".into(),
+                rect_pt: [45.75, 45.75, 189.0, 189.0],
+                selector: None,
+            },
+            CoordBox {
+                role: "fill".into(),
+                rect_pt: [63.75, 63.75, 153.0, 153.0],
+                selector: None,
+            },
         ],
         borders: vec![CoordBox {
             role: "border".into(),
@@ -669,9 +756,18 @@ fn verifier_concentric_nested_border_uses_own_background() {
     };
     let cand = PdfGeometry {
         fills: vec![
-            FillRect { rect_pt: [28.8, 28.8, 225.0, 225.0], fill: [0.18, 0.42, 0.87] },
-            FillRect { rect_pt: [46.8, 46.8, 189.0, 189.0], fill: [0.85, 0.31, 0.31] },
-            FillRect { rect_pt: [64.8, 64.8, 153.0, 153.0], fill: [0.94, 0.89, 0.29] },
+            FillRect {
+                rect_pt: [28.8, 28.8, 225.0, 225.0],
+                fill: [0.18, 0.42, 0.87],
+            },
+            FillRect {
+                rect_pt: [46.8, 46.8, 189.0, 189.0],
+                fill: [0.85, 0.31, 0.31],
+            },
+            FillRect {
+                rect_pt: [64.8, 64.8, 153.0, 153.0],
+                fill: [0.94, 0.89, 0.29],
+            },
         ],
         // Segment-reconstructed outer bbox of the innermost border (153 outer).
         borders: vec![BorderRect {
@@ -687,7 +783,8 @@ fn verifier_concentric_nested_border_uses_own_background() {
         v.status,
         Status::Pass,
         "concentric border insets to 150 using its OWN bg, not the 225 ancestor (mag {}, {})",
-        v.magnitude, v.headline
+        v.magnitude,
+        v.headline
     );
 }
 
@@ -700,7 +797,12 @@ fn verifier_pass_exact() {
         (0.0, 0.0),
     );
     let v = verify_geometry_for_test(&cand, &sc);
-    assert_eq!(v.status, Status::Pass, "exact match -> PASS (mag {})", v.magnitude);
+    assert_eq!(
+        v.status,
+        Status::Pass,
+        "exact match -> PASS (mag {})",
+        v.magnitude
+    );
     assert_eq!(v.concern, Concern::Geometry);
 }
 
@@ -715,8 +817,16 @@ fn verifier_pass_after_uniform_1pt_offset_cancel() {
         (1.0, 1.0),
     );
     let v = verify_geometry_for_test(&cand, &sc);
-    assert_eq!(v.status, Status::Pass, "uniform 1pt offset cancelled -> PASS");
-    assert!(v.magnitude <= 0.30 + 1e-9, "post-cancel worst delta within tol (got {})", v.magnitude);
+    assert_eq!(
+        v.status,
+        Status::Pass,
+        "uniform 1pt offset cancelled -> PASS"
+    );
+    assert!(
+        v.magnitude <= 0.30 + 1e-9,
+        "post-cancel worst delta within tol (got {})",
+        v.magnitude
+    );
 }
 
 #[test]
@@ -730,8 +840,16 @@ fn verifier_partial_half_pt() {
         (0.0, 0.0),
     );
     let v = verify_geometry_for_test(&cand, &sc);
-    assert_eq!(v.status, Status::Partial, "0.5pt on one box -> PARTIAL (mag {})", v.magnitude);
-    assert!(near(v.magnitude, 0.5, 1e-6), "magnitude is the 0.5pt worst delta");
+    assert_eq!(
+        v.status,
+        Status::Partial,
+        "0.5pt on one box -> PARTIAL (mag {})",
+        v.magnitude
+    );
+    assert!(
+        near(v.magnitude, 0.5, 1e-6),
+        "magnitude is the 0.5pt worst delta"
+    );
 }
 
 #[test]
@@ -772,8 +890,15 @@ fn verifier_fail_gross_global_offset() {
         (10.0, 10.0),
     );
     let v = verify_geometry_for_test(&cand, &sc);
-    assert_eq!(v.status, Status::Fail, "gross global offset must FAIL (not aligned away)");
-    assert!(v.headline.contains("gross page offset"), "headline names the gross offset");
+    assert_eq!(
+        v.status,
+        Status::Fail,
+        "gross global offset must FAIL (not aligned away)"
+    );
+    assert!(
+        v.headline.contains("gross page offset"),
+        "headline names the gross offset"
+    );
 }
 
 #[test]
@@ -795,7 +920,11 @@ fn verifier_per_element_9pt_bug_not_aligned_away() {
         "a per-element 9pt bug must NOT be aligned away -> FAIL (mag {})",
         v.magnitude
     );
-    assert!(v.magnitude >= 8.9, "the 9pt error survives the alignment (mag {})", v.magnitude);
+    assert!(
+        v.magnitude >= 8.9,
+        "the 9pt error survives the alignment (mag {})",
+        v.magnitude
+    );
 }
 
 #[test]
@@ -809,7 +938,11 @@ fn verifier_size_error_not_offset_cancellable() {
         (0.0, 0.0),
     );
     let v = verify_geometry_for_test(&cand, &sc);
-    assert_eq!(v.status, Status::Fail, "a 9pt width error -> FAIL (size is exact, no offset)");
+    assert_eq!(
+        v.status,
+        Status::Fail,
+        "a 9pt width error -> FAIL (size is exact, no offset)"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -863,14 +996,26 @@ fn combiner_pdfgeom_pass_raster_geom_fail_jitter_is_pass_plus_disagreement() {
     let mut subs = raster_triple(Status::Fail, Status::Pass, Status::Pass);
     subs.push(sv(VK::PdfGeometry, Concern::Geometry, Status::Pass));
     let c = combine(&subs);
-    assert_eq!(c.status, Status::Pass, "geom authority is PdfGeometry; jitter discarded");
-    assert_eq!(c.disagreements.len(), 1, "the raster geometry jitter is recorded");
+    assert_eq!(
+        c.status,
+        Status::Pass,
+        "geom authority is PdfGeometry; jitter discarded"
+    );
+    assert_eq!(
+        c.disagreements.len(),
+        1,
+        "the raster geometry jitter is recorded"
+    );
     let d = &c.disagreements[0];
     assert_eq!(d.concern, Concern::Geometry);
     assert_eq!(d.authoritative_by, VK::PdfGeometry);
     assert_eq!(d.challenger_by, VK::RasterDiff);
     // The Geometry axis is owned by PdfGeometry and stays PASS.
-    let geom_axis = c.per_concern.iter().find(|p| p.concern == Concern::Geometry).unwrap();
+    let geom_axis = c
+        .per_concern
+        .iter()
+        .find(|p| p.concern == Concern::Geometry)
+        .unwrap();
     assert_eq!(geom_axis.authority, VK::PdfGeometry);
     assert_eq!(geom_axis.status, Status::Pass);
 }
@@ -891,11 +1036,21 @@ fn combiner_pdfgeom_fail_capped_when_image_not_broken() {
         Status::Partial,
         "vector FAIL on visually-correct geometry is capped to PARTIAL, not FAIL"
     );
-    let geom = c.per_concern.iter().find(|p| p.concern == Concern::Geometry).unwrap();
+    let geom = c
+        .per_concern
+        .iter()
+        .find(|p| p.concern == Concern::Geometry)
+        .unwrap();
     assert_eq!(geom.authority, VK::PdfGeometry);
-    assert_eq!(geom.status, Status::Partial, "geometry axis tempered to PARTIAL");
+    assert_eq!(
+        geom.status,
+        Status::Partial,
+        "geometry axis tempered to PARTIAL"
+    );
     assert!(
-        c.disagreements.iter().any(|d| d.note.contains("capped to PARTIAL")),
+        c.disagreements
+            .iter()
+            .any(|d| d.note.contains("capped to PARTIAL")),
         "the cap is recorded as a disagreement"
     );
 }
@@ -908,7 +1063,11 @@ fn combiner_pdfgeom_fail_stands_when_raster_geom_also_fails() {
     let mut subs = raster_triple(Status::Fail, Status::Pass, Status::Pass);
     subs.push(sv(VK::PdfGeometry, Concern::Geometry, Status::Fail));
     let c = combine(&subs);
-    assert_eq!(c.status, Status::Fail, "vector FAIL confirmed by raster geometry FAIL -> FAIL");
+    assert_eq!(
+        c.status,
+        Status::Fail,
+        "vector FAIL confirmed by raster geometry FAIL -> FAIL"
+    );
 }
 
 #[test]
@@ -920,7 +1079,11 @@ fn combiner_pdfgeom_fail_capped_when_raster_geom_partial() {
     let mut subs = raster_triple(Status::Partial, Status::Pass, Status::Pass);
     subs.push(sv(VK::PdfGeometry, Concern::Geometry, Status::Fail));
     let c = combine(&subs);
-    assert_eq!(c.status, Status::Partial, "PdfGeom FAIL + raster PARTIAL geometry -> PARTIAL");
+    assert_eq!(
+        c.status,
+        Status::Partial,
+        "PdfGeom FAIL + raster PARTIAL geometry -> PARTIAL"
+    );
 }
 
 #[test]
@@ -930,7 +1093,11 @@ fn combiner_pdfgeom_pass_raster_appearance_fail_is_fail() {
     let mut subs = raster_triple(Status::Pass, Status::Fail, Status::Pass);
     subs.push(sv(VK::PdfGeometry, Concern::Geometry, Status::Pass));
     let c = combine(&subs);
-    assert_eq!(c.status, Status::Fail, "Appearance authority stays with raster -> FAIL");
+    assert_eq!(
+        c.status,
+        Status::Fail,
+        "Appearance authority stays with raster -> FAIL"
+    );
 }
 
 #[test]
@@ -940,7 +1107,11 @@ fn combiner_pdfgeom_pass_raster_presence_fail_is_fail() {
     let mut subs = raster_triple(Status::Pass, Status::Pass, Status::Fail);
     subs.push(sv(VK::PdfGeometry, Concern::Geometry, Status::Pass));
     let c = combine(&subs);
-    assert_eq!(c.status, Status::Fail, "Presence authority stays with raster -> FAIL");
+    assert_eq!(
+        c.status,
+        Status::Fail,
+        "Presence authority stays with raster -> FAIL"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -954,9 +1125,18 @@ fn pdfgeom_applies_is_false_without_sidecar() {
     let px = ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255]));
     // Even with a perfectly tokenizable PDF, NO sidecar => does not apply.
     let pdf = b"%PDF-1.7\n1 0 obj\n<< /Length 20 >>\nstream\n0 0 1 rg\n1 1 2 2 re\nf\nendstream\nendobj\n%%EOF\n";
-    let ctx = VerifyCtx { entry: &e, pdf: pdf.as_slice(), cand: &px, reference: &px, coords: None };
+    let ctx = VerifyCtx {
+        entry: &e,
+        pdf: pdf.as_slice(),
+        cand: &px,
+        reference: &px,
+        coords: None,
+    };
     let v = PdfGeomVerifier;
-    assert!(!v.applies(&ctx), "Phase 2a: no sidecar => PdfGeometry never applies (no-op)");
+    assert!(
+        !v.applies(&ctx),
+        "Phase 2a: no sidecar => PdfGeometry never applies (no-op)"
+    );
 }
 
 #[test]
@@ -968,11 +1148,26 @@ fn pdfgeom_applies_true_only_with_sidecar_and_tokenizable_pdf() {
     // With a sidecar AND a tokenizable PDF -> applies. (Proves the gate is the
     // sidecar presence, so the production no-op is purely the absence of files.)
     let pdf = b"%PDF-1.7\n1 0 obj\n<< /Length 20 >>\nstream\n0 0 1 rg\n1 1 2 2 re\nf\nendstream\nendobj\n%%EOF\n";
-    let ctx = VerifyCtx { entry: &e, pdf: pdf.as_slice(), cand: &px, reference: &px, coords: Some(&sc) };
+    let ctx = VerifyCtx {
+        entry: &e,
+        pdf: pdf.as_slice(),
+        cand: &px,
+        reference: &px,
+        coords: Some(&sc),
+    };
     let v = PdfGeomVerifier;
     assert!(v.applies(&ctx), "sidecar + tokenizable PDF -> applies");
     // And with a sidecar but a FILTERED PDF -> Unknown (does NOT apply).
     let filtered = b"%PDF-1.7\n1 0 obj\n<< /Length 20 /Filter /FlateDecode >>\nstream\nxx re xx rg xx m\nendstream\nendobj\n%%EOF\n";
-    let ctx2 = VerifyCtx { entry: &e, pdf: filtered.as_slice(), cand: &px, reference: &px, coords: Some(&sc) };
-    assert!(!v.applies(&ctx2), "filtered PDF -> does not apply (degrade to raster)");
+    let ctx2 = VerifyCtx {
+        entry: &e,
+        pdf: filtered.as_slice(),
+        cand: &px,
+        reference: &px,
+        coords: Some(&sc),
+    };
+    assert!(
+        !v.applies(&ctx2),
+        "filtered PDF -> does not apply (degrade to raster)"
+    );
 }

@@ -122,7 +122,15 @@ pub(crate) fn layout_multicol_container(
             continue;
         };
         // Decide span-all by computing the child's style cheaply.
-        let span_all = child_span_all(child_el, style, env, &child_ancestors, element_index, element_count, &preceding_siblings);
+        let span_all = child_span_all(
+            child_el,
+            style,
+            env,
+            &child_ancestors,
+            element_index,
+            element_count,
+            &preceding_siblings,
+        );
         let item_ctx = if span_all { &full_ctx } else { &col_ctx };
 
         let mut buf: Vec<LayoutElement> = Vec::new();
@@ -148,7 +156,11 @@ pub(crate) fn layout_multicol_container(
 
         preceding_siblings.push((
             child_el.tag_name().to_string(),
-            child_el.class_list().iter().map(|s| s.to_string()).collect(),
+            child_el
+                .class_list()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
         ));
         element_index += 1;
     }
@@ -217,15 +229,10 @@ pub(crate) fn layout_multicol_container(
             && num_cols > 1
         {
             let rule_w = style.column_rule.width;
-            let rule_color = style
-                .column_rule
-                .color
-                .unwrap_or(style.color)
-                .to_f32_rgba();
+            let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
             for c in 0..num_cols - 1 {
                 // Center of the gap between column c and c+1.
-                let gap_center =
-                    pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+                let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
                 let rule_x = gap_center - rule_w / 2.0;
                 column_children.push(make_rule_container(
                     rule_x, cursor_y, rule_w, run_max_h, rule_color,

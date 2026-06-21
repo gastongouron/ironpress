@@ -25,9 +25,9 @@
 //! unchanged. The tokenizer + verifier are exercised entirely by `goldens.rs`.
 
 use super::super::config::{GEOM_TOL_PT, PAGE_H_PT};
-use super::coords::{CoordBox, CoordSidecar, CoordText};
-use super::{Concern, SubVerdict, VerifierKind, VerifyCtx, Verifier};
 use super::super::report::Status;
+use super::coords::{CoordBox, CoordSidecar, CoordText};
+use super::{Concern, SubVerdict, Verifier, VerifierKind, VerifyCtx};
 
 // ---------------------------------------------------------------------------
 // Extracted geometry primitives (candidate side), top-left-origin pt.
@@ -104,11 +104,21 @@ struct Mat {
 }
 
 impl Mat {
-    const IDENTITY: Mat = Mat { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 0.0, f: 0.0 };
+    const IDENTITY: Mat = Mat {
+        a: 1.0,
+        b: 0.0,
+        c: 0.0,
+        d: 1.0,
+        e: 0.0,
+        f: 0.0,
+    };
 
     /// Apply this matrix to a point.
     fn apply(&self, x: f64, y: f64) -> (f64, f64) {
-        (self.a * x + self.c * y + self.e, self.b * x + self.d * y + self.f)
+        (
+            self.a * x + self.c * y + self.e,
+            self.b * x + self.d * y + self.f,
+        )
     }
 
     /// `self` premultiplied by `m` (i.e. the matrix that first applies `m`, then
@@ -284,7 +294,20 @@ fn tokenize(body: &[u8]) -> Vec<Tok<'_>> {
 fn is_delim(c: u8) -> bool {
     matches!(
         c,
-        b' ' | b'\t' | b'\r' | b'\n' | b'\x0c' | b'\0' | b'[' | b']' | b'{' | b'}' | b'(' | b')' | b'<' | b'>' | b'/'
+        b' ' | b'\t'
+            | b'\r'
+            | b'\n'
+            | b'\x0c'
+            | b'\0'
+            | b'['
+            | b']'
+            | b'{'
+            | b'}'
+            | b'('
+            | b')'
+            | b'<'
+            | b'>'
+            | b'/'
     )
 }
 
@@ -445,7 +468,9 @@ pub(crate) fn extract_from_body(body: &[u8]) -> PdfGeometry {
                         // `W`, it is a clip rect.
                         flush_border(&mut geo, &mut path, line_width, &ctm);
                         if let Some(re) = path.last_re.take() {
-                            geo.clips.push(ClipRect { rect_pt: rect_topleft(re, &ctm) });
+                            geo.clips.push(ClipRect {
+                                rect_pt: rect_topleft(re, &ctm),
+                            });
                         }
                         path.seg_pts.clear();
                     }
@@ -481,13 +506,27 @@ pub(crate) fn extract_from_body(body: &[u8]) -> PdfGeometry {
                     b"Td" | b"TD" if in_text && nums.len() >= 2 => {
                         let n = nums.len();
                         let (tx, ty) = (nums[n - 2], nums[n - 1]);
-                        tlm = tlm.prepend(Mat { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: tx, f: ty });
+                        tlm = tlm.prepend(Mat {
+                            a: 1.0,
+                            b: 0.0,
+                            c: 0.0,
+                            d: 1.0,
+                            e: tx,
+                            f: ty,
+                        });
                         tm = tlm;
                         text_emitted_for_run = false;
                     }
                     b"T*" if in_text => {
                         // No leading (TL) tracked -> translate by 0 in y.
-                        tlm = tlm.prepend(Mat { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 0.0, f: 0.0 });
+                        tlm = tlm.prepend(Mat {
+                            a: 1.0,
+                            b: 0.0,
+                            c: 0.0,
+                            d: 1.0,
+                            e: 0.0,
+                            f: 0.0,
+                        });
                         tm = tlm;
                         text_emitted_for_run = false;
                     }
@@ -548,7 +587,12 @@ fn rect_topleft(re: [f64; 4], ctm: &Mat) -> [f64; 4] {
 /// CTM; ironpress's CTM is identity for borders, so this is the literal width).
 fn stroke_width_pt(line_width: f64, ctm: &Mat) -> f64 {
     let scale = (ctm.a * ctm.a + ctm.b * ctm.b).sqrt();
-    line_width * if scale.is_finite() && scale > 0.0 { scale } else { 1.0 }
+    line_width
+        * if scale.is_finite() && scale > 0.0 {
+            scale
+        } else {
+            1.0
+        }
 }
 
 /// Reconstruct a `BorderRect` from the accumulated `m..l` segment points (the 4
@@ -634,10 +678,16 @@ struct Prim {
 }
 
 fn box_prim(b: &CoordBox) -> Prim {
-    Prim { pos: [b.rect_pt[0], b.rect_pt[1]], size: [b.rect_pt[2], b.rect_pt[3]] }
+    Prim {
+        pos: [b.rect_pt[0], b.rect_pt[1]],
+        size: [b.rect_pt[2], b.rect_pt[3]],
+    }
 }
 fn fill_prim(r: &[f64; 4]) -> Prim {
-    Prim { pos: [r[0], r[1]], size: [r[2], r[3]] }
+    Prim {
+        pos: [r[0], r[1]],
+        size: [r[2], r[3]],
+    }
 }
 /// Reduce a candidate `BorderRect` to its CENTERLINE rect — the convention the
 /// sidecar records (Chrome's `--print-to-pdf` strokes one `x y w h re S` at the
@@ -687,14 +737,23 @@ fn border_prim(b: &BorderRect, fills: &[[f64; 4]]) -> Prim {
     Prim {
         // Centerline = outer box inset by half the stroke width on every side.
         pos: [outer_pos[0] + half, outer_pos[1] + half],
-        size: [(outer_size[0] - b.width_pt).max(0.0), (outer_size[1] - b.width_pt).max(0.0)],
+        size: [
+            (outer_size[0] - b.width_pt).max(0.0),
+            (outer_size[1] - b.width_pt).max(0.0),
+        ],
     }
 }
 fn text_prim(t: &CoordText) -> Prim {
-    Prim { pos: t.origin_pt, size: [t.size_pt, f64::NAN] }
+    Prim {
+        pos: t.origin_pt,
+        size: [t.size_pt, f64::NAN],
+    }
 }
 fn run_prim(t: &TextRun) -> Prim {
-    Prim { pos: t.origin_pt, size: [t.size_pt, f64::NAN] }
+    Prim {
+        pos: t.origin_pt,
+        size: [t.size_pt, f64::NAN],
+    }
 }
 
 /// The candidate fill that is the border's OWN element background: its center
@@ -814,8 +873,11 @@ fn verify_geometry(cand: &PdfGeometry, sidecar: &CoordSidecar) -> SubVerdict {
     let cand_fills: Vec<Prim> = cand_fill_rects.iter().map(fill_prim).collect();
     // Borders reconstruct their centerline against the (filtered) fills, so a `re S`
     // border at the centerline is NOT inset twice (the cell Δ1.5pt bug).
-    let cand_borders: Vec<Prim> =
-        cand.borders.iter().map(|b| border_prim(b, &cand_fill_rects)).collect();
+    let cand_borders: Vec<Prim> = cand
+        .borders
+        .iter()
+        .map(|b| border_prim(b, &cand_fill_rects))
+        .collect();
     let cand_text: Vec<Prim> = cand.text_runs.iter().map(run_prim).collect();
 
     let groups: [(&str, &[Prim], &[Prim]); 3] = [
@@ -919,9 +981,7 @@ fn verify_geometry(cand: &PdfGeometry, sidecar: &CoordSidecar) -> SubVerdict {
     } else if status == Status::Fail && missing {
         format!("pdf-geom FAIL: {worst_label}")
     } else {
-        format!(
-            "pdf-geom: worst {worst_label} (offset {off_mag:.3}pt cancelled)"
-        )
+        format!("pdf-geom: worst {worst_label} (offset {off_mag:.3}pt cancelled)")
     };
 
     SubVerdict {

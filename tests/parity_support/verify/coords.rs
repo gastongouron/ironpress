@@ -74,7 +74,10 @@ pub(crate) struct CoordText {
 /// `None` (degrade to the raster geometry fallback — never a false pass/fail).
 ///
 /// PHASE 2a: no sidecar files exist, so this returns `None` for every fixture.
-pub(crate) fn load_coords_sidecar(parity_dir: &Path, entry: &ManifestEntry) -> Option<CoordSidecar> {
+pub(crate) fn load_coords_sidecar(
+    parity_dir: &Path,
+    entry: &ManifestEntry,
+) -> Option<CoordSidecar> {
     let path = parity_dir
         .join("coords")
         .join(&entry.category)

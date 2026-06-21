@@ -435,14 +435,21 @@ mod tests {
             result.contains(".box { background: green }"),
             "print block dropped by comment: {result}"
         );
-        assert!(!result.contains("/*"), "comments should be stripped: {result}");
+        assert!(
+            !result.contains("/*"),
+            "comments should be stripped: {result}"
+        );
     }
 
     #[test]
     fn strip_css_comments_preserves_strings() {
         // A `/*` inside a quoted value must survive.
-        let out = super::strip_css_comments("a { content: \"/* not a comment */\" } /* real */ b{}");
-        assert!(out.contains("\"/* not a comment */\""), "string mangled: {out}");
+        let out =
+            super::strip_css_comments("a { content: \"/* not a comment */\" } /* real */ b{}");
+        assert!(
+            out.contains("\"/* not a comment */\""),
+            "string mangled: {out}"
+        );
         assert!(!out.contains("/* real */"), "real comment kept: {out}");
     }
 
@@ -480,7 +487,8 @@ mod tests {
         );
 
         // The fixture's condition.
-        let block = preprocess_media_queries("@supports (display: block) { .box { background: green } }");
+        let block =
+            preprocess_media_queries("@supports (display: block) { .box { background: green } }");
         assert!(
             block.contains(".box { background: green }"),
             "block @supports condition dropped: {block}"
@@ -489,8 +497,7 @@ mod tests {
 
     #[test]
     fn preprocess_supports_drops_unsupported_conditions() {
-        let result =
-            preprocess_media_queries("@supports (nonsense-prop: x) { p { color: red } }");
+        let result = preprocess_media_queries("@supports (nonsense-prop: x) { p { color: red } }");
         assert!(
             !result.contains("color: red"),
             "unsupported @supports block kept: {result}"
@@ -503,7 +510,9 @@ mod tests {
         assert!(supports_condition("(display: flex)"));
         assert!(supports_condition("(display: flex) and (color: red)"));
         assert!(supports_condition("(nonsense-prop: x) or (display: flex)"));
-        assert!(!supports_condition("(nonsense-prop: x) and (display: flex)"));
+        assert!(!supports_condition(
+            "(nonsense-prop: x) and (display: flex)"
+        ));
         assert!(supports_condition("not (nonsense-prop: x)"));
         assert!(!supports_condition("not (display: flex)"));
         // Lenient default for unrecognised shapes.

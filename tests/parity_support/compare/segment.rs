@@ -8,7 +8,9 @@
 
 use image::RgbaImage;
 
-use super::super::config::{CSS_PX, EDGE_JITTER_PX, REGION_MIN_AREA_PX, RESIDUAL_JITTER_PX, SHIFT_SEARCH_PX};
+use super::super::config::{
+    CSS_PX, EDGE_JITTER_PX, REGION_MIN_AREA_PX, RESIDUAL_JITTER_PX, SHIFT_SEARCH_PX,
+};
 use super::classify::{ClassMap, PixelClass};
 use super::color::{ciede2000, srgb_to_lab};
 use super::masks::StructuralMasks;
@@ -106,11 +108,17 @@ pub(crate) fn segment(
             continue;
         }
 
-        regions.push(diagnose_region(&members, cm, cand, reference, masks, w, total_px));
+        regions.push(diagnose_region(
+            &members, cm, cand, reference, masks, w, total_px,
+        ));
     }
 
     // Worst-first by area for stable, useful ordering downstream.
-    regions.sort_by(|a, b| b.area_pct.partial_cmp(&a.area_pct).unwrap_or(std::cmp::Ordering::Equal));
+    regions.sort_by(|a, b| {
+        b.area_pct
+            .partial_cmp(&a.area_pct)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     regions
 }
 
@@ -371,10 +379,17 @@ mod tests {
         // Sample the mark's top-left ref pixel so the nearest cand-black is the full
         // +12,+12 away (an interior ref pixel could match a nearer cand-black edge).
         let (sx, sy) = best_local_shift(&cand, &reference, 20, 20).expect("a shift must be found");
-        assert_eq!((sx, sy), (12, 12), "the estimator must measure the full 12px displacement");
+        assert_eq!(
+            (sx, sy),
+            (12, 12),
+            "the estimator must measure the full 12px displacement"
+        );
         let css = (sx as f64 / CSS_PX, sy as f64 / CSS_PX);
         let mag = (css.0 * css.0 + css.1 * css.1).sqrt();
-        assert!(mag > 4.0, "12px displacement = {mag:.2} CSS px must exceed the 4.0 FAIL bound");
+        assert!(
+            mag > 4.0,
+            "12px displacement = {mag:.2} CSS px must exceed the 4.0 FAIL bound"
+        );
     }
 
     /// Tie-break: on a perfectly SYMMETRIC field (every neighbour identical to the
@@ -388,7 +403,11 @@ mod tests {
         let reference = ImageBuffer::from_pixel(w, h, grey);
         let cand = ImageBuffer::from_pixel(w, h, grey);
         let (sx, sy) = best_local_shift(&cand, &reference, 20, 20).expect("a shift must be found");
-        assert_eq!((sx, sy), (0, 0), "a symmetric field must yield the centre offset, not (-1,-1)");
+        assert_eq!(
+            (sx, sy),
+            (0, 0),
+            "a symmetric field must yield the centre offset, not (-1,-1)"
+        );
     }
 
     /// End-to-end: a gentle grey gradient translated by 12px produces GeomShift
@@ -398,10 +417,10 @@ mod tests {
     /// bound — the gate is ALIVE end-to-end (it was structurally unreachable before).
     #[test]
     fn shift_gate_fires_on_a_translated_gradient() {
+        use super::super::super::geom::content_mask;
+        use super::super::classify::classify_pixels;
         use super::super::masks::structural_masks;
         use super::super::tally::aggregate;
-        use super::super::classify::classify_pixels;
-        use super::super::super::geom::content_mask;
 
         let (w, h) = (160u32, 120u32);
         // A 2D grey ramp (varies in BOTH axes so a +12,+12 translation is recoverable
@@ -411,7 +430,9 @@ mod tests {
         // same = 24·s ≈ 28.8 raw (YIQ ≈ 419 > t_match≈352); within-2 = 20·s ≈ 24 raw
         // (YIQ ≈ 291 < t_match). best_local_shift then finds the EXACT match 12px away.
         let val = |x: i32, y: i32| -> u8 {
-            (60.0 + 1.2 * x as f64 + 1.2 * y as f64).round().clamp(0.0, 255.0) as u8
+            (60.0 + 1.2 * x as f64 + 1.2 * y as f64)
+                .round()
+                .clamp(0.0, 255.0) as u8
         };
         let mut reference = white(w, h);
         let mut cand = white(w, h);

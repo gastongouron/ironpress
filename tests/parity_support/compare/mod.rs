@@ -151,7 +151,11 @@ fn unknown_outcome(note: String) -> V2Outcome {
 /// extents not the diluted pixel fraction) -> union-crop both for the pixel
 /// compare -> structural edge bands -> per-pixel classify -> region segmentation
 /// -> aggregate to per-class severities -> multi-gate verdict -> classed overlay.
-pub(crate) fn compare_v2(cand: &RgbaImage, reference: &RgbaImage, entry: &ManifestEntry) -> V2Outcome {
+pub(crate) fn compare_v2(
+    cand: &RgbaImage,
+    reference: &RgbaImage,
+    entry: &ManifestEntry,
+) -> V2Outcome {
     // Dimension guard (review #9): the whole pipeline assumes the candidate and
     // reference share pixel dimensions (the bbox deltas, union crop, and per-pixel
     // classify all compare like-for-like at the same page position). Cross-rasterizer
@@ -201,7 +205,9 @@ pub(crate) fn compare_v2(cand: &RgbaImage, reference: &RgbaImage, entry: &Manife
     let masks = masks::structural_masks(&cand_u, &ref_u);
     let class_map = classify_pixels(&cand_u, &ref_u, &mask_c, &mask_r, &masks);
     let regions = segment(&class_map, &cand_u, &ref_u, &masks);
-    let tally = aggregate(&class_map, &regions, bbox_delta, &mask_c, &mask_r, &cand_u, &ref_u);
+    let tally = aggregate(
+        &class_map, &regions, bbox_delta, &mask_c, &mask_r, &cand_u, &ref_u,
+    );
     let mut verdict = verdict(&tally, &regions, entry);
     // Exact derived back-compat scalar (% real-diff px, AA+Match excluded).
     let diff_pct = tally.diff_pct(&class_map);
@@ -226,4 +232,3 @@ pub(crate) fn compare_v2(cand: &RgbaImage, reference: &RgbaImage, entry: &Manife
         diagnosis,
     }
 }
-

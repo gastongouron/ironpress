@@ -19,14 +19,14 @@
 //! Each concern below applies exactly the verdict.rs fail-bound / pass-bound for
 //! its own gates, so the per-concern triple reconstructs the verdict by WORST.
 
-use super::super::compare::tally::ClassTally;
 use super::super::compare::V2Outcome;
+use super::super::compare::tally::ClassTally;
 use super::super::config::{
     COLOR_DE_FAIL, COLOR_DE_PASS, G_COLOR_PCT, G_EDGE_CSS, G_EXTRA_PCT, G_MISSING_PCT, G_SHIFT_CSS,
 };
 use super::super::manifest::ManifestEntry;
 use super::super::report::Status;
-use super::{Concern, SubVerdict, VerifierKind, VerifyCtx, Verifier};
+use super::{Concern, SubVerdict, Verifier, VerifierKind, VerifyCtx};
 
 /// Adapter holding only the raster signals the three concern mappings need —
 /// snapshotted from the already-computed `V2Outcome`. No image data, no recompute.

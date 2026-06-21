@@ -4,8 +4,8 @@ use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
     BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, Display, Float, FontFamily,
-    FontStyle, FontWeight, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, Transform, TransformOrigin, VerticalAlign, Visibility,
+    FontStyle, FontWeight, LinearGradient, ListStylePosition, ListStyleType, Overflow, Position,
+    RadialGradient, TextAlign, Transform, TransformOrigin, VerticalAlign, Visibility,
     compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
@@ -2145,8 +2145,8 @@ fn route_element(
     // Multi-column layout: column-major balanced flow. Triggered by an explicit
     // multi-column count (>= 2) or a column-width (which derives the count from
     // the available width). A single column degrades to normal block layout.
-    let multicol_active = style.column_count.is_some_and(|c| c >= 2)
-        || style.column_width.is_some_and(|w| w > 0.0);
+    let multicol_active =
+        style.column_count.is_some_and(|c| c >= 2) || style.column_width.is_some_and(|w| w > 0.0);
     if multicol_active {
         crate::layout::multicol::layout_multicol_container(
             el,
@@ -10885,7 +10885,3 @@ mod _removed {
         }
     }
 }
-
-
-
-

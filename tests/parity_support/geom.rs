@@ -72,12 +72,7 @@ pub(crate) fn shift_image(img: &RgbaImage, dx: i32, dy: i32) -> RgbaImage {
 
 /// Union of two inclusive bboxes (min of mins, max of maxes).
 pub(crate) fn union_bbox(a: BBox, b: BBox) -> BBox {
-    (
-        a.0.min(b.0),
-        a.1.min(b.1),
-        a.2.max(b.2),
-        a.3.max(b.3),
-    )
+    (a.0.min(b.0), a.1.min(b.1), a.2.max(b.2), a.3.max(b.3))
 }
 
 // ---------------------------------------------------------------------------

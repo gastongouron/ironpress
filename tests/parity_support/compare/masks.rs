@@ -65,7 +65,10 @@ impl StructuralMasks {
         if x >= self.w || y >= self.h {
             return false;
         }
-        Self::test(&self.edge_band, (y as usize) * (self.w as usize) + x as usize)
+        Self::test(
+            &self.edge_band,
+            (y as usize) * (self.w as usize) + x as usize,
+        )
     }
 }
 
@@ -163,5 +166,11 @@ pub(crate) fn structural_masks(cand: &RgbaImage, reference: &RgbaImage) -> Struc
         edge[i] = edge_c[i] | edge_r[i];
     }
 
-    StructuralMasks { w, h, edge, edge_band, shared }
+    StructuralMasks {
+        w,
+        h,
+        edge,
+        edge_band,
+        shared,
+    }
 }

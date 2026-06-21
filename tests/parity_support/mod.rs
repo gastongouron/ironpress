@@ -56,11 +56,11 @@ use gate::{
     build_report, check_coords_freshness, check_refs_freshness, collect_suspect_unsupported_pass,
     compute_coverage, compute_fix_first, enforce_gate,
 };
-use manifest::{find_ref_mismatches, load_manifests, ManifestEntry};
-use render::{check_pdf_valid, load_bundled_fonts, render_pdf, SharedFonts};
+use manifest::{ManifestEntry, find_ref_mismatches, load_manifests};
+use render::{SharedFonts, check_pdf_valid, load_bundled_fonts, render_pdf};
 use report::{
-    fixture_fail, fixture_unknown, write_html_reports, write_report_json, write_report_md,
-    FixtureResult, Report, Status,
+    FixtureResult, Report, Status, fixture_fail, fixture_unknown, write_html_reports,
+    write_report_json, write_report_md,
 };
 use util::{sha256_hex, which};
 
@@ -367,13 +367,19 @@ fn process_entry(
 
     let pdf_path = tmp_dir.join(format!("{}.pdf", entry.id));
     if let Err(e) = std::fs::write(&pdf_path, &pdf) {
-        return with_sha(fixture_fail(entry, 100.0, format!("cannot write temp pdf: {e}")));
+        return with_sha(fixture_fail(
+            entry,
+            100.0,
+            format!("cannot write temp pdf: {e}"),
+        ));
     }
 
     // The committed candidate raster path (LFS). Written below whenever we
     // successfully rasterize, so the in-repo visual reports always have an
     // ironpress image to show even for non-scored (UNKNOWN-ref) fixtures.
-    let out_png = out_dir.join(&entry.category).join(format!("{}.png", entry.id));
+    let out_png = out_dir
+        .join(&entry.category)
+        .join(format!("{}.png", entry.id));
 
     if !pdftoppm_available {
         return with_sha(fixture_unknown(entry, "pdftoppm unavailable".to_string()));
@@ -389,7 +395,13 @@ fn process_entry(
     // Decode candidate, then persist a committed copy to `out/<cat>/<id>.png`.
     let cand = match image::open(&cand_png) {
         Ok(i) => i.to_rgba8(),
-        Err(e) => return with_sha(fixture_fail(entry, 100.0, format!("decode candidate failed: {e}"))),
+        Err(e) => {
+            return with_sha(fixture_fail(
+                entry,
+                100.0,
+                format!("decode candidate failed: {e}"),
+            ));
+        }
     };
     if let Some(parent) = out_png.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -398,7 +410,9 @@ fn process_entry(
 
     // Reference lookup. Absent => UNKNOWN (never gates). Candidate already
     // committed above so the report still shows the ironpress render.
-    let ref_path = refs_dir.join(&entry.category).join(format!("{}.png", entry.id));
+    let ref_path = refs_dir
+        .join(&entry.category)
+        .join(format!("{}.png", entry.id));
     if !ref_path.is_file() {
         return with_sha(fixture_unknown(
             entry,
@@ -412,7 +426,12 @@ fn process_entry(
         // must NOT be scored as a 100% FAIL — that would gate CI and pollute the
         // baseline on a tooling glitch. Treat it as UNKNOWN (non-gating);
         // re-running gen-refs regenerates it.
-        Err(e) => return with_sha(fixture_unknown(entry, format!("reference unreadable (regenerate): {e}"))),
+        Err(e) => {
+            return with_sha(fixture_unknown(
+                entry,
+                format!("reference unreadable (regenerate): {e}"),
+            ));
+        }
     };
 
     // V2 PATH (the only verdict path after C6): apply the fixed page-origin
@@ -427,14 +446,27 @@ fn process_entry(
         let t = &outcome.tally;
         eprintln!(
             "tally {}/{}: color={:.2}% (ΔE {:.2}) missing={:.2}% extra={:.2}% edge_max={:.2}css shift_max={:.2}css aa={:.2}% dom={:?}",
-            entry.category, entry.id, t.color_pct, t.color_de, t.missing_pct, t.extra_pct,
-            t.edge_max_css, t.shift_max_css, t.aa_pct, outcome.verdict.dominant_class
+            entry.category,
+            entry.id,
+            t.color_pct,
+            t.color_de,
+            t.missing_pct,
+            t.extra_pct,
+            t.edge_max_css,
+            t.shift_max_css,
+            t.aa_pct,
+            outcome.verdict.dominant_class
         );
         eprintln!(
             "DIAG {}/{}: STATUS={} [{}] {}  (conf {:.2}) interior_color%={:.3} interior_de={:.2}",
-            entry.category, entry.id, outcome.status.as_str(), outcome.diagnosis.primary_class,
-            outcome.diagnosis.headline, outcome.diagnosis.confidence,
-            outcome.tally.interior_color_pct, outcome.tally.interior_color_de
+            entry.category,
+            entry.id,
+            outcome.status.as_str(),
+            outcome.diagnosis.primary_class,
+            outcome.diagnosis.headline,
+            outcome.diagnosis.confidence,
+            outcome.tally.interior_color_pct,
+            outcome.tally.interior_color_de
         );
     }
 
@@ -446,7 +478,9 @@ fn process_entry(
     }
     let _ = outcome.overlay.save(&reports_diff);
     if outcome.status != Status::Pass {
-        let out = diffs_dir.join(&entry.category).join(format!("{}.png", entry.id));
+        let out = diffs_dir
+            .join(&entry.category)
+            .join(format!("{}.png", entry.id));
         if let Some(parent) = out.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
@@ -491,14 +525,26 @@ fn process_entry(
         for s in &subs {
             eprintln!(
                 "subverdict {}/{}: {:?} {:?}={} mag={:.3} :: {}",
-                entry.category, entry.id, s.verifier, s.concern, s.status.as_str(), s.magnitude, s.headline
+                entry.category,
+                entry.id,
+                s.verifier,
+                s.concern,
+                s.status.as_str(),
+                s.magnitude,
+                s.headline
             );
         }
         for d in &combined.disagreements {
             eprintln!(
                 "disagree   {}/{}: {:?} auth={}({:?}) chal={}({:?}) :: {}",
-                entry.category, entry.id, d.concern, d.authoritative.as_str(), d.authoritative_by,
-                d.challenger.as_str(), d.challenger_by, d.note
+                entry.category,
+                entry.id,
+                d.concern,
+                d.authoritative.as_str(),
+                d.authoritative_by,
+                d.challenger.as_str(),
+                d.challenger_by,
+                d.note
             );
         }
     }

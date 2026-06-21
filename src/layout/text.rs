@@ -143,7 +143,11 @@ impl TextWrapOptions {
 /// flagged `preserve_spacing = true` so the wrapper never injects its own
 /// inter-word space; soft wrapping then happens via the generic
 /// "token overflows the line" break.
-fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<(String, TextRun, bool)>) {
+fn split_preserving_spaces(
+    segment: &str,
+    template: &TextRun,
+    out: &mut Vec<(String, TextRun, bool)>,
+) {
     let mut current = String::new();
     let mut current_is_space: Option<bool> = None;
     for ch in segment.chars() {
@@ -772,6 +776,7 @@ fn build_inline_box(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn collect_text_runs(
     nodes: &[DomNode],
     parent_style: &ComputedStyle,
@@ -940,14 +945,21 @@ fn collect_text_runs_inner(
                         // excluded (they need their own block layout via cm).
                         let is_atomic_inline_block = style.display == Display::InlineBlock
                             && el.tag != HtmlTag::Svg
-                            && !el.children.iter().any(|c| {
-                                matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Svg)
-                            });
+                            && !el
+                                .children
+                                .iter()
+                                .any(|c| matches!(c, DomNode::Element(e) if e.tag == HtmlTag::Svg));
                         if is_atomic_inline_block {
-                            let line_height_factor = resolved_line_height_factor(parent_style, fonts);
-                            if let Some(boxed) =
-                                build_inline_box(&style, el, rules, fonts, &child_ancestors, counter_state)
-                            {
+                            let line_height_factor =
+                                resolved_line_height_factor(parent_style, fonts);
+                            if let Some(boxed) = build_inline_box(
+                                &style,
+                                el,
+                                rules,
+                                fonts,
+                                &child_ancestors,
+                                counter_state,
+                            ) {
                                 runs.push(TextRun {
                                     text: String::new(),
                                     font_size: parent_style.font_size,
