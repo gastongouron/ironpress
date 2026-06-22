@@ -8863,6 +8863,14 @@ impl PdfWriter {
         format: ImageFormat,
         png_metadata: Option<&PngMetadata>,
     ) -> usize {
+        // An alpha PNG carries the complete original PNG file; decode it into a
+        // colour stream plus an `/SMask`, preserving transparency. Fall back to
+        // an opaque RGB embedding if decoding fails for any reason.
+        if format == ImageFormat::PngAlpha {
+            if let Some(obj_id) = self.add_raw_png_image_object(data) {
+                return obj_id;
+            }
+        }
         let id = self.next_id();
         let header = match format {
             ImageFormat::Jpeg => {
@@ -8871,8 +8879,20 @@ impl PdfWriter {
                     len = data.len(),
                 )
             }
-            ImageFormat::Png => {
-                let meta = png_metadata.expect("PNG metadata required for PNG images");
+            ImageFormat::PngAlpha | ImageFormat::Png => {
+                // Reaching here for a PngAlpha means the SMask decode above
+                // failed (corrupt PNG); recover its metadata from the IHDR so the
+                // passthrough header is still well-formed rather than panicking.
+                let recovered = png_metadata.is_none().then(|| {
+                    crate::parser::png::parse_png(data).map(|info| PngMetadata {
+                        channels: info.channels,
+                        bit_depth: info.bit_depth,
+                    })
+                });
+                let recovered = recovered.flatten();
+                let meta = png_metadata
+                    .or(recovered.as_ref())
+                    .expect("PNG metadata required for PNG images");
                 let color_space = match meta.channels {
                     1 | 2 => "/DeviceGray",
                     _ => "/DeviceRGB",

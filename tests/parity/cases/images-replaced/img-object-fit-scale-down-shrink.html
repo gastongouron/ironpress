@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img object-fit scale-down (contain wins)</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 240px; margin: 30px; background: #eeeeee; }
+  /* 240x120 (2:1) image larger than the 160x160 box: scale-down behaves like
+     contain, shrinking it to 160x80 centred (grey bands top and bottom). */
+  img {
+    display: block; width: 160px; height: 160px; background: #cccccc;
+    object-fit: scale-down; image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="160" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAAB4CAIAAABD1OhwAAABeElEQVR4nO3UQQ3CUBRFQUrQ8dcV03VlIAwRXSMLEy0/OZ1RcPNy8pbvGA+ut7/d+R+eswfAmQRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJee3rZ/aGWzjGNnvCLfjQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGT8gPT/gUoQIVHSgAAAABJRU5ErkJggg==">
+  </div>
+</body>
+</html>

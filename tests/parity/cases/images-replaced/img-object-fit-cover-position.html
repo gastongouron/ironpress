@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img object-fit cover with object-position</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 240px; margin: 30px; background: #eeeeee; }
+  /* cover scales the 2:1 image to fill the 160x160 box (320x160), overflowing
+     horizontally; object-position left top anchors the left edge so the red/blue
+     left half is shown and the right (green/yellow) half is cropped. */
+  img {
+    display: block; width: 160px; height: 160px; background: #cccccc;
+    object-fit: cover; object-position: left top; image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="160" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

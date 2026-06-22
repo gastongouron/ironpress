@@ -327,6 +327,10 @@ pub struct TextLine {
 pub enum ImageFormat {
     Jpeg,
     Png,
+    /// A raw PNG with an alpha channel (RGBA / grayscale+alpha). The `data`
+    /// field holds the complete original PNG file; the renderer decodes it into
+    /// a colour stream plus a soft-mask (`/SMask`) so transparency is preserved.
+    PngAlpha,
 }
 
 /// Parsed PNG metadata needed for PDF FlateDecode parameters.

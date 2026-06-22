@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img max-width clamp recomputes height</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 260px; margin: 30px; background: #eeeeee; }
+  /* width:200px on a 2:1 image would be 200x100, but max-width:120px clamps the
+     width to 120px and the height is recomputed from the aspect ratio to 60px. */
+  img {
+    display: block; width: 200px; height: auto; max-width: 120px;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="200" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

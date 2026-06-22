@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img percentage width</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 200px; margin: 30px; background: #eeeeee; }
+  /* width:50% of the 200px containing block = 100px wide; height auto keeps the
+     2:1 aspect ratio so the image is 100x50. */
+  img { display: block; width: 50%; height: auto; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>

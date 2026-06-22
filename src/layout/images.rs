@@ -85,12 +85,20 @@ pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
         };
         // The raw-IDAT passthrough writes the sample stream straight into a PDF
         // DeviceRGB/DeviceGray image, which take 3/1 colour components. An alpha
-        // colour type (RGBA=4, GrayscaleAlpha=2) would emit a 4-/2-channel stream
-        // that the viewer reads as misaligned RGB triples — i.e. scrambled rainbow
-        // pixels. Decode those to flat 8-bit RGB instead (alpha is dropped; the
-        // bundled assets are opaque). Proper transparency would need an SMask.
+        // colour type (RGBA=4, GrayscaleAlpha=2) cannot be passed through that
+        // way (the viewer would read the extra channel as misaligned colour
+        // samples). Carry the complete original PNG so the renderer can decode it
+        // into a colour stream plus a soft-mask (`/SMask`), preserving the alpha
+        // channel rather than dropping it (which rendered transparent regions as
+        // opaque black).
         if png_info.channels == 2 || png_info.channels == 4 {
-            return decode_png_to_rgb_asset(&raw);
+            return Some(RasterImageAsset {
+                source_width: png_info.width,
+                source_height: png_info.height,
+                data: raw,
+                format: ImageFormat::PngAlpha,
+                png_metadata: None,
+            });
         }
         let metadata = PngMetadata {
             channels: png_info.channels,
@@ -188,14 +196,24 @@ pub(crate) fn load_image_from_element(
         .height
         .or_else(|| parse_html_image_dimension(el.attributes.get("height")));
 
+    // Raster images carry concrete natural dimensions (the source pixel size,
+    // taken as CSS px at 1x → pt). The CSS default sizing algorithm
+    // (css-images-3 §5.4) uses them to derive any missing dimension and, when
+    // neither is given, to size the box directly.
     let src_w = image.source_width as f32;
     let src_h = image.source_height as f32;
+    let natural_w = src_w * 0.75;
+    let natural_h = src_h * 0.75;
     let (width, height) = match (attr_width, attr_height) {
         (Some(w), Some(h)) => (w, h),
         (Some(w), None) if src_w > 0.0 => (w, w * (src_h / src_w)),
         (Some(w), None) => (w, w), // fallback: square (intrinsic size unknown)
         (None, Some(h)) if src_h > 0.0 => (h * (src_w / src_h), h),
         (None, Some(h)) => (h, h), // fallback: square (intrinsic size unknown)
+        // No width/height specified: use the image's natural dimensions
+        // (default sizing algorithm, no-dimensions branch). Fall back to the
+        // CSS default object size only when natural dimensions are unusable.
+        (None, None) if natural_w > 0.0 && natural_h > 0.0 => (natural_w, natural_h),
         (None, None) => (available_width.min(200.0), 150.0),
     };
 
@@ -303,12 +321,21 @@ pub(crate) fn compute_image_placement(
     };
 
     // object-position aligns the drawn content within the free space (which can
-    // be negative when the content is larger than the box, i.e. cropping).
-    let offset_x = (box_w - draw_w) * object_position.x;
-    let offset_y = (box_h - draw_h) * object_position.y;
+    // be negative when the content is larger than the box, i.e. cropping). A
+    // length component is an absolute start-edge offset; a fraction/percentage
+    // component scales the free space.
+    let offset_x = object_position.x.resolve(box_w - draw_w);
+    let offset_y = object_position.y.resolve(box_h - draw_h);
 
-    // Clip whenever the drawn content can extend past the box edges.
-    let clip = draw_w > box_w + 0.01 || draw_h > box_h + 0.01;
+    // Replaced content is always clipped to the content box (css-images-3 §5.5).
+    // Clip whenever any edge of the drawn content falls outside the box — either
+    // because the content is larger than the box, or because object-position
+    // (e.g. a length offset) pushes it past an edge.
+    const EPS: f32 = 0.01;
+    let clip = offset_x < -EPS
+        || offset_y < -EPS
+        || offset_x + draw_w > box_w + EPS
+        || offset_y + draw_h > box_h + EPS;
 
     ImagePlacement {
         width: draw_w,
@@ -1044,6 +1071,54 @@ mod tests {
             "HTTPS images should be None without remote feature"
         );
         let _ = result;
+    }
+
+    /// Build a tiny RGBA PNG (1x1, single transparent pixel) for decode tests.
+    #[cfg(test)]
+    fn build_rgba_png() -> Vec<u8> {
+        use crate::parser::png::PNG_SIGNATURE;
+        use std::io::Write;
+        // Filter byte (0) + RGBA pixel, zlib-compressed.
+        let raw_scanline = [0u8, 10, 20, 30, 128];
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(&raw_scanline).unwrap();
+        let idat = encoder.finish().unwrap();
+
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&1u32.to_be_bytes()); // width
+        ihdr.extend_from_slice(&1u32.to_be_bytes()); // height
+        ihdr.push(8); // bit depth
+        ihdr.push(6); // color type 6 = RGBA
+        ihdr.extend_from_slice(&[0, 0, 0]); // compression/filter/interlace
+
+        let mut png = Vec::new();
+        png.extend_from_slice(&PNG_SIGNATURE);
+        let append = |buf: &mut Vec<u8>, ty: &[u8; 4], data: &[u8]| {
+            buf.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            let mut crc_input = ty.to_vec();
+            crc_input.extend_from_slice(data);
+            buf.extend_from_slice(ty);
+            buf.extend_from_slice(data);
+            // Our parser ignores CRC; write zeros.
+            buf.extend_from_slice(&[0, 0, 0, 0]);
+        };
+        append(&mut png, b"IHDR", &ihdr);
+        append(&mut png, b"IDAT", &idat);
+        append(&mut png, b"IEND", &[]);
+        png
+    }
+
+    #[test]
+    fn rgba_png_is_loaded_as_alpha_with_raw_bytes_preserved() {
+        let png = build_rgba_png();
+        let asset = load_image_bytes(png.clone()).expect("RGBA PNG should load");
+        // The alpha channel must be preserved by carrying the original PNG bytes
+        // (decoded into an SMask at embed time) rather than flattened to RGB.
+        assert_eq!(asset.format, ImageFormat::PngAlpha);
+        assert!(asset.png_metadata.is_none());
+        assert_eq!(asset.data, png, "raw PNG bytes should be carried through");
+        assert_eq!(asset.source_width, 1);
+        assert_eq!(asset.source_height, 1);
     }
 
     #[test]

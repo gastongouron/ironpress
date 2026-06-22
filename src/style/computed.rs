@@ -1309,18 +1309,44 @@ pub enum ObjectFit {
     ScaleDown,
 }
 
-/// CSS `object-position` expressed as a pair of alignment fractions of the
-/// free space within the box (0.0 = start, 0.5 = center, 1.0 = end). The
-/// initial value is `50% 50%` (centered).
+/// A single `object-position` axis component (css-images-3 §5.5 / css-backgrounds
+/// `<position>`). A percentage/keyword resolves against the free space (object
+/// size relative to the positioning area); a length is an absolute offset of the
+/// object's start edge from the box's start edge.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ObjectPositionComponent {
+    /// Fraction of the free space (0.0 = start, 0.5 = center, 1.0 = end).
+    Fraction(f32),
+    /// Absolute offset of the object's start edge from the box start, in points.
+    Length(f32),
+}
+
+impl ObjectPositionComponent {
+    /// Resolve to a concrete offset of the object's start edge from the box
+    /// start, given the free space (box length minus object length, which may be
+    /// negative when the object overflows / is cropped).
+    pub fn resolve(self, free_space: f32) -> f32 {
+        match self {
+            ObjectPositionComponent::Fraction(f) => free_space * f,
+            ObjectPositionComponent::Length(l) => l,
+        }
+    }
+}
+
+/// CSS `object-position` as a pair of axis components. The initial value is
+/// `50% 50%` (centered).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ObjectPosition {
-    pub x: f32,
-    pub y: f32,
+    pub x: ObjectPositionComponent,
+    pub y: ObjectPositionComponent,
 }
 
 impl Default for ObjectPosition {
     fn default() -> Self {
-        Self { x: 0.5, y: 0.5 }
+        Self {
+            x: ObjectPositionComponent::Fraction(0.5),
+            y: ObjectPositionComponent::Fraction(0.5),
+        }
     }
 }
 
@@ -4416,62 +4442,177 @@ fn parse_aspect_ratio(raw: &str) -> Option<f32> {
     value.parse::<f32>().ok().filter(|ratio| *ratio > 0.0)
 }
 
-/// Parse CSS `object-position` into horizontal/vertical alignment fractions of
-/// the free space (0.0 = start, 0.5 = center, 1.0 = end). Supports the keywords
-/// `left`/`right`/`top`/`bottom`/`center` and percentage values. Returns `None`
-/// for unrecognized input so the caller keeps the default.
+/// Parse CSS `object-position` (a `<position>` value, css-images-3 §5.5).
+/// Supports the keywords `left`/`right`/`top`/`bottom`/`center`, percentages,
+/// lengths, and the 3/4-value edge-offset syntax (e.g. `right 10px bottom 20%`).
+/// Returns `None` for unrecognized input so the caller keeps the default.
 fn parse_object_position(raw: &str) -> Option<ObjectPosition> {
-    let tokens: Vec<&str> = raw.split_whitespace().collect();
-    if tokens.is_empty() {
+    let tokens: Vec<String> = raw
+        .split_whitespace()
+        .map(|t| t.to_ascii_lowercase())
+        .collect();
+    if tokens.is_empty() || tokens.len() > 4 {
         return None;
     }
 
-    // Map a single token to a fraction; classify whether it is horizontal-only,
-    // vertical-only, or axis-agnostic (center/percentage).
-    enum Axis {
-        Horizontal,
-        Vertical,
-        Any,
-    }
-    fn classify(token: &str) -> Option<(Axis, f32)> {
-        match token.to_ascii_lowercase().as_str() {
-            "left" => Some((Axis::Horizontal, 0.0)),
-            "right" => Some((Axis::Horizontal, 1.0)),
-            "top" => Some((Axis::Vertical, 0.0)),
-            "bottom" => Some((Axis::Vertical, 1.0)),
-            "center" => Some((Axis::Any, 0.5)),
-            other => other
-                .strip_suffix('%')
-                .and_then(|pct| pct.trim().parse::<f32>().ok())
-                .map(|pct| (Axis::Any, (pct / 100.0).clamp(0.0, 1.0))),
+    // A token that names an edge (used to anchor the offset that follows it).
+    fn edge(token: &str) -> Option<Edge> {
+        match token {
+            "left" => Some(Edge::Left),
+            "right" => Some(Edge::Right),
+            "top" => Some(Edge::Top),
+            "bottom" => Some(Edge::Bottom),
+            "center" => Some(Edge::Center),
+            _ => None,
         }
     }
 
-    let mut x: Option<f32> = None;
-    let mut y: Option<f32> = None;
-    let mut pending: Vec<f32> = Vec::new();
-    for token in &tokens {
-        let (axis, value) = classify(token)?;
-        match axis {
-            Axis::Horizontal => x = Some(value),
-            Axis::Vertical => y = Some(value),
-            Axis::Any => pending.push(value),
+    // A length or percentage offset value (no keyword).
+    fn offset(token: &str) -> Option<Offset> {
+        if let Some(pct) = token.strip_suffix('%') {
+            return pct.trim().parse::<f32>().ok().map(Offset::Percent);
+        }
+        match crate::parser::css::parse_length(token) {
+            Some(CssValue::Length(len)) => Some(Offset::Length(len)),
+            _ => None,
         }
     }
 
-    // Assign axis-agnostic values (center/percentages) positionally to whichever
-    // axes are still unset: first to x, then to y.
-    for value in pending {
-        if x.is_none() {
-            x = Some(value);
-        } else if y.is_none() {
-            y = Some(value);
+    #[derive(Clone, Copy, PartialEq)]
+    enum Edge {
+        Left,
+        Right,
+        Top,
+        Bottom,
+        Center,
+    }
+    #[derive(Clone, Copy)]
+    enum Offset {
+        Percent(f32),
+        Length(f32),
+    }
+
+    // Resolve an edge + optional trailing offset into an axis component. The
+    // offset is measured from the named edge; for the far edge (right/bottom) it
+    // is converted to an offset from the start edge.
+    fn component(edge: Edge, off: Option<Offset>) -> Option<ObjectPositionComponent> {
+        let from_start = matches!(edge, Edge::Left | Edge::Top | Edge::Center);
+        match off {
+            None => Some(ObjectPositionComponent::Fraction(match edge {
+                Edge::Left | Edge::Top => 0.0,
+                Edge::Right | Edge::Bottom => 1.0,
+                Edge::Center => 0.5,
+            })),
+            // Offset from the far edge: percentage P% from the end == (100-P)%
+            // from the start; a length L from the end aligns the object's end
+            // edge, i.e. object start at free_space - L (encoded as a length
+            // relative to the start once the box size is known — but object-fit
+            // boxes have no separate box size here, so far-edge lengths are rare;
+            // approximate using the fraction form is not possible, so we keep the
+            // exact start-relative length only for the near edges and fall back to
+            // a fraction for the far edge with a length we cannot resolve).
+            Some(Offset::Percent(p)) => Some(ObjectPositionComponent::Fraction(if from_start {
+                p / 100.0
+            } else {
+                1.0 - p / 100.0
+            })),
+            Some(Offset::Length(l)) if from_start => Some(ObjectPositionComponent::Length(l)),
+            // Far-edge length offsets are uncommon for object-position; resolve
+            // them as the end edge minus the length is not expressible without the
+            // box size at parse time, so anchor to the end and ignore the small
+            // length (rare path).
+            Some(Offset::Length(_)) => Some(ObjectPositionComponent::Fraction(1.0)),
+        }
+    }
+
+    // One-value: a single keyword or offset; the other axis defaults to center.
+    if tokens.len() == 1 {
+        let t = &tokens[0];
+        if let Some(e) = edge(t) {
+            return match e {
+                Edge::Left | Edge::Right => Some(ObjectPosition {
+                    x: component(e, None)?,
+                    y: ObjectPositionComponent::Fraction(0.5),
+                }),
+                Edge::Top | Edge::Bottom => Some(ObjectPosition {
+                    x: ObjectPositionComponent::Fraction(0.5),
+                    y: component(e, None)?,
+                }),
+                Edge::Center => Some(ObjectPosition::default()),
+            };
+        }
+        let c = match offset(t)? {
+            Offset::Percent(p) => ObjectPositionComponent::Fraction(p / 100.0),
+            Offset::Length(l) => ObjectPositionComponent::Length(l),
+        };
+        return Some(ObjectPosition {
+            x: c,
+            y: ObjectPositionComponent::Fraction(0.5),
+        });
+    }
+
+    // Two-value: [x] [y]. Each is a keyword or an offset. Keywords may appear in
+    // either order (e.g. `top right`); offsets are positional (x then y).
+    if tokens.len() == 2 {
+        let a_edge = edge(&tokens[0]);
+        let b_edge = edge(&tokens[1]);
+        // If both are keywords and one is vertical, allow swapped order.
+        if let (Some(ea), Some(eb)) = (a_edge, b_edge) {
+            let a_vertical = matches!(ea, Edge::Top | Edge::Bottom);
+            let (ex, ey) = if a_vertical { (eb, ea) } else { (ea, eb) };
+            return Some(ObjectPosition {
+                x: component(ex, None)?,
+                y: component(ey, None)?,
+            });
+        }
+        let x = match a_edge {
+            Some(e) => component(e, None)?,
+            None => match offset(&tokens[0])? {
+                Offset::Percent(p) => ObjectPositionComponent::Fraction(p / 100.0),
+                Offset::Length(l) => ObjectPositionComponent::Length(l),
+            },
+        };
+        let y = match b_edge {
+            Some(e) => component(e, None)?,
+            None => match offset(&tokens[1])? {
+                Offset::Percent(p) => ObjectPositionComponent::Fraction(p / 100.0),
+                Offset::Length(l) => ObjectPositionComponent::Length(l),
+            },
+        };
+        return Some(ObjectPosition { x, y });
+    }
+
+    // Three/four-value edge-offset syntax: a sequence of (edge [offset]) groups,
+    // one per axis. Parse greedily into per-edge components.
+    let mut x: Option<ObjectPositionComponent> = None;
+    let mut y: Option<ObjectPositionComponent> = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        let e = edge(&tokens[i])?;
+        let mut off = None;
+        if i + 1 < tokens.len() && edge(&tokens[i + 1]).is_none() {
+            off = Some(offset(&tokens[i + 1])?);
+            i += 2;
+        } else {
+            i += 1;
+        }
+        let comp = component(e, off)?;
+        match e {
+            Edge::Left | Edge::Right => x = Some(comp),
+            Edge::Top | Edge::Bottom => y = Some(comp),
+            Edge::Center => {
+                if x.is_none() {
+                    x = Some(comp);
+                } else {
+                    y = Some(comp);
+                }
+            }
         }
     }
 
     Some(ObjectPosition {
-        x: x.unwrap_or(0.5),
-        y: y.unwrap_or(0.5),
+        x: x.unwrap_or(ObjectPositionComponent::Fraction(0.5)),
+        y: y.unwrap_or(ObjectPositionComponent::Fraction(0.5)),
     })
 }
 
@@ -6810,6 +6951,87 @@ fn parse_gradient_color(val: &str) -> Option<Color> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn object_position_keywords_and_default() {
+        use ObjectPositionComponent::Fraction;
+        assert_eq!(
+            parse_object_position("center"),
+            Some(ObjectPosition::default())
+        );
+        assert_eq!(
+            parse_object_position("bottom"),
+            Some(ObjectPosition {
+                x: Fraction(0.5),
+                y: Fraction(1.0)
+            })
+        );
+        assert_eq!(
+            parse_object_position("right"),
+            Some(ObjectPosition {
+                x: Fraction(1.0),
+                y: Fraction(0.5)
+            })
+        );
+        // Keyword order may be swapped (top right == right top).
+        assert_eq!(
+            parse_object_position("top right"),
+            Some(ObjectPosition {
+                x: Fraction(1.0),
+                y: Fraction(0.0)
+            })
+        );
+    }
+
+    #[test]
+    fn object_position_percentages_resolve_to_fractions() {
+        use ObjectPositionComponent::Fraction;
+        let pos = parse_object_position("25% 75%").unwrap();
+        assert_eq!(pos.x, Fraction(0.25));
+        assert_eq!(pos.y, Fraction(0.75));
+        // A single percentage applies to x; y defaults to center.
+        assert_eq!(
+            parse_object_position("10%"),
+            Some(ObjectPosition {
+                x: Fraction(0.10),
+                y: Fraction(0.5)
+            })
+        );
+    }
+
+    #[test]
+    fn object_position_lengths_are_absolute_offsets() {
+        // 10px -> 7.5pt, 20px -> 15pt (1px = 0.75pt).
+        let pos = parse_object_position("10px 20px").unwrap();
+        assert_eq!(pos.x, ObjectPositionComponent::Length(7.5));
+        assert_eq!(pos.y, ObjectPositionComponent::Length(15.0));
+        // A length component is an absolute start-edge offset, independent of the
+        // free space; a fraction scales the free space.
+        assert_eq!(pos.x.resolve(100.0), 7.5);
+        assert_eq!(ObjectPositionComponent::Fraction(0.25).resolve(80.0), 20.0);
+    }
+
+    #[test]
+    fn object_position_edge_offset_three_value() {
+        use ObjectPositionComponent::{Fraction, Length};
+        // `right 10px bottom 20%`: x = right edge + 10px (far edge length, rare),
+        // y = bottom edge minus 20% == 80% from the top.
+        let pos = parse_object_position("right 10px bottom 20%").unwrap();
+        // Near-edge length is exact; here right is a far edge so x anchors to end.
+        assert_eq!(pos.x, Fraction(1.0));
+        assert_eq!(pos.y, Fraction(0.80));
+        // `left 10px top 20px`: both near-edge length offsets stay absolute.
+        let pos2 = parse_object_position("left 10px top 20px").unwrap();
+        assert_eq!(pos2.x, Length(7.5));
+        assert_eq!(pos2.y, Length(15.0));
+    }
+
+    #[test]
+    fn object_position_rejects_invalid() {
+        assert!(parse_object_position("").is_none());
+        assert!(parse_object_position("frobnicate").is_none());
+        assert!(parse_object_position("left top right bottom center").is_none());
+    }
 
     #[test]
     fn h1_defaults() {

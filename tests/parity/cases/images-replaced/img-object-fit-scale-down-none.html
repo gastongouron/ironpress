@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>img object-fit scale-down (none wins)</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 240px; margin: 30px; background: #eeeeee; }
+  /* 8x4 (2:1) image far smaller than the 160x160 box: scale-down picks the
+     smaller of none and contain, so it renders at intrinsic 8x4 px centred. */
+  img {
+    display: block; width: 160px; height: 160px; background: #cccccc;
+    object-fit: scale-down; image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" width="160" height="160" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAIAAAA8r+mnAAAAIElEQVR42mM4IScHR3I9NnDEgFNCzu0EHN1ZJQJHOCUAni4lgeO2HLIAAAAASUVORK5CYII=">
+  </div>
+</body>
+</html>
