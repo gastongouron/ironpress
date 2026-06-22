@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #11324f;
+    display: inline-block;
+    background: #bdbdbd;
+  }
+  /* The #pick id rule (1,0,0) appears BEFORE the .box class rule (0,1,0) yet must
+     still win on specificity. A pure source-order cascade would wrongly let the
+     later .box rule paint it gray; only the #pick box turns green. */
+  #pick { background: #2e9e4f; }
+  .box { background: #bdbdbd; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <span class="box"></span><span class="box" id="pick"></span><span class="box"></span>
+  </div>
+</body>
+</html>

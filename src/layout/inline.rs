@@ -30,6 +30,8 @@ pub(crate) fn element_is_inline_block(
         child_index,
         sibling_count,
         preceding_siblings: preceding_siblings.to_vec(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     };
     let style = compute_style_with_context(
         el.tag,
@@ -68,6 +70,8 @@ pub(crate) fn element_has_css_display_block(
         child_index: 0,
         sibling_count: 0,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     };
     let style = compute_style_with_context(
         el.tag,
@@ -140,6 +144,8 @@ pub(crate) fn layout_inline_block_group(
             child_index: idx,
             sibling_count: child_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let child_style = compute_style_with_context(
             child_el.tag,
@@ -184,6 +190,8 @@ pub(crate) fn layout_inline_block_group(
             child_index: idx,
             sibling_count: child_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         });
         let mut runs = Vec::new();
         FlexTextRunCollector {

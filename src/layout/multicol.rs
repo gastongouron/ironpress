@@ -110,6 +110,8 @@ pub(crate) fn layout_multicol_container(
         child_index: 0,
         sibling_count: 0,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     });
 
     let element_count = el
@@ -149,6 +151,7 @@ pub(crate) fn layout_multicol_container(
             element_index,
             element_count,
             &preceding_siblings,
+            &[],
             env,
         );
         let height: f32 = buf.iter().map(estimate_element_height).sum();
@@ -631,6 +634,8 @@ fn child_span_all(
         child_index,
         sibling_count,
         preceding_siblings: preceding_siblings.to_vec(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     };
     let cs = compute_style_with_context(
         child_el.tag,

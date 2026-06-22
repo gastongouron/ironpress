@@ -315,6 +315,8 @@ pub(crate) fn layout_flex_container(
             child_index: idx,
             sibling_count: child_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let child_style = compute_style_with_context(
             child_el.tag,
@@ -405,6 +407,8 @@ pub(crate) fn layout_flex_container(
             child_index: idx,
             sibling_count: child_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         });
 
         // Two widths: child_w_for_flex is the outer main-axis size used for
@@ -460,6 +464,7 @@ pub(crate) fn layout_flex_container(
                 positioned_depth,
                 idx,
                 child_count,
+                &[],
                 &[],
                 env,
             );
@@ -939,6 +944,8 @@ pub(crate) fn layout_flex_container(
                 child_index: item.child_idx,
                 sibling_count: child_count,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             };
             let mut child_style = compute_style_with_context(
                 child_el.tag,
@@ -973,6 +980,8 @@ pub(crate) fn layout_flex_container(
                 child_index: item.child_idx,
                 sibling_count: child_count,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
             let mut buf = Vec::new();
             let child_ctx = ctx
@@ -1357,6 +1366,8 @@ pub(crate) fn layout_flex_container(
                                 child_index: 0,
                                 sibling_count: 0,
                                 preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
                             });
                             let relayout_ctx = ctx
                                 .with_parent_and_basis(
@@ -1376,6 +1387,7 @@ pub(crate) fn layout_flex_container(
                                 positioned_depth,
                                 items[i].child_idx,
                                 child_count,
+                                &[],
                                 &[],
                                 env,
                             );

@@ -11,7 +11,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-specificity-class-over-type",
@@ -25,7 +30,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-important-overrides-specificity",
@@ -39,7 +49,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-source-order-tiebreak",
@@ -53,7 +68,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-child-combinator",
@@ -67,7 +87,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-descendant-combinator",
@@ -81,7 +106,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-adjacent-sibling",
@@ -95,7 +125,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-general-sibling",
@@ -109,7 +144,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-nth-child-odd",
@@ -123,7 +163,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-first-last-child",
@@ -137,7 +182,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-not-negation",
@@ -151,7 +201,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-root-element",
@@ -165,7 +220,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-attribute-equals",
@@ -179,7 +239,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-media-print",
@@ -193,7 +258,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   },
   {
     "id": "selectors-cascade-supports-rule",
@@ -207,6 +277,600 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-block-flow"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-presence",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "presence",
+    "description": "[data-pick] presence selector matches any box carrying the attribute regardless of value; two boxes turn green, the bare box stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-presence.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-prefix",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "prefix",
+    "description": "[data-id^=\"abc\"] prefix match colors boxes whose value starts with abc; a value containing but not starting with abc stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-prefix.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-suffix",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "suffix",
+    "description": "[data-id$=\"png\"] suffix match colors boxes whose value ends with png; a value starting with png stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-suffix.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-substring",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "substring",
+    "description": "[data-id*=\"mid\"] substring match colors boxes whose value contains mid anywhere; an unrelated value stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-substring.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-word",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "whitespace-list",
+    "description": "[data-tags~=\"hot\"] whitespace-list match colors boxes where hot is a full space-separated word; a substring like hotter stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-word.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-hyphen",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "hyphen",
+    "description": "[lang|=\"en\"] hyphen match colors boxes whose value is en or begins with en-; the value english stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-hyphen.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-case-insensitive",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "case-insensitive",
+    "description": "[data-id=\"yes\" i] case-insensitive flag colors YES and Yes green; a different value stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-case-insensitive.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-attribute-multiple",
+    "category": "selectors-cascade",
+    "feature": "attribute-selector",
+    "subfeature": "compound",
+    "description": "Two chained attribute selectors [data-a=\"1\"][data-b=\"2\"] require BOTH to match on the same box; only the box with both attributes turns green.",
+    "file": "cases/selectors-cascade/selectors-cascade-attribute-multiple.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-universal-selector",
+    "category": "selectors-cascade",
+    "feature": "type-selector",
+    "subfeature": "universal",
+    "description": "The universal selector * as the discriminating rule paints every child box green.",
+    "file": "cases/selectors-cascade/selectors-cascade-universal-selector.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-type-selector",
+    "category": "selectors-cascade",
+    "feature": "type-selector",
+    "subfeature": "type",
+    "description": "A type selector p.box colors only <p> boxes green; <div> boxes stay gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-type-selector.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-only-child",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "only-child",
+    "description": ":only-child colors a box green only when it is the sole child of its panel; a box with a sibling stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-only-child.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-empty",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "empty",
+    "description": ":empty colors boxes with no children green; a box containing text stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-empty.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-nth-child-formula",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "nth-child-formula",
+    "description": ":nth-child(3n+1) colors the 1st and 4th of five boxes green; the others stay gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-nth-child-formula.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-nth-child-even",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "nth-child-even",
+    "description": ":nth-child(even) colors the 2nd and 4th of four boxes green.",
+    "file": "cases/selectors-cascade/selectors-cascade-nth-child-even.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-nth-last-child",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "nth-last-child",
+    "description": ":nth-last-child(2) colors the box that is 2nd from the end green (3rd of four).",
+    "file": "cases/selectors-cascade/selectors-cascade-nth-last-child.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-nth-of-type",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "nth-of-type",
+    "description": "p:nth-of-type(2) colors the 2nd <p> among mixed div/p siblings green.",
+    "file": "cases/selectors-cascade/selectors-cascade-nth-of-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-first-of-type",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "first-of-type",
+    "description": "p:first-of-type colors the first <p> green even though a <div> precedes it.",
+    "file": "cases/selectors-cascade/selectors-cascade-first-of-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-last-of-type",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "last-of-type",
+    "description": "p:last-of-type colors the last <p> green; a trailing <div> does not affect it.",
+    "file": "cases/selectors-cascade/selectors-cascade-last-of-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-only-of-type",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "only-of-type",
+    "description": "p:only-of-type colors the sole <p> among <div> siblings green.",
+    "file": "cases/selectors-cascade/selectors-cascade-only-of-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-is-selector",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "is",
+    "description": ":is(.a, .c) colors boxes carrying class a OR c green; the .b box stays gray.",
+    "file": "cases/selectors-cascade/selectors-cascade-is-selector.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-where-zero-specificity",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "where",
+    "description": ":where() contributes zero specificity, so a later (0,1,0) class rule wins over an earlier :where(.box) rule; the box renders green.",
+    "file": "cases/selectors-cascade/selectors-cascade-where-zero-specificity.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-has-relational",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "has",
+    "description": ":has(+ .flag) colors a box that is immediately followed by a .flag sibling green.",
+    "file": "cases/selectors-cascade/selectors-cascade-has-relational.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-not-list",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "not-list",
+    "description": ":not(.a, .b) with a selector list colors every box except those carrying class a OR b.",
+    "file": "cases/selectors-cascade/selectors-cascade-not-list.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-specificity-id-before-class",
+    "category": "selectors-cascade",
+    "feature": "specificity",
+    "subfeature": "id-before-class",
+    "description": "An id rule (1,0,0) placed BEFORE a class rule (0,1,0) in source order must still win on specificity; only the #pick box turns green (regression guard against pure source-order cascade).",
+    "file": "cases/selectors-cascade/selectors-cascade-specificity-id-before-class.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-important-before-normal",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "important-before-normal",
+    "description": "A class !important rule placed BEFORE a normal id rule must override the higher-specificity id declaration; only the .winner box turns green.",
+    "file": "cases/selectors-cascade/selectors-cascade-important-before-normal.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-inline-beats-selector",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "inline-beats-selector",
+    "description": "An inline style attribute outranks any selector (id rule), so only the inline-styled box turns green.",
+    "file": "cases/selectors-cascade/selectors-cascade-inline-beats-selector.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-inherited-property-flows",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "inheritance",
+    "description": "An inherited green background painted on the parent .wrap shows through a transparent child box.",
+    "file": "cases/selectors-cascade/selectors-cascade-inherited-property-flows.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-inherit-keyword",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "inherit-keyword",
+    "description": "background: inherit forces a non-inherited property to copy the parent .wrap green; the box renders green.",
+    "file": "cases/selectors-cascade/selectors-cascade-inherit-keyword.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-initial-keyword",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "initial-keyword",
+    "description": "background: initial resets the box background to its initial transparent value, revealing the green .wrap behind it.",
+    "file": "cases/selectors-cascade/selectors-cascade-initial-keyword.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-unset-keyword",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "unset-keyword",
+    "description": "background: unset on a non-inherited property behaves like initial (transparent), revealing the green .wrap behind the box.",
+    "file": "cases/selectors-cascade/selectors-cascade-unset-keyword.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-non-inherited-border",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "non-inherited",
+    "description": "A thick border on the parent .outer does NOT inherit to the child box, which keeps its own 2px border (child filled green for unambiguous geometry).",
+    "file": "cases/selectors-cascade/selectors-cascade-non-inherited-border.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
   }
 ]

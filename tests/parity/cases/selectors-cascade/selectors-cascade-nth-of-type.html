@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    display: block;
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* :nth-of-type(2) green: the 2nd <p> among its siblings (mixed div/p). */
+  p:nth-of-type(2) { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="box"></p>
+    <div class="box"></div>
+    <p class="box"></p>
+    <p class="box"></p>
+  </div>
+</body>
+</html>

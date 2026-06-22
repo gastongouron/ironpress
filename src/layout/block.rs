@@ -9,7 +9,9 @@ use crate::style::computed::{
 use std::collections::HashMap;
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
-use super::engine::{LayoutBorder, LayoutElement, TextRun, flatten_element};
+use super::engine::{
+    LayoutBorder, LayoutElement, TextRun, element_sibling_list, flatten_element, forward_siblings,
+};
 use super::helpers::{
     BackgroundFields, append_pseudo_inline_run, aspect_ratio_height, build_pseudo_block,
     collects_as_inline_text, has_background_paint, heading_level,
@@ -897,6 +899,7 @@ pub(crate) fn layout_block_element(
                             0,
                             n_children,
                             &[],
+                            &[],
                             env,
                         );
                     }
@@ -1387,6 +1390,8 @@ pub(crate) fn layout_block_element(
         .iter()
         .filter(|c| matches!(c, DomNode::Element(_)))
         .count();
+    // Forward sibling metadata for of-type / sibling-:has() matching.
+    let child_sibling_list = element_sibling_list(&el.children);
 
     // If no inline content but the element has visual properties (background,
     // gradient, border, border-radius), emit a wrapper TextBlock so the visuals
@@ -1518,6 +1523,7 @@ pub(crate) fn layout_block_element(
                             child_el_idx,
                             child_el_count,
                             &preceding_siblings,
+                            forward_siblings(&child_sibling_list, child_el_idx),
                             env,
                         );
                     }
@@ -1811,6 +1817,7 @@ pub(crate) fn layout_block_element(
             cb_info = make_containing_block(h);
         }
         let mut child_el_idx = 0;
+        let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
         let mut ib_group: Vec<&ElementNode> = Vec::new();
         for child in &el.children {
             if let DomNode::Element(child_el) = child {
@@ -1822,7 +1829,7 @@ pub(crate) fn layout_block_element(
                         child_ancestors,
                         child_el_idx,
                         child_el_count,
-                        &[],
+                        &preceding_siblings,
                     )
                 {
                     ib_group.push(child_el);
@@ -1860,11 +1867,20 @@ pub(crate) fn layout_block_element(
                             positioned_depth,
                             child_el_idx,
                             child_el_count,
-                            &[],
+                            &preceding_siblings,
+                            forward_siblings(&child_sibling_list, child_el_idx),
                             env,
                         );
                     }
                 }
+                preceding_siblings.push((
+                    child_el.tag_name().to_string(),
+                    child_el
+                        .class_list()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                ));
                 child_el_idx += 1;
             }
         }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* :empty: a box with NO children turns green; the box containing text stays gray. */
+  .box:empty { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+    <div class="box">x</div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

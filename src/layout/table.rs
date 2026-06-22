@@ -155,6 +155,8 @@ fn compute_column_style(
         child_index,
         sibling_count,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     };
     compute_style_with_context(
         el.tag,
@@ -362,6 +364,8 @@ fn resolve_fixed_table_columns(
                 child_index: row_section_child_indices.first().copied().unwrap_or(0),
                 sibling_count: row_section_sibling_counts.first().copied().unwrap_or(0),
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
         }
         let row_selector_ctx = SelectorContext {
@@ -369,6 +373,8 @@ fn resolve_fixed_table_columns(
             child_index: row_section_indices.first().copied().unwrap_or(0),
             sibling_count: row_section_sizes.first().copied().unwrap_or(1),
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let row_classes = first_row.class_list();
         let mut row_style = compute_style_with_context(
@@ -406,12 +412,16 @@ fn resolve_fixed_table_columns(
                 child_index: row_selector_ctx.child_index,
                 sibling_count: row_selector_ctx.sibling_count,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
             let cell_selector_ctx = SelectorContext {
                 ancestors: cell_ancestors,
                 child_index: col_pos,
                 sibling_count: num_cols,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             };
             let cell_style = compute_style_with_context(
                 cell_el.tag,
@@ -507,6 +517,8 @@ pub(crate) fn flatten_table(
         child_index: table_child_index,
         sibling_count: table_sibling_count,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     });
 
     // Collect all <tr> elements (from direct children, thead, tbody, tfoot).
@@ -638,6 +650,8 @@ pub(crate) fn flatten_table(
                                 child_index: section_child_idx,
                                 sibling_count: section_count,
                                 preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
                             });
                             let col_sibling_count = cols.len();
                             for (col_child_idx, col_el) in cols.into_iter().enumerate() {
@@ -740,6 +754,8 @@ pub(crate) fn flatten_table(
                     child_index: row_section_child_indices[sizing_row_idx],
                     sibling_count: row_section_sibling_counts[sizing_row_idx],
                     preceding_siblings: Vec::new(),
+                    following_siblings: Vec::new(),
+                    is_empty: false,
                 });
             }
             let sizing_row_ctx = SelectorContext {
@@ -747,6 +763,8 @@ pub(crate) fn flatten_table(
                 child_index: row_section_indices[sizing_row_idx],
                 sibling_count: row_section_sizes[sizing_row_idx],
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             };
             let mut row_style = compute_style_with_context(
                 row.tag,
@@ -782,12 +800,16 @@ pub(crate) fn flatten_table(
                             child_index: row_section_indices[sizing_row_idx],
                             sibling_count: row_section_sizes[sizing_row_idx],
                             preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
                         });
                         let cell_sizing_ctx = SelectorContext {
                             ancestors: cell_sizing_ancestors,
                             child_index: col_pos,
                             sibling_count: num_cols,
                             preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
                         };
                         let cell_style = compute_style_with_context(
                             cell_el.tag,
@@ -811,6 +833,8 @@ pub(crate) fn flatten_table(
                             child_index: col_pos,
                             sibling_count: num_cols,
                             preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
                         });
                         collect_table_cell_content_inner(
                             &cell_el.children,
@@ -977,6 +1001,8 @@ pub(crate) fn flatten_table(
                 child_index: row_section_child_indices[row_idx],
                 sibling_count: row_section_sibling_counts[row_idx],
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
         }
         let row_selector_ctx = SelectorContext {
@@ -984,6 +1010,8 @@ pub(crate) fn flatten_table(
             child_index: section_idx,
             sibling_count: section_size,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let mut row_style = compute_style_with_context(
             row.tag,
@@ -1081,12 +1109,16 @@ pub(crate) fn flatten_table(
                 child_index: section_idx,
                 sibling_count: section_size,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
             let cell_selector_ctx = SelectorContext {
                 ancestors: cell_ancestors,
                 child_index: col_pos,
                 sibling_count: num_cols,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             };
             let cell_style = compute_style_with_context(
                 cell_el.tag,
@@ -1132,6 +1164,8 @@ pub(crate) fn flatten_table(
                 child_index: col_pos,
                 sibling_count: num_cols,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             });
             let (block_margin_top, block_margin_bottom) = table_cell_edge_block_margins(
                 &cell_el.children,
@@ -1396,6 +1430,8 @@ pub(crate) fn flatten_table(
             child_index: caption_child_idx,
             sibling_count: section_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let caption_style = compute_style_with_context(
             caption_el.tag,
@@ -1416,6 +1452,8 @@ pub(crate) fn flatten_table(
             child_index: caption_child_idx,
             sibling_count: section_count,
             preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         });
         let mut caption_runs = Vec::new();
         let mut caption_nested = Vec::new();
@@ -1574,6 +1612,8 @@ fn table_cell_edge_block_margins(
             child_index,
             sibling_count: element_sibling_count,
             preceding_siblings,
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let child_style = compute_style_with_context(
             element.tag,
@@ -1716,6 +1756,8 @@ fn collect_table_cell_content_inner(
                     child_index,
                     sibling_count: element_sibling_count,
                     preceding_siblings,
+                    following_siblings: Vec::new(),
+                    is_empty: false,
                 };
                 let style = compute_style_with_context(
                     el.tag,
@@ -1742,6 +1784,8 @@ fn collect_table_cell_content_inner(
                     child_index,
                     sibling_count: element_sibling_count,
                     preceding_siblings: Vec::new(),
+                    following_siblings: Vec::new(),
+                    is_empty: false,
                 });
                 if el.tag == HtmlTag::Table {
                     let mut inner_env = LayoutEnv {
@@ -1802,6 +1846,7 @@ fn collect_table_cell_content_inner(
                         child_index,
                         element_sibling_count,
                         &selector_ctx.preceding_siblings,
+                        &[],
                         &mut inner_env,
                     );
                 } else if recurse_blocks || collects_as_inline_text(el.tag) || el.tag == HtmlTag::Br

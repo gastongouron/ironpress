@@ -940,6 +940,8 @@ fn collect_text_runs_inner(
                             child_index: 0,
                             sibling_count: nodes.len(),
                             preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
                         };
                         let style = compute_style_with_context(
                             el.tag,
@@ -963,6 +965,8 @@ fn collect_text_runs_inner(
                             child_index: 0,
                             sibling_count: nodes.len(),
                             preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
                         });
                         // `display: inline-block` is an atomic inline box: it
                         // takes part in line layout with its own box geometry
@@ -1153,6 +1157,8 @@ impl<'a> FlexTextRunCollector<'a> {
                         child_index: 0,
                         sibling_count: nodes.len(),
                         preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
                     };
                     let child_style = compute_style_with_context(
                         el.tag,
@@ -1215,6 +1221,8 @@ impl<'a> FlexTextRunCollector<'a> {
                         child_index: 0,
                         sibling_count: nodes.len(),
                         preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
                     });
                     self.collect(
                         &el.children,

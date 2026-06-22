@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* An inline style on the 2nd box outranks the #hi id rule (selector
+     specificity can never beat a style attribute). Only the inline box is green. */
+  #hi { background: #bdbdbd; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box" id="hi"></div>
+    <div class="box" id="hi" style="background: #2e9e4f"></div>
+    <div class="box" id="hi"></div>
+  </div>
+</body>
+</html>

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::parser::css::{
     CssRule, CssValue, SelectorContext, StyleMap, parse_length, selector_matches_with_context,
+    specificity,
 };
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
@@ -1699,8 +1700,15 @@ pub fn compute_style_with_context(
         }
     }
 
-    // Apply stylesheet rules (between defaults and inline).
-    // Skip pseudo-element rules — they target ::before/::after, not the element itself.
+    // Apply stylesheet rules (between defaults and inline) in cascade order
+    // (css-cascade-4 §6.3): all matching rules are sorted by specificity, with
+    // source order breaking ties (a stable sort over the source-ordered rule
+    // list preserves order for equal specificity). Within the same origin,
+    // `!important` declarations win over normal ones regardless of specificity,
+    // so we apply all matched NORMAL declarations first (low→high precedence),
+    // then all matched IMPORTANT declarations (low→high precedence) on top.
+    // Pseudo-element rules target ::before/::after, not the element itself.
+    let mut matched: Vec<(u32, &CssRule)> = Vec::new();
     for rule in rules {
         if rule.pseudo_element.is_some() {
             continue;
@@ -1713,14 +1721,40 @@ pub fn compute_style_with_context(
             attributes,
             selector_ctx,
         ) {
-            apply_style_map(&mut style, &rule.declarations, parent);
+            matched.push((specificity(&rule.selector), rule));
         }
     }
+    // Stable sort by specificity ascending; equal specificity keeps source order
+    // (later source = applied later = wins), matching the spec's order-of-
+    // appearance tiebreak.
+    matched.sort_by_key(|(spec, _)| *spec);
 
-    // Apply inline styles (override everything)
-    if let Some(css_str) = inline_style {
-        let inline = crate::parser::css::parse_inline_style(css_str);
-        apply_style_map(&mut style, &inline, parent);
+    // Parse inline (style attribute) declarations up front so they can be
+    // interleaved into the cascade at the correct precedence tiers.
+    let inline_map = inline_style.map(crate::parser::css::parse_inline_style);
+
+    // Precedence order (lowest → highest), per css-cascade-4 §6.3 within the
+    // author origin:
+    //   1. author normal declarations (selectors), by specificity then source
+    //   2. inline normal declarations (style attribute beats any selector)
+    //   3. author important declarations (selectors), by specificity then source
+    //   4. inline important declarations (style attribute, important)
+    for (_, rule) in &matched {
+        apply_style_map_filtered(&mut style, &rule.declarations, parent, Importance::Normal);
+    }
+    if let Some(inline) = &inline_map {
+        apply_style_map_filtered(&mut style, inline, parent, Importance::Normal);
+    }
+    for (_, rule) in &matched {
+        apply_style_map_filtered(
+            &mut style,
+            &rule.declarations,
+            parent,
+            Importance::Important,
+        );
+    }
+    if let Some(inline) = &inline_map {
+        apply_style_map_filtered(&mut style, inline, parent, Importance::Important);
     }
 
     // Now that the cascade is finalized, re-resolve em-based margins against
@@ -2337,6 +2371,49 @@ fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
             true
         }
     })
+}
+
+/// Whether to apply normal (non-important) or `!important` declarations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Importance {
+    Normal,
+    Important,
+}
+
+/// Apply only the declarations of the given importance tier from `map`.
+///
+/// The cascade applies all normal declarations across matched rules first, then
+/// all important declarations on top (css-cascade-4 §6.3). Splitting a rule's
+/// declaration block by importance lets a low-specificity `!important` rule win
+/// over a high-specificity normal rule. Implemented by projecting `map` down to
+/// only the wanted-importance properties and delegating to `apply_style_map`.
+pub(crate) fn apply_style_map_filtered(
+    style: &mut ComputedStyle,
+    map: &StyleMap,
+    parent: &ComputedStyle,
+    want: Importance,
+) {
+    let want_important = want == Importance::Important;
+    // Fast path: if every property already matches the wanted tier, apply as-is.
+    if map
+        .properties
+        .keys()
+        .all(|k| map.is_important(k) == want_important)
+    {
+        if !map.properties.is_empty() {
+            apply_style_map(style, map, parent);
+        }
+        return;
+    }
+    let mut filtered = StyleMap::new();
+    for (key, value) in &map.properties {
+        if map.is_important(key) == want_important {
+            filtered.set_with_importance(key, value.clone(), want_important);
+        }
+    }
+    if !filtered.properties.is_empty() {
+        apply_style_map(style, &filtered, parent);
+    }
 }
 
 pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent: &ComputedStyle) {

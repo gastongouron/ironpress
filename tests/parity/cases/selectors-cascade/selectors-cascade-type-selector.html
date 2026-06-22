@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    display: block;
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* Type selector: only <p> boxes turn green; <div> boxes stay gray. */
+  p.box { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box"></div>
+    <p class="box"></p>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

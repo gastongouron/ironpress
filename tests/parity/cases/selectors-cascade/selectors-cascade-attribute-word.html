@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* [data-tags~="hot"] whitespace-list match: hot must be a full space-separated word. */
+  .box[data-tags~="hot"] { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box" data-tags="cold hot new"></div>
+    <div class="box" data-tags="hotter"></div>
+    <div class="box" data-tags="hot"></div>
+  </div>
+</body>
+</html>

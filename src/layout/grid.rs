@@ -288,6 +288,8 @@ fn layout_grid_item_children(
         child_index: 0,
         sibling_count: item_el.children.len(),
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     });
 
     let element_children: Vec<&ElementNode> = item_el
@@ -318,6 +320,8 @@ fn layout_grid_item_children(
                 child_index: idx,
                 sibling_count,
                 preceding_siblings: preceding.clone(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             },
         );
         let is_block = matches!(
@@ -336,6 +340,7 @@ fn layout_grid_item_children(
                 idx,
                 sibling_count,
                 &preceding,
+                &[],
                 env,
             );
         }
@@ -875,6 +880,8 @@ pub(crate) fn layout_grid_container(
         child_index: 0,
         sibling_count: 0,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     });
 
     let child_count = element_children.len();
@@ -888,6 +895,8 @@ pub(crate) fn layout_grid_container(
                 child_index: idx,
                 sibling_count: child_count,
                 preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
             };
             compute_style_with_context(
                 child_el.tag,

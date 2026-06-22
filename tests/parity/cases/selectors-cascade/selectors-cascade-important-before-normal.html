@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #11324f;
+    display: inline-block;
+  }
+  /* The .winner !important rule appears BEFORE the #strong id rule. !important must
+     beat the higher-specificity normal id declaration regardless of source order:
+     only the .winner box turns green. */
+  .winner { background: #2e9e4f !important; }
+  #strong { background: #bdbdbd; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <span class="box" id="strong"></span><span class="box winner" id="strong"></span><span class="box" id="strong"></span>
+  </div>
+</body>
+</html>

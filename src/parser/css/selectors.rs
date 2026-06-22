@@ -42,11 +42,171 @@ pub fn selector_matches_with_context(
     attributes: &HashMap<String, String>,
     ctx: &SelectorContext,
 ) -> bool {
-    selector
-        .split(',')
-        .map(str::trim)
-        .filter(|part| !part.is_empty())
+    split_selector_list(selector)
+        .into_iter()
         .any(|part| compound_selector_matches(part, tag, classes, id, attributes, ctx))
+}
+
+/// CSS Selectors-4 §17 specificity, packed as `(a << 20) | (b << 10) | c`
+/// where `a` = id count, `b` = class/attr/pseudo-class count, `c` =
+/// type/pseudo-element count. The packed form gives a single sortable integer
+/// for the cascade (css-cascade-4 §6.3). For a selector list (commas) the
+/// highest specificity among the alternatives is returned.
+pub fn specificity(selector: &str) -> u32 {
+    split_selector_list(selector)
+        .into_iter()
+        .map(|part| {
+            let (a, b, c) = complex_specificity(part);
+            (a.min(1023) << 20) | (b.min(1023) << 10) | c.min(1023)
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+/// Compute the raw (a, b, c) triple for a single complex selector.
+fn complex_specificity(selector: &str) -> (u32, u32, u32) {
+    let mut total = (0u32, 0u32, 0u32);
+    // Walk each compound separated by combinators; combinators add nothing.
+    for compound in split_into_compounds(selector) {
+        let (a, b, c) = compound_specificity(compound);
+        total.0 += a;
+        total.1 += b;
+        total.2 += c;
+    }
+    total
+}
+
+/// Split a complex selector into its compound pieces, dropping the combinators
+/// (which contribute zero specificity). Respects bracket/paren nesting so that
+/// combinator characters inside `[...]`/`(...)` are not treated as separators.
+fn split_into_compounds(selector: &str) -> Vec<&str> {
+    let mut pieces = Vec::new();
+    let mut bracket_depth = 0usize;
+    let mut paren_depth = 0usize;
+    let mut start = 0usize;
+    let mut last_was_sep = false;
+    for (byte_index, ch) in selector.char_indices() {
+        match ch {
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            _ => {}
+        }
+        let is_sep = bracket_depth == 0
+            && paren_depth == 0
+            && (ch.is_whitespace() || ch == '>' || ch == '+' || ch == '~');
+        if is_sep {
+            if !last_was_sep {
+                let piece = selector[start..byte_index].trim();
+                if !piece.is_empty() {
+                    pieces.push(piece);
+                }
+            }
+            // Advance start past this separator char.
+            start = byte_index + ch.len_utf8();
+            last_was_sep = true;
+        } else {
+            last_was_sep = false;
+        }
+    }
+    let tail = selector[start..].trim();
+    if !tail.is_empty() {
+        pieces.push(tail);
+    }
+    pieces
+}
+
+/// Specificity (a, b, c) of a single compound selector (no combinators).
+fn compound_specificity(compound: &str) -> (u32, u32, u32) {
+    let (head, pseudos) = split_compound(compound);
+    let (mut a, mut b, mut c) = head_specificity(head);
+
+    for pseudo in pseudos {
+        // Functional logical pseudos contribute the specificity of their
+        // argument list (most specific item); :where() contributes zero.
+        if let Some(arg) = functional_arg(pseudo, ":where(") {
+            let _ = arg; // zero contribution
+        } else if let Some(arg) = functional_arg(pseudo, ":is(")
+            .or_else(|| functional_arg(pseudo, ":not("))
+            .or_else(|| functional_arg(pseudo, ":has("))
+        {
+            let (na, nb, nc) = split_selector_list(arg)
+                .into_iter()
+                .map(complex_specificity)
+                .max_by_key(|(a, b, c)| (*a, *b, *c))
+                .unwrap_or((0, 0, 0));
+            a += na;
+            b += nb;
+            c += nc;
+        } else {
+            // Plain (or functional structural) pseudo-class: counts as a class.
+            b += 1;
+        }
+    }
+
+    (a, b, c)
+}
+
+/// Specificity of the non-pseudo head (tag/universal + ids + classes + attrs).
+fn head_specificity(head: &str) -> (u32, u32, u32) {
+    // Splice out every `[...]` attribute selector, counting each toward `b`,
+    // then score the remaining tag/class/id part.
+    let mut attr_count = 0u32;
+    let mut simple = String::with_capacity(head.len());
+    let mut chars = head.char_indices().peekable();
+    while let Some((i, ch)) = chars.next() {
+        if ch == '[' {
+            attr_count += 1;
+            // Skip until the matching `]`.
+            for (_, c) in chars.by_ref() {
+                if c == ']' {
+                    break;
+                }
+            }
+        } else {
+            simple.push(ch);
+            let _ = i;
+        }
+    }
+    let (a, b, c) = simple_part_specificity(&simple);
+    (a, b + attr_count, c)
+}
+
+/// Specificity of a simple compound with no attribute selectors: an optional
+/// type/universal part plus `.class` / `#id` segments.
+fn simple_part_specificity(part: &str) -> (u32, u32, u32) {
+    let (mut a, mut b, mut c) = (0u32, 0u32, 0u32);
+    if part.is_empty() {
+        return (a, b, c);
+    }
+    let first_delim = part.find(['.', '#']);
+    let (tag_part, segs) = match first_delim {
+        Some(i) => part.split_at(i),
+        None => (part, ""),
+    };
+    // A type selector adds to c; `*` and an empty type part add nothing.
+    if !tag_part.is_empty() && tag_part != "*" {
+        c += 1;
+    }
+    let mut chars = segs.char_indices().peekable();
+    while let Some((start, marker)) = chars.next() {
+        let mut end = segs.len();
+        while let Some(&(idx, ch)) = chars.peek() {
+            if ch == '.' || ch == '#' {
+                end = idx;
+                break;
+            }
+            chars.next();
+        }
+        let _name = &segs[start + 1..end];
+        match marker {
+            '#' => a += 1,
+            '.' => b += 1,
+            _ => {}
+        }
+    }
+    (a, b, c)
 }
 
 fn compound_selector_matches(
@@ -149,6 +309,18 @@ fn sibling_selector_context<'a>(
     ctx: &'a SelectorContext<'a>,
     sibling_index: usize,
 ) -> SelectorContext<'a> {
+    // Following siblings of the matched left-hand sibling: every sibling after
+    // it, i.e. the remaining preceding siblings of the anchor plus the anchor's
+    // own following siblings. We approximate with the preceding-sibling slice
+    // beyond `sibling_index` (the part of the anchor's preceding list that comes
+    // after this sibling); forward siblings past the anchor are not needed for
+    // sibling-combinator left-hand matching.
+    let following_siblings: Vec<(String, Vec<String>)> = ctx
+        .preceding_siblings
+        .iter()
+        .skip(sibling_index + 1)
+        .cloned()
+        .collect();
     SelectorContext {
         ancestors: ctx.ancestors.clone(),
         child_index: sibling_index,
@@ -159,6 +331,8 @@ fn sibling_selector_context<'a>(
             .take(sibling_index)
             .cloned()
             .collect(),
+        following_siblings,
+        is_empty: false,
     }
 }
 
@@ -172,6 +346,8 @@ fn ancestor_selector_context<'a>(
         child_index: ancestor.child_index,
         sibling_count: ancestor.sibling_count,
         preceding_siblings: ancestor.preceding_siblings.clone(),
+        following_siblings: ancestor.following_siblings.clone(),
+        is_empty: ancestor.is_empty,
     }
 }
 
@@ -284,16 +460,13 @@ fn simple_selector_matches(
         return false;
     }
 
-    let (base, pseudo) = split_pseudo_class(selector);
-    if let Some(pseudo) = pseudo {
-        if let Some(inner) = pseudo
-            .strip_prefix(":not(")
-            .and_then(|value| value.strip_suffix(')'))
-        {
-            if simple_selector_matches(inner, tag, classes, id, attributes, ctx) {
-                return false;
-            }
-        } else if !pseudo_class_matches(pseudo, ctx) {
+    // Split the compound selector into its non-pseudo head (tag/id/class/attr)
+    // and the list of trailing pseudo-class tokens. A compound may carry several
+    // pseudos (e.g. `.box:nth-child(2):not(.skip)`); every one must match.
+    let (base, pseudos) = split_compound(selector);
+
+    for pseudo in &pseudos {
+        if !pseudo_matches(pseudo, tag, classes, id, attributes, ctx) {
             return false;
         }
     }
@@ -376,38 +549,223 @@ fn simple_selector_core_matches(
     true
 }
 
-fn split_pseudo_class(selector: &str) -> (&str, Option<&str>) {
+/// Split a compound selector into its non-pseudo head and the list of trailing
+/// pseudo-class tokens. Each pseudo token retains its leading `:` and, for
+/// functional pseudos, its parenthesised argument (e.g. `:nth-child(2n+1)`,
+/// `:not(.a, .b)`). Brackets and parentheses are tracked so a `:` inside an
+/// attribute value (`[x=":"]`) or a functional argument (`:not(:first-child)`)
+/// does not terminate the head.
+fn split_compound(selector: &str) -> (&str, Vec<&str>) {
     let mut bracket_depth = 0usize;
     let mut paren_depth = 0usize;
+    let mut head_end = selector.len();
+    let mut pseudo_starts: Vec<usize> = Vec::new();
 
-    for (index, ch) in selector.char_indices() {
+    for (byte_index, ch) in selector.char_indices() {
         match ch {
             '[' => bracket_depth += 1,
             ']' => bracket_depth = bracket_depth.saturating_sub(1),
             '(' => paren_depth += 1,
             ')' => paren_depth = paren_depth.saturating_sub(1),
             ':' if bracket_depth == 0 && paren_depth == 0 => {
-                return (&selector[..index], Some(&selector[index..]));
+                // A `::` introduces a pseudo-element, which is stripped earlier;
+                // treat any `:` at top level as a pseudo-class boundary.
+                if pseudo_starts.is_empty() {
+                    head_end = byte_index;
+                }
+                pseudo_starts.push(byte_index);
             }
             _ => {}
         }
     }
 
-    (selector, None)
+    let head = &selector[..head_end];
+    let mut pseudos = Vec::with_capacity(pseudo_starts.len());
+    for (i, &start) in pseudo_starts.iter().enumerate() {
+        let end = pseudo_starts.get(i + 1).copied().unwrap_or(selector.len());
+        // Skip a leading `:` belonging to a `::pseudo-element` written with a
+        // single colon split — only collect real pseudo-class tokens.
+        let token = &selector[start..end];
+        if token.starts_with("::") {
+            continue;
+        }
+        pseudos.push(token);
+    }
+    (head, pseudos)
 }
 
-fn pseudo_class_matches(pseudo: &str, ctx: &SelectorContext) -> bool {
+/// Match a single pseudo-class token (with its `:` prefix) against the element.
+fn pseudo_matches(
+    pseudo: &str,
+    tag: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+) -> bool {
+    // Functional logical pseudo-classes operate on a selector list argument.
+    if let Some(arg) = functional_arg(pseudo, ":not(") {
+        // :not() matches when NONE of the listed compound selectors match.
+        return !selector_list_matches(arg, tag, classes, id, attributes, ctx);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":is(") {
+        return selector_list_matches(arg, tag, classes, id, attributes, ctx);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":where(") {
+        return selector_list_matches(arg, tag, classes, id, attributes, ctx);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":has(") {
+        return has_matches(arg, tag, classes, id, attributes, ctx);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":nth-child(") {
+        return nth_child_matches(arg, ctx.child_index);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":nth-last-child(") {
+        let from_end = ctx.sibling_count.saturating_sub(ctx.child_index + 1);
+        return nth_child_matches(arg, from_end);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":nth-of-type(") {
+        return nth_child_matches(arg, type_index_from_start(tag, ctx));
+    }
+    if let Some(arg) = functional_arg(pseudo, ":nth-last-of-type(") {
+        return nth_child_matches(arg, type_index_from_end(tag, ctx));
+    }
+
     match pseudo {
         ":first-child" => ctx.child_index == 0,
         ":last-child" => ctx.child_index + 1 == ctx.sibling_count,
-        _ if pseudo.starts_with(":nth-child(") && pseudo.ends_with(')') => {
-            let arg = pseudo
-                .trim_start_matches(":nth-child(")
-                .trim_end_matches(')');
-            nth_child_matches(arg, ctx.child_index)
+        ":only-child" => ctx.sibling_count == 1,
+        ":empty" => ctx.is_empty,
+        ":root" => ctx.ancestors.is_empty() && tag.eq_ignore_ascii_case("html"),
+        // :scope without an explicit scoping root matches the document root in
+        // print contexts (no :scope attribute is set), mirroring :root.
+        ":scope" => ctx.ancestors.is_empty(),
+        ":first-of-type" => type_index_from_start(tag, ctx) == 0,
+        ":last-of-type" => type_index_from_end(tag, ctx) == 0,
+        ":only-of-type" => {
+            type_index_from_start(tag, ctx) == 0 && type_index_from_end(tag, ctx) == 0
         }
+        // Dynamic / UI pseudo-classes never match in a static print context.
         _ => false,
     }
+}
+
+/// If `pseudo` is the functional pseudo named by `prefix` (e.g. `:not(`),
+/// return its inner argument with the trailing `)` stripped.
+fn functional_arg<'a>(pseudo: &'a str, prefix: &str) -> Option<&'a str> {
+    pseudo
+        .strip_prefix(prefix)
+        .and_then(|rest| rest.strip_suffix(')'))
+}
+
+/// Match a comma-separated selector list (each item a compound selector) as the
+/// argument of `:is()` / `:where()` / `:not()`. Returns true if ANY item
+/// matches this element. Combinators inside the argument are not supported here
+/// (compound-only), which covers the print-relevant cases.
+fn selector_list_matches(
+    list: &str,
+    tag: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+) -> bool {
+    split_selector_list(list)
+        .into_iter()
+        .any(|item| simple_selector_matches(item, tag, classes, id, attributes, ctx))
+}
+
+/// Split a selector list on top-level commas (ignoring commas inside `[]`/`()`).
+fn split_selector_list(list: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut bracket_depth = 0usize;
+    let mut paren_depth = 0usize;
+    let mut start = 0usize;
+    for (index, ch) in list.char_indices() {
+        match ch {
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            ',' if bracket_depth == 0 && paren_depth == 0 => {
+                let piece = list[start..index].trim();
+                if !piece.is_empty() {
+                    parts.push(piece);
+                }
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    let tail = list[start..].trim();
+    if !tail.is_empty() {
+        parts.push(tail);
+    }
+    parts
+}
+
+/// Evaluate `:has(<relative-selector-list>)` against the element's known
+/// context. Only the forward relational forms reachable from the available
+/// context are supported: `:has(+ X)` / `:has(~ X)` (a following sibling
+/// matching X) and `:has(> X)` / `:has(X)` (currently treated as a following
+/// sibling probe). Descendant `:has` would need the subtree, which the matcher
+/// does not carry, so deep descendant relations return false (conservative).
+fn has_matches(
+    arg: &str,
+    _tag: &str,
+    _classes: &[&str],
+    _id: Option<&str>,
+    _attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+) -> bool {
+    let arg = arg.trim();
+    let (combinator, target) = if let Some(rest) = arg.strip_prefix('+') {
+        ('+', rest.trim())
+    } else if let Some(rest) = arg.strip_prefix('~') {
+        ('~', rest.trim())
+    } else if let Some(rest) = arg.strip_prefix('>') {
+        ('>', rest.trim())
+    } else {
+        (' ', arg)
+    };
+
+    match combinator {
+        // Adjacent following sibling matches the target.
+        '+' => ctx.following_siblings.first().is_some_and(|(t, c)| {
+            let refs: Vec<&str> = c.iter().map(String::as_str).collect();
+            simple_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
+        }),
+        // Any following sibling matches the target.
+        '~' => ctx.following_siblings.iter().any(|(t, c)| {
+            let refs: Vec<&str> = c.iter().map(String::as_str).collect();
+            simple_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
+        }),
+        // Child / descendant relations are not represented in the matcher
+        // context; conservatively unsupported.
+        _ => false,
+    }
+}
+
+fn empty_ctx<'a>() -> SelectorContext<'a> {
+    SelectorContext::default()
+}
+
+/// Zero-based index of this element among siblings of the SAME element type,
+/// counting from the start (for `:nth-of-type` / `:first-of-type`).
+fn type_index_from_start(tag: &str, ctx: &SelectorContext) -> usize {
+    ctx.preceding_siblings
+        .iter()
+        .filter(|(t, _)| t.eq_ignore_ascii_case(tag))
+        .count()
+}
+
+/// Zero-based index of this element among siblings of the SAME element type,
+/// counting from the end (for `:nth-last-of-type` / `:last-of-type`).
+fn type_index_from_end(tag: &str, ctx: &SelectorContext) -> usize {
+    ctx.following_siblings
+        .iter()
+        .filter(|(t, _)| t.eq_ignore_ascii_case(tag))
+        .count()
 }
 
 fn nth_child_matches(arg: &str, child_index: usize) -> bool {
@@ -466,15 +824,140 @@ fn attribute_selector_matches(selector: &str, attributes: &HashMap<String, Strin
         .all(|expr| single_attribute_matches(expr, attributes))
 }
 
+/// Match a single attribute selector expression (the text between `[` and `]`)
+/// per Selectors-4 §6: presence and the six value operators (`=`, `~=`, `|=`,
+/// `^=`, `$=`, `*=`), plus the trailing case-sensitivity flag (`i` = ASCII
+/// case-insensitive, `s` = case-sensitive).
 fn single_attribute_matches(expr: &str, attributes: &HashMap<String, String>) -> bool {
-    if let Some((attr_name, attr_val)) = expr.split_once('=') {
-        let attr_name = attr_name.trim();
-        let attr_val = attr_val.trim().trim_matches('"').trim_matches('\'');
+    let expr = expr.trim();
+
+    // Strip a trailing case-sensitivity flag: `attr=val i` / `attr=val s`.
+    let (expr, case_insensitive) = if let Some(stripped) = strip_case_flag(expr, 'i') {
+        (stripped, true)
+    } else if let Some(stripped) = strip_case_flag(expr, 's') {
+        (stripped, false)
+    } else {
+        (expr, false)
+    };
+
+    // Locate the operator: one of `~= |= ^= $= *=` or a bare `=`.
+    let op_index = expr.find(['=', '~', '|', '^', '$', '*']);
+    let Some(op_index) = op_index else {
+        // Presence selector `[attr]`.
         return attributes
-            .get(attr_name)
-            .is_some_and(|value| value == attr_val);
+            .keys()
+            .any(|k| k.eq_ignore_ascii_case(expr.trim()));
+    };
+
+    let (name_part, op_and_value) = expr.split_at(op_index);
+    let (op, value_part): (&str, &str) = if let Some(rest) = op_and_value.strip_prefix("~=") {
+        ("~=", rest)
+    } else if let Some(rest) = op_and_value.strip_prefix("|=") {
+        ("|=", rest)
+    } else if let Some(rest) = op_and_value.strip_prefix("^=") {
+        ("^=", rest)
+    } else if let Some(rest) = op_and_value.strip_prefix("$=") {
+        ("$=", rest)
+    } else if let Some(rest) = op_and_value.strip_prefix("*=") {
+        ("*=", rest)
+    } else if let Some(rest) = op_and_value.strip_prefix('=') {
+        ("=", rest)
+    } else {
+        return false;
+    };
+
+    let attr_name = name_part.trim();
+    let want = unquote(value_part.trim());
+
+    // Attribute names are ASCII case-insensitive in HTML.
+    let Some(have) = attributes
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(attr_name))
+        .map(|(_, v)| v.as_str())
+    else {
+        return false;
+    };
+
+    // An empty value never matches the substring/prefix/suffix/word operators.
+    let eq = |a: &str, b: &str| {
+        if case_insensitive {
+            a.eq_ignore_ascii_case(b)
+        } else {
+            a == b
+        }
+    };
+    let contains = |hay: &str, needle: &str| {
+        if case_insensitive {
+            hay.to_ascii_lowercase()
+                .contains(&needle.to_ascii_lowercase())
+        } else {
+            hay.contains(needle)
+        }
+    };
+
+    match op {
+        "=" => eq(have, want),
+        "~=" => !want.is_empty() && have.split_ascii_whitespace().any(|word| eq(word, want)),
+        "|=" => {
+            eq(have, want) || {
+                let prefix = format!("{want}-");
+                if case_insensitive {
+                    have.to_ascii_lowercase()
+                        .starts_with(&prefix.to_ascii_lowercase())
+                } else {
+                    have.starts_with(&prefix)
+                }
+            }
+        }
+        "^=" => {
+            !want.is_empty()
+                && if case_insensitive {
+                    have.to_ascii_lowercase()
+                        .starts_with(&want.to_ascii_lowercase())
+                } else {
+                    have.starts_with(want)
+                }
+        }
+        "$=" => {
+            !want.is_empty()
+                && if case_insensitive {
+                    have.to_ascii_lowercase()
+                        .ends_with(&want.to_ascii_lowercase())
+                } else {
+                    have.ends_with(want)
+                }
+        }
+        "*=" => !want.is_empty() && contains(have, want),
+        _ => false,
     }
-    attributes.contains_key(expr.trim())
+}
+
+/// Strip a trailing ` i` / ` s` case flag (Selectors-4 §6.3) from an attribute
+/// expression, returning the expression without the flag if present.
+fn strip_case_flag(expr: &str, flag: char) -> Option<&str> {
+    let trimmed = expr.trim_end();
+    let without = trimmed.strip_suffix(flag)?;
+    // The flag must be a standalone token: preceded by whitespace and the value
+    // must contain an operator (so a bare `[attr]` ending in `i` isn't stripped).
+    if without.ends_with(char::is_whitespace) && without.contains('=') {
+        Some(without.trim_end())
+    } else {
+        None
+    }
+}
+
+/// Remove surrounding single or double quotes from an attribute value token.
+fn unquote(value: &str) -> &str {
+    let value = value.trim();
+    if value.len() >= 2 {
+        let bytes = value.as_bytes();
+        let first = bytes[0];
+        let last = bytes[bytes.len() - 1];
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return &value[1..value.len() - 1];
+        }
+    }
+    value
 }
 
 #[cfg(test)]
@@ -484,5 +967,7 @@ pub(crate) fn ancestor_info(element: &ElementNode) -> AncestorInfo<'_> {
         child_index: 0,
         sibling_count: 1,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     }
 }

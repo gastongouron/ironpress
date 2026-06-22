@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .box {
+    width: 100px;
+    height: 60px;
+    border: 2px solid #11324f;
+    background: #bdbdbd;
+    margin-bottom: 10px;
+  }
+  /* :where() contributes ZERO specificity, so the later (0,1,0) .tint rule
+     wins over :where(.box) even though :where appears first. The box stays
+     green because .tint (a real class, specificity 0,1,0) beats :where(.x). */
+  :where(.box) { background: #bdbdbd; }
+  .tint { background: #2e9e4f; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box tint"></div>
+  </div>
+</body>
+</html>

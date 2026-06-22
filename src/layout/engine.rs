@@ -997,6 +997,7 @@ fn flatten_nodes(
         .count();
     let mut element_index = 0;
     let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
+    let all_element_siblings = element_sibling_list(nodes);
 
     // Accumulator for consecutive inline-block elements
     let mut ib_group: Vec<&ElementNode> = Vec::new();
@@ -1167,6 +1168,7 @@ fn flatten_nodes(
                         element_index,
                         element_count,
                         &preceding_siblings,
+                        forward_siblings(&all_element_siblings, element_index),
                         env,
                     );
                 }
@@ -1191,6 +1193,41 @@ fn flatten_nodes(
     );
 }
 
+/// Ordered `(tag, classes)` list of the element children of `nodes`, used to
+/// derive the forward-sibling slice each child needs for `:last-of-type` /
+/// `:only-of-type` / `:nth-last-of-type` / sibling-`:has()` matching.
+pub(crate) fn element_sibling_list(nodes: &[DomNode]) -> Vec<(String, Vec<String>)> {
+    nodes
+        .iter()
+        .filter_map(|n| match n {
+            DomNode::Element(e) => Some((
+                e.tag_name().to_string(),
+                e.class_list().iter().map(|s| s.to_string()).collect(),
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The siblings that follow the element at `element_index` in a sibling list.
+pub(crate) fn forward_siblings(
+    siblings: &[(String, Vec<String>)],
+    element_index: usize,
+) -> &[(String, Vec<String>)] {
+    siblings.get(element_index + 1..).unwrap_or(&[])
+}
+
+/// Whether an element is `:empty` per Selectors-4 §9.4: it has no child
+/// elements and no non-whitespace, non-comment text. (Document type
+/// declarations and comments are not modelled, so only element children and
+/// text content are considered here.)
+pub(crate) fn element_is_empty(el: &ElementNode) -> bool {
+    el.children.iter().all(|node| match node {
+        DomNode::Element(_) => false,
+        DomNode::Text(text) => text.chars().all(|c| c.is_whitespace()),
+    })
+}
+
 /// Flatten a single DOM element into layout elements.
 ///
 /// Computes the element's style, handles special tags (math, br, hr, img,
@@ -1208,6 +1245,7 @@ pub(crate) fn flatten_element(
     child_index: usize,
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
+    following_siblings: &[(String, Vec<String>)],
     env: &mut LayoutEnv,
 ) {
     let available_width = ctx.available_width();
@@ -1218,6 +1256,8 @@ pub(crate) fn flatten_element(
         child_index,
         sibling_count,
         preceding_siblings: preceding_siblings.to_vec(),
+        following_siblings: following_siblings.to_vec(),
+        is_empty: element_is_empty(el),
     };
     let mut style = compute_style_with_context(
         el.tag,
@@ -1805,6 +1845,8 @@ pub(crate) fn flatten_element(
         child_index,
         sibling_count,
         preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
     });
 
     // List handling — Ul/Ol pass context to Li children
@@ -1860,6 +1902,7 @@ pub(crate) fn flatten_element(
                         child_el_idx,
                         child_el_count,
                         &[],
+                        &[],
                         env,
                     );
                     if let ListContext::Ordered { index, .. } = &mut ctx {
@@ -1879,6 +1922,7 @@ pub(crate) fn flatten_element(
                         positioned_depth,
                         child_el_idx,
                         child_el_count,
+                        &[],
                         &[],
                         env,
                     );
@@ -1905,6 +1949,8 @@ pub(crate) fn flatten_element(
             child_index,
             sibling_count,
             preceding_siblings: preceding_siblings.to_vec(),
+            following_siblings: Vec::new(),
+            is_empty: false,
         };
         let li_before = compute_pseudo_element_style(
             &style,
@@ -2172,6 +2218,7 @@ pub(crate) fn flatten_element(
                         child_el_idx,
                         child_el_count,
                         &[],
+                        &[],
                         env,
                     );
                 } else if recurses_as_layout_child(child_el.tag) {
@@ -2188,6 +2235,7 @@ pub(crate) fn flatten_element(
                         positioned_depth,
                         child_el_idx,
                         child_el_count,
+                        &[],
                         &[],
                         env,
                     );
@@ -2289,6 +2337,8 @@ fn inline_loose_list_p(
                     child_index: child_el_ordinal,
                     sibling_count: li_child_el_count,
                     preceding_siblings: Vec::new(),
+                    following_siblings: Vec::new(),
+                    is_empty: false,
                 };
                 let p_style = compute_style_with_context(
                     child_el.tag,

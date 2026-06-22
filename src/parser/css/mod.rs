@@ -31,7 +31,7 @@ pub use page::{parse_font_face_rules, parse_page_rules};
 #[cfg(test)]
 pub(crate) use rules::parse_stylesheet;
 pub(crate) use rules::parse_stylesheet_with_context;
-pub(crate) use selectors::selector_matches_with_context;
+pub(crate) use selectors::{selector_matches_with_context, specificity};
 pub(crate) use values::{is_css_wide_keyword, parse_color, parse_length};
 #[cfg(test)]
 pub(crate) use values::{

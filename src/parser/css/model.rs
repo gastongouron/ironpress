@@ -23,6 +23,10 @@ pub struct AncestorInfo<'a> {
     pub sibling_count: usize,
     /// Preceding sibling elements for this ancestor within its parent.
     pub preceding_siblings: Vec<(String, Vec<String>)>,
+    /// Following sibling elements for this ancestor within its parent.
+    pub following_siblings: Vec<(String, Vec<String>)>,
+    /// Whether this ancestor has no element children / non-whitespace text.
+    pub is_empty: bool,
 }
 
 /// Context for advanced CSS selector matching.
@@ -36,6 +40,14 @@ pub struct SelectorContext<'a> {
     pub sibling_count: usize,
     /// Preceding sibling elements (tag name, class list) in document order.
     pub preceding_siblings: Vec<(String, Vec<String>)>,
+    /// Following sibling elements (tag name, class list) in document order.
+    /// Needed for `:last-of-type`, `:only-of-type`, `:nth-last-of-type`, and
+    /// `:has(~ ...)`/`:has(+ ...)` relational matching. Defaults to empty in
+    /// layout paths that don't track forward siblings.
+    pub following_siblings: Vec<(String, Vec<String>)>,
+    /// Whether this element has no element children and no non-whitespace text
+    /// (drives `:empty`). Defaults to `false` where not tracked.
+    pub is_empty: bool,
 }
 
 /// An operator in a calc() expression.
