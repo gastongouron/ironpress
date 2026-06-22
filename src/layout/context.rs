@@ -44,6 +44,14 @@ pub struct ParentBox {
     pub content_width: f32,
     pub content_height: Option<f32>,
     pub font_size: f32,
+    /// Width against which a child's percentage `width`/`min-width`/`max-width`
+    /// resolves: the containing block's **content** width (CSS 2.1 § 10.2). For
+    /// normal block flow this equals `content_width`. It is tracked separately
+    /// because some layout modes (notably flex) hand a child an `available_width`
+    /// equal to the child's own resolved size, while percentages must still
+    /// resolve against the container's content width — the percentage basis the
+    /// style cascade pre-resolved against.
+    pub percent_width_basis: f32,
 }
 
 /// Contextual information that flows through the layout tree.
@@ -91,6 +99,32 @@ impl LayoutContext {
                 content_width,
                 content_height,
                 font_size,
+                // Normal block flow: percentages resolve against the parent's
+                // content width, which is the `content_width` passed here.
+                percent_width_basis: content_width,
+            },
+            ..*self
+        }
+    }
+
+    /// Like [`with_parent`], but lets the caller specify a percentage-width
+    /// basis that differs from `content_width`. Used by flex layout, which hands
+    /// each item an `available_width` equal to the item's own resolved size while
+    /// percentage widths must still resolve against the flex container's content
+    /// width (the basis the style cascade pre-resolved against).
+    pub fn with_parent_and_basis(
+        &self,
+        content_width: f32,
+        percent_width_basis: f32,
+        content_height: Option<f32>,
+        font_size: f32,
+    ) -> Self {
+        LayoutContext {
+            parent: ParentBox {
+                content_width,
+                content_height,
+                font_size,
+                percent_width_basis,
             },
             ..*self
         }

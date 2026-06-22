@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 10.5: when the parent's height is indefinite (auto), a percentage
+     height on the child BEHAVES AS AUTO. .parent has no explicit height; the
+     child's height:50% cannot resolve, so it falls back to auto = its own
+     content height (here from an explicit child inside it: 70px). The parent
+     auto-height then wraps the child. Verifies % height collapses to content,
+     not to half of some inherited height. */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    width: 240px;
+    background: #cfd8e3;
+  }
+  .child {
+    width: 240px;
+    height: 50%;
+    background: #2d6cdf;
+  }
+  .grandchild {
+    height: 70px;
+    background: #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child">
+      <div class="grandchild"></div>
+    </div>
+  </div>
+</body>
+</html>

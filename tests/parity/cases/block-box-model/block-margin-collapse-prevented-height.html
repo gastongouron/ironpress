@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: the parent's bottom margin collapses with the last child's
+     bottom margin ONLY if the parent has 'auto' computed height. Here the parent
+     has an explicit height:200px, so the collapse is prevented — the child's
+     margin-bottom is contained inside the parent's height and the parent's own
+     margin-bottom:0 governs the gap. The following sibling sits directly below
+     the parent's 200px box (its own margin-top:30px is the only gap), NOT pulled
+     up by any collapse-through. */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    box-sizing: content-box;
+    width: 240px;
+    height: 200px;
+    background: #cfd8e3;
+  }
+  .child {
+    width: 240px;
+    height: 80px;
+    margin-bottom: 60px;
+    background: #2d6cdf;
+  }
+  .after {
+    width: 240px;
+    height: 50px;
+    margin-top: 30px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+  <div class="after"></div>
+</body>
+</html>

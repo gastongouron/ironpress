@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1 + css-flexbox-1 § 6: margin collapsing is suppressed for
+     flex items — a flex container establishes a new formatting context and its
+     items never collapse margins with each other or with the container. The two
+     column flex items have margin-bottom:40px and margin-top:30px; because they
+     do NOT collapse, the gap between them is 40 + 30 = 70px (NOT the collapsed
+     max of 40px that block flow would give). */
+  html, body { margin: 0; background: #ffffff; }
+  .flex {
+    display: flex;
+    flex-direction: column;
+    width: 240px;
+    background: #cfd8e3;
+  }
+  .a {
+    height: 70px;
+    margin-bottom: 40px;
+    background: #2d6cdf;
+  }
+  .b {
+    height: 70px;
+    margin-top: 30px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="flex">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: when a parent has padding/border that blocks collapsing,
+     the child's margin stays INSIDE and offsets it within the parent (no
+     protrusion). Conversely, with NO blocking padding/border the first child's
+     top margin collapses THROUGH the parent and the gap appears ABOVE the
+     parent. This fixture pairs the two: .blocked has padding-top:1px so the
+     child's 40px margin is contained (child sits 41px below .blocked's top);
+     .through has no padding so the child's 40px margin protrudes above .through
+     (gap above the parent box). The two parents start at different y because of
+     this difference. */
+  html, body { margin: 0; background: #ffffff; }
+  .blocked {
+    width: 240px;
+    padding-top: 1px;
+    background: #cfd8e3;
+  }
+  .through {
+    width: 240px;
+    margin-top: 50px;
+    background: #e8eef6;
+  }
+  .child {
+    height: 70px;
+    margin-top: 40px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="blocked">
+    <div class="child"></div>
+  </div>
+  <div class="through">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

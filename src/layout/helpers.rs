@@ -200,6 +200,15 @@ pub(crate) fn take_margin_bottom(el: &mut LayoutElement) -> f32 {
 ///
 /// The child's margin is zeroed so that flow layout (pagination and
 /// `render_container_children`) doesn't double-count it.
+///
+/// `suppress_top` / `suppress_bottom` block the respective collapse-through
+/// independently of padding/border. Per CSS 2.1 § 8.3.1, collapsing of a box's
+/// margin with its first/last child is suppressed when the box establishes a new
+/// block formatting context (e.g. `overflow != visible`), is a flex/grid item or
+/// container, or floats/absolutely-positions. The *bottom* collapse-through is
+/// additionally suppressed when the box has a definite (non-`auto`) height — the
+/// child's bottom margin is then contained inside that height.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn collapse_margins_through_parent(
     children: &mut [LayoutElement],
     container_margin_top: &mut f32,
@@ -208,25 +217,50 @@ pub(crate) fn collapse_margins_through_parent(
     padding_bottom: f32,
     border_top: f32,
     border_bottom: f32,
+    suppress_top: bool,
+    suppress_bottom: bool,
 ) {
-    if padding_top == 0.0
+    if !suppress_top
+        && padding_top == 0.0
         && border_top == 0.0
         && let Some(i) = first_in_flow_idx(children)
     {
         let child_mt = take_margin_top(&mut children[i]);
-        if child_mt > *container_margin_top {
-            *container_margin_top = child_mt;
-        }
+        *container_margin_top = collapse_margin_pair(*container_margin_top, child_mt);
     }
-    if padding_bottom == 0.0
+    if !suppress_bottom
+        && padding_bottom == 0.0
         && border_bottom == 0.0
         && let Some(i) = last_in_flow_idx(children)
     {
         let child_mb = take_margin_bottom(&mut children[i]);
-        if child_mb > *container_margin_bottom {
-            *container_margin_bottom = child_mb;
-        }
+        *container_margin_bottom = collapse_margin_pair(*container_margin_bottom, child_mb);
     }
+}
+
+/// Collapse two adjoining margins (CSS 2.1 § 8.3.1): both non-negative → the
+/// larger; both negative → the more negative; mixed signs → the sum (max
+/// positive plus min negative). Used both for parent/child collapse-through and
+/// as the canonical rule shared with the paginate sibling-collapse path.
+pub(crate) fn collapse_margin_pair(a: f32, b: f32) -> f32 {
+    if a >= 0.0 && b >= 0.0 {
+        a.max(b)
+    } else if a < 0.0 && b < 0.0 {
+        a.min(b)
+    } else {
+        a + b
+    }
+}
+
+/// True when `style` establishes a new block formatting context that suppresses
+/// margin collapsing between the box and its in-flow children (CSS 2.1 § 9.4.1 +
+/// § 8.3.1). Covers `overflow != visible`, floats, and absolute positioning;
+/// flex/grid containers route through their own layout and never reach the block
+/// margin-collapse path, so they need no entry here.
+pub(crate) fn establishes_bfc(style: &ComputedStyle) -> bool {
+    style.overflow.clips()
+        || style.float != crate::style::computed::Float::None
+        || style.position == Position::Absolute
 }
 
 // ---------------------------------------------------------------------------

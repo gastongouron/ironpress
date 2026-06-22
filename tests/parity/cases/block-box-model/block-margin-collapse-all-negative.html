@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: when all collapsing margins are negative, the result is the
+     most-negative (max of absolute values, deducted from zero). .a
+     margin-bottom:-20px and .b margin-top:-50px collapse to -50px, pulling .b up
+     50px so it overlaps .a by 50px. The red box visibly overlaps the bottom of
+     the blue box. */
+  html, body { margin: 0; background: #ffffff; }
+  .a {
+    width: 240px;
+    height: 100px;
+    margin-bottom: -20px;
+    background: #2d6cdf;
+  }
+  .b {
+    width: 160px;
+    height: 100px;
+    margin-top: -50px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+</body>
+</html>

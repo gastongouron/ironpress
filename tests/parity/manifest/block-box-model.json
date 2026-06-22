@@ -8,7 +8,10 @@
     "file": "cases/block-box-model/block-width-height-explicit.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -22,7 +25,10 @@
     "file": "cases/block-box-model/block-width-auto-fills-parent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -36,7 +42,10 @@
     "file": "cases/block-box-model/block-padding-all-sides.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -50,7 +59,10 @@
     "file": "cases/block-box-model/block-border-width-thick.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -64,7 +76,10 @@
     "file": "cases/block-box-model/block-margin-auto-centering.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -78,7 +93,10 @@
     "file": "cases/block-box-model/block-margin-collapse-adjacent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -92,7 +110,9 @@
     "file": "cases/block-box-model/block-box-sizing-border-box.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box"],
+    "depends_on": [
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -106,7 +126,9 @@
     "file": "cases/block-box-model/block-box-sizing-content-box.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box"],
+    "depends_on": [
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -120,7 +142,10 @@
     "file": "cases/block-box-model/block-display-inline-block-row.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -134,7 +159,10 @@
     "file": "cases/block-box-model/block-display-block-stacking.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -148,7 +176,10 @@
     "file": "cases/block-box-model/block-max-width-clamp.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -162,7 +193,10 @@
     "file": "cases/block-box-model/block-min-width-floor.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -176,7 +210,10 @@
     "file": "cases/block-box-model/block-width-percent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -190,7 +227,10 @@
     "file": "cases/block-box-model/block-nested-containment.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -204,7 +244,486 @@
     "file": "cases/block-box-model/block-margin-offsets.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-parent-first-child",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-parent-first-child",
+    "description": "Parent + first in-flow child top margins collapse through (CSS2 8.3.1); child margin-top protrudes above the parent.",
+    "file": "cases/block-box-model/block-margin-collapse-parent-first-child.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-parent-last-child",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-parent-last-child",
+    "description": "Parent (auto height) + last in-flow child bottom margins collapse through (CSS2 8.3.1); following sibling sits at the larger margin.",
+    "file": "cases/block-box-model/block-margin-collapse-parent-last-child.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-empty",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-empty",
+    "description": "Empty block's own top+bottom margins collapse together and with siblings to a single 40px gap (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-empty.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-negative-mixed",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-negative-mixed",
+    "description": "Mixed-sign adjacent margins collapse to max_positive + min_negative = 30px (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-negative-mixed.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-all-negative",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-all-negative",
+    "description": "All-negative adjacent margins collapse to the most-negative (-50px), overlapping the boxes (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-all-negative.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-prevented-padding",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-prevented-padding",
+    "description": "Parent padding-top prevents parent/first-child margin collapse; child margin offsets it inside the parent (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-prevented-padding.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-prevented-height",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-prevented-height",
+    "description": "Parent explicit height prevents parent/last-child bottom margin collapse-through (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-prevented-height.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-prevented-overflow",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-prevented-bfc",
+    "description": "overflow:hidden establishes a BFC, preventing parent/child margin collapse (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-prevented-overflow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-prevented-bfc-sibling",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-prevented-bfc-sibling",
+    "description": "A BFC wrapper does not collapse its child's margin with margins outside it (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-collapse-prevented-bfc-sibling.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-collapse-prevented-flex",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "collapse-prevented-flex",
+    "description": "Flex items do not collapse margins; the gap is the sum (70px), not the collapsed max (CSS2 8.3.1 + flexbox 6).",
+    "file": "cases/block-box-model/block-margin-collapse-prevented-flex.html",
+    "kind": "feature",
+    "expected_support": "partial",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-descendant-protrudes",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "descendant-protrudes",
+    "description": "Descendant top margin protrudes above the parent when not blocked, vs contained when padding blocks the collapse (CSS2 8.3.1).",
+    "file": "cases/block-box-model/block-margin-descendant-protrudes.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-negative-offset",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "negative-offset",
+    "description": "Negative explicit margin-left/-top pull the box left/up, overlapping the parent edge (CSS2 8.3).",
+    "file": "cases/block-box-model/block-margin-negative-offset.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-padding-asymmetric",
+    "category": "block-box-model",
+    "feature": "padding",
+    "subfeature": "asymmetric",
+    "description": "Per-side asymmetric padding (10/50/30/70) insets content distinctly on each edge (css-box-3).",
+    "file": "cases/block-box-model/block-padding-asymmetric.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-padding-percent",
+    "category": "block-box-model",
+    "feature": "padding",
+    "subfeature": "percent",
+    "description": "Percentage padding resolves against containing-block WIDTH on every side incl. vertical (CSS2 8.4).",
+    "file": "cases/block-box-model/block-padding-percent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-box-sizing-padding-exceeds",
+    "category": "block-box-model",
+    "feature": "box-sizing",
+    "subfeature": "padding-exceeds-width",
+    "description": "border-box where padding exceeds declared width: content floors to 0, border box grows to padding sum (css-sizing-3 5.1).",
+    "file": "cases/block-box-model/block-box-sizing-padding-exceeds.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-box-sizing-border-box-auto-width",
+    "category": "block-box-model",
+    "feature": "box-sizing",
+    "subfeature": "border-box-auto-width",
+    "description": "box-sizing:border-box with width:auto fills the CB; padding+border drawn inside the 300px box (css-sizing-3).",
+    "file": "cases/block-box-model/block-box-sizing-border-box-auto-width.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-auto-single-side",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "auto-single-side",
+    "description": "margin-left:auto on a fixed-width block absorbs all free space, pushing the box to the right edge (CSS2 10.3.3).",
+    "file": "cases/block-box-model/block-margin-auto-single-side.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-margin-auto-no-width",
+    "category": "block-box-model",
+    "feature": "margin",
+    "subfeature": "auto-no-width",
+    "description": "margin:0 auto with width:auto does not center: auto margins compute to 0 and width fills the CB (CSS2 10.3.3).",
+    "file": "cases/block-box-model/block-margin-auto-no-width.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-min-max-width-conflict",
+    "category": "block-box-model",
+    "feature": "min-width",
+    "subfeature": "min-over-max",
+    "description": "min-width > max-width: min wins via max(min,min(value,max)) -> 240px (css-sizing-3 5.2).",
+    "file": "cases/block-box-model/block-min-max-width-conflict.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-max-width-percent",
+    "category": "block-box-model",
+    "feature": "max-width",
+    "subfeature": "percent",
+    "description": "Percentage max-width clamps auto width to 50% of the 400px CB content width = 200px (css-sizing-3).",
+    "file": "cases/block-box-model/block-max-width-percent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-height-auto-from-children",
+    "category": "block-box-model",
+    "feature": "height",
+    "subfeature": "auto-from-children",
+    "description": "height:auto grows to contain in-flow children (60+90=150px) (CSS2 10.6.3).",
+    "file": "cases/block-box-model/block-height-auto-from-children.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-height-percent-definite-parent",
+    "category": "block-box-model",
+    "feature": "height",
+    "subfeature": "percent-definite-parent",
+    "description": "Percentage height resolves to 50% of the parent's definite 200px content height = 100px (CSS2 10.5).",
+    "file": "cases/block-box-model/block-height-percent-definite-parent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-height-percent-auto-parent",
+    "category": "block-box-model",
+    "feature": "height",
+    "subfeature": "percent-auto-parent",
+    "description": "Percentage height with an auto-height parent behaves as auto (falls back to content height) (CSS2 10.5).",
+    "file": "cases/block-box-model/block-height-percent-auto-parent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-min-height-floor",
+    "category": "block-box-model",
+    "feature": "min-height",
+    "subfeature": "floor",
+    "description": "min-height raises a short box to the 160px floor; background extends below the child (css-sizing-3).",
+    "file": "cases/block-box-model/block-min-height-floor.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-max-height-clamp",
+    "category": "block-box-model",
+    "feature": "max-height",
+    "subfeature": "clamp",
+    "description": "max-height caps the box to 120px and clips overflowing content via overflow:hidden (css-sizing-3).",
+    "file": "cases/block-box-model/block-max-height-clamp.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-inline-block-baseline",
+    "category": "block-box-model",
+    "feature": "display",
+    "subfeature": "inline-block-baseline",
+    "description": "inline-block chips align to the text baseline; vertical-align:top lifts one to the line top (CSS2 10.8).",
+    "file": "cases/block-box-model/block-inline-block-baseline.html",
+    "kind": "feature",
+    "expected_support": "partial",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-inline-block-wrap",
+    "category": "block-box-model",
+    "feature": "display",
+    "subfeature": "inline-block-wrap",
+    "description": "inline-block chips wrap to the next line when the row overflows the container width (css-display-3).",
+    "file": "cases/block-box-model/block-inline-block-wrap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-width-fit-content",
+    "category": "block-box-model",
+    "feature": "width",
+    "subfeature": "fit-content",
+    "description": "width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing).",
+    "file": "cases/block-box-model/block-width-fit-content.html",
+    "kind": "feature",
+    "expected_support": "partial",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0

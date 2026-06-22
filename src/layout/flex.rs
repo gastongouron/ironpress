@@ -443,7 +443,12 @@ pub(crate) fn layout_flex_container(
             let mut child_elements_buf = Vec::new();
             let layout_height = 10000.0; // large enough to not constrain
             let child_ctx = ctx
-                .with_parent(child_w_for_layout, Some(layout_height), style.font_size)
+                .with_parent_and_basis(
+                    child_w_for_layout,
+                    width_for_percentages,
+                    Some(layout_height),
+                    style.font_size,
+                )
                 .with_containing_block(None);
             flatten_element(
                 child_el,
@@ -971,7 +976,12 @@ pub(crate) fn layout_flex_container(
             });
             let mut buf = Vec::new();
             let child_ctx = ctx
-                .with_parent(item.width, Some(inner_cross_size), style.font_size)
+                .with_parent_and_basis(
+                    item.width,
+                    width_for_percentages,
+                    Some(inner_cross_size),
+                    style.font_size,
+                )
                 .with_containing_block(None);
             layout_flex_container(
                 child_el,
@@ -1349,7 +1359,12 @@ pub(crate) fn layout_flex_container(
                                 preceding_siblings: Vec::new(),
                             });
                             let relayout_ctx = ctx
-                                .with_parent(final_w, Some(10000.0), style.font_size)
+                                .with_parent_and_basis(
+                                    final_w,
+                                    width_for_percentages,
+                                    Some(10000.0),
+                                    style.font_size,
+                                )
                                 .with_containing_block(None);
                             flatten_element(
                                 child_el,

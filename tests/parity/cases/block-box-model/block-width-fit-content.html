@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3 § 5.1 intrinsic sizing: width:fit-content sizes the box to its
+     content (the fit-content formula min(max-content, max(min-content, stretch))).
+     The box should shrink to wrap its single 150px-wide child rather than filling
+     the parent. Aspirational coverage for the min/max/fit-content keyword family
+     (ironpress currently approximates these as auto). */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 400px;
+    background: #e8eef6;
+  }
+  .box {
+    width: fit-content;
+    background: #2d6cdf;
+  }
+  .child {
+    width: 150px;
+    height: 90px;
+    background: #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box">
+      <div class="child"></div>
+    </div>
+  </div>
+</body>
+</html>

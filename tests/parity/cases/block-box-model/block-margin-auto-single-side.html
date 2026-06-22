@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 10.3.3: a fixed-width block with margin-left:auto and an explicit
+     margin-right absorbs ALL remaining space into the left auto margin, pushing
+     the box to the right edge of the containing block. .frame is 400px wide; the
+     200px box with margin-left:auto sits flush against .frame's right edge
+     (auto = 400 - 200 = 200px on the left). */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 400px;
+    height: 120px;
+    background: #e8eef6;
+  }
+  .box {
+    width: 200px;
+    height: 120px;
+    margin-left: auto;
+    margin-right: 0;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

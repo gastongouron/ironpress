@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: parent/first-child top margins do NOT collapse when the
+     parent has padding-top (or border-top). The 20px padding-top separates the
+     margins, so the child's margin-top:40px offsets it 40px BELOW the padding
+     edge, fully inside the parent (the parent box visibly frames the child with
+     20px above the child's 40px margin gap). */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    width: 240px;
+    padding-top: 20px;
+    background: #cfd8e3;
+  }
+  .child {
+    height: 80px;
+    margin-top: 40px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

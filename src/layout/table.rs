@@ -1780,6 +1780,7 @@ fn collect_table_cell_content_inner(
                             content_width: available_width,
                             content_height: None,
                             font_size: parent_style.font_size,
+                            percent_width_basis: available_width,
                         },
                         containing_block: None,
                         percent_height_cb: None,

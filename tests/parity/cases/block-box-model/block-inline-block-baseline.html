@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-display-3 / CSS 2.1 § 10.8: an empty inline-block aligns its bottom
+     margin edge to the surrounding text baseline by default; vertical-align:top
+     raises it to the line-box top, vertical-align:middle centers it. Each row
+     places ONE chip right after a short leading word so horizontal text-width
+     differences stay small and the VERTICAL alignment is the dominant signal.
+     Row 1: baseline (chip bottom on the baseline). Row 2: top. Row 3: middle. */
+  html, body { margin: 0; background: #ffffff; }
+  .line {
+    font-family: 'Parity Sans';
+    font-size: 36px;
+    line-height: 80px;
+    color: #11305f;
+    white-space: nowrap;
+  }
+  .chip {
+    display: inline-block;
+    width: 48px;
+    height: 48px;
+    background: #2d6cdf;
+  }
+  .chip.top { vertical-align: top; background: #d94f4f; }
+  .chip.mid { vertical-align: middle; background: #1f9d55; }
+</style>
+</head>
+<body>
+  <div class="line">M<span class="chip"></span></div>
+  <div class="line">M<span class="chip top"></span></div>
+  <div class="line">M<span class="chip mid"></span></div>
+</body>
+</html>

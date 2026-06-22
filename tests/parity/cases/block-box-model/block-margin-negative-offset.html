@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Negative explicit margins pull a box toward the start edge / up. A leading
+     .top bar anchors the flow so the effect is a relative offset, not a
+     page-edge shift. The .inner box has margin-left:-30px, pulling it 30px left
+     of the parent's content origin (overflowing the parent's left edge), and
+     margin-top:-20px pulling it up 20px so it overlaps the .top bar region.
+     Verifies negative margins offset POSITION (not size). */
+  html, body { margin: 0; background: #ffffff; }
+  .top {
+    width: 360px;
+    height: 50px;
+    background: #11305f;
+  }
+  .parent {
+    width: 240px;
+    height: 160px;
+    margin-left: 60px;
+    background: #cfd8e3;
+  }
+  .inner {
+    width: 120px;
+    height: 80px;
+    margin-left: -30px;
+    margin-top: -20px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="top"></div>
+  <div class="parent">
+    <div class="inner"></div>
+  </div>
+</body>
+</html>

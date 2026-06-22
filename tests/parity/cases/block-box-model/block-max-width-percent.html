@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3: percentage max-width resolves against the containing block
+     content width. .frame is 400px wide; the child has width:auto (would fill
+     400px) but max-width:50% clamps it to 50% of 400 = 200px. The blue box
+     renders 200px wide, left-aligned. */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 400px;
+    height: 120px;
+    background: #e8eef6;
+  }
+  .box {
+    max-width: 50%;
+    height: 120px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

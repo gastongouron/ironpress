@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-display-3: inline-block boxes flow inline and WRAP to the next line when
+     the row overflows the container width. Five 120px chips in a 320px container
+     fit two per line (2*120=240 <= 320, third would be 360 > 320), wrapping to
+     three rows. font-size:0 on the container removes inter-chip whitespace so the
+     row break is purely geometric. */
+  html, body { margin: 0; background: #ffffff; }
+  .container {
+    width: 320px;
+    font-size: 0;
+    background: #e8eef6;
+  }
+  .chip {
+    display: inline-block;
+    width: 120px;
+    height: 60px;
+    background: #2d6cdf;
+  }
+  .chip:nth-child(even) {
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="container"><span class="chip"></span><span class="chip"></span><span class="chip"></span><span class="chip"></span><span class="chip"></span></div>
+</body>
+</html>

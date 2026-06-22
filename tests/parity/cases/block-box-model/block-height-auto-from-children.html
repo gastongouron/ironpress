@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 10.6.3: a block with height:auto grows to contain its in-flow
+     children. The .parent has no height; its background should extend to cover
+     both stacked children (60px + 90px = 150px total). Verifies auto-height
+     expands to the children's content height (no clipping, no extra space). */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    width: 240px;
+    background: #cfd8e3;
+  }
+  .a {
+    height: 60px;
+    background: #2d6cdf;
+  }
+  .b {
+    height: 90px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

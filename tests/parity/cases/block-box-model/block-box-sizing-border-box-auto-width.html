@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3: box-sizing:border-box with width:auto. The auto border box
+     fills the containing block's content width (300px). Padding+border are drawn
+     INSIDE that 300px (they eat into the content), so the box stays 300px wide
+     overall while its content area shrinks by padding+border. The inner blue box
+     (width:auto) therefore fills 300 - 24*2 - 6*2 = 240px. */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 300px;
+    background: #e8eef6;
+  }
+  .box {
+    box-sizing: border-box;
+    height: 120px;
+    padding: 20px 24px;
+    border: 6px solid #11305f;
+    background: #cfd8e3;
+  }
+  .inner {
+    height: 80px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box">
+      <div class="inner"></div>
+    </div>
+  </div>
+</body>
+</html>

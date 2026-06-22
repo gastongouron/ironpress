@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1 negative margins: when signs mix, the collapsed margin is
+     (max positive) + (min negative) = max of positives minus max of |negatives|.
+     Here .a margin-bottom:50px (positive) and .b margin-top:-20px (negative)
+     collapse to 50 + (-20) = 30px gap between the boxes. */
+  html, body { margin: 0; background: #ffffff; }
+  .a {
+    width: 240px;
+    height: 70px;
+    margin-bottom: 50px;
+    background: #2d6cdf;
+  }
+  .b {
+    width: 240px;
+    height: 70px;
+    margin-top: -20px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+</body>
+</html>

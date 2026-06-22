@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 10.3.3: with width:auto, horizontal auto margins compute to ZERO
+     (the width fills the remaining space instead). So margin:0 auto on an
+     auto-width block does NOT center it — the box fills the full containing-block
+     content width with no centering offset. The blue box spans the entire 360px
+     .frame content width. */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 360px;
+    height: 120px;
+    background: #e8eef6;
+  }
+  .box {
+    height: 120px;
+    margin-left: auto;
+    margin-right: auto;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

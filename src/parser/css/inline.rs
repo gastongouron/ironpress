@@ -646,13 +646,14 @@ fn expand_box_shorthand(map: &mut StyleMap, prop: &str, val: &str, is_important:
         return;
     }
 
-    if let Some(CssValue::Length(value)) = parse_property_value(prop, val) {
+    // Single-value shorthand: applies to all four sides. Use `parse_length`,
+    // which preserves percentages (`padding: 10%`), calc(), var(), and relative
+    // units — `parse_property_value` only surfaced absolute lengths, silently
+    // dropping percentage padding/margin (CSS 2.1 § 8.4: % resolves against the
+    // containing block WIDTH on every side, including vertical).
+    if let Some(value) = parse_length(val) {
         for side in ["top", "right", "bottom", "left"] {
-            map.set_with_importance(
-                &format!("{prop}-{side}"),
-                CssValue::Length(value),
-                is_important,
-            );
+            map.set_with_importance(&format!("{prop}-{side}"), value.clone(), is_important);
         }
     }
 }

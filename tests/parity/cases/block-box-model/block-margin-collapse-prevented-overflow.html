@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: a box that establishes a new block formatting context
+     (overflow != visible) does NOT collapse margins with its in-flow children.
+     The parent uses overflow:hidden, so the child's margin-top:40px offsets it
+     INSIDE the parent (the parent box starts 0 from the page top, the child is
+     pushed 40px down inside it) rather than the margins collapsing through. */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    width: 240px;
+    overflow: hidden;
+    background: #cfd8e3;
+  }
+  .child {
+    height: 80px;
+    margin-top: 40px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

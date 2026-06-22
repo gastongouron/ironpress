@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Per-side asymmetric padding (top/right/bottom/left all distinct) on a
+     content-box container insets the inner box differently on each edge:
+     10px top, 50px right, 30px bottom, 70px left. The inner solid box reveals
+     each padding edge as a distinct margin of background colour around it. */
+  html, body { margin: 0; background: #ffffff; }
+  .box {
+    box-sizing: content-box;
+    width: 200px;
+    height: 120px;
+    padding: 10px 50px 30px 70px;
+    background: #cfd8e3;
+  }
+  .inner {
+    width: 200px;
+    height: 120px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="inner"></div>
+  </div>
+</body>
+</html>

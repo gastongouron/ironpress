@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: a box that establishes a new block formatting context
+     (here overflow:hidden on the WRAPPER) does not collapse the margins of its
+     children with margins OUTSIDE the wrapper. The inner child's margin-top:40px
+     is contained inside the BFC wrapper (offsets the child down inside it),
+     while the wrapper's own margin-top:50px governs the gap above the wrapper.
+     Total top gap = 50 (wrapper margin) then 40 (child margin inside) — they do
+     NOT collapse into a single 50px. */
+  html, body { margin: 0; background: #ffffff; }
+  .bfc {
+    width: 240px;
+    margin-top: 50px;
+    overflow: hidden;
+    background: #cfd8e3;
+  }
+  .child {
+    width: 240px;
+    height: 80px;
+    margin-top: 40px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="bfc">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3 § 5.2: the used width is max(min, min(value, max)). When
+     min-width > max-width they conflict and the MINIMUM wins. Here width:120px,
+     max-width:160px, min-width:240px: min(120,160)=120, then max(240,120)=240.
+     The box renders 240px wide (the min-width floor overrides the smaller
+     max-width). */
+  html, body { margin: 0; background: #ffffff; }
+  .box {
+    width: 120px;
+    max-width: 160px;
+    min-width: 240px;
+    height: 120px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

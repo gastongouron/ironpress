@@ -619,6 +619,69 @@ pub enum LayoutElement {
     PageBreak,
 }
 
+impl LayoutElement {
+    /// A zero-height, invisible `TextBlock` with all fields at their neutral
+    /// defaults. Used as a flow-only placeholder — e.g. a self-collapsing empty
+    /// block whose collapsed vertical margin must still participate in
+    /// adjacent-sibling margin collapsing (CSS 2.1 § 8.3.1). Callers set only the
+    /// margin fields they need.
+    pub(crate) fn empty_spacer() -> Self {
+        LayoutElement::TextBlock {
+            lines: Vec::new(),
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            background_color: None,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: None,
+            block_height: None,
+            opacity: 1.0,
+            mix_blend_mode: crate::style::computed::BlendMode::Normal,
+            background_blend_mode: crate::style::computed::BlendMode::Normal,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Static,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            clip_children_count: 0,
+            box_shadow: Vec::new(),
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            transform_origin: crate::style::computed::TransformOrigin::default(),
+            border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
+            background_svg: None,
+            background_blur_radius: 0.0,
+            background_size: BackgroundSize::Auto,
+            background_position: BackgroundPosition::default(),
+            background_repeat: BackgroundRepeat::Repeat,
+            background_origin: BackgroundOrigin::Padding,
+            z_index: 0,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: None,
+        }
+    }
+}
+
 /// A fully laid-out page.
 pub struct Page {
     pub elements: Vec<(f32, LayoutElement)>, // (y_position, element)
@@ -877,6 +940,7 @@ pub fn layout_with_rules_and_fonts(
             content_width: available_width,
             content_height: Some(content_height),
             font_size: parent_style.font_size,
+            percent_width_basis: available_width,
         },
         containing_block: None,
         percent_height_cb: None,
@@ -8661,6 +8725,7 @@ line 3</pre>
                 content_width: 400.0,
                 content_height: Some(600.0),
                 font_size: 16.0,
+                percent_width_basis: 400.0,
             },
             containing_block: None,
             percent_height_cb: None,
@@ -8680,6 +8745,7 @@ line 3</pre>
                 content_width: 400.0,
                 content_height: None,
                 font_size: 16.0,
+                percent_width_basis: 400.0,
             },
             containing_block: None,
             percent_height_cb: None,
@@ -8699,6 +8765,7 @@ line 3</pre>
                 content_width: 400.0,
                 content_height: Some(300.0),
                 font_size: 16.0,
+                percent_width_basis: 400.0,
             },
             containing_block: None,
             percent_height_cb: None,
@@ -8718,6 +8785,7 @@ line 3</pre>
                 content_width: 400.0,
                 content_height: Some(600.0),
                 font_size: 16.0,
+                percent_width_basis: 400.0,
             },
             containing_block: Some(ContainingBlock {
                 x: 10.0,
@@ -8750,6 +8818,7 @@ line 3</pre>
                 content_width: 400.0,
                 content_height: Some(600.0),
                 font_size: 16.0,
+                percent_width_basis: 400.0,
             },
             containing_block: None,
             percent_height_cb: None,

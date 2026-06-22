@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3: min-height raises a box whose content/explicit height is
+     smaller. .box has a single 40px child but min-height:160px, so the box
+     renders 160px tall (the blue background extends below the child to the
+     160px floor). Verifies min-height floors the used height. */
+  html, body { margin: 0; background: #ffffff; }
+  .box {
+    width: 240px;
+    min-height: 160px;
+    background: #2d6cdf;
+  }
+  .child {
+    height: 40px;
+    background: #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

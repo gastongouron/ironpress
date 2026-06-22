@@ -46,8 +46,14 @@ pub(crate) fn layout_block_element(
     first_letter_style: Option<ComputedStyle>,
     env: &mut LayoutEnv,
 ) -> bool {
+    let output_start_len = output.len();
     let available_width = ctx.available_width();
     let available_height = ctx.available_height();
+    // Basis for percentage `width`/`min-width`/`max-width` (CSS 2.1 § 10.2):
+    // the containing block's content width. For normal block flow this equals
+    // `available_width`; flex layout hands an item its own resolved width as
+    // `available_width` but keeps the container content width as the basis.
+    let percent_width_basis = ctx.parent.percent_width_basis;
     let abs_containing_block = ctx.containing_block;
     // Percentage `height` resolves against the parent's content box (CSS 2.1
     // § 10.5), tracked separately from the absolute containing block so the two
@@ -79,28 +85,50 @@ pub(crate) fn layout_block_element(
         // (that is what `overflow` is for). Only percentage/auto widths clamp to
         // the available width. `percentage_sizing.width` is set when the width
         // came from a `%`, so a pure length has it as `None`.
-        block_w = if style.percentage_sizing.width.is_none() {
-            w + content_box_extra
+        block_w = if let Some(pct) = style.percentage_sizing.width {
+            // A percentage width resolves against the containing block's
+            // *content* width (CSS 2.1 § 10.2). The style cascade pre-resolved
+            // `w` against the parent's declared/border-box width, which for a
+            // `box-sizing: border-box` (or padded) parent is wider than its
+            // content box — recompute from the true basis so e.g. `width: 50%`
+            // inside a 400px border-box (396px content) box is 198px, not 200px.
+            (pct / 100.0 * percent_width_basis + content_box_extra).min(available_width)
         } else {
-            (w + content_box_extra).min(available_width)
+            // A definite length width is honoured exactly (overflows when wider).
+            w + content_box_extra
         };
     } else if let Some(pct) = style.percentage_sizing.width {
         // Fallback: style.width was not resolved at style time (for example,
         // because the style-time parent width was unknown). Resolve the
-        // late-bound percentage against the actual layout parent width.
-        block_w = (pct / 100.0 * available_width + content_box_extra).min(available_width);
+        // late-bound percentage against the containing block content width.
+        block_w = (pct / 100.0 * percent_width_basis + content_box_extra).min(available_width);
     } else if margin_h > 0.0 {
         block_w = (available_width - margin_h).max(0.0);
     }
+    // CSS 2.1 § 10.4: percentage min-/max-width also resolve against the
+    // containing block content width. Min wins over max (the floor is applied
+    // last) per css-sizing-3 — `max(min, min(value, max))`.
     if let Some(pct) = style.percentage_sizing.max_width {
-        block_w = block_w.min(pct / 100.0 * available_width);
+        block_w = block_w.min(pct / 100.0 * percent_width_basis);
     } else if let Some(mw) = style.max_width {
         block_w = block_w.min(mw);
     }
     if let Some(pct) = style.percentage_sizing.min_width {
-        block_w = block_w.max(pct / 100.0 * available_width);
+        block_w = block_w.max(pct / 100.0 * percent_width_basis);
     } else if let Some(mw) = style.min_width {
         block_w = block_w.max(mw);
+    }
+
+    // css-sizing-3 § 5.1: under `box-sizing: border-box` the content width is the
+    // declared width minus padding+border, floored at zero. When padding+border
+    // exceed the declared border-box width, the content cannot be negative, so
+    // the rendered border box grows to the padding+border sum (the box can never
+    // be narrower than its own padding and border). `content-box` already keeps
+    // padding/border outside `block_w` so this floor is a no-op there.
+    if style.box_sizing == BoxSizing::BorderBox {
+        let padding_border_w =
+            style.padding.left + style.padding.right + style.border.horizontal_width();
+        block_w = block_w.max(padding_border_w);
     }
 
     // CSS 2.1 § 10.3.7 over-constrained absolute width: when `width: auto` and
@@ -1527,6 +1555,11 @@ pub(crate) fn layout_block_element(
         // wrapper branch); inline/split text blocks are handled by paginate.
         let mut wrapper_margin_top = style.margin.top;
         let mut wrapper_margin_bottom = style.margin.bottom;
+        // CSS 2.1 § 8.3.1: collapse-through is suppressed when this box
+        // establishes a new BFC (overflow != visible, float, absolute); the
+        // *bottom* collapse-through is additionally suppressed when the box has a
+        // definite (non-auto) height, which contains the last child's margin.
+        let bfc = crate::layout::helpers::establishes_bfc(style);
         crate::layout::helpers::collapse_margins_through_parent(
             &mut child_elements,
             &mut wrapper_margin_top,
@@ -1535,6 +1568,8 @@ pub(crate) fn layout_block_element(
             style.padding.bottom,
             style.border.top.width,
             style.border.bottom.width,
+            bfc,
+            bfc || has_definite_height,
         );
 
         // Measure children total height
@@ -1566,6 +1601,26 @@ pub(crate) fn layout_block_element(
             && let Some(aspect_h) = aspect_ratio_height(block_w, style)
         {
             container_h = container_h.max(aspect_h);
+        }
+        // css-sizing-3: `max-height` clamps the used (auto-grown) height even when
+        // no `height`/`min-height` is set. Lines ~195 only clamp an already-Some
+        // `effective_height`, so an auto box that grows past `max-height` is not
+        // caught there — apply the clamp on the measured container padding box.
+        // (When `effective_height` is definite, it already incorporates the max.)
+        let mut max_height_clamped = false;
+        if !has_definite_height && let Some(max_h) = style.max_height {
+            let max_padding_box = resolve_padding_box_height(
+                0.0,
+                Some(max_h),
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            );
+            if container_h > max_padding_box {
+                container_h = max_padding_box;
+                max_height_clamped = true;
+            }
         }
         // For pseudo-element containing block sizing (abs children with
         // height:100%), collapse the first/last children's outer margins
@@ -1700,7 +1755,7 @@ pub(crate) fn layout_block_element(
             // this, an explicit-height box with a border rendered short by the
             // border thickness.) The aspect-ratio case is left as-is: its height
             // is derived from the border-box width and is already consistent.
-            block_height: if effective_height.is_some() {
+            block_height: if effective_height.is_some() || max_height_clamped {
                 Some(container_h + style.border.vertical_width())
             } else if style.aspect_ratio.is_some() {
                 Some(container_h)
@@ -1827,6 +1882,45 @@ pub(crate) fn layout_block_element(
                 env.fonts,
             );
         }
+    }
+
+    // CSS 2.1 § 8.3.1: a self-collapsing empty box (no in-flow content, zero
+    // height/min-height, no padding/border, not a BFC) still contributes its
+    // collapsed vertical margin to the surrounding flow — its own top and bottom
+    // margins collapse together, and that single margin then collapses with the
+    // adjacent siblings. When such a box produced NO layout element above, its
+    // margins would otherwise vanish entirely (the gap between its siblings would
+    // wrongly close up). Emit a zero-height placeholder carrying the collapsed
+    // margin so adjacent-sibling collapse in `paginate` picks it up.
+    let produced_nothing = output.len() == output_start_len;
+    let self_collapsing = produced_nothing
+        && effective_height.is_none()
+        && style.min_height.is_none_or(|m| m == 0.0)
+        && style.padding.top == 0.0
+        && style.padding.bottom == 0.0
+        && style.border.top.width == 0.0
+        && style.border.bottom.width == 0.0
+        && !style.overflow.clips()
+        && style.position != Position::Absolute
+        && style.float == Float::None;
+    if self_collapsing && (style.margin.top != 0.0 || style.margin.bottom != 0.0) {
+        // The box's own top and bottom margins collapse together first.
+        let collapsed = if style.margin.top >= 0.0 && style.margin.bottom >= 0.0 {
+            style.margin.top.max(style.margin.bottom)
+        } else if style.margin.top < 0.0 && style.margin.bottom < 0.0 {
+            style.margin.top.min(style.margin.bottom)
+        } else {
+            style.margin.top + style.margin.bottom
+        };
+        // Carry the collapsed margin as the placeholder's top margin so the
+        // preceding-sibling collapse merges it; bottom margin is 0 so the
+        // following sibling collapses against this zero-height box's bottom edge,
+        // yielding a single collapsed gap rather than the sum of both.
+        let mut spacer = LayoutElement::empty_spacer();
+        if let LayoutElement::TextBlock { margin_top, .. } = &mut spacer {
+            *margin_top = collapsed;
+        }
+        output.push(spacer);
     }
 
     // Emit block-level ::after pseudo-element (inside block path)

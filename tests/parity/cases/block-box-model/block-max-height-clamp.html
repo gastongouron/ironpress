@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* css-sizing-3: max-height clamps a box (with overflow:hidden) whose content
+     would be taller. .box has a 240px child but max-height:120px and
+     overflow:hidden, so the box renders 120px tall and the child is clipped at
+     120px. Verifies max-height caps the used height and clips overflow. */
+  html, body { margin: 0; background: #ffffff; }
+  .box {
+    width: 240px;
+    max-height: 120px;
+    overflow: hidden;
+    background: #cfd8e3;
+  }
+  .child {
+    height: 240px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

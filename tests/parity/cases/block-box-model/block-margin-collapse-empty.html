@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: an empty block (no height, no min-height, no padding/border,
+     no in-flow content) has its OWN top and bottom margins collapse together,
+     and those further collapse with the adjacent siblings. The empty .gap box
+     has margin 40px top + 40px bottom; all collapse to a single 40px gap between
+     the two solid boxes (NOT 80px). */
+  html, body { margin: 0; background: #ffffff; }
+  .a {
+    width: 240px;
+    height: 70px;
+    background: #2d6cdf;
+  }
+  .gap {
+    margin-top: 40px;
+    margin-bottom: 40px;
+  }
+  .b {
+    width: 240px;
+    height: 70px;
+    background: #d94f4f;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="gap"></div>
+  <div class="b"></div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.3.1: the top margin of a box collapses with the top margin of
+     its first in-flow child when no top padding/border/line box separates them.
+     The parent has margin-top:50px and the child margin-top:30px; they collapse
+     to a single 50px gap above the parent (the child's top margin "protrudes
+     through" rather than offsetting the child inside the parent). */
+  html, body { margin: 0; background: #ffffff; }
+  .parent {
+    width: 240px;
+    margin-top: 50px;
+    background: #cfd8e3;
+  }
+  .child {
+    height: 80px;
+    margin-top: 30px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

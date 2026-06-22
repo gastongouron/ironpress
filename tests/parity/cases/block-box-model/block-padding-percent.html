@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS 2.1 § 8.4: padding percentages resolve against the containing block's
+     WIDTH — even vertical (top/bottom) padding. The .frame establishes a 300px
+     wide containing block. Its child .box uses padding:10%, which is 10% of 300
+     = 30px on EVERY side (top, right, bottom, left) — vertical padding uses the
+     WIDTH basis, not the height. The inner 240x60 box is framed by an equal 30px
+     band all round (240 = 300 - 30 - 30 under content-box). */
+  html, body { margin: 0; background: #ffffff; }
+  .frame {
+    width: 300px;
+    background: #e8eef6;
+  }
+  .box {
+    box-sizing: content-box;
+    width: 240px;
+    height: 60px;
+    padding: 10%;
+    background: #cfd8e3;
+  }
+  .inner {
+    width: 240px;
+    height: 60px;
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box">
+      <div class="inner"></div>
+    </div>
+  </div>
+</body>
+</html>
