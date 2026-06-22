@@ -1197,7 +1197,10 @@ pub(crate) fn layout_block_element(
                 style.overflow_wrap,
             )
             .with_rtl(style.direction_rtl)
-            .with_pre_wrap(style.white_space == WhiteSpace::PreWrap),
+            .with_pre_wrap(matches!(
+                style.white_space,
+                WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
+            )),
             env.fonts,
         );
 

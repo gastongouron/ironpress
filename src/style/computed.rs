@@ -698,6 +698,11 @@ pub enum WhiteSpace {
     Pre,
     PreWrap,
     PreLine,
+    /// `white-space: break-spaces` (css-text-3 §3): like `pre-wrap` (preserve
+    /// spaces and forced segment breaks, still soft-wrap) but trailing
+    /// preserved spaces are treated as visible characters that occupy width at
+    /// the line end and cannot hang. Handled in the same paths as `pre-wrap`.
+    BreakSpaces,
 }
 
 /// CSS vertical-align property.
@@ -3737,6 +3742,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "pre" => WhiteSpace::Pre,
             "pre-wrap" => WhiteSpace::PreWrap,
             "pre-line" => WhiteSpace::PreLine,
+            "break-spaces" => WhiteSpace::BreakSpaces,
             _ => WhiteSpace::Normal,
         };
     }
@@ -10263,6 +10269,15 @@ mod tests {
         let style =
             compute_style_with_rules(HtmlTag::Div, None, &parent, &[rule], "div", &[], None);
         assert_eq!(style.white_space, WhiteSpace::PreLine);
+    }
+
+    #[test]
+    fn white_space_break_spaces() {
+        let parent = ComputedStyle::default();
+        let rule = make_keyword_rule("white-space", "break-spaces");
+        let style =
+            compute_style_with_rules(HtmlTag::Div, None, &parent, &[rule], "div", &[], None);
+        assert_eq!(style.white_space, WhiteSpace::BreakSpaces);
     }
 
     #[test]

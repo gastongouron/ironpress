@@ -705,27 +705,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         push_transform_cm(&mut content, t, cx, cy, render_width, border_box_h);
                     }
 
-                    // Apply clipping rect if overflow clips. CSS clips at the
+                    // CSS `overflow: hidden`/`clip`/`scroll`/`auto` clips at the
                     // PADDING box (border box inset by the border widths) and the
-                    // rounded inner corners when border-radius is set, so the box
-                    // border stays fully visible and an oversized child / text
-                    // line cannot paint over it.
+                    // rounded inner corners when border-radius is set. The clip
+                    // must NOT cover the box's OWN background, border, or outline —
+                    // a box's border and outline always paint fully visible. So the
+                    // clip is opened later (after the border/outline are stroked)
+                    // and scoped to the inline text content only; see `needs_clip`
+                    // below the outline-paint block.
                     let needs_clip = clip_rect.is_some();
-                    if needs_clip {
-                        content.push_str("q\n");
-                        content.push_str(&overflow_clip_path(
-                            block_x,
-                            block_bottom,
-                            render_width,
-                            border_box_h,
-                            border.left.width,
-                            border.right.width,
-                            border.top.width,
-                            border.bottom.width,
-                            *border_radius,
-                        ));
-                        content.push_str("W n\n");
-                    }
 
                     // Apply opacity via ExtGState if < 1.0
                     let needs_opacity = *opacity < 1.0;
@@ -1161,6 +1149,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                         }
                         content.push_str("S\n");
+                    }
+
+                    // Open the overflow clip now — AFTER the background, border and
+                    // outline are painted (so they stay fully visible) and BEFORE
+                    // the inline text / descendant content (which is clipped to the
+                    // padding box). Mirrors the nested-TextBlock paint order.
+                    if needs_clip {
+                        content.push_str("q\n");
+                        content.push_str(&overflow_clip_path(
+                            block_x,
+                            block_bottom,
+                            render_width,
+                            border_box_h,
+                            border.left.width,
+                            border.right.width,
+                            border.top.width,
+                            border.bottom.width,
+                            *border_radius,
+                        ));
+                        content.push_str("W n\n");
                     }
 
                     // Text content is inset from the border-box top by the top

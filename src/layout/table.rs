@@ -1658,7 +1658,7 @@ fn collect_table_cell_content_inner(
 ) {
     let preserve_ws = matches!(
         parent_style.white_space,
-        WhiteSpace::Pre | WhiteSpace::PreWrap
+        WhiteSpace::Pre | WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
     );
     let element_sibling_count = nodes
         .iter()

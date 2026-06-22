@@ -66,6 +66,48 @@ pub(crate) fn collapse_whitespace(text: &str) -> String {
     result.trim_end().to_string()
 }
 
+/// Collapse whitespace for `white-space: pre-line` (css-text-3 §4.1.1).
+///
+/// Like `normal`, runs of spaces and tabs collapse to a single space and
+/// collapsible spaces around a segment break are removed — BUT forced segment
+/// breaks (newlines, U+000A) are *preserved* as explicit line breaks rather
+/// than collapsed into a space. The newline is emitted verbatim so the line
+/// breaker (which splits on `\n`) creates a forced break there.
+pub(crate) fn collapse_whitespace_pre_line(text: &str) -> String {
+    let mut result = String::new();
+    // Tracks whether the previous emitted char was a collapsible space, so a
+    // run of spaces collapses to one. Starts `true` so a leading space at the
+    // very start of the block is dropped, and is reset to `true` after every
+    // newline so a space leading the next segment is likewise dropped.
+    let mut last_was_space = true;
+    for c in text.chars() {
+        if c == '\n' {
+            // A segment break removes any collapsible space that precedes it
+            // (and likewise will swallow following spaces via `last_was_space`).
+            while result.ends_with(' ') {
+                result.pop();
+            }
+            result.push('\n');
+            last_was_space = true; // suppress a leading space on the next line
+        } else if c.is_whitespace() {
+            // Collapse spaces/tabs to a single space, but never lead a segment
+            // (start of string or just after a newline) with one.
+            if !last_was_space {
+                result.push(' ');
+                last_was_space = true;
+            }
+        } else {
+            result.push(c);
+            last_was_space = false;
+        }
+    }
+    // Trailing collapsible space at the very end is removed.
+    while result.ends_with(' ') {
+        result.pop();
+    }
+    result
+}
+
 // ---------------------------------------------------------------------------
 // estimate_word_width
 // ---------------------------------------------------------------------------
@@ -396,12 +438,36 @@ pub(crate) fn wrap_text_runs(
         let effective_max_width = line_max_width(lines.len());
         let overflows = current_width + needed > effective_max_width;
 
-        if overflows && !preserve_spacing && options.overflow_wrap != OverflowWrap::Normal {
-            let available_width = if current_width > 0.0 {
-                effective_max_width - current_width - space_width
-            } else {
-                effective_max_width
-            };
+        // `overflow-wrap: break-word`/`anywhere` (and the `word-break: break-all`
+        // alias) break inside a word only as a LAST RESORT (css-text-3 §5.2): a
+        // word is broken at an arbitrary point only when it cannot fit on a line
+        // by itself. So if the word still has content beside it on the current
+        // line but would fit alone on the next line, we must first wrap to that
+        // next line (handled below) rather than break it mid-line. The emergency
+        // split only applies when the word overflows a fresh, empty line.
+        let fresh_line_width = if current_width > 0.0 {
+            line_max_width(lines.len() + 1)
+        } else {
+            effective_max_width
+        };
+        let must_break_word = overflows
+            && !preserve_spacing
+            && options.overflow_wrap != OverflowWrap::Normal
+            && word_width > fresh_line_width;
+
+        if must_break_word {
+            // When the line already has content, finish it first so the long
+            // word starts breaking at the left edge of a fresh line — matching
+            // Chrome, which keeps the preceding whole word(s) alone on their line.
+            if current_width > 0.0 {
+                lines.push(TextLine {
+                    runs: std::mem::take(&mut current_runs),
+                    height: line_height,
+                });
+                current_width = 0.0;
+                line_height = run_line_height(&template);
+            }
+            let available_width = line_max_width(lines.len());
             if let Some((prefix, remainder)) = split_word_to_fit(
                 &word,
                 available_width,
@@ -411,14 +477,11 @@ pub(crate) fn wrap_text_runs(
                 template.italic,
                 fonts,
             ) {
-                let prefix_text = if current_width > 0.0 {
-                    format!(" {prefix}")
-                } else {
-                    prefix
-                };
+                // The current line was already flushed above, so the prefix
+                // starts a fresh line with no leading inter-word space.
                 line_height = line_height.max(run_line_height(&template));
                 current_runs.push(TextRun {
-                    text: prefix_text,
+                    text: prefix,
                     ..template.clone()
                 });
 
@@ -839,8 +902,12 @@ fn collect_text_runs_inner(
 ) {
     let preserve_ws = matches!(
         parent_style.white_space,
-        WhiteSpace::Pre | WhiteSpace::PreWrap
+        WhiteSpace::Pre | WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
     );
+
+    // `pre-line` collapses spaces/tabs like `normal` but keeps forced segment
+    // breaks (newlines) as explicit line breaks (css-text-3 §4.1.1).
+    let pre_line = parent_style.white_space == WhiteSpace::PreLine;
 
     for node in nodes {
         match node {
@@ -848,6 +915,8 @@ fn collect_text_runs_inner(
                 let processed = if preserve_ws {
                     // In pre/pre-wrap: preserve newlines as \n runs for line breaking
                     text.clone()
+                } else if pre_line {
+                    collapse_whitespace_pre_line(text)
                 } else {
                     collapse_whitespace(text)
                 };
@@ -1085,14 +1154,17 @@ impl<'a> FlexTextRunCollector<'a> {
     ) {
         let preserve_ws = matches!(
             parent_style.white_space,
-            WhiteSpace::Pre | WhiteSpace::PreWrap
+            WhiteSpace::Pre | WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
         );
+        let pre_line = parent_style.white_space == WhiteSpace::PreLine;
 
         for node in nodes {
             match node {
                 DomNode::Text(text) => {
                     let processed = if preserve_ws {
                         text.clone()
+                    } else if pre_line {
+                        collapse_whitespace_pre_line(text)
                     } else {
                         collapse_whitespace(text)
                     };
@@ -1281,6 +1353,23 @@ mod indent_tests {
             line_height_factor: f32::NAN,
             inline_box: None,
         }
+    }
+
+    #[test]
+    fn pre_line_collapses_spaces_but_keeps_newlines() {
+        // css-text-3 §4.1.1: pre-line collapses runs of spaces/tabs to a single
+        // space, removes collapsible spaces around a segment break, but PRESERVES
+        // the forced segment break (newline) so the line breaker forces a break.
+        assert_eq!(
+            collapse_whitespace_pre_line("alpha    beta\ngamma delta"),
+            "alpha beta\ngamma delta"
+        );
+        // Spaces adjacent to the newline are removed; leading/trailing collapse.
+        assert_eq!(collapse_whitespace_pre_line("  a   \n   b  "), "a\nb");
+        // Tabs collapse like spaces; multiple newlines are each preserved.
+        assert_eq!(collapse_whitespace_pre_line("x\t\ty\n\nz"), "x y\n\nz");
+        // Contrast with `normal` collapse, which drops the newline entirely.
+        assert_eq!(collapse_whitespace("alpha\nbeta"), "alpha beta");
     }
 
     #[test]
