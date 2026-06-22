@@ -660,6 +660,14 @@ pub enum EmptyCells {
     Show,
     Hide,
 }
+/// CSS caption-side property (inherited). Controls whether a table `<caption>`
+/// is placed above (`top`) or below (`bottom`) the table box.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum CaptionSide {
+    #[default]
+    Top,
+    Bottom,
+}
 /// CSS background-origin property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BackgroundOrigin {
@@ -991,7 +999,12 @@ pub struct ComputedStyle {
     pub border_collapse: BorderCollapse,
     pub table_layout: TableLayout,
     pub border_spacing: f32,
+    /// Vertical `border-spacing` (between rows). Equals `border_spacing` for the
+    /// single-value form; differs for the two-value form `H V`.
+    pub border_spacing_vertical: f32,
     pub empty_cells: EmptyCells,
+    /// CSS `caption-side` (inherited): top (default) or bottom.
+    pub caption_side: CaptionSide,
     pub background_size: BackgroundSize,
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
@@ -1174,7 +1187,9 @@ impl Default for ComputedStyle {
             border_collapse: BorderCollapse::Separate,
             table_layout: TableLayout::Auto,
             border_spacing: 0.0,
+            border_spacing_vertical: 0.0,
             empty_cells: EmptyCells::Show,
+            caption_side: CaptionSide::Top,
             background_size: BackgroundSize::Auto,
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
@@ -1667,6 +1682,8 @@ fn is_inherited_property(property: &str) -> bool {
             | "word-wrap"
             | "border-collapse"
             | "border-spacing"
+            | "empty-cells"
+            | "caption-side"
             | "list-style-type"
             | "list-style-position"
     )
@@ -1793,8 +1810,12 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = default.overflow_wrap,
         "border-collapse" => style.border_collapse = default.border_collapse,
         "table-layout" => style.table_layout = default.table_layout,
-        "border-spacing" => style.border_spacing = default.border_spacing,
+        "border-spacing" => {
+            style.border_spacing = default.border_spacing;
+            style.border_spacing_vertical = default.border_spacing_vertical;
+        }
         "empty-cells" => style.empty_cells = default.empty_cells,
+        "caption-side" => style.caption_side = default.caption_side,
         "background-size" => style.background_size = default.background_size,
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
@@ -1950,9 +1971,13 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
         "empty-cells" => style.empty_cells = parent.empty_cells,
+        "caption-side" => style.caption_side = parent.caption_side,
         "border-collapse" => style.border_collapse = parent.border_collapse,
         "table-layout" => style.table_layout = parent.table_layout,
-        "border-spacing" => style.border_spacing = parent.border_spacing,
+        "border-spacing" => {
+            style.border_spacing = parent.border_spacing;
+            style.border_spacing_vertical = parent.border_spacing_vertical;
+        }
         "background-size" => style.background_size = parent.background_size,
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
@@ -3087,11 +3112,26 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing") {
         style.border_spacing = *v;
+        // Single-value shorthand: vertical mirrors horizontal unless an explicit
+        // `border-spacing-vertical` (from the two-value form) overrides it below.
+        style.border_spacing_vertical = *v;
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing-horizontal") {
+        style.border_spacing = *v;
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "border-spacing-vertical") {
+        style.border_spacing_vertical = *v;
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "empty-cells") {
         style.empty_cells = match k.as_str() {
             "hide" => EmptyCells::Hide,
             _ => EmptyCells::Show,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "caption-side") {
+        style.caption_side = match k.as_str() {
+            "bottom" => CaptionSide::Bottom,
+            _ => CaptionSide::Top,
         };
     }
     // Per-layer slot mapping for a comma-separated `background-image` list. Index
@@ -3238,7 +3278,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         ("text-indent", |s, v| s.text_indent = v),
         ("letter-spacing", |s, v| s.letter_spacing = v),
         ("word-spacing", |s, v| s.word_spacing = v),
-        ("border-spacing", |s, v| s.border_spacing = v),
+        ("border-spacing", |s, v| {
+            s.border_spacing = v;
+            s.border_spacing_vertical = v;
+        }),
+        ("border-spacing-horizontal", |s, v| s.border_spacing = v),
+        ("border-spacing-vertical", |s, v| {
+            s.border_spacing_vertical = v
+        }),
     ];
     for &(prop_name, setter) in inline_length_props {
         if let Some(val) = get_non_special(map, prop_name) {
@@ -8973,6 +9020,58 @@ mod tests {
         );
         let child = compute_style(HtmlTag::Td, None, &parent);
         assert_eq!(child.table_layout, TableLayout::Auto);
+    }
+
+    #[test]
+    fn border_spacing_single_value_sets_both_axes() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-spacing: 8px"), &parent);
+        assert!((s.border_spacing - 6.0).abs() < 0.001); // 8px = 6pt
+        assert!((s.border_spacing_vertical - 6.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn border_spacing_two_value_distinct_axes() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("border-spacing: 24px 6px"), &parent);
+        assert!((s.border_spacing - 18.0).abs() < 0.001); // 24px = 18pt
+        assert!((s.border_spacing_vertical - 4.5).abs() < 0.001); // 6px = 4.5pt
+    }
+
+    #[test]
+    fn border_spacing_vertical_inherits() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("border-spacing: 24px 6px"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Td, None, &parent);
+        assert!((child.border_spacing - 18.0).abs() < 0.001);
+        assert!((child.border_spacing_vertical - 4.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn caption_side_defaults_to_top() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.caption_side, CaptionSide::Top);
+    }
+
+    #[test]
+    fn caption_side_bottom_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Table, Some("caption-side: bottom"), &parent);
+        assert_eq!(s.caption_side, CaptionSide::Bottom);
+    }
+
+    #[test]
+    fn caption_side_inherits() {
+        let parent = compute_style(
+            HtmlTag::Table,
+            Some("caption-side: bottom"),
+            &ComputedStyle::default(),
+        );
+        let child = compute_style(HtmlTag::Caption, None, &parent);
+        assert_eq!(child.caption_side, CaptionSide::Bottom);
     }
 
     #[test]

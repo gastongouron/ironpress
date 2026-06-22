@@ -450,9 +450,25 @@ fn resolve_fixed_table_columns(
     let resolved_total: f32 = resolved_widths.iter().sum();
     let used_table_width = table_width.max(resolved_total);
     if used_table_width > resolved_total && !resolved_widths.is_empty() {
-        let extra_per_column = (used_table_width - resolved_total) / resolved_widths.len() as f32;
-        for width in &mut resolved_widths {
-            *width += extra_per_column;
+        let extra = used_table_width - resolved_total;
+        // When every column already has a width but the table is wider than
+        // their sum, the surplus is distributed *proportionally* to each
+        // column's existing width (Blink's FixedTableLayout). A colspan=2 cell
+        // declaring width:120 seeds its two columns with 60 each; a sibling
+        // single cell declaring 120 seeds its column with 120. Proportional
+        // spreading then yields 90/90/180 from a 360px table — matching Chrome
+        // — whereas an equal split would wrongly give 100/100/160. Columns with
+        // zero width (no contribution) fall back to an equal split so an empty
+        // first row still produces sensible widths.
+        if resolved_total > 0.0 {
+            for width in &mut resolved_widths {
+                *width += extra * (*width / resolved_total);
+            }
+        } else {
+            let extra_per_column = extra / resolved_widths.len() as f32;
+            for width in &mut resolved_widths {
+                *width += extra_per_column;
+            }
         }
     }
 
@@ -1210,10 +1226,10 @@ pub(crate) fn flatten_table(
                 col_widths: col_widths.clone(),
                 // The table-level background box (inserted below) carries the
                 // table's own `margin-top`. The first row is therefore inset
-                // only by the top `border-spacing` (zero when collapsed);
-                // subsequent rows are separated by `border-spacing`.
+                // only by the top *vertical* `border-spacing` (zero when
+                // collapsed); subsequent rows are separated by the same.
                 margin_top: if style.border_collapse == BorderCollapse::Separate {
-                    style.border_spacing
+                    style.border_spacing_vertical
                 } else {
                     0.0
                 },
@@ -1232,12 +1248,20 @@ pub(crate) fn flatten_table(
     }
 
     let separate = matches!(style.border_collapse, BorderCollapse::Separate);
-    let edge_spacing = if separate { style.border_spacing } else { 0.0 };
+    // Horizontal spacing applies to column gaps + left/right outer edges;
+    // vertical spacing applies to row gaps + top/bottom outer edges. They differ
+    // only for the two-value `border-spacing: H V` form.
+    let edge_spacing_h = if separate { style.border_spacing } else { 0.0 };
+    let edge_spacing_v = if separate {
+        style.border_spacing_vertical
+    } else {
+        0.0
+    };
 
     // Height of the table content box: the rows plus, for `separate` collapse,
-    // the `border-spacing` above the first row, below the last row, and between
-    // each adjacent pair. (`compute_row_height` lives in the renderer; mirror it
-    // here from each row's cells.)
+    // the vertical `border-spacing` above the first row, below the last row, and
+    // between each adjacent pair. (`compute_row_height` lives in the renderer;
+    // mirror it here from each row's cells.)
     let mut emitted_rows = 0usize;
     let mut rows_height = 0.0f32;
     for elem in &output[table_output_start..] {
@@ -1249,25 +1273,42 @@ pub(crate) fn flatten_table(
                 .fold(0.0f32, f32::max);
         }
     }
-    let box_height = rows_height + edge_spacing * (emitted_rows.saturating_add(1) as f32);
+    let box_height = rows_height + edge_spacing_v * (emitted_rows.saturating_add(1) as f32);
 
     // Width of the table content box: the resolved column widths plus, for
-    // `separate` collapse, one `border-spacing` on each outer edge and between
-    // each adjacent pair. For a shrink-to-fit (auto) table this is narrower than
-    // `inner_width`, so the background must follow the columns, not the
-    // containing block.
+    // `separate` collapse, one horizontal `border-spacing` on each outer edge
+    // and between each adjacent pair. For a shrink-to-fit (auto) table this is
+    // narrower than `inner_width`, so the background must follow the columns, not
+    // the containing block.
     let columns_sum: f32 = col_widths.iter().sum();
-    let box_width = columns_sum + edge_spacing * (col_widths.len().saturating_add(1) as f32);
+    let box_width = columns_sum + edge_spacing_h * (col_widths.len().saturating_add(1) as f32);
 
-    // The last row carries the bottom `border-spacing` gap plus the table's own
-    // `margin-bottom`, so the in-flow height below the rows matches the box.
+    // The last row carries the bottom vertical `border-spacing` gap plus the
+    // table's own `margin-bottom`, so the in-flow height below the rows matches
+    // the box. A `caption-side: bottom` caption (appended after the rows) takes
+    // over the table's `margin-bottom` instead, so the row keeps only the gap.
+    let bottom_caption = caption.is_some()
+        && matches!(
+            style.caption_side,
+            crate::style::computed::CaptionSide::Bottom
+        );
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
-        *margin_bottom = edge_spacing + style.margin.bottom;
+        *margin_bottom = edge_spacing_v
+            + if bottom_caption {
+                0.0
+            } else {
+                style.margin.bottom
+            };
     }
 
-    // The table's own `margin-top` is carried by whichever box comes first: the
-    // caption (if any), otherwise the background box (if any), otherwise the
-    // first row. Track whether something earlier already claimed it.
+    // `caption-side` decides whether a `<caption>` is placed above (default) or
+    // below the table box.
+    let caption_on_top = matches!(style.caption_side, crate::style::computed::CaptionSide::Top);
+    let has_top_caption = caption.is_some() && caption_on_top;
+
+    // The table's own `margin-top` is carried by whichever box comes first: a
+    // top caption, otherwise the background box (if any), otherwise the first
+    // row. Track whether something earlier already claimed it.
     let mut margin_top_claimed = false;
 
     // Paint the table element's own background/border behind the rows. It is a
@@ -1276,7 +1317,7 @@ pub(crate) fn flatten_table(
     // cancels its height so the rows that follow render on top of it.
     let table_border = LayoutBorder::from_computed(&style.border);
     if has_background_paint(style) || table_border.has_any() {
-        let bg_margin_top = if caption.is_some() {
+        let bg_margin_top = if has_top_caption {
             0.0
         } else {
             margin_top_claimed = true;
@@ -1398,10 +1439,19 @@ pub(crate) fn flatten_table(
             fonts,
         );
         let caption_border = LayoutBorder::from_computed(&caption_style.border);
+        // A top caption sits above the table and carries the table's
+        // `margin-top`; a bottom caption is appended after the rows and carries
+        // the table's `margin-bottom` instead (the rows already absorbed the
+        // bottom border-spacing gap above).
+        let (caption_margin_top, caption_margin_bottom) = if caption_on_top {
+            (style.margin.top, 0.0)
+        } else {
+            (0.0, style.margin.bottom)
+        };
         let caption_block = LayoutElement::TextBlock {
             lines: caption_lines,
-            margin_top: style.margin.top,
-            margin_bottom: 0.0,
+            margin_top: caption_margin_top,
+            margin_bottom: caption_margin_bottom,
             text_align: caption_style.text_align,
             background_color: caption_style.background_color.map(|c| c.to_f32_rgba()),
             padding_top: caption_style.padding.top,
@@ -1451,8 +1501,12 @@ pub(crate) fn flatten_table(
             positioned_depth: 0,
             heading_level: None,
         };
-        output.insert(table_output_start, caption_block);
-        margin_top_claimed = true;
+        if caption_on_top {
+            output.insert(table_output_start, caption_block);
+            margin_top_claimed = true;
+        } else {
+            output.push(caption_block);
+        }
     }
 
     // If neither a caption nor a background box claimed the table's `margin-top`,

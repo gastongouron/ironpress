@@ -1,0 +1,312 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [
+    {
+      "role": "fill",
+      "rect_pt": [
+        41.25,
+        41.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        101.25,
+        41.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        161.25,
+        41.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        221.25,
+        41.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        41.25,
+        78.75,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        101.25,
+        78.75,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        161.25,
+        78.75,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        221.25,
+        78.75,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        39.75,
+        3.0,
+        40.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        39.75,
+        63.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        99.75,
+        39.75,
+        3.0,
+        40.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        102.75,
+        39.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        159.75,
+        39.75,
+        3.0,
+        40.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        162.75,
+        39.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        219.75,
+        39.75,
+        3.0,
+        40.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        222.75,
+        39.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        279.75,
+        39.75,
+        3.0,
+        40.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        80.25,
+        3.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        77.25,
+        63.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        99.75,
+        80.25,
+        3.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        102.75,
+        77.25,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        159.75,
+        80.25,
+        3.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        162.75,
+        77.25,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        219.75,
+        80.25,
+        3.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        222.75,
+        77.25,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        279.75,
+        80.25,
+        3.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        114.75,
+        63.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        102.75,
+        114.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        162.75,
+        114.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        222.75,
+        114.75,
+        60.0,
+        3.0
+      ],
+      "selector": null
+    }
+  ],
+  "borders": [],
+  "text_runs": []
+}

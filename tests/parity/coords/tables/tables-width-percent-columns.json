@@ -1,0 +1,242 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [
+    {
+      "role": "fill",
+      "rect_pt": [
+        41.25,
+        41.25,
+        74.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        115.5,
+        41.25,
+        148.5,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        264.0,
+        41.25,
+        75.0,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        41.25,
+        82.5,
+        74.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        115.5,
+        82.5,
+        148.5,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        264.0,
+        82.5,
+        75.0,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        39.75,
+        2.25,
+        43.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        39.75,
+        76.5,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        114.0,
+        39.75,
+        2.25,
+        43.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        116.25,
+        39.75,
+        149.25,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        263.25,
+        39.75,
+        2.25,
+        43.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        265.5,
+        39.75,
+        74.25,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        337.5,
+        39.75,
+        2.25,
+        43.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        83.25,
+        2.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        81.0,
+        76.5,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        114.0,
+        83.25,
+        2.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        116.25,
+        81.0,
+        149.25,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        263.25,
+        83.25,
+        2.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        265.5,
+        81.0,
+        74.25,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        337.5,
+        83.25,
+        2.25,
+        41.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        122.25,
+        76.5,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        116.25,
+        122.25,
+        149.25,
+        2.25
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        265.5,
+        122.25,
+        74.25,
+        2.25
+      ],
+      "selector": null
+    }
+  ],
+  "borders": [],
+  "text_runs": []
+}

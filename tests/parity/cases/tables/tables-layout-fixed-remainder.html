@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-layout-fixed-remainder</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; font-family: sans-serif; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 360px;
+  }
+  td {
+    height: 55px;
+    border: 3px solid #283618;
+  }
+  .a { width: 40px; background: #fefae0; }
+  .b { width: 80px; background: #dda15e; }
+  .c { width: 120px; background: #606c38; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="a"></td><td class="b"></td><td class="c"></td></tr>
+    <tr><td class="a"></td><td class="b"></td><td class="c"></td></tr>
+  </table>
+</body>
+</html>

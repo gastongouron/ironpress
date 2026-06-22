@@ -107,6 +107,11 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("padding-bottom", CssValue::Length(0.75));
             style.set("padding-left", CssValue::Length(0.75));
             style.set("font-weight", CssValue::Keyword("bold".into()));
+            // Chrome UA stylesheet: th { text-align: center }. text-align is an
+            // inherited property and is not reset in compute_style_with_context,
+            // so without this default a th would inherit the row/body alignment
+            // (typically left) rather than centering its content like Chrome.
+            style.set("text-align", CssValue::Keyword("center".into()));
         }
         HtmlTag::Blockquote => {
             style.set("margin-top", CssValue::Length(8.0));
@@ -158,8 +163,11 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("font-style", CssValue::Keyword("italic".into()));
         }
         HtmlTag::Caption => {
-            style.set("font-weight", CssValue::Keyword("bold".into()));
-            style.set("margin-bottom", CssValue::Length(4.0));
+            // Chrome UA stylesheet: caption { display: table-caption;
+            // text-align: center }. It does NOT bold the caption, so do not set
+            // font-weight here (that previously made captions render heavier
+            // than Chrome).
+            style.set("text-align", CssValue::Keyword("center".into()));
         }
         HtmlTag::Summary => {
             style.set("font-weight", CssValue::Keyword("bold".into()));
@@ -278,7 +286,17 @@ mod tests {
     fn table_defaults() {
         assert!(default_style(HtmlTag::Td).get("padding-top").is_some());
         assert!(default_style(HtmlTag::Th).get("font-weight").is_some());
-        assert!(default_style(HtmlTag::Caption).get("font-weight").is_some());
+        // th defaults center its content like Chrome's UA stylesheet.
+        assert!(matches!(
+            default_style(HtmlTag::Th).get("text-align"),
+            Some(CssValue::Keyword(k)) if k == "center"
+        ));
+        // caption is centered but NOT bold (matching Chrome's UA stylesheet).
+        assert!(matches!(
+            default_style(HtmlTag::Caption).get("text-align"),
+            Some(CssValue::Keyword(k)) if k == "center"
+        ));
+        assert!(default_style(HtmlTag::Caption).get("font-weight").is_none());
     }
 
     #[test]

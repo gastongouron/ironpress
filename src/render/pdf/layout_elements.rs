@@ -116,6 +116,12 @@ pub(super) struct TableCellRenderBox {
     col_width: f32,
     row_height: f32,
     nested_frame: NestedLayoutFrame,
+    /// Extra downward offset applied to this cell's content so a
+    /// `vertical-align: baseline` cell's first text baseline lines up with the
+    /// common baseline of the other baseline-aligned cells in the same row. 0.0
+    /// when the cell is not baseline-aligned or shares the row's tallest
+    /// baseline (the common case, so existing single-font rows are unaffected).
+    baseline_shift: f32,
 }
 
 impl TableCellRenderBox {
@@ -132,8 +138,61 @@ impl TableCellRenderBox {
             col_width,
             row_height,
             nested_frame,
+            baseline_shift: 0.0,
         }
     }
+
+    pub(super) const fn with_baseline_shift(mut self, shift: f32) -> Self {
+        self.baseline_shift = shift;
+        self
+    }
+}
+
+/// First text baseline distance from a cell's content-box top: the leading above
+/// the first line plus its ascent. Returns `None` for cells with no rendered
+/// text line (nothing to baseline-align).
+pub(super) fn table_cell_first_baseline(
+    cell: &TableCell,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> Option<f32> {
+    let line = cell
+        .lines
+        .iter()
+        .find(|line| line.runs.iter().any(|run| !run.text.is_empty()))?;
+    let metrics = line_box_metrics(line, custom_fonts);
+    Some(cell.padding_top + metrics.half_leading + metrics.ascender)
+}
+
+/// Per-cell baseline shifts for one row: each `vertical-align: baseline` cell
+/// with text is offset down so its first baseline matches the row's deepest
+/// baseline. Index i corresponds to `cells[i]`; non-baseline / text-less cells
+/// get 0.0. All-equal rows (same font + line-height) yield all-zero shifts, so
+/// uniform tables render exactly as before.
+pub(super) fn row_baseline_shifts(
+    cells: &[TableCell],
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> Vec<f32> {
+    let baselines: Vec<Option<f32>> = cells
+        .iter()
+        .map(|cell| {
+            if cell.vertical_align == VerticalAlign::Baseline {
+                table_cell_first_baseline(cell, custom_fonts)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let common = baselines
+        .iter()
+        .filter_map(|b| *b)
+        .fold(f32::NEG_INFINITY, f32::max);
+    if !common.is_finite() {
+        return vec![0.0; cells.len()];
+    }
+    baselines
+        .iter()
+        .map(|b| b.map_or(0.0, |own| (common - own).max(0.0)))
+        .collect()
 }
 
 pub(super) struct NestedTextBlock<'a> {
@@ -198,7 +257,8 @@ pub(super) fn render_cell_content(
     placement: TableCellRenderBox,
     ctx: &mut PageRenderContext<'_>,
 ) {
-    let content_top = table_cell_content_top(cell, placement.row_y, placement.row_height);
+    let content_top = table_cell_content_top(cell, placement.row_y, placement.row_height)
+        - placement.baseline_shift;
     if !cell.nested_rows.is_empty() {
         let text_h: f32 = cell.lines.iter().map(|line| line.height).sum();
         render_cell_text(
@@ -610,9 +670,10 @@ pub(super) fn render_nested_layout_elements(
                 };
                 let row_y = planned_element.top_y;
                 let row_height = compute_row_height(cells);
+                let baseline_shifts = row_baseline_shifts(cells, ctx.text.custom_fonts);
 
                 let mut col_pos: usize = 0;
-                for cell in cells {
+                for (cell_idx, cell) in cells.iter().enumerate() {
                     if cell.rowspan == 0 {
                         col_pos += cell.colspan;
                         continue;
@@ -727,7 +788,10 @@ pub(super) fn render_nested_layout_elements(
                     render_cell_content(
                         content,
                         cell,
-                        TableCellRenderBox::new(cell_x, row_y, cell_w, row_height, frame),
+                        TableCellRenderBox::new(cell_x, row_y, cell_w, row_height, frame)
+                            .with_baseline_shift(
+                                baseline_shifts.get(cell_idx).copied().unwrap_or(0.0),
+                            ),
                         ctx,
                     );
 

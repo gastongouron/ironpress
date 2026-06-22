@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [
+    {
+      "role": "fill",
+      "rect_pt": [
+        39.75,
+        39.75,
+        252.0,
+        88.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        57.75,
+        44.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        135.75,
+        44.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        213.75,
+        44.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        57.75,
+        86.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        135.75,
+        86.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        213.75,
+        86.25,
+        60.0,
+        37.5
+      ],
+      "selector": null
+    }
+  ],
+  "borders": [
+    {
+      "role": "border",
+      "rect_pt": [
+        58.5,
+        45.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        136.5,
+        45.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        214.5,
+        45.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        58.5,
+        87.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        136.5,
+        87.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        214.5,
+        87.0,
+        58.5,
+        36.0
+      ],
+      "selector": null
+    }
+  ],
+  "text_runs": []
+}

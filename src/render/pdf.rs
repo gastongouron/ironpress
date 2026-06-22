@@ -27,7 +27,7 @@ mod layout_elements;
 
 use layout_elements::{
     NestedLayoutFrame, PageRenderContext, TableCellRenderBox, compute_row_height,
-    render_cell_content, table_cell_geometry,
+    render_cell_content, row_baseline_shifts, table_cell_geometry,
 };
 
 #[cfg(test)]
@@ -1334,10 +1334,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
                     let row_height = compute_row_height(cells);
+                    let baseline_shifts = row_baseline_shifts(cells, custom_fonts);
 
                     // Track column position accounting for colspan
                     let mut col_pos: usize = 0;
-                    for cell in cells.iter() {
+                    for (cell_idx, cell) in cells.iter().enumerate() {
                         // Skip phantom cells (rowspan = 0); they are placeholders
                         // for cells spanning from previous rows.
                         if cell.rowspan == 0 {
@@ -1526,6 +1527,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     page_size.height - margin.top,
                                     cell_w,
                                 ),
+                            )
+                            .with_baseline_shift(
+                                baseline_shifts.get(cell_idx).copied().unwrap_or(0.0),
                             ),
                             &mut page_context,
                         );

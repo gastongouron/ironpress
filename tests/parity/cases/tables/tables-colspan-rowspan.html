@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-colspan-rowspan</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; font-family: sans-serif; }
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 360px;
+  }
+  td {
+    width: 120px;
+    height: 50px;
+    border: 3px solid #1d3557;
+    background: #a8dadc;
+  }
+  .big { background: #e63946; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="big" colspan="2" rowspan="2"></td><td></td></tr>
+    <tr><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+  </table>
+</body>
+</html>

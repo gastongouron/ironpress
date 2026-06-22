@@ -273,5 +273,198 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-th-default",
+    "category": "tables",
+    "feature": "th-cell",
+    "subfeature": "ua-center-bold",
+    "description": "th cells get the UA-stylesheet defaults text-align:center + font-weight:bold; td cells stay left/normal.",
+    "file": "cases/tables/tables-th-default.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-caption-side-bottom",
+    "category": "tables",
+    "feature": "caption",
+    "subfeature": "caption-side-bottom",
+    "description": "caption-side:bottom renders the caption banner below the table body instead of above.",
+    "file": "cases/tables/tables-caption-side-bottom.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-colspan-rowspan",
+    "category": "tables",
+    "feature": "spanning",
+    "subfeature": "colspan-rowspan-combined",
+    "description": "A single cell with both colspan=2 and rowspan=2 occupies a 2x2 block; surrounding cells flow around it.",
+    "file": "cases/tables/tables-colspan-rowspan.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan-stagger",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "stagger-shift",
+    "description": "A rowspan=2 first-column cell shifts later rows' cells into the remaining columns.",
+    "file": "cases/tables/tables-rowspan-stagger.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-spacing-two-value",
+    "category": "tables",
+    "feature": "border-spacing",
+    "subfeature": "two-value",
+    "description": "border-spacing:24px 6px applies distinct horizontal and vertical gaps between cells.",
+    "file": "cases/tables/tables-border-spacing-two-value.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-spacing-zero",
+    "category": "tables",
+    "feature": "border-spacing",
+    "subfeature": "zero",
+    "description": "border-spacing:0 in separate mode makes cells touch with their own (non-merged) borders.",
+    "file": "cases/tables/tables-border-spacing-zero.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-layout-fixed-remainder",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "fixed-remainder-distribution",
+    "description": "table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -> 60/120/180).",
+    "file": "cases/tables/tables-layout-fixed-remainder.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-layout-auto-overflow",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "auto-content-exceeds-width",
+    "description": "table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).",
+    "file": "cases/tables/tables-layout-auto-overflow.html",
+    "kind": "feature",
+    "expected_support": "partial",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 60.0
+  },
+  {
+    "id": "tables-empty-cells-whitespace",
+    "category": "tables",
+    "feature": "empty-cells",
+    "subfeature": "whitespace-and-empty",
+    "description": "empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.",
+    "file": "cases/tables/tables-empty-cells-whitespace.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-vertical-align-baseline",
+    "category": "tables",
+    "feature": "vertical-align",
+    "subfeature": "baseline-uniform",
+    "description": "vertical-align:baseline aligns same-size cell text on a shared row baseline.",
+    "file": "cases/tables/tables-vertical-align-baseline.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-vertical-align-baseline-sizes",
+    "category": "tables",
+    "feature": "vertical-align",
+    "subfeature": "baseline-mixed-sizes",
+    "description": "vertical-align:baseline aligns cells with differing font sizes on one common baseline (taller cells shift shorter text down).",
+    "file": "cases/tables/tables-vertical-align-baseline-sizes.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]
