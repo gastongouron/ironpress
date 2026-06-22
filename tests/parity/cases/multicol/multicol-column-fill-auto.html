@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-fill auto</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Definite height + column-fill:auto: fill col1 then col2 then col3, so the
+     last column ends up shorter than the others (sequential, not balanced). */
+  .cols {
+    column-count: 3;
+    column-gap: 24px;
+    column-fill: auto;
+    width: 480px;
+    height: 200px;
+    margin: 20px;
+    background: #e8eef7;
+    border: 2px solid #003a8c;
+    padding: 8px;
+  }
+  .block {
+    height: 50px;
+    margin-bottom: 8px;
+    background: #ff5a5f;
+    border: 2px solid #7a0010;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

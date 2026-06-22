@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-width wider than container</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-width: 600px;
+    column-gap: 20px;
+    width: 360px;
+    height: 200px;
+    margin: 20px;
+    background: #eef7ff;
+    border: 2px solid #0a3a8c;
+  }
+  .block {
+    height: 50px;
+    margin-bottom: 8px;
+    background: #2ec4b6;
+    border: 2px solid #0a4a44;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

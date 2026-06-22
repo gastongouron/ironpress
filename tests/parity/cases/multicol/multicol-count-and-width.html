@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-count and column-width together</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* count=2 is a max; width=100px would fit ~4, so 2 columns win. */
+  .cols {
+    column-count: 2;
+    column-width: 100px;
+    column-gap: 20px;
+    width: 460px;
+    height: 180px;
+    margin: 20px;
+    background: #f7eef7;
+    border: 2px solid #7a1f7a;
+  }
+  .block {
+    height: 50px;
+    margin-bottom: 8px;
+    background: #5a3fff;
+    border: 2px solid #2a1a8c;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

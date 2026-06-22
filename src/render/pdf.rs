@@ -225,6 +225,70 @@ fn paint_uniform_border(
     end_border_alpha(content, a);
 }
 
+/// Paint a multi-column `column-rule` as a single vertical line of width `w`
+/// centered in the box, honouring its CSS border style. `solid` rules are
+/// painted as a filled bar elsewhere; this path handles `dashed`/`dotted`
+/// (stroked with the shared dash pattern) and `double` (two thin parallel
+/// lines with a hollow middle third). `(x, top_y)` is the rule box's top-left
+/// in PDF (bottom-up) coords; `h` is its height.
+#[allow(clippy::too_many_arguments)]
+fn paint_column_rule_line(
+    content: &mut String,
+    x: f32,
+    top_y: f32,
+    w: f32,
+    h: f32,
+    side: &crate::layout::engine::LayoutBorderSide,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+) {
+    if w <= 0.0 || h <= 0.0 || side.style == BorderStyle::None {
+        return;
+    }
+    let (r, g, b) = side.color;
+    let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, side.alpha);
+    content.push_str(&format!("{r} {g} {b} RG\n"));
+    let bottom_y = top_y - h;
+    if side.style == BorderStyle::Double {
+        // Outer third on the left edge, inner third on the right edge, hollow
+        // middle third — two stroked vertical lines half-a-third in from each
+        // edge of the rule box.
+        let third = w / 3.0;
+        let x_left = x + third / 2.0;
+        let x_right = x + w - third / 2.0;
+        content.push_str(&format!("{third} w\n"));
+        content.push_str(&format!("{x_left} {top_y} m {x_left} {bottom_y} l S\n"));
+        content.push_str(&format!("{x_right} {top_y} m {x_right} {bottom_y} l S\n"));
+    } else {
+        let cx = x + w / 2.0;
+        content.push_str(&dash_pattern_for_style(side.style, w));
+        content.push_str(&format!("{w} w\n"));
+        content.push_str(&format!("{cx} {top_y} m {cx} {bottom_y} l S\n"));
+        content.push_str(reset_dash_pattern(side.style));
+    }
+    end_border_alpha(content, a);
+}
+
+/// True when a nested Container is a styled `column-rule` placeholder: an empty,
+/// background-free absolute box whose only border is a left side wide enough to
+/// fill the box. Such boxes are emitted by the multicol layout for
+/// non-`solid` rules so the renderer can draw the proper dash/double pattern.
+fn is_column_rule_box(
+    children: &[LayoutElement],
+    background_color: &Option<(f32, f32, f32, f32)>,
+    border: &crate::layout::engine::LayoutBorder,
+    block_width: Option<f32>,
+) -> bool {
+    children.is_empty()
+        && background_color.is_none()
+        && border.left.width > 0.0
+        && border.left.style != BorderStyle::None
+        && border.top.width == 0.0
+        && border.right.width == 0.0
+        && border.bottom.width == 0.0
+        && block_width.is_some_and(|w| (w - border.left.width).abs() < 0.01)
+}
+
 /// Register a blend-mode ExtGState and emit its `gs` operator, returning `true`
 /// when a non-`Normal` blend was applied. The gstate name encodes the PDF blend
 /// mode (`GSbm<Mode>`); the writer turns that into a `<< /BM /<Mode> >>` dict.
@@ -4632,6 +4696,7 @@ fn render_container_children(
             LayoutElement::TextBlock {
                 lines,
                 margin_top,
+                margin_bottom,
                 padding_top,
                 padding_bottom,
                 padding_left,
@@ -5095,12 +5160,15 @@ fn render_container_children(
                     let _ = child_h;
                     prev_margin_bottom = 0.0;
                 } else {
-                    cursor_y -= child_h;
+                    // Advance past the box AND its margin-bottom so a following
+                    // in-flow sibling sits below the margin gap (e.g. stacked
+                    // `<p>`s inside a multicol column keep their `margin-bottom`).
+                    // Record this block's margin-bottom so the next sibling
+                    // collapses its margin-top against it (CSS adjacent-margin
+                    // collapsing), mirroring the Container arm below.
+                    cursor_y -= child_h + *margin_bottom;
                     y = cursor_y;
-                    // This arm never subtracts margin-bottom from the cursor, so a
-                    // following sibling has nothing already-subtracted to collapse
-                    // against (its margin-top applies in full).
-                    prev_margin_bottom = 0.0;
+                    prev_margin_bottom = *margin_bottom;
                 }
             }
             LayoutElement::Container {
@@ -5147,6 +5215,29 @@ fn render_container_children(
                 containing_block: nk_containing_block,
                 ..
             } => {
+                // A styled `column-rule` placeholder (non-`solid` rule): draw the
+                // dash/dot/double vertical line and skip the generic box path. It
+                // is an absolute, out-of-flow box, so it never advances the cursor.
+                if *nk_position == Position::Absolute
+                    && is_column_rule_box(nested_kids, background_color, border, *block_width)
+                {
+                    let (rule_anchor_x, rule_anchor_y) =
+                        abs_child_anchor(nk_containing_block, abs_origins, self_pad_origin);
+                    let rule_x = rule_anchor_x + nk_offset_left;
+                    let rule_top = rule_anchor_y - nk_offset_top;
+                    let rule_h = nk_block_height.unwrap_or(0.0);
+                    paint_column_rule_line(
+                        content,
+                        rule_x,
+                        rule_top,
+                        border.left.width,
+                        rule_h,
+                        &border.left,
+                        page_ext_gstates,
+                        bg_alpha_counter,
+                    );
+                    continue;
+                }
                 // Absolute-positioned containers (e.g. an empty position:absolute
                 // div) must render at their inset offset from the containing
                 // block's padding box, mirroring the TextBlock abspos arm — not

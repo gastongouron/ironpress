@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-fill balance</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 3;
+    column-gap: 24px;
+    column-fill: balance;
+    width: 480px;
+    margin: 20px;
+    background: #e8eef7;
+    border: 2px solid #003a8c;
+    padding: 8px;
+  }
+  .block {
+    height: 48px;
+    margin-bottom: 8px;
+    background: #5a3fff;
+    border: 2px solid #2a1a8c;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

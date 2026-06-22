@@ -463,13 +463,21 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(val.to_string()));
     }
 
-    if matches!(property, "column-count" | "columns") {
+    if property == "column-count" {
         return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
+    }
+
+    // The `columns` shorthand (`<column-width> || <column-count>`) is ambiguous
+    // once units are stripped: `columns: 4` (count) and `columns: 140px` (width)
+    // would both collapse to a bare `Length`. Preserve the raw string so the
+    // shorthand decoder in `compute_style` can keep px-vs-unitless apart.
+    if property == "columns" {
+        return Some(CssValue::Keyword(val.to_string()));
     }
 
     // Multi-column shorthands/longhands whose values are best preserved verbatim
     // and decoded later in `compute_style` (e.g. `column-rule: 6px solid #d6005a`,
-    // `column-width: 140px`, `column-span: all`).
+    // `column-width: 140px`, `column-span: all`, `column-fill: auto`).
     if matches!(
         property,
         "column-width"
@@ -478,6 +486,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "column-rule-style"
             | "column-rule-color"
             | "column-span"
+            | "column-fill"
     ) {
         return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
     }

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol column-rule none</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 3;
+    column-gap: 40px;
+    column-rule: 6px none #d6005a;
+    width: 460px;
+    height: 180px;
+    margin: 20px;
+    background: #f2f2f2;
+    border: 2px solid #333333;
+  }
+  .block {
+    height: 50px;
+    margin-bottom: 8px;
+    background: #2ec4b6;
+    border: 2px solid #0a4a44;
+  }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>

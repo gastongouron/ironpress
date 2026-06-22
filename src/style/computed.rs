@@ -1275,6 +1275,10 @@ pub struct ComputedStyle {
     /// CSS `column-span: all` — element spans across all columns as a full-width
     /// band, breaking the column flow.
     pub column_span_all: bool,
+    /// CSS `column-fill` — `false` (default) balances columns to equal height;
+    /// `true` (`column-fill: auto`) fills each column to the container's height
+    /// in turn, leaving the last column short.
+    pub column_fill_auto: bool,
     pub row_gap: f32,
     pub blur_radius: f32,
     /// CSS `filter` color functions (grayscale/brightness/.../hue-rotate),
@@ -1465,6 +1469,7 @@ impl Default for ComputedStyle {
             column_gap_is_normal: true,
             column_rule: BorderSide::default(),
             column_span_all: false,
+            column_fill_auto: false,
             row_gap: 0.0,
             blur_radius: 0.0,
             color_filters: Vec::new(),
@@ -1647,6 +1652,7 @@ pub fn compute_style_with_context(
     style.column_gap_is_normal = true;
     style.column_rule = BorderSide::default();
     style.column_span_all = false;
+    style.column_fill_auto = false;
     style.border_radius = 0.0;
     style.border_radii = [0.0; 4];
     style.border_radii_pct = [None; 4];
@@ -1902,6 +1908,7 @@ pub fn compute_pseudo_element_style(
     style.column_gap_is_normal = true;
     style.column_rule = BorderSide::default();
     style.column_span_all = false;
+    style.column_fill_auto = false;
     style.border_radius = 0.0;
     style.border_radii = [0.0; 4];
     style.border_radii_pct = [None; 4];
@@ -2152,6 +2159,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.column_rule = default.column_rule;
         }
         "column-span" => style.column_span_all = default.column_span_all,
+        "column-fill" => style.column_fill_auto = default.column_fill_auto,
         "filter" => {
             style.blur_radius = default.blur_radius;
             style.color_filters = default.color_filters.clone();
@@ -3293,13 +3301,30 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let CssValue::Length(w) = val {
             style.column_rule.width = *w;
         } else if let CssValue::Keyword(k) = val {
-            if let Some(CssValue::Length(w)) = parse_length(k) {
-                style.column_rule.width = w;
+            // `thin` / `medium` / `thick` keyword widths, else a parsed length.
+            match k.trim().to_ascii_lowercase().as_str() {
+                "thin" => style.column_rule.width = 0.75,
+                "medium" => style.column_rule.width = MEDIUM_RULE_WIDTH_PT,
+                "thick" => style.column_rule.width = 3.75,
+                _ => {
+                    if let Some(CssValue::Length(w)) = parse_length(k) {
+                        style.column_rule.width = w;
+                    }
+                }
             }
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-rule-style") {
         style.column_rule.style = parse_border_style_keyword(k);
+        // A visible style with no explicit width uses the medium default
+        // (column-rule-width initial = medium) so the rule actually paints.
+        if style.column_rule.style != BorderStyle::None
+            && style.column_rule.width <= 0.0
+            && get_non_special(map, "column-rule-width").is_none()
+            && get_non_special(map, "column-rule").is_none()
+        {
+            style.column_rule.width = MEDIUM_RULE_WIDTH_PT;
+        }
     }
     if let Some(val) = get_non_special(map, "column-rule-color") {
         let c = match val {
@@ -3313,6 +3338,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-span") {
         style.column_span_all = k.eq_ignore_ascii_case("all");
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-fill") {
+        // `auto` fills columns sequentially; `balance` (default) equalises them.
+        style.column_fill_auto = k.eq_ignore_ascii_case("auto");
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "row-gap") {
         style.row_gap = *v;
@@ -5839,15 +5868,25 @@ fn parse_border_style_keyword(keyword: &str) -> BorderStyle {
 }
 
 /// Parse a `column-rule` shorthand (`<width> || <style> || <color>`) into a
-/// `BorderSide`, reusing the border-shorthand tokenizer.
+/// `BorderSide`, reusing the border-shorthand tokenizer. Per CSS Multicol §6 the
+/// initial `column-rule-width` is `medium`, so a shorthand that names a visible
+/// style without a width (e.g. `column-rule: dotted blue`) still paints at the
+/// medium width rather than the 0 the border tokenizer leaves it at.
 fn parse_column_rule_shorthand(k: &str) -> BorderSide {
-    let (width, color, style) = parse_border_shorthand(k);
+    let (mut width, color, style) = parse_border_shorthand(k);
+    if width <= 0.0 && style != BorderStyle::None {
+        width = MEDIUM_RULE_WIDTH_PT;
+    }
     BorderSide {
         width,
         color,
         style,
     }
 }
+
+/// CSS `medium` line width in points (~3px). Shared by the column-rule
+/// shorthand and longhand defaults.
+const MEDIUM_RULE_WIDTH_PT: f32 = 2.25;
 
 fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
     // A function color such as `rgba(38, 50, 56, 0.35)` contains internal spaces,
@@ -6656,6 +6695,88 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Strong, None, &parent);
         assert_eq!(style.font_weight, FontWeight::Bold);
+    }
+
+    #[test]
+    fn column_rule_shorthand_style_only_uses_medium_width() {
+        // `column-rule: solid blue` — no width given; per CSS Multicol §6 the
+        // initial column-rule-width is `medium` (~2.25pt), so the rule paints.
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-rule: solid blue"), &parent);
+        assert!((style.column_rule.width - 2.25).abs() < 0.01);
+        assert_eq!(style.column_rule.style, BorderStyle::Solid);
+        assert!(style.column_rule.color.is_some());
+    }
+
+    #[test]
+    fn column_rule_shorthand_dotted_paints_at_medium() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-rule: dotted"), &parent);
+        assert!((style.column_rule.width - 2.25).abs() < 0.01);
+        assert_eq!(style.column_rule.style, BorderStyle::Dotted);
+    }
+
+    #[test]
+    fn column_rule_width_keyword_thin_medium_thick() {
+        let parent = ComputedStyle::default();
+        let thin = compute_style(HtmlTag::Div, Some("column-rule-width: thin"), &parent);
+        assert!((thin.column_rule.width - 0.75).abs() < 0.01);
+        let medium = compute_style(HtmlTag::Div, Some("column-rule-width: medium"), &parent);
+        assert!((medium.column_rule.width - 2.25).abs() < 0.01);
+        let thick = compute_style(HtmlTag::Div, Some("column-rule-width: thick"), &parent);
+        assert!((thick.column_rule.width - 3.75).abs() < 0.01);
+    }
+
+    #[test]
+    fn column_rule_style_longhand_only_uses_medium_width() {
+        // `column-rule-style: dashed` alone should default the width to medium.
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("column-rule-style: dashed"), &parent);
+        assert_eq!(style.column_rule.style, BorderStyle::Dashed);
+        assert!((style.column_rule.width - 2.25).abs() < 0.01);
+    }
+
+    #[test]
+    fn column_rule_explicit_width_with_style_longhands() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("column-rule-width: 4px; column-rule-style: double"),
+            &parent,
+        );
+        assert_eq!(style.column_rule.style, BorderStyle::Double);
+        assert!((style.column_rule.width - 3.0).abs() < 0.01); // 4px -> 3pt
+    }
+
+    #[test]
+    fn columns_shorthand_width_only_vs_count_only() {
+        let parent = ComputedStyle::default();
+        // `columns: 140px` is a column-WIDTH, not a count of 140 columns.
+        let w = compute_style(HtmlTag::Div, Some("columns: 140px"), &parent);
+        assert_eq!(w.column_count, None);
+        assert!((w.column_width.unwrap() - 105.0).abs() < 0.01); // 140px -> 105pt
+        // `columns: 4` is a column-COUNT.
+        let c = compute_style(HtmlTag::Div, Some("columns: 4"), &parent);
+        assert_eq!(c.column_count, Some(4));
+        assert_eq!(c.column_width, None);
+        // Both together.
+        let b = compute_style(HtmlTag::Div, Some("columns: 120px 3"), &parent);
+        assert_eq!(b.column_count, Some(3));
+        assert!((b.column_width.unwrap() - 90.0).abs() < 0.01); // 120px -> 90pt
+        // `columns: auto` sets neither.
+        let a = compute_style(HtmlTag::Div, Some("columns: auto"), &parent);
+        assert_eq!(a.column_count, None);
+        assert_eq!(a.column_width, None);
+    }
+
+    #[test]
+    fn column_fill_auto_vs_balance() {
+        let parent = ComputedStyle::default();
+        assert!(!compute_style(HtmlTag::Div, None, &parent).column_fill_auto);
+        assert!(
+            !compute_style(HtmlTag::Div, Some("column-fill: balance"), &parent).column_fill_auto
+        );
+        assert!(compute_style(HtmlTag::Div, Some("column-fill: auto"), &parent).column_fill_auto);
     }
 
     #[test]

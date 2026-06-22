@@ -11,7 +11,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-column-count-text",
@@ -25,7 +30,13 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "multicol-column-gap",
@@ -39,76 +50,315 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-column-width",
     "category": "multicol",
     "feature": "column-width",
     "subfeature": "px",
-    "description": "Container using column-width: 140px so the column count is derived from the available inline size; ironpress does not parse column-width (known gap).",
+    "description": "Container using column-width: 140px so the column count is derived from the available inline size.",
     "file": "cases/multicol/multicol-column-width.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-columns-shorthand",
     "category": "multicol",
     "feature": "columns",
     "subfeature": "shorthand",
-    "description": "columns: 120px 3 shorthand setting both column-width and column-count at once; column-width half of the shorthand is unsupported (known gap).",
+    "description": "columns: 120px 3 shorthand setting both column-width and column-count at once.",
     "file": "cases/multicol/multicol-columns-shorthand.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-column-rule",
     "category": "multicol",
     "feature": "column-rule",
     "subfeature": "solid",
-    "description": "Three-column container with a 6px solid column-rule painted in each gap; ironpress does not draw column-rule (known gap).",
+    "description": "Three-column container with a 6px solid column-rule painted in each gap, spanning the full content-box height.",
     "file": "cases/multicol/multicol-column-rule.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-column-span-all",
     "category": "multicol",
     "feature": "column-span",
     "subfeature": "all",
-    "description": "A banner element with column-span: all spanning the full width above six blocks distributed into three columns; column-span is unsupported (known gap).",
+    "description": "A banner element with column-span: all spanning the full width above six blocks distributed into three columns.",
     "file": "cases/multicol/multicol-column-span-all.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "multicol-break-inside-avoid",
     "category": "multicol",
     "feature": "break-inside",
     "subfeature": "avoid",
-    "description": "Six fixed-height cards with break-inside: avoid flowed across two columns so no card is split between columns; break-inside is unsupported (known gap).",
+    "description": "Six fixed-height cards with break-inside: avoid flowed across two columns; each atomic card stays whole within a column.",
     "file": "cases/multicol/multicol-break-inside-avoid.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-columns-count-only",
+    "category": "multicol",
+    "feature": "columns",
+    "subfeature": "count-only",
+    "description": "columns: 4 shorthand with only a column-count; four equal-width tracks.",
+    "file": "cases/multicol/multicol-columns-count-only.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-columns-width-only",
+    "category": "multicol",
+    "feature": "columns",
+    "subfeature": "width-only",
+    "description": "columns: 140px shorthand with only a column-width; the used column count is derived from the inline size.",
+    "file": "cases/multicol/multicol-columns-width-only.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-count-and-width",
+    "category": "multicol",
+    "feature": "column-count",
+    "subfeature": "count-and-width",
+    "description": "column-count: 2 with column-width: 100px; count caps the used columns (max), width is the minimum, so two columns are used.",
+    "file": "cases/multicol/multicol-count-and-width.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-width-wide",
+    "category": "multicol",
+    "feature": "column-width",
+    "subfeature": "wider-than-container",
+    "description": "column-width larger than the container width collapses to a single column.",
+    "file": "cases/multicol/multicol-column-width-wide.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-gap-normal",
+    "category": "multicol",
+    "feature": "column-gap",
+    "subfeature": "normal",
+    "description": "Three-column container with no explicit column-gap; the normal default (1em = font-size) separates the tracks.",
+    "file": "cases/multicol/multicol-column-gap-normal.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-dashed",
+    "category": "multicol",
+    "feature": "column-rule-style",
+    "subfeature": "dashed",
+    "description": "Three-column container with a 6px dashed column-rule painted in each gap.",
+    "file": "cases/multicol/multicol-column-rule-dashed.html",
+    "weight": 1,
+    "pass_threshold_pct": 4.0,
+    "partial_threshold_pct": 12.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-double",
+    "category": "multicol",
+    "feature": "column-rule-style",
+    "subfeature": "double",
+    "description": "Three-column container with a 9px double column-rule (two thin parallel lines) in each gap.",
+    "file": "cases/multicol/multicol-column-rule-double.html",
+    "weight": 1,
+    "pass_threshold_pct": 4.0,
+    "partial_threshold_pct": 12.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-none",
+    "category": "multicol",
+    "feature": "column-rule-style",
+    "subfeature": "none",
+    "description": "column-rule-style: none draws no rule and consumes no space; the gap matches a plain column-gap.",
+    "file": "cases/multicol/multicol-column-rule-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-longhands",
+    "category": "multicol",
+    "feature": "column-rule",
+    "subfeature": "longhands",
+    "description": "column-rule-width/style/color set as separate longhands (thick solid blue).",
+    "file": "cases/multicol/multicol-column-rule-longhands.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-fill-balance",
+    "category": "multicol",
+    "feature": "column-fill",
+    "subfeature": "balance",
+    "description": "column-fill: balance (explicit) distributes content into equal-height columns.",
+    "file": "cases/multicol/multicol-column-fill-balance.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-fill-auto",
+    "category": "multicol",
+    "feature": "column-fill",
+    "subfeature": "auto",
+    "description": "column-fill: auto with a definite height fills each column to the box height in turn, leaving the last column short.",
+    "file": "cases/multicol/multicol-column-fill-auto.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   }
 ]
