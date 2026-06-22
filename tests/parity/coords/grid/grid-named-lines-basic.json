@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "frame": "chrome-ref-pt",
+  "page_pt": [
+    612.0,
+    792.0
+  ],
+  "boxes": [
+    {
+      "role": "fill",
+      "rect_pt": [
+        44.25,
+        44.25,
+        150.0,
+        90.0
+      ],
+      "selector": null
+    },
+    {
+      "role": "fill",
+      "rect_pt": [
+        119.25,
+        134.25,
+        75.0,
+        3.0
+      ],
+      "selector": null
+    }
+  ],
+  "borders": [
+    {
+      "role": "border",
+      "rect_pt": [
+        43.5,
+        43.5,
+        148.5,
+        88.5
+      ],
+      "selector": null
+    },
+    {
+      "role": "border",
+      "rect_pt": [
+        45.0,
+        45.0,
+        148.5,
+        88.5
+      ],
+      "selector": null
+    }
+  ],
+  "text_runs": []
+}

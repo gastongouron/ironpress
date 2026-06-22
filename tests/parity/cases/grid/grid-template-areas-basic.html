@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid template areas basic</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 90px 90px;
+    grid-template-rows: 60px 60px;
+    grid-template-areas:
+      "head head"
+      "side main";
+    width: 180px;
+    height: 120px;
+    margin: 20px;
+  }
+  .head { background: #ff5a5f; grid-area: head; }
+  .side { background: #2ec4b6; grid-area: side; }
+  .main { background: #ffbf00; grid-area: main; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="head"></div>
+    <div class="side"></div>
+    <div class="main"></div>
+  </div>
+</body>
+</html>

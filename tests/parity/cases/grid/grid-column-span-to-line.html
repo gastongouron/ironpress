@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid column start with span</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 50px 50px 50px 50px;
+    grid-template-rows: 80px;
+    width: 200px;
+    height: 80px;
+    margin: 20px;
+  }
+  /* definite start line 2, spanning 2 tracks -> cols 2..4 */
+  .a { background: #ff5a5f; grid-column: 2 / span 2; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="a"></div>
+  </div>
+</body>
+</html>

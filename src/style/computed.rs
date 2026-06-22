@@ -131,6 +131,28 @@ pub enum GridTrack {
     Minmax(f32, f32),
 }
 
+/// A grid-placement endpoint (`grid-row-start` / `grid-column-end` etc.),
+/// per CSS Grid Layout Level 1 §8. One end of an item's placement on one axis.
+///
+/// - `Auto`: no explicit placement — resolved by auto-placement (§8.5).
+/// - `Line(n)`: a definite line number. Positive counts from the start edge of
+///   the explicit grid (1 = first line); negative from the end (-1 = last line).
+/// - `Named(name)`: a named line — the first line carrying `name` (§8.3). Also
+///   matches the implicit `<name>-start` / `<name>-end` lines that
+///   `grid-template-areas` generates for a named area.
+/// - `Span(n)`: span `n` tracks from the opposite (definite) edge (§8.3).
+/// - `SpanNamed(name)`: span until the next line named `name`. Approximated as a
+///   1-track span (the named line vocabulary rarely repeats in print fixtures).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum GridLine {
+    #[default]
+    Auto,
+    Line(i32),
+    Named(String),
+    Span(usize),
+    SpanNamed(String),
+}
+
 /// CSS Grid box-alignment keyword (justify-items / align-items per item axis).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum GridAlign {
@@ -1153,9 +1175,33 @@ pub struct ComputedStyle {
     /// from the flex `align_items` field; grid uses start/end/center/stretch.
     pub grid_align_items: GridAlign,
     /// Item-level `grid-column: span N` (number of columns to span, >=1).
+    /// Retained for back-compat; derived from `grid_column_start/end`.
     pub grid_column_span: usize,
     /// Item-level `grid-row: span N` (number of rows to span, >=1).
     pub grid_row_span: usize,
+    /// `grid-auto-flow: dense` packing (backfill earlier holes). Default sparse.
+    pub grid_auto_flow_dense: bool,
+    /// Container `grid-template-areas`: row-major cells; `None` is a `.`/null
+    /// (empty) cell, `Some(name)` names the area occupying that cell. Empty when
+    /// no areas declared. Every row has the same length (column count).
+    pub grid_template_areas: Vec<Vec<Option<String>>>,
+    /// Line names per *column* line index (index 0 = the line before the first
+    /// column). Populated from bracketed `[name]` tokens in
+    /// `grid-template-columns` plus implicit `<area>-start`/`-end` lines.
+    pub grid_template_column_line_names: Vec<Vec<String>>,
+    /// Line names per *row* line index. As above for `grid-template-rows`.
+    pub grid_template_row_line_names: Vec<Vec<String>>,
+    /// Item-level placement endpoints (CSS Grid §8). `Auto` = auto-placed.
+    pub grid_column_start: GridLine,
+    pub grid_column_end: GridLine,
+    pub grid_row_start: GridLine,
+    pub grid_row_end: GridLine,
+    /// Item-level `grid-area: <name>` (a single named area). `None` = unset.
+    pub grid_area_name: Option<String>,
+    /// Item-level grid `justify-self` / `align-self` (overrides the container
+    /// `justify-items` / `align-items`). `None` = inherit the container value.
+    pub grid_justify_self: Option<GridAlign>,
+    pub grid_align_self: Option<GridAlign>,
     pub grid_gap: f32,
     pub border_radius: f32,
     /// Percentage-based border-radius (e.g. 50% for circles). Resolved in layout.
@@ -1361,6 +1407,17 @@ impl Default for ComputedStyle {
             grid_align_items: GridAlign::Stretch,
             grid_column_span: 1,
             grid_row_span: 1,
+            grid_auto_flow_dense: false,
+            grid_template_areas: Vec::new(),
+            grid_template_column_line_names: Vec::new(),
+            grid_template_row_line_names: Vec::new(),
+            grid_column_start: GridLine::Auto,
+            grid_column_end: GridLine::Auto,
+            grid_row_start: GridLine::Auto,
+            grid_row_end: GridLine::Auto,
+            grid_area_name: None,
+            grid_justify_self: None,
+            grid_align_self: None,
             grid_gap: 0.0,
             border_radius: 0.0,
             border_radius_pct: None,
@@ -1562,6 +1619,24 @@ pub fn compute_style_with_context(
     style.transform = None;
     style.clip_path = None;
     style.grid_template_columns = Vec::new();
+    // Grid placement is not inherited — reset per element so a grid item's
+    // children don't inherit its line placement / area assignment.
+    style.grid_template_rows = Vec::new();
+    style.grid_template_areas = Vec::new();
+    style.grid_template_column_line_names = Vec::new();
+    style.grid_template_row_line_names = Vec::new();
+    style.grid_auto_rows = None;
+    style.grid_auto_flow_column = false;
+    style.grid_auto_flow_dense = false;
+    style.grid_column_span = 1;
+    style.grid_row_span = 1;
+    style.grid_column_start = GridLine::Auto;
+    style.grid_column_end = GridLine::Auto;
+    style.grid_row_start = GridLine::Auto;
+    style.grid_row_end = GridLine::Auto;
+    style.grid_area_name = None;
+    style.grid_justify_self = None;
+    style.grid_align_self = None;
     style.grid_gap = 0.0;
     // Multi-column properties are not inherited — reset for every element so a
     // multicol container's block children don't themselves become multicol
@@ -1799,6 +1874,24 @@ pub fn compute_pseudo_element_style(
     style.transform = None;
     style.clip_path = None;
     style.grid_template_columns = Vec::new();
+    // Grid placement is not inherited — reset per element so a grid item's
+    // children don't inherit its line placement / area assignment.
+    style.grid_template_rows = Vec::new();
+    style.grid_template_areas = Vec::new();
+    style.grid_template_column_line_names = Vec::new();
+    style.grid_template_row_line_names = Vec::new();
+    style.grid_auto_rows = None;
+    style.grid_auto_flow_column = false;
+    style.grid_auto_flow_dense = false;
+    style.grid_column_span = 1;
+    style.grid_row_span = 1;
+    style.grid_column_start = GridLine::Auto;
+    style.grid_column_end = GridLine::Auto;
+    style.grid_row_start = GridLine::Auto;
+    style.grid_row_end = GridLine::Auto;
+    style.grid_area_name = None;
+    style.grid_justify_self = None;
+    style.grid_align_self = None;
     style.grid_gap = 0.0;
     // Multi-column properties are not inherited — reset for every element so a
     // multicol container's block children don't themselves become multicol
@@ -2694,12 +2787,25 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         _ => {}
     }
 
-    // Grid template columns
+    // Grid template columns / rows. Each parse also extracts bracketed
+    // `[name]` line names (CSS Grid §7.1) into a per-line-index name list, so
+    // named-line placement (§8.3) can resolve them.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-columns") {
-        style.grid_template_columns = parse_grid_template_columns(k);
+        let (tracks, names) = parse_grid_track_list(k);
+        style.grid_template_columns = tracks;
+        style.grid_template_column_line_names = names;
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-rows") {
-        style.grid_template_rows = parse_grid_template_columns(k);
+        let (tracks, names) = parse_grid_track_list(k);
+        style.grid_template_rows = tracks;
+        style.grid_template_row_line_names = names;
+    }
+    // `grid-template-areas`: ASCII-art row strings naming rectangular regions
+    // (§7.3). Each string is a row; whitespace-separated tokens are cells; `.`
+    // is an empty cell. Implicit `<name>-start`/`-end` line names are derived
+    // in layout from the resulting area rectangles.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-areas") {
+        style.grid_template_areas = parse_grid_template_areas(k);
     }
     // `grid-auto-rows` may arrive as a Length (single px/pt value) or Keyword.
     match get_non_special(map, "grid-auto-rows") {
@@ -2713,6 +2819,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-auto-flow") {
         style.grid_auto_flow_column = k.contains("column");
+        style.grid_auto_flow_dense = k.contains("dense");
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-items") {
         style.justify_items = parse_grid_align(k);
@@ -2727,16 +2834,58 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             style.justify_items = justify;
         }
     }
-    // Item-level grid-column / grid-row spans (`span N`).
+    // Per-item self alignment overrides (grid). `auto` keeps the container value
+    // (`None` here); anything else pins this item. Note the *flex* `align-self`
+    // is handled separately above; here we mirror it into the grid field too.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-self") {
+        if k.trim() != "auto" {
+            style.grid_justify_self = Some(parse_grid_align(k));
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-self") {
+        if k.trim() != "auto" {
+            style.grid_align_self = Some(parse_grid_align(k));
+        }
+    }
+    // `place-self: <align> [<justify>]` shorthand sets both grid self axes.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "place-self") {
+        let mut parts = k.split_whitespace();
+        if let Some(a) = parts.next() {
+            if a != "auto" {
+                style.grid_align_self = Some(parse_grid_align(a));
+            }
+            if let Some(j) = parts.next() {
+                if j != "auto" {
+                    style.grid_justify_self = Some(parse_grid_align(j));
+                }
+            } else if a != "auto" {
+                style.grid_justify_self = Some(parse_grid_align(a));
+            }
+        }
+    }
+    // Item-level placement: grid-column / grid-row resolve a start/end line
+    // pair (CSS Grid §8). Each side is a line number, `span N`, named line, or
+    // `auto`. The legacy span count is derived for back-compat.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-column") {
+        let (start, end) = parse_grid_placement_shorthand(k);
+        style.grid_column_start = start;
+        style.grid_column_end = end;
         if let Some(n) = parse_grid_span(k) {
             style.grid_column_span = n;
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-row") {
+        let (start, end) = parse_grid_placement_shorthand(k);
+        style.grid_row_start = start;
+        style.grid_row_end = end;
         if let Some(n) = parse_grid_span(k) {
             style.grid_row_span = n;
         }
+    }
+    // `grid-area`: either a single area name, or the 4-value line form
+    // `row-start / col-start / row-end / col-end` (§8.1).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-area") {
+        apply_grid_area(style, k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
         style.clip_path = parse_clip_path(k);
@@ -5269,6 +5418,115 @@ fn parse_grid_span(val: &str) -> Option<usize> {
     None
 }
 
+/// Parse a single grid-placement endpoint (one side of `grid-column` /
+/// `grid-row` / a quarter of `grid-area`). CSS Grid §8.3 grammar (subset):
+///   `auto | <integer> | span <integer> | <custom-ident> | span <custom-ident>`
+fn parse_grid_line(token: &str) -> GridLine {
+    let token = token.trim();
+    if token.is_empty() || token == "auto" {
+        return GridLine::Auto;
+    }
+    if let Some(rest) = token.strip_prefix("span") {
+        let rest = rest.trim();
+        if let Ok(n) = rest.parse::<usize>() {
+            return GridLine::Span(n.max(1));
+        }
+        if !rest.is_empty() {
+            return GridLine::SpanNamed(rest.to_string());
+        }
+        return GridLine::Span(1);
+    }
+    if let Ok(n) = token.parse::<i32>() {
+        // A line number of 0 is invalid per spec; treat as auto.
+        if n != 0 {
+            return GridLine::Line(n);
+        }
+        return GridLine::Auto;
+    }
+    GridLine::Named(token.to_string())
+}
+
+/// Parse a `grid-column` / `grid-row` shorthand into (start, end) endpoints.
+/// The two sides are separated by `/`; an omitted second side defaults to
+/// `auto` (which §8.3 then resolves to a 1-track span / matching named line).
+fn parse_grid_placement_shorthand(val: &str) -> (GridLine, GridLine) {
+    let val = val.trim();
+    if let Some((a, b)) = val.split_once('/') {
+        (parse_grid_line(a), parse_grid_line(b))
+    } else {
+        (parse_grid_line(val), GridLine::Auto)
+    }
+}
+
+/// Apply a `grid-area` value to a style. Either a single `<custom-ident>`
+/// naming an area, or the 4-value line form
+/// `row-start / col-start / row-end / col-end` (§8.1, omitted parts = auto).
+fn apply_grid_area(style: &mut ComputedStyle, val: &str) {
+    let val = val.trim();
+    if val.contains('/') {
+        let parts: Vec<&str> = val.split('/').collect();
+        let get = |i: usize| parts.get(i).map(|s| parse_grid_line(s)).unwrap_or_default();
+        style.grid_row_start = get(0);
+        style.grid_column_start = get(1);
+        style.grid_row_end = get(2);
+        style.grid_column_end = get(3);
+    } else if !val.is_empty() && val != "auto" {
+        style.grid_area_name = Some(val.to_string());
+    }
+}
+
+/// Parse `grid-template-areas` row strings into a row-major grid of optional
+/// area names (§7.3). Each quoted string is a row; whitespace-separated tokens
+/// are cells; a token of all dots (`.`/`...`) is a null (empty) cell → `None`.
+/// Rows are padded to the widest row so the result is rectangular.
+fn parse_grid_template_areas(val: &str) -> Vec<Vec<Option<String>>> {
+    let val = val.trim();
+    if val == "none" || val.is_empty() {
+        return Vec::new();
+    }
+    let mut rows: Vec<Vec<Option<String>>> = Vec::new();
+    // Each row is delimited by a quoted string. Split on the quote characters
+    // and keep the segments between matched quotes.
+    let mut in_quote = false;
+    let mut current = String::new();
+    for ch in val.chars() {
+        match ch {
+            '"' | '\'' => {
+                if in_quote {
+                    // End of a row string.
+                    let cells: Vec<Option<String>> = current
+                        .split_whitespace()
+                        .map(|tok| {
+                            if tok.chars().all(|c| c == '.') {
+                                None
+                            } else {
+                                Some(tok.to_string())
+                            }
+                        })
+                        .collect();
+                    if !cells.is_empty() {
+                        rows.push(cells);
+                    }
+                    current.clear();
+                    in_quote = false;
+                } else {
+                    in_quote = true;
+                }
+            }
+            _ if in_quote => current.push(ch),
+            _ => {}
+        }
+    }
+    // Pad rows to a uniform width (CSS requires equal counts; be lenient).
+    let width = rows.iter().map(|r| r.len()).max().unwrap_or(0);
+    for r in &mut rows {
+        while r.len() < width {
+            r.push(None);
+        }
+    }
+    rows
+}
+
 /// Parse a single grid track token (e.g. `1fr`, `200pt`, `100px`, `auto`).
 fn parse_single_track(token: &str) -> Option<GridTrack> {
     let token = token.trim();
@@ -5318,18 +5576,51 @@ fn parse_minmax(val: &str) -> Option<GridTrack> {
     Some(GridTrack::Minmax(min_val, max_val))
 }
 
-/// Parse a `grid-template-columns` value string into a list of `GridTrack` values.
+/// Parse a `grid-template-columns`/`-rows` value into a list of `GridTrack`s.
 ///
 /// Supports tokens like `1fr`, `200pt`, `100px`, `auto`, `repeat(3, 1fr)`,
-/// `minmax(100px, 1fr)`, `auto-fill`, and `auto-fit`.
+/// `minmax(100px, 1fr)`, `auto-fill`, and `auto-fit`. Bracketed `[name]` line
+/// names are tolerated (and dropped). For the line-name vocabulary use
+/// `parse_grid_track_list`.
+#[cfg(test)]
 fn parse_grid_template_columns(val: &str) -> Vec<GridTrack> {
-    let mut result = Vec::new();
+    parse_grid_track_list(val).0
+}
+
+/// Parse a track list into both the `GridTrack`s and the names of each grid
+/// *line* (CSS Grid §7.1). The returned name list has `tracks.len() + 1`
+/// entries (line index 0 = the line before the first track); entry `i` holds
+/// the names declared for line `i` via bracketed `[a b]` tokens.
+fn parse_grid_track_list(val: &str) -> (Vec<GridTrack>, Vec<Vec<String>>) {
+    let mut result: Vec<GridTrack> = Vec::new();
+    // Names accumulate at the "current" line (index == result.len()).
+    let mut line_names: Vec<Vec<String>> = vec![Vec::new()];
     let mut remaining = val.trim();
+
+    let push_track =
+        |result: &mut Vec<GridTrack>, line_names: &mut Vec<Vec<String>>, track: GridTrack| {
+            result.push(track);
+            line_names.push(Vec::new());
+        };
 
     while !remaining.is_empty() {
         remaining = remaining.trim_start();
         if remaining.is_empty() {
             break;
+        }
+
+        // Bracketed line-name set: `[name1 name2]` names the current line.
+        if remaining.starts_with('[') {
+            if let Some(close) = remaining.find(']') {
+                let names = &remaining[1..close];
+                if let Some(slot) = line_names.last_mut() {
+                    for n in names.split_whitespace() {
+                        slot.push(n.to_string());
+                    }
+                }
+                remaining = &remaining[close + 1..];
+                continue;
+            }
         }
 
         // Handle repeat(...)
@@ -5350,9 +5641,20 @@ fn parse_grid_template_columns(val: &str) -> Vec<GridTrack> {
                         count_str.parse().unwrap_or(1)
                     };
 
-                    let track_list = parse_grid_template_columns(pattern);
+                    let (track_list, sub_names) = parse_grid_track_list(pattern);
                     for _ in 0..count {
-                        result.extend(track_list.clone());
+                        // Merge the pattern's interior line names at each repeat.
+                        for (i, t) in track_list.iter().enumerate() {
+                            if let (Some(slot), Some(src)) =
+                                (line_names.last_mut(), sub_names.get(i))
+                            {
+                                slot.extend(src.iter().cloned());
+                            }
+                            push_track(&mut result, &mut line_names, t.clone());
+                        }
+                        if let (Some(slot), Some(src)) = (line_names.last_mut(), sub_names.last()) {
+                            slot.extend(src.iter().cloned());
+                        }
                     }
                 }
                 remaining = rest;
@@ -5365,25 +5667,38 @@ fn parse_grid_template_columns(val: &str) -> Vec<GridTrack> {
             if let Some(close) = find_matching_paren(remaining, 7) {
                 let expr = &remaining[..close + 1];
                 if let Some(track) = parse_minmax(expr) {
-                    result.push(track);
+                    push_track(&mut result, &mut line_names, track);
                 }
                 remaining = &remaining[close + 1..];
                 continue;
             }
         }
 
-        // Regular token — read until next whitespace or function start
+        // fit-content(...) → approximate as an auto track (sized to content,
+        // capped at the argument, which we don't yet enforce).
+        if remaining.starts_with("fit-content(") {
+            if let Some(close) = find_matching_paren(remaining, 12) {
+                push_track(&mut result, &mut line_names, GridTrack::Auto);
+                remaining = &remaining[close + 1..];
+                continue;
+            }
+        }
+
+        // Regular token — read until next whitespace or bracket.
         let end = remaining
-            .find(|c: char| c.is_whitespace())
+            .find(|c: char| c.is_whitespace() || c == '[')
             .unwrap_or(remaining.len());
         let token = &remaining[..end];
-        if let Some(track) = parse_single_track(token) {
-            result.push(track);
+        // `min-content` / `max-content` keywords → approximate as Auto.
+        if token == "min-content" || token == "max-content" {
+            push_track(&mut result, &mut line_names, GridTrack::Auto);
+        } else if let Some(track) = parse_single_track(token) {
+            push_track(&mut result, &mut line_names, track);
         }
         remaining = &remaining[end..];
     }
 
-    result
+    (result, line_names)
 }
 
 /// Find the closing `)` matching an opening `(` at `start` in `s`.
@@ -7555,6 +7870,108 @@ mod tests {
         assert_eq!(style.grid_template_columns[0], GridTrack::Fr(1.0));
         assert_eq!(style.grid_template_columns[1], GridTrack::Fr(2.0));
         assert_eq!(style.grid_template_columns[2], GridTrack::Fr(1.0));
+    }
+
+    #[test]
+    fn grid_column_line_numbers_parse() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-column: 2 / 4"), &parent);
+        assert_eq!(style.grid_column_start, GridLine::Line(2));
+        assert_eq!(style.grid_column_end, GridLine::Line(4));
+        // Back-compat span is the delta.
+        assert_eq!(style.grid_column_span, 2);
+    }
+
+    #[test]
+    fn grid_column_start_with_span_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-column: 2 / span 2"), &parent);
+        assert_eq!(style.grid_column_start, GridLine::Line(2));
+        assert_eq!(style.grid_column_end, GridLine::Span(2));
+    }
+
+    #[test]
+    fn grid_column_negative_line_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-column: 1 / -1"), &parent);
+        assert_eq!(style.grid_column_start, GridLine::Line(1));
+        assert_eq!(style.grid_column_end, GridLine::Line(-1));
+    }
+
+    #[test]
+    fn grid_named_line_placement_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-column: mid / end"), &parent);
+        assert_eq!(style.grid_column_start, GridLine::Named("mid".into()));
+        assert_eq!(style.grid_column_end, GridLine::Named("end".into()));
+    }
+
+    #[test]
+    fn grid_template_columns_named_lines_stored() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("display: grid; grid-template-columns: [start] 100px [mid] 100px [end]"),
+            &parent,
+        );
+        assert_eq!(style.grid_template_columns.len(), 2);
+        // line 0 = start, line 1 = mid, line 2 = end
+        assert_eq!(style.grid_template_column_line_names.len(), 3);
+        assert_eq!(style.grid_template_column_line_names[0], vec!["start"]);
+        assert_eq!(style.grid_template_column_line_names[1], vec!["mid"]);
+        assert_eq!(style.grid_template_column_line_names[2], vec!["end"]);
+    }
+
+    #[test]
+    fn grid_area_single_name_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-area: header"), &parent);
+        assert_eq!(style.grid_area_name.as_deref(), Some("header"));
+    }
+
+    #[test]
+    fn grid_area_line_form_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-area: 1 / 2 / 3 / 4"), &parent);
+        assert_eq!(style.grid_row_start, GridLine::Line(1));
+        assert_eq!(style.grid_column_start, GridLine::Line(2));
+        assert_eq!(style.grid_row_end, GridLine::Line(3));
+        assert_eq!(style.grid_column_end, GridLine::Line(4));
+        assert_eq!(style.grid_area_name, None);
+    }
+
+    #[test]
+    fn grid_template_areas_parses_rows_and_dots() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("display: grid; grid-template-areas: \"a a .\" \". b b\""),
+            &parent,
+        );
+        assert_eq!(style.grid_template_areas.len(), 2);
+        assert_eq!(
+            style.grid_template_areas[0],
+            vec![Some("a".to_string()), Some("a".to_string()), None]
+        );
+        assert_eq!(
+            style.grid_template_areas[1],
+            vec![None, Some("b".to_string()), Some("b".to_string())]
+        );
+    }
+
+    #[test]
+    fn grid_auto_flow_dense_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("grid-auto-flow: row dense"), &parent);
+        assert!(style.grid_auto_flow_dense);
+        assert!(!style.grid_auto_flow_column);
+    }
+
+    #[test]
+    fn grid_justify_self_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("justify-self: end"), &parent);
+        assert_eq!(style.grid_justify_self, Some(GridAlign::End));
     }
 
     #[test]

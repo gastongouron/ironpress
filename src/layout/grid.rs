@@ -1,8 +1,8 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    ComputedStyle, FontWeight, GridAlign, GridTrack, TextAlign, VerticalAlign, Visibility,
-    compute_style_with_context,
+    ComputedStyle, FontWeight, GridAlign, GridLine, GridTrack, TextAlign, VerticalAlign,
+    Visibility, compute_style_with_context,
 };
 
 use super::context::{LayoutContext, LayoutEnv};
@@ -387,8 +387,10 @@ fn compute_grid_inset(
 ) -> Option<GridInset> {
     let item_w = cs.width;
     let item_h = cs.height;
-    let justify = container.justify_items;
-    let align = container.grid_align_items;
+    // Per-item `justify-self` / `align-self` override the container's
+    // `justify-items` / `align-items` (CSS Grid §10.x / box-alignment).
+    let justify = cs.grid_justify_self.unwrap_or(container.justify_items);
+    let align = cs.grid_align_self.unwrap_or(container.grid_align_items);
 
     // Stretch on both axes with no explicit size → fill the track (no inset).
     let stretch_w = item_w.is_none() && justify == GridAlign::Stretch;
@@ -420,6 +422,381 @@ fn compute_grid_inset(
         width: final_w,
         height: final_h,
     })
+}
+
+/// A grid item placed in the integer track grid (0-based track indices).
+struct Placed {
+    idx: usize,
+    col: usize,
+    row: usize,
+    col_span: usize,
+    row_span: usize,
+}
+
+/// Result of the grid placement pass: every item placed, plus the final grid
+/// dimensions (which may exceed the explicit track count when items reference
+/// implicit lines / overflow into implicit tracks).
+struct GridPlacement {
+    placed: Vec<Placed>,
+    num_cols: usize,
+    num_rows: usize,
+}
+
+/// Build a `name -> first 0-based line index` map for one axis. CSS Grid §8.3:
+/// a named line reference resolves to the *first* line bearing that name.
+/// `track_line_names[i]` holds the names declared at line `i`. The
+/// `grid-template-areas` of the container also generate implicit
+/// `<area>-start` / `<area>-end` line names on the relevant axis.
+fn build_line_name_map(
+    track_line_names: &[Vec<String>],
+    area_lines: &[(String, usize)],
+) -> std::collections::HashMap<String, usize> {
+    let mut map = std::collections::HashMap::new();
+    for (line_idx, names) in track_line_names.iter().enumerate() {
+        for n in names {
+            map.entry(n.clone()).or_insert(line_idx);
+        }
+    }
+    // Implicit area lines fill in any names not already declared explicitly.
+    for (name, line_idx) in area_lines {
+        map.entry(name.clone()).or_insert(*line_idx);
+    }
+    map
+}
+
+/// Implicit `<area>-start` / `<area>-end` line names for one axis, derived from
+/// `grid-template-areas`. For columns, an area spanning columns `c0..=c1`
+/// generates `name-start` at line `c0` and `name-end` at line `c1 + 1`.
+fn area_lines_for_axis(areas: &[Vec<Option<String>>], axis_columns: bool) -> Vec<(String, usize)> {
+    // Compute each area's bounding rectangle (min/max row & col).
+    let mut bounds: std::collections::HashMap<&str, (usize, usize, usize, usize)> =
+        std::collections::HashMap::new();
+    for (r, row) in areas.iter().enumerate() {
+        for (c, cell) in row.iter().enumerate() {
+            if let Some(name) = cell {
+                let e = bounds.entry(name.as_str()).or_insert((r, r, c, c));
+                e.0 = e.0.min(r);
+                e.1 = e.1.max(r);
+                e.2 = e.2.min(c);
+                e.3 = e.3.max(c);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for (name, (r0, r1, c0, c1)) in bounds {
+        if axis_columns {
+            out.push((format!("{name}-start"), c0));
+            out.push((format!("{name}-end"), c1 + 1));
+        } else {
+            out.push((format!("{name}-start"), r0));
+            out.push((format!("{name}-end"), r1 + 1));
+        }
+    }
+    out
+}
+
+/// Resolve a `GridLine` endpoint to a concrete 0-based line index, given the
+/// number of *explicit* tracks on the axis and the axis's name map. Returns
+/// `None` for `Auto` / `Span` (the opposite edge is definite) and for
+/// unresolved named lines. `negative -1` = the last explicit line.
+fn resolve_line(
+    line: &GridLine,
+    explicit_tracks: usize,
+    names: &std::collections::HashMap<String, usize>,
+) -> Option<usize> {
+    match line {
+        GridLine::Line(n) => {
+            if *n > 0 {
+                Some((*n - 1) as usize)
+            } else {
+                // Negative: -1 = last explicit line = `explicit_tracks`.
+                let from_end = (-*n) as usize; // 1-based from the end
+                Some(explicit_tracks.saturating_add(1).saturating_sub(from_end))
+            }
+        }
+        GridLine::Named(name) => names.get(name).copied(),
+        GridLine::Auto | GridLine::Span(_) | GridLine::SpanNamed(_) => None,
+    }
+}
+
+/// Resolve one axis of an item's placement to a definite `(start, span)` in
+/// 0-based track coordinates, or `None` when the start is auto (auto-placed).
+/// Handles the line/line, line/span, span/line, span-only, and auto cases
+/// (§8.3 placement shorthand resolution).
+fn resolve_axis(
+    start: &GridLine,
+    end: &GridLine,
+    explicit_tracks: usize,
+    names: &std::collections::HashMap<String, usize>,
+) -> Option<(usize, usize)> {
+    let span_of = |g: &GridLine| -> Option<usize> {
+        match g {
+            GridLine::Span(n) => Some((*n).max(1)),
+            GridLine::SpanNamed(_) => Some(1),
+            _ => None,
+        }
+    };
+    let s_line = resolve_line(start, explicit_tracks, names);
+    let e_line = resolve_line(end, explicit_tracks, names);
+
+    match (s_line, e_line) {
+        (Some(s), Some(e)) => {
+            let (lo, hi) = if s <= e { (s, e) } else { (e, s) };
+            Some((lo, (hi - lo).max(1)))
+        }
+        (Some(s), None) => {
+            // start definite; end is span or auto (→ span 1).
+            let span = span_of(end).unwrap_or(1);
+            Some((s, span))
+        }
+        (None, Some(e)) => {
+            // end definite; start is span (count back) or auto (→ span 1).
+            let span = span_of(start).unwrap_or(1);
+            let s = e.saturating_sub(span);
+            Some((s, span))
+        }
+        (None, None) => None,
+    }
+}
+
+/// Run the CSS Grid placement + §8.5 auto-placement algorithm. Items with a
+/// definite position (both edges resolvable on an axis, or a named area) are
+/// placed first; the rest are auto-placed by a sparse (or dense) cursor.
+fn place_grid_items(
+    container: &ComputedStyle,
+    child_styles: &[ComputedStyle],
+    explicit_cols_hint: usize,
+) -> GridPlacement {
+    let explicit_cols = container.grid_template_columns.len();
+    let explicit_rows = container.grid_template_rows.len();
+    let areas = &container.grid_template_areas;
+
+    // Area-derived implicit line names per axis.
+    let col_area_lines = area_lines_for_axis(areas, true);
+    let row_area_lines = area_lines_for_axis(areas, false);
+    let col_names =
+        build_line_name_map(&container.grid_template_column_line_names, &col_area_lines);
+    let row_names = build_line_name_map(&container.grid_template_row_line_names, &row_area_lines);
+
+    // The column axis must accommodate the explicit tracks, the area columns,
+    // and `grid-template-columns`. Use the widest of these as the wrap width.
+    let area_cols = areas.iter().map(|r| r.len()).max().unwrap_or(0);
+    let num_cols = explicit_cols.max(area_cols).max(explicit_cols_hint).max(1);
+    let column_flow = container.grid_auto_flow_column;
+
+    // Per-item resolved axis placement (None on an axis = auto on that axis).
+    struct Resolved {
+        idx: usize,
+        col: Option<(usize, usize)>,
+        row: Option<(usize, usize)>,
+    }
+    let mut resolved: Vec<Resolved> = Vec::with_capacity(child_styles.len());
+    for (idx, cs) in child_styles.iter().enumerate() {
+        // grid-area: <name> → resolve against the area's -start/-end lines.
+        let (mut cs_col, mut cs_row) = (
+            (cs.grid_column_start.clone(), cs.grid_column_end.clone()),
+            (cs.grid_row_start.clone(), cs.grid_row_end.clone()),
+        );
+        if let Some(name) = &cs.grid_area_name {
+            cs_col = (
+                GridLine::Named(format!("{name}-start")),
+                GridLine::Named(format!("{name}-end")),
+            );
+            cs_row = (
+                GridLine::Named(format!("{name}-start")),
+                GridLine::Named(format!("{name}-end")),
+            );
+        }
+        let col = resolve_axis(
+            &cs_col.0,
+            &cs_col.1,
+            explicit_cols.max(area_cols),
+            &col_names,
+        );
+        let row = resolve_axis(
+            &cs_row.0,
+            &cs_row.1,
+            explicit_rows.max(areas.len()),
+            &row_names,
+        );
+        resolved.push(Resolved { idx, col, row });
+    }
+
+    // Occupancy grid (row-major, grown on demand).
+    let mut occupied: Vec<Vec<bool>> = Vec::new();
+    let ensure = |occ: &mut Vec<Vec<bool>>, r: usize, cols: usize| {
+        while occ.len() <= r {
+            occ.push(vec![false; cols]);
+        }
+        for row in occ.iter_mut() {
+            if row.len() < cols {
+                row.resize(cols, false);
+            }
+        }
+    };
+    let fits = |occ: &[Vec<bool>], r: usize, c: usize, rs: usize, cs: usize| -> bool {
+        for rr in r..r + rs {
+            let Some(row) = occ.get(rr) else { continue };
+            if row.iter().skip(c).take(cs).any(|&occupied| occupied) {
+                return false;
+            }
+        }
+        true
+    };
+    let mark = |occ: &mut Vec<Vec<bool>>, r: usize, c: usize, rs: usize, cs: usize| {
+        let need_cols = c + cs;
+        for rr in r..r + rs {
+            ensure(occ, rr, need_cols);
+            for slot in occ[rr].iter_mut().skip(c).take(cs) {
+                *slot = true;
+            }
+        }
+    };
+
+    let mut placed: Vec<Placed> = Vec::with_capacity(child_styles.len());
+    let mut max_cols = num_cols;
+
+    // Phase 1: items definite on BOTH axes → fixed position.
+    for r in &resolved {
+        if let (Some((c, cspan)), Some((rw, rspan))) = (r.col, r.row) {
+            mark(&mut occupied, rw, c, rspan, cspan);
+            max_cols = max_cols.max(c + cspan);
+            placed.push(Placed {
+                idx: r.idx,
+                col: c,
+                row: rw,
+                col_span: cspan,
+                row_span: rspan,
+            });
+        }
+    }
+
+    // Phase 2: auto-placement of the remaining items, in source order, using a
+    // cursor. Sparse (default) never moves the cursor backward; dense restarts
+    // the search from the origin for each item.
+    let dense = container.grid_auto_flow_dense;
+    let mut cursor_major = 0usize; // row (row-flow) or col (column-flow)
+    let mut cursor_minor = 0usize; // col (row-flow) or row (column-flow)
+
+    for r in &resolved {
+        if placed.iter().any(|p| p.idx == r.idx) {
+            continue; // already placed in phase 1
+        }
+        let cs = &child_styles[r.idx];
+
+        if column_flow {
+            // Column-major auto-placement. The wrap bound is the explicit row
+            // count (fallback 1).
+            let num_rows_bound = explicit_rows.max(1);
+            let (col_known, cspan) = match r.col {
+                Some((c, s)) => (Some(c), s),
+                None => (None, cs.grid_column_span.max(1)),
+            };
+            let rspan = match r.row {
+                Some((_, s)) => s,
+                None => cs.grid_row_span.max(1).min(num_rows_bound),
+            };
+            if dense {
+                cursor_major = 0;
+                cursor_minor = 0;
+            }
+            loop {
+                let row_pos = match r.row {
+                    Some((rw, _)) => rw,
+                    None => cursor_minor,
+                };
+                let col_pos = col_known.unwrap_or(cursor_major);
+                // Wrap rows within the bound when row is auto.
+                if r.row.is_none() && cursor_minor + rspan > num_rows_bound {
+                    cursor_minor = 0;
+                    cursor_major += 1;
+                    continue;
+                }
+                ensure(&mut occupied, row_pos + rspan - 1, col_pos + cspan);
+                if fits(&occupied, row_pos, col_pos, rspan, cspan) {
+                    mark(&mut occupied, row_pos, col_pos, rspan, cspan);
+                    max_cols = max_cols.max(col_pos + cspan);
+                    placed.push(Placed {
+                        idx: r.idx,
+                        col: col_pos,
+                        row: row_pos,
+                        col_span: cspan,
+                        row_span: rspan,
+                    });
+                    if r.row.is_none() {
+                        cursor_minor = row_pos + rspan;
+                    }
+                    break;
+                }
+                if r.row.is_none() {
+                    cursor_minor += 1;
+                } else {
+                    cursor_major += 1;
+                }
+            }
+        } else {
+            // Row-major auto-placement (default).
+            let cspan = match r.col {
+                Some((_, s)) => s,
+                None => cs.grid_column_span.max(1),
+            }
+            .min(num_cols.max(1));
+            let rspan = match r.row {
+                Some((_, s)) => s,
+                None => cs.grid_row_span.max(1),
+            };
+            if dense {
+                cursor_major = 0;
+                cursor_minor = 0;
+            }
+            loop {
+                let col_pos = match r.col {
+                    Some((c, _)) => c,
+                    None => cursor_minor,
+                };
+                let row_pos = match r.row {
+                    Some((rw, _)) => rw,
+                    None => cursor_major,
+                };
+                // Wrap columns when column is auto.
+                if r.col.is_none() && col_pos + cspan > num_cols {
+                    cursor_minor = 0;
+                    cursor_major += 1;
+                    continue;
+                }
+                ensure(&mut occupied, row_pos + rspan - 1, num_cols);
+                if fits(&occupied, row_pos, col_pos, rspan, cspan) {
+                    mark(&mut occupied, row_pos, col_pos, rspan, cspan);
+                    max_cols = max_cols.max(col_pos + cspan);
+                    placed.push(Placed {
+                        idx: r.idx,
+                        col: col_pos,
+                        row: row_pos,
+                        col_span: cspan,
+                        row_span: rspan,
+                    });
+                    if r.col.is_none() {
+                        cursor_minor = col_pos + cspan;
+                    }
+                    break;
+                }
+                if r.col.is_none() {
+                    cursor_minor += 1;
+                } else {
+                    cursor_major += 1;
+                }
+            }
+        }
+    }
+
+    // Restore source order so later per-row emission is deterministic.
+    placed.sort_by_key(|p| p.idx);
+    let num_rows = placed.iter().map(|p| p.row + p.row_span).max().unwrap_or(0);
+    GridPlacement {
+        placed,
+        num_cols: max_cols,
+        num_rows,
+    }
 }
 
 /// Lay out a CSS Grid container into GridRow layout elements.
@@ -526,96 +903,14 @@ pub(crate) fn layout_grid_container(
         })
         .collect();
 
-    // ---- Item placement (auto-flow) -------------------------------------
-    // Each item occupies a rectangle in the column/row grid. We honour
-    // explicit `grid-column: span N` and `grid-row: span N`, placing items
-    // row-by-row (default) or column-by-column (`grid-auto-flow: column`).
-    struct Placed {
-        idx: usize,
-        col: usize,
-        row: usize,
-        col_span: usize,
-        row_span: usize,
-    }
-    let mut placed: Vec<Placed> = Vec::new();
-    // occupancy[row][col] tracking via a HashSet-free dense grid.
-    let mut occupied: Vec<Vec<bool>> = Vec::new();
-    let ensure_row = |occ: &mut Vec<Vec<bool>>, r: usize, cols: usize| {
-        while occ.len() <= r {
-            occ.push(vec![false; cols]);
-        }
-    };
-    let fits = |occ: &[Vec<bool>], r: usize, c: usize, rs: usize, cs: usize| -> bool {
-        for rr in r..r + rs {
-            if rr >= occ.len() {
-                continue;
-            }
-            for cc in c..c + cs {
-                if cc < occ[rr].len() && occ[rr][cc] {
-                    return false;
-                }
-            }
-        }
-        true
-    };
-
-    if style.grid_auto_flow_column {
-        // Column-major flow: fill down each column, then move right. Rows are
-        // bounded by the explicit row-track count (fallback 1).
-        let num_rows = style.grid_template_rows.len().max(1);
-        let mut col = 0usize;
-        let mut row = 0usize;
-        for (idx, cs) in child_styles.iter().enumerate() {
-            let row_span = cs.grid_row_span.max(1).min(num_rows);
-            if row + row_span > num_rows {
-                row = 0;
-                col += 1;
-            }
-            placed.push(Placed {
-                idx,
-                col,
-                row,
-                col_span: 1,
-                row_span,
-            });
-            row += row_span;
-        }
-    } else {
-        // Row-major flow (default).
-        let mut cursor_col = 0usize;
-        let mut cursor_row = 0usize;
-        for (idx, cs) in child_styles.iter().enumerate() {
-            let col_span = cs.grid_column_span.max(1).min(num_cols);
-            let row_span = cs.grid_row_span.max(1);
-            // Advance to the next free slot that fits this item's span.
-            loop {
-                if cursor_col + col_span > num_cols {
-                    cursor_col = 0;
-                    cursor_row += 1;
-                    continue;
-                }
-                ensure_row(&mut occupied, cursor_row + row_span - 1, num_cols);
-                if fits(&occupied, cursor_row, cursor_col, row_span, col_span) {
-                    break;
-                }
-                cursor_col += 1;
-            }
-            for rr in cursor_row..cursor_row + row_span {
-                ensure_row(&mut occupied, rr, num_cols);
-                occupied[rr][cursor_col..cursor_col + col_span].fill(true);
-            }
-            placed.push(Placed {
-                idx,
-                col: cursor_col,
-                row: cursor_row,
-                col_span,
-                row_span,
-            });
-            cursor_col += col_span;
-        }
-    }
-
-    let num_rows = placed.iter().map(|p| p.row + p.row_span).max().unwrap_or(0);
+    // ---- Item placement (CSS Grid §8) -----------------------------------
+    // Resolve each item's definite placement from grid-column / grid-row /
+    // grid-area (line numbers, named lines, spans, named areas), then run the
+    // §8.5 auto-placement algorithm for items left auto on either axis.
+    let placement = place_grid_items(style, &child_styles, num_cols);
+    let placed = placement.placed;
+    let num_cols = placement.num_cols;
+    let num_rows = placement.num_rows;
 
     // ---- Track sizing ---------------------------------------------------
     // Columns: existing resolver (auto tracks measure max-content width of
@@ -647,12 +942,18 @@ pub(crate) fn layout_grid_container(
         auto_intrinsic_widths[i] = max_w;
     }
 
-    let col_widths = resolve_grid_columns(
+    let mut col_widths = resolve_grid_columns(
         &style.grid_template_columns,
         inner_width,
         column_gap,
         &auto_intrinsic_widths,
     );
+    // Placement may reference implicit columns beyond the explicit track list
+    // (line numbers / areas past the declared columns). `grid-auto-columns` is
+    // not modelled, so implicit tracks collapse to 0 width.
+    while col_widths.len() < num_cols {
+        col_widths.push(0.0);
+    }
 
     // Rows: explicit template-rows first, then grid-auto-rows for implicit
     // rows, then content height as a final fallback.
@@ -728,6 +1029,14 @@ pub(crate) fn layout_grid_container(
         row_items.sort_by_key(|p| p.col);
 
         for p in row_items {
+            // Definite placements may overlap (two items in one cell). The
+            // colspan-based emission cannot represent overlap, so an item whose
+            // column was already consumed by an earlier (wider) item on this row
+            // is skipped here — it would otherwise shift later columns. (Overlap
+            // / z-index stacking is out of scope for the flow model.)
+            if p.col < next_col {
+                continue;
+            }
             // Pad with empty filler cells up to this item's column.
             while next_col < p.col {
                 cells.push(empty_grid_cell(track_h));

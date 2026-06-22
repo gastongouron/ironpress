@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid area line form</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px 60px;
+    width: 180px;
+    height: 180px;
+    margin: 20px;
+  }
+  /* row-start / col-start / row-end / col-end */
+  .a { background: #ff5a5f; grid-area: 1 / 1 / 3 / 3; }
+  .b { background: #2ec4b6; grid-area: 3 / 3 / 4 / 4; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

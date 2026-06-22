@@ -270,5 +270,141 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-column-line-numbers",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "line-numbers",
+    "description": "Line-number column placement: grid-column: 2 / 4 places a two-track item at columns 2-3; a second item at 4 / 5 sits in the last track.",
+    "file": "cases/grid/grid-column-line-numbers.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-row-line-numbers",
+    "category": "grid",
+    "feature": "grid-row",
+    "subfeature": "line-numbers",
+    "description": "Line-number row placement: grid-row: 1 / 3 spans two rows; grid-row: 3 / 4 places the second item in the third row.",
+    "file": "cases/grid/grid-row-line-numbers.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-column-span-to-line",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "start-span",
+    "description": "Definite start line with a span: grid-column: 2 / span 2 places a two-track item starting at column line 2.",
+    "file": "cases/grid/grid-column-span-to-line.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-named-line-placement",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "named-line",
+    "description": "Named column lines [c1]..[c4] referenced by grid-column place items between the declared lines.",
+    "file": "cases/grid/grid-named-line-placement.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-area-line-form",
+    "category": "grid",
+    "feature": "grid-area",
+    "subfeature": "line-form",
+    "description": "grid-area four-value line form (row-start / col-start / row-end / col-end) places a 2x2 block and a single trailing cell.",
+    "file": "cases/grid/grid-area-line-form.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-areas-basic",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "basic",
+    "description": "grid-template-areas names a header spanning both columns over a side/main row; grid-area: <name> places each item into its region.",
+    "file": "cases/grid/grid-template-areas-basic.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-areas-dot",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "dot-empty",
+    "description": "grid-template-areas with dot (.) null cells: area 'a' spans the first two cells of row 1, area 'b' the last two of row 2, leaving diagonal empty cells.",
+    "file": "cases/grid/grid-template-areas-dot.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-area-span-rows",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "span-rows",
+    "description": "grid-template-areas with a 'nav' area spanning two rows beside stacked main/foot regions.",
+    "file": "cases/grid/grid-area-span-rows.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

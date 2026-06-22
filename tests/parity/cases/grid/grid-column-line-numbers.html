@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid column line numbers</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 60px 60px 60px 60px;
+    grid-template-rows: 80px;
+    width: 240px;
+    height: 80px;
+    margin: 20px;
+  }
+  .a { background: #ff5a5f; grid-column: 2 / 4; }
+  .b { background: #2ec4b6; grid-column: 4 / 5; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>
