@@ -951,6 +951,31 @@ pub(crate) fn heading_level(tag: HtmlTag) -> Option<u8> {
 // Group 5 — Positioning helpers
 // ---------------------------------------------------------------------------
 
+/// Whether an element establishes a containing block for `position: absolute`
+/// descendants (CSS Positioned Layout § 4 / CSS Transforms § 3): any positioned
+/// box (relative/absolute/fixed), or — even when `position: static` — a box with
+/// a `transform` other than `none`. (Filter/perspective/will-change/contain also
+/// establish a CB in full CSS but are not modelled here.) This is what lets an
+/// absolute box resolve against a transformed non-positioned ancestor.
+pub(crate) fn establishes_containing_block(style: &ComputedStyle) -> bool {
+    style.position == Position::Relative
+        || style.position == Position::Absolute
+        || style.transform.is_some()
+}
+
+/// Resolve a single inset (`top`/`right`/`bottom`/`left`) to a length.
+/// Prefers a percentage (resolved against `reference`, the containing block's
+/// padding-box dimension on the relevant axis) over an explicit length, matching
+/// how `resolve_abs_containing_block` resolves insets. Returns `None` when the
+/// inset is `auto` (neither length nor percentage set).
+pub(crate) fn resolve_inset(
+    length: Option<f32>,
+    percent: Option<f32>,
+    reference: f32,
+) -> Option<f32> {
+    percent.map(|p| reference * p / 100.0).or(length)
+}
+
 /// Resolve the containing block for an element that is `position: absolute`.
 /// If the element is absolute and `abs_cb` is `Some`, returns `abs_cb` and
 /// resolves bottom/right offsets into top/left. Otherwise returns `None`
@@ -1061,6 +1086,20 @@ pub(crate) fn patch_absolute_children_containing_block(
                     *offset_top = cb.height - elem_h - *offset_bottom;
                 }
 
+                *containing_block = Some(cb);
+            }
+        } else if let LayoutElement::Container {
+            position,
+            containing_block,
+            ..
+        } = element
+        {
+            // An absolute Container (e.g. an empty `position: absolute` box with
+            // a background) carries its own resolved CB from layout; only stamp
+            // the parent CB when it has none, so the renderer can anchor it to
+            // the correct positioned ancestor by depth. Bottom/right are already
+            // resolved into offset_top/left at layout time for Containers.
+            if *position == Position::Absolute && containing_block.is_none() {
                 *containing_block = Some(cb);
             }
         }

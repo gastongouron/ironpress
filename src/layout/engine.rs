@@ -591,6 +591,18 @@ pub enum LayoutElement {
         /// CSS `outline-offset` in points (gap between border edge and outline).
         outline_offset: f32,
         z_index: i32,
+        /// Depth of this box in the positioned-ancestor stack (incremented for
+        /// each `position: relative`/`absolute`/`fixed` ancestor). Used by the
+        /// renderer to record this box's padding-box origin so an absolutely
+        /// positioned descendant nested inside *static* intermediates resolves
+        /// against the nearest positioned ancestor's padding box (its CB).
+        positioned_depth: usize,
+        /// Absolute containing block for this box when it is `position: absolute`
+        /// (mirrors the `TextBlock` field). Carries the depth of the nearest
+        /// positioned ancestor so the renderer can anchor this box to that
+        /// ancestor's padding box rather than the immediate (possibly static)
+        /// container it is nested in.
+        containing_block: Option<ContainingBlock>,
     },
     /// A page break.
     PageBreak,
@@ -856,6 +868,7 @@ pub fn layout_with_rules_and_fonts(
             font_size: parent_style.font_size,
         },
         containing_block: None,
+        percent_height_cb: None,
         root_font_size: parent_style.root_font_size,
     };
     let mut env = LayoutEnv {
@@ -1159,12 +1172,11 @@ pub(crate) fn flatten_element(
     } else {
         *ctx
     };
-    let positioned_depth =
-        if style.position == Position::Relative || style.position == Position::Absolute {
-            positioned_ancestor_depth + 1
-        } else {
-            positioned_ancestor_depth
-        };
+    let positioned_depth = if crate::layout::helpers::establishes_containing_block(&style) {
+        positioned_ancestor_depth + 1
+    } else {
+        positioned_ancestor_depth
+    };
 
     // display: none — skip this element entirely
     if style.display == Display::None {
@@ -8609,6 +8621,7 @@ line 3</pre>
                 font_size: 16.0,
             },
             containing_block: None,
+            percent_height_cb: None,
             root_font_size: 16.0,
         };
         assert!((ctx.available_width() - 400.0).abs() < f32::EPSILON);
@@ -8627,6 +8640,7 @@ line 3</pre>
                 font_size: 16.0,
             },
             containing_block: None,
+            percent_height_cb: None,
             root_font_size: 16.0,
         };
         assert!((ctx.available_height() - 842.0).abs() < f32::EPSILON);
@@ -8645,6 +8659,7 @@ line 3</pre>
                 font_size: 16.0,
             },
             containing_block: None,
+            percent_height_cb: None,
             root_font_size: 16.0,
         };
         assert!((ctx.available_height() - 300.0).abs() < f32::EPSILON);
@@ -8668,6 +8683,7 @@ line 3</pre>
                 height: 600.0,
                 depth: 1,
             }),
+            percent_height_cb: None,
             root_font_size: 16.0,
         };
         let child = ctx.with_parent(200.0, Some(150.0), 12.0);
@@ -8694,6 +8710,7 @@ line 3</pre>
                 font_size: 16.0,
             },
             containing_block: None,
+            percent_height_cb: None,
             root_font_size: 16.0,
         };
         let cb = ContainingBlock {

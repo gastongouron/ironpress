@@ -1775,6 +1775,7 @@ fn collect_table_cell_content_inner(
                             font_size: parent_style.font_size,
                         },
                         containing_block: None,
+                        percent_height_cb: None,
                         root_font_size: parent_style.root_font_size,
                     };
                     let mut inner_env = LayoutEnv {

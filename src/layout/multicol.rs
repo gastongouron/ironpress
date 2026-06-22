@@ -329,6 +329,8 @@ pub(crate) fn layout_multicol_container(
         outline_width: style.outline_width,
         outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
         z_index: style.z_index,
+        positioned_depth: 0,
+        containing_block: None,
     });
 }
 
@@ -509,6 +511,8 @@ fn empty_abs_container(
         outline_width: 0.0,
         outline_color: None,
         z_index: 0,
+        positioned_depth: 0,
+        containing_block: None,
     }
 }
 

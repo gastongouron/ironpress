@@ -2732,6 +2732,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.position = match k.as_str() {
             "relative" => Position::Relative,
             "absolute" => Position::Absolute,
+            // For a single-page, non-scrolling PDF the viewport == the page box,
+            // so `fixed` behaves like an absolute box anchored to the page
+            // content box (handled by the absolute-at-root path), and `sticky`
+            // degrades to its relative-until-threshold base position.
+            "fixed" => Position::Absolute,
+            "sticky" => Position::Relative,
             _ => Position::Static,
         };
     }
@@ -3565,6 +3571,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             style.position = match kw.as_str() {
                 "relative" => Position::Relative,
                 "absolute" => Position::Absolute,
+                "fixed" => Position::Absolute,
+                "sticky" => Position::Relative,
                 _ => Position::Static,
             };
         }
@@ -10220,11 +10228,25 @@ mod tests {
     }
 
     #[test]
-    fn position_from_var_static_fallback() {
+    fn position_from_var_fixed_maps_to_absolute() {
+        // For a single-page, non-scrolling PDF the viewport == the page box, so
+        // `position: fixed` is treated as an absolute box anchored to the page
+        // content box (the absolute-at-root path handles the anchoring).
         let parent = ComputedStyle::default();
         let s = compute_style(
             HtmlTag::Div,
             Some("--p: fixed; position: var(--p)"),
+            &parent,
+        );
+        assert_eq!(s.position, Position::Absolute);
+    }
+
+    #[test]
+    fn position_from_var_unknown_static_fallback() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("--p: bogus; position: var(--p)"),
             &parent,
         );
         assert_eq!(s.position, Position::Static);

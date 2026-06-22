@@ -2980,6 +2980,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             - cont_border.horizontal_width())
                                         .max(0.0);
                                         let inner_y = nested_y - cont_pt - cont_border.top.width;
+                                        let mut abs_origins: HashMap<usize, (f32, f32)> =
+                                            HashMap::new();
                                         render_container_children(
                                             &mut content,
                                             cont_kids,
@@ -2996,6 +2998,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             &mut page_images,
                                             *cont_pl,
                                             *cont_pt,
+                                            &mut abs_origins,
                                         );
                                         if clip {
                                             content.push_str("Q\n");
@@ -3033,7 +3036,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     opacity: c_opacity,
                     visible: c_visible,
                     float: c_float,
-                    position: _,
+                    position: c_position,
                     offset_top: _,
                     offset_left: c_offset_left,
                     overflow: c_overflow,
@@ -3051,6 +3054,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_origin: c_bg_origin,
                     background_blur_radius: c_bg_blur,
                     z_index: _,
+                    positioned_depth: c_positioned_depth,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (space is preserved).
@@ -3546,6 +3550,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let inner_x = container_x + c_pl + border.left.width;
                     let inner_w = (container_w - c_pl - c_pr - border.horizontal_width()).max(0.0);
                     let inner_y = container_y_top - c_pt - border.top.width;
+                    // Seed positioned-ancestor origins with this (top-level) box's
+                    // padding-box origin so absolute descendants nested inside
+                    // static intermediates resolve to it (their containing block).
+                    let mut abs_origins: HashMap<usize, (f32, f32)> = HashMap::new();
+                    if *c_positioned_depth > 0
+                        && (*c_position == Position::Relative
+                            || *c_position == Position::Absolute
+                            || c_transform.is_some())
+                    {
+                        abs_origins.insert(
+                            *c_positioned_depth,
+                            (
+                                container_x + border.left.width,
+                                container_y_top - border.top.width,
+                            ),
+                        );
+                    }
                     render_container_children(
                         &mut content,
                         children,
@@ -3562,6 +3583,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &mut page_images,
                         *c_pl,
                         *c_pt,
+                        &mut abs_origins,
                     );
 
                     // Restore clip
@@ -4417,6 +4439,20 @@ fn child_paint_order(element: &LayoutElement) -> (u8, i32) {
 /// `x` / `y` are the content-box origin (after padding).
 /// `abs_pad_left` / `abs_pad_top` are the parent padding values so that
 /// absolute-positioned children can be placed relative to the padding box.
+/// Resolve the padding-box origin an absolute child must anchor to: the nearest
+/// positioned ancestor recorded in `abs_origins` (keyed by the child's
+/// containing-block depth), falling back to the immediate container's padding box
+/// (`self_pad_origin`). This is what lets an absolute box skip static
+/// intermediate ancestors and resolve against its real containing block.
+fn abs_child_anchor(
+    cb: &Option<crate::layout::engine::ContainingBlock>,
+    abs_origins: &HashMap<usize, (f32, f32)>,
+    self_pad_origin: (f32, f32),
+) -> (f32, f32) {
+    cb.and_then(|c| abs_origins.get(&c.depth).copied())
+        .unwrap_or(self_pad_origin)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_container_children(
     content: &mut String,
@@ -4434,7 +4470,14 @@ fn render_container_children(
     page_images: &mut Vec<ImageRef>,
     abs_pad_left: f32,
     abs_pad_top: f32,
+    abs_origins: &mut HashMap<usize, (f32, f32)>,
 ) {
+    // Padding-box origin (left x, top y in PDF coords) of THIS container, used
+    // as the default anchor for absolutely-positioned children. An abs child
+    // whose containing block names a *different* positioned ancestor (because it
+    // is nested inside static intermediates) overrides this via `abs_origins`.
+    let self_pad_origin = (x - abs_pad_left, y + abs_pad_top);
+
     // Separate children into those handled by render_nested_table_rows
     // (TableRow, TextBlock) and those handled directly (Container, Svg, etc.).
     // We process all children in order, flushing accumulated nested-layout
@@ -4547,6 +4590,7 @@ fn render_container_children(
                 block_width: tb_block_width,
                 clip_rect: tb_clip_rect,
                 text_indent: tb_text_indent,
+                containing_block: tb_containing_block,
                 ..
             } => {
                 // Absolute-positioned children render at offset from the
@@ -4557,8 +4601,13 @@ fn render_container_children(
                     let abs_h = padding_top + text_h + padding_bottom + border.vertical_width();
                     let abs_h = block_height.map_or(abs_h, |h| abs_h.max(h));
                     let abs_w = tb_block_width.unwrap_or(width);
-                    let abs_x = (x - abs_pad_left) + offset_left;
-                    let abs_y = (container_top_y + abs_pad_top) - offset_top;
+                    // Anchor to the nearest positioned ancestor's padding box
+                    // (resolved by containing-block depth), skipping any static
+                    // intermediate container this box is nested inside.
+                    let (anchor_x, anchor_y) =
+                        abs_child_anchor(tb_containing_block, abs_origins, self_pad_origin);
+                    let abs_x = anchor_x + offset_left;
+                    let abs_y = anchor_y - offset_top;
 
                     // `mix-blend-mode`: composite the whole element (background +
                     // text) with the backdrop. Scope the blend gstate to a
@@ -5003,6 +5052,8 @@ fn render_container_children(
                 outline_color: nk_outline_color,
                 outline_offset: nk_outline_offset,
                 border_radii: cont_radii,
+                positioned_depth: nk_positioned_depth,
+                containing_block: nk_containing_block,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -5038,8 +5089,12 @@ fn render_container_children(
                     y = cursor_y;
                 }
                 let nk_w = block_width.unwrap_or(width);
+                // Absolute Containers anchor to their containing block's padding
+                // box (resolved by depth, skipping static intermediates).
+                let (nk_anchor_x, nk_anchor_y) =
+                    abs_child_anchor(nk_containing_block, abs_origins, self_pad_origin);
                 let nk_x = if nk_is_abs {
-                    (x - abs_pad_left) + nk_offset_left
+                    nk_anchor_x + nk_offset_left
                 } else {
                     match nk_float {
                         Float::Right => x + width - nk_w,
@@ -5050,7 +5105,7 @@ fn render_container_children(
                     }
                 };
                 let nk_top_y = if nk_is_abs {
-                    (container_top_y + abs_pad_top) - nk_offset_top
+                    nk_anchor_y - nk_offset_top
                 } else {
                     y - nk_offset_top
                 };
@@ -5499,6 +5554,20 @@ fn render_container_children(
                     let inner_x = nk_x + padding_left + border.left.width;
                     let inner_w = nk_w - padding_left - padding_right - border.horizontal_width();
                     let inner_y = nk_top_y - padding_top - border.top.width;
+                    // Record this box's padding-box origin keyed by its
+                    // positioned depth so absolutely-positioned descendants nested
+                    // inside static intermediates anchor here (their CB), not to
+                    // the static container they are physically nested in.
+                    if *nk_positioned_depth > 0
+                        && (*nk_position == Position::Relative
+                            || *nk_position == Position::Absolute
+                            || nk_transform.is_some())
+                    {
+                        abs_origins.insert(
+                            *nk_positioned_depth,
+                            (nk_x + border.left.width, nk_top_y - border.top.width),
+                        );
+                    }
                     render_container_children(
                         content,
                         nested_kids,
@@ -5515,6 +5584,7 @@ fn render_container_children(
                         page_images,
                         *padding_left,
                         *padding_top,
+                        abs_origins,
                     );
 
                     if clip {
@@ -6097,6 +6167,7 @@ fn render_container_children(
                     if !cell.nested_elements.is_empty() {
                         let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
                         let nested_y = cell_top - text_h;
+                        let mut abs_origins: HashMap<usize, (f32, f32)> = HashMap::new();
                         render_container_children(
                             content,
                             &cell.nested_elements,
@@ -6113,6 +6184,7 @@ fn render_container_children(
                             page_images,
                             0.0, // flex cells don't have separate padding for abs children
                             0.0,
+                            &mut abs_origins,
                         );
                     }
                 }

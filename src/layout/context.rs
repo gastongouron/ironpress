@@ -55,7 +55,15 @@ pub struct ParentBox {
 pub struct LayoutContext {
     pub viewport: Viewport,
     pub parent: ParentBox,
+    /// Containing block for `position: absolute` descendants: the padding box of
+    /// the nearest *positioned* (relative/absolute/fixed) ancestor. It is
+    /// forwarded unchanged through `position: static` elements (which do NOT
+    /// establish a containing block) and replaced only by positioned elements.
     pub containing_block: Option<ContainingBlock>,
+    /// Containing block used to resolve a child's percentage `height` (CSS 2.1
+    /// § 10.5): the parent's content box. Unlike `containing_block`, every block
+    /// element replaces this with its own content box for its children.
+    pub percent_height_cb: Option<ContainingBlock>,
     pub root_font_size: f32,
 }
 
@@ -88,10 +96,26 @@ impl LayoutContext {
         }
     }
 
-    /// Return a child context with an updated containing block.
+    /// Return a child context with an updated absolute containing block.
     pub fn with_containing_block(&self, cb: Option<ContainingBlock>) -> Self {
         LayoutContext {
             containing_block: cb,
+            ..*self
+        }
+    }
+
+    /// Return a child context with both the absolute containing block and the
+    /// percentage-height containing block set. A `position: static` block keeps
+    /// the inherited `abs_cb` (it does not establish a containing block) while
+    /// supplying its own content box as `percent_height_cb`.
+    pub fn with_cbs(
+        &self,
+        abs_cb: Option<ContainingBlock>,
+        percent_height_cb: Option<ContainingBlock>,
+    ) -> Self {
+        LayoutContext {
+            containing_block: abs_cb,
+            percent_height_cb,
             ..*self
         }
     }

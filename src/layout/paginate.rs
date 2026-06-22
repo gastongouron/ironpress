@@ -509,6 +509,32 @@ pub(crate) fn paginate(
                 *containing_block,
                 *positioned_depth,
             ),
+            // A positioned Container (e.g. a `position: fixed`/`absolute` box
+            // with a background/border/explicit size) must also be recognised so
+            // it is removed from normal flow and anchored to its containing
+            // block. A root-level box has `containing_block: None` and resolves
+            // against the page content box; bottom/right are pre-resolved into
+            // top/left at layout time. Reading the real fields (rather than
+            // hardcoding None/0) keeps a top-level positioned Container that has
+            // a positioned ancestor anchored correctly and lets its own
+            // descendants resolve against it by depth.
+            LayoutElement::Container {
+                float,
+                clear,
+                position,
+                offset_top,
+                containing_block,
+                positioned_depth,
+                ..
+            } => (
+                *float,
+                *clear,
+                *position,
+                *offset_top,
+                0.0,
+                *containing_block,
+                *positioned_depth,
+            ),
             _ => (
                 Float::None,
                 Clear::None,

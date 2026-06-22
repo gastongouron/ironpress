@@ -1687,6 +1687,8 @@ pub(crate) fn layout_flex_container(
                                 outline_width: 0.0,
                                 outline_color: None,
                                 z_index: 0,
+                                positioned_depth: 0,
+                                containing_block: None,
                             });
                         }
                     }

@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 70.51%  (PASS 245 · PARTIAL 67 · FAIL 83 · UNKNOWN 1 · total 396)
+Overall: 72.03%  (PASS 251 · PARTIAL 67 · FAIL 77 · UNKNOWN 1 · total 396)
 Scored coverage: 99.75% (395 / 396 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 206 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -55,7 +55,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 4.26 | interactions | grid-x-flexbox | (interaction: grid×flexbox) GENUINE: both bases PASS, interaction FAILs | grid-x-flexbox-nested | fill recolour ΔRGB(-34,+33,-46) (ΔE 31.8) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 19.01 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (20.7% missing) |
 | FAIL | CONFOUNDED: overflow (`positioning-overflow-hidden-clip`) | ColorValue | 5.17 | interactions | overflow | (interaction: positioning×backgrounds-borders) DERIVATIVE: base `border-radius-uniform` already FAILs | interactions-positioning-overflow-hidden-x-border-radius | via positioning-overflow-hidden-clip: fill recolour ΔRGB(+92,+53,+18) (ΔE 25.7) |
-| FAIL | CONFOUNDED: position (`positioning-fixed-top-left`) | ColorValue | 35.33 | interactions | position | (interaction: positioning×transforms) DERIVATIVE: base `positioning-fixed-top-left` already FAILs | interactions-positioning-fixed-x-transforms-translate | via positioning-fixed-top-left: fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 28.20 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: content clipped/truncated (12.6% missing) |
 | FAIL | REAL | ColorValue | 37.00 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-flexbox | fill recolour ΔRGB(+67,-11,-20) (ΔE 19.2) |
 | FAIL | REAL | ColorValue | 73.89 | interactions | positioning-x-grid | (interaction: positioning×grid) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-grid | fill recolour ΔRGB(+15,-17,+75) (ΔE 24.0) |
@@ -70,12 +69,7 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 2.26 | overflow-clipping | overflow | hidden-on-flex-item | overflow-hidden-flex-item | fill recolour ΔRGB(+8,+62,+52) (ΔE 22.5) |
 | FAIL | REAL | ColorValue | 3.62 | overflow-clipping | overflow | nested-clip-intersection | overflow-hidden-nested | fill recolour ΔRGB(+29,+24,+1) (ΔE 8.8) |
 | FAIL | REAL | ColorValue | 20.05 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(+190,+171,+150) (ΔE 71.3) |
-| FAIL | REAL | ColorValue | 11.19 | positioning | containing-block | nearest-positioned-ancestor | positioning-absolute-containing-block-relative-ancestor | fill recolour ΔRGB(+12,+16,+56) (ΔE 32.4) |
-| FAIL | REAL | ColorValue | 2.66 | positioning | containing-block | transform-establishes | positioning-transform-establishes-containing-block | fill recolour ΔRGB(-20,-78,-59) (ΔE 37.3) |
-| FAIL | REAL | ColorValue | 48.59 | positioning | inset | all-four-stretch | positioning-position-absolute-stretch-inset | fill recolour ΔRGB(+23,+117,+197) (ΔE 33.1) |
 | FAIL | REAL | ColorValue | 3.63 | positioning | overflow | hidden | positioning-overflow-hidden-clip | fill recolour ΔRGB(+82,+25,+19) (ΔE 17.6) |
-| FAIL | REAL | ColorValue | 39.82 | positioning | position | fixed | positioning-fixed-top-left | fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6) |
-| FAIL | REAL | ColorValue | 2.91 | positioning | position | absolute-bottom-right | positioning-position-absolute-bottom-right | fill recolour ΔRGB(+68,+34,+71) (ΔE 47.6) |
 | FAIL | REAL | Missing | 13.58 | tables | border-collapse | collapse | tables-border-collapse | content clipped/truncated (1.6% missing) |
 | FAIL | REAL | ColorValue | 16.54 | tables | cell-padding | padding-20px | tables-cell-padding | fill recolour ΔRGB(-4,-7,-16) (ΔE 31.8) |
 | FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
@@ -94,9 +88,8 @@ None — every fixture's HTML matches `refs.lock`.
 | 3 | `positioning-overflow-hidden-clip` | overflow | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
 | 4 | `flexbox-flex-wrap` | flex-wrap | PARTIAL | 1 | flexbox-wrap-x-gap |
 | 5 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 6 | `positioning-fixed-top-left` | position | FAIL | 1 | interactions-positioning-fixed-x-transforms-translate |
-| 7 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
-| 8 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
+| 6 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
+| 7 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -114,12 +107,12 @@ None — every fixture's HTML matches `refs.lock`.
 | grid | 93.75% | 15 | 0 | 1 | 0 |
 | images-replaced | 86.67% | 11 | 4 | 0 | 0 |
 | inline-text | 50.00% | 4 | 8 | 4 | 0 |
-| interactions | 34.09% | 7 | 1 | 14 | 0 |
+| interactions | 38.64% | 8 | 1 | 13 | 0 |
 | lists-counters | 71.05% | 12 | 3 | 4 | 0 |
 | multicol | 62.50% | 4 | 2 | 2 | 0 |
 | overflow-clipping | 10.00% | 1 | 0 | 9 | 0 |
 | paged-media | 72.22% | 6 | 1 | 2 | 0 |
-| positioning | 59.38% | 9 | 1 | 6 | 0 |
+| positioning | 90.63% | 14 | 1 | 1 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 96.67% | 14 | 1 | 0 | 0 |
 | tables | 51.85% | 5 | 18 | 4 | 0 |
@@ -589,7 +582,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 5.05% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 34.09%
+### interactions — 38.64%
 - **containing-block** — 50.00%
   - PASS 0.59% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - FAIL 36.12% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -613,9 +606,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 4.80% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 100.00%
   - PASS 0.63% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
-- **position** — 33.33%
+- **position** — 66.67%
   - PASS 0.25% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
-  - FAIL 35.33% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
+  - PASS 0.83% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
   - FAIL 28.20% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
 - **positioning-x-flexbox** — 0.00%
   - FAIL 37.00% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
@@ -709,24 +702,24 @@ None — every fixture's HTML matches `refs.lock`.
 - **page-margin** — 100.00%
   - PASS 0.43% page-margin=via-body-margin — `paged-body-margin-box` — Page margin exercised through an explicit 40px body margin (fixtures may not use @page); a filled, bordered content box is inset uniformly inside the single Letter page.
 
-### positioning — 59.38%
+### positioning — 90.63%
 - **clear** — 100.00%
   - PASS 0.43% clear=both — `positioning-clear-both` — clear:both pushes the cleared block below preceding floats instead of wrapping beside them.
-- **containing-block** — 0.00%
-  - FAIL 11.19% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
-  - FAIL 2.66% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
+- **containing-block** — 100.00%
+  - PASS 0.69% containing-block=nearest-positioned-ancestor — `positioning-absolute-containing-block-relative-ancestor` — Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.
+  - PASS 0.68% containing-block=transform-establishes — `positioning-transform-establishes-containing-block` — A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.
 - **float** — 100.00%
   - PASS 0.25% float=left — `positioning-float-left` — float:left removes the box from flow and shifts it left; the following block wraps around its right side.
-- **inset** — 50.00%
+- **inset** — 100.00%
   - PASS 0.43% inset=negative-offset — `positioning-inset-negative-offset` — position:relative with negative top/left pulls the box up and left, overlapping prior flow.
-  - FAIL 48.59% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
+  - PASS 1.11% inset=all-four-stretch — `positioning-position-absolute-stretch-inset` — All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.
 - **overflow** — 50.00%
   - PARTIAL 2.16% overflow=hidden-clips-absolute — `positioning-overflow-hidden-absolute-child-clip` — overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.
   - FAIL 3.63% overflow=hidden — `positioning-overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the parent box.
   - PASS 0.59% overflow=visible — `positioning-overflow-visible-no-clip` — overflow:visible (default) does not clip; the child overflows the parent box.
-- **position** — 60.00%
-  - FAIL 39.82% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
-  - FAIL 2.91% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
+- **position** — 100.00%
+  - PASS 0.67% position=fixed — `positioning-fixed-top-left` — position:fixed box placed by top/left relative to the page box on a single non-scrolling page.
+  - PASS 0.55% position=absolute-bottom-right — `positioning-position-absolute-bottom-right` — position:absolute box anchored to bottom/right edges of its containing block.
   - PASS 0.46% position=absolute — `positioning-position-absolute-top-left` — position:absolute box placed by top/left within a relative containing block.
   - PASS 0.52% position=relative — `positioning-position-relative-offset` — position:relative shifts the box by top/left from its in-flow position; flow space is preserved.
   - PASS 0.64% position=static — `positioning-position-static` — position:static box ignores top/left offsets and stays in normal flow.

@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 70.51,
-    "pass": 245,
+    "score_pct": 72.03,
+    "pass": 251,
     "partial": 67,
-    "fail": 83,
+    "fail": 77,
     "unknown": 1,
     "total": 396,
     "scored_ratio_pct": 99.75
@@ -41657,11 +41657,11 @@
     },
     {
       "category": "interactions",
-      "score_pct": 34.09,
+      "score_pct": 38.64,
       "counts": {
-        "pass": 7,
+        "pass": 8,
         "partial": 1,
-        "fail": 14,
+        "fail": 13,
         "unknown": 0
       },
       "features": [
@@ -41848,8 +41848,8 @@
                   "verifier": "PdfGeometry",
                   "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 1.050pt cancelled)",
-                  "magnitude": 1.499999996212864e-6
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -44823,11 +44823,11 @@
         },
         {
           "feature": "position",
-          "score_pct": 33.33,
+          "score_pct": 66.67,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 2,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -45018,8 +45018,8 @@
                 "positioning-fixed-top-left",
                 "transforms-translate"
               ],
-              "status": "FAIL",
-              "diff_pct": 35.3348,
+              "status": "PASS",
+              "diff_pct": 0.8337,
               "weight": 1.0,
               "description": "Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.",
               "note": "",
@@ -45029,110 +45029,49 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: position (`positioning-fixed-top-left`)",
+              "attribution": "",
               "html_sha256": "27fa7ea80cb598c31f435c04ba899be1df2ca43bc9d7fc5913b1bb5b8d0d6c9b",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "Extra",
-                  "GeometrySize"
-                ],
-                "headline": "via positioning-fixed-top-left: fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
                     -0.32,
                     -0.32,
-                    -120.32
+                    -0.32
                   ],
-                  "missing_area_pct": 4.211574484061721,
-                  "extra_area_pct": 26.84354272337105,
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    191,
-                    110,
-                    59
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 36.45692432306255,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      70.08,
-                      49.92,
-                      179.84,
-                      129.6
-                    ],
-                    "area_pct": 17.567799449269916,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      191,
-                      110,
-                      59
-                    ],
-                    "delta_e": 36.45692432306255,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+191,+110,+59) (ΔE 36.5)"
-                  },
-                  {
-                    "class": "Extra",
-                    "bbox_css": [
-                      30.08,
-                      170.24,
-                      139.84,
-                      249.92
-                    ],
-                    "area_pct": 17.567799449269916,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "extra paint where Chrome is blank (17.6%)"
-                  },
-                  {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       1.92,
                       1.92,
                       197.76,
                       117.76
                     ],
-                    "area_pct": 0.1991698193376531,
+                    "area_pct": 0.38268009514015905,
                     "edge_delta_css": [
                       -0.32,
                       -0.32,
                       -0.32,
-                      -120.32
+                      -0.32
                     ],
                     "modal_drgb": [
                       0,
@@ -45146,43 +45085,130 @@
                       0.2011897435897436
                     ],
                     "selector": null,
-                    "headline": "box −120.3px on bottom edge (size/box-model mismatch)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      72.32,
+                      52.16,
+                      177.92,
+                      128.0
+                    ],
+                    "area_pct": 0.22293568619447213,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.13295774647887323,
+                      0.1847887323943662
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      70.08,
+                      49.92,
+                      179.84,
+                      49.92
+                    ],
+                    "area_pct": 0.13501738741355354,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      72.0,
+                      52.16,
+                      72.0,
+                      127.68
+                    ],
+                    "area_pct": 0.09302070004945405,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.43751987281399046
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 120.32css shift 0.00css",
-                  "magnitude": 120.32
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 22.82% interiorΔE 36.46",
-                  "magnitude": 22.816210121376933
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 4.21% extra 26.84%",
-                  "magnitude": 26.84354272337105
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 46.050pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 45.000pt)",
-                  "magnitude": 45.0
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -57872,11 +57898,11 @@
     },
     {
       "category": "positioning",
-      "score_pct": 59.38,
+      "score_pct": 90.63,
       "counts": {
-        "pass": 9,
+        "pass": 14,
         "partial": 1,
-        "fail": 6,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -58096,11 +58122,11 @@
         },
         {
           "feature": "containing-block",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 2,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -58111,8 +58137,8 @@
               "subfeature": "nearest-positioned-ancestor",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 11.1928,
+              "status": "PASS",
+              "diff_pct": 0.6924,
               "weight": 1.0,
               "description": "Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.",
               "note": "",
@@ -58122,14 +58148,12 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "409741ef002ebc51768571fa5e51712b05d6d82c95944fd6d49e0efe198b5753",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "GeometryShift"
-                ],
-                "headline": "fill recolour ΔRGB(+12,+16,+56) (ΔE 32.4)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
@@ -58140,76 +58164,47 @@
                   "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    12,
-                    16,
-                    56
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 32.388793024172124,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       1.92,
                       1.92,
                       257.6,
                       217.6
                     ],
-                    "area_pct": 5.51914385422924,
+                    "area_pct": 0.26352298406705,
                     "edge_delta_css": [
+                      -0.32,
                       0.0,
-                      0.0,
-                      0.0,
+                      -0.32,
                       0.0
                     ],
                     "modal_drgb": [
-                      211,
-                      80,
-                      111
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 34.292634895189224,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.15639569049951027,
-                      0.16611165523996083
+                      0.14654002713704206,
+                      0.17367706919945725
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(+211,+80,+111) (ΔE 34.3)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      24.0,
-                      24.0,
-                      113.92,
-                      83.84
-                    ],
-                    "area_pct": 5.276001887925856,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -183,
-                      -57,
-                      -91
-                    ],
-                    "delta_e": 30.39721353177373,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.17777777777777778,
-                      -0.17777777777777778
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-183,-57,-91) (ΔE 30.4)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   },
                   {
                     "class": "GeometryShift",
@@ -58268,13 +58263,42 @@
                     ],
                     "selector": null,
                     "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      89.92,
+                      4.16,
+                      89.92,
+                      59.84
+                    ],
+                    "area_pct": 0.031286650075803085,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.3181714285714286,
+                      -0.0018285714285714285
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,-0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.9480241510398364
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
@@ -58286,10 +58310,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 10.61% interiorΔE 32.29",
-                  "magnitude": 10.611001458851797
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -58297,6 +58321,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -58308,8 +58339,8 @@
               "subfeature": "transform-establishes",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 2.6599,
+              "status": "PASS",
+              "diff_pct": 0.6756,
               "weight": 1.0,
               "description": "A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.",
               "note": "",
@@ -58319,14 +58350,12 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "238241ee43feb180a364f04d7d9097ccb276b5a0a3f352412e03109c314854cc",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "GeometryShift"
-                ],
-                "headline": "fill recolour ΔRGB(-20,-78,-59) (ΔE 37.3)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
@@ -58337,77 +58366,19 @@
                   "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    -20,
-                    -78,
-                    -59
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 37.3165612324309,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.48
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      108.16,
-                      112.32,
-                      208.0,
-                      181.76
-                    ],
-                    "area_pct": 1.0859149289167311,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -195,
-                      -112,
-                      -59
-                    ],
-                    "delta_e": 37.3165612324309,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.29683257918552036,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-195,-112,-59) (ΔE 37.3)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      108.16,
-                      108.16,
-                      207.68,
-                      113.92
-                    ],
-                    "area_pct": 1.046940701965159,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      195,
-                      112,
-                      59
-                    ],
-                    "delta_e": 37.3165612324309,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.48
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+195,+112,+59) (ΔE 37.3)"
-                  },
                   {
                     "class": "GeometryShift",
                     "bbox_css": [
@@ -58465,28 +58436,86 @@
                     ],
                     "selector": null,
                     "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      108.16,
+                      108.16,
+                      208.0,
+                      177.92
+                    ],
+                    "area_pct": 0.09493263537286535,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.13077212806026364,
+                      0.18681732580037663
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      110.08,
+                      176.0,
+                      205.76,
+                      176.0
+                    ],
+                    "area_pct": 0.05363425727280528,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.31786666666666663
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.48
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.7859255276246807
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 0.32css shift 0.48css",
-                  "magnitude": 0.48
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 2.09% interiorΔE 37.32",
-                  "magnitude": 2.090484567636374
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -58497,22 +58526,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)",
-                  "magnitude": 1.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -58674,11 +58694,11 @@
         },
         {
           "feature": "inset",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -58862,8 +58882,8 @@
               "subfeature": "all-four-stretch",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 48.5883,
+              "status": "PASS",
+              "diff_pct": 1.1077,
               "weight": 1.0,
               "description": "All four insets set with auto size make an absolute box stretch to fill the containing block inset by 30px.",
               "note": "",
@@ -58873,107 +58893,47 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "dccc22a7cb2542405996dc85c6410efc82f3e7b23ddc4cbc657010ab3a5fa56a",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "GeometrySize"
-                ],
-                "headline": "fill recolour ΔRGB(+23,+117,+197) (ΔE 33.1)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
-                    -28.16,
+                    0.0,
                     -0.32,
                     0.0
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 0.1891211502573801,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    23,
-                    117,
-                    197
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 33.09266427794736,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      32.0,
-                      32.0,
-                      227.84,
-                      187.84
-                    ],
-                    "area_pct": 47.75056139173528,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      23,
-                      117,
-                      197
-                    ],
-                    "delta_e": 33.09266427794736,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.007582938388625592,
-                      0.30382306477093207
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+23,+117,+197) (ΔE 33.1)"
-                  },
-                  {
-                    "class": "GeometrySize",
-                    "bbox_css": [
-                      2.24,
-                      2.24,
-                      288.0,
-                      217.92
-                    ],
-                    "area_pct": 0.5999470872157551,
-                    "edge_delta_css": [
-                      -0.32,
-                      -28.16,
-                      -0.32,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -115,
-                      -170,
-                      -215
-                    ],
-                    "delta_e": 50.3369120549156,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.14389115646258502,
-                      0.1734965986394558
-                    ],
-                    "selector": null,
-                    "headline": "box −28.2px on right edge (size/box-model mismatch)"
-                  },
-                  {
-                    "class": "GeometrySize",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       1.92,
                       1.92,
                       257.6,
                       217.6
                     ],
-                    "area_pct": 0.2377848901737088,
+                    "area_pct": 0.26352298406705,
                     "edge_delta_css": [
                       -0.32,
-                      -28.16,
+                      0.0,
                       -0.32,
                       0.0
                     ],
@@ -58989,43 +58949,159 @@
                       0.17367706919945725
                     ],
                     "selector": null,
-                    "headline": "box −28.2px on right edge (size/box-model mismatch)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      2.24,
+                      2.24,
+                      257.92,
+                      217.92
+                    ],
+                    "area_pct": 0.26352298406705,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.1461058344640434,
+                      0.17302578018995932
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      32.0,
+                      32.0,
+                      227.84,
+                      187.84
+                    ],
+                    "area_pct": 0.19665894333361938,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.14196363636363638,
+                      0.17832727272727272
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      33.92,
+                      33.92,
+                      225.6,
+                      185.6
+                    ],
+                    "area_pct": 0.19201064103664292,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.14152700186219738,
+                      0.17877094972067037
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      34.24,
+                      34.24,
+                      225.92,
+                      185.92
+                    ],
+                    "area_pct": 0.19201064103664292,
+                    "edge_delta_css": [
+                      -0.32,
+                      0.0,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.14093109869646184,
+                      0.17787709497206705
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.9846145162736186
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 28.16css shift 0.00css",
-                  "magnitude": 28.16
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 52.92% interiorΔE 33.14",
-                  "magnitude": 52.919070451337525
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 0.19%",
-                  "magnitude": 0.1891211502573801
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 10.950pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 12.000pt)",
-                  "magnitude": 12.0
+                  "headline": "pdf-geom: worst  (offset 1.050pt cancelled)",
+                  "magnitude": 0.0
                 }
               ],
               "disagreements": []
@@ -59523,6 +59599,13 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "PdfGeometry",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "pdf-geom: worst border#0 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -59531,11 +59614,11 @@
         },
         {
           "feature": "position",
-          "score_pct": 60.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 5,
             "partial": 0,
-            "fail": 2,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -59546,8 +59629,8 @@
               "subfeature": "fixed",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 39.8178,
+              "status": "PASS",
+              "diff_pct": 0.6691,
               "weight": 1.0,
               "description": "position:fixed box placed by top/left relative to the page box on a single non-scrolling page.",
               "note": "",
@@ -59557,110 +59640,49 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "28ee9818d3761ebe55c762c1f8633e4b1307ba5e632b0ad13e8e5d94af1b8471",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "Extra",
-                  "GeometrySize"
-                ],
-                "headline": "fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
-                    19.84,
                     -0.32,
                     -0.32,
-                    -100.16
+                    -0.32,
+                    -0.32
                   ],
                   "missing_area_pct": 0.0,
-                  "extra_area_pct": 28.571428571428573,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    48,
-                    173,
-                    185
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 44.58679599835664,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      40.0,
-                      20.16,
-                      159.68,
-                      99.84
-                    ],
-                    "area_pct": 19.80589169821525,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      48,
-                      173,
-                      185
-                    ],
-                    "delta_e": 44.58679599835664,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+48,+173,+185) (ΔE 44.6)"
-                  },
-                  {
-                    "class": "Extra",
-                    "bbox_css": [
-                      0.0,
-                      140.16,
-                      119.68,
-                      219.84
-                    ],
-                    "area_pct": 19.80589169821525,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "extra paint where Chrome is blank (19.8%)"
-                  },
-                  {
-                    "class": "GeometrySize",
-                    "bbox_css": [
-                      21.76,
                       1.92,
-                      217.6,
+                      1.92,
+                      197.76,
                       117.76
                     ],
-                    "area_pct": 0.20598127366143862,
+                    "area_pct": 0.41423084766501256,
                     "edge_delta_css": [
-                      19.84,
                       -0.32,
                       -0.32,
-                      -100.16
+                      -0.32,
+                      -0.32
                     ],
                     "modal_drgb": [
                       0,
@@ -59674,43 +59696,72 @@
                       0.2011897435897436
                     ],
                     "selector": null,
-                    "headline": "box −100.2px on bottom edge (size/box-model mismatch)"
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      22.08,
+                      22.08,
+                      137.92,
+                      97.92
+                    ],
+                    "area_pct": 0.25491129087077696,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.12586666666666665,
+                      0.192
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.4974134500596896
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 100.16css shift 0.00css",
-                  "magnitude": 100.16
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 28.48% interiorΔE 44.59",
-                  "magnitude": 28.484704852882196
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.00% extra 28.57%",
-                  "magnitude": 28.571428571428573
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 6.450pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 7.500pt)",
-                  "magnitude": 7.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
               "disagreements": []
@@ -59722,8 +59773,8 @@
               "subfeature": "absolute-bottom-right",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 2.9075,
+              "status": "PASS",
+              "diff_pct": 0.5516,
               "weight": 1.0,
               "description": "position:absolute box anchored to bottom/right edges of its containing block.",
               "note": "",
@@ -59733,14 +59784,12 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "6777f7887e45797671414a4afe2c95717d0d61aff617d01dff21224297a921fe",
               "diagnosis": {
-                "primary_class": "ColorValue",
-                "secondary": [
-                  "GeometryShift"
-                ],
-                "headline": "fill recolour ΔRGB(+68,+34,+71) (ΔE 47.6)",
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (-0.3,-0.3)px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
@@ -59751,77 +59800,19 @@
                   "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    68,
-                    34,
-                    71
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 47.57162589427599,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
-                    0.0
+                    -0.32,
+                    -0.32
                   ],
                   "colorspace": null
                 },
                 "regions": [
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      88.0,
-                      88.0,
-                      187.84,
-                      157.76
-                    ],
-                    "area_pct": 1.3334723031697886,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      102,
-                      170,
-                      71
-                    ],
-                    "delta_e": 47.57162589427598,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.31076923076923074,
-                      0.018461538461538463
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(+102,+170,+71) (ΔE 47.6)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      88.32,
-                      94.08,
-                      187.84,
-                      161.92
-                    ],
-                    "area_pct": 1.286889046766186,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -102,
-                      -170,
-                      -71
-                    ],
-                    "delta_e": 47.57162589427598,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.2940952380952381,
-                      -0.0015238095238095239
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-102,-170,-71) (ΔE 47.6)"
-                  },
                   {
                     "class": "GeometryShift",
                     "bbox_css": [
@@ -59850,13 +59841,100 @@
                     ],
                     "selector": null,
                     "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      88.0,
+                      88.0,
+                      187.84,
+                      157.76
+                    ],
+                    "area_pct": 0.11294844360873468,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.1319774011299435,
+                      0.18862523540489642
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      89.92,
+                      89.92,
+                      185.6,
+                      155.84
+                    ],
+                    "area_pct": 0.10763072027499011,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.13090909090909092,
+                      0.18972332015810278
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      185.92,
+                      90.24,
+                      185.92,
+                      155.84
+                    ],
+                    "area_pct": 0.04381804027005526,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.31844660194174756,
+                      -0.001553398058252427
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,-0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
-                  0.0
+                  -0.32,
+                  -0.32
                 ],
-                "confidence": 0.8554393152388616
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
@@ -59868,10 +59946,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 2.49% interiorΔE 47.57",
-                  "magnitude": 2.4872161387208482
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -59882,22 +59960,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)",
-                  "magnitude": 1.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "positioning-position-absolute-top-left",
@@ -84470,15 +84539,6 @@
       "confounded_count": 1,
       "confounded_ids": [
         "inline-block-x-vertical-align"
-      ]
-    },
-    {
-      "id": "positioning-fixed-top-left",
-      "feature": "position",
-      "status": "FAIL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "interactions-positioning-fixed-x-transforms-translate"
       ]
     },
     {

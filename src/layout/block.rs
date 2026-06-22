@@ -15,7 +15,7 @@ use super::helpers::{
     collects_as_inline_text, has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
-    resolve_padding_box_height,
+    resolve_inset, resolve_padding_box_height,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
@@ -47,6 +47,10 @@ pub(crate) fn layout_block_element(
     let available_width = ctx.available_width();
     let available_height = ctx.available_height();
     let abs_containing_block = ctx.containing_block;
+    // Percentage `height` resolves against the parent's content box (CSS 2.1
+    // § 10.5), tracked separately from the absolute containing block so the two
+    // are not conflated when a child sits inside a static element.
+    let percent_height_cb = ctx.percent_height_cb.or(abs_containing_block);
     // Compute effective block width considering CSS width/max-width/min-width.
     // Block elements without explicit width shrink by their horizontal margins.
     let margin_h = style.margin.left + style.margin.right;
@@ -97,12 +101,54 @@ pub(crate) fn layout_block_element(
         block_w = block_w.max(mw);
     }
 
+    // CSS 2.1 § 10.3.7 over-constrained absolute width: when `width: auto` and
+    // BOTH `left` and `right` are set, the box stretches to fill the containing
+    // block, inset by left/right (and horizontal margins). `block_w` is the
+    // border-box width, so the stretched border-box width is
+    // `cb.width - left - right - margin_h` (padding/border are inside it).
+    if style.position == Position::Absolute
+        && style.width.is_none()
+        && style.percentage_sizing.width.is_none()
+        && style.max_width.is_none()
+        && style.min_width.is_none()
+        && let Some(cb) = abs_containing_block
+    {
+        let left = resolve_inset(style.left, style.percentage_insets.left, cb.width);
+        let right = resolve_inset(style.right, style.percentage_insets.right, cb.width);
+        if let (Some(left), Some(right)) = (left, right) {
+            block_w = (cb.width - left - right - margin_h).max(0.0);
+        }
+    }
+
     // Compute effective height considering CSS height/min-height/max-height
     let mut effective_height = style.height;
+    // CSS over-constrained absolute height: `height: auto` with BOTH `top` and
+    // `bottom` set stretches the box to fill the containing block, inset by
+    // top/bottom. Resolve to the border-box height (`cb.height` is the padding
+    // box). Treated as definite so content does not re-expand it.
+    if effective_height.is_none()
+        && style.position == Position::Absolute
+        && style.percentage_sizing.height.is_none()
+        && let Some(cb) = abs_containing_block
+    {
+        let top = resolve_inset(style.top, style.percentage_insets.top, cb.height);
+        let bottom = resolve_inset(style.bottom, style.percentage_insets.bottom, cb.height);
+        if let (Some(top), Some(bottom)) = (top, bottom) {
+            let margin_v = style.margin.top + style.margin.bottom;
+            effective_height = Some((cb.height - top - bottom - margin_v).max(0.0));
+        }
+    }
     if effective_height.is_none() {
         if let Some(pct) = style.percentage_sizing.height {
-            // Resolve percentage height against containing block if available
-            if let Some(cb) = abs_containing_block {
+            // An absolute box's percentage height resolves against its absolute
+            // containing block (the positioned ancestor's padding box); an
+            // in-flow box's against the parent's content box (CSS 2.1 § 10.5).
+            let height_cb = if style.position == Position::Absolute {
+                abs_containing_block
+            } else {
+                percent_height_cb
+            };
+            if let Some(cb) = height_cb {
                 effective_height = Some(pct / 100.0 * cb.height);
             }
         }
@@ -196,8 +242,10 @@ pub(crate) fn layout_block_element(
 
     let ib_ctx = ctx.with_parent(inner_width, ctx.parent.content_height, style.font_size);
 
-    let positioned_container =
-        style.position == Position::Relative || style.position == Position::Absolute;
+    // An element establishes a containing block for absolute descendants when it
+    // is positioned OR carries a `transform` (CSS Transforms § 3). This makes a
+    // transformed non-positioned ancestor act as the CB for its absolute kids.
+    let positioned_container = crate::layout::helpers::establishes_containing_block(style);
     let make_containing_block = |padding_box_height: f32| {
         if positioned_container {
             // `block_w` is the border-box width for both box-sizing modes, so the
@@ -216,6 +264,38 @@ pub(crate) fn layout_block_element(
         } else {
             None
         }
+    };
+
+    // Absolute containing block to forward to this element's descendants.
+    //
+    // A `position: static` element does NOT establish a containing block, so it
+    // forwards the inherited `abs_containing_block` unchanged — this is what lets
+    // an absolute box skip static intermediate ancestors and resolve against the
+    // nearest *positioned* ancestor (CSS 2.1 § 10.1). A positioned element
+    // replaces it with its own padding box. Direct absolute children are later
+    // re-patched with the finalized containing block (`patch_absolute_children_…`)
+    // once the box height is known; this forwarded value carries the correct
+    // origin x and depth to deeper descendants nested inside static intermediates.
+    //
+    // The forwarded CB height is the box's definite height when known. For an
+    // auto-height positioned ancestor it is not yet measured at descent time, so
+    // it falls back to 0 — only relevant to a DEEP `bottom`/`right`-anchored
+    // descendant nested inside static intermediates (a direct child is re-patched
+    // with the real height). top/left descendants (the common case) are exact.
+    let forward_abs_cb = if positioned_container {
+        let cb_padding_box_h = effective_height.map_or(0.0, |h| {
+            resolve_content_box_height(
+                h,
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            ) + style.padding.top
+                + style.padding.bottom
+        });
+        make_containing_block(cb_padding_box_h)
+    } else {
+        abs_containing_block
     };
 
     // Emit block-level ::before pseudo-element.
@@ -1139,11 +1219,15 @@ pub(crate) fn layout_block_element(
         );
         cb_info = make_containing_block(total_h);
 
-        // Resolve containing block and offsets for absolute elements
+        // Resolve containing block and offsets for absolute elements.
+        // `resolve_abs_containing_block` measures bottom/right insets to the box's
+        // border-box edge (`cb.height - elem_height - bottom`), so pass the
+        // *border-box* height/width — `total_h` is the padding box, so add the
+        // vertical border back (width `block_w` is already border-box).
         let (elem_cb, resolved_top, resolved_left) = resolve_abs_containing_block(
             style,
             abs_containing_block,
-            total_h,
+            total_h + style.border.vertical_width(),
             explicit_width.unwrap_or(block_w),
         );
 
@@ -1383,7 +1467,7 @@ pub(crate) fn layout_block_element(
                             child_el,
                             child_parent_style,
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size)
-                                .with_containing_block(child_cb),
+                                .with_cbs(forward_abs_cb, child_cb),
                             &mut child_elements,
                             None,
                             child_ancestors,
@@ -1565,9 +1649,16 @@ pub(crate) fn layout_block_element(
             repeat: background_repeat,
             origin: background_origin,
         } = BackgroundFields::from_style(style);
-        // Resolve containing block and offsets for absolute elements
-        let (_wrapper_cb, wrapper_top, wrapper_left) =
-            resolve_abs_containing_block(style, abs_containing_block, container_h, block_w);
+        // Resolve containing block and offsets for absolute elements.
+        // Pass the border-box height (`container_h` is the padding box) so a
+        // bottom-anchored absolute box measures to its border edge, not 1 border
+        // width too low.
+        let (wrapper_cb, wrapper_top, wrapper_left) = resolve_abs_containing_block(
+            style,
+            abs_containing_block,
+            container_h + style.border.vertical_width(),
+            block_w,
+        );
         // Emit a Container element with true parent-child nesting.
         // The renderer draws background/border, then renders children inside.
         output.push(LayoutElement::Container {
@@ -1627,6 +1718,8 @@ pub(crate) fn layout_block_element(
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             z_index: style.z_index,
+            positioned_depth,
+            containing_block: wrapper_cb,
         });
     } else {
         if no_inline_content {
@@ -1690,7 +1783,7 @@ pub(crate) fn layout_block_element(
                             child_el,
                             child_parent_style,
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size)
-                                .with_containing_block(cb_info),
+                                .with_cbs(forward_abs_cb, cb_info),
                             output,
                             None,
                             child_ancestors,
