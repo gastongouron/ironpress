@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content list mix string counter attr</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 360px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #1a1a2e;
+    background: #e9c46a;
+    font-family: ParitySans;
+    font-size: 24px;
+    line-height: 1.3;
+    color: #1a1a2e;
+    counter-reset: row;
+  }
+  .row { counter-increment: row; }
+  .row::before {
+    content: "[" counter(row) "] " attr(data-tag) ": ";
+    color: #9b2226;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="row" data-tag="A">first</div>
+    <div class="row" data-tag="B">second</div>
+  </div>
+</body>
+</html>

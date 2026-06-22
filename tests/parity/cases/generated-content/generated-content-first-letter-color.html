@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>first-letter color background</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 300px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #283618;
+    background: #fefae0;
+    font-family: ParitySans;
+    font-size: 24px;
+    line-height: 1.4;
+    color: #283618;
+  }
+  .para::first-letter {
+    color: #ffffff;
+    background: #bc6c25;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><p class="para">First letter is white on an orange background but stays the same size.</p></div>
+</body>
+</html>

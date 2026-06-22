@@ -42,6 +42,8 @@ pub(crate) fn layout_block_element(
     positioned_depth: usize,
     before_style: Option<ComputedStyle>,
     after_style: Option<ComputedStyle>,
+    first_line_style: Option<ComputedStyle>,
+    first_letter_style: Option<ComputedStyle>,
     env: &mut LayoutEnv,
 ) -> bool {
     let available_width = ctx.available_width();
@@ -1108,6 +1110,13 @@ pub(crate) fn layout_block_element(
         );
     }
 
+    // `::first-letter` (css-pseudo-4 §2.2): split off and restyle the first
+    // typographic letter unit before line breaking so its (possibly larger)
+    // glyph participates in wrapping.
+    if let Some(ref fl) = first_letter_style {
+        crate::layout::helpers::apply_first_letter_style(&mut runs, fl, env.fonts);
+    }
+
     let had_text_runs = runs.iter().any(|r| !r.text.trim().is_empty());
     let has_inline_box_runs = runs.iter().any(|r| r.inline_box.is_some());
     // Inline-block boxes that sit *amongst text* are part of the line and are
@@ -1160,6 +1169,12 @@ pub(crate) fn layout_block_element(
             .with_pre_wrap(style.white_space == WhiteSpace::PreWrap),
             env.fonts,
         );
+
+        // `::first-line` (css-pseudo-4 §2.1): restyle the runs that landed on
+        // the dynamically-determined first formatted line.
+        if let Some(ref fl) = first_line_style {
+            crate::layout::helpers::apply_first_line_style(&mut lines, fl, env.fonts);
+        }
 
         // Apply text-overflow: ellipsis when overflow is hidden, white-space
         // is nowrap, and we have a fixed width.

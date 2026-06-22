@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content counter roman style</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .list {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #14213d;
+    background: #f7ede2;
+    font-family: ParitySans;
+    font-size: 26px;
+    line-height: 1.4;
+    color: #14213d;
+    counter-reset: step;
+  }
+  .item { counter-increment: step; }
+  .item::before {
+    content: counter(step, upper-roman) ". ";
+    color: #bc4749;
+  }
+</style>
+</head>
+<body>
+  <div class="list">
+    <div class="item">Alpha</div>
+    <div class="item">Beta</div>
+    <div class="item">Gamma</div>
+    <div class="item">Delta</div>
+  </div>
+</body>
+</html>

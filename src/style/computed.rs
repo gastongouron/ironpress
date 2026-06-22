@@ -895,6 +895,16 @@ pub enum ContentItem {
     OpenQuote,
     /// `close-quote` keyword — resolves to the closing quotation mark.
     CloseQuote,
+    /// `no-open-quote` keyword — inserts nothing but increments quote depth
+    /// (css-content-3 §2.4.2).
+    NoOpenQuote,
+    /// `no-close-quote` keyword — inserts nothing but decrements quote depth
+    /// (css-content-3 §2.4.2).
+    NoCloseQuote,
+    /// `url(...)` / `<image>` — makes the pseudo-element a replaced element
+    /// filled with the referenced image (css-content-3 §1, §2). Holds the raw
+    /// URL/data-URI string.
+    Url(String),
 }
 
 /// CSS box-shadow value.
@@ -1159,6 +1169,11 @@ pub struct ComputedStyle {
     pub content: Vec<ContentItem>,
     pub counter_reset: Vec<(String, i32)>,
     pub counter_increment: Vec<(String, i32)>,
+    /// CSS `quotes` property: ordered (open, close) glyph pairs by nesting level.
+    /// `None` means `auto`/unset (use the UA default pair); an empty `Vec` means
+    /// `quotes: none` (open/close-quote produce no glyphs). Per css-content-3
+    /// §2.4. Inherited.
+    pub quotes: Option<Vec<(String, String)>>,
     pub column_count: Option<u32>,
     /// CSS `column-width` (the ideal width of each column, in px). Combined with
     /// `column-count` to derive the used number of columns for multicol flow.
@@ -1340,6 +1355,7 @@ impl Default for ComputedStyle {
             list_style_type: ListStyleType::Disc,
             list_style_position: ListStylePosition::Outside,
             content: Vec::new(),
+            quotes: None,
             counter_reset: Vec::new(),
             counter_increment: Vec::new(),
             column_count: None,
@@ -1776,7 +1792,16 @@ pub fn compute_pseudo_element_style(
     // without content). `::marker`, however, always has a box — its content
     // defaults to the list marker symbol — so author rules that only restyle it
     // (e.g. `li::marker { color: … }`) must still apply even with empty content.
-    if style.content.is_empty() && pseudo != crate::parser::css::PseudoElement::Marker {
+    // `::first-line`/`::first-letter` never carry `content`; they restyle
+    // existing text, so they are likewise exempt from the empty-content check.
+    if style.content.is_empty()
+        && !matches!(
+            pseudo,
+            crate::parser::css::PseudoElement::Marker
+                | crate::parser::css::PseudoElement::FirstLine
+                | crate::parser::css::PseudoElement::FirstLetter
+        )
+    {
         return None;
     }
 
@@ -3785,6 +3810,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "content") {
         style.content = parse_content_value(k);
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "quotes") {
+        style.quotes = parse_quotes_value(k);
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-reset") {
         style.counter_reset = parse_counter_directive(k, 0);
     }
@@ -3872,6 +3900,21 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
             );
             items.push(ContentItem::Counter(name, style));
             rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function(rest, "url(") {
+            // `url(...)` is a <content-replacement>: it makes the pseudo a
+            // replaced element. Strip optional surrounding quotes from the URL.
+            let url = inner
+                .trim()
+                .trim_matches(|c: char| c == '"' || c == '\'')
+                .to_string();
+            items.push(ContentItem::Url(url));
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("no-open-quote") {
+            items.push(ContentItem::NoOpenQuote);
+            rest = tail;
+        } else if let Some(tail) = rest.strip_prefix("no-close-quote") {
+            items.push(ContentItem::NoCloseQuote);
+            rest = tail;
         } else if let Some(tail) = rest.strip_prefix("open-quote") {
             items.push(ContentItem::OpenQuote);
             rest = tail;
@@ -3889,6 +3932,54 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
 
 fn parse_content_function<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
     rest.strip_prefix(prefix)?.split_once(')')
+}
+
+/// Parse the CSS `quotes` property (css-content-3 §2.4.1).
+///
+/// `none` -> `Some(vec![])` (open/close-quote produce nothing).
+/// `auto` / `match-parent` / css-wide keywords -> `None` (use UA default).
+/// `<string> <string>+` -> ordered (open, close) pairs by nesting level.
+fn parse_quotes_value(raw: &str) -> Option<Vec<(String, String)>> {
+    let s = raw.trim();
+    let lower = s.to_ascii_lowercase();
+    if lower == "none" {
+        return Some(Vec::new());
+    }
+    if lower == "auto" || lower == "match-parent" || lower == "inherit" || lower == "initial" {
+        return None;
+    }
+    // Collect every double/single-quoted string in order, honoring `\"` escapes.
+    let mut strings: Vec<String> = Vec::new();
+    let mut chars = s.chars().peekable();
+    while let Some(&c) = chars.peek() {
+        if c == '"' || c == '\'' {
+            let quote = c;
+            chars.next();
+            let mut buf = String::new();
+            while let Some(ch) = chars.next() {
+                if ch == '\\' {
+                    if let Some(next) = chars.next() {
+                        buf.push(next);
+                    }
+                } else if ch == quote {
+                    break;
+                } else {
+                    buf.push(ch);
+                }
+            }
+            strings.push(buf);
+        } else {
+            chars.next();
+        }
+    }
+    if strings.len() < 2 {
+        return None;
+    }
+    let pairs: Vec<(String, String)> = strings
+        .chunks_exact(2)
+        .map(|pair| (pair[0].clone(), pair[1].clone()))
+        .collect();
+    if pairs.is_empty() { None } else { Some(pairs) }
 }
 
 fn parse_counter_directive(raw: &str, default_value: i32) -> Vec<(String, i32)> {
@@ -10886,6 +10977,57 @@ mod tests {
         // Unknown token at the end with no whitespace -> break (line 1546)
         let items = parse_content_value_pub("unknown");
         assert!(items.is_empty());
+    }
+
+    #[test]
+    fn content_url_double_quoted() {
+        let items = parse_content_value_pub("url(\"data:image/png;base64,AAA=\")");
+        assert_eq!(
+            items,
+            vec![ContentItem::Url("data:image/png;base64,AAA=".to_string())]
+        );
+    }
+
+    #[test]
+    fn content_url_unquoted() {
+        let items = parse_content_value_pub("url(icon.png)");
+        assert_eq!(items, vec![ContentItem::Url("icon.png".to_string())]);
+    }
+
+    #[test]
+    fn content_no_open_close_quote_keywords() {
+        assert_eq!(
+            parse_content_value_pub("no-open-quote"),
+            vec![ContentItem::NoOpenQuote]
+        );
+        assert_eq!(
+            parse_content_value_pub("no-close-quote"),
+            vec![ContentItem::NoCloseQuote]
+        );
+        // `no-open-quote` must be matched before `open-quote`.
+        assert_eq!(
+            parse_content_value_pub("open-quote close-quote"),
+            vec![ContentItem::OpenQuote, ContentItem::CloseQuote]
+        );
+    }
+
+    #[test]
+    fn quotes_value_none_and_pairs() {
+        assert_eq!(parse_quotes_value("none"), Some(Vec::new()));
+        assert_eq!(parse_quotes_value("auto"), None);
+        assert_eq!(
+            parse_quotes_value("\"\\\"\" \"\\\"\""),
+            Some(vec![("\"".to_string(), "\"".to_string())])
+        );
+        assert_eq!(
+            parse_quotes_value("\"\u{201C}\" \"\u{201D}\" \"\u{2039}\" \"\u{203A}\""),
+            Some(vec![
+                ("\u{201C}".to_string(), "\u{201D}".to_string()),
+                ("\u{2039}".to_string(), "\u{203A}".to_string()),
+            ])
+        );
+        // An odd/short list is invalid -> use UA default.
+        assert_eq!(parse_quotes_value("\"a\""), None);
     }
 
     // --- Coverage: parse_background_size_explicit (lines 1577-1595) ---

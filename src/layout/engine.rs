@@ -301,6 +301,10 @@ pub struct InlineBox {
     pub vertical_align: VerticalAlign,
     /// Pre-wrapped inner text lines (empty for content-less boxes).
     pub lines: Vec<TextLine>,
+    /// Replaced-element image painted to fill the content box, for a pseudo-
+    /// element with `content: url(...)` (css-content-3 §1). When set, the box is
+    /// a replaced inline image rather than a text/decorative box.
+    pub image: Option<RasterImageAsset>,
 }
 
 impl InlineBox {
@@ -2146,6 +2150,26 @@ pub(crate) fn flatten_element(
         &selector_ctx,
         PseudoElement::After,
     );
+    let first_line_style = compute_pseudo_element_style(
+        &style,
+        env.rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::FirstLine,
+    );
+    let first_letter_style = compute_pseudo_element_style(
+        &style,
+        env.rules,
+        el.tag_name(),
+        &cls,
+        el.id(),
+        &el.attributes,
+        &selector_ctx,
+        PseudoElement::FirstLetter,
+    );
 
     route_element(
         el,
@@ -2157,6 +2181,8 @@ pub(crate) fn flatten_element(
         positioned_depth,
         before_style,
         after_style,
+        first_line_style,
+        first_letter_style,
         env,
     );
 }
@@ -2240,6 +2266,8 @@ fn route_element(
     positioned_depth: usize,
     before_style: Option<ComputedStyle>,
     after_style: Option<ComputedStyle>,
+    first_line_style: Option<ComputedStyle>,
+    first_letter_style: Option<ComputedStyle>,
     env: &mut LayoutEnv,
 ) {
     let layout_ctx = *ctx;
@@ -2307,6 +2335,8 @@ fn route_element(
             positioned_depth,
             before_style,
             after_style,
+            first_line_style,
+            first_letter_style,
             env,
         );
         if early_exit {

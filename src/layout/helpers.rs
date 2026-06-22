@@ -344,11 +344,52 @@ pub(crate) fn resolve_content(
     attributes: &HashMap<String, String>,
     counter_state: &CounterState,
 ) -> String {
+    resolve_content_with_quotes(items, attributes, counter_state, None)
+}
+
+/// Default UA quote pairs when the `quotes` property is `auto`/unset
+/// (English-style typographic quotes for two nesting levels).
+const DEFAULT_QUOTES: &[(&str, &str)] = &[("\u{201C}", "\u{201D}"), ("\u{2018}", "\u{2019}")];
+
+/// Resolve a `content` value to its text, honoring the `quotes` property and
+/// quote-depth nesting for open/close-quote keywords (css-content-3 §2.4.2).
+///
+/// `quotes` is `None` for `auto`/unset (use [`DEFAULT_QUOTES`]); `Some(&[])`
+/// means `quotes: none` (open/close-quote produce no glyphs). Depth is tracked
+/// within this content list, which covers nested quotes inside one declaration
+/// and the common `::before { open-quote } / ::after { close-quote }` pattern.
+/// `Url` items are replaced content and are skipped here.
+pub(crate) fn resolve_content_with_quotes(
+    items: &[ContentItem],
+    attributes: &HashMap<String, String>,
+    counter_state: &CounterState,
+    quotes: Option<&[(String, String)]>,
+) -> String {
     let mut result = String::new();
+    let mut depth: usize = 0;
+    let open_glyph = |level: usize| -> String {
+        match quotes {
+            Some([]) => String::new(),
+            Some(pairs) => pairs[level.min(pairs.len() - 1)].0.clone(),
+            None => DEFAULT_QUOTES[level.min(DEFAULT_QUOTES.len() - 1)]
+                .0
+                .to_string(),
+        }
+    };
+    let close_glyph = |level: usize| -> String {
+        match quotes {
+            Some([]) => String::new(),
+            Some(pairs) => pairs[level.min(pairs.len() - 1)].1.clone(),
+            None => DEFAULT_QUOTES[level.min(DEFAULT_QUOTES.len() - 1)]
+                .1
+                .to_string(),
+        }
+    };
     for item in items {
         match item {
             ContentItem::String(s) => result.push_str(s),
             ContentItem::Attr(name) => {
+                // Missing attribute resolves to the empty string (css-content-3 §1).
                 if let Some(val) = attributes.get(name) {
                     result.push_str(val);
                 }
@@ -359,12 +400,210 @@ pub(crate) fn resolve_content(
             ContentItem::Counters(name, sep, style) => {
                 result.push_str(&counter_state.get_all_styled(name, sep, *style));
             }
-            // Default `quotes` (first nesting level): U+201C / U+201D.
-            ContentItem::OpenQuote => result.push('\u{201C}'),
-            ContentItem::CloseQuote => result.push('\u{201D}'),
+            ContentItem::OpenQuote => {
+                result.push_str(&open_glyph(depth));
+                depth += 1;
+            }
+            ContentItem::NoOpenQuote => {
+                depth += 1;
+            }
+            ContentItem::CloseQuote => {
+                depth = depth.saturating_sub(1);
+                result.push_str(&close_glyph(depth));
+            }
+            ContentItem::NoCloseQuote => {
+                depth = depth.saturating_sub(1);
+            }
+            // Replaced-element content (`url(...)`) is handled by the caller as
+            // an image box, not text.
+            ContentItem::Url(_) => {}
         }
     }
     result
+}
+
+/// Returns the first `url()` image reference in a content list, if any.
+pub(crate) fn content_image_url(items: &[ContentItem]) -> Option<&str> {
+    items.iter().find_map(|item| match item {
+        ContentItem::Url(url) => Some(url.as_str()),
+        _ => None,
+    })
+}
+
+/// Apply a `::first-line` pseudo style (css-pseudo-4 §2.1) to the runs of the
+/// already-wrapped first line. Per the spec's restricted property set, only the
+/// font/color/decoration-style typesetting properties are overlaid; the text
+/// content and geometry are unchanged. Restyling happens after line breaking so
+/// the first line is determined dynamically by wrapping.
+pub(crate) fn apply_first_line_style(
+    lines: &mut [TextLine],
+    fl: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    let Some(first) = lines.first_mut() else {
+        return;
+    };
+    let family = resolve_style_font_family(fl, fonts);
+    let line_height = resolved_line_height_factor(fl, fonts);
+    for run in &mut first.runs {
+        // Atomic inline boxes (inline-block / images) are not restyled by
+        // ::first-line; only their geometry already participates in the line.
+        if run.inline_box.is_some() {
+            continue;
+        }
+        run.color = fl.color.to_f32_rgb();
+        run.bold = fl.font_weight == FontWeight::Bold;
+        run.italic = fl.font_style == FontStyle::Italic;
+        run.underline = fl.text_decoration_underline;
+        run.line_through = fl.text_decoration_line_through;
+        run.overline = fl.text_decoration_overline;
+        run.font_family = family.clone();
+        run.background_color = fl.background_color.map(|c| c.to_f32_rgba());
+        run.line_height_factor = line_height;
+    }
+}
+
+/// Length, in bytes, of the leading `::first-letter` unit of `text`
+/// (css-pseudo-4 §2.2.1): any preceding opening/other punctuation plus
+/// interspersed spaces, the first Letter/Number/Symbol character, and any
+/// immediately-following closing punctuation. Returns 0 when no letter unit is
+/// found (the run is then left untouched).
+fn first_letter_len(text: &str) -> usize {
+    let mut idx = 0usize;
+    let mut found_letter = false;
+    let mut chars = text.char_indices().peekable();
+    // Leading punctuation (Unicode P*) and interspersed spaces before the letter.
+    while let Some(&(i, c)) = chars.peek() {
+        if is_typographic_space(c) || is_punctuation(c) {
+            idx = i + c.len_utf8();
+            chars.next();
+        } else {
+            break;
+        }
+    }
+    // The first Letter/Number/Symbol character unit.
+    if let Some(&(i, c)) = chars.peek()
+        && (c.is_alphanumeric() || is_symbol(c))
+    {
+        idx = i + c.len_utf8();
+        found_letter = true;
+        chars.next();
+    }
+    if !found_letter {
+        return 0;
+    }
+    // Trailing closing punctuation directly attached to the letter.
+    while let Some(&(i, c)) = chars.peek() {
+        if is_punctuation(c) {
+            idx = i + c.len_utf8();
+            chars.next();
+        } else {
+            break;
+        }
+    }
+    idx
+}
+
+fn is_typographic_space(c: char) -> bool {
+    c == ' ' || c == '\u{00A0}' || c == '\t'
+}
+
+fn is_punctuation(c: char) -> bool {
+    // Approximate Unicode P* using ASCII punctuation plus common typographic
+    // quotes/dashes; sufficient for print fixtures without a Unicode DB.
+    c.is_ascii_punctuation()
+        || matches!(
+            c,
+            '\u{2018}'
+                | '\u{2019}'
+                | '\u{201C}'
+                | '\u{201D}'
+                | '\u{2013}'
+                | '\u{2014}'
+                | '\u{00AB}'
+                | '\u{00BB}'
+                | '\u{00A1}'
+                | '\u{00BF}'
+        )
+}
+
+fn is_symbol(c: char) -> bool {
+    matches!(c, '$' | '£' | '€' | '¥' | '#' | '%' | '+' | '<' | '=' | '>')
+}
+
+/// Split off the leading `::first-letter` unit of the first text-bearing run and
+/// restyle it (css-pseudo-4 §2.2). Mutates `runs` in place: the matched run is
+/// replaced by an optional leading-whitespace run, the styled first-letter run,
+/// and the remainder run. Applies the restricted property set (font/color/
+/// decoration/transform). Drop-cap float reservation is not modeled, so the
+/// enlarged letter renders inline at the start of the first line.
+pub(crate) fn apply_first_letter_style(
+    runs: &mut Vec<TextRun>,
+    fl: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    // Find the first run carrying renderable text (skip pure-whitespace and
+    // atomic-box runs, which precede the first letter, e.g. a ::before marker).
+    let Some(pos) = runs
+        .iter()
+        .position(|r| r.inline_box.is_none() && !r.text.trim().is_empty())
+    else {
+        return;
+    };
+    let split = first_letter_len(&runs[pos].text);
+    if split == 0 {
+        return;
+    }
+    let base = runs[pos].clone();
+    let first_text = base.text[..split].to_string();
+    let rest_text = base.text[split..].to_string();
+
+    let mut letter_run = base.clone();
+    letter_run.text = apply_text_transform(&first_text, fl.text_transform);
+    letter_run.font_size = fl.font_size;
+    letter_run.color = fl.color.to_f32_rgb();
+    letter_run.bold = fl.font_weight == FontWeight::Bold;
+    letter_run.italic = fl.font_style == FontStyle::Italic;
+    letter_run.underline = fl.text_decoration_underline;
+    letter_run.line_through = fl.text_decoration_line_through;
+    letter_run.overline = fl.text_decoration_overline;
+    letter_run.font_family = resolve_style_font_family(fl, fonts);
+    letter_run.background_color = fl.background_color.map(|c| c.to_f32_rgba());
+    letter_run.line_height_factor = resolved_line_height_factor(fl, fonts);
+
+    let mut replacement = Vec::with_capacity(2);
+    replacement.push(letter_run);
+    if !rest_text.is_empty() {
+        let mut rest_run = base;
+        rest_run.text = rest_text;
+        replacement.push(rest_run);
+    }
+    runs.splice(pos..=pos, replacement);
+}
+
+fn apply_text_transform(text: &str, transform: crate::style::computed::TextTransform) -> String {
+    use crate::style::computed::TextTransform;
+    match transform {
+        TextTransform::Uppercase => text.to_uppercase(),
+        TextTransform::Lowercase => text.to_lowercase(),
+        TextTransform::Capitalize => {
+            let mut out = String::with_capacity(text.len());
+            let mut at_start = true;
+            for c in text.chars() {
+                if c.is_whitespace() {
+                    at_start = true;
+                    out.push(c);
+                } else if at_start {
+                    out.extend(c.to_uppercase());
+                    at_start = false;
+                } else {
+                    out.push(c);
+                }
+            }
+            out
+        }
+        TextTransform::None => text.to_string(),
+    }
 }
 
 pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
@@ -447,7 +686,12 @@ pub(crate) fn build_pseudo_block(
     positioned_ancestor_depth: usize,
     counter_state: &CounterState,
 ) -> LayoutElement {
-    let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
+    let content_text = resolve_content_with_quotes(
+        &pseudo_style.content,
+        &el.attributes,
+        counter_state,
+        pseudo_style.quotes.as_deref(),
+    );
     let mut block_w = available_width;
     if let Some(cb) = containing_block_info
         && let Some(percent) = pseudo_style.percentage_sizing.width
@@ -700,7 +944,36 @@ pub(crate) fn build_pseudo_inline_run(
     fonts: &HashMap<String, TtfFont>,
     counter_state: &CounterState,
 ) -> TextRun {
-    let content_text = resolve_content(&pseudo_style.content, &el.attributes, counter_state);
+    let content_text = resolve_content_with_quotes(
+        &pseudo_style.content,
+        &el.attributes,
+        counter_state,
+        pseudo_style.quotes.as_deref(),
+    );
+
+    // `content: url(...)` makes the pseudo a replaced inline image
+    // (css-content-3 §1). Decode it and emit an image-bearing InlineBox.
+    if let Some(url) = content_image_url(&pseudo_style.content)
+        && let Some(inline) = build_pseudo_image_box(pseudo_style, url)
+    {
+        return TextRun {
+            text: String::new(),
+            font_size: pseudo_style.font_size,
+            bold: false,
+            italic: false,
+            underline: false,
+            line_through: false,
+            overline: false,
+            color: pseudo_style.color.to_f32_rgb(),
+            link_url: None,
+            font_family: resolve_style_font_family(pseudo_style, fonts),
+            background_color: None,
+            padding: (0.0, 0.0),
+            border_radius: 0.0,
+            line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+            inline_box: Some(Box::new(inline)),
+        };
+    }
 
     // `display: inline-block` pseudo-elements (e.g. a decorative
     // `::before { content: ""; display: inline-block; width/height/background }`)
@@ -836,7 +1109,45 @@ fn build_pseudo_inline_box(
         padding_left: pseudo_style.padding.left,
         vertical_align: pseudo_style.vertical_align,
         lines,
+        image: None,
     }
+}
+
+/// Build a replaced-image `InlineBox` for a pseudo-element whose `content` is a
+/// `url(...)` (css-content-3 §1). The box uses the explicit CSS width/height
+/// when given, otherwise the image's intrinsic pixel dimensions. Returns `None`
+/// if the image cannot be decoded (the pseudo then produces no box).
+fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<InlineBox> {
+    let image_src = crate::parser::css::extract_url_path(url).unwrap_or_else(|| url.to_string());
+    let (raw, _mime) = crate::layout::images::load_src_bytes(&image_src)?;
+    let image = crate::layout::images::load_image_bytes(raw)?;
+
+    let intrinsic_w = image.source_width.max(1) as f32;
+    let intrinsic_h = image.source_height.max(1) as f32;
+    // Resolve the painted size: explicit dimensions win; a single explicit
+    // dimension scales the other by the intrinsic aspect ratio; otherwise use
+    // the intrinsic pixel size (CSS px == intrinsic px at 1x).
+    let (width, height) = match (pseudo_style.width, pseudo_style.height) {
+        (Some(w), Some(h)) => (w.max(0.0), h.max(0.0)),
+        (Some(w), None) => (w.max(0.0), w.max(0.0) * intrinsic_h / intrinsic_w),
+        (None, Some(h)) => (h.max(0.0) * intrinsic_w / intrinsic_h, h.max(0.0)),
+        (None, None) => (intrinsic_w, intrinsic_h),
+    };
+
+    Some(InlineBox {
+        width,
+        height,
+        margin_left: pseudo_style.margin.left.max(0.0),
+        margin_right: pseudo_style.margin.right.max(0.0),
+        background_color: None,
+        border: LayoutBorder::from_computed(&pseudo_style.border),
+        border_radius: pseudo_style.border_radius,
+        padding_top: 0.0,
+        padding_left: 0.0,
+        vertical_align: pseudo_style.vertical_align,
+        lines: Vec::new(),
+        image: Some(image),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1103,5 +1414,113 @@ pub(crate) fn patch_absolute_children_containing_block(
                 *containing_block = Some(cb);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod generated_content_tests {
+    use super::*;
+    use crate::style::computed::ContentItem;
+    use std::collections::HashMap;
+
+    fn cs() -> CounterState {
+        CounterState::default()
+    }
+
+    #[test]
+    fn first_letter_len_basic() {
+        assert_eq!(first_letter_len("Drop cap"), "D".len());
+        assert_eq!(first_letter_len("hello"), "h".len());
+    }
+
+    #[test]
+    fn first_letter_len_leading_punctuation() {
+        // Leading quote plus the letter are one first-letter unit.
+        assert_eq!(first_letter_len("\u{201C}Once"), "\u{201C}O".len());
+        assert_eq!(first_letter_len("(A)"), "(A)".len());
+    }
+
+    #[test]
+    fn first_letter_len_no_letter() {
+        assert_eq!(first_letter_len("   "), 0);
+        assert_eq!(first_letter_len(""), 0);
+    }
+
+    #[test]
+    fn resolve_quotes_uses_declared_pairs() {
+        let items = vec![ContentItem::OpenQuote];
+        let pairs = [("<".to_string(), ">".to_string())];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), Some(&pairs));
+        assert_eq!(s, "<");
+    }
+
+    #[test]
+    fn resolve_quotes_none_is_empty() {
+        let items = vec![ContentItem::OpenQuote, ContentItem::CloseQuote];
+        let pairs: [(String, String); 0] = [];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), Some(&pairs));
+        assert_eq!(s, "");
+    }
+
+    #[test]
+    fn resolve_quotes_default_when_unset() {
+        let items = vec![ContentItem::OpenQuote, ContentItem::CloseQuote];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), None);
+        assert_eq!(s, "\u{201C}\u{201D}");
+    }
+
+    #[test]
+    fn resolve_quotes_nested_depth() {
+        // Two pairs, nested open/open/close/close cycles through levels.
+        let items = vec![
+            ContentItem::OpenQuote,
+            ContentItem::OpenQuote,
+            ContentItem::CloseQuote,
+            ContentItem::CloseQuote,
+        ];
+        let pairs = [
+            ("A".to_string(), "a".to_string()),
+            ("B".to_string(), "b".to_string()),
+        ];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), Some(&pairs));
+        assert_eq!(s, "ABba");
+    }
+
+    #[test]
+    fn resolve_no_quote_keywords_track_depth_without_glyphs() {
+        // no-open-quote increments depth but emits nothing; close then uses depth 0.
+        let items = vec![ContentItem::NoOpenQuote, ContentItem::CloseQuote];
+        let pairs = [("A".to_string(), "a".to_string())];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), Some(&pairs));
+        assert_eq!(s, "a");
+    }
+
+    #[test]
+    fn resolve_close_quote_does_not_underflow() {
+        // A stray close-quote at depth 0 stays at 0 (css-content-3 §2.4.2).
+        let items = vec![ContentItem::CloseQuote];
+        let pairs = [("A".to_string(), "a".to_string())];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), Some(&pairs));
+        assert_eq!(s, "a");
+    }
+
+    #[test]
+    fn content_image_url_finds_url() {
+        let items = vec![
+            ContentItem::String("x".to_string()),
+            ContentItem::Url("foo.png".to_string()),
+        ];
+        assert_eq!(content_image_url(&items), Some("foo.png"));
+        assert_eq!(
+            content_image_url(&[ContentItem::String("x".to_string())]),
+            None
+        );
+    }
+
+    #[test]
+    fn missing_attr_resolves_to_empty() {
+        let items = vec![ContentItem::Attr("data-missing".to_string())];
+        let s = resolve_content_with_quotes(&items, &HashMap::new(), &cs(), None);
+        assert_eq!(s, "");
     }
 }

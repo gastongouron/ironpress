@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>first-line background color</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 260px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #1b263b;
+    background: #e0e1dd;
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.3;
+    color: #1b263b;
+  }
+  .para::first-line {
+    background-color: #ffd166;
+    color: #6a040f;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><p class="para">The first line has a highlight background while the rest of this wrapped paragraph is plain.</p></div>
+</body>
+</html>

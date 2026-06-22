@@ -797,6 +797,7 @@ fn build_inline_box(
         padding_left: style.padding.left,
         vertical_align: style.vertical_align,
         lines,
+        image: None,
     })
 }
 

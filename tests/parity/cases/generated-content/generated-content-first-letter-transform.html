@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>first-letter text-transform uppercase</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 300px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #283618;
+    background: #fefae0;
+    font-family: ParitySans;
+    font-size: 24px;
+    line-height: 1.4;
+    color: #283618;
+  }
+  .para::first-letter {
+    text-transform: uppercase;
+    color: #bc6c25;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><p class="para">the first letter is uppercased and colored while the rest stays lowercase.</p></div>
+</body>
+</html>

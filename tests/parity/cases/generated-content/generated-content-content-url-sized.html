@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content url image sized</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #22223b;
+    background: #c9ada7;
+    font-family: ParitySans;
+    font-size: 26px;
+    line-height: 1.2;
+    color: #22223b;
+  }
+  .icon::before {
+    content: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAAH0lEQVR4nGPQ6w6nCmIYNWjUoFGDRg0aNWjUoIE3CABVSmQfiLHieQAAAABJRU5ErkJggg==");
+    width: 40px;
+    height: 40px;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><span class="icon"> label</span></div>
+</body>
+</html>

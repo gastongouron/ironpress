@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>after on replaced element not generated</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #22223b;
+    background: #c9ada7;
+    font-family: ParitySans;
+    font-size: 26px;
+    line-height: 1.2;
+    color: #22223b;
+  }
+  .pic { width: 40px; height: 40px; }
+  /* On a replaced element (img), ::after generates no box. */
+  .pic::after { content: "X"; color: #b00020; }
+</style>
+</head>
+<body>
+  <div class="box"><img class="pic" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAAH0lEQVR4nGPQ6w6nCmIYNWjUoFGDRg0aNWjUoIE3CABVSmQfiLHieQAAAABJRU5ErkJggg=="></div>
+</body>
+</html>

@@ -1216,6 +1216,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &prepared_custom_fonts,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
+                                    &mut pdf_writer,
+                                    &mut page_images,
                                 );
                                 bg_x += inline.outer_width();
                                 continue;
@@ -6902,6 +6904,8 @@ fn render_inline_box(
     prepared_custom_fonts: &PreparedCustomFonts,
     page_ext_gstates: &mut Vec<(String, f32)>,
     bg_alpha_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     let h = inline.height;
     // Bottom edge of the box (PDF, y-up) for each vertical-align mode.
@@ -6943,6 +6947,30 @@ fn render_inline_box(
         if needs_alpha {
             content.push_str("/GSDefault gs\n");
         }
+    }
+
+    // Replaced-element image (pseudo `content: url(...)`): fill the content box
+    // (inside the border) with the decoded raster, scaled to the box size.
+    if let Some(image) = &inline.image {
+        let content_x = box_x + inline.border.left.width;
+        let content_y = box_bottom + inline.border.bottom.width;
+        let content_w = (inline.width - inline.border.horizontal_width()).max(0.0);
+        let content_h = (h - inline.border.vertical_width()).max(0.0);
+        let img_obj_id = pdf_writer.add_image_object(
+            &image.data,
+            image.source_width,
+            image.source_height,
+            image.format,
+            image.png_metadata.as_ref(),
+        );
+        let img_name = format!("Im{img_obj_id}");
+        content.push_str(&format!(
+            "q\n{content_w} 0 0 {content_h} {content_x} {content_y} cm\n/{img_name} Do\nQ\n"
+        ));
+        page_images.push(ImageRef {
+            name: img_name,
+            obj_id: img_obj_id,
+        });
     }
 
     // Border (drawn inside the border box, matching border-box sizing).

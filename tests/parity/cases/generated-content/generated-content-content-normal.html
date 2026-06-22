@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content normal suppresses before</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #2b2d42;
+    background: #cdb4db;
+    font-family: ParitySans;
+    font-size: 28px;
+    line-height: 1.2;
+    color: #2b2d42;
+  }
+  .label::before {
+    content: normal;
+    color: #b00020;
+  }
+</style>
+</head>
+<body>
+  <div class="box"><span class="label">visible</span></div>
+</body>
+</html>

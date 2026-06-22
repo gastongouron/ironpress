@@ -11,7 +11,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-after-string",
@@ -25,7 +30,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-attr",
@@ -39,7 +49,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-counter",
@@ -53,7 +68,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-content-none",
@@ -67,7 +87,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-before-decorative-box",
@@ -81,7 +106,12 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-open-close-quote",
@@ -94,8 +124,13 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-first-line",
@@ -108,8 +143,13 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-first-letter-dropcap",
@@ -122,8 +162,13 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "generated-content-content-url-image",
@@ -136,7 +181,262 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box", "probe-text-baseline", "probe-image-render"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline",
+      "probe-image-render"
+    ]
+  },
+  {
+    "id": "generated-content-counters-nested",
+    "category": "generated-content",
+    "feature": "content-counters",
+    "subfeature": "counters-nested",
+    "description": "content: counters(name, \".\") numbers nested list items as 1, 1.1, 1.2, 2 via ::before.",
+    "file": "cases/generated-content/generated-content-counters-nested.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-counter-roman",
+    "category": "generated-content",
+    "feature": "content-counter",
+    "subfeature": "counter-style-upper-roman",
+    "description": "content: counter(step, upper-roman) renders item numbers as I, II, III, IV.",
+    "file": "cases/generated-content/generated-content-counter-roman.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-content-list-mix",
+    "category": "generated-content",
+    "feature": "content-list",
+    "subfeature": "string-counter-attr-mix",
+    "description": "A single content declaration concatenates a string, counter(), and attr() into one ::before label.",
+    "file": "cases/generated-content/generated-content-content-list-mix.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-attr-missing",
+    "category": "generated-content",
+    "feature": "content-attr",
+    "subfeature": "attr-missing-empty",
+    "description": "attr() of a missing attribute resolves to the empty string, leaving only the literal brackets.",
+    "file": "cases/generated-content/generated-content-attr-missing.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-content-normal",
+    "category": "generated-content",
+    "feature": "content-suppression",
+    "subfeature": "content-normal",
+    "description": "content: normal on ::before computes to none and suppresses the pseudo-element.",
+    "file": "cases/generated-content/generated-content-content-normal.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-no-quote-keywords",
+    "category": "generated-content",
+    "feature": "quotes",
+    "subfeature": "no-open-no-close-quote",
+    "description": "no-open-quote emits no glyph while close-quote still renders the declared closing quote.",
+    "file": "cases/generated-content/generated-content-no-quote-keywords.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-nested-quotes",
+    "category": "generated-content",
+    "feature": "quotes",
+    "subfeature": "nested-two-levels",
+    "description": "Two quote pairs nest: open-quote/open-quote/close-quote/close-quote use the first then second declared pair.",
+    "file": "cases/generated-content/generated-content-nested-quotes.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-first-letter-color",
+    "category": "generated-content",
+    "feature": "first-letter",
+    "subfeature": "color-background",
+    "description": "::first-letter recolors the initial letter white on an orange background at the same size.",
+    "file": "cases/generated-content/generated-content-first-letter-color.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-first-letter-transform",
+    "category": "generated-content",
+    "feature": "first-letter",
+    "subfeature": "text-transform-uppercase",
+    "description": "::first-letter text-transform:uppercase uppercases just the initial letter.",
+    "file": "cases/generated-content/generated-content-first-letter-transform.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-first-line-background",
+    "category": "generated-content",
+    "feature": "first-line",
+    "subfeature": "background-color",
+    "description": "::first-line paints a highlight background behind the first wrapped line only.",
+    "file": "cases/generated-content/generated-content-first-line-background.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-before-block",
+    "category": "generated-content",
+    "feature": "pseudo-element",
+    "subfeature": "before-display-block",
+    "description": "::before with display:block renders a full-width colored header band above the body text.",
+    "file": "cases/generated-content/generated-content-before-block.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "generated-content-after-replaced",
+    "category": "generated-content",
+    "feature": "pseudo-element",
+    "subfeature": "after-on-replaced-img",
+    "description": "::after on a replaced <img> generates no box; only the image renders.",
+    "file": "cases/generated-content/generated-content-after-replaced.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline",
+      "probe-image-render"
+    ]
+  },
+  {
+    "id": "generated-content-content-url-sized",
+    "category": "generated-content",
+    "feature": "content-url",
+    "subfeature": "before-image-sized",
+    "description": "content: url(data:png) with explicit width/height scales the ::before replaced image.",
+    "file": "cases/generated-content/generated-content-content-url-sized.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-text-baseline",
+      "probe-image-render"
+    ]
   }
 ]

@@ -400,6 +400,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         property,
         "flex"
             | "content"
+            | "quotes"
             | "counter-reset"
             | "counter-increment"
             | "list-style-type"

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>content counters nested</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .outline {
+    width: 320px;
+    margin: 24px;
+    padding: 10px;
+    border: 2px solid #14213d;
+    background: #f7ede2;
+    font-family: ParitySans;
+    font-size: 24px;
+    line-height: 1.4;
+    color: #14213d;
+    counter-reset: sec;
+  }
+  .sec { counter-increment: sec; counter-reset: sub; }
+  .sub { counter-increment: sub; padding-left: 28px; }
+  .sec::before {
+    content: counters(sec, ".") " ";
+    color: #bc4749;
+  }
+  .sub::before {
+    content: counters(sec, ".") "." counter(sub) " ";
+    color: #bc4749;
+  }
+</style>
+</head>
+<body>
+  <div class="outline">
+    <div class="sec">Alpha</div>
+    <div class="sub">Sub one</div>
+    <div class="sub">Sub two</div>
+    <div class="sec">Beta</div>
+  </div>
+</body>
+</html>

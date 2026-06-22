@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>before display block</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .card {
+    width: 300px;
+    margin: 24px;
+    padding: 12px;
+    border: 2px solid #0b3954;
+    background: #bfd7ea;
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.4;
+    color: #0b3954;
+  }
+  .card::before {
+    content: "HEADER";
+    display: block;
+    background: #ff6b6b;
+    color: #ffffff;
+    padding: 4px 8px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="card">Body text follows the block header pseudo-element.</div>
+</body>
+</html>

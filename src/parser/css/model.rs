@@ -144,6 +144,14 @@ pub enum PseudoElement {
     /// The list-item marker box (`::marker`). Only a limited set of properties
     /// apply (color, font, content); see `compute_pseudo_element_style`.
     Marker,
+    /// The first formatted line of a block container (`::first-line`).
+    /// Restyles the runs that land on the first wrapped line. Per
+    /// css-pseudo-4 §2.1 only a restricted property subset applies.
+    FirstLine,
+    /// The first typographic letter unit (plus associated leading punctuation)
+    /// of the first formatted line (`::first-letter`). Per css-pseudo-4 §2.2
+    /// a restricted property subset applies; enables drop-cap styling.
+    FirstLetter,
 }
 
 /// A CSS rule: a selector and its declarations.

@@ -56,8 +56,12 @@ pub(crate) fn extract_pseudo_element(selector: &str) -> (String, Option<PseudoEl
         ("::before", PseudoElement::Before),
         ("::after", PseudoElement::After),
         ("::marker", PseudoElement::Marker),
+        ("::first-line", PseudoElement::FirstLine),
+        ("::first-letter", PseudoElement::FirstLetter),
         (":before", PseudoElement::Before),
         (":after", PseudoElement::After),
+        (":first-line", PseudoElement::FirstLine),
+        (":first-letter", PseudoElement::FirstLetter),
     ] {
         if let Some(base) = selector.strip_suffix(suffix) {
             let base = base.trim();
