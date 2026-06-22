@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>border-style none paints nothing</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    background-color: #ffe0b2;
+    border-width: 10px;
+    border-style: none;
+    border-color: #d50000;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -482,7 +482,10 @@ pub(super) fn render_nested_text_block(
                 ctx.bg_alpha_counter,
                 block.border.top.alpha,
             );
-            content.push_str(dash_pattern_for_style(block.border.top.style));
+            content.push_str(&dash_pattern_for_style(
+                block.border.top.style,
+                block.border.top.width,
+            ));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                 block.border.top.width
@@ -498,7 +501,10 @@ pub(super) fn render_nested_text_block(
                 ctx.bg_alpha_counter,
                 block.border.right.alpha,
             );
-            content.push_str(dash_pattern_for_style(block.border.right.style));
+            content.push_str(&dash_pattern_for_style(
+                block.border.right.style,
+                block.border.right.width,
+            ));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                 block.border.right.width
@@ -514,7 +520,10 @@ pub(super) fn render_nested_text_block(
                 ctx.bg_alpha_counter,
                 block.border.bottom.alpha,
             );
-            content.push_str(dash_pattern_for_style(block.border.bottom.style));
+            content.push_str(&dash_pattern_for_style(
+                block.border.bottom.style,
+                block.border.bottom.width,
+            ));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                 block.border.bottom.width
@@ -530,7 +539,10 @@ pub(super) fn render_nested_text_block(
                 ctx.bg_alpha_counter,
                 block.border.left.alpha,
             );
-            content.push_str(dash_pattern_for_style(block.border.left.style));
+            content.push_str(&dash_pattern_for_style(
+                block.border.left.style,
+                block.border.left.width,
+            ));
             content.push_str(&format!(
                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                 block.border.left.width

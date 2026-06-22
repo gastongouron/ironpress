@@ -38,18 +38,38 @@ use layout_elements::{
 };
 
 /// Returns the PDF dash-pattern operator string for a given border style.
-fn dash_pattern_for_style(style: BorderStyle) -> &'static str {
+/// Width-scaled dash/dot setup for a border side. Returns the PDF operators to
+/// install before stroking: a dash array (`d`) and, for dotted, a round line cap
+/// (`1 J`) so each dash collapses to a round dot of diameter = the stroke width.
+///
+/// CSS renders dotted as round dots roughly one border-width across spaced one
+/// width apart, and dashed as segments a few widths long. Scaling by the stroke
+/// width (rather than the previous fixed `[6 4]`/`[1 3]`) matches Chrome far more
+/// closely and makes the pattern visible at any border thickness.
+fn dash_pattern_for_style(style: BorderStyle, width: f32) -> String {
+    let w = width.max(0.1);
     match style {
-        BorderStyle::Dashed => "[6 4] 0 d\n",
-        BorderStyle::Dotted => "[1 3] 0 d\n",
-        _ => "",
+        // Dashes ~3x the width long with an equal gap (Chrome uses ~3:3).
+        BorderStyle::Dashed => {
+            let d = (w * 3.0).max(1.0);
+            format!("[{d} {d}] 0 d\n")
+        }
+        // Round dots: a zero-length dash under a round cap paints a filled dot of
+        // diameter = line width; spacing = 2x width gives width-on / width-off.
+        BorderStyle::Dotted => {
+            let gap = (w * 2.0).max(1.0);
+            format!("1 J\n[0 {gap}] 0 d\n")
+        }
+        _ => String::new(),
     }
 }
 
-/// Reset the dash pattern back to solid after a dashed/dotted stroke.
+/// Reset the dash pattern (and line cap) back to solid/butt after a
+/// dashed/dotted stroke so subsequent strokes are unaffected.
 fn reset_dash_pattern(style: BorderStyle) -> &'static str {
     match style {
-        BorderStyle::Dashed | BorderStyle::Dotted => "[] 0 d\n",
+        BorderStyle::Dashed => "[] 0 d\n",
+        BorderStyle::Dotted => "[] 0 d\n0 J\n",
         _ => "",
     }
 }
@@ -83,6 +103,87 @@ fn end_border_alpha(content: &mut String, applied: bool) {
     if applied {
         content.push_str("/GSDefault gs\n");
     }
+}
+
+/// Emit the border-box outline path (rectangle or rounded rectangle) inset by
+/// `inset` from each edge. `radii` are the per-corner radii of the outer
+/// border-box edge; the inset path reduces each by `inset` so the stroke's outer
+/// edge tracks the original corner. Used by the uniform-border painter to stroke
+/// a single centerline path.
+fn border_inset_path(x: f32, y: f32, w: f32, h: f32, radii: [f32; 4], inset: f32) -> String {
+    let iw = (w - 2.0 * inset).max(0.0);
+    let ih = (h - 2.0 * inset).max(0.0);
+    let ix = x + inset;
+    let iy = y + inset;
+    if !radii_any(radii) {
+        return format!("{ix} {iy} {iw} {ih} re\n");
+    }
+    if radii_uniform(radii) {
+        return rounded_rect_path(ix, iy, iw, ih, (radii[0] - inset).max(0.0));
+    }
+    let inner = [
+        (radii[0] - inset).max(0.0),
+        (radii[1] - inset).max(0.0),
+        (radii[2] - inset).max(0.0),
+        (radii[3] - inset).max(0.0),
+    ];
+    rounded_rect_path_per_corner(ix, iy, iw, ih, inner)
+}
+
+/// Whether a uniform border needs the special shared painter rather than the
+/// legacy per-site solid path. True for non-solid styles (dashed/dotted/double)
+/// and for any non-uniform per-corner radii. Plain solid borders (with uniform
+/// or no radius) keep their original output for byte/geometry stability.
+fn border_needs_special_paint(style: crate::style::computed::BorderStyle, radii: [f32; 4]) -> bool {
+    style != crate::style::computed::BorderStyle::Solid
+        && style != crate::style::computed::BorderStyle::None
+        || (radii_any(radii) && !radii_uniform(radii))
+}
+
+/// Paint a uniform border (all four sides share width, color and style) around a
+/// border box whose bottom-left is `(x, y)` and size is `w`×`h`, with per-corner
+/// `radii`. Handles `solid`, `dashed`, `dotted` (round dots) and `double` (two
+/// thin rules with a hollow middle third). The border paints INSIDE the box: the
+/// stroke centerline sits half a border-width in from each edge so the stroke's
+/// outer edge aligns with the border-box edge.
+#[allow(clippy::too_many_arguments)]
+fn paint_uniform_border(
+    content: &mut String,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    radii: [f32; 4],
+    side: &crate::layout::engine::LayoutBorderSide,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+) {
+    let bw = side.width;
+    if bw <= 0.0 || side.style == crate::style::computed::BorderStyle::None {
+        return;
+    }
+    let (r, g, b) = side.color;
+    let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, side.alpha);
+    content.push_str(&format!("{r} {g} {b} RG\n"));
+    if side.style == crate::style::computed::BorderStyle::Double {
+        // Split the band into outer-third rule, gap-third, inner-third rule.
+        let third = bw / 3.0;
+        // Outer rule centerline is half a third in from the outer edge.
+        content.push_str(&format!("{third} w\n"));
+        content.push_str(&border_inset_path(x, y, w, h, radii, third / 2.0));
+        content.push_str("S\n");
+        // Inner rule centerline is bw - third/2 in from the outer edge.
+        content.push_str(&format!("{third} w\n"));
+        content.push_str(&border_inset_path(x, y, w, h, radii, bw - third / 2.0));
+        content.push_str("S\n");
+    } else {
+        content.push_str(&dash_pattern_for_style(side.style, bw));
+        content.push_str(&format!("{bw} w\n"));
+        content.push_str(&border_inset_path(x, y, w, h, radii, bw / 2.0));
+        content.push_str("S\n");
+        content.push_str(reset_dash_pattern(side.style));
+    }
+    end_border_alpha(content, a);
 }
 
 /// Register a blend-mode ExtGState and emit its `gs` operator, returning `true`
@@ -148,7 +249,7 @@ fn draw_image_border(
             bg_alpha_counter,
             border.top.alpha,
         );
-        content.push_str(dash_pattern_for_style(border.top.style));
+        content.push_str(&dash_pattern_for_style(border.top.style, border.top.width));
         content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
         content.push_str(&format!(
             "{x} {y} {w} {h} re\nS\n",
@@ -174,7 +275,7 @@ fn draw_image_border(
             bg_alpha_counter,
             border.top.alpha,
         );
-        content.push_str(dash_pattern_for_style(border.top.style));
+        content.push_str(&dash_pattern_for_style(border.top.style, border.top.width));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
         content.push_str(&format!("{box_x} {y_top} m {box_right} {y_top} l S\n"));
         content.push_str(reset_dash_pattern(border.top.style));
@@ -188,7 +289,10 @@ fn draw_image_border(
             bg_alpha_counter,
             border.right.alpha,
         );
-        content.push_str(dash_pattern_for_style(border.right.style));
+        content.push_str(&dash_pattern_for_style(
+            border.right.style,
+            border.right.width,
+        ));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.right.width));
         content.push_str(&format!("{x_right} {y_top} m {x_right} {y_bottom} l S\n"));
         content.push_str(reset_dash_pattern(border.right.style));
@@ -202,7 +306,10 @@ fn draw_image_border(
             bg_alpha_counter,
             border.bottom.alpha,
         );
-        content.push_str(dash_pattern_for_style(border.bottom.style));
+        content.push_str(&dash_pattern_for_style(
+            border.bottom.style,
+            border.bottom.width,
+        ));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.bottom.width));
         content.push_str(&format!(
             "{box_x} {y_bottom} m {box_right} {y_bottom} l S\n"
@@ -218,7 +325,10 @@ fn draw_image_border(
             bg_alpha_counter,
             border.left.alpha,
         );
-        content.push_str(dash_pattern_for_style(border.left.style));
+        content.push_str(&dash_pattern_for_style(
+            border.left.style,
+            border.left.width,
+        ));
         content.push_str(&format!("{r} {g} {b} RG\n{} w\n", border.left.width));
         content.push_str(&format!("{x_left} {y_top} m {x_left} {y_bottom} l S\n"));
         content.push_str(reset_dash_pattern(border.left.style));
@@ -397,8 +507,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_repeat,
                     background_origin,
                     border_radius,
+                    border_radii: tb_radii,
                     outline_width,
                     outline_color,
+                    outline_offset: tb_outline_offset,
                     letter_spacing,
                     word_spacing: css_word_spacing,
                     text_indent,
@@ -542,7 +654,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
-                        if *border_radius > 0.0 {
+                        if radii_any(*tb_radii) && !radii_uniform(*tb_radii) {
+                            content.push_str(&rounded_rect_path_per_corner(
+                                block_x,
+                                bg_y,
+                                render_width,
+                                border_box_h,
+                                *tb_radii,
+                            ));
+                        } else if *border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
                                 block_x,
                                 bg_y,
@@ -734,7 +854,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // border box (CSS box model): the stroke centerline sits half
                     // a border-width inside each border-box edge, so the stroke's
                     // outer edge coincides with the border-box edge.
-                    if border.has_any() {
+                    if border.has_visible() {
                         // Check if all sides are uniform (same width & color)
                         let uniform = border.top.width == border.right.width
                             && border.top.width == border.bottom.width
@@ -745,7 +865,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             && border.top.style == border.right.style
                             && border.top.style == border.bottom.style
                             && border.top.style == border.left.style;
-                        if uniform && *border_radius > 0.0 {
+                        if uniform && border_needs_special_paint(border.top.style, *tb_radii) {
+                            // Shared painter handles solid/dashed/dotted/double and
+                            // both uniform and per-corner rounded borders.
+                            paint_uniform_border(
+                                &mut content,
+                                block_x,
+                                block_bottom,
+                                render_width,
+                                border_box_h,
+                                *tb_radii,
+                                &border.top,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                            );
+                        } else if uniform && *border_radius > 0.0 {
+                            // Plain solid rounded border: byte-stable legacy path.
                             let bw = border.top.width;
                             let (br, bg, bb) = border.top.color;
                             let a = begin_border_alpha(
@@ -754,10 +889,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut bg_alpha_counter,
                                 border.top.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!("{br} {bg} {bb} RG\n{bw} w\n"));
-                            // Inset the stroke path by half the border width so the
-                            // outer edge aligns with the border-box edge.
                             content.push_str(&rounded_rect_path(
                                 block_x + bw / 2.0,
                                 block_bottom + bw / 2.0,
@@ -766,9 +898,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 (*border_radius - bw / 2.0).max(0.0),
                             ));
                             content.push_str("S\n");
-                            content.push_str(reset_dash_pattern(border.top.style));
                             end_border_alpha(&mut content, a);
                         } else if uniform {
+                            // Plain solid flat border: byte-stable legacy `re` stroke.
                             let bw = border.top.width;
                             let (br, bg, bb) = border.top.color;
                             let a = begin_border_alpha(
@@ -777,7 +909,6 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut bg_alpha_counter,
                                 border.top.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.top.style));
                             content.push_str(&format!("{br} {bg} {bb} RG\n{bw} w\n"));
                             content.push_str(&format!(
                                 "{x} {y} {w} {h} re\n",
@@ -787,7 +918,6 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 h = (border_box_h - bw).max(0.0),
                             ));
                             content.push_str("S\n");
-                            content.push_str(reset_dash_pattern(border.top.style));
                             end_border_alpha(&mut content, a);
                         } else {
                             // Per-side stroke centerlines sit half a border-width
@@ -799,7 +929,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let x_left = block_x + border.left.width / 2.0;
                             let x_right = block_x + render_width - border.right.width / 2.0;
                             // Top border
-                            if border.top.width > 0.0 {
+                            if border.top.paints() {
                                 let (r, g, b) = border.top.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -807,7 +937,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.top.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.top.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.top.style,
+                                    border.top.width,
+                                ));
                                 content
                                     .push_str(&format!("{r} {g} {b} RG\n{} w\n", border.top.width));
                                 content.push_str(&format!("{x1} {y_top} m {x2} {y_top} l S\n"));
@@ -815,7 +948,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 end_border_alpha(&mut content, a);
                             }
                             // Right border
-                            if border.right.width > 0.0 {
+                            if border.right.paints() {
                                 let (r, g, b) = border.right.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -823,7 +956,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.right.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.right.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.right.style,
+                                    border.right.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.right.width
@@ -835,7 +971,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 end_border_alpha(&mut content, a);
                             }
                             // Bottom border
-                            if border.bottom.width > 0.0 {
+                            if border.bottom.paints() {
                                 let (r, g, b) = border.bottom.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -843,7 +979,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.bottom.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.bottom.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.bottom.style,
+                                    border.bottom.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.bottom.width
@@ -854,7 +993,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 end_border_alpha(&mut content, a);
                             }
                             // Left border
-                            if border.left.width > 0.0 {
+                            if border.left.paints() {
                                 let (r, g, b) = border.left.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -862,7 +1001,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.left.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.left.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.left.style,
+                                    border.left.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n",
                                     border.left.width
@@ -876,18 +1018,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
                     }
 
-                    // Draw outline if specified (outside the element box)
+                    // Draw outline if specified (outside the element box).
+                    // `outline-offset` widens the gap between the border edge and
+                    // the outline; the centerline sits half the outline width
+                    // beyond the offset edge so the stroke stays fully outside.
                     if *outline_width > 0.0 {
-                        let offset = *outline_width / 2.0;
-                        let outline_x = block_x - offset;
-                        let outline_y = block_bottom - offset;
-                        let outline_w = render_width + *outline_width;
-                        let outline_h = border_box_h + *outline_width;
+                        let gap = *tb_outline_offset + *outline_width / 2.0;
+                        let outline_x = block_x - gap;
+                        let outline_y = block_bottom - gap;
+                        let outline_w = render_width + 2.0 * gap;
+                        let outline_h = border_box_h + 2.0 * gap;
                         let (or, og, ob) = outline_color.unwrap_or((0.0, 0.0, 0.0));
                         content
                             .push_str(&format!("{or} {og} {ob} RG\n{ow} w\n", ow = outline_width,));
-                        if *border_radius > 0.0 {
-                            let outline_r = *border_radius + offset;
+                        if radii_any(*tb_radii) && !radii_uniform(*tb_radii) {
+                            let ol_radii = [
+                                tb_radii[0] + gap,
+                                tb_radii[1] + gap,
+                                tb_radii[2] + gap,
+                                tb_radii[3] + gap,
+                            ];
+                            content.push_str(&rounded_rect_path_per_corner(
+                                outline_x, outline_y, outline_w, outline_h, ol_radii,
+                            ));
+                        } else if *border_radius > 0.0 {
+                            let outline_r = *border_radius + gap;
                             content.push_str(&rounded_rect_path(
                                 outline_x, outline_y, outline_w, outline_h, outline_r,
                             ));
@@ -1271,7 +1426,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     cell.border.top.alpha,
                                 );
                                 let y = y_top - inset(cell.border.top.width);
-                                content.push_str(dash_pattern_for_style(cell.border.top.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    cell.border.top.style,
+                                    cell.border.top.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                     cell.border.top.width
@@ -1288,7 +1446,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     cell.border.right.alpha,
                                 );
                                 let x = x2 - inset(cell.border.right.width);
-                                content.push_str(dash_pattern_for_style(cell.border.right.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    cell.border.right.style,
+                                    cell.border.right.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                     cell.border.right.width
@@ -1305,7 +1466,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     cell.border.bottom.alpha,
                                 );
                                 let y = y_bottom + inset(cell.border.bottom.width);
-                                content.push_str(dash_pattern_for_style(cell.border.bottom.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    cell.border.bottom.style,
+                                    cell.border.bottom.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
                                     cell.border.bottom.width
@@ -1322,7 +1486,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     cell.border.left.alpha,
                                 );
                                 let x = x1 + inset(cell.border.left.width);
-                                content.push_str(dash_pattern_for_style(cell.border.left.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    cell.border.left.style,
+                                    cell.border.left.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
                                     cell.border.left.width
@@ -1760,7 +1927,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut bg_alpha_counter,
                                 border.top.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.top.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.top.style,
+                                border.top.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n",
                                 bw = border.top.width
@@ -1783,7 +1953,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut bg_alpha_counter,
                                 border.top.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.top.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.top.style,
+                                border.top.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
                                 bw = border.top.width,
@@ -1805,7 +1978,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.top.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.top.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.top.style,
+                                    border.top.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                     border.top.width
@@ -1821,7 +1997,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.right.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.right.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.right.style,
+                                    border.right.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                     border.right.width
@@ -1837,7 +2016,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.bottom.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.bottom.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.bottom.style,
+                                    border.bottom.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                     border.bottom.width
@@ -1853,7 +2035,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.left.alpha,
                                 );
-                                content.push_str(dash_pattern_for_style(border.left.style));
+                                content.push_str(&dash_pattern_for_style(
+                                    border.left.style,
+                                    border.left.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                     border.left.width
@@ -2829,6 +3014,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_color,
                     border,
                     border_radius: c_border_radius,
+                    border_radii: c_border_radii,
+                    outline_width: c_outline_width,
+                    outline_color: c_outline_color,
+                    outline_offset: c_outline_offset,
                     padding_top: c_pt,
                     padding_bottom: c_pb,
                     padding_left: c_pl,
@@ -2952,10 +3141,19 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
-                        if *c_border_radius > 0.0 {
+                        let c_bg_y = container_y_top - total_h;
+                        if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
+                            content.push_str(&rounded_rect_path_per_corner(
+                                container_x,
+                                c_bg_y,
+                                container_w,
+                                total_h,
+                                *c_border_radii,
+                            ));
+                        } else if *c_border_radius > 0.0 {
                             content.push_str(&rounded_rect_path(
                                 container_x,
-                                container_y_top - total_h,
+                                c_bg_y,
                                 container_w,
                                 total_h,
                                 *c_border_radius,
@@ -2964,7 +3162,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!(
                                 "{x} {y} {w} {h} re\n",
                                 x = container_x,
-                                y = container_y_top - total_h,
+                                y = c_bg_y,
                                 w = container_w,
                                 h = total_h,
                             ));
@@ -3118,9 +3316,37 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     );
 
                     // Draw all 4 borders
-                    if border.has_any() {
-                        if *c_border_radius > 0.0 {
-                            // Use uniform border color/width with rounded rect stroke
+                    if border.has_visible() {
+                        let cbox_x = container_x;
+                        let cbox_bottom = container_y_top - total_h;
+                        // Uniform borders take the shared painter (dashed/dotted/
+                        // double + per-corner rounded corners). Non-uniform borders
+                        // keep the per-side stroke path with dash support.
+                        let c_uniform = border.top.width == border.right.width
+                            && border.top.width == border.bottom.width
+                            && border.top.width == border.left.width
+                            && border.top.color == border.right.color
+                            && border.top.color == border.bottom.color
+                            && border.top.color == border.left.color
+                            && border.top.style == border.right.style
+                            && border.top.style == border.bottom.style
+                            && border.top.style == border.left.style;
+                        if c_uniform
+                            && border_needs_special_paint(border.top.style, *c_border_radii)
+                        {
+                            paint_uniform_border(
+                                &mut content,
+                                cbox_x,
+                                cbox_bottom,
+                                container_w,
+                                total_h,
+                                *c_border_radii,
+                                &border.top,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                            );
+                        } else if c_uniform && *c_border_radius > 0.0 {
+                            // Plain solid rounded border: byte-stable legacy path.
                             let bw = border
                                 .top
                                 .width
@@ -3149,7 +3375,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let bx2 = container_x + container_w;
                             let by1 = container_y_top;
                             let by2 = container_y_top - total_h;
-                            if border.left.width > 0.0 {
+                            if border.left.paints() {
                                 let (r, g, b) = border.left.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -3157,6 +3383,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.left.alpha,
                                 );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.left.style,
+                                    border.left.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = border.left.width,
@@ -3164,9 +3394,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                content.push_str(reset_dash_pattern(border.left.style));
                                 end_border_alpha(&mut content, a);
                             }
-                            if border.right.width > 0.0 {
+                            if border.right.paints() {
                                 let (r, g, b) = border.right.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -3174,6 +3405,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.right.alpha,
                                 );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.right.style,
+                                    border.right.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
                                     bw = border.right.width,
@@ -3181,9 +3416,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     y1 = by1,
                                     y2 = by2
                                 ));
+                                content.push_str(reset_dash_pattern(border.right.style));
                                 end_border_alpha(&mut content, a);
                             }
-                            if border.top.width > 0.0 {
+                            if border.top.paints() {
                                 let (r, g, b) = border.top.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -3191,6 +3427,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.top.alpha,
                                 );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.top.style,
+                                    border.top.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = border.top.width,
@@ -3198,9 +3438,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     x2 = bx2,
                                     y = by1 - border.top.width * 0.5
                                 ));
+                                content.push_str(reset_dash_pattern(border.top.style));
                                 end_border_alpha(&mut content, a);
                             }
-                            if border.bottom.width > 0.0 {
+                            if border.bottom.paints() {
                                 let (r, g, b) = border.bottom.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -3208,6 +3449,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.bottom.alpha,
                                 );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.bottom.style,
+                                    border.bottom.width,
+                                ));
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
                                     bw = border.bottom.width,
@@ -3215,9 +3460,48 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     x2 = bx2,
                                     y = by2 + border.bottom.width * 0.5
                                 ));
+                                content.push_str(reset_dash_pattern(border.bottom.style));
                                 end_border_alpha(&mut content, a);
                             }
-                        } // else (non-rounded borders)
+                        } // else (non-uniform borders)
+                    }
+
+                    // Draw outline (outside the border box, honouring
+                    // `outline-offset`). Top-level containers previously dropped
+                    // the outline entirely.
+                    if *c_outline_width > 0.0 {
+                        let gap = *c_outline_offset + *c_outline_width / 2.0;
+                        let ol_x = container_x - gap;
+                        let ol_y = container_y_top - total_h - gap;
+                        let ol_w = container_w + 2.0 * gap;
+                        let ol_h = total_h + 2.0 * gap;
+                        let (or, og, ob) = c_outline_color.unwrap_or((0.0, 0.0, 0.0));
+                        content.push_str(&format!(
+                            "{or} {og} {ob} RG\n{ow} w\n",
+                            ow = c_outline_width
+                        ));
+                        if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
+                            let ol_radii = [
+                                c_border_radii[0] + gap,
+                                c_border_radii[1] + gap,
+                                c_border_radii[2] + gap,
+                                c_border_radii[3] + gap,
+                            ];
+                            content.push_str(&rounded_rect_path_per_corner(
+                                ol_x, ol_y, ol_w, ol_h, ol_radii,
+                            ));
+                        } else if *c_border_radius > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                ol_x,
+                                ol_y,
+                                ol_w,
+                                ol_h,
+                                *c_border_radius + gap,
+                            ));
+                        } else {
+                            content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                        }
+                        content.push_str("S\n");
                     }
 
                     // Apply clip if overflow:hidden. Per CSS, `overflow` clips to
@@ -4713,6 +4997,8 @@ fn render_container_children(
                 background_blur_radius: nk_bg_blur,
                 outline_width: nk_outline_width,
                 outline_color: nk_outline_color,
+                outline_offset: nk_outline_offset,
+                border_radii: cont_radii,
                 ..
             } => {
                 // Absolute-positioned containers (e.g. an empty position:absolute
@@ -4842,13 +5128,30 @@ fn render_container_children(
                             page_ext_gstates.push((gs_name.clone(), *a));
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
-                        content.push_str(&format!(
-                            "{r} {g} {b} rg\n{cx} {cy} {cw} {ch} re\nf\n",
-                            cx = nk_x,
-                            cy = nk_top_y - nk_total_h,
-                            cw = nk_w,
-                            ch = nk_total_h,
-                        ));
+                        content.push_str(&format!("{r} {g} {b} rg\n"));
+                        let bg_cy = nk_top_y - nk_total_h;
+                        if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
+                            content.push_str(&rounded_rect_path_per_corner(
+                                nk_x,
+                                bg_cy,
+                                nk_w,
+                                nk_total_h,
+                                *cont_radii,
+                            ));
+                        } else if *cont_br > 0.0 {
+                            content.push_str(&rounded_rect_path(
+                                nk_x, bg_cy, nk_w, nk_total_h, *cont_br,
+                            ));
+                        } else {
+                            content.push_str(&format!(
+                                "{cx} {cy} {cw} {ch} re\n",
+                                cx = nk_x,
+                                cy = bg_cy,
+                                cw = nk_w,
+                                ch = nk_total_h,
+                            ));
+                        }
+                        content.push_str("f\n");
                         if needs_alpha {
                             content.push_str("/GSDefault gs\n");
                         }
@@ -5012,92 +5315,151 @@ fn render_container_children(
                     let bx2 = nk_x + nk_w;
                     let by1 = nk_top_y;
                     let by2 = nk_top_y - nk_total_h;
-                    if border.left.width > 0.0 {
-                        let (r, g, b) = border.left.color;
-                        let a = begin_border_alpha(
+                    // Uniform borders (same width/color/style) take the shared
+                    // painter so dashed/dotted/double and per-corner rounded
+                    // corners all render correctly. Non-uniform borders keep the
+                    // per-side stroke path below.
+                    let border_uniform = border.has_visible()
+                        && border.top.width == border.right.width
+                        && border.top.width == border.bottom.width
+                        && border.top.width == border.left.width
+                        && border.top.color == border.right.color
+                        && border.top.color == border.bottom.color
+                        && border.top.color == border.left.color
+                        && border.top.style == border.right.style
+                        && border.top.style == border.bottom.style
+                        && border.top.style == border.left.style;
+                    if border_uniform && border_needs_special_paint(border.top.style, *cont_radii) {
+                        paint_uniform_border(
                             content,
+                            nk_x,
+                            by2,
+                            nk_w,
+                            nk_total_h,
+                            *cont_radii,
+                            &border.top,
                             page_ext_gstates,
                             bg_alpha_counter,
-                            border.left.alpha,
                         );
-                        content.push_str(&format!(
-                            "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                            bw = border.left.width,
-                            x = bx1 + border.left.width * 0.5,
-                            y1 = by1,
-                            y2 = by2
-                        ));
-                        end_border_alpha(content, a);
-                    }
-                    if border.right.width > 0.0 {
-                        let (r, g, b) = border.right.color;
-                        let a = begin_border_alpha(
-                            content,
-                            page_ext_gstates,
-                            bg_alpha_counter,
-                            border.right.alpha,
-                        );
-                        content.push_str(&format!(
-                            "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                            bw = border.right.width,
-                            x = bx2 - border.right.width * 0.5,
-                            y1 = by1,
-                            y2 = by2
-                        ));
-                        end_border_alpha(content, a);
-                    }
-                    if border.top.width > 0.0 {
-                        let (r, g, b) = border.top.color;
-                        let a = begin_border_alpha(
-                            content,
-                            page_ext_gstates,
-                            bg_alpha_counter,
-                            border.top.alpha,
-                        );
-                        content.push_str(&format!(
-                            "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                            bw = border.top.width,
-                            x1 = bx1,
-                            x2 = bx2,
-                            y = by1 - border.top.width * 0.5
-                        ));
-                        end_border_alpha(content, a);
-                    }
-                    if border.bottom.width > 0.0 {
-                        let (r, g, b) = border.bottom.color;
-                        let a = begin_border_alpha(
-                            content,
-                            page_ext_gstates,
-                            bg_alpha_counter,
-                            border.bottom.alpha,
-                        );
-                        content.push_str(&format!(
-                            "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                            bw = border.bottom.width,
-                            x1 = bx1,
-                            x2 = bx2,
-                            y = by2 + border.bottom.width * 0.5
-                        ));
-                        end_border_alpha(content, a);
+                    } else {
+                        if border.left.paints() {
+                            let (r, g, b) = border.left.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.left.alpha,
+                            );
+                            content.push_str(&dash_pattern_for_style(
+                                border.left.style,
+                                border.left.width,
+                            ));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                bw = border.left.width,
+                                x = bx1 + border.left.width * 0.5,
+                                y1 = by1,
+                                y2 = by2
+                            ));
+                            content.push_str(reset_dash_pattern(border.left.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.right.paints() {
+                            let (r, g, b) = border.right.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.right.alpha,
+                            );
+                            content.push_str(&dash_pattern_for_style(
+                                border.right.style,
+                                border.right.width,
+                            ));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                bw = border.right.width,
+                                x = bx2 - border.right.width * 0.5,
+                                y1 = by1,
+                                y2 = by2
+                            ));
+                            content.push_str(reset_dash_pattern(border.right.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.top.paints() {
+                            let (r, g, b) = border.top.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.top.alpha,
+                            );
+                            content.push_str(&dash_pattern_for_style(
+                                border.top.style,
+                                border.top.width,
+                            ));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                bw = border.top.width,
+                                x1 = bx1,
+                                x2 = bx2,
+                                y = by1 - border.top.width * 0.5
+                            ));
+                            content.push_str(reset_dash_pattern(border.top.style));
+                            end_border_alpha(content, a);
+                        }
+                        if border.bottom.paints() {
+                            let (r, g, b) = border.bottom.color;
+                            let a = begin_border_alpha(
+                                content,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                border.bottom.alpha,
+                            );
+                            content.push_str(&dash_pattern_for_style(
+                                border.bottom.style,
+                                border.bottom.width,
+                            ));
+                            content.push_str(&format!(
+                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                bw = border.bottom.width,
+                                x1 = bx1,
+                                x2 = bx2,
+                                y = by2 + border.bottom.width * 0.5
+                            ));
+                            content.push_str(reset_dash_pattern(border.bottom.style));
+                            end_border_alpha(content, a);
+                        }
                     }
 
-                    // Draw outline if specified (a uniform stroke just outside the
-                    // border box). The outline does not affect layout; offsetting the
-                    // rect outward by half the outline width keeps the stroke entirely
-                    // outside the box edge. Mirrors the TextBlock outline arm.
+                    // Draw outline if specified (a uniform stroke outside the
+                    // border box). `outline-offset` widens the gap between the
+                    // border edge and the outline; the stroke centerline sits half
+                    // the outline width beyond the offset edge so the outline stays
+                    // entirely outside the box. Mirrors the TextBlock outline arm.
                     if *nk_outline_width > 0.0 {
-                        let ol_offset = *nk_outline_width / 2.0;
-                        let ol_x = bx1 - ol_offset;
-                        let ol_y = by2 - ol_offset;
-                        let ol_w = nk_w + *nk_outline_width;
-                        let ol_h = nk_total_h + *nk_outline_width;
+                        let gap = *nk_outline_offset + *nk_outline_width / 2.0;
+                        let ol_x = bx1 - gap;
+                        let ol_y = by2 - gap;
+                        let ol_w = nk_w + 2.0 * gap;
+                        let ol_h = nk_total_h + 2.0 * gap;
                         let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
                         content.push_str(&format!(
                             "{or} {og} {ob} RG\n{ow} w\n",
                             ow = nk_outline_width
                         ));
-                        if *cont_br > 0.0 {
-                            let ol_r = *cont_br + ol_offset;
+                        if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
+                            let ol_radii = [
+                                cont_radii[0] + gap,
+                                cont_radii[1] + gap,
+                                cont_radii[2] + gap,
+                                cont_radii[3] + gap,
+                            ];
+                            content.push_str(&rounded_rect_path_per_corner(
+                                ol_x, ol_y, ol_w, ol_h, ol_radii,
+                            ));
+                        } else if *cont_br > 0.0 {
+                            let ol_r = *cont_br + gap;
                             content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
                         } else {
                             content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
@@ -5404,7 +5766,8 @@ fn render_container_children(
                             bg_alpha_counter,
                             border.top.alpha,
                         );
-                        content.push_str(dash_pattern_for_style(border.top.style));
+                        content
+                            .push_str(&dash_pattern_for_style(border.top.style, border.top.width));
                         content
                             .push_str(&format!("{r} {g} {b} RG\n{bw} w\n", bw = border.top.width));
                         content.push_str(&rounded_rect_path(
@@ -5425,7 +5788,8 @@ fn render_container_children(
                             bg_alpha_counter,
                             border.top.alpha,
                         );
-                        content.push_str(dash_pattern_for_style(border.top.style));
+                        content
+                            .push_str(&dash_pattern_for_style(border.top.style, border.top.width));
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
                             bw = border.top.width,
@@ -5447,7 +5811,10 @@ fn render_container_children(
                                 bg_alpha_counter,
                                 border.top.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.top.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.top.style,
+                                border.top.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x2} {y_top} l S\n",
                                 border.top.width
@@ -5463,7 +5830,10 @@ fn render_container_children(
                                 bg_alpha_counter,
                                 border.right.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.right.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.right.style,
+                                border.right.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x2} {y_top} m {x2} {y_bottom} l S\n",
                                 border.right.width
@@ -5479,7 +5849,10 @@ fn render_container_children(
                                 bg_alpha_counter,
                                 border.bottom.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.bottom.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.bottom.style,
+                                border.bottom.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_bottom} m {x2} {y_bottom} l S\n",
                                 border.bottom.width
@@ -5495,7 +5868,10 @@ fn render_container_children(
                                 bg_alpha_counter,
                                 border.left.alpha,
                             );
-                            content.push_str(dash_pattern_for_style(border.left.style));
+                            content.push_str(&dash_pattern_for_style(
+                                border.left.style,
+                                border.left.width,
+                            ));
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{} w\n{x1} {y_top} m {x1} {y_bottom} l S\n",
                                 border.left.width
@@ -7710,6 +8086,95 @@ fn render_box_shadow_inset(
     content.push_str("/GSDefault gs\n");
 }
 
+/// Build a rounded-rect path with independent per-corner radii in
+/// [top-left, top-right, bottom-right, bottom-left] order (CSS corner order).
+/// `(x, y)` is the bottom-left in PDF (bottom-up) coordinates; `w`/`h` are the
+/// box size. Radii are clamped per CSS 9.2 so adjacent corners on the same edge
+/// never overlap. When all four radii are equal this matches `rounded_rect_path`
+/// closely; the renderer falls back to the simpler builder for the uniform case
+/// to keep existing byte output stable.
+fn rounded_rect_path_per_corner(x: f32, y: f32, w: f32, h: f32, radii: [f32; 4]) -> String {
+    // Corner order: tl, tr, br, bl.
+    let mut tl = radii[0].max(0.0);
+    let mut tr = radii[1].max(0.0);
+    let mut br = radii[2].max(0.0);
+    let mut bl = radii[3].max(0.0);
+    // CSS overlap clamping: scale all radii by the smallest edge ratio so no two
+    // radii on a shared edge exceed that edge's length.
+    let scale = {
+        let mut s = 1.0f32;
+        let top = tl + tr;
+        let bottom = bl + br;
+        let left = tl + bl;
+        let right = tr + br;
+        if top > w {
+            s = s.min(w / top);
+        }
+        if bottom > w {
+            s = s.min(w / bottom);
+        }
+        if left > h {
+            s = s.min(h / left);
+        }
+        if right > h {
+            s = s.min(h / right);
+        }
+        s
+    };
+    if scale < 1.0 {
+        tl *= scale;
+        tr *= scale;
+        br *= scale;
+        bl *= scale;
+    }
+    let kf = 0.552_284_8;
+    // Coordinates: PDF y grows upward, so `y + h` is the top edge.
+    let xl = x;
+    let xr = x + w;
+    let yt = y + h;
+    let yb = y;
+    // Bezier control factor per corner.
+    let (ktl, ktr, kbr, kbl) = (tl * kf, tr * kf, br * kf, bl * kf);
+    format!(
+        // Start just right of the top-left corner, run clockwise.
+        "{a} {yt} m\n\
+         {b} {yt} l {b2} {yt} {xr} {tr_y2} {xr} {tr_y} c\n\
+         {xr} {br_y} l {xr} {br_y2} {br_x2} {yb} {br_x} {yb} c\n\
+         {bl_x} {yb} l {bl_x2} {yb} {xl} {bl_y2} {xl} {bl_y} c\n\
+         {xl} {tl_y} l {xl} {tl_y2} {tl_x2} {yt} {a} {yt} c\n\
+         h\n",
+        a = xl + tl,           // top edge start (after TL)
+        b = xr - tr,           // top edge end (before TR)
+        b2 = xr - tr + ktr,    // TR control x
+        tr_y = yt - tr,        // TR arc end y
+        tr_y2 = yt - tr + ktr, // TR control y
+        br_y = yb + br,        // right edge end (before BR)
+        br_y2 = yb + br - kbr, // BR control y
+        br_x = xr - br,        // BR arc end x
+        br_x2 = xr - br + kbr, // BR control x
+        bl_x = xl + bl,        // bottom edge end (before BL)
+        bl_x2 = xl + bl - kbl, // BL control x
+        bl_y = yb + bl,        // BL arc end y
+        bl_y2 = yb + bl - kbl, // BL control y
+        tl_y = yt - tl,        // left edge end (before TL)
+        tl_y2 = yt - tl + ktl, // TL control y
+        tl_x2 = xl + tl - ktl, // TL control x
+    )
+}
+
+/// Whether per-corner radii are effectively uniform (all equal). Uniform boxes
+/// use the simpler `rounded_rect_path` to keep golden output byte-stable.
+fn radii_uniform(radii: [f32; 4]) -> bool {
+    (radii[0] - radii[1]).abs() < 1e-4
+        && (radii[0] - radii[2]).abs() < 1e-4
+        && (radii[0] - radii[3]).abs() < 1e-4
+}
+
+/// Whether any corner has a non-zero radius.
+fn radii_any(radii: [f32; 4]) -> bool {
+    radii.iter().any(|r| *r > 0.0)
+}
+
 fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
     let r = r.min(w / 2.0).min(h / 2.0); // Clamp radius to half the smallest dimension
     let k = r * 0.552_284_8;
@@ -8943,6 +9408,8 @@ mod tests {
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,
@@ -9757,9 +10224,10 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
+        // Dash length scales with the 1.5pt (2px) border width: 3x on/off.
         assert!(
-            content.contains("[6 4] 0 d"),
-            "Dashed border should emit [6 4] 0 d dash pattern. Got: {}",
+            content.contains("[4.5 4.5] 0 d"),
+            "Dashed border should emit a width-scaled dash pattern. Got: {}",
             &content[..content.len().min(2000)]
         );
         assert!(
@@ -9775,9 +10243,12 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
+        // Round dots: a round line cap (`1 J`) over a zero-length dash spaced 2x
+        // the 1.5pt width apart.
         assert!(
-            content.contains("[1 3] 0 d"),
-            "Dotted border should emit [1 3] 0 d dash pattern"
+            content.contains("1 J\n[0 3] 0 d"),
+            "Dotted border should emit a round-cap dot pattern. Got: {}",
+            &content[..content.len().min(2000)]
         );
     }
 
@@ -9788,9 +10259,10 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        // Solid borders should NOT have dash patterns
+        // Solid borders should NOT set any dash pattern (no `[...] 0 d` and no
+        // round-cap toggle).
         assert!(
-            !content.contains("[6 4] 0 d") && !content.contains("[1 3] 0 d"),
+            !content.contains("0 d\n") && !content.contains("1 J\n"),
             "Solid border should not emit dash patterns"
         );
     }

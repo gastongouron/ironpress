@@ -9,7 +9,10 @@
     "kind": "feature",
     "geometry": "rigid",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -23,7 +26,10 @@
     "file": "cases/backgrounds-borders/background-color-rgba.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -37,7 +43,10 @@
     "file": "cases/backgrounds-borders/background-linear-gradient.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -51,7 +60,10 @@
     "file": "cases/backgrounds-borders/background-linear-gradient-diagonal.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -65,7 +77,10 @@
     "file": "cases/backgrounds-borders/background-radial-gradient.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -79,7 +94,10 @@
     "file": "cases/backgrounds-borders/border-solid-width.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -93,7 +111,10 @@
     "file": "cases/backgrounds-borders/border-style-dashed.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -107,7 +128,10 @@
     "file": "cases/backgrounds-borders/border-style-dotted.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -121,7 +145,10 @@
     "file": "cases/backgrounds-borders/border-style-double.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -135,7 +162,10 @@
     "file": "cases/backgrounds-borders/border-per-side-colors.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -149,7 +179,10 @@
     "file": "cases/backgrounds-borders/border-radius-uniform.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -163,7 +196,10 @@
     "file": "cases/backgrounds-borders/border-radius-circle.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -177,7 +213,10 @@
     "file": "cases/backgrounds-borders/border-radius-per-corner.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -191,7 +230,10 @@
     "file": "cases/backgrounds-borders/outline-solid.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -205,7 +247,10 @@
     "file": "cases/backgrounds-borders/box-shadow-offset.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -219,7 +264,11 @@
     "file": "cases/backgrounds-borders/border-radius-x-linear-gradient.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -233,7 +282,241 @@
     "file": "cases/backgrounds-borders/border-x-box-shadow.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-corner-longhands",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "corner-longhands",
+    "description": "Per-corner border-radius longhands (top-left + bottom-right rounded, others square).",
+    "file": "cases/backgrounds-borders/border-radius-corner-longhands.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-four-values",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "four-value-shorthand",
+    "description": "border-radius 1-4 value shorthand assigning a distinct radius to each corner.",
+    "file": "cases/backgrounds-borders/border-radius-four-values.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-two-values",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "two-value-shorthand",
+    "description": "border-radius two-value shorthand (TL/BR vs TR/BL diagonal radii).",
+    "file": "cases/backgrounds-borders/border-radius-two-values.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-percentage",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "percentage",
+    "description": "border-radius given as a non-50% percentage of the box.",
+    "file": "cases/backgrounds-borders/border-radius-percentage.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-clamped",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "overlap-clamping",
+    "description": "border-radius larger than half the box is clamped/normalized to fit.",
+    "file": "cases/backgrounds-borders/border-radius-clamped.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-elliptical",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "elliptical-slash",
+    "description": "Elliptical border-radius via the Rx / Ry slash syntax.",
+    "file": "cases/backgrounds-borders/border-radius-elliptical.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-radius-ellipse-nonsquare",
+    "category": "backgrounds-borders",
+    "feature": "border-radius",
+    "subfeature": "50pct-nonsquare",
+    "description": "border-radius 50% on a non-square box (elliptical corners).",
+    "file": "cases/backgrounds-borders/border-radius-ellipse-nonsquare.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-style-none",
+    "category": "backgrounds-borders",
+    "feature": "border-style",
+    "subfeature": "none-no-paint",
+    "description": "border-style none paints no border while reserving the declared width via longhands.",
+    "file": "cases/backgrounds-borders/border-style-none.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-width-keywords",
+    "category": "backgrounds-borders",
+    "feature": "border",
+    "subfeature": "width-keywords",
+    "description": "Per-side border-width keywords thin/medium/thick.",
+    "file": "cases/backgrounds-borders/border-width-keywords.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-color-transparent",
+    "category": "backgrounds-borders",
+    "feature": "border-color",
+    "subfeature": "transparent-side",
+    "description": "border-color transparent on one side, solid on the rest.",
+    "file": "cases/backgrounds-borders/border-color-transparent.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-color-currentcolor",
+    "category": "backgrounds-borders",
+    "feature": "border-color",
+    "subfeature": "currentcolor",
+    "description": "border-color currentColor resolves to the element color.",
+    "file": "cases/backgrounds-borders/border-color-currentcolor.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "outline-offset-negative",
+    "category": "backgrounds-borders",
+    "feature": "outline",
+    "subfeature": "negative-offset",
+    "description": "outline-offset negative pulls the outline inward over the box.",
+    "file": "cases/backgrounds-borders/outline-offset-negative.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-conic-gradient",
+    "category": "backgrounds-borders",
+    "feature": "conic-gradient",
+    "subfeature": "center",
+    "description": "Centered multi-stop conic-gradient background.",
+    "file": "cases/backgrounds-borders/background-conic-gradient.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-radial-gradient-ellipse",
+    "category": "backgrounds-borders",
+    "feature": "radial-gradient",
+    "subfeature": "ellipse-farthest-corner",
+    "description": "Elliptical radial-gradient sized to the farthest corner.",
+    "file": "cases/backgrounds-borders/background-radial-gradient-ellipse.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0

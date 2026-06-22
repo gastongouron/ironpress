@@ -145,13 +145,24 @@ pub(crate) fn layout_block_element(
     let inner_width = inner_width.max(0.0);
 
     // Resolve percentage border-radius against element dimensions
+    let radius_dim = if let Some(h) = effective_height {
+        block_w.min(h)
+    } else {
+        block_w
+    };
     if let Some(pct) = style.border_radius_pct {
-        let dim = if let Some(h) = effective_height {
-            block_w.min(h)
-        } else {
-            block_w
-        };
-        style.border_radius = dim * pct / 100.0;
+        style.border_radius = radius_dim * pct / 100.0;
+    }
+    // Resolve per-corner radii: turn any percentage corner into an absolute
+    // radius, and seed all-zero radii from the (resolved) uniform value so the
+    // renderer's per-corner path matches the uniform path for simple boxes.
+    for i in 0..4 {
+        if let Some(pct) = style.border_radii_pct[i] {
+            style.border_radii[i] = radius_dim * pct / 100.0;
+        }
+    }
+    if style.border_radii.iter().all(|r| *r == 0.0) && style.border_radius > 0.0 {
+        style.border_radii = [style.border_radius; 4];
     }
 
     let style = &*style;
@@ -358,6 +369,8 @@ pub(crate) fn layout_block_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             text_indent: style.text_indent,
@@ -626,6 +639,8 @@ pub(crate) fn layout_block_element(
                     transform: style.transform,
                     transform_origin: style.transform_origin,
                     border_radius: style.border_radius,
+                    border_radii: style.border_radii,
+                    outline_offset: style.outline_offset,
                     outline_width: style.outline_width,
                     outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
                     text_indent: 0.0,
@@ -684,6 +699,8 @@ pub(crate) fn layout_block_element(
                         transform: None,
                         transform_origin: crate::style::computed::TransformOrigin::default(),
                         border_radius: 0.0,
+                        border_radii: [0.0; 4],
+                        outline_offset: 0.0,
                         outline_width: 0.0,
                         outline_color: None,
                         text_indent: 0.0,
@@ -872,6 +889,8 @@ pub(crate) fn layout_block_element(
                         transform: None,
                         transform_origin: crate::style::computed::TransformOrigin::default(),
                         border_radius: 0.0,
+                        border_radii: [0.0; 4],
+                        outline_offset: 0.0,
                         outline_width: 0.0,
                         outline_color: None,
                         text_indent: 0.0,
@@ -1173,6 +1192,8 @@ pub(crate) fn layout_block_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             text_indent: style.text_indent,
@@ -1554,6 +1575,8 @@ pub(crate) fn layout_block_element(
             background_color: bg,
             border: LayoutBorder::from_computed(&style.border),
             border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            outline_offset: style.outline_offset,
             padding_top: style.padding.top,
             padding_bottom: style.padding.bottom,
             padding_left: style.padding.left,

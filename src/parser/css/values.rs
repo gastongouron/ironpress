@@ -343,6 +343,13 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "border-bottom-width"
             | "border-left-width"
     ) {
+        // CSS keyword widths map to the usual 1px/3px/5px (→ pt) values.
+        match lower.as_str() {
+            "thin" => return Some(CssValue::Length(1.0 * 0.75)),
+            "medium" => return Some(CssValue::Length(3.0 * 0.75)),
+            "thick" => return Some(CssValue::Length(5.0 * 0.75)),
+            _ => {}
+        }
         return parse_length(val);
     }
 
@@ -456,12 +463,32 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
     }
 
-    if matches!(property, "border-radius" | "outline-width") {
+    if property == "outline-width" {
         return parse_length(val);
+    }
+
+    // `border-radius` (and the per-corner longhands) accept 1-4 space-separated
+    // values plus an optional `/` for elliptical radii. A bare single length is
+    // kept as `Length` for the fast uniform path; anything else is preserved
+    // verbatim and expanded into per-corner radii in `compute_style`.
+    if matches!(
+        property,
+        "border-radius"
+            | "border-top-left-radius"
+            | "border-top-right-radius"
+            | "border-bottom-right-radius"
+            | "border-bottom-left-radius"
+    ) {
+        return parse_length(val).or_else(|| Some(CssValue::Keyword(val.trim().to_string())));
     }
 
     if property == "outline-color" {
         return parse_color(val);
+    }
+
+    // `outline-offset` is a single length that may be negative (inward outline).
+    if property == "outline-offset" {
+        return parse_length(val);
     }
 
     if matches!(property, "width" | "height") && lower == "auto" {

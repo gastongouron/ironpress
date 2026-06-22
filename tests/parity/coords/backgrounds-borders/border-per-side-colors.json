@@ -5,28 +5,28 @@
     612.0,
     792.0
   ],
-  "boxes": [],
-  "borders": [
+  "boxes": [
     {
-      "role": "border",
+      "role": "fill",
       "rect_pt": [
-        28.875,
-        28.875,
-        147.75,
-        87.75
+        27.75,
+        27.75,
+        150.0,
+        3.0
       ],
       "selector": null
     },
     {
-      "role": "border",
+      "role": "fill",
       "rect_pt": [
-        34.125,
-        34.125,
-        137.25,
-        77.25
+        27.75,
+        108.75,
+        150.0,
+        9.0
       ],
       "selector": null
     }
   ],
+  "borders": [],
   "text_runs": []
 }

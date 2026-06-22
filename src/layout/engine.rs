@@ -48,6 +48,15 @@ impl Default for LayoutBorderSide {
     }
 }
 
+impl LayoutBorderSide {
+    /// Whether this side actually paints: it must have a positive width and a
+    /// style other than `none`/`hidden`. CSS `border-style: none` suppresses the
+    /// edge even when a width was declared.
+    pub fn paints(&self) -> bool {
+        self.width > 0.0 && self.style != crate::style::computed::BorderStyle::None
+    }
+}
+
 /// Per-side border for layout rendering.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LayoutBorder {
@@ -94,6 +103,10 @@ impl LayoutBorder {
             || self.right.width > 0.0
             || self.bottom.width > 0.0
             || self.left.width > 0.0
+    }
+    /// Whether any side actually paints (positive width AND non-`none` style).
+    pub fn has_visible(&self) -> bool {
+        self.top.paints() || self.right.paints() || self.bottom.paints() || self.left.paints()
     }
     pub fn horizontal_width(&self) -> f32 {
         self.left.width + self.right.width
@@ -375,8 +388,13 @@ pub enum LayoutElement {
         transform: Option<Transform>,
         transform_origin: TransformOrigin,
         border_radius: f32,
+        /// Per-corner radii [top-left, top-right, bottom-right, bottom-left] in
+        /// points. Equal to `[border_radius; 4]` for uniform rounding.
+        border_radii: [f32; 4],
         outline_width: f32,
         outline_color: Option<(f32, f32, f32)>,
+        /// CSS `outline-offset` in points (gap between border edge and outline).
+        outline_offset: f32,
         text_indent: f32,
         letter_spacing: f32,
         word_spacing: f32,
@@ -523,6 +541,9 @@ pub enum LayoutElement {
         background_color: Option<(f32, f32, f32, f32)>,
         border: LayoutBorder,
         border_radius: f32,
+        /// Per-corner radii [top-left, top-right, bottom-right, bottom-left] in
+        /// points. Equal to `[border_radius; 4]` for uniform rounding.
+        border_radii: [f32; 4],
         padding_top: f32,
         padding_bottom: f32,
         padding_left: f32,
@@ -567,6 +588,8 @@ pub enum LayoutElement {
         /// CSS `outline` color (RGB). `None` falls back to black when an
         /// outline width is present.
         outline_color: Option<(f32, f32, f32)>,
+        /// CSS `outline-offset` in points (gap between border edge and outline).
+        outline_offset: f32,
         z_index: i32,
     },
     /// A page break.
@@ -795,6 +818,8 @@ pub fn layout_with_rules_and_fonts(
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,
@@ -994,6 +1019,8 @@ fn flatten_nodes(
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
                             border_radius: 0.0,
+                            border_radii: [0.0; 4],
+                            outline_offset: 0.0,
                             outline_width: 0.0,
                             outline_color: None,
                             text_indent: 0.0,
@@ -1225,6 +1252,8 @@ pub(crate) fn flatten_element(
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,
@@ -1427,6 +1456,8 @@ pub(crate) fn flatten_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             text_indent: 0.0,
@@ -1581,6 +1612,8 @@ pub(crate) fn flatten_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             text_indent: 0.0,
@@ -1995,6 +2028,8 @@ pub(crate) fn flatten_element(
                 transform: style.transform,
                 transform_origin: style.transform_origin,
                 border_radius: style.border_radius,
+                border_radii: style.border_radii,
+                outline_offset: style.outline_offset,
                 outline_width: style.outline_width,
                 outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
                 // Hang an `outside` marker into the padding by pulling the first
@@ -4904,6 +4939,8 @@ mod tests {
                 transform: None,
                 transform_origin: crate::style::computed::TransformOrigin::default(),
                 border_radius: 0.0,
+                border_radii: [0.0; 4],
+                outline_offset: 0.0,
                 outline_width: 0.0,
                 outline_color: None,
                 text_indent: 0.0,
@@ -5037,6 +5074,8 @@ mod tests {
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,
@@ -9826,6 +9865,8 @@ line 3</pre>
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,

@@ -767,6 +767,9 @@ pub enum BorderStyle {
     Solid,
     Dashed,
     Dotted,
+    /// Two parallel solid rules separated by a gap (CSS `double`). Each rule and
+    /// the gap take roughly one third of the border width.
+    Double,
     None,
 }
 
@@ -956,8 +959,20 @@ pub struct ComputedStyle {
     pub border_radius: f32,
     /// Percentage-based border-radius (e.g. 50% for circles). Resolved in layout.
     pub border_radius_pct: Option<f32>,
+    /// Per-corner border radii in points, order [top-left, top-right,
+    /// bottom-right, bottom-left]. When all four equal `border_radius` the box is
+    /// uniformly rounded; differing values express the 1-4 value `border-radius`
+    /// shorthand and the per-corner longhands. Resolved against `border_radius`
+    /// in layout when zero.
+    pub border_radii: [f32; 4],
+    /// Per-corner percentage radii (same corner order). Resolved in layout
+    /// against the box dimensions, mirroring `border_radius_pct`.
+    pub border_radii_pct: [Option<f32>; 4],
     pub outline_width: f32,
     pub outline_color: Option<Color>,
+    /// CSS `outline-offset`: gap (in points) between the border edge and the
+    /// outline. Positive expands the outline outward; negative pulls it inward.
+    pub outline_offset: f32,
     pub box_sizing: BoxSizing,
     pub text_transform: TextTransform,
     pub text_indent: f32,
@@ -1136,8 +1151,11 @@ impl Default for ComputedStyle {
             grid_gap: 0.0,
             border_radius: 0.0,
             border_radius_pct: None,
+            border_radii: [0.0; 4],
+            border_radii_pct: [None; 4],
             outline_width: 0.0,
             outline_color: None,
+            outline_offset: 0.0,
             box_sizing: BoxSizing::ContentBox,
             text_transform: TextTransform::None,
             text_indent: 0.0,
@@ -1337,8 +1355,11 @@ pub fn compute_style_with_context(
     style.column_rule = BorderSide::default();
     style.column_span_all = false;
     style.border_radius = 0.0;
+    style.border_radii = [0.0; 4];
+    style.border_radii_pct = [None; 4];
     style.outline_width = 0.0;
     style.outline_color = None;
+    style.outline_offset = 0.0;
     style.box_sizing = BoxSizing::ContentBox;
     style.text_indent = 0.0;
     style.vertical_align = VerticalAlign::Baseline;
@@ -1569,8 +1590,11 @@ pub fn compute_pseudo_element_style(
     style.column_rule = BorderSide::default();
     style.column_span_all = false;
     style.border_radius = 0.0;
+    style.border_radii = [0.0; 4];
+    style.border_radii_pct = [None; 4];
     style.outline_width = 0.0;
     style.outline_color = None;
+    style.outline_offset = 0.0;
     style.box_sizing = BoxSizing::ContentBox;
     style.text_indent = 0.0;
     style.vertical_align = VerticalAlign::Baseline;
@@ -2840,20 +2864,82 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
-    // Border-radius (single value shorthand)
+    // Border-radius shorthand: a single value keeps the fast uniform path; a
+    // multi-value or `/`-separated value expands into per-corner radii.
     match get_non_special(map, "border-radius") {
-        Some(CssValue::Length(v)) => style.border_radius = *v,
+        Some(CssValue::Length(v)) => {
+            style.border_radius = *v;
+            style.border_radii = [*v; 4];
+        }
         Some(CssValue::Percentage(pct)) => {
             // Resolve percentage border-radius against the smaller dimension.
             // Use width if available, otherwise store a sentinel that the
             // layout engine resolves later.  For the common `50%` case on a
             // square element this produces a perfect circle.
             style.border_radius_pct = Some(*pct);
+            style.border_radii_pct = [Some(*pct); 4];
+        }
+        Some(CssValue::Keyword(k)) => {
+            let (radii, radii_pct) = parse_border_radius_shorthand(k);
+            style.border_radii = radii;
+            style.border_radii_pct = radii_pct;
+            // Keep the legacy uniform field meaningful for the all-equal case so
+            // older single-radius code paths still round.
+            if radii.iter().all(|r| (*r - radii[0]).abs() < f32::EPSILON)
+                && radii_pct.iter().all(Option::is_none)
+            {
+                style.border_radius = radii[0];
+            }
+            if radii_pct.iter().all(|p| *p == radii_pct[0]) {
+                style.border_radius_pct = radii_pct[0];
+            }
         }
         _ => {}
     }
 
-    // Outline shorthand: "2px solid red"
+    // Per-corner border-radius longhands override the shorthand for their corner.
+    for (prop, idx) in [
+        ("border-top-left-radius", 0usize),
+        ("border-top-right-radius", 1),
+        ("border-bottom-right-radius", 2),
+        ("border-bottom-left-radius", 3),
+    ] {
+        match get_non_special(map, prop) {
+            Some(CssValue::Length(v)) => {
+                style.border_radii[idx] = *v;
+                style.border_radii_pct[idx] = None;
+            }
+            Some(CssValue::Percentage(p)) => {
+                style.border_radii_pct[idx] = Some(*p);
+                style.border_radii[idx] = 0.0;
+            }
+            Some(CssValue::Keyword(k)) => {
+                // Corner longhands may carry two values (horizontal / vertical);
+                // take the first (horizontal) radius for our circular corners.
+                if let Some(tok) = k
+                    .split('/')
+                    .next()
+                    .and_then(|h| h.split_whitespace().next())
+                    .and_then(parse_radius_token)
+                {
+                    match tok {
+                        RadiusToken::Len(v) => {
+                            style.border_radii[idx] = v;
+                            style.border_radii_pct[idx] = None;
+                        }
+                        RadiusToken::Pct(p) => {
+                            style.border_radii_pct[idx] = Some(p);
+                            style.border_radii[idx] = 0.0;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Outline shorthand: "2px solid red" (with optional style keyword we ignore
+    // for paint, since the renderer strokes a solid outline).
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "outline") {
         let parts: Vec<&str> = k.split_whitespace().collect();
         for part in &parts {
@@ -2880,6 +2966,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Color(c)) = get_non_special(map, "outline-color") {
         style.outline_color = Some(*c);
+    }
+    // `outline-offset`: gap between border edge and outline (may be negative).
+    if let Some(CssValue::Length(v)) = get_non_special(map, "outline-offset") {
+        style.outline_offset = *v;
     }
 
     // Box-sizing
@@ -3140,7 +3230,11 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             s.border.bottom.width = v;
             s.border.left.width = v;
         }),
-        ("border-radius", |s, v| s.border_radius = v),
+        ("border-radius", |s, v| {
+            s.border_radius = v;
+            s.border_radii = [v; 4];
+            s.border_radii_pct = [None; 4];
+        }),
         ("text-indent", |s, v| s.text_indent = v),
         ("letter-spacing", |s, v| s.letter_spacing = v),
         ("word-spacing", |s, v| s.word_spacing = v),
@@ -4730,12 +4824,88 @@ fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
     out
 }
 
+/// A single border-radius token resolved to either an absolute length (points)
+/// or a percentage to be resolved against the box dimensions in layout.
+#[derive(Debug, Clone, Copy)]
+enum RadiusToken {
+    Len(f32),
+    Pct(f32),
+}
+
+/// Parse one border-radius token (`12px`, `40px`, `25%`, `0`) into a
+/// `RadiusToken`. Lengths convert px→pt; percentages are preserved for
+/// layout-time resolution. Returns `None` for unrecognised tokens.
+fn parse_radius_token(tok: &str) -> Option<RadiusToken> {
+    let tok = tok.trim();
+    if let Some(p) = tok.strip_suffix('%') {
+        return p.parse::<f32>().ok().map(RadiusToken::Pct);
+    }
+    if let Some(p) = tok.strip_suffix("px") {
+        return p.parse::<f32>().ok().map(|v| RadiusToken::Len(v * 0.75));
+    }
+    if let Some(p) = tok.strip_suffix("pt") {
+        return p.parse::<f32>().ok().map(RadiusToken::Len);
+    }
+    // Bare `0` (and other unitless numbers, treated as px-equivalent zero-ish
+    // lengths only when exactly zero per CSS; non-zero unitless is invalid but
+    // we accept it as points to be forgiving).
+    tok.parse::<f32>().ok().map(|v| {
+        if v == 0.0 {
+            RadiusToken::Len(0.0)
+        } else {
+            RadiusToken::Len(v * 0.75)
+        }
+    })
+}
+
+/// Expand the CSS `border-radius` shorthand (the horizontal-radii group, before
+/// any `/`) of 1-4 space-separated tokens into the four corners in
+/// [top-left, top-right, bottom-right, bottom-left] order, following the CSS
+/// edge-list expansion rules.
+fn expand_radius_group(tokens: &[RadiusToken]) -> [RadiusToken; 4] {
+    match tokens.len() {
+        1 => [tokens[0]; 4],
+        2 => [tokens[0], tokens[1], tokens[0], tokens[1]],
+        3 => [tokens[0], tokens[1], tokens[2], tokens[1]],
+        _ => [tokens[0], tokens[1], tokens[2], tokens[3]],
+    }
+}
+
+/// Parse a full `border-radius` value into per-corner absolute radii (points)
+/// and per-corner percentages. The grammar is
+/// `<h1> [h2 h3 h4] [ / <v1> [v2 v3 v4] ]`; we model corners with a single
+/// radius (the horizontal group) since the renderer draws circular corners —
+/// the vertical group is parsed for completeness but, when present and equal in
+/// count, the larger circular approximation uses the horizontal radius. Returns
+/// `(radii_pt, radii_pct)` in corner order.
+fn parse_border_radius_shorthand(value: &str) -> ([f32; 4], [Option<f32>; 4]) {
+    let horiz_part = value.split('/').next().unwrap_or("").trim();
+    let tokens: Vec<RadiusToken> = horiz_part
+        .split_whitespace()
+        .filter_map(parse_radius_token)
+        .collect();
+    if tokens.is_empty() {
+        return ([0.0; 4], [None; 4]);
+    }
+    let corners = expand_radius_group(&tokens);
+    let mut radii = [0.0f32; 4];
+    let mut radii_pct = [None; 4];
+    for (i, c) in corners.iter().enumerate() {
+        match c {
+            RadiusToken::Len(v) => radii[i] = *v,
+            RadiusToken::Pct(p) => radii_pct[i] = Some(*p),
+        }
+    }
+    (radii, radii_pct)
+}
+
 /// Map a CSS `border-style` keyword to a `BorderStyle`. Unknown keywords keep
 /// the CSS-wide default (`solid`); `none`/`hidden` suppress the edge.
 fn parse_border_style_keyword(keyword: &str) -> BorderStyle {
     match keyword.trim().to_ascii_lowercase().as_str() {
         "dashed" => BorderStyle::Dashed,
         "dotted" => BorderStyle::Dotted,
+        "double" => BorderStyle::Double,
         "none" | "hidden" => BorderStyle::None,
         _ => BorderStyle::Solid,
     }
@@ -4774,8 +4944,13 @@ fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
             match *part {
                 "dashed" => border_style = BorderStyle::Dashed,
                 "dotted" => border_style = BorderStyle::Dotted,
-                "none" => border_style = BorderStyle::None,
+                "double" => border_style = BorderStyle::Double,
+                "none" | "hidden" => border_style = BorderStyle::None,
                 "solid" => border_style = BorderStyle::Solid,
+                // CSS keyword border widths.
+                "thin" => width = 0.75,
+                "medium" => width = 2.25,
+                "thick" => width = 3.75,
                 _ => {}
             }
         }
@@ -5771,6 +5946,16 @@ mod tests {
         assert_eq!(c.r, 0);
         assert_eq!(c.g, 0);
         assert_eq!(c.b, 0);
+    }
+
+    #[test]
+    fn border_shorthand_none_style() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("border: 10px none #d50000"), &parent);
+        assert_eq!(style.border.top.style, BorderStyle::None);
+        assert_eq!(style.border.right.style, BorderStyle::None);
+        assert_eq!(style.border.bottom.style, BorderStyle::None);
+        assert_eq!(style.border.left.style, BorderStyle::None);
     }
 
     #[test]

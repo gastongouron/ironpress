@@ -761,6 +761,8 @@ pub(crate) fn layout_grid_container(
         background_color: bg,
         border: LayoutBorder::from_computed(&style.border),
         border_radius: style.border_radius,
+        border_radii: style.border_radii,
+        outline_offset: style.outline_offset,
         padding_top: style.padding.top,
         padding_bottom: style.padding.bottom,
         padding_left: style.padding.left,

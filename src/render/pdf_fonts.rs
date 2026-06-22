@@ -501,6 +501,8 @@ mod tests {
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
+            border_radii: [0.0; 4],
+            outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
             text_indent: 0.0,
