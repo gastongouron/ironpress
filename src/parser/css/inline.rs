@@ -124,6 +124,7 @@ fn clear_background_image_keys(map: &mut StyleMap) {
         "background-svg",
         "background-gradient",
         "background-radial-gradient",
+        "background-conic-gradient",
         "background-layer-slots",
     ] {
         map.remove(key);
@@ -259,7 +260,7 @@ fn apply_single_background_image_value(
     let trimmed = value.trim();
     let lower = trimmed.to_ascii_lowercase();
 
-    if lower.starts_with("linear-gradient(") {
+    if lower.starts_with("linear-gradient(") || lower.starts_with("repeating-linear-gradient(") {
         map.set_with_importance(
             "background-gradient",
             CssValue::Keyword(trimmed.to_string()),
@@ -268,9 +269,18 @@ fn apply_single_background_image_value(
         return Some(BackgroundLayerSlot::Gradient);
     }
 
-    if lower.starts_with("radial-gradient(") {
+    if lower.starts_with("radial-gradient(") || lower.starts_with("repeating-radial-gradient(") {
         map.set_with_importance(
             "background-radial-gradient",
+            CssValue::Keyword(trimmed.to_string()),
+            is_important,
+        );
+        return Some(BackgroundLayerSlot::Gradient);
+    }
+
+    if lower.starts_with("conic-gradient(") || lower.starts_with("repeating-conic-gradient(") {
+        map.set_with_importance(
+            "background-conic-gradient",
             CssValue::Keyword(trimmed.to_string()),
             is_important,
         );
@@ -375,7 +385,11 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool)
 
         if !found_image
             && (lower.starts_with("linear-gradient(")
+                || lower.starts_with("repeating-linear-gradient(")
                 || lower.starts_with("radial-gradient(")
+                || lower.starts_with("repeating-radial-gradient(")
+                || lower.starts_with("conic-gradient(")
+                || lower.starts_with("repeating-conic-gradient(")
                 || lower.starts_with("url(")
                 || lower == "none")
         {

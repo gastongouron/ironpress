@@ -517,6 +517,9 @@ pub struct LinearGradient {
     pub angle: f32,
     /// Color stops (at least 2).
     pub stops: Vec<GradientStop>,
+    /// `true` for `repeating-linear-gradient(...)`: the stop pattern tiles to
+    /// fill the gradient line instead of clamping the end colors.
+    pub repeating: bool,
     /// Per-layer size/position/repeat when this gradient is one of several
     /// comma-separated background layers.
     pub layer_box: GradientLayerBox,
@@ -554,6 +557,21 @@ pub enum RadialShape {
     Ellipse,
 }
 
+/// The size/extent of a CSS radial gradient's ending shape.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RadialExtent {
+    /// Ending shape meets the box side(s) closest to the center.
+    ClosestSide,
+    /// Ending shape passes through the box corner closest to the center.
+    ClosestCorner,
+    /// Ending shape meets the box side(s) farthest from the center.
+    FarthestSide,
+    /// Ending shape passes through the box corner farthest from the center.
+    /// The CSS default when no extent keyword or explicit size is given.
+    #[default]
+    FarthestCorner,
+}
+
 /// A CSS radial gradient.
 #[derive(Debug, Clone)]
 pub struct RadialGradient {
@@ -565,10 +583,40 @@ pub struct RadialGradient {
     /// Ending shape (circle vs ellipse). Determines how the unspecified extent
     /// (`farthest-corner`) is resolved into radii at render time.
     pub shape: RadialShape,
+    /// Extent keyword controlling how the ending shape is sized when no explicit
+    /// radius/radii are given. Defaults to `farthest-corner`.
+    pub extent: RadialExtent,
     /// Explicit circular radius in points (e.g. `circle 60px` → 45pt). When
-    /// `None`, the `farthest-corner` extent is used. Only meaningful for
-    /// `RadialShape::Circle`.
+    /// `None`, the `extent` is used. Only meaningful for `RadialShape::Circle`.
     pub radius: Option<f32>,
+    /// Explicit elliptical radii `(rx, ry)` in points (e.g. `ellipse 100px 50px`).
+    /// `%` components are stored as a fraction of the box width/height resolved at
+    /// render time via `RadialPos`. When `None`, the `extent` is used.
+    pub radii: Option<(RadialPos, RadialPos)>,
+    /// `true` for `repeating-radial-gradient(...)`: the stop pattern tiles along
+    /// the gradient ray instead of clamping the end colors.
+    pub repeating: bool,
+    /// Per-layer size/position/repeat when this gradient is one of several
+    /// comma-separated background layers.
+    pub layer_box: GradientLayerBox,
+}
+
+/// A CSS conic gradient. PDF has no native conic shading, so this is rendered as
+/// a fine sector fan (one filled wedge per small angular step) clipped to the
+/// box at paint time.
+#[derive(Debug, Clone)]
+pub struct ConicGradient {
+    /// Starting angle in degrees, clockwise from 12 o'clock (CSS `from <angle>`).
+    pub from_angle: f32,
+    /// Center position as `(x, y)` measured from the box's left/top edges (CSS
+    /// top-down). Defaults to box center.
+    pub center: (RadialPos, RadialPos),
+    /// Angular color stops, positions normalized to a fraction of a full turn
+    /// (0.0..=1.0, where 1.0 = 360deg). Always at least 2, sorted ascending.
+    pub stops: Vec<GradientStop>,
+    /// `true` for `repeating-conic-gradient(...)`: the stop pattern tiles around
+    /// the full sweep instead of spanning a single turn.
+    pub repeating: bool,
     /// Per-layer size/position/repeat when this gradient is one of several
     /// comma-separated background layers.
     pub layer_box: GradientLayerBox,
@@ -919,6 +967,7 @@ pub struct ComputedStyle {
     pub vertical_align: VerticalAlign,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
+    pub background_conic_gradient: Option<ConicGradient>,
     pub background_image: Option<String>,
     pub background_svg: Option<crate::parser::svg::SvgTree>,
     pub aspect_ratio: Option<f32>,
@@ -1098,6 +1147,7 @@ impl Default for ComputedStyle {
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_conic_gradient: None,
             background_image: None,
             background_svg: None,
             aspect_ratio: None,
@@ -1137,6 +1187,7 @@ impl ComputedStyle {
     fn clear_background_images(&mut self) {
         self.background_gradient = None;
         self.background_radial_gradient = None;
+        self.background_conic_gradient = None;
         self.background_image = None;
         self.background_svg = None;
     }
@@ -1153,6 +1204,7 @@ impl ComputedStyle {
     fn inherit_background_image(&mut self, source: &ComputedStyle) {
         self.background_gradient = source.background_gradient.clone();
         self.background_radial_gradient = source.background_radial_gradient.clone();
+        self.background_conic_gradient = source.background_conic_gradient.clone();
         self.background_image = source.background_image.clone();
         self.background_svg = source.background_svg.clone();
     }
@@ -1886,6 +1938,9 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-radial-gradient" => {
             style.background_radial_gradient = parent.background_radial_gradient.clone()
         }
+        "background-conic-gradient" => {
+            style.background_conic_gradient = parent.background_conic_gradient.clone()
+        }
         "aspect-ratio" => style.aspect_ratio = parent.aspect_ratio,
         "object-fit" => style.object_fit = parent.object_fit,
         "object-position" => style.object_position = parent.object_position,
@@ -2008,6 +2063,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // paths) are handled elsewhere and remain unaffected.
     let sets_image_layer = get_non_special(map, "background-gradient").is_some()
         || get_non_special(map, "background-radial-gradient").is_some()
+        || get_non_special(map, "background-conic-gradient").is_some()
         || get_non_special(map, "background-svg").is_some()
         || get_non_special(map, "background-image").is_some();
     if sets_image_layer {
@@ -2025,6 +2081,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-radial-gradient") {
         if let Some(rg) = parse_radial_gradient(k) {
             style.background_radial_gradient = Some(rg);
+        }
+    }
+
+    // Conic gradient (from background or background-image)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-conic-gradient") {
+        if let Some(cg) = parse_conic_gradient(k) {
+            style.background_conic_gradient = Some(cg);
         }
     }
 
@@ -2989,6 +3052,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
         if let Some(ref mut rg) = style.background_radial_gradient {
             rg.layer_box = gradient_box;
+        }
+        if let Some(ref mut cg) = style.background_conic_gradient {
+            cg.layer_box = gradient_box;
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
@@ -4799,17 +4865,28 @@ fn parse_hex_to_color(hex: &str) -> Option<Color> {
     }
 }
 
-/// Parse a CSS `linear-gradient(...)` function value into a `LinearGradient`.
+/// Parse a CSS `linear-gradient(...)` / `repeating-linear-gradient(...)` function
+/// value into a `LinearGradient`.
 ///
 /// Supports:
 /// - `linear-gradient(to right, red, blue)`
 /// - `linear-gradient(45deg, #ff0000, #0000ff)`
 /// - `linear-gradient(to bottom, red 0%, white 50%, blue 100%)`
+/// - `repeating-linear-gradient(45deg, red 0 10px, blue 10px 20px)`
 pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
     let val = val.trim();
-    let inner = val
-        .strip_prefix("linear-gradient(")
-        .and_then(|s| s.strip_suffix(')'))?;
+    let (inner, repeating) = if let Some(i) = val
+        .strip_prefix("repeating-linear-gradient(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        (i, true)
+    } else {
+        (
+            val.strip_prefix("linear-gradient(")
+                .and_then(|s| s.strip_suffix(')'))?,
+            false,
+        )
+    };
 
     // Split on commas, but be careful of commas inside rgb() or rgba()
     let parts = split_gradient_args(inner);
@@ -4833,12 +4910,8 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
             _ => 180.0,
         };
         (angle, 1)
-    } else if let Some(deg_str) = first.strip_suffix("deg") {
-        if let Ok(deg) = deg_str.trim().parse::<f32>() {
-            (deg, 1)
-        } else {
-            (180.0, 0)
-        }
+    } else if let Some(deg) = parse_css_angle_deg(first) {
+        (deg, 1)
     } else {
         // No direction specified, default is "to bottom" = 180deg
         (180.0, 0)
@@ -4854,19 +4927,57 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
     Some(LinearGradient {
         angle,
         stops,
+        repeating,
         layer_box: GradientLayerBox::default(),
     })
 }
 
-/// Parse a CSS `radial-gradient(...)` function value into a `RadialGradient`.
+/// Parse a CSS `<angle>` token into degrees. Supports `deg`, `grad`, `rad`,
+/// `turn`, and a bare `0`. Returns `None` for non-angle tokens.
+fn parse_css_angle_deg(tok: &str) -> Option<f32> {
+    let tok = tok.trim();
+    if let Some(n) = tok.strip_suffix("deg") {
+        return n.trim().parse::<f32>().ok();
+    }
+    if let Some(n) = tok.strip_suffix("grad") {
+        return n.trim().parse::<f32>().ok().map(|g| g * 0.9);
+    }
+    if let Some(n) = tok.strip_suffix("turn") {
+        return n.trim().parse::<f32>().ok().map(|t| t * 360.0);
+    }
+    if let Some(n) = tok.strip_suffix("rad") {
+        return n
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|r| r * 180.0 / std::f32::consts::PI);
+    }
+    if tok == "0" {
+        return Some(0.0);
+    }
+    None
+}
+
+/// Parse a CSS `radial-gradient(...)` / `repeating-radial-gradient(...)` function
+/// value into a `RadialGradient`.
 ///
-/// Simplified: always circular. Shape/size keywords are skipped, but the
-/// `at <position>` clause is honored so the gradient can be anchored.
+/// Honors the shape (`circle`/`ellipse`), the extent keyword
+/// (`closest-side`/`closest-corner`/`farthest-side`/`farthest-corner`), an
+/// explicit circle radius or ellipse radii, and the `at <position>` clause.
 pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
     let val = val.trim();
-    let inner = val
-        .strip_prefix("radial-gradient(")
-        .and_then(|s| s.strip_suffix(')'))?;
+    let (inner, repeating) = if let Some(i) = val
+        .strip_prefix("repeating-radial-gradient(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        (i, true)
+    } else {
+        (
+            val.strip_prefix("radial-gradient(")
+                .and_then(|s| s.strip_suffix(')'))?,
+            false,
+        )
+    };
 
     let parts = split_gradient_args(inner);
     if parts.len() < 2 {
@@ -4884,51 +4995,76 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
     let is_shape_or_size = first.starts_with("circle")
         || first.starts_with("ellipse")
         || first.contains("at ")
-        || first == "closest-side"
-        || first == "farthest-side"
-        || first == "closest-corner"
-        || first == "farthest-corner"
+        || first.contains("closest-side")
+        || first.contains("farthest-side")
+        || first.contains("closest-corner")
+        || first.contains("farthest-corner")
         || (parse_gradient_color(&first).is_none() && first_token_is_length(&first));
     let color_start = usize::from(is_shape_or_size);
 
-    // Honor the `at <position>` clause and a leading explicit radius, else
-    // default to a box-centered farthest-corner gradient. The shape is `circle`
-    // when the `circle` keyword is present OR when a single length size is given
-    // (a lone radius implies a circle, e.g. lightningcss serializes
-    // `circle 60px at center` to `60px`); CSS otherwise defaults to `ellipse`.
-    let (center, shape, radius) = if color_start == 1 {
+    // Honor the `at <position>` clause, the extent keyword, and explicit
+    // radius/radii, else default to a box-centered farthest-corner ellipse.
+    let (center, shape, extent, radius, radii) = if color_start == 1 {
         let center = parse_radial_center(&first);
-        // The size keywords/lengths precede any `at` clause.
+        // The shape/size keywords precede any `at` clause.
         let size_part = first.split("at").next().unwrap_or("").trim();
+
+        let extent = if size_part.contains("closest-side") {
+            RadialExtent::ClosestSide
+        } else if size_part.contains("closest-corner") {
+            RadialExtent::ClosestCorner
+        } else if size_part.contains("farthest-side") {
+            RadialExtent::FarthestSide
+        } else {
+            RadialExtent::FarthestCorner
+        };
+
         let size_tokens: Vec<&str> = size_part
             .split_whitespace()
-            .filter(|t| !t.is_empty() && *t != "circle" && *t != "ellipse")
+            .filter(|t| {
+                !t.is_empty() && *t != "circle" && *t != "ellipse" && parse_radial_pos(t).is_some()
+            })
             .collect();
-        let length_count = size_tokens
-            .iter()
-            .filter(|t| parse_radial_length_pt(t).is_some())
-            .count();
+
         let shape = if first.starts_with("circle") {
             RadialShape::Circle
         } else if first.starts_with("ellipse") {
             RadialShape::Ellipse
-        } else if length_count == 1 {
+        } else if size_tokens.len() == 1 {
             // A lone length size denotes a circle of that radius.
             RadialShape::Circle
         } else {
             RadialShape::Ellipse
         };
-        // For a circle, the leading bare length is the explicit radius.
-        let radius = if shape == RadialShape::Circle {
-            size_tokens.first().and_then(|t| parse_radial_length_pt(t))
-        } else {
-            None
+
+        // Explicit sizes: a circle takes one length radius; an ellipse takes two
+        // length/percentage radii (rx, ry).
+        let (radius, radii) = match shape {
+            RadialShape::Circle => (
+                size_tokens.first().and_then(|t| parse_radial_length_pt(t)),
+                None,
+            ),
+            RadialShape::Ellipse => {
+                if size_tokens.len() == 2 {
+                    let rx = parse_radial_pos(size_tokens[0]);
+                    let ry = parse_radial_pos(size_tokens[1]);
+                    match (rx, ry) {
+                        (Some(rx), Some(ry)) => (None, Some((rx, ry))),
+                        _ => (None, None),
+                    }
+                } else {
+                    (None, None)
+                }
+            }
         };
-        (center, shape, radius)
+
+        (center, shape, extent, radius, radii)
     } else {
         (
             (RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)),
             RadialShape::Ellipse,
+            RadialExtent::FarthestCorner,
+            None,
             None,
         )
     };
@@ -4944,9 +5080,177 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
         stops,
         center,
         shape,
+        extent,
         radius,
+        radii,
+        repeating,
         layer_box: GradientLayerBox::default(),
     })
+}
+
+/// Parse a CSS `conic-gradient(...)` / `repeating-conic-gradient(...)` function
+/// value into a `ConicGradient`.
+///
+/// Honors `from <angle>`, `at <position>`, and angular color stops in `deg`,
+/// `grad`, `rad`, `turn`, or `%` (100% = one turn). Stop positions are
+/// normalized to a fraction of a full turn.
+pub fn parse_conic_gradient(val: &str) -> Option<ConicGradient> {
+    let val = val.trim();
+    let (inner, repeating) = if let Some(i) = val
+        .strip_prefix("repeating-conic-gradient(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        (i, true)
+    } else {
+        (
+            val.strip_prefix("conic-gradient(")
+                .and_then(|s| s.strip_suffix(')'))?,
+            false,
+        )
+    };
+
+    let parts = split_gradient_args(inner);
+    if parts.is_empty() {
+        return None;
+    }
+
+    let first = parts[0].trim();
+    let first_lower = first.to_ascii_lowercase();
+
+    // The first argument is a `[from <angle>] [at <position>]` prefix when it
+    // mentions either keyword; otherwise it is the first color stop.
+    let has_prefix = first_lower.starts_with("from ") || first_lower.contains("at ");
+    let color_start = usize::from(has_prefix);
+
+    let (from_angle, center) = if has_prefix {
+        let from_angle = first_lower
+            .strip_prefix("from ")
+            .map(|rest| rest.split("at").next().unwrap_or("").trim().to_string())
+            .and_then(|tok| parse_css_angle_deg(&tok))
+            .unwrap_or(0.0);
+        let center = parse_radial_center(&first_lower);
+        (from_angle, center)
+    } else {
+        (0.0, (RadialPos::Fraction(0.5), RadialPos::Fraction(0.5)))
+    };
+
+    let color_parts = &parts[color_start..];
+    let stops = parse_conic_stops(color_parts)?;
+    if stops.len() < 2 {
+        return None;
+    }
+
+    Some(ConicGradient {
+        from_angle,
+        center,
+        stops,
+        repeating,
+        layer_box: GradientLayerBox::default(),
+    })
+}
+
+/// Parse angular color stops for a conic gradient. Each part is `color`,
+/// `color <angle>`, or `color <angle> <angle>` (a hard/range stop expands into
+/// two stops at the two angles). Positions are normalized to fractions of one
+/// turn. Stops without an explicit angle are distributed/clamped per CSS:
+/// the first defaults to 0, the last to 1, and interior gaps are interpolated.
+fn parse_conic_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
+    // Raw stops: (color, optional fraction position).
+    let mut raw: Vec<(Color, Option<f32>)> = Vec::new();
+
+    for part in parts {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        // Split into whitespace tokens; the leading run that parses as a color
+        // is the color, trailing tokens are angle positions. Colors like
+        // `rgb(...)` have no spaces after lightningcss normalization.
+        let tokens: Vec<&str> = part.split_whitespace().collect();
+        if tokens.is_empty() {
+            continue;
+        }
+        // Find how many leading tokens form the color (1 normally).
+        let color = parse_gradient_color(tokens[0])?;
+        let angle_tokens = &tokens[1..];
+        let positions: Vec<f32> = angle_tokens
+            .iter()
+            .filter_map(|t| parse_conic_angle_fraction(t))
+            .collect();
+        match positions.len() {
+            0 => raw.push((color, None)),
+            1 => raw.push((color, Some(positions[0]))),
+            _ => {
+                // A range stop `color a b` expands to two coincident-color stops.
+                for p in positions {
+                    raw.push((color, Some(p)));
+                }
+            }
+        }
+    }
+
+    if raw.len() < 2 {
+        return None;
+    }
+
+    // Fill missing positions: clamp ends, then linearly distribute interior runs.
+    let n = raw.len();
+    if raw[0].1.is_none() {
+        raw[0].1 = Some(0.0);
+    }
+    if raw[n - 1].1.is_none() {
+        raw[n - 1].1 = Some(1.0);
+    }
+    let mut i = 0;
+    while i < n {
+        if raw[i].1.is_some() {
+            i += 1;
+            continue;
+        }
+        // Find the next anchored stop.
+        let start = i - 1;
+        let mut j = i;
+        while j < n && raw[j].1.is_none() {
+            j += 1;
+        }
+        let p0 = raw[start].1.unwrap_or(0.0);
+        let p1 = raw[j].1.unwrap_or(1.0);
+        let span = (j - start) as f32;
+        for (k, idx) in (i..j).enumerate() {
+            let frac = (k as f32 + 1.0) / span;
+            raw[idx].1 = Some(p0 + (p1 - p0) * frac);
+        }
+        i = j;
+    }
+
+    // Enforce non-decreasing positions (later smaller positions clamp up).
+    let mut last = 0.0_f32;
+    let stops: Vec<GradientStop> = raw
+        .into_iter()
+        .map(|(color, pos)| {
+            let mut p = pos.unwrap_or(0.0).clamp(0.0, 1.0);
+            if p < last {
+                p = last;
+            }
+            last = p;
+            GradientStop { color, position: p }
+        })
+        .collect();
+
+    Some(stops)
+}
+
+/// Parse a single conic angular position into a fraction of one turn (0..1).
+/// Accepts `deg`, `grad`, `rad`, `turn`, and `%` (100% = one turn).
+fn parse_conic_angle_fraction(tok: &str) -> Option<f32> {
+    let tok = tok.trim();
+    if let Some(n) = tok.strip_suffix('%') {
+        return n.trim().parse::<f32>().ok().map(|p| p / 100.0);
+    }
+    if let Some(n) = tok.strip_suffix("turn") {
+        return n.trim().parse::<f32>().ok();
+    }
+    parse_css_angle_deg(tok).map(|deg| deg / 360.0)
 }
 
 /// True when the first whitespace-delimited token looks like a CSS length or
@@ -5056,44 +5360,111 @@ fn split_gradient_args(s: &str) -> Vec<String> {
     parts
 }
 
-/// Parse gradient color stops from a list of string tokens.
-/// Each token is like "red", "#ff0000 50%", "rgb(255,0,0) 30%", etc.
+/// Parse gradient color stops from a list of comma-separated stop tokens.
+///
+/// Each token is `color`, `color <pos>`, or `color <pos> <pos>` (a range/hard
+/// stop, expanded into two coincident-color stops). Positions are percentages
+/// (`0%`..`100%` → 0.0..1.0). lightningcss collapses adjacent equal-color stops
+/// into the range form (e.g. `red 0%, red 50%` → `red 0% 50%`), so range
+/// handling is required for hard color-stop and repeating gradients.
 fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
-    let count = parts.len();
-    let mut stops = Vec::with_capacity(count);
-
-    for (i, part) in parts.iter().enumerate() {
+    // Pass 1: parse each part into (color, list of explicit fractional positions).
+    let mut raw: Vec<(Color, Vec<f32>)> = Vec::new();
+    for part in parts {
         let part = part.trim();
-        // Try to split off a trailing percentage
-        let (color_str, position) = if let Some(pct_pos) = part.rfind('%') {
-            // Find the space before the percentage
-            let before_pct = &part[..pct_pos];
-            if let Some(space_pos) = before_pct.rfind(' ') {
-                let color_part = part[..space_pos].trim();
-                let pct_str = part[space_pos + 1..pct_pos].trim();
-                if let Ok(pct) = pct_str.parse::<f32>() {
-                    (color_part, Some(pct / 100.0))
-                } else {
-                    (part, None)
-                }
+        if part.is_empty() {
+            continue;
+        }
+        // Split off trailing position tokens (percentages) from the leading color.
+        // Colors may contain spaces only inside `rgb(...)`/`rgba(...)`, which carry
+        // no internal spaces after lightningcss normalization, so a simple
+        // whitespace split is safe.
+        let tokens: Vec<&str> = part.split_whitespace().collect();
+        if tokens.is_empty() {
+            continue;
+        }
+        // Find the boundary: trailing tokens that parse as a `%` position.
+        let mut split_at = tokens.len();
+        while split_at > 1 {
+            let t = tokens[split_at - 1];
+            if t.strip_suffix('%')
+                .and_then(|n| n.parse::<f32>().ok())
+                .is_some()
+            {
+                split_at -= 1;
             } else {
-                (part, None)
+                break;
             }
-        } else {
-            (part, None)
-        };
-
-        let color = parse_gradient_color(color_str)?;
-        let position = position.unwrap_or_else(|| {
-            if count <= 1 {
-                0.0
-            } else {
-                i as f32 / (count - 1) as f32
-            }
-        });
-
-        stops.push(GradientStop { color, position });
+        }
+        let color_str = tokens[..split_at].join(" ");
+        let color = parse_gradient_color(&color_str)?;
+        let positions: Vec<f32> = tokens[split_at..]
+            .iter()
+            .filter_map(|t| t.strip_suffix('%').and_then(|n| n.parse::<f32>().ok()))
+            .map(|p| p / 100.0)
+            .collect();
+        raw.push((color, positions));
     }
+
+    // Pass 2: expand range stops and flatten into (color, Option<position>).
+    let mut flat: Vec<(Color, Option<f32>)> = Vec::new();
+    for (color, positions) in raw {
+        match positions.len() {
+            0 => flat.push((color, None)),
+            1 => flat.push((color, Some(positions[0]))),
+            _ => {
+                for p in positions {
+                    flat.push((color, Some(p)));
+                }
+            }
+        }
+    }
+
+    let n = flat.len();
+    if n < 2 {
+        return None;
+    }
+
+    // Pass 3: fill missing positions (clamp ends, distribute interior runs).
+    if flat[0].1.is_none() {
+        flat[0].1 = Some(0.0);
+    }
+    if flat[n - 1].1.is_none() {
+        flat[n - 1].1 = Some(1.0);
+    }
+    let mut i = 0;
+    while i < n {
+        if flat[i].1.is_some() {
+            i += 1;
+            continue;
+        }
+        let start = i - 1;
+        let mut j = i;
+        while j < n && flat[j].1.is_none() {
+            j += 1;
+        }
+        let p0 = flat[start].1.unwrap_or(0.0);
+        let p1 = flat[j].1.unwrap_or(1.0);
+        let span = (j - start) as f32;
+        for (k, idx) in (i..j).enumerate() {
+            flat[idx].1 = Some(p0 + (p1 - p0) * (k as f32 + 1.0) / span);
+        }
+        i = j;
+    }
+
+    // Enforce non-decreasing positions (CSS clamps a smaller position up).
+    let mut last = 0.0_f32;
+    let stops: Vec<GradientStop> = flat
+        .into_iter()
+        .map(|(color, pos)| {
+            let mut p = pos.unwrap_or(0.0);
+            if p < last {
+                p = last;
+            }
+            last = p;
+            GradientStop { color, position: p }
+        })
+        .collect();
 
     if stops.len() >= 2 { Some(stops) } else { None }
 }
@@ -6430,6 +6801,117 @@ mod tests {
         assert_eq!(lg.stops[0].color.r, 255);
         assert_eq!(lg.stops[0].color.g, 0);
         assert_eq!(lg.stops[1].color.b, 255);
+        assert!(!lg.repeating);
+    }
+
+    #[test]
+    fn parse_linear_gradient_range_hard_stops() {
+        // lightningcss collapses `red 0%, red 50%, blue 50%, blue 100%` into the
+        // range form. The parser must expand it back into four stops.
+        let lg = parse_linear_gradient("linear-gradient(90deg, #d32f2f 0% 50%, #1565c0 50% 100%)")
+            .unwrap();
+        assert_eq!(lg.stops.len(), 4);
+        assert!((lg.stops[0].position - 0.0).abs() < 0.01);
+        assert!((lg.stops[1].position - 0.5).abs() < 0.01);
+        assert!((lg.stops[2].position - 0.5).abs() < 0.01);
+        assert!((lg.stops[3].position - 1.0).abs() < 0.01);
+        assert_eq!(lg.stops[0].color.r, 211);
+        assert_eq!(lg.stops[3].color.b, 192);
+    }
+
+    #[test]
+    fn parse_repeating_linear_gradient_sets_flag() {
+        let lg =
+            parse_linear_gradient("repeating-linear-gradient(90deg, red 0% 10%, blue 10% 20%)")
+                .unwrap();
+        assert!(lg.repeating);
+        assert_eq!(lg.stops.len(), 4);
+    }
+
+    #[test]
+    fn parse_radial_gradient_extent_keywords() {
+        let cs = parse_radial_gradient("radial-gradient(circle closest-side, red, blue)").unwrap();
+        assert_eq!(cs.extent, RadialExtent::ClosestSide);
+        assert_eq!(cs.shape, RadialShape::Circle);
+
+        let fs = parse_radial_gradient("radial-gradient(circle farthest-side, red, blue)").unwrap();
+        assert_eq!(fs.extent, RadialExtent::FarthestSide);
+
+        let cc = parse_radial_gradient("radial-gradient(closest-corner, red, blue)").unwrap();
+        assert_eq!(cc.extent, RadialExtent::ClosestCorner);
+    }
+
+    #[test]
+    fn parse_radial_gradient_explicit_ellipse_radii() {
+        let rg = parse_radial_gradient("radial-gradient(ellipse 120px 60px at center, red, blue)")
+            .unwrap();
+        assert_eq!(rg.shape, RadialShape::Ellipse);
+        let (rx, ry) = rg.radii.expect("explicit radii");
+        // 120px → 90pt, 60px → 45pt.
+        assert!((rx.resolve(1000.0) - 90.0).abs() < 0.01);
+        assert!((ry.resolve(1000.0) - 45.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_repeating_radial_gradient_sets_flag() {
+        let rg =
+            parse_radial_gradient("repeating-radial-gradient(circle, red 0% 10%, blue 10% 20%)")
+                .unwrap();
+        assert!(rg.repeating);
+        assert_eq!(rg.shape, RadialShape::Circle);
+    }
+
+    #[test]
+    fn parse_conic_gradient_basic_four_quadrants() {
+        let cg = parse_conic_gradient(
+            "conic-gradient(from 0deg at center, #e53935 0deg 90deg, #43a047 90deg 180deg, #1e88e5 180deg 270deg, #fdd835 270deg 360deg)",
+        )
+        .unwrap();
+        assert!(!cg.repeating);
+        assert!((cg.from_angle - 0.0).abs() < 0.01);
+        // 4 quadrant range stops → 8 stops (two per quadrant).
+        assert_eq!(cg.stops.len(), 8);
+        assert!((cg.stops[0].position - 0.0).abs() < 0.01);
+        assert!((cg.stops[1].position - 0.25).abs() < 0.01);
+        assert!((cg.stops.last().unwrap().position - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_conic_gradient_from_angle_and_position() {
+        let cg = parse_conic_gradient("conic-gradient(from 45deg at 30% 30%, red, blue)").unwrap();
+        assert!((cg.from_angle - 45.0).abs() < 0.01);
+        let (x, _y) = cg.center;
+        assert!(matches!(x, RadialPos::Fraction(f) if (f - 0.3).abs() < 0.01));
+        // Two implicit stops distribute to 0 and 1.
+        assert_eq!(cg.stops.len(), 2);
+        assert!((cg.stops[0].position - 0.0).abs() < 0.01);
+        assert!((cg.stops[1].position - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_repeating_conic_gradient_sets_flag() {
+        let cg = parse_conic_gradient("repeating-conic-gradient(red 0deg 30deg, blue 30deg 60deg)")
+            .unwrap();
+        assert!(cg.repeating);
+        assert_eq!(cg.stops.len(), 4);
+        // 30deg → 1/12 turn.
+        assert!((cg.stops[1].position - (30.0 / 360.0)).abs() < 0.01);
+    }
+
+    #[test]
+    fn parse_conic_angle_fraction_units() {
+        assert!((parse_conic_angle_fraction("90deg").unwrap() - 0.25).abs() < 0.001);
+        assert!((parse_conic_angle_fraction("0.25turn").unwrap() - 0.25).abs() < 0.001);
+        assert!((parse_conic_angle_fraction("50%").unwrap() - 0.5).abs() < 0.001);
+        assert!((parse_conic_angle_fraction("100grad").unwrap() - 0.25).abs() < 0.001);
+    }
+
+    #[test]
+    fn parse_css_angle_deg_units() {
+        assert!((parse_css_angle_deg("90deg").unwrap() - 90.0).abs() < 0.01);
+        assert!((parse_css_angle_deg("0.5turn").unwrap() - 180.0).abs() < 0.01);
+        assert!((parse_css_angle_deg("100grad").unwrap() - 90.0).abs() < 0.01);
+        assert!(parse_css_angle_deg("red").is_none());
     }
 
     #[test]
@@ -10453,6 +10935,7 @@ mod tests {
         parent.background_gradient = Some(LinearGradient {
             angle: 90.0,
             stops: vec![],
+            repeating: false,
             layer_box: GradientLayerBox::default(),
         });
         let rules = parse_stylesheet(".box::after { content: ''; background-image: inherit; }");

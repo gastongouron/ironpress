@@ -7,13 +7,13 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 69.13,
-    "pass": 221,
-    "partial": 53,
-    "fail": 84,
+    "score_pct": 70.27,
+    "pass": 233,
+    "partial": 54,
+    "fail": 83,
     "unknown": 1,
-    "total": 359,
-    "scored_ratio_pct": 99.72
+    "total": 371,
+    "scored_ratio_pct": 99.73
   },
   "categories": [
     {
@@ -2928,11 +2928,11 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 71.43,
+      "score_pct": 86.54,
       "counts": {
-        "pass": 10,
-        "partial": 0,
-        "fail": 4,
+        "pass": 22,
+        "partial": 1,
+        "fail": 3,
         "unknown": 0
       },
       "features": [
@@ -3672,14 +3672,269 @@
         },
         {
           "feature": "conic-gradient",
-          "score_pct": 0.0,
+          "score_pct": 87.5,
           "counts": {
-            "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "pass": 3,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "conic-gradient-at-position",
+              "category": "backgrounds-gradients",
+              "feature": "conic-gradient",
+              "subfeature": "at-position",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.1225,
+              "weight": 1.0,
+              "description": "Four-quadrant conic-gradient with its center anchored at 30%/30%.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "b6aa34f879817e77e95c593eb5de23defdbb5b4abbf3fd63567e49541505b8d5",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content shifted (0.6,0.0)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0007655482856822055,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -78,
+                    -25,
+                    53
+                  ],
+                  "delta_e": 18.679975463926837,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.6131468531468531,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      60.48,
+                      0.0,
+                      61.12,
+                      39.68
+                    ],
+                    "area_pct": 0.05859842752393618,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      8,
+                      56,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.6131468531468531,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.6,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      0.32,
+                      60.16,
+                      54.72,
+                      60.16
+                    ],
+                    "area_pct": 0.04356665698518734,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -78,
+                      -28,
+                      61
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-78,-28,+61) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      60.48,
+                      60.16,
+                      69.12,
+                      60.16
+                    ],
+                    "area_pct": 0.007133721611609622,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -72,
+                      44,
+                      7
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.384
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-72,+44,+7) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      60.48,
+                      45.12,
+                      60.48,
+                      49.92
+                    ],
+                    "area_pct": 0.004076412349491213,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      3,
+                      19,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+3,+19,+0) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      60.16,
+                      55.36,
+                      60.16,
+                      59.2
+                    ],
+                    "area_pct": 0.00331208503396161,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -5,
+                      -22,
+                      12
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-5,-22,+12) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      60.16,
+                      61.12,
+                      60.16,
+                      64.0
+                    ],
+                    "area_pct": 0.0025477577184320078,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      23,
+                      12,
+                      -40
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+23,+12,-40) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.6131468531468531,
+                  0.0
+                ],
+                "confidence": 0.3076923076923077
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.61css",
+                  "magnitude": 0.6131468531468531
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.08% interiorΔE 0.00",
+                  "magnitude": 0.08407621891409194
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0007655482856822055
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "conic-gradient-basic",
               "category": "backgrounds-gradients",
@@ -3687,41 +3942,41 @@
               "subfeature": "four-quadrant-sweep",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 99.9997,
+              "status": "PASS",
+              "diff_pct": 0.279,
               "weight": 1.0,
-              "description": "Four-quadrant conic-gradient sweep; conic-gradient is not implemented, so this is an aspirational known-gap fixture.",
+              "description": "Four-quadrant conic-gradient sweep, rendered via a sector fan clipped to the box.",
               "note": "",
               "kind": "feature",
               "depends_on": [
                 "probe-fill-box",
                 "probe-color-swatch"
               ],
-              "expected_support": "unsupported",
-              "attribution": "REAL",
+              "expected_support": "implemented",
+              "attribution": "",
               "html_sha256": "bbab08cb5f0cf00217c805acdd092148f97b18c133024f6e53e307a5a5396532",
               "diagnosis": {
                 "primary_class": "ColorValue",
                 "secondary": [],
-                "headline": "fill recolour ΔRGB(-160,-46,+47) (ΔE 37.9)",
+                "headline": "fill recolour ΔRGB(+8,+56,+0) (ΔE 31.7)",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
-                    0.0,
+                    -0.32,
                     -0.32,
                     0.0
                   ],
-                  "missing_area_pct": 0.31897845236758565,
+                  "missing_area_pct": 0.0012759138094703426,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    -160,
-                    -46,
-                    47
+                    8,
+                    56,
+                    0
                   ],
-                  "delta_e": 37.90443118852647,
+                  "delta_e": 31.676181776657845,
                   "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.0,
+                    0.649795918367347,
                     0.0
                   ],
                   "colorspace": null
@@ -3730,12 +3985,12 @@
                   {
                     "class": "ColorValue",
                     "bbox_css": [
+                      100.48,
                       0.0,
-                      0.0,
-                      200.0,
-                      200.0
+                      101.76,
+                      79.68
                     ],
-                    "area_pct": 99.99974481723811,
+                    "area_pct": 0.18420288304263419,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -3743,47 +3998,379 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      -160,
-                      -46,
-                      47
+                      24,
+                      159,
+                      0
                     ],
-                    "delta_e": 37.90443118852647,
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.649795918367347,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+24,+159,+0) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      0.32,
+                      99.84,
+                      95.36,
+                      100.16
+                    ],
+                    "area_pct": 0.07617795578111704,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -78,
+                      -28,
+                      61
+                    ],
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
                       0.0,
                       0.0
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(-160,-46,+47) (ΔE 37.9)"
+                    "headline": "fill recolour ΔRGB(-78,-28,+61) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.48,
+                      99.84,
+                      109.12,
+                      100.16
+                    ],
+                    "area_pct": 0.007388497383452823,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -72,
+                      44,
+                      7
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      4.736000000000001,
+                      -2.24
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-72,+44,+7) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.48,
+                      85.12,
+                      100.48,
+                      89.92
+                    ],
+                    "area_pct": 0.004076412349491213,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      3,
+                      19,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+3,+19,+0) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.16,
+                      101.12,
+                      100.16,
+                      104.64
+                    ],
+                    "area_pct": 0.0030573092621184097,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      11,
+                      0,
+                      -50
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+11,+0,-50) (ΔE 0.0)"
                   }
                 ],
                 "residual_shift_css": [
-                  0.0,
+                  0.649795918367347,
                   0.0
                 ],
-                "confidence": 0.9968102073365231
+                "confidence": 0.8118721461187215
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 0.32css shift 0.00css",
-                  "magnitude": 0.32
+                  "headline": "raster geometry: edge 0.32css shift 0.65css",
+                  "magnitude": 0.649795918367347
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 99.68% interiorΔE 37.90",
-                  "magnitude": 99.68076636487052
+                  "headline": "raster appearance: color 0.23% interiorΔE 0.00",
+                  "magnitude": 0.22649623822614465
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 0.32% extra 0.00%",
-                  "magnitude": 0.31897845236758565
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0012759138094703426
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "conic-gradient-from-angle",
+              "category": "backgrounds-gradients",
+              "feature": "conic-gradient",
+              "subfeature": "from-angle",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PARTIAL",
+              "diff_pct": 0.4917,
+              "weight": 1.0,
+              "description": "Four-quadrant conic-gradient rotated by a 45deg 'from' start angle.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "REAL",
+              "html_sha256": "02fc4242c69f8148948b7ba6d5160afaa134c7a4d56bff9910cfef92a9de5472",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(+24,+159,+0) (ΔE 52.2)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.000510365523788137,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    24,
+                    159,
+                    0
+                  ],
+                  "delta_e": 52.19074198670142,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    1.05009009009009,
+                    0.05477477477477478
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      112.96,
+                      0.64,
+                      200.0,
+                      87.68
+                    ],
+                    "area_pct": 0.39566677367249087,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      24,
+                      159,
+                      0
+                    ],
+                    "delta_e": 52.19074198670141,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      1.05009009009009,
+                      0.05477477477477478
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+24,+159,+0) (ΔE 52.2)"
+                  }
+                ],
+                "residual_shift_css": [
+                  1.05009009009009,
+                  0.05477477477477478
+                ],
+                "confidence": 0.7616580310880829
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 1.05css",
+                  "magnitude": 1.051517699925703
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.37% interiorΔE 52.19",
+                  "magnitude": 0.3745213387991368
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.000510365523788137
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "conic-gradient-hard-stops",
+              "category": "backgrounds-gradients",
+              "feature": "conic-gradient",
+              "subfeature": "hard-stops-pie",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.3078,
+              "weight": 1.0,
+              "description": "Three-wedge hard-stop conic-gradient pie chart (deterministic 120deg sectors).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "d09eb832a5dbab387330745e5abc94200b2f544ef3cdcb3134bb820118c345b6",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(-66,+25,+52) (ΔE 25.2)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.001531096571364411,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -66,
+                    25,
+                    52
+                  ],
+                  "delta_e": 25.247039389262966,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.6482051282051282,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.48,
+                      0.0,
+                      101.76,
+                      89.92
+                    ],
+                    "area_pct": 0.1964321200911078,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -186,
+                      71,
+                      163
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.6482051282051282,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-186,+71,+163) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.6482051282051282,
+                  0.0
+                ],
+                "confidence": 0.8327814569536424
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.65css",
+                  "magnitude": 0.6482051282051282
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.26% interiorΔE 0.00",
+                  "magnitude": 0.2563050794775045
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.001531096571364411
                 }
               ],
               "disagreements": []
@@ -3794,7 +4381,7 @@
           "feature": "linear-gradient",
           "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 5,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -3935,6 +4522,174 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.12% extra 0.00%",
                   "magnitude": 0.12285012285012285
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "linear-gradient-hard-stops",
+              "category": "backgrounds-gradients",
+              "feature": "linear-gradient",
+              "subfeature": "hard-color-stops",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.3421,
+              "weight": 1.0,
+              "description": "Hard color-stop linear-gradient (two stops at 50%) producing a deterministic sharp 50/50 split.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "691a5eb4be599787df239bac9448827e883c1f95c98b115def8b4ef41b749934",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content clipped/truncated (0.1% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.11467532062283521,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    71,
+                    -20,
+                    -21
+                  ],
+                  "delta_e": 21.107378386424852,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      140.16
+                    ],
+                    "area_pct": 0.11402508551881414,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.1% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      140.48,
+                      0.0,
+                      140.48,
+                      140.16
+                    ],
+                    "area_pct": 0.11402508551881414,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      71,
+                      -20,
+                      -55
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+71,-20,-55) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      280.0,
+                      0.0,
+                      280.0,
+                      140.16
+                    ],
+                    "area_pct": 0.11402508551881414,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -81,
+                      -53,
+                      -21
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": 0.68,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-81,-53,-21) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.3348519362186788
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.23% interiorΔE 0.00",
+                  "magnitude": 0.22753128555176336
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.11% extra 0.00%",
+                  "magnitude": 0.11467532062283521
                 }
               ],
               "disagreements": []
@@ -4155,6 +4910,84 @@
                 }
               ],
               "disagreements": []
+            },
+            {
+              "id": "linear-gradient-to-side",
+              "category": "backgrounds-gradients",
+              "feature": "linear-gradient",
+              "subfeature": "to-bottom-side",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0007,
+              "weight": 1.0,
+              "description": "Two-stop linear-gradient using the 'to bottom' side keyword on a tall box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "b4b8af7e4caa24d4f5b005a58c3c7934d5813c9b698cb3fefad21fe2bd3abaf1",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [],
+                "headline": "content clipped/truncated (0.0% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0006955489504166338,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0006955489504166338
+                }
+              ],
+              "disagreements": []
             }
           ]
         },
@@ -4341,12 +5174,120 @@
           "feature": "radial-gradient",
           "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 7,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "radial-gradient-at-position",
+              "category": "backgrounds-gradients",
+              "feature": "radial-gradient",
+              "subfeature": "circle-at-25-25",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.1451,
+              "weight": 1.0,
+              "description": "Circular radial-gradient anchored at the 25%/25% position (off-center).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "9ef8edeebbbe85e104b5baf281d613a7bb277dad036593c2b0ba74b7ccc06ad0",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(-148,-106,-167) (ΔE 40.1)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    0.0,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0002106500449737846,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -148,
+                    -106,
+                    -167
+                  ],
+                  "delta_e": 40.126312600522375,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.48
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      220.16,
+                      0.32,
+                      220.16,
+                      220.16
+                    ],
+                    "area_pct": 0.1449272309419638,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -148,
+                      -106,
+                      -167
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.48
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-148,-106,-167) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.48
+                ],
+                "confidence": 0.9956458635703919
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.48css",
+                  "magnitude": 0.48
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.14% interiorΔE 0.00",
+                  "magnitude": 0.14450593085201624
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0002106500449737846
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "radial-gradient-circle-center",
               "category": "backgrounds-gradients",
@@ -4426,6 +5367,145 @@
               "disagreements": []
             },
             {
+              "id": "radial-gradient-closest-side",
+              "category": "backgrounds-gradients",
+              "feature": "radial-gradient",
+              "subfeature": "circle-closest-side",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2455,
+              "weight": 1.0,
+              "description": "Circular radial-gradient sized to the closest side of a non-square box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "0a2867ebadd17b9c0e65209895f61458f940876911ef9fad6f3158e5a904dbfe",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content clipped/truncated (0.1% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    0.0,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.12285012285012285,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -180,
+                    -199,
+                    -95
+                  ],
+                  "delta_e": 67.65540597016643,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      160.0
+                    ],
+                    "area_pct": 0.12285012285012285,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.1% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      260.16,
+                      0.32,
+                      260.16,
+                      160.0
+                    ],
+                    "area_pct": 0.1226049130240747,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -180,
+                      -199,
+                      -95
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-180,-199,-95) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.5004995004995005
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.12% interiorΔE 0.00",
+                  "magnitude": 0.1226049130240747
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.12% extra 0.00%",
+                  "magnitude": 0.12285012285012285
+                }
+              ],
+              "disagreements": []
+            },
+            {
               "id": "radial-gradient-ellipse-corner",
               "category": "backgrounds-gradients",
               "feature": "radial-gradient",
@@ -4499,6 +5579,284 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0006835643780931289
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "radial-gradient-ellipse-explicit",
+              "category": "backgrounds-gradients",
+              "feature": "radial-gradient",
+              "subfeature": "ellipse-explicit-radii",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2455,
+              "weight": 1.0,
+              "description": "Elliptical radial-gradient with explicit 120px x 60px radii centered in the box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "33db75bb08dedf8eceb8cc94df09aa5df083dc791bfc02867860f714f8415d1c",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content clipped/truncated (0.1% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    0.0,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.12285012285012285,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -189,
+                    -179,
+                    -174
+                  ],
+                  "delta_e": 66.92364008112796,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      200.0
+                    ],
+                    "area_pct": 0.12285012285012285,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.1% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      260.16,
+                      0.32,
+                      260.16,
+                      200.0
+                    ],
+                    "area_pct": 0.12265387664748686,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -189,
+                      -179,
+                      -174
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-189,-179,-174) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.5003996802557954
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.12% interiorΔE 0.00",
+                  "magnitude": 0.12265387664748686
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.12% extra 0.00%",
+                  "magnitude": 0.12285012285012285
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "radial-gradient-farthest-side",
+              "category": "backgrounds-gradients",
+              "feature": "radial-gradient",
+              "subfeature": "circle-farthest-side",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2455,
+              "weight": 1.0,
+              "description": "Circular radial-gradient sized to the farthest side of a non-square box.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "0be6e7aa971e4e2eafb0a18410b0d7b8d41abca3568b3ac232fb19646505af4f",
+              "diagnosis": {
+                "primary_class": "Missing",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content clipped/truncated (0.1% missing)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    0.0,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.12285012285012285,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -223,
+                    -155,
+                    -167
+                  ],
+                  "delta_e": 57.56523810211754,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.48
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      160.0
+                    ],
+                    "area_pct": 0.12285012285012285,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (0.1% missing)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      260.16,
+                      0.32,
+                      260.16,
+                      160.0
+                    ],
+                    "area_pct": 0.1226049130240747,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -223,
+                      -155,
+                      -167
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.48
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-223,-155,-167) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.48
+                ],
+                "confidence": 0.5004995004995005
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.48css",
+                  "magnitude": 0.48
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.12% interiorΔE 0.00",
+                  "magnitude": 0.1221144933719784
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.12% extra 0.00%",
+                  "magnitude": 0.12285012285012285
                 }
               ],
               "disagreements": []
@@ -4638,6 +5996,806 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.15% extra 0.00%",
                   "magnitude": 0.14513788098693758
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "repeating-conic-gradient",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "repeating-conic-gradient",
+              "category": "backgrounds-gradients",
+              "feature": "repeating-conic-gradient",
+              "subfeature": "wedges",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.9121,
+              "weight": 1.0,
+              "description": "Repeating-conic-gradient producing alternating 30deg wedges around the center.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "60d0ebaccf52cb9983b46da68ccd864fc9ac84b72a99087e6121c840244de456",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(+27,+26,+25) (ΔE 20.8)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.001020731047576274,
+                  "extra_area_pct": 0.0002556139207341232,
+                  "modal_drgb": [
+                    27,
+                    26,
+                    25
+                  ],
+                  "delta_e": 20.79765126878406,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.6498969072164948,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.48,
+                      0.0,
+                      101.76,
+                      89.92
+                    ],
+                    "area_pct": 0.19617734431926462,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      152,
+                      145,
+                      141
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.6498969072164948,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+152,+145,+141) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      98.24,
+                      99.52,
+                      200.0,
+                      100.8
+                    ],
+                    "area_pct": 0.08484033202378587,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      53,
+                      51,
+                      49
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.08,
+                      -0.28
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+53,+51,+49) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      99.84,
+                      102.4,
+                      100.16,
+                      200.0
+                    ],
+                    "area_pct": 0.07872571349954904,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      98,
+                      93,
+                      91
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+98,+93,+91) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      0.32,
+                      100.16,
+                      90.88,
+                      100.16
+                    ],
+                    "area_pct": 0.07235631920346902,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -54,
+                      -51,
+                      -50
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-54,-51,-50) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      100.16,
+                      95.68,
+                      100.16,
+                      99.2
+                    ],
+                    "area_pct": 0.0030573092621184097,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -20,
+                      -20,
+                      -19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-20,-20,-19) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      95.68,
+                      100.16,
+                      97.6,
+                      100.48
+                    ],
+                    "area_pct": 0.0022929819465888073,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -21,
+                      -21,
+                      -19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-21,-21,-19) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.6498969072164948,
+                  0.0
+                ],
+                "confidence": 0.9363128491620112
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.65css",
+                  "magnitude": 0.6498969072164948
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.85% interiorΔE 0.00",
+                  "magnitude": 0.8540867234359155
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.001020731047576274
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "repeating-linear-gradient",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "repeating-linear-gradient",
+              "category": "backgrounds-gradients",
+              "feature": "repeating-linear-gradient",
+              "subfeature": "stripes",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.7964,
+              "weight": 1.0,
+              "description": "Repeating-linear-gradient producing evenly spaced vertical stripes (10% period).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "8cbaccfc8c4e557f51bd571559718f0f3a097fa0605a56525777716493d4650c",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [
+                  "GeometryShift",
+                  "Missing"
+                ],
+                "headline": "fill recolour ΔRGB(+5,+15,+1) (ΔE 13.9)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    -0.32,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.11389521640091116,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    5,
+                    15,
+                    1
+                  ],
+                  "delta_e": 13.937993549040447,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      28.48,
+                      0.32,
+                      28.48,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -5,
+                      -15,
+                      -1
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-5,-15,-1) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      56.32,
+                      0.32,
+                      56.32,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      11,
+                      30,
+                      1
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+11,+30,+1) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      140.48,
+                      0.32,
+                      140.48,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -27,
+                      -76,
+                      -3
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-27,-76,-3) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      168.32,
+                      0.32,
+                      168.32,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      32,
+                      91,
+                      3
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+32,+91,+3) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      224.32,
+                      0.32,
+                      224.32,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      -0.32,
+                      -0.32,
+                      -0.32,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      252.16,
+                      0.32,
+                      252.16,
+                      140.16
+                    ],
+                    "area_pct": 0.11376534728300819,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      5,
+                      15,
+                      1
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+5,+15,+1) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.7142857142857143
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.57% interiorΔE 0.00",
+                  "magnitude": 0.5688282138794084
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.11% extra 0.00%",
+                  "magnitude": 0.11389521640091116
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "repeating-radial-gradient",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "repeating-radial-gradient",
+              "category": "backgrounds-gradients",
+              "feature": "repeating-radial-gradient",
+              "subfeature": "rings",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 1.6614,
+              "weight": 1.0,
+              "description": "Repeating-radial-gradient producing concentric rings (10% period circle).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-color-swatch"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "629aab8d55a24da8b1bc8f8a763384c4767c9accbc1cb23b5b1963945fccba00",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [
+                  "GeometryShift"
+                ],
+                "headline": "fill recolour ΔRGB(-13,-1,-29) (ΔE 27.5)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    -0.32,
+                    0.0,
+                    -0.32,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0008426001798951384,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -13,
+                    -1,
+                    -29
+                  ],
+                  "delta_e": 27.458274427176484,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.68,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      219.2,
+                      0.32,
+                      220.16,
+                      220.16
+                    ],
+                    "area_pct": 0.14703373139170164,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -13,
+                      -128,
+                      -223
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.42666666666666664,
+                      -0.21333333333333332
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-13,-128,-223) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      96.96,
+                      32.64,
+                      115.84,
+                      33.92
+                    ],
+                    "area_pct": 0.014113553013243569,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      149,
+                      5,
+                      -132
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.03,
+                      0.47
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+149,+5,-132) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      32.64,
+                      96.96,
+                      33.92,
+                      115.84
+                    ],
+                    "area_pct": 0.014113553013243569,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      149,
+                      5,
+                      -132
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.51,
+                      -0.01
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+149,+5,-132) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      219.2,
+                      104.32,
+                      219.2,
+                      116.16
+                    ],
+                    "area_pct": 0.008004701709003815,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -144,
+                      -5,
+                      127
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-144,-5,+127) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      104.32,
+                      219.2,
+                      116.16,
+                      219.2
+                    ],
+                    "area_pct": 0.008004701709003815,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -144,
+                      -5,
+                      127
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-144,-5,+127) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      19.84,
+                      19.84,
+                      24.96,
+                      24.96
+                    ],
+                    "area_pct": 0.006951451484134892,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -106,
+                      -3,
+                      94
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.64,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-106,-3,+94) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.68,
+                  0.0
+                ],
+                "confidence": 0.8237606187396982
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.68css",
+                  "magnitude": 0.68
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 1.37% interiorΔE 0.00",
+                  "magnitude": 1.3685933421946785
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0008426001798951384
                 }
               ],
               "disagreements": []
@@ -76314,7 +78472,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 200,
+    "features_with_fixture": 203,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -76332,6 +78490,9 @@
       "backgrounds-gradients/linear-gradient",
       "backgrounds-gradients/multiple-backgrounds",
       "backgrounds-gradients/radial-gradient",
+      "backgrounds-gradients/repeating-conic-gradient",
+      "backgrounds-gradients/repeating-linear-gradient",
+      "backgrounds-gradients/repeating-radial-gradient",
       "block-box-model/border-width",
       "block-box-model/box-sizing",
       "block-box-model/display",
@@ -76517,9 +78678,9 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 252,
+    "implemented": 265,
     "partial": 34,
-    "unsupported": 73
+    "unsupported": 72
   },
   "fix_first": [
     {

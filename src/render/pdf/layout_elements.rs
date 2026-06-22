@@ -737,6 +737,7 @@ pub(super) fn render_nested_layout_elements(
                 clip_rect,
                 background_gradient: _,
                 background_radial_gradient: _,
+                background_conic_gradient: _,
                 background_svg,
                 background_blur_radius,
                 background_size,

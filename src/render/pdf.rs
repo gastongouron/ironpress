@@ -16,8 +16,8 @@ use crate::render::shading::{
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BorderCollapse, BorderStyle, Clear, Float, FontFamily, LinearGradient, Overflow, Position,
-    RadialGradient, RadialShape, TextAlign, VerticalAlign,
+    BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily, LinearGradient, Overflow,
+    Position, RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -389,6 +389,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     transform_origin,
                     background_gradient,
                     background_radial_gradient,
+                    background_conic_gradient,
                     background_svg,
                     background_blur_radius,
                     background_size,
@@ -623,6 +624,33 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             border_box_h,
                             &mut page_shadings,
                             &mut shading_counter,
+                        );
+                        if *border_radius > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw conic gradient if specified
+                    if let Some(gradient) = background_conic_gradient {
+                        let bg_y = block_bottom;
+                        if *border_radius > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                block_x,
+                                bg_y,
+                                render_width,
+                                border_box_h,
+                                *border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_conic_gradient(
+                            &mut content,
+                            gradient,
+                            block_x,
+                            bg_y,
+                            render_width,
+                            border_box_h,
                         );
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -1502,6 +1530,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     box_shadow,
                     background_gradient,
                     background_radial_gradient,
+                    background_conic_gradient,
                     background_svg,
                     background_blur_radius,
                     background_size: flex_bg_size,
@@ -1616,6 +1645,34 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             full_height,
                             &mut page_shadings,
                             &mut shading_counter,
+                        );
+                        if *border_radius > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw container conic gradient
+                    if let Some(gradient) = background_conic_gradient {
+                        let bg_x = margin.left;
+                        let bg_y = row_y - full_height;
+                        if *border_radius > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                bg_x,
+                                bg_y,
+                                *container_width,
+                                full_height,
+                                *border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_conic_gradient(
+                            &mut content,
+                            gradient,
+                            bg_x,
+                            bg_y,
+                            *container_width,
+                            full_height,
                         );
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -2072,6 +2129,34 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 cell_render_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                            );
+                            if cell.border_radius > 0.0 {
+                                content.push_str("Q\n");
+                            }
+                        }
+
+                        // Draw cell conic gradient
+                        if let Some(gradient) = &cell.background_conic_gradient {
+                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_y = text_area_top - cell_y_shift - cell_render_h;
+                            if cell.border_radius > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    bg_x,
+                                    bg_y,
+                                    cell.width,
+                                    cell_render_h,
+                                    cell.border_radius,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_conic_gradient(
+                                &mut content,
+                                gradient,
+                                bg_x,
+                                bg_y,
+                                cell.width,
+                                cell_render_h,
                             );
                             if cell.border_radius > 0.0 {
                                 content.push_str("Q\n");
@@ -2765,6 +2850,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
                     background_radial_gradient: c_bg_radial,
+                    background_conic_gradient: c_bg_conic,
                     background_svg: c_bg_svg,
                     background_size: c_bg_size,
                     background_position: c_bg_position,
@@ -2941,6 +3027,33 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             total_h,
                             &mut page_shadings,
                             &mut shading_counter,
+                        );
+                        if *c_border_radius > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw container conic gradient
+                    if let Some(gradient) = c_bg_conic {
+                        let bg_y = container_y_top - total_h;
+                        if *c_border_radius > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                container_x,
+                                bg_y,
+                                container_w,
+                                total_h,
+                                *c_border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_conic_gradient(
+                            &mut content,
+                            gradient,
+                            container_x,
+                            bg_y,
+                            container_w,
+                            total_h,
                         );
                         if *c_border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -4133,6 +4246,7 @@ fn render_container_children(
                 background_color,
                 background_gradient: tb_bg_gradient,
                 background_radial_gradient: tb_bg_radial,
+                background_conic_gradient: tb_bg_conic,
                 text_align,
                 float: tb_float,
                 clear: tb_clear,
@@ -4407,6 +4521,34 @@ fn render_container_children(
                     }
                 }
 
+                // Draw conic gradient background
+                if let Some(gradient) = tb_bg_conic {
+                    let bg_x = render_x;
+                    let bg_y = render_y - child_h;
+                    if bg_blended {
+                        content.push_str("q\n");
+                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                    }
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("q\n");
+                        content.push_str(&rounded_rect_path(
+                            bg_x,
+                            bg_y,
+                            render_w,
+                            child_h,
+                            *tb_border_radius,
+                        ));
+                        content.push_str("W n\n");
+                    }
+                    render_conic_gradient(content, gradient, bg_x, bg_y, render_w, child_h);
+                    if *tb_border_radius > 0.0 {
+                        content.push_str("Q\n");
+                    }
+                    if bg_blended {
+                        content.push_str("Q\n");
+                    }
+                }
+
                 // Draw child borders
                 if border.has_any() {
                     let bx1 = render_x;
@@ -4538,6 +4680,7 @@ fn render_container_children(
                 background_color,
                 background_gradient,
                 background_radial_gradient,
+                background_conic_gradient,
                 border,
                 border_radius: cont_br,
                 padding_top,
@@ -4774,6 +4917,30 @@ fn render_container_children(
                             page_shadings,
                             shading_counter,
                         );
+                        if *cont_br > 0.0 {
+                            content.push_str("Q\n");
+                        }
+                        if nk_bg_blended {
+                            content.push_str("Q\n");
+                        }
+                    }
+
+                    // Draw conic gradient
+                    if let Some(gradient) = background_conic_gradient {
+                        let bg_x = nk_x;
+                        let bg_y = nk_top_y - nk_total_h;
+                        if nk_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                        }
+                        if *cont_br > 0.0 {
+                            content.push_str("q\n");
+                            content.push_str(&rounded_rect_path(
+                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        render_conic_gradient(content, gradient, bg_x, bg_y, nk_w, nk_total_h);
                         if *cont_br > 0.0 {
                             content.push_str("Q\n");
                         }
@@ -6574,11 +6741,16 @@ fn render_linear_gradient(
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
 ) {
-    let stops: Vec<(f32, (f32, f32, f32))> = gradient
+    let base_stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops
         .iter()
         .map(|s| (s.position, s.color.to_f32_rgb()))
         .collect();
+    let stops: Vec<(f32, (f32, f32, f32))> = if gradient.repeating {
+        repeat_stops_to_unit(&base_stops)
+    } else {
+        base_stops
+    };
 
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
         *shading_counter += 1;
@@ -6696,23 +6868,39 @@ fn render_radial_gradient_tile(
     let cx = x + off_x;
     let cy = y + (height - off_y);
 
-    // Distances from the center to the farthest tile edge along each axis.
-    let dx = off_x.max(width - off_x);
-    let dy = off_y.max(height - off_y);
+    // Per-axis distances from the center to the nearest/farthest tile edges.
+    let near_x = off_x.min(width - off_x).abs();
+    let far_x = off_x.max(width - off_x).abs();
+    let near_y = off_y.min(height - off_y).abs();
+    let far_y = off_y.max(height - off_y).abs();
+
+    // Repeating gradients tile the stop pattern along the gradient ray. The
+    // shading function already loops if we feed it a stop list extended over the
+    // ray; instead we expand the stops to cover [0,1] by repetition.
+    let render_stops: Vec<(f32, (f32, f32, f32))> = if gradient.repeating {
+        repeat_stops_to_unit(stops)
+    } else {
+        stops.to_vec()
+    };
 
     match gradient.shape {
         RadialShape::Circle => {
-            // Use the explicit circle radius when given; otherwise the CSS
-            // default extent is `farthest-corner`: the radius reaches from the
-            // center to the farthest tile corner.
-            let max_radius = gradient
-                .radius
-                .unwrap_or_else(|| (dx * dx + dy * dy).sqrt());
+            // Use the explicit circle radius when given; otherwise resolve the
+            // extent keyword to a radius.
+            let max_radius = gradient.radius.unwrap_or_else(|| match gradient.extent {
+                RadialExtent::ClosestSide => near_x.min(near_y),
+                RadialExtent::FarthestSide => far_x.max(far_y),
+                RadialExtent::ClosestCorner => (near_x * near_x + near_y * near_y).sqrt(),
+                RadialExtent::FarthestCorner => (far_x * far_x + far_y * far_y).sqrt(),
+            });
+            if max_radius <= 0.0 {
+                return;
+            }
             let name = push_radial_shading(
                 shadings,
                 shading_counter,
                 [cx, cy, 0.0, cx, cy, max_radius],
-                stops.to_vec(),
+                render_stops,
             );
             content.push_str("q\n");
             content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
@@ -6720,12 +6908,25 @@ fn render_radial_gradient_tile(
             content.push_str("Q\n");
         }
         RadialShape::Ellipse => {
-            // Ellipse with the default `farthest-corner` extent. The ending
-            // shape has the aspect ratio of the farthest-side ellipse (dx, dy)
-            // but is enlarged to pass through the farthest corner, which scales
-            // both radii by √2 (CSS Images Level 3).
-            let rx = dx * std::f32::consts::SQRT_2;
-            let ry = dy * std::f32::consts::SQRT_2;
+            // Resolve the elliptical radii. Explicit radii win; otherwise use the
+            // extent keyword.
+            let (rx, ry) = if let Some((rxp, ryp)) = gradient.radii {
+                (rxp.resolve(width), ryp.resolve(height))
+            } else {
+                match gradient.extent {
+                    RadialExtent::ClosestSide => (near_x, near_y),
+                    RadialExtent::FarthestSide => (far_x, far_y),
+                    // For closest/farthest-corner the ending ellipse keeps the
+                    // closest/farthest-side aspect ratio but is scaled to pass
+                    // through that corner (CSS Images Level 3).
+                    RadialExtent::ClosestCorner => {
+                        corner_ellipse_radii(near_x, near_y, near_x, near_y)
+                    }
+                    RadialExtent::FarthestCorner => {
+                        corner_ellipse_radii(far_x, far_y, far_x, far_y)
+                    }
+                }
+            };
             if rx <= 0.0 || ry <= 0.0 {
                 return;
             }
@@ -6737,7 +6938,7 @@ fn render_radial_gradient_tile(
                 shadings,
                 shading_counter,
                 [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
-                stops.to_vec(),
+                render_stops,
             );
             content.push_str("q\n");
             content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
@@ -6746,6 +6947,249 @@ fn render_radial_gradient_tile(
             content.push_str("Q\n");
         }
     }
+}
+
+/// Scale a side-fitting ellipse `(side_x, side_y)` so its boundary passes through
+/// the corner at `(corner_x, corner_y)` while keeping the side aspect ratio.
+/// CSS Images Level 3 §3.2: solve for the smallest `k` such that the ellipse
+/// `(k·side_x, k·side_y)` contains the corner.
+fn corner_ellipse_radii(side_x: f32, side_y: f32, corner_x: f32, corner_y: f32) -> (f32, f32) {
+    if side_x <= 0.0 || side_y <= 0.0 {
+        return (side_x, side_y);
+    }
+    let ratio = side_x / side_y;
+    // The ending ellipse has radii (rx, ry) with rx/ry == ratio and passing
+    // through (corner_x, corner_y): (corner_x/rx)^2 + (corner_y/ry)^2 = 1.
+    let ry = ((corner_x / ratio).powi(2) + corner_y.powi(2)).sqrt();
+    let rx = ratio * ry;
+    (rx, ry)
+}
+
+/// Expand a clamped stop list (positions in [0,1]) into a repeated pattern that
+/// covers the whole [0,1] domain, so a single PDF shading renders a repeating
+/// gradient. The input pattern spans `[stops.first, stops.last]`; it is tiled
+/// from 0 up to 1. Used for repeating linear/radial gradients.
+fn repeat_stops_to_unit(stops: &[(f32, (f32, f32, f32))]) -> Vec<(f32, (f32, f32, f32))> {
+    if stops.len() < 2 {
+        return stops.to_vec();
+    }
+    let p0 = stops.first().map(|s| s.0).unwrap_or(0.0);
+    let p1 = stops.last().map(|s| s.0).unwrap_or(1.0);
+    let period = p1 - p0;
+    if period <= 0.0001 {
+        return stops.to_vec();
+    }
+    let mut out: Vec<(f32, (f32, f32, f32))> = Vec::new();
+    // Tile starting at offset 0 so the first repetition begins at the ray origin.
+    let max_reps = ((1.0 - 0.0) / period).ceil() as i32 + 1;
+    for rep in 0..max_reps {
+        let base = rep as f32 * period;
+        if base > 1.0 {
+            break;
+        }
+        for s in stops {
+            let pos = base + (s.0 - p0);
+            if pos > 1.0 + 0.0001 {
+                continue;
+            }
+            // Avoid duplicate coincident positions across tile seams.
+            if let Some(last) = out.last() {
+                if (last.0 - pos).abs() < 0.0001 && last.1 == s.1 {
+                    continue;
+                }
+            }
+            out.push((pos.clamp(0.0, 1.0), s.1));
+        }
+    }
+    if out.last().map(|s| s.0).unwrap_or(0.0) < 1.0 {
+        // Clamp the final color out to the end of the domain.
+        if let Some(last) = out.last().copied() {
+            out.push((1.0, last.1));
+        }
+    }
+    out
+}
+
+/// Render a conic gradient. PDF has no native conic shading, so the sweep is
+/// approximated by a fan of thin triangular wedges from the center, each filled
+/// with the color interpolated at the wedge's mid-angle. The fan is clipped to
+/// the painting rectangle.
+#[allow(clippy::too_many_arguments)]
+fn render_conic_gradient(
+    content: &mut String,
+    gradient: &ConicGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    let stops: Vec<(f32, (f32, f32, f32))> = gradient
+        .stops
+        .iter()
+        .map(|s| (s.position, s.color.to_f32_rgb()))
+        .collect();
+    if stops.is_empty() {
+        return;
+    }
+
+    for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
+        render_conic_gradient_tile(
+            content,
+            gradient,
+            &stops,
+            tile.x,
+            tile.y,
+            tile.width,
+            tile.height,
+        );
+    }
+}
+
+/// Sample a conic gradient's color at angular fraction `t` (0..1 of a turn).
+/// `stops` are sorted ascending by fraction. For repeating gradients `t` is
+/// reduced into the pattern period before sampling.
+fn conic_color_at(stops: &[(f32, (f32, f32, f32))], t: f32, repeating: bool) -> (f32, f32, f32) {
+    let first = stops[0];
+    let last = stops[stops.len() - 1];
+
+    let t = if repeating {
+        let p0 = first.0;
+        let p1 = last.0;
+        let period = p1 - p0;
+        if period <= 0.0001 {
+            t
+        } else {
+            p0 + (t - p0).rem_euclid(period)
+        }
+    } else {
+        t
+    };
+
+    if t <= first.0 {
+        return first.1;
+    }
+    if t >= last.0 {
+        return last.1;
+    }
+    for w in stops.windows(2) {
+        let (a_pos, a_col) = w[0];
+        let (b_pos, b_col) = w[1];
+        if t >= a_pos && t <= b_pos {
+            let span = b_pos - a_pos;
+            if span <= 0.00001 {
+                // Coincident stops form a hard color line: take the later color.
+                return b_col;
+            }
+            let f = (t - a_pos) / span;
+            return (
+                a_col.0 + (b_col.0 - a_col.0) * f,
+                a_col.1 + (b_col.1 - a_col.1) * f,
+                a_col.2 + (b_col.2 - a_col.2) * f,
+            );
+        }
+    }
+    last.1
+}
+
+/// Paint a single conic-gradient tile clipped to its rectangle as a wedge fan.
+fn render_conic_gradient_tile(
+    content: &mut String,
+    gradient: &ConicGradient,
+    stops: &[(f32, (f32, f32, f32))],
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    if width <= 0.0 || height <= 0.0 {
+        return;
+    }
+    // Center in PDF space (y flips: `y` is the tile bottom edge).
+    let (cx_pos, cy_pos) = gradient.center;
+    let off_x = cx_pos.resolve(width);
+    let off_y = cy_pos.resolve(height);
+    let cx = x + off_x;
+    let cy = y + (height - off_y);
+
+    // Wedge resolution. A wedge's straight outer chord is inscribed in a circle,
+    // so to fully cover the clip rectangle's corners the chord must reach BEYOND
+    // each corner: enlarge the radius by 1/cos(half-wedge-angle).
+    const WEDGES: usize = 360;
+    let step = 1.0 / WEDGES as f32;
+    let half_step_rad = std::f32::consts::PI * step;
+    let corner_radius = {
+        let corners = [
+            (x - cx, y - cy),
+            (x + width - cx, y - cy),
+            (x - cx, y + height - cy),
+            (x + width - cx, y + height - cy),
+        ];
+        corners
+            .iter()
+            .map(|(dx, dy)| (dx * dx + dy * dy).sqrt())
+            .fold(0.0_f32, f32::max)
+    };
+    let radius = corner_radius / half_step_rad.cos() + 2.0;
+    if radius <= 0.0 {
+        return;
+    }
+
+    let from = gradient.from_angle;
+
+    // Build the angular breakpoints (fractions of a turn): a uniform grid plus
+    // every interior color-stop fraction, so hard color-stops fall exactly on a
+    // wedge edge (no facet straddles a hard line).
+    let mut fracs: Vec<f32> = (0..=WEDGES).map(|i| i as f32 * step).collect();
+    if !gradient.repeating {
+        for s in stops {
+            if s.0 > 0.0 && s.0 < 1.0 {
+                fracs.push(s.0);
+            }
+        }
+        fracs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        fracs.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
+    }
+
+    content.push_str("q\n");
+    content.push_str(&format!("{x} {y} {width} {height} re W n\n"));
+
+    // Adjacent independently-filled triangles leave faint anti-aliased seams
+    // along their shared edge. Overlap each wedge slightly past its right edge
+    // (toward the next wedge) so the seam is overpainted. The overlap is a small
+    // fraction of a step; for smooth gradients neighboring colors are nearly
+    // identical so the bleed is invisible, and hard-stop edges are snapped to a
+    // wedge boundary so at most one overlap-width bleeds by a sub-degree.
+    let overlap = step * 0.9;
+
+    for win in fracs.windows(2) {
+        let f0 = win[0];
+        let f1 = win[1];
+        if f1 - f0 < 1e-6 {
+            continue;
+        }
+        let fmid = (f0 + f1) * 0.5;
+        let (r, g, b) = conic_color_at(stops, fmid, gradient.repeating);
+        let f1e = f1 + overlap;
+
+        // CSS conic angle: 0deg points up (12 o'clock), increasing clockwise.
+        // PDF y increases upward, so the CSS clockwise angle θ from "up" maps to
+        // direction (sin θ, cos θ): cos is the upward component, sin rightward —
+        // reproducing a clockwise sweep.
+        let theta0 = (from + f0 * 360.0).to_radians();
+        let theta1 = (from + f1e * 360.0).to_radians();
+        let x0 = cx + radius * theta0.sin();
+        let y0 = cy + radius * theta0.cos();
+        let x1 = cx + radius * theta1.sin();
+        let y1 = cy + radius * theta1.cos();
+
+        content.push_str(&format!("{r} {g} {b} rg\n"));
+        content.push_str(&format!("{cx} {cy} m\n"));
+        content.push_str(&format!("{x0} {y0} l\n"));
+        content.push_str(&format!("{x1} {y1} l\n"));
+        content.push_str("f\n");
+    }
+
+    content.push_str("Q\n");
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -8507,6 +8951,7 @@ mod tests {
             vertical_align: crate::style::computed::VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
+            background_conic_gradient: None,
             background_svg: None,
             background_blur_radius: 0.0,
             background_size: BackgroundSize::Auto,
@@ -10250,7 +10695,10 @@ mod tests {
                 crate::style::computed::RadialPos::Fraction(0.5),
             ),
             shape: RadialShape::Circle,
+            extent: RadialExtent::FarthestCorner,
             radius: None,
+            radii: None,
+            repeating: false,
             layer_box: crate::style::computed::GradientLayerBox::default(),
         };
         render_radial_gradient(

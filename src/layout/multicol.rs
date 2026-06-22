@@ -279,6 +279,7 @@ pub(crate) fn layout_multicol_container(
     let BackgroundFields {
         gradient: background_gradient,
         radial_gradient: background_radial_gradient,
+        conic_gradient: background_conic_gradient,
         svg: background_svg,
         blur_radius: background_blur_radius,
         size: background_size,
@@ -316,6 +317,7 @@ pub(crate) fn layout_multicol_container(
         box_shadow: style.box_shadow.clone(),
         background_gradient,
         background_radial_gradient,
+        background_conic_gradient,
         background_svg,
         background_blur_radius,
         background_size,
@@ -493,6 +495,7 @@ fn empty_abs_container(
         box_shadow: Vec::new(),
         background_gradient: None,
         background_radial_gradient: None,
+        background_conic_gradient: None,
         background_svg: None,
         background_blur_radius: 0.0,
         background_size: crate::style::computed::BackgroundSize::Auto,

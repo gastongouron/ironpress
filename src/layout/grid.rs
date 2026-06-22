@@ -748,6 +748,7 @@ pub(crate) fn layout_grid_container(
     let BackgroundFields {
         gradient: background_gradient,
         radial_gradient: background_radial_gradient,
+        conic_gradient: background_conic_gradient,
         svg: background_svg,
         blur_radius: background_blur_radius,
         size: background_size,
@@ -784,6 +785,7 @@ pub(crate) fn layout_grid_container(
         box_shadow: style.box_shadow.clone(),
         background_gradient,
         background_radial_gradient,
+        background_conic_gradient,
         background_svg,
         background_blur_radius,
         background_size,

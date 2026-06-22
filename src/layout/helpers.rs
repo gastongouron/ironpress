@@ -2,8 +2,8 @@ use crate::parser::dom::{ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    ComputedStyle, ContentItem, Display, FontStyle, FontWeight, LinearGradient, ListStyleType,
-    Position, RadialGradient, Visibility,
+    ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight, LinearGradient,
+    ListStyleType, Position, RadialGradient, Visibility,
 };
 use std::collections::HashMap;
 
@@ -533,6 +533,7 @@ pub(crate) fn build_pseudo_block(
     let BackgroundFields {
         gradient: background_gradient,
         radial_gradient: background_radial_gradient,
+        conic_gradient: background_conic_gradient,
         svg: background_svg,
         blur_radius: background_blur_radius,
         size: background_size,
@@ -669,6 +670,7 @@ pub(crate) fn build_pseudo_block(
         vertical_align: pseudo_style.vertical_align,
         background_gradient,
         background_radial_gradient,
+        background_conic_gradient,
         background_svg,
         background_blur_radius,
         background_size,
@@ -843,6 +845,7 @@ fn build_pseudo_inline_box(
 pub(crate) struct BackgroundFields {
     pub(crate) gradient: Option<LinearGradient>,
     pub(crate) radial_gradient: Option<RadialGradient>,
+    pub(crate) conic_gradient: Option<ConicGradient>,
     pub(crate) svg: Option<crate::parser::svg::SvgTree>,
     pub(crate) blur_radius: f32,
     pub(crate) size: BackgroundSize,
@@ -856,6 +859,7 @@ impl BackgroundFields {
         Self {
             gradient: style.background_gradient.clone(),
             radial_gradient: style.background_radial_gradient.clone(),
+            conic_gradient: style.background_conic_gradient.clone(),
             svg: background_svg_for_style(style),
             blur_radius: style.blur_radius,
             size: style.background_size,
@@ -869,6 +873,7 @@ impl BackgroundFields {
         Self {
             gradient: None,
             radial_gradient: None,
+            conic_gradient: None,
             svg: None,
             blur_radius: 0.0,
             size: BackgroundSize::Auto,
@@ -883,6 +888,7 @@ pub(crate) fn has_background_paint(style: &ComputedStyle) -> bool {
     style.background_color.is_some()
         || style.background_gradient.is_some()
         || style.background_radial_gradient.is_some()
+        || style.background_conic_gradient.is_some()
         || style.background_image.is_some()
         || style.background_svg.is_some()
 }

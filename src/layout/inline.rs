@@ -3,7 +3,7 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    ComputedStyle, Display, LinearGradient, RadialGradient, TextAlign, Transform,
+    ComputedStyle, ConicGradient, Display, LinearGradient, RadialGradient, TextAlign, Transform,
     compute_style_with_context,
 };
 use std::collections::HashMap;
@@ -117,6 +117,7 @@ pub(crate) fn layout_inline_block_group(
         transform_origin: crate::style::computed::TransformOrigin,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,
+        background_conic_gradient: Option<ConicGradient>,
         background_svg: Option<crate::parser::svg::SvgTree>,
         background_blur_radius: f32,
         background_size: BackgroundSize,
@@ -272,6 +273,7 @@ pub(crate) fn layout_inline_block_group(
             transform_origin: child_style.transform_origin,
             background_gradient: bg_fields.gradient,
             background_radial_gradient: bg_fields.radial_gradient,
+            background_conic_gradient: bg_fields.conic_gradient,
             background_svg: bg_fields.svg,
             background_blur_radius: bg_fields.blur_radius,
             background_size: bg_fields.size,
@@ -323,6 +325,7 @@ pub(crate) fn layout_inline_block_group(
             border_radius: item.border_radius,
             background_gradient: item.background_gradient.clone(),
             background_radial_gradient: item.background_radial_gradient.clone(),
+            background_conic_gradient: item.background_conic_gradient.clone(),
             background_svg: item.background_svg.clone(),
             background_blur_radius: item.background_blur_radius,
             background_size: item.background_size,
@@ -361,6 +364,7 @@ pub(crate) fn layout_inline_block_group(
             box_shadow: Vec::new(),
             background_gradient: None,
             background_radial_gradient: None,
+            background_conic_gradient: None,
             background_svg: None,
             background_blur_radius: 0.0,
             background_size: BackgroundSize::Auto,
