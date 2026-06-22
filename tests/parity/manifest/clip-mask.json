@@ -11,7 +11,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "clip-path-inset-round",
@@ -25,7 +28,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "clip-path-circle",
@@ -39,7 +45,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "clip-path-ellipse",
@@ -53,7 +62,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "clip-path-polygon",
@@ -67,7 +79,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "mask-image-linear-gradient",
@@ -80,8 +95,11 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "mask-image-radial-gradient",
@@ -94,8 +112,11 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "mask-image-url-svg",
@@ -109,6 +130,111 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-image-linear-diagonal",
+    "category": "clip-mask",
+    "feature": "mask-image: linear-gradient()",
+    "subfeature": "diagonal-angle",
+    "description": "mask-image: linear-gradient(135deg) fades a solid fill diagonally from opaque (top-left) to transparent (bottom-right) via the alpha channel. CSS mask is unsupported (PDF SMask used internally for blur alpha only).",
+    "file": "cases/clip-mask/mask-image-linear-diagonal.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-image-repeating-linear",
+    "category": "clip-mask",
+    "feature": "mask-image: repeating-linear-gradient()",
+    "subfeature": "striped-alpha",
+    "description": "mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.",
+    "file": "cases/clip-mask/mask-image-repeating-linear.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-image-conic-gradient",
+    "category": "clip-mask",
+    "feature": "mask-image: conic-gradient()",
+    "subfeature": "alpha-sweep",
+    "description": "mask-image: conic-gradient() masks a solid fill to an opaque half-turn wedge fading to transparent. CSS mask is unsupported.",
+    "file": "cases/clip-mask/mask-image-conic-gradient.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-mode-luminance",
+    "category": "clip-mask",
+    "feature": "mask-mode: luminance",
+    "subfeature": "gradient-source",
+    "description": "mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.",
+    "file": "cases/clip-mask/mask-mode-luminance.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-image-none",
+    "category": "clip-mask",
+    "feature": "mask-image: none",
+    "subfeature": "initial-value",
+    "description": "mask-image: none leaves a solid box fully opaque (initial value). CSS mask is unsupported.",
+    "file": "cases/clip-mask/mask-image-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-webkit-alias",
+    "category": "clip-mask",
+    "feature": "-webkit-mask-image",
+    "subfeature": "prefixed-alias",
+    "description": "-webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.",
+    "file": "cases/clip-mask/mask-webkit-alias.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]

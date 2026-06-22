@@ -3183,6 +3183,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     transform: c_transform,
                     transform_origin: c_transform_origin,
                     clip_path: c_clip_path,
+                    mask_image: c_mask_image,
+                    mask_mode: c_mask_mode,
                     box_shadow: c_box_shadow,
                     background_gradient: c_bg_gradient,
                     background_radial_gradient: c_bg_radial,
@@ -3268,6 +3270,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             container_w,
                             total_h,
                         );
+                    }
+
+                    // CSS mask-image (css-masking-1 §3): wrap the box (and its
+                    // descendants) in a soft-mask graphics state so the mask
+                    // source's coverage fades the painted content. Built lazily so
+                    // boxes without a mask pay nothing.
+                    let mut c_mask_open = false;
+                    if let Some(src) = c_mask_image {
+                        if let Some(gs_name) = pdf_writer.add_mask_soft_mask(
+                            src,
+                            *c_mask_mode,
+                            container_x,
+                            container_y_top,
+                            container_w,
+                            total_h,
+                        ) {
+                            content.push_str("q\n");
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                            c_mask_open = true;
+                        }
                     }
 
                     // Self-decoration (background / border / outline / shadow) is
@@ -3727,6 +3749,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Restore clip
                     if needs_clip {
+                        content.push_str("Q\n");
+                    }
+                    // Close the mask group (opened inside the clip-path q..Q).
+                    if c_mask_open {
                         content.push_str("Q\n");
                     }
                     if c_needs_clip_path {
@@ -5210,6 +5236,8 @@ fn render_container_children(
                 transform: nk_transform,
                 transform_origin: nk_transform_origin,
                 clip_path: nk_clip_path,
+                mask_image: nk_mask_image,
+                mask_mode: nk_mask_mode,
                 box_shadow: nk_box_shadow,
                 background_svg: nk_bg_svg,
                 background_size: nk_bg_size,
@@ -5355,6 +5383,23 @@ fn render_container_children(
                     if let Some(cp) = nk_clip_path {
                         content.push_str("q\n");
                         push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
+                    }
+
+                    // CSS mask-image (css-masking-1 §3): soft-mask the nested box.
+                    let mut nk_mask_open = false;
+                    if let Some(src) = nk_mask_image {
+                        if let Some(gs_name) = pdf_writer.add_mask_soft_mask(
+                            src,
+                            *nk_mask_mode,
+                            nk_x,
+                            nk_top_y,
+                            nk_w,
+                            nk_total_h,
+                        ) {
+                            content.push_str("q\n");
+                            content.push_str(&format!("/{gs_name} gs\n"));
+                            nk_mask_open = true;
+                        }
                     }
 
                     // CSS2 §11.2: self-decoration (background / border / outline /
@@ -5788,6 +5833,10 @@ fn render_container_children(
                     );
 
                     if clip {
+                        content.push_str("Q\n");
+                    }
+                    // Close the mask group (opened inside the clip-path q..Q).
+                    if nk_mask_open {
                         content.push_str("Q\n");
                     }
                     if nk_needs_clip_path {
@@ -8804,6 +8853,209 @@ fn decode_png_for_pdf(raw: &[u8]) -> Option<DecodedPngImage> {
     })
 }
 
+/// Sample a sorted gradient stop list at fraction `t` (0..=1), returning the
+/// interpolated `(r, g, b, a)` as floats in 0..1. Stops outside the requested
+/// fraction clamp to the end colors (the non-repeating gradient behaviour used
+/// for masks). Stop positions are already normalised to 0..1 at parse time.
+fn sample_gradient_stops(
+    stops: &[crate::style::computed::GradientStop],
+    t: f32,
+) -> (f32, f32, f32, f32) {
+    if stops.is_empty() {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    let to_rgba = |c: crate::types::Color| {
+        (
+            c.r as f32 / 255.0,
+            c.g as f32 / 255.0,
+            c.b as f32 / 255.0,
+            c.a as f32 / 255.0,
+        )
+    };
+    if t <= stops[0].position {
+        return to_rgba(stops[0].color);
+    }
+    let last = stops.len() - 1;
+    if t >= stops[last].position {
+        return to_rgba(stops[last].color);
+    }
+    for w in stops.windows(2) {
+        let (a, b) = (&w[0], &w[1]);
+        if t >= a.position && t <= b.position {
+            let span = (b.position - a.position).max(1e-6);
+            let f = ((t - a.position) / span).clamp(0.0, 1.0);
+            let (ar, ag, ab, aa) = to_rgba(a.color);
+            let (br, bg, bb, ba) = to_rgba(b.color);
+            return (
+                ar + (br - ar) * f,
+                ag + (bg - ag) * f,
+                ab + (bb - ab) * f,
+                aa + (ba - aa) * f,
+            );
+        }
+    }
+    to_rgba(stops[last].color)
+}
+
+/// The tiling period of a repeating gradient: the position of its last stop
+/// (css-images-3 — the stop pattern from 0 to the final stop tiles to fill the
+/// line/ray). Falls back to 1.0 when degenerate so the mask still renders.
+fn repeat_period(stops: &[crate::style::computed::GradientStop]) -> f32 {
+    stops
+        .last()
+        .map(|s| s.position)
+        .filter(|p| *p > 1e-4)
+        .unwrap_or(1.0)
+}
+
+/// Reduce a sampled gradient color to a single mask-coverage byte (0..255)
+/// following `mask-mode` (css-masking-1 §3.4). `match-source` on a CSS gradient
+/// resolves to alpha. Luminance uses the Rec.709 coefficients premultiplied by
+/// alpha.
+fn coverage_byte(rgba: (f32, f32, f32, f32), mode: crate::style::computed::MaskMode) -> u8 {
+    use crate::style::computed::MaskMode;
+    let (r, g, b, a) = rgba;
+    let cov = match mode {
+        MaskMode::Luminance => (0.2126 * r + 0.7152 * g + 0.0722 * b) * a,
+        // `alpha` and `match-source` (CSS image) both use the source alpha.
+        MaskMode::Alpha | MaskMode::MatchSource => a,
+    };
+    (cov.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+/// Rasterise a `mask-image` source to a `px_w` × `px_h` DeviceGray coverage
+/// buffer (row 0 = top of the box, matching PDF image sample order). Each byte
+/// is the mask coverage for one pixel under `mode`.
+fn rasterize_mask_coverage(
+    source: &crate::style::computed::MaskSource,
+    mode: crate::style::computed::MaskMode,
+    px_w: u32,
+    px_h: u32,
+) -> Vec<u8> {
+    use crate::style::computed::{MaskSource, RadialExtent, RadialPos, RadialShape};
+    let w = px_w as f32;
+    let h = px_h as f32;
+    // Resolve a `RadialPos` to MASK PIXELS along an axis of `extent` pixels.
+    // `Fraction` scales by the pixel extent directly; `Points` is stored in PDF
+    // points, so convert to pixels (1pt = 1/0.75 px) to match the buffer space.
+    let resolve_px = |p: RadialPos, extent: f32| -> f32 {
+        match p {
+            RadialPos::Fraction(f) => extent * f,
+            RadialPos::Points(pt) => pt / 0.75,
+        }
+    };
+    let mut out = Vec::with_capacity((px_w * px_h) as usize);
+    match source {
+        MaskSource::Linear(lg) => {
+            // CSS gradient line: angle 0 = to top, 90 = to right, 180 = to
+            // bottom. The line passes through the box centre; the gradient
+            // extends from the start corner (projection min) to the end corner
+            // (projection max). Normalise each pixel's projection to 0..1.
+            let theta = lg.angle.to_radians();
+            // Direction vector of increasing gradient (CSS y grows downward).
+            let dx = theta.sin();
+            let dy = -theta.cos();
+            // Half-length of the projected gradient line: project the box's
+            // half-extents onto the direction and sum the absolute components.
+            let half = (w * 0.5 * dx.abs() + h * 0.5 * dy.abs()).max(1e-6);
+            let (cx, cy) = (w * 0.5, h * 0.5);
+            for py in 0..px_h {
+                let fy = py as f32 + 0.5;
+                for px in 0..px_w {
+                    let fx = px as f32 + 0.5;
+                    let proj = (fx - cx) * dx + (fy - cy) * dy;
+                    let mut t = (proj + half) / (2.0 * half);
+                    if lg.repeating {
+                        t = t.rem_euclid(repeat_period(&lg.stops));
+                    } else {
+                        t = t.clamp(0.0, 1.0);
+                    }
+                    out.push(coverage_byte(sample_gradient_stops(&lg.stops, t), mode));
+                }
+            }
+        }
+        MaskSource::Radial(rg) => {
+            // Centre in mask pixels.
+            let cx = resolve_px(rg.center.0, w);
+            let cy = resolve_px(rg.center.1, h);
+            // Resolve the ending-shape radii (px). Explicit radii win; else the
+            // extent keyword (default farthest-corner) is computed from the box.
+            let dist_x = cx.max(w - cx);
+            let dist_y = cy.max(h - cy);
+            let near_x = cx.min(w - cx);
+            let near_y = cy.min(h - cy);
+            let (rx, ry) = if let Some(r) = rg.radius {
+                let rp = r / 0.75; // points → mask pixels
+                (rp, rp)
+            } else if let Some((ex, ey)) = rg.radii {
+                (resolve_px(ex, w), resolve_px(ey, h))
+            } else {
+                match (rg.shape, rg.extent) {
+                    (RadialShape::Circle, RadialExtent::ClosestSide) => {
+                        let r = near_x.min(near_y).max(1e-6);
+                        (r, r)
+                    }
+                    (RadialShape::Circle, RadialExtent::FarthestSide) => {
+                        let r = dist_x.max(dist_y).max(1e-6);
+                        (r, r)
+                    }
+                    (RadialShape::Circle, RadialExtent::ClosestCorner) => {
+                        let r = (near_x * near_x + near_y * near_y).sqrt().max(1e-6);
+                        (r, r)
+                    }
+                    (RadialShape::Circle, _) => {
+                        let r = (dist_x * dist_x + dist_y * dist_y).sqrt().max(1e-6);
+                        (r, r)
+                    }
+                    (RadialShape::Ellipse, RadialExtent::ClosestSide) => {
+                        (near_x.max(1e-6), near_y.max(1e-6))
+                    }
+                    (RadialShape::Ellipse, RadialExtent::FarthestSide) => {
+                        (dist_x.max(1e-6), dist_y.max(1e-6))
+                    }
+                    (RadialShape::Ellipse, _) => (dist_x.max(1e-6), dist_y.max(1e-6)),
+                }
+            };
+            let (rx, ry) = (rx.max(1e-6), ry.max(1e-6));
+            for py in 0..px_h {
+                let fy = py as f32 + 0.5;
+                for px in 0..px_w {
+                    let fx = px as f32 + 0.5;
+                    let nx = (fx - cx) / rx;
+                    let ny = (fy - cy) / ry;
+                    let mut t = (nx * nx + ny * ny).sqrt();
+                    if rg.repeating {
+                        t = t.rem_euclid(repeat_period(&rg.stops));
+                    } else {
+                        t = t.clamp(0.0, 1.0);
+                    }
+                    out.push(coverage_byte(sample_gradient_stops(&rg.stops, t), mode));
+                }
+            }
+        }
+        MaskSource::Conic(cg) => {
+            let cx = resolve_px(cg.center.0, w);
+            let cy = resolve_px(cg.center.1, h);
+            let from = cg.from_angle.to_radians();
+            for py in 0..px_h {
+                let fy = py as f32 + 0.5;
+                for px in 0..px_w {
+                    let fx = px as f32 + 0.5;
+                    // CSS conic angle: clockwise from 12 o'clock (up). atan2 with
+                    // (dx, -dy) gives angle CW from +y axis (up) in CSS space.
+                    let dx = fx - cx;
+                    let dy = fy - cy;
+                    let mut ang = dx.atan2(-dy) - from;
+                    ang = ang.rem_euclid(std::f32::consts::TAU);
+                    let t = ang / std::f32::consts::TAU;
+                    out.push(coverage_byte(sample_gradient_stops(&cg.stops, t), mode));
+                }
+            }
+        }
+    }
+    out
+}
+
 fn flate_compress(data: &[u8]) -> Option<Vec<u8>> {
     let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
     encoder.write_all(data).ok()?;
@@ -8834,6 +9086,10 @@ pub(crate) struct PdfWriter {
     page_shadings: Vec<Vec<ShadingEntry>>,
     /// Custom TrueType font entries.
     custom_font_entries: Vec<CustomFontEntry>,
+    /// CSS `mask-image` soft-mask graphics states: `(gs_name, group_form_obj_id)`.
+    /// Each becomes an `/ExtGState << /SMask << /S /Luminosity /G <form> >> >>`
+    /// emitted into the shared resource dictionary. Names are global across pages.
+    soft_mask_gstates: Vec<(String, usize)>,
 }
 
 impl PdfWriter {
@@ -8847,6 +9103,7 @@ impl PdfWriter {
             page_ext_gstates: Vec::new(),
             page_shadings: Vec::new(),
             custom_font_entries: Vec::new(),
+            soft_mask_gstates: Vec::new(),
         }
     }
 
@@ -8982,6 +9239,62 @@ impl PdfWriter {
         self.objects.push(header);
         self.binary_objects.insert(id, color_stream);
         Some(id)
+    }
+
+    /// Build a CSS `mask-image` soft mask (css-masking-1 §3) for a box of size
+    /// `w` × `h` points whose top-left sits at PDF coordinate (`x`, `top_y`).
+    ///
+    /// The mask source is rasterised to a DeviceGray coverage buffer (alpha for
+    /// `mask-mode: alpha`/`match-source` on a CSS image, luminance for
+    /// `luminance`), wrapped in a `/Luminosity` transparency-group form XObject
+    /// positioned over the box, and registered as an `/SMask` ExtGState. Returns
+    /// the graphics-state name to emit with `gs` (the caller wraps the masked
+    /// paint in `q /name gs ... Q`), or `None` if the source can't be rasterised.
+    pub(crate) fn add_mask_soft_mask(
+        &mut self,
+        source: &crate::style::computed::MaskSource,
+        mode: crate::style::computed::MaskMode,
+        x: f32,
+        top_y: f32,
+        w: f32,
+        h: f32,
+    ) -> Option<String> {
+        if w <= 0.0 || h <= 0.0 {
+            return None;
+        }
+        // Rasterise at ~1 sample per CSS pixel (points / 0.75), capped so a very
+        // large box can't blow up the PDF. Coverage is one DeviceGray byte/pixel.
+        let px_w = ((w / 0.75).round() as u32).clamp(1, 1024);
+        let px_h = ((h / 0.75).round() as u32).clamp(1, 1024);
+        let coverage = rasterize_mask_coverage(source, mode, px_w, px_h);
+
+        // DeviceGray coverage image (luminosity source for the group).
+        let gray_stream = flate_compress(&coverage)?;
+        let img_id = self.next_id();
+        self.objects.push(format!(
+            "{img_id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {px_w} /Height {px_h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length {len} >>\nstream\n",
+            len = gray_stream.len(),
+        ));
+        self.binary_objects.insert(img_id, gray_stream);
+
+        // Transparency-group form XObject that draws the coverage image over the
+        // box. The group backdrop for a luminosity mask is black (coverage 0 →
+        // fully masked), so the mask is implicitly `no-repeat`: pixels outside
+        // the box's image region contribute zero coverage.
+        let bottom_y = top_y - h;
+        let group_stream = format!("q\n{w} 0 0 {h} {x} {bottom_y} cm\n/MaskImg Do\nQ\n");
+        let group_bytes = group_stream.into_bytes();
+        let form_id = self.next_id();
+        self.objects.push(format!(
+            "{form_id} 0 obj\n<< /Type /XObject /Subtype /Form /FormType 1 /BBox [{x} {bottom_y} {x1} {top_y}] /Group << /Type /Group /S /Transparency /CS /DeviceGray >> /Resources << /XObject << /MaskImg {img_id} 0 R >> >> /Length {len} >>\nstream\n",
+            x1 = x + w,
+            len = group_bytes.len(),
+        ));
+        self.binary_objects.insert(form_id, group_bytes);
+
+        let gs_name = format!("GSmask{form_id}");
+        self.soft_mask_gstates.push((gs_name.clone(), form_id));
+        Some(gs_name)
     }
 
     pub(crate) fn add_raw_raster_image_object(&mut self, raw_image: &[u8]) -> Option<usize> {
@@ -9220,10 +9533,14 @@ impl PdfWriter {
             }
         }
         let has_opacity = !gs_entries.is_empty();
+        // CSS `mask-image` soft-mask graphics states (css-masking-1 §3) — emitted
+        // alongside the opacity/blend gstates into the shared resource dict.
+        let has_soft_masks = !self.soft_mask_gstates.is_empty();
+        let has_gstates = has_opacity || has_soft_masks;
 
         // Add ExtGState objects if needed
         let mut gs_obj_refs: Vec<(String, usize)> = Vec::new();
-        if has_opacity {
+        if has_gstates {
             // GSDefault (opacity 1.0)
             let default_gs_id = all_objects.len() + 1;
             all_objects.push(format!(
@@ -9241,6 +9558,17 @@ impl PdfWriter {
                     None => format!("/Type /ExtGState /ca {opacity} /CA {opacity}"),
                 };
                 all_objects.push(format!("{gs_id} 0 obj\n<< {body} >>\nendobj"));
+                gs_obj_refs.push((name.clone(), gs_id));
+            }
+
+            // Soft-mask gstates: a luminosity transparency group derived from the
+            // rasterised mask image (the `/G` form XObject was created at render
+            // time, so its object id is already valid in `self.objects`).
+            for (name, form_id) in &self.soft_mask_gstates {
+                let gs_id = all_objects.len() + 1;
+                all_objects.push(format!(
+                    "{gs_id} 0 obj\n<< /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G {form_id} 0 R >> >>\nendobj"
+                ));
                 gs_obj_refs.push((name.clone(), gs_id));
             }
         }
@@ -9290,7 +9618,7 @@ impl PdfWriter {
             resource_parts.push_str(&format!(" /XObject << {xobj_entries} >>"));
         }
 
-        if has_opacity {
+        if has_gstates {
             let gs_dict: String = gs_obj_refs
                 .iter()
                 .map(|(name, id)| format!("/{name} {id} 0 R"))
@@ -11059,6 +11387,45 @@ mod tests {
         assert!(
             content.contains("200"),
             "PDF should contain the constrained width 200"
+        );
+    }
+
+    #[test]
+    fn mask_image_gradient_emits_luminosity_smask() {
+        // A box with a CSS gradient mask must emit a soft-mask graphics state
+        // (a /Luminosity transparency group) and apply it via `gs` so the box's
+        // paint fades through the mask coverage (css-masking-1 §3).
+        let html = r#"<div style="width:120px;height:80px;background:#2e7d32;
+            mask-image:linear-gradient(to right,#000,rgba(0,0,0,0))"></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/S /Luminosity"),
+            "gradient mask must emit a luminosity soft-mask group"
+        );
+        assert!(
+            content.contains("/SMask <<"),
+            "gradient mask must register an /SMask ExtGState"
+        );
+        assert!(
+            content.contains("GSmask"),
+            "gradient mask must apply its soft-mask gstate via `gs`"
+        );
+    }
+
+    #[test]
+    fn no_mask_emits_no_softmask_gstate() {
+        // A plain box (no mask-image) must not emit any GSmask soft-mask state.
+        let html = r#"<div style="width:120px;height:80px;background:#2e7d32"></div>"#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            !content.contains("GSmask"),
+            "a box without mask-image must not emit a soft-mask gstate"
         );
     }
 

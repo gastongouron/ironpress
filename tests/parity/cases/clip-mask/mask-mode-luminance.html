@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mask-mode luminance</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 220px;
+    height: 160px;
+    background-color: #283593;
+    /* Luminance mask (css-masking-1 §3.4): the gradient is fully opaque but
+       its luminance ramps white -> black, so coverage fades left (visible) to
+       right (masked out). White = full coverage, black = none. */
+    -webkit-mask-image: linear-gradient(to right, #fff 0%, #000 100%);
+    -webkit-mask-mode: luminance;
+    mask-image: linear-gradient(to right, #fff 0%, #000 100%);
+    mask-mode: luminance;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

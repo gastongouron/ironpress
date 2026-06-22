@@ -587,6 +587,10 @@ pub enum LayoutElement {
         transform: Option<Transform>,
         transform_origin: TransformOrigin,
         clip_path: Option<crate::style::computed::ClipPath>,
+        /// CSS `mask-image` source (css-masking-1 §3.1). `None` = no mask.
+        mask_image: Option<crate::style::computed::MaskSource>,
+        /// CSS `mask-mode` controlling how the mask source becomes coverage.
+        mask_mode: crate::style::computed::MaskMode,
         box_shadow: Vec<BoxShadow>,
         background_gradient: Option<LinearGradient>,
         background_radial_gradient: Option<RadialGradient>,

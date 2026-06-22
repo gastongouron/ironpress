@@ -1781,6 +1781,8 @@ pub(crate) fn layout_block_element(
             transform: style.transform,
             transform_origin: style.transform_origin,
             clip_path: style.clip_path.clone(),
+            mask_image: style.mask_image.clone(),
+            mask_mode: style.mask_mode,
             box_shadow: style.box_shadow.clone(),
             background_gradient,
             background_radial_gradient,

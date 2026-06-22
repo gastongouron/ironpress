@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mask-image diagonal linear-gradient</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 220px;
+    height: 220px;
+    background-color: #6a1b9a;
+    /* Diagonal alpha fade: opaque at top-left, transparent at bottom-right
+       (css-masking-1 §3.4: match-source on a CSS gradient = alpha mode). */
+    -webkit-mask-image: linear-gradient(135deg, #000 0%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(135deg, #000 0%, rgba(0,0,0,0) 100%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

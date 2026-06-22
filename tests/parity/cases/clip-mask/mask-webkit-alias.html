@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>-webkit-mask-image alias</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    height: 160px;
+    background-color: #4527a0;
+    /* Only the prefixed alias is set; it must be treated as mask-image
+       (css-masking-1; -webkit-mask-* parsed as the equivalent property). */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0) 100%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

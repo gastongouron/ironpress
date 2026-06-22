@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mask-image conic-gradient</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 200px;
+    background-color: #ef6c00;
+    /* Conic alpha sweep: opaque wedge growing clockwise from the top
+       (css-masking-1 §3.1, conic CSS gradient as a mask source; alpha mode). */
+    -webkit-mask-image: conic-gradient(from 0deg at 50% 50%, #000 0%, #000 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,0) 100%);
+    mask-image: conic-gradient(from 0deg at 50% 50%, #000 0%, #000 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,0) 100%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

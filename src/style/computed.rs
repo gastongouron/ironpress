@@ -197,6 +197,32 @@ pub enum ClipPath {
     Polygon(Vec<((f32, bool), (f32, bool))>),
 }
 
+/// A CSS `mask-image` source (css-masking-1 §3.1). Only the deterministic
+/// CSS-image sources (gradients) are modelled; `url()` references are deferred.
+#[derive(Debug, Clone)]
+pub enum MaskSource {
+    /// `linear-gradient(...)` / `repeating-linear-gradient(...)`.
+    Linear(LinearGradient),
+    /// `radial-gradient(...)` / `repeating-radial-gradient(...)`.
+    Radial(RadialGradient),
+    /// `conic-gradient(...)` / `repeating-conic-gradient(...)`.
+    Conic(ConicGradient),
+}
+
+/// CSS `mask-mode` (css-masking-1 §3.4): how the mask layer's pixels are turned
+/// into mask coverage values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MaskMode {
+    /// `alpha` — use the source's alpha channel as the coverage.
+    Alpha,
+    /// `luminance` — use the source's (premultiplied) luminance as coverage.
+    Luminance,
+    /// `match-source` (initial) — for a CSS gradient/image source this resolves
+    /// to `alpha`; for an SVG `<mask>` it follows `mask-type` (luminance default).
+    #[default]
+    MatchSource,
+}
+
 /// Text alignment.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum TextAlign {
@@ -1163,6 +1189,11 @@ pub struct ComputedStyle {
     /// CSS `transform-origin` pivot (defaults to the box centre).
     pub transform_origin: TransformOrigin,
     pub clip_path: Option<ClipPath>,
+    /// CSS `mask-image` source (css-masking-1 §3.1). `None` = `mask-image: none`.
+    /// Only the primary (first) layer is modelled.
+    pub mask_image: Option<MaskSource>,
+    /// CSS `mask-mode` (css-masking-1 §3.4).
+    pub mask_mode: MaskMode,
     pub grid_template_columns: Vec<GridTrack>,
     /// Explicit `grid-template-rows` track list (empty = auto rows).
     pub grid_template_rows: Vec<GridTrack>,
@@ -1430,6 +1461,8 @@ impl Default for ComputedStyle {
             transform: None,
             transform_origin: TransformOrigin::default(),
             clip_path: None,
+            mask_image: None,
+            mask_mode: MaskMode::default(),
             grid_template_columns: Vec::new(),
             grid_template_rows: Vec::new(),
             grid_auto_rows: None,
@@ -1650,6 +1683,8 @@ pub fn compute_style_with_context(
     style.visibility = Visibility::Visible;
     style.transform = None;
     style.clip_path = None;
+    style.mask_image = None;
+    style.mask_mode = MaskMode::default();
     style.grid_template_columns = Vec::new();
     // Grid placement is not inherited — reset per element so a grid item's
     // children don't inherit its line placement / area assignment.
@@ -1939,6 +1974,8 @@ pub fn compute_pseudo_element_style(
     style.overflow = Overflow::Visible;
     style.transform = None;
     style.clip_path = None;
+    style.mask_image = None;
+    style.mask_mode = MaskMode::default();
     style.grid_template_columns = Vec::new();
     // Grid placement is not inherited — reset per element so a grid item's
     // children don't inherit its line placement / area assignment.
@@ -3000,6 +3037,29 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
         style.clip_path = parse_clip_path(k);
+    }
+
+    // CSS Masking (css-masking-1 §3). The `-webkit-mask*` aliases are normalised
+    // to the unprefixed names at parse time. `mask-mode` resolves how the source
+    // pixels become coverage (default `match-source` → alpha for CSS images).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-mode") {
+        style.mask_mode = match k.trim().to_ascii_lowercase().as_str() {
+            "alpha" => MaskMode::Alpha,
+            "luminance" => MaskMode::Luminance,
+            _ => MaskMode::MatchSource,
+        };
+    }
+    // `mask` shorthand: take its image token if present (other sub-values are
+    // not yet modelled). The `mask-image` longhand wins when both are set.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask") {
+        if let Some(src) = parse_mask_image(k) {
+            style.mask_image = src;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-image") {
+        if let Some(src) = parse_mask_image(k) {
+            style.mask_image = src;
+        }
     }
 
     // Grid gap (shorthand sets both column and row gap)
@@ -5607,6 +5667,51 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
         if points.len() >= 3 {
             return Some(ClipPath::Polygon(points));
         }
+    }
+    None
+}
+
+/// Parse a CSS `mask-image` (or the image token of the `mask` shorthand) into a
+/// `MaskSource` (css-masking-1 §3.1). Only the deterministic CSS-image sources
+/// (linear/radial/conic gradients incl. their repeating variants) are modelled;
+/// `url()` references are deferred (return `None` = leave the current value).
+///
+/// Returns:
+/// - `None` — unrecognised / unsupported (e.g. `url(...)`); caller leaves as-is.
+/// - `Some(None)` — explicit `none`; caller clears the mask.
+/// - `Some(Some(src))` — a parseable gradient mask source.
+fn parse_mask_image(val: &str) -> Option<Option<MaskSource>> {
+    let raw = val.trim();
+    let lower = raw.to_ascii_lowercase();
+    // For a multi-layer (comma-separated) value, mask only the primary layer.
+    let first = raw.split(',').next().unwrap_or(raw).trim();
+    let first_lower = first.to_ascii_lowercase();
+    if lower == "none" || first_lower == "none" {
+        return Some(None);
+    }
+    if first_lower.starts_with("linear-gradient(")
+        || first_lower.starts_with("repeating-linear-gradient(")
+    {
+        // A comma-separated gradient must be parsed from the whole `raw` value
+        // (its own args contain commas); only fall back to the layer split when
+        // the gradient is followed by extra layers.
+        return parse_linear_gradient(raw)
+            .or_else(|| parse_linear_gradient(first))
+            .map(|g| Some(MaskSource::Linear(g)));
+    }
+    if first_lower.starts_with("radial-gradient(")
+        || first_lower.starts_with("repeating-radial-gradient(")
+    {
+        return parse_radial_gradient(raw)
+            .or_else(|| parse_radial_gradient(first))
+            .map(|g| Some(MaskSource::Radial(g)));
+    }
+    if first_lower.starts_with("conic-gradient(")
+        || first_lower.starts_with("repeating-conic-gradient(")
+    {
+        return parse_conic_gradient(raw)
+            .or_else(|| parse_conic_gradient(first))
+            .map(|g| Some(MaskSource::Conic(g)));
     }
     None
 }
@@ -9083,6 +9188,82 @@ mod tests {
             &parent,
         );
         assert!(style.background_radial_gradient.is_some());
+    }
+
+    #[test]
+    fn mask_image_linear_gradient_from_style() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("mask-image: linear-gradient(to right, #000, rgba(0,0,0,0))"),
+            &parent,
+        );
+        match style.mask_image {
+            Some(MaskSource::Linear(ref lg)) => {
+                assert!((lg.angle - 90.0).abs() < 0.01);
+                assert_eq!(lg.stops.len(), 2);
+            }
+            other => panic!("expected a linear mask source, got {other:?}"),
+        }
+        // `match-source` (initial) on a CSS gradient resolves to alpha at paint.
+        assert_eq!(style.mask_mode, MaskMode::MatchSource);
+    }
+
+    #[test]
+    fn mask_image_radial_gradient_from_style() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("mask-image: radial-gradient(circle at 50% 50%, #000, transparent)"),
+            &parent,
+        );
+        assert!(matches!(style.mask_image, Some(MaskSource::Radial(_))));
+    }
+
+    #[test]
+    fn webkit_mask_image_alias_is_mask_image() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("-webkit-mask-image: linear-gradient(to bottom, #000, rgba(0,0,0,0))"),
+            &parent,
+        );
+        assert!(
+            matches!(style.mask_image, Some(MaskSource::Linear(_))),
+            "the -webkit-mask-image alias must populate mask_image"
+        );
+    }
+
+    #[test]
+    fn mask_mode_luminance_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("mask-image: linear-gradient(#fff, #000); mask-mode: luminance"),
+            &parent,
+        );
+        assert_eq!(style.mask_mode, MaskMode::Luminance);
+        assert!(style.mask_image.is_some());
+    }
+
+    #[test]
+    fn mask_image_none_clears_source() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("mask-image: none"), &parent);
+        assert!(style.mask_image.is_none());
+    }
+
+    #[test]
+    fn mask_image_url_is_unsupported_and_left_unset() {
+        // url() mask references are deferred — parsing must not panic and must
+        // leave `mask_image` as None (no source) rather than a bogus value.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("mask-image: url(\"data:image/svg+xml;base64,AAAA\")"),
+            &parent,
+        );
+        assert!(style.mask_image.is_none());
     }
 
     #[test]

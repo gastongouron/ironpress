@@ -53,7 +53,13 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
         return;
     }
 
-    let prop = raw_prop.to_ascii_lowercase();
+    let mut prop = raw_prop.to_ascii_lowercase();
+    // Vendor-prefixed CSS Masking aliases (`-webkit-mask*`) are treated as the
+    // equivalent unprefixed properties (css-masking-1; widely used in the wild).
+    if let Some(unprefixed) = prop.strip_prefix("-webkit-mask") {
+        prop = format!("mask{unprefixed}");
+    }
+    let prop = prop;
     if (prop == "margin" || prop == "padding") && !prop.contains('-') {
         expand_box_shorthand(map, &prop, val, is_important);
         return;

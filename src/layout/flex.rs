@@ -2121,6 +2121,8 @@ pub(crate) fn layout_flex_container(
                                 transform_origin: crate::style::computed::TransformOrigin::default(
                                 ),
                                 clip_path: None,
+                                mask_image: None,
+                                mask_mode: crate::style::computed::MaskMode::default(),
                                 box_shadow: Vec::new(),
                                 background_gradient: None,
                                 background_radial_gradient: None,
