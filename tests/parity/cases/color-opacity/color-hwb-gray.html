@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color hwb() whiteness plus blackness equals one</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    /* css-color-4 §8: w+b == 1 -> gray = w/(w+b) = 0.5 -> rgb(128 128 128) */
+    background-color: hwb(120 50% 50%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

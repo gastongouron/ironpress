@@ -6111,6 +6111,9 @@ fn parse_border_color(val: &str) -> Option<Color> {
 }
 
 fn parse_hex_to_color(hex: &str) -> Option<Color> {
+    // Per CSS Color 4 §5.2: each single hex digit expands by duplication
+    // (`#rgb`/`#rgba`); `#rgba` and `#rrggbbaa` carry an alpha byte where
+    // `00` = fully transparent and `ff` = fully opaque. Missing alpha is opaque.
     match hex.len() {
         3 => {
             let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
@@ -6118,11 +6121,25 @@ fn parse_hex_to_color(hex: &str) -> Option<Color> {
             let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
             Some(Color::rgb(r, g, b))
         }
+        4 => {
+            let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
+            let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
+            let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
+            let a = u8::from_str_radix(&hex[3..4].repeat(2), 16).ok()?;
+            Some(Color { r, g, b, a })
+        }
         6 => {
             let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
             let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
             let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
             Some(Color::rgb(r, g, b))
+        }
+        8 => {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
+            Some(Color { r, g, b, a })
         }
         _ => None,
     }
@@ -6752,7 +6769,13 @@ fn parse_gradient_color(val: &str) -> Option<Color> {
         "aqua" | "cyan" => Some(Color::rgb(0, 255, 255)),
         "fuchsia" | "magenta" => Some(Color::rgb(255, 0, 255)),
         "lime" => Some(Color::rgb(0, 255, 0)),
-        "transparent" => Some(Color::rgb(255, 255, 255)),
+        // CSS Color 4 §6.1: `transparent` is `rgb(0 0 0 / 0)`, not white.
+        "transparent" => Some(Color {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0,
+        }),
         _ => {
             if let Some(hex) = val.strip_prefix('#') {
                 parse_hex_to_color(hex)
@@ -7005,6 +7028,181 @@ mod tests {
         assert!(style.background_color.is_some());
         let bg = style.background_color.unwrap();
         assert_eq!(bg.r, 255);
+    }
+
+    // --- CSS Color 4 spec coverage (full inline-style pipeline) -------------
+    // Each case asserts the RGBA the library computes for a `background-color`.
+    // The inline pipeline runs lightningcss, which normalizes every modern
+    // color form (percentage rgb, slash-alpha, hsl/hwb, named, hex-alpha) to a
+    // canonical hex/keyword the engine then parses. These tests pin the spec
+    // conversions so a regression in either layer is caught.
+    fn bg_rgba(decl: &str) -> (u8, u8, u8, u8) {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some(decl), &parent);
+        let c = style
+            .background_color
+            .expect("background-color should parse");
+        (c.r, c.g, c.b, c.a)
+    }
+
+    #[test]
+    fn color_hex_4_digit_alpha() {
+        // #rgba: each digit duplicated; alpha 0x8 -> 0x88. (css-color-4 §5.2)
+        assert_eq!(bg_rgba("background-color: #0a68"), (0, 170, 102, 136));
+    }
+
+    #[test]
+    fn color_hex_8_digit_alpha() {
+        // #rrggbbaa: last pair is alpha. (css-color-4 §5.2)
+        assert_eq!(bg_rgba("background-color: #c2185b80"), (194, 24, 91, 128));
+    }
+
+    #[test]
+    fn color_rgb_percentage_components() {
+        // rgb(80% 20% 10%): 80%*255=204, 20%*255=51, 10%*255=26. (css-color-4 §11)
+        assert_eq!(
+            bg_rgba("background-color: rgb(80% 20% 10%)"),
+            (204, 51, 26, 255)
+        );
+    }
+
+    #[test]
+    fn color_rgb_modern_slash_alpha() {
+        // rgb(r g b / a) modern space syntax with decimal alpha. (css-color-4 §11)
+        assert_eq!(
+            bg_rgba("background-color: rgb(255 0 0 / 0.5)"),
+            (255, 0, 0, 128)
+        );
+    }
+
+    #[test]
+    fn color_rgb_percentage_alpha() {
+        // Percentage alpha: 50% -> 128. (css-color-4 §15 <alpha-value>)
+        assert_eq!(
+            bg_rgba("background-color: rgb(0 0 0 / 50%)"),
+            (0, 0, 0, 128)
+        );
+    }
+
+    #[test]
+    fn color_rgb_none_keyword() {
+        // `none` resolves to 0 in legacy contexts. (css-color-4 §4.3)
+        assert_eq!(
+            bg_rgba("background-color: rgb(none 128 none)"),
+            (0, 128, 0, 255)
+        );
+    }
+
+    #[test]
+    fn color_rgb_out_of_range_clamped() {
+        // Out-of-range components clamp to [0,255]. (css-color-4 §11)
+        assert_eq!(
+            bg_rgba("background-color: rgb(300 -20 999)"),
+            (255, 0, 255, 255)
+        );
+    }
+
+    #[test]
+    fn color_hsl_modern_slash_alpha() {
+        // hsl(h s l / a) modern slash-alpha; hsl(280 60% 45%) -> #8a2eb8.
+        // (css-color-4 §7)
+        assert_eq!(
+            bg_rgba("background-color: hsl(280 60% 45% / 0.5)"),
+            (138, 46, 184, 128)
+        );
+    }
+
+    #[test]
+    fn color_hsl_hue_angle_units_normalized() {
+        // 0.5turn = 180deg = cyan at full sat/half light. (css-color-4 §7, §<angle>)
+        assert_eq!(
+            bg_rgba("background-color: hsl(0.5turn 100% 50%)"),
+            (0, 255, 255, 255)
+        );
+        // Hue > 360 normalizes: 400deg -> 40deg. (css-color-4 §7)
+        assert_eq!(
+            bg_rgba("background-color: hsl(400 100% 50%)"),
+            (255, 170, 0, 255)
+        );
+    }
+
+    #[test]
+    fn color_hsl_powerless_hue_when_zero_sat() {
+        // Saturation 0% -> gray regardless of hue. (css-color-4 §7)
+        assert_eq!(
+            bg_rgba("background-color: hsl(120 0% 50%)"),
+            (128, 128, 128, 255)
+        );
+    }
+
+    #[test]
+    fn color_hwb_function() {
+        // hwb(194 0% 0%) is fully saturated == hsl(194 100% 50%). (css-color-4 §8)
+        assert_eq!(
+            bg_rgba("background-color: hwb(194 0% 0%)"),
+            (0, 196, 255, 255)
+        );
+        // hwb(120 50% 50%): w+b==1 -> gray = w/(w+b) = 0.5 -> 128. (css-color-4 §8)
+        assert_eq!(
+            bg_rgba("background-color: hwb(120 50% 50%)"),
+            (128, 128, 128, 255)
+        );
+    }
+
+    #[test]
+    fn color_rebeccapurple_keyword() {
+        // rebeccapurple == #663399. (css-color-4 §6.1, named color)
+        assert_eq!(
+            bg_rgba("background-color: rebeccapurple"),
+            (102, 51, 153, 255)
+        );
+        // Named colors are ASCII case-insensitive.
+        assert_eq!(
+            bg_rgba("background-color: REBECCAPURPLE"),
+            (102, 51, 153, 255)
+        );
+        assert_eq!(bg_rgba("background-color: NavY"), (0, 0, 128, 255));
+    }
+
+    #[test]
+    fn color_transparent_keyword_is_zero_alpha() {
+        // transparent == rgb(0 0 0 / 0). (css-color-4 §6.1)
+        assert_eq!(bg_rgba("background-color: transparent"), (0, 0, 0, 0));
+    }
+
+    fn rgba_tuple(c: Color) -> (u8, u8, u8, u8) {
+        (c.r, c.g, c.b, c.a)
+    }
+
+    #[test]
+    fn parse_hex_to_color_alpha_forms() {
+        // Direct unit coverage for the gradient/border hex parser's alpha forms.
+        assert_eq!(
+            parse_hex_to_color("0000").map(rgba_tuple),
+            Some((0, 0, 0, 0))
+        );
+        assert_eq!(
+            parse_hex_to_color("ff000080").map(rgba_tuple),
+            Some((255, 0, 0, 128))
+        );
+        assert_eq!(
+            parse_hex_to_color("1234").map(rgba_tuple),
+            Some((17, 34, 51, 68))
+        );
+    }
+
+    #[test]
+    fn parse_gradient_color_transparent_is_zero_alpha() {
+        // `transparent` in a gradient stop must be rgb(0 0 0 / 0), not white.
+        assert_eq!(
+            parse_gradient_color("transparent").map(rgba_tuple),
+            Some((0, 0, 0, 0))
+        );
+        // lightningcss normalizes `transparent` to #0000 before this parser.
+        assert_eq!(
+            parse_gradient_color("#0000").map(rgba_tuple),
+            Some((0, 0, 0, 0))
+        );
     }
 
     #[test]
@@ -10126,8 +10324,15 @@ mod tests {
 
     #[test]
     fn parse_hex_to_color_invalid_length() {
-        let result = parse_hex_to_color("abcd");
-        assert!(result.is_none());
+        // 4-digit (#rgba) and 8-digit (#rrggbbaa) are now VALID alpha forms;
+        // only lengths outside {3,4,6,8} are rejected.
+        assert!(parse_hex_to_color("abcde").is_none());
+        assert!(parse_hex_to_color("abcdef0").is_none());
+        // `abcd` is a valid 4-digit #rgba (a->0xaa, b->0xbb, c->0xcc, d->0xdd).
+        assert_eq!(
+            parse_hex_to_color("abcd").map(rgba_tuple),
+            Some((0xaa, 0xbb, 0xcc, 0xdd))
+        );
     }
 
     #[test]

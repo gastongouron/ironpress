@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color rgb() percentage components</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    /* css-color-4 §11: percentage rgb -> 80%*255=204, 20%*255=51, 10%*255=26 */
+    background-color: rgb(80% 20% 10%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

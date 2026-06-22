@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>opacity clamped above one</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    background-color: #8e24aa;
+    /* css-color-4 / css-color-3: computed opacity clamps to [0,1]; 1.5 -> 1.0 (fully opaque) */
+    opacity: 1.5;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

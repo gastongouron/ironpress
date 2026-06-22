@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color rgb() out-of-range clamping</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    /* css-color-4 §11: out-of-range clamps to [0,255] -> rgb(255 0 255) = magenta */
+    background-color: rgb(300 -20 999);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

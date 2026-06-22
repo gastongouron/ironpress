@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color rgb() none keyword</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    /* css-color-4 §4.3: `none` resolves to 0 -> rgb(0 128 0) = green */
+    background-color: rgb(none 128 none);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

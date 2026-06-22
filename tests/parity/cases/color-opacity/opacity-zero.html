@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>opacity zero hides box but reserves layout space</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-color-3 §3.2 / css-color-4: opacity:0 renders fully transparent but the
+     box still occupies layout, so .b starts below the (invisible) .a box. */
+  .a {
+    width: 200px;
+    height: 80px;
+    background-color: #c62828;
+    opacity: 0;
+  }
+  .b {
+    width: 200px;
+    height: 80px;
+    background-color: #2e7d32;
+  }
+</style>
+</head>
+<body>
+  <div class="a"></div>
+  <div class="b"></div>
+</body>
+</html>

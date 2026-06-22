@@ -878,9 +878,6 @@ pub(super) fn render_nested_layout_elements(
                 background_origin,
                 ..
             } => {
-                if !*visible {
-                    continue;
-                }
                 let render_width = block_width
                     .unwrap_or(planned_element.available_width)
                     .max(0.0);
@@ -894,41 +891,46 @@ pub(super) fn render_nested_layout_elements(
                     *padding_top + children_h + *padding_bottom + border.vertical_width(),
                 );
                 // Paint the container's own background + border box (no text).
-                render_nested_text_block(
-                    content,
-                    NestedTextBlock {
-                        lines: &[],
-                        text_align: TextAlign::Left,
-                        padding_top: *padding_top,
-                        padding_bottom: *padding_bottom,
-                        padding_left: *padding_left,
-                        padding_right: *padding_right,
-                        border: *border,
-                        block_width: Some(render_width),
-                        block_height: Some(box_h),
-                        // `box_h` already resolves the definite/auto height, and
-                        // there are no lines to grow it, so clipping is moot here.
-                        clips: false,
-                        background_color: *background_color,
-                        background_svg: background_svg.as_ref(),
-                        background_blur_radius: *background_blur_radius,
-                        background_size: *background_size,
-                        background_position: *background_position,
-                        background_repeat: *background_repeat,
-                        background_origin: *background_origin,
-                        background_blur_canvas_box: planned_element.blur_canvas_box,
-                        border_radius: *border_radius,
-                        text_indent: 0.0,
-                    },
-                    NestedLayoutFrame::new(
-                        planned_element.origin_x,
-                        planned_element.top_y,
-                        frame.initial_origin_x,
-                        frame.initial_top_y,
-                        render_width,
-                    ),
-                    ctx,
-                );
+                // CSS2 §11.2: `visibility: hidden` suppresses only this box's own
+                // decoration; a `visibility: visible` descendant still paints, so
+                // the children below are recursed regardless of `visible`.
+                if *visible {
+                    render_nested_text_block(
+                        content,
+                        NestedTextBlock {
+                            lines: &[],
+                            text_align: TextAlign::Left,
+                            padding_top: *padding_top,
+                            padding_bottom: *padding_bottom,
+                            padding_left: *padding_left,
+                            padding_right: *padding_right,
+                            border: *border,
+                            block_width: Some(render_width),
+                            block_height: Some(box_h),
+                            // `box_h` already resolves the definite/auto height, and
+                            // there are no lines to grow it, so clipping is moot here.
+                            clips: false,
+                            background_color: *background_color,
+                            background_svg: background_svg.as_ref(),
+                            background_blur_radius: *background_blur_radius,
+                            background_size: *background_size,
+                            background_position: *background_position,
+                            background_repeat: *background_repeat,
+                            background_origin: *background_origin,
+                            background_blur_canvas_box: planned_element.blur_canvas_box,
+                            border_radius: *border_radius,
+                            text_indent: 0.0,
+                        },
+                        NestedLayoutFrame::new(
+                            planned_element.origin_x,
+                            planned_element.top_y,
+                            frame.initial_origin_x,
+                            frame.initial_top_y,
+                            render_width,
+                        ),
+                        ctx,
+                    );
+                }
                 // Recurse into the container's children at its content origin.
                 if !children.is_empty() {
                     render_nested_layout_elements(

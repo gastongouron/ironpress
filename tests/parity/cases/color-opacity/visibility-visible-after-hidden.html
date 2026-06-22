@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>visibility visible child inside hidden parent</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* CSS2 §11.2: visibility is inherited, but a descendant can override it back
+     to `visible`. The parent is hidden (its own background does not paint) yet
+     the inner box re-declares visibility:visible and DOES paint. The parent
+     still reserves layout space. */
+  .parent {
+    width: 240px;
+    height: 160px;
+    background-color: #c62828;
+    visibility: hidden;
+    padding: 40px;
+  }
+  .child {
+    width: 160px;
+    height: 80px;
+    background-color: #2e7d32;
+    visibility: visible;
+  }
+</style>
+</head>
+<body>
+  <div class="parent"><div class="child"></div></div>
+</body>
+</html>

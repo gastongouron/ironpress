@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color 8-digit hex alpha over solid</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .under {
+    width: 200px;
+    height: 120px;
+    background-color: #00695c;
+    position: relative;
+  }
+  .over {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 120px;
+    height: 80px;
+    /* css-color-4 §5.2: #ff572280 -> rgb(255 87 34) at alpha 0x80/255 = 0.5 */
+    background-color: #ff572280;
+  }
+</style>
+</head>
+<body>
+  <div class="under"><div class="over"></div></div>
+</body>
+</html>

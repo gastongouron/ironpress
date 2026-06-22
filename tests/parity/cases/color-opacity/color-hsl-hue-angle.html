@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>color hsl() hue with angle unit</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 120px;
+    /* css-color-4 §7: 0.5turn = 180deg, full sat, half light -> cyan rgb(0 255 255) */
+    background-color: hsl(0.5turn 100% 50%);
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

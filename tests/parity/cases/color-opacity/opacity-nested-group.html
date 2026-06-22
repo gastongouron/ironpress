@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>opacity on a group flattens before compositing children</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-color-3 §3.2: opacity on a group establishes a stacking context; the
+     group is rendered then composited as a whole at 0.5, NOT per descendant.
+     Two opaque, non-overlapping children over a white page each composite to a
+     deterministic 50% tint of their own color. */
+  .group {
+    width: 240px;
+    height: 120px;
+    opacity: 0.5;
+    position: relative;
+  }
+  .c1 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 120px;
+    height: 120px;
+    background-color: #d32f2f;
+  }
+  .c2 {
+    position: absolute;
+    top: 0;
+    left: 120px;
+    width: 120px;
+    height: 120px;
+    background-color: #1976d2;
+  }
+</style>
+</head>
+<body>
+  <div class="group">
+    <div class="c1"></div>
+    <div class="c2"></div>
+  </div>
+</body>
+</html>

@@ -11,7 +11,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-hex-rrggbb",
@@ -26,7 +29,10 @@
     "kind": "feature",
     "geometry": "rigid",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-hex-rgb",
@@ -40,7 +46,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-rgb-function",
@@ -54,77 +63,97 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-rgba-alpha",
     "category": "color-opacity",
     "feature": "color-format",
     "subfeature": "rgba-alpha",
-    "description": "Semi-transparent rgba() box composited over a solid background box.",
+    "description": "Semi-transparent rgba() box composited (source-over) over a solid background box; css-color-4 \u00a712.",
     "file": "cases/color-opacity/color-rgba-alpha.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-hsl",
     "category": "color-opacity",
     "feature": "color-format",
     "subfeature": "hsl-function",
-    "description": "Box filled with an hsl() functional color (aspirational; no hsl parsing).",
+    "description": "Box filled with an hsl() functional color (hsl(280 60% 45%)); css-color-4 \u00a77.",
     "file": "cases/color-opacity/color-hsl.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-hsla-alpha",
     "category": "color-opacity",
     "feature": "color-format",
     "subfeature": "hsla-alpha",
-    "description": "Semi-transparent hsla() box over a solid background (aspirational; no hsl/hsla parsing).",
+    "description": "Semi-transparent hsla() box composited over a solid background; css-color-4 \u00a77.",
     "file": "cases/color-opacity/color-hsla-alpha.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-currentcolor",
     "category": "color-opacity",
     "feature": "color-keyword",
     "subfeature": "currentcolor",
-    "description": "currentColor resolves the color property into a thick solid border (aspirational; likely unsupported).",
+    "description": "currentColor resolves the color property into a thick solid border; css-color-4 \u00a76.2.",
     "file": "cases/color-opacity/color-currentcolor.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "color-transparent-keyword",
     "category": "color-opacity",
     "feature": "color-keyword",
     "subfeature": "transparent",
-    "description": "transparent background lets the underlying solid box show through a bordered overlay (aspirational; likely unsupported).",
+    "description": "transparent (= rgb(0 0 0 / 0)) background lets the under box show through a bordered overlay; css-color-4 \u00a76.1.",
     "file": "cases/color-opacity/color-transparent-keyword.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "opacity-half",
@@ -138,7 +167,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "visibility-hidden",
@@ -152,7 +184,11 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "visibility-collapse-row",
@@ -166,7 +202,12 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   },
   {
     "id": "display-none-removal",
@@ -180,7 +221,11 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-color-swatch"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
   },
   {
     "id": "color-text-glyph",
@@ -194,6 +239,314 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"]
+    "depends_on": [
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "color-hex-rgba",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hex-4-digit",
+    "description": "Semi-transparent 4-digit hex (#f508) composited over a solid box; css-color-4 \u00a75.2.",
+    "file": "cases/color-opacity/color-hex-rgba.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hex-rrggbbaa",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hex-8-digit",
+    "description": "Semi-transparent 8-digit hex (#ff572280) composited over a solid box; css-color-4 \u00a75.2.",
+    "file": "cases/color-opacity/color-hex-rrggbbaa.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-rgb-percentage",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "rgb-percentage",
+    "description": "Box filled with rgb() percentage components rgb(80% 20% 10%); css-color-4 \u00a711.",
+    "file": "cases/color-opacity/color-rgb-percentage.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-rgb-modern-slash",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "rgb-modern-slash",
+    "description": "Modern space syntax rgb(r g b / a) composited over a solid box; css-color-4 \u00a711.",
+    "file": "cases/color-opacity/color-rgb-modern-slash.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-alpha-percentage",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "alpha-percentage",
+    "description": "Percentage alpha rgb(... / 50%) composited over a solid box; css-color-4 \u00a715.",
+    "file": "cases/color-opacity/color-alpha-percentage.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-rgb-none",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "rgb-none",
+    "description": "Modern rgb() with the none keyword (resolves to 0); css-color-4 \u00a74.3.",
+    "file": "cases/color-opacity/color-rgb-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-rgb-clamp",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "rgb-clamp",
+    "description": "Out-of-range rgb(300 -20 999) clamps to [0,255]; css-color-4 \u00a711.",
+    "file": "cases/color-opacity/color-rgb-clamp.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hsl-modern-slash",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hsl-modern-slash",
+    "description": "Modern hsl(h s l / a) slash-alpha composited over a solid box; css-color-4 \u00a77.",
+    "file": "cases/color-opacity/color-hsl-modern-slash.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hsl-hue-angle",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hsl-hue-angle",
+    "description": "hsl() hue with angle unit (0.5turn = 180deg); css-color-4 \u00a77.",
+    "file": "cases/color-opacity/color-hsl-hue-angle.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hsl-powerless-hue",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hsl-powerless-hue",
+    "description": "hsl() powerless hue at 0% saturation -> gray; css-color-4 \u00a77.",
+    "file": "cases/color-opacity/color-hsl-powerless-hue.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hwb",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hwb-function",
+    "description": "hwb(194 0% 0%) fully-saturated functional color; css-color-4 \u00a78.",
+    "file": "cases/color-opacity/color-hwb.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-hwb-gray",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "hwb-gray",
+    "description": "hwb(120 50% 50%) where whiteness+blackness=1 -> gray; css-color-4 \u00a78.",
+    "file": "cases/color-opacity/color-hwb-gray.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-rebeccapurple",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "rebeccapurple",
+    "description": "rebeccapurple named keyword (#663399); css-color-4 \u00a76.1.",
+    "file": "cases/color-opacity/color-rebeccapurple.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "color-named-case-insensitive",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "named-case-insensitive",
+    "description": "Named color is ASCII case-insensitive (NavY -> navy); css-color-4 \u00a76.1.",
+    "file": "cases/color-opacity/color-named-case-insensitive.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "opacity-clamp",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "opacity-clamp",
+    "description": "opacity:1.5 clamps to 1.0 (fully opaque); computed opacity is in [0,1].",
+    "file": "cases/color-opacity/opacity-clamp.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "opacity-zero",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "opacity-zero",
+    "description": "opacity:0 fully transparent but layout space reserved; the next box flows below.",
+    "file": "cases/color-opacity/opacity-zero.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "opacity-nested-group",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "opacity-nested",
+    "description": "opacity on a group flattens then composites the whole at 0.5 (not per child).",
+    "file": "cases/color-opacity/opacity-nested-group.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "visibility-visible-after-hidden",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "visibility-visible-after-hidden",
+    "description": "visibility:visible child paints inside a visibility:hidden parent; CSS2 \u00a711.2.",
+    "file": "cases/color-opacity/visibility-visible-after-hidden.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]

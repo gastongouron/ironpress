@@ -3197,10 +3197,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     positioned_depth: c_positioned_depth,
                     ..
                 } => {
-                    // Skip rendering if visibility: hidden (space is preserved).
-                    if !c_visible {
-                        continue;
-                    }
+                    // CSS2 §11.2: `visibility: hidden` (or `collapse`) hides only
+                    // THIS box's own decoration (background, border, outline,
+                    // box-shadow); it is inherited but a descendant may override it
+                    // back to `visible` and still paint. So we must keep recursing
+                    // into the children and only gate the container's own painting
+                    // on `c_visible` — never skip the whole subtree.
+                    let c_visible_self = *c_visible;
 
                     let container_w = block_width.unwrap_or(available_width);
                     let container_x = match c_float {
@@ -3267,307 +3270,246 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         );
                     }
 
-                    // Draw box-shadow with blur
-                    render_box_shadows(
-                        &mut content,
-                        c_box_shadow,
-                        container_x,
-                        container_y_top - total_h,
-                        container_w,
-                        total_h,
-                        *c_border_radius,
-                        &mut page_ext_gstates,
-                        &mut bg_alpha_counter,
-                    );
+                    // Self-decoration (background / border / outline / shadow) is
+                    // suppressed when this box is `visibility: hidden`; children
+                    // (which may override back to visible) are still rendered below.
+                    if c_visible_self {
+                        // Draw box-shadow with blur
+                        render_box_shadows(
+                            &mut content,
+                            c_box_shadow,
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                            *c_border_radius,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
+                        );
 
-                    // Draw background
-                    if let Some((r, g, b, a)) = background_color {
-                        let needs_alpha = *a < 1.0;
-                        if needs_alpha {
-                            let gs_name = format!("GScontainer{elem_idx}");
-                            page_ext_gstates.push((gs_name.clone(), *a));
-                            content.push_str(&format!("/{gs_name} gs\n"));
+                        // Draw background
+                        if let Some((r, g, b, a)) = background_color {
+                            let needs_alpha = *a < 1.0;
+                            if needs_alpha {
+                                let gs_name = format!("GScontainer{elem_idx}");
+                                page_ext_gstates.push((gs_name.clone(), *a));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
+                            content.push_str(&format!("{r} {g} {b} rg\n"));
+                            let c_bg_y = container_y_top - total_h;
+                            if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
+                                content.push_str(&rounded_rect_path_per_corner(
+                                    container_x,
+                                    c_bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radii,
+                                ));
+                            } else if *c_border_radius > 0.0 {
+                                content.push_str(&rounded_rect_path(
+                                    container_x,
+                                    c_bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radius,
+                                ));
+                            } else {
+                                content.push_str(&format!(
+                                    "{x} {y} {w} {h} re\n",
+                                    x = container_x,
+                                    y = c_bg_y,
+                                    w = container_w,
+                                    h = total_h,
+                                ));
+                            }
+                            content.push_str("f\n");
+                            if needs_alpha {
+                                content.push_str("/GSDefault gs\n");
+                            }
                         }
-                        content.push_str(&format!("{r} {g} {b} rg\n"));
-                        let c_bg_y = container_y_top - total_h;
-                        if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
-                            content.push_str(&rounded_rect_path_per_corner(
-                                container_x,
-                                c_bg_y,
-                                container_w,
-                                total_h,
-                                *c_border_radii,
-                            ));
-                        } else if *c_border_radius > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                container_x,
-                                c_bg_y,
-                                container_w,
-                                total_h,
-                                *c_border_radius,
-                            ));
-                        } else {
-                            content.push_str(&format!(
-                                "{x} {y} {w} {h} re\n",
-                                x = container_x,
-                                y = c_bg_y,
-                                w = container_w,
-                                h = total_h,
-                            ));
-                        }
-                        content.push_str("f\n");
-                        if needs_alpha {
-                            content.push_str("/GSDefault gs\n");
-                        }
-                    }
 
-                    // Draw container linear gradient
-                    if let Some(gradient) = c_bg_gradient {
-                        let bg_y = container_y_top - total_h;
-                        if *c_border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
+                        // Draw container linear gradient
+                        if let Some(gradient) = c_bg_gradient {
+                            let bg_y = container_y_top - total_h;
+                            if *c_border_radius > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    container_x,
+                                    bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radius,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_linear_gradient(
+                                &mut content,
+                                gradient,
                                 container_x,
                                 bg_y,
                                 container_w,
                                 total_h,
-                                *c_border_radius,
-                            ));
-                            content.push_str("W n\n");
+                                &mut page_shadings,
+                                &mut shading_counter,
+                            );
+                            if *c_border_radius > 0.0 {
+                                content.push_str("Q\n");
+                            }
                         }
-                        render_linear_gradient(
-                            &mut content,
-                            gradient,
-                            container_x,
-                            bg_y,
-                            container_w,
-                            total_h,
-                            &mut page_shadings,
-                            &mut shading_counter,
-                        );
-                        if *c_border_radius > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                    }
 
-                    // Draw container radial gradient
-                    if let Some(gradient) = c_bg_radial {
-                        let bg_y = container_y_top - total_h;
-                        if *c_border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
+                        // Draw container radial gradient
+                        if let Some(gradient) = c_bg_radial {
+                            let bg_y = container_y_top - total_h;
+                            if *c_border_radius > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    container_x,
+                                    bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radius,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_radial_gradient(
+                                &mut content,
+                                gradient,
                                 container_x,
                                 bg_y,
                                 container_w,
                                 total_h,
-                                *c_border_radius,
-                            ));
-                            content.push_str("W n\n");
+                                &mut page_shadings,
+                                &mut shading_counter,
+                            );
+                            if *c_border_radius > 0.0 {
+                                content.push_str("Q\n");
+                            }
                         }
-                        render_radial_gradient(
-                            &mut content,
-                            gradient,
-                            container_x,
-                            bg_y,
-                            container_w,
-                            total_h,
-                            &mut page_shadings,
-                            &mut shading_counter,
-                        );
-                        if *c_border_radius > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                    }
 
-                    // Draw container conic gradient
-                    if let Some(gradient) = c_bg_conic {
-                        let bg_y = container_y_top - total_h;
-                        if *c_border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
+                        // Draw container conic gradient
+                        if let Some(gradient) = c_bg_conic {
+                            let bg_y = container_y_top - total_h;
+                            if *c_border_radius > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    container_x,
+                                    bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radius,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_conic_gradient(
+                                &mut content,
+                                gradient,
                                 container_x,
                                 bg_y,
                                 container_w,
                                 total_h,
-                                *c_border_radius,
-                            ));
-                            content.push_str("W n\n");
+                            );
+                            if *c_border_radius > 0.0 {
+                                content.push_str("Q\n");
+                            }
                         }
-                        render_conic_gradient(
-                            &mut content,
-                            gradient,
-                            container_x,
-                            bg_y,
-                            container_w,
-                            total_h,
-                        );
-                        if *c_border_radius > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                    }
 
-                    // Draw SVG background image if specified
-                    if let Some(svg_tree) = c_bg_svg {
-                        let bg_y = container_y_top - total_h;
-                        // Adjust reference box based on background-origin
-                        let (ref_x, ref_y, ref_w, ref_h) = match c_bg_origin {
-                            BackgroundOrigin::Border => (
-                                container_x - border.left.width,
-                                bg_y - border.bottom.width,
-                                container_w + border.left.width + border.right.width,
-                                total_h + border.top.width + border.bottom.width,
-                            ),
-                            BackgroundOrigin::Content => (
-                                container_x + c_pl,
-                                bg_y + c_pb,
-                                (container_w - c_pl - c_pr).max(0.0),
-                                (total_h - c_pt - c_pb).max(0.0),
-                            ),
-                            BackgroundOrigin::Padding => (container_x, bg_y, container_w, total_h),
-                        };
-                        render_svg_background(
-                            &mut content,
-                            svg_tree,
-                            &mut pdf_writer,
-                            &mut page_images,
-                            &mut page_shadings,
-                            &mut shading_counter,
-                            Some(&mut page_ext_gstates),
-                            BackgroundPaintContext::new(
-                                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                SvgViewportBox::new(
+                        // Draw SVG background image if specified
+                        if let Some(svg_tree) = c_bg_svg {
+                            let bg_y = container_y_top - total_h;
+                            // Adjust reference box based on background-origin
+                            let (ref_x, ref_y, ref_w, ref_h) = match c_bg_origin {
+                                BackgroundOrigin::Border => (
                                     container_x - border.left.width,
                                     bg_y - border.bottom.width,
                                     container_w + border.left.width + border.right.width,
                                     total_h + border.top.width + border.bottom.width,
                                 ),
-                                *c_border_radius,
-                                *c_bg_blur,
-                                *c_bg_size,
-                                *c_bg_position,
-                                *c_bg_repeat,
-                            ),
+                                BackgroundOrigin::Content => (
+                                    container_x + c_pl,
+                                    bg_y + c_pb,
+                                    (container_w - c_pl - c_pr).max(0.0),
+                                    (total_h - c_pt - c_pb).max(0.0),
+                                ),
+                                BackgroundOrigin::Padding => {
+                                    (container_x, bg_y, container_w, total_h)
+                                }
+                            };
+                            render_svg_background(
+                                &mut content,
+                                svg_tree,
+                                &mut pdf_writer,
+                                &mut page_images,
+                                &mut page_shadings,
+                                &mut shading_counter,
+                                Some(&mut page_ext_gstates),
+                                BackgroundPaintContext::new(
+                                    SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                                    SvgViewportBox::new(
+                                        container_x - border.left.width,
+                                        bg_y - border.bottom.width,
+                                        container_w + border.left.width + border.right.width,
+                                        total_h + border.top.width + border.bottom.width,
+                                    ),
+                                    *c_border_radius,
+                                    *c_bg_blur,
+                                    *c_bg_size,
+                                    *c_bg_position,
+                                    *c_bg_repeat,
+                                ),
+                            );
+                        }
+
+                        // Draw inset box-shadow (after container background, before borders).
+                        render_box_shadows_inset(
+                            &mut content,
+                            c_box_shadow,
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                            *c_border_radius,
+                            &mut page_ext_gstates,
+                            &mut bg_alpha_counter,
                         );
-                    }
 
-                    // Draw inset box-shadow (after container background, before borders).
-                    render_box_shadows_inset(
-                        &mut content,
-                        c_box_shadow,
-                        container_x,
-                        container_y_top - total_h,
-                        container_w,
-                        total_h,
-                        *c_border_radius,
-                        &mut page_ext_gstates,
-                        &mut bg_alpha_counter,
-                    );
-
-                    // Draw all 4 borders
-                    if border.has_visible() {
-                        let cbox_x = container_x;
-                        let cbox_bottom = container_y_top - total_h;
-                        // Uniform borders take the shared painter (dashed/dotted/
-                        // double + per-corner rounded corners). Non-uniform borders
-                        // keep the per-side stroke path with dash support.
-                        let c_uniform = border.top.width == border.right.width
-                            && border.top.width == border.bottom.width
-                            && border.top.width == border.left.width
-                            && border.top.color == border.right.color
-                            && border.top.color == border.bottom.color
-                            && border.top.color == border.left.color
-                            && border.top.style == border.right.style
-                            && border.top.style == border.bottom.style
-                            && border.top.style == border.left.style;
-                        if c_uniform
-                            && border_needs_special_paint(border.top.style, *c_border_radii)
-                        {
-                            paint_uniform_border(
-                                &mut content,
-                                cbox_x,
-                                cbox_bottom,
-                                container_w,
-                                total_h,
-                                *c_border_radii,
-                                &border.top,
-                                &mut page_ext_gstates,
-                                &mut bg_alpha_counter,
-                            );
-                        } else if c_uniform && *c_border_radius > 0.0 {
-                            // Plain solid rounded border: byte-stable legacy path.
-                            let bw = border
-                                .top
-                                .width
-                                .max(border.right.width)
-                                .max(border.bottom.width)
-                                .max(border.left.width);
-                            let (r, g, b) = border.top.color;
-                            let a = begin_border_alpha(
-                                &mut content,
-                                &mut page_ext_gstates,
-                                &mut bg_alpha_counter,
-                                border.top.alpha,
-                            );
-                            content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
-                            content.push_str(&rounded_rect_path(
-                                container_x,
-                                container_y_top - total_h,
-                                container_w,
-                                total_h,
-                                *c_border_radius,
-                            ));
-                            content.push_str("S\n");
-                            end_border_alpha(&mut content, a);
-                        } else {
-                            let bx1 = container_x;
-                            let bx2 = container_x + container_w;
-                            let by1 = container_y_top;
-                            let by2 = container_y_top - total_h;
-                            if border.left.paints() {
-                                let (r, g, b) = border.left.color;
-                                let a = begin_border_alpha(
+                        // Draw all 4 borders
+                        if border.has_visible() {
+                            let cbox_x = container_x;
+                            let cbox_bottom = container_y_top - total_h;
+                            // Uniform borders take the shared painter (dashed/dotted/
+                            // double + per-corner rounded corners). Non-uniform borders
+                            // keep the per-side stroke path with dash support.
+                            let c_uniform = border.top.width == border.right.width
+                                && border.top.width == border.bottom.width
+                                && border.top.width == border.left.width
+                                && border.top.color == border.right.color
+                                && border.top.color == border.bottom.color
+                                && border.top.color == border.left.color
+                                && border.top.style == border.right.style
+                                && border.top.style == border.bottom.style
+                                && border.top.style == border.left.style;
+                            if c_uniform
+                                && border_needs_special_paint(border.top.style, *c_border_radii)
+                            {
+                                paint_uniform_border(
                                     &mut content,
+                                    cbox_x,
+                                    cbox_bottom,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radii,
+                                    &border.top,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
-                                    border.left.alpha,
                                 );
-                                content.push_str(&dash_pattern_for_style(
-                                    border.left.style,
-                                    border.left.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                    bw = border.left.width,
-                                    x = bx1 + border.left.width * 0.5,
-                                    y1 = by1,
-                                    y2 = by2
-                                ));
-                                content.push_str(reset_dash_pattern(border.left.style));
-                                end_border_alpha(&mut content, a);
-                            }
-                            if border.right.paints() {
-                                let (r, g, b) = border.right.color;
-                                let a = begin_border_alpha(
-                                    &mut content,
-                                    &mut page_ext_gstates,
-                                    &mut bg_alpha_counter,
-                                    border.right.alpha,
-                                );
-                                content.push_str(&dash_pattern_for_style(
-                                    border.right.style,
-                                    border.right.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                    bw = border.right.width,
-                                    x = bx2 - border.right.width * 0.5,
-                                    y1 = by1,
-                                    y2 = by2
-                                ));
-                                content.push_str(reset_dash_pattern(border.right.style));
-                                end_border_alpha(&mut content, a);
-                            }
-                            if border.top.paints() {
+                            } else if c_uniform && *c_border_radius > 0.0 {
+                                // Plain solid rounded border: byte-stable legacy path.
+                                let bw = border
+                                    .top
+                                    .width
+                                    .max(border.right.width)
+                                    .max(border.bottom.width)
+                                    .max(border.left.width);
                                 let (r, g, b) = border.top.color;
                                 let a = begin_border_alpha(
                                     &mut content,
@@ -3575,82 +3517,150 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     &mut bg_alpha_counter,
                                     border.top.alpha,
                                 );
-                                content.push_str(&dash_pattern_for_style(
-                                    border.top.style,
-                                    border.top.width,
+                                content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
+                                content.push_str(&rounded_rect_path(
+                                    container_x,
+                                    container_y_top - total_h,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radius,
                                 ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                    bw = border.top.width,
-                                    x1 = bx1,
-                                    x2 = bx2,
-                                    y = by1 - border.top.width * 0.5
-                                ));
-                                content.push_str(reset_dash_pattern(border.top.style));
+                                content.push_str("S\n");
                                 end_border_alpha(&mut content, a);
-                            }
-                            if border.bottom.paints() {
-                                let (r, g, b) = border.bottom.color;
-                                let a = begin_border_alpha(
-                                    &mut content,
-                                    &mut page_ext_gstates,
-                                    &mut bg_alpha_counter,
-                                    border.bottom.alpha,
-                                );
-                                content.push_str(&dash_pattern_for_style(
-                                    border.bottom.style,
-                                    border.bottom.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                    bw = border.bottom.width,
-                                    x1 = bx1,
-                                    x2 = bx2,
-                                    y = by2 + border.bottom.width * 0.5
-                                ));
-                                content.push_str(reset_dash_pattern(border.bottom.style));
-                                end_border_alpha(&mut content, a);
-                            }
-                        } // else (non-uniform borders)
-                    }
-
-                    // Draw outline (outside the border box, honouring
-                    // `outline-offset`). Top-level containers previously dropped
-                    // the outline entirely.
-                    if *c_outline_width > 0.0 {
-                        let gap = *c_outline_offset + *c_outline_width / 2.0;
-                        let ol_x = container_x - gap;
-                        let ol_y = container_y_top - total_h - gap;
-                        let ol_w = container_w + 2.0 * gap;
-                        let ol_h = total_h + 2.0 * gap;
-                        let (or, og, ob) = c_outline_color.unwrap_or((0.0, 0.0, 0.0));
-                        content.push_str(&format!(
-                            "{or} {og} {ob} RG\n{ow} w\n",
-                            ow = c_outline_width
-                        ));
-                        if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
-                            let ol_radii = [
-                                c_border_radii[0] + gap,
-                                c_border_radii[1] + gap,
-                                c_border_radii[2] + gap,
-                                c_border_radii[3] + gap,
-                            ];
-                            content.push_str(&rounded_rect_path_per_corner(
-                                ol_x, ol_y, ol_w, ol_h, ol_radii,
-                            ));
-                        } else if *c_border_radius > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                ol_x,
-                                ol_y,
-                                ol_w,
-                                ol_h,
-                                *c_border_radius + gap,
-                            ));
-                        } else {
-                            content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                            } else {
+                                let bx1 = container_x;
+                                let bx2 = container_x + container_w;
+                                let by1 = container_y_top;
+                                let by2 = container_y_top - total_h;
+                                if border.left.paints() {
+                                    let (r, g, b) = border.left.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        border.left.alpha,
+                                    );
+                                    content.push_str(&dash_pattern_for_style(
+                                        border.left.style,
+                                        border.left.width,
+                                    ));
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                        bw = border.left.width,
+                                        x = bx1 + border.left.width * 0.5,
+                                        y1 = by1,
+                                        y2 = by2
+                                    ));
+                                    content.push_str(reset_dash_pattern(border.left.style));
+                                    end_border_alpha(&mut content, a);
+                                }
+                                if border.right.paints() {
+                                    let (r, g, b) = border.right.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        border.right.alpha,
+                                    );
+                                    content.push_str(&dash_pattern_for_style(
+                                        border.right.style,
+                                        border.right.width,
+                                    ));
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                        bw = border.right.width,
+                                        x = bx2 - border.right.width * 0.5,
+                                        y1 = by1,
+                                        y2 = by2
+                                    ));
+                                    content.push_str(reset_dash_pattern(border.right.style));
+                                    end_border_alpha(&mut content, a);
+                                }
+                                if border.top.paints() {
+                                    let (r, g, b) = border.top.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        border.top.alpha,
+                                    );
+                                    content.push_str(&dash_pattern_for_style(
+                                        border.top.style,
+                                        border.top.width,
+                                    ));
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                        bw = border.top.width,
+                                        x1 = bx1,
+                                        x2 = bx2,
+                                        y = by1 - border.top.width * 0.5
+                                    ));
+                                    content.push_str(reset_dash_pattern(border.top.style));
+                                    end_border_alpha(&mut content, a);
+                                }
+                                if border.bottom.paints() {
+                                    let (r, g, b) = border.bottom.color;
+                                    let a = begin_border_alpha(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        border.bottom.alpha,
+                                    );
+                                    content.push_str(&dash_pattern_for_style(
+                                        border.bottom.style,
+                                        border.bottom.width,
+                                    ));
+                                    content.push_str(&format!(
+                                        "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                        bw = border.bottom.width,
+                                        x1 = bx1,
+                                        x2 = bx2,
+                                        y = by2 + border.bottom.width * 0.5
+                                    ));
+                                    content.push_str(reset_dash_pattern(border.bottom.style));
+                                    end_border_alpha(&mut content, a);
+                                }
+                            } // else (non-uniform borders)
                         }
-                        content.push_str("S\n");
-                    }
+
+                        // Draw outline (outside the border box, honouring
+                        // `outline-offset`). Top-level containers previously dropped
+                        // the outline entirely.
+                        if *c_outline_width > 0.0 {
+                            let gap = *c_outline_offset + *c_outline_width / 2.0;
+                            let ol_x = container_x - gap;
+                            let ol_y = container_y_top - total_h - gap;
+                            let ol_w = container_w + 2.0 * gap;
+                            let ol_h = total_h + 2.0 * gap;
+                            let (or, og, ob) = c_outline_color.unwrap_or((0.0, 0.0, 0.0));
+                            content.push_str(&format!(
+                                "{or} {og} {ob} RG\n{ow} w\n",
+                                ow = c_outline_width
+                            ));
+                            if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
+                                let ol_radii = [
+                                    c_border_radii[0] + gap,
+                                    c_border_radii[1] + gap,
+                                    c_border_radii[2] + gap,
+                                    c_border_radii[3] + gap,
+                                ];
+                                content.push_str(&rounded_rect_path_per_corner(
+                                    ol_x, ol_y, ol_w, ol_h, ol_radii,
+                                ));
+                            } else if *c_border_radius > 0.0 {
+                                content.push_str(&rounded_rect_path(
+                                    ol_x,
+                                    ol_y,
+                                    ol_w,
+                                    ol_h,
+                                    *c_border_radius + gap,
+                                ));
+                            } else {
+                                content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                            }
+                            content.push_str("S\n");
+                        }
+                    } // end `if c_visible_self` — container self-decoration
 
                     // Apply clip if overflow clips. Per CSS, `overflow` clips to
                     // the *padding box* — the border is painted outside the clip
@@ -5305,8 +5315,11 @@ fn render_container_children(
                 let nk_total_h = nk_block_height.unwrap_or(nk_content_h);
 
                 // `visibility: hidden` keeps the box's space (cursor still
-                // advances below) but paints nothing — gate all drawing on it.
-                if *nk_visible {
+                // advances below). Per CSS2 §11.2 it suppresses only THIS box's own
+                // painting — a `visibility: visible` descendant must still render —
+                // so the subtree (wrappers + children) is always emitted; the
+                // box's own decoration is gated on `nk_visible` further down.
+                {
                     // `mix-blend-mode`: composite the whole box (background + border +
                     // children) with the backdrop. Outermost q..Q so the blend gstate
                     // scopes the entire element and is restored by `Q` afterwards.
@@ -5344,369 +5357,378 @@ fn render_container_children(
                         push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
                     }
 
-                    // Draw outset box-shadow (before the background, so it sits
-                    // behind the element). Nested containers previously dropped
-                    // box-shadow entirely; the top-level Container arm handles it
-                    // the same way.
-                    render_box_shadows(
-                        content,
-                        nk_box_shadow,
-                        nk_x,
-                        nk_top_y - nk_total_h,
-                        nk_w,
-                        nk_total_h,
-                        *cont_br,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                    );
+                    // CSS2 §11.2: self-decoration (background / border / outline /
+                    // shadow) is suppressed when this box is `visibility: hidden`,
+                    // but the opacity/transform/clip wrappers and the children
+                    // (which may override back to `visible`) are still emitted.
+                    if *nk_visible {
+                        // Draw outset box-shadow (before the background, so it sits
+                        // behind the element). Nested containers previously dropped
+                        // box-shadow entirely; the top-level Container arm handles it
+                        // the same way.
+                        render_box_shadows(
+                            content,
+                            nk_box_shadow,
+                            nk_x,
+                            nk_top_y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                            *cont_br,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                        );
 
-                    // Draw background with proper alpha support
-                    if let Some((r, g, b, a)) = background_color {
-                        let needs_alpha = *a < 1.0;
-                        if needs_alpha {
-                            let gs_name = format!("GScca{bg_alpha_counter}");
-                            *bg_alpha_counter += 1;
-                            page_ext_gstates.push((gs_name.clone(), *a));
-                            content.push_str(&format!("/{gs_name} gs\n"));
+                        // Draw background with proper alpha support
+                        if let Some((r, g, b, a)) = background_color {
+                            let needs_alpha = *a < 1.0;
+                            if needs_alpha {
+                                let gs_name = format!("GScca{bg_alpha_counter}");
+                                *bg_alpha_counter += 1;
+                                page_ext_gstates.push((gs_name.clone(), *a));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
+                            content.push_str(&format!("{r} {g} {b} rg\n"));
+                            let bg_cy = nk_top_y - nk_total_h;
+                            if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
+                                content.push_str(&rounded_rect_path_per_corner(
+                                    nk_x,
+                                    bg_cy,
+                                    nk_w,
+                                    nk_total_h,
+                                    *cont_radii,
+                                ));
+                            } else if *cont_br > 0.0 {
+                                content.push_str(&rounded_rect_path(
+                                    nk_x, bg_cy, nk_w, nk_total_h, *cont_br,
+                                ));
+                            } else {
+                                content.push_str(&format!(
+                                    "{cx} {cy} {cw} {ch} re\n",
+                                    cx = nk_x,
+                                    cy = bg_cy,
+                                    cw = nk_w,
+                                    ch = nk_total_h,
+                                ));
+                            }
+                            content.push_str("f\n");
+                            if needs_alpha {
+                                content.push_str("/GSDefault gs\n");
+                            }
                         }
-                        content.push_str(&format!("{r} {g} {b} rg\n"));
-                        let bg_cy = nk_top_y - nk_total_h;
-                        if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
-                            content.push_str(&rounded_rect_path_per_corner(
-                                nk_x,
-                                bg_cy,
+
+                        // `background-blend-mode`: the background image layers (gradient /
+                        // SVG) blend against the background color painted above. Scope the
+                        // blend gstate to a `q`..`Q` around each background-image paint.
+                        let nk_bg_blended =
+                            *nk_bg_blend != crate::style::computed::BlendMode::Normal;
+
+                        // Draw linear gradient
+                        if let Some(gradient) = background_gradient {
+                            let bg_x = nk_x;
+                            let bg_y = nk_top_y - nk_total_h;
+                            if nk_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                            }
+                            if *cont_br > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_linear_gradient(
+                                content,
+                                gradient,
+                                bg_x,
+                                bg_y,
                                 nk_w,
                                 nk_total_h,
-                                *cont_radii,
-                            ));
-                        } else if *cont_br > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                nk_x, bg_cy, nk_w, nk_total_h, *cont_br,
-                            ));
-                        } else {
-                            content.push_str(&format!(
-                                "{cx} {cy} {cw} {ch} re\n",
-                                cx = nk_x,
-                                cy = bg_cy,
-                                cw = nk_w,
-                                ch = nk_total_h,
-                            ));
+                                page_shadings,
+                                shading_counter,
+                            );
+                            if *cont_br > 0.0 {
+                                content.push_str("Q\n");
+                            }
+                            if nk_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
-                        content.push_str("f\n");
-                        if needs_alpha {
-                            content.push_str("/GSDefault gs\n");
-                        }
-                    }
 
-                    // `background-blend-mode`: the background image layers (gradient /
-                    // SVG) blend against the background color painted above. Scope the
-                    // blend gstate to a `q`..`Q` around each background-image paint.
-                    let nk_bg_blended = *nk_bg_blend != crate::style::computed::BlendMode::Normal;
+                        // Draw radial gradient
+                        if let Some(gradient) = background_radial_gradient {
+                            let bg_x = nk_x;
+                            let bg_y = nk_top_y - nk_total_h;
+                            if nk_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                            }
+                            if *cont_br > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_radial_gradient(
+                                content,
+                                gradient,
+                                bg_x,
+                                bg_y,
+                                nk_w,
+                                nk_total_h,
+                                page_shadings,
+                                shading_counter,
+                            );
+                            if *cont_br > 0.0 {
+                                content.push_str("Q\n");
+                            }
+                            if nk_bg_blended {
+                                content.push_str("Q\n");
+                            }
+                        }
 
-                    // Draw linear gradient
-                    if let Some(gradient) = background_gradient {
-                        let bg_x = nk_x;
-                        let bg_y = nk_top_y - nk_total_h;
-                        if nk_bg_blended {
-                            content.push_str("q\n");
-                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                        // Draw conic gradient
+                        if let Some(gradient) = background_conic_gradient {
+                            let bg_x = nk_x;
+                            let bg_y = nk_top_y - nk_total_h;
+                            if nk_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                            }
+                            if *cont_br > 0.0 {
+                                content.push_str("q\n");
+                                content.push_str(&rounded_rect_path(
+                                    bg_x, bg_y, nk_w, nk_total_h, *cont_br,
+                                ));
+                                content.push_str("W n\n");
+                            }
+                            render_conic_gradient(content, gradient, bg_x, bg_y, nk_w, nk_total_h);
+                            if *cont_br > 0.0 {
+                                content.push_str("Q\n");
+                            }
+                            if nk_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
-                        if *cont_br > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
-                            ));
-                            content.push_str("W n\n");
-                        }
-                        render_linear_gradient(
-                            content,
-                            gradient,
-                            bg_x,
-                            bg_y,
-                            nk_w,
-                            nk_total_h,
-                            page_shadings,
-                            shading_counter,
-                        );
-                        if *cont_br > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                        if nk_bg_blended {
-                            content.push_str("Q\n");
-                        }
-                    }
 
-                    // Draw radial gradient
-                    if let Some(gradient) = background_radial_gradient {
-                        let bg_x = nk_x;
-                        let bg_y = nk_top_y - nk_total_h;
-                        if nk_bg_blended {
-                            content.push_str("q\n");
-                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
-                        }
-                        if *cont_br > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
-                            ));
-                            content.push_str("W n\n");
-                        }
-                        render_radial_gradient(
-                            content,
-                            gradient,
-                            bg_x,
-                            bg_y,
-                            nk_w,
-                            nk_total_h,
-                            page_shadings,
-                            shading_counter,
-                        );
-                        if *cont_br > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                        if nk_bg_blended {
-                            content.push_str("Q\n");
-                        }
-                    }
-
-                    // Draw conic gradient
-                    if let Some(gradient) = background_conic_gradient {
-                        let bg_x = nk_x;
-                        let bg_y = nk_top_y - nk_total_h;
-                        if nk_bg_blended {
-                            content.push_str("q\n");
-                            begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
-                        }
-                        if *cont_br > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                bg_x, bg_y, nk_w, nk_total_h, *cont_br,
-                            ));
-                            content.push_str("W n\n");
-                        }
-                        render_conic_gradient(content, gradient, bg_x, bg_y, nk_w, nk_total_h);
-                        if *cont_br > 0.0 {
-                            content.push_str("Q\n");
-                        }
-                        if nk_bg_blended {
-                            content.push_str("Q\n");
-                        }
-                    }
-
-                    // Draw SVG background image if specified
-                    if let Some(svg_tree) = nk_bg_svg {
-                        let bg_y = nk_top_y - nk_total_h;
-                        // Adjust reference box based on background-origin
-                        let (ref_x, ref_y, ref_w, ref_h) = match nk_bg_origin {
-                            BackgroundOrigin::Border => (
-                                nk_x - border.left.width,
-                                bg_y - border.bottom.width,
-                                nk_w + border.left.width + border.right.width,
-                                nk_total_h + border.top.width + border.bottom.width,
-                            ),
-                            BackgroundOrigin::Content => (
-                                nk_x + padding_left,
-                                bg_y + padding_bottom,
-                                (nk_w - padding_left - padding_right).max(0.0),
-                                (nk_total_h - padding_top - padding_bottom).max(0.0),
-                            ),
-                            BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
-                        };
-                        render_svg_background(
-                            content,
-                            svg_tree,
-                            pdf_writer,
-                            page_images,
-                            page_shadings,
-                            shading_counter,
-                            Some(page_ext_gstates),
-                            BackgroundPaintContext::new(
-                                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                SvgViewportBox::new(
+                        // Draw SVG background image if specified
+                        if let Some(svg_tree) = nk_bg_svg {
+                            let bg_y = nk_top_y - nk_total_h;
+                            // Adjust reference box based on background-origin
+                            let (ref_x, ref_y, ref_w, ref_h) = match nk_bg_origin {
+                                BackgroundOrigin::Border => (
                                     nk_x - border.left.width,
                                     bg_y - border.bottom.width,
                                     nk_w + border.left.width + border.right.width,
                                     nk_total_h + border.top.width + border.bottom.width,
                                 ),
-                                *cont_br,
-                                *nk_bg_blur,
-                                *nk_bg_size,
-                                *nk_bg_position,
-                                *nk_bg_repeat,
-                            ),
-                        );
-                    }
+                                BackgroundOrigin::Content => (
+                                    nk_x + padding_left,
+                                    bg_y + padding_bottom,
+                                    (nk_w - padding_left - padding_right).max(0.0),
+                                    (nk_total_h - padding_top - padding_bottom).max(0.0),
+                                ),
+                                BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
+                            };
+                            render_svg_background(
+                                content,
+                                svg_tree,
+                                pdf_writer,
+                                page_images,
+                                page_shadings,
+                                shading_counter,
+                                Some(page_ext_gstates),
+                                BackgroundPaintContext::new(
+                                    SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                                    SvgViewportBox::new(
+                                        nk_x - border.left.width,
+                                        bg_y - border.bottom.width,
+                                        nk_w + border.left.width + border.right.width,
+                                        nk_total_h + border.top.width + border.bottom.width,
+                                    ),
+                                    *cont_br,
+                                    *nk_bg_blur,
+                                    *nk_bg_size,
+                                    *nk_bg_position,
+                                    *nk_bg_repeat,
+                                ),
+                            );
+                        }
 
-                    // Draw inset box-shadow (after the backgrounds, before the
-                    // borders/content) so it paints over the element fill.
-                    render_box_shadows_inset(
-                        content,
-                        nk_box_shadow,
-                        nk_x,
-                        nk_top_y - nk_total_h,
-                        nk_w,
-                        nk_total_h,
-                        *cont_br,
-                        page_ext_gstates,
-                        bg_alpha_counter,
-                    );
-
-                    // Draw all 4 borders
-                    let bx1 = nk_x;
-                    let bx2 = nk_x + nk_w;
-                    let by1 = nk_top_y;
-                    let by2 = nk_top_y - nk_total_h;
-                    // Uniform borders (same width/color/style) take the shared
-                    // painter so dashed/dotted/double and per-corner rounded
-                    // corners all render correctly. Non-uniform borders keep the
-                    // per-side stroke path below.
-                    let border_uniform = border.has_visible()
-                        && border.top.width == border.right.width
-                        && border.top.width == border.bottom.width
-                        && border.top.width == border.left.width
-                        && border.top.color == border.right.color
-                        && border.top.color == border.bottom.color
-                        && border.top.color == border.left.color
-                        && border.top.style == border.right.style
-                        && border.top.style == border.bottom.style
-                        && border.top.style == border.left.style;
-                    if border_uniform && border_needs_special_paint(border.top.style, *cont_radii) {
-                        paint_uniform_border(
+                        // Draw inset box-shadow (after the backgrounds, before the
+                        // borders/content) so it paints over the element fill.
+                        render_box_shadows_inset(
                             content,
+                            nk_box_shadow,
                             nk_x,
-                            by2,
+                            nk_top_y - nk_total_h,
                             nk_w,
                             nk_total_h,
-                            *cont_radii,
-                            &border.top,
+                            *cont_br,
                             page_ext_gstates,
                             bg_alpha_counter,
                         );
-                    } else {
-                        if border.left.paints() {
-                            let (r, g, b) = border.left.color;
-                            let a = begin_border_alpha(
-                                content,
-                                page_ext_gstates,
-                                bg_alpha_counter,
-                                border.left.alpha,
-                            );
-                            content.push_str(&dash_pattern_for_style(
-                                border.left.style,
-                                border.left.width,
-                            ));
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                bw = border.left.width,
-                                x = bx1 + border.left.width * 0.5,
-                                y1 = by1,
-                                y2 = by2
-                            ));
-                            content.push_str(reset_dash_pattern(border.left.style));
-                            end_border_alpha(content, a);
-                        }
-                        if border.right.paints() {
-                            let (r, g, b) = border.right.color;
-                            let a = begin_border_alpha(
-                                content,
-                                page_ext_gstates,
-                                bg_alpha_counter,
-                                border.right.alpha,
-                            );
-                            content.push_str(&dash_pattern_for_style(
-                                border.right.style,
-                                border.right.width,
-                            ));
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
-                                bw = border.right.width,
-                                x = bx2 - border.right.width * 0.5,
-                                y1 = by1,
-                                y2 = by2
-                            ));
-                            content.push_str(reset_dash_pattern(border.right.style));
-                            end_border_alpha(content, a);
-                        }
-                        if border.top.paints() {
-                            let (r, g, b) = border.top.color;
-                            let a = begin_border_alpha(
-                                content,
-                                page_ext_gstates,
-                                bg_alpha_counter,
-                                border.top.alpha,
-                            );
-                            content.push_str(&dash_pattern_for_style(
-                                border.top.style,
-                                border.top.width,
-                            ));
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                bw = border.top.width,
-                                x1 = bx1,
-                                x2 = bx2,
-                                y = by1 - border.top.width * 0.5
-                            ));
-                            content.push_str(reset_dash_pattern(border.top.style));
-                            end_border_alpha(content, a);
-                        }
-                        if border.bottom.paints() {
-                            let (r, g, b) = border.bottom.color;
-                            let a = begin_border_alpha(
-                                content,
-                                page_ext_gstates,
-                                bg_alpha_counter,
-                                border.bottom.alpha,
-                            );
-                            content.push_str(&dash_pattern_for_style(
-                                border.bottom.style,
-                                border.bottom.width,
-                            ));
-                            content.push_str(&format!(
-                                "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
-                                bw = border.bottom.width,
-                                x1 = bx1,
-                                x2 = bx2,
-                                y = by2 + border.bottom.width * 0.5
-                            ));
-                            content.push_str(reset_dash_pattern(border.bottom.style));
-                            end_border_alpha(content, a);
-                        }
-                    }
 
-                    // Draw outline if specified (a uniform stroke outside the
-                    // border box). `outline-offset` widens the gap between the
-                    // border edge and the outline; the stroke centerline sits half
-                    // the outline width beyond the offset edge so the outline stays
-                    // entirely outside the box. Mirrors the TextBlock outline arm.
-                    if *nk_outline_width > 0.0 {
-                        let gap = *nk_outline_offset + *nk_outline_width / 2.0;
-                        let ol_x = bx1 - gap;
-                        let ol_y = by2 - gap;
-                        let ol_w = nk_w + 2.0 * gap;
-                        let ol_h = nk_total_h + 2.0 * gap;
-                        let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
-                        content.push_str(&format!(
-                            "{or} {og} {ob} RG\n{ow} w\n",
-                            ow = nk_outline_width
-                        ));
-                        if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
-                            let ol_radii = [
-                                cont_radii[0] + gap,
-                                cont_radii[1] + gap,
-                                cont_radii[2] + gap,
-                                cont_radii[3] + gap,
-                            ];
-                            content.push_str(&rounded_rect_path_per_corner(
-                                ol_x, ol_y, ol_w, ol_h, ol_radii,
-                            ));
-                        } else if *cont_br > 0.0 {
-                            let ol_r = *cont_br + gap;
-                            content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
+                        // Draw all 4 borders
+                        let bx1 = nk_x;
+                        let bx2 = nk_x + nk_w;
+                        let by1 = nk_top_y;
+                        let by2 = nk_top_y - nk_total_h;
+                        // Uniform borders (same width/color/style) take the shared
+                        // painter so dashed/dotted/double and per-corner rounded
+                        // corners all render correctly. Non-uniform borders keep the
+                        // per-side stroke path below.
+                        let border_uniform = border.has_visible()
+                            && border.top.width == border.right.width
+                            && border.top.width == border.bottom.width
+                            && border.top.width == border.left.width
+                            && border.top.color == border.right.color
+                            && border.top.color == border.bottom.color
+                            && border.top.color == border.left.color
+                            && border.top.style == border.right.style
+                            && border.top.style == border.bottom.style
+                            && border.top.style == border.left.style;
+                        if border_uniform
+                            && border_needs_special_paint(border.top.style, *cont_radii)
+                        {
+                            paint_uniform_border(
+                                content,
+                                nk_x,
+                                by2,
+                                nk_w,
+                                nk_total_h,
+                                *cont_radii,
+                                &border.top,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                            );
                         } else {
-                            content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                            if border.left.paints() {
+                                let (r, g, b) = border.left.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    border.left.alpha,
+                                );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.left.style,
+                                    border.left.width,
+                                ));
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                    bw = border.left.width,
+                                    x = bx1 + border.left.width * 0.5,
+                                    y1 = by1,
+                                    y2 = by2
+                                ));
+                                content.push_str(reset_dash_pattern(border.left.style));
+                                end_border_alpha(content, a);
+                            }
+                            if border.right.paints() {
+                                let (r, g, b) = border.right.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    border.right.alpha,
+                                );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.right.style,
+                                    border.right.width,
+                                ));
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x} {y1} m {x} {y2} l\nS\n",
+                                    bw = border.right.width,
+                                    x = bx2 - border.right.width * 0.5,
+                                    y1 = by1,
+                                    y2 = by2
+                                ));
+                                content.push_str(reset_dash_pattern(border.right.style));
+                                end_border_alpha(content, a);
+                            }
+                            if border.top.paints() {
+                                let (r, g, b) = border.top.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    border.top.alpha,
+                                );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.top.style,
+                                    border.top.width,
+                                ));
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                    bw = border.top.width,
+                                    x1 = bx1,
+                                    x2 = bx2,
+                                    y = by1 - border.top.width * 0.5
+                                ));
+                                content.push_str(reset_dash_pattern(border.top.style));
+                                end_border_alpha(content, a);
+                            }
+                            if border.bottom.paints() {
+                                let (r, g, b) = border.bottom.color;
+                                let a = begin_border_alpha(
+                                    content,
+                                    page_ext_gstates,
+                                    bg_alpha_counter,
+                                    border.bottom.alpha,
+                                );
+                                content.push_str(&dash_pattern_for_style(
+                                    border.bottom.style,
+                                    border.bottom.width,
+                                ));
+                                content.push_str(&format!(
+                                    "{r} {g} {b} RG\n{bw} w\n{x1} {y} m {x2} {y} l\nS\n",
+                                    bw = border.bottom.width,
+                                    x1 = bx1,
+                                    x2 = bx2,
+                                    y = by2 + border.bottom.width * 0.5
+                                ));
+                                content.push_str(reset_dash_pattern(border.bottom.style));
+                                end_border_alpha(content, a);
+                            }
                         }
-                        content.push_str("S\n");
-                    }
+
+                        // Draw outline if specified (a uniform stroke outside the
+                        // border box). `outline-offset` widens the gap between the
+                        // border edge and the outline; the stroke centerline sits half
+                        // the outline width beyond the offset edge so the outline stays
+                        // entirely outside the box. Mirrors the TextBlock outline arm.
+                        if *nk_outline_width > 0.0 {
+                            let gap = *nk_outline_offset + *nk_outline_width / 2.0;
+                            let ol_x = bx1 - gap;
+                            let ol_y = by2 - gap;
+                            let ol_w = nk_w + 2.0 * gap;
+                            let ol_h = nk_total_h + 2.0 * gap;
+                            let (or, og, ob) = nk_outline_color.unwrap_or((0.0, 0.0, 0.0));
+                            content.push_str(&format!(
+                                "{or} {og} {ob} RG\n{ow} w\n",
+                                ow = nk_outline_width
+                            ));
+                            if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
+                                let ol_radii = [
+                                    cont_radii[0] + gap,
+                                    cont_radii[1] + gap,
+                                    cont_radii[2] + gap,
+                                    cont_radii[3] + gap,
+                                ];
+                                content.push_str(&rounded_rect_path_per_corner(
+                                    ol_x, ol_y, ol_w, ol_h, ol_radii,
+                                ));
+                            } else if *cont_br > 0.0 {
+                                let ol_r = *cont_br + gap;
+                                content.push_str(&rounded_rect_path(ol_x, ol_y, ol_w, ol_h, ol_r));
+                            } else {
+                                content.push_str(&format!("{ol_x} {ol_y} {ol_w} {ol_h} re\n"));
+                            }
+                            content.push_str("S\n");
+                        }
+                    } // end `if *nk_visible` — nested container self-decoration
 
                     // Clip if overflow clips (hidden/clip/scroll/auto). CSS clips
                     // at the PADDING box (border box inset by the border widths)
@@ -5782,7 +5804,7 @@ fn render_container_children(
                     if nk_blended {
                         content.push_str("Q\n");
                     }
-                } // end if *nk_visible
+                } // end nested-container subtree (wrappers + children)
                 // Out-of-flow containers (absolute / float) don't advance the
                 // flow cursor. A float's bottom is tracked via the simulator for
                 // later `clear` siblings; it breaks the margin-collapse chain.
