@@ -388,6 +388,77 @@ pub enum Overflow {
     Auto,
 }
 
+impl Overflow {
+    /// Whether this overflow value clips its content. In a print/PDF context
+    /// every non-`visible` value clips to the box: `hidden`/`clip`/`scroll`
+    /// always, and `auto` clips when content overflows (our deterministic
+    /// fixtures always overflow, and there is no interactive scroll affordance
+    /// in print, so `auto` clips too).
+    pub fn clips(self) -> bool {
+        !matches!(self, Overflow::Visible)
+    }
+}
+
+/// A single per-axis overflow keyword as authored, before the CSS computed-value
+/// coercion that depends on the sibling axis. `clip` and `scroll` are kept
+/// distinct from `hidden`/`auto` only so the coercion rules can distinguish a
+/// "scrolling value" (`auto`/`scroll`/`hidden`) from `visible`/`clip`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum RawOverflow {
+    Visible,
+    Clip,
+    Hidden,
+    Scroll,
+    Auto,
+}
+
+pub(crate) fn parse_raw_overflow(k: &str) -> RawOverflow {
+    match k.trim().to_ascii_lowercase().as_str() {
+        "clip" => RawOverflow::Clip,
+        "hidden" => RawOverflow::Hidden,
+        "scroll" => RawOverflow::Scroll,
+        "auto" => RawOverflow::Auto,
+        _ => RawOverflow::Visible,
+    }
+}
+
+/// Apply the CSS Overflow 3 computed-value coercion between the two axes: when
+/// one axis is a scrolling value (`auto`/`scroll`/`hidden`) and the other is
+/// `visible` or `clip`, the latter is coerced (`visible` -> `auto`, `clip` ->
+/// `hidden`). Returns the resulting per-axis `Overflow` (with `scroll`/`hidden`
+/// modelled as `Hidden` and `clip` as `Hidden`, since print has no scrollbars).
+pub(crate) fn coerce_overflow_axes(x: RawOverflow, y: RawOverflow) -> (Overflow, Overflow) {
+    fn is_scrolling(v: RawOverflow) -> bool {
+        matches!(
+            v,
+            RawOverflow::Auto | RawOverflow::Scroll | RawOverflow::Hidden
+        )
+    }
+    let coerce = |this: RawOverflow, other: RawOverflow| -> Overflow {
+        match this {
+            RawOverflow::Visible => {
+                if is_scrolling(other) {
+                    Overflow::Auto
+                } else {
+                    Overflow::Visible
+                }
+            }
+            RawOverflow::Clip => {
+                if is_scrolling(other) {
+                    Overflow::Hidden
+                } else {
+                    // `clip` clips to the box (no scroll container); modelled as
+                    // Hidden for the single-field clip path.
+                    Overflow::Hidden
+                }
+            }
+            RawOverflow::Auto => Overflow::Auto,
+            RawOverflow::Hidden | RawOverflow::Scroll => Overflow::Hidden,
+        }
+    };
+    (coerce(x, y), coerce(y, x))
+}
+
 /// CSS visibility property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Visibility {
@@ -2931,15 +3002,45 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.row_gap = *v;
     }
 
-    // Overflow
+    // Overflow. The `overflow` shorthand sets both axes; `overflow-x` and
+    // `overflow-y` set them independently. Per CSS Overflow 3 §3, a used value
+    // of `visible`/`clip` is coerced when the OTHER axis is a scrolling value
+    // (`auto`/`scroll`/`hidden`): `visible` -> `auto`, `clip` -> `hidden`. So a
+    // box with one non-visible axis effectively clips BOTH axes. In a print/PDF
+    // context there are no interactive scrollbars, so `clip`/`scroll`/`hidden`
+    // all clip overflowing content to the box; `auto` clips only when content
+    // actually overflows (handled at layout/paint as a clip).
+    let mut overflow_x: Option<RawOverflow> = None;
+    let mut overflow_y: Option<RawOverflow> = None;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow") {
-        style.overflow = match k.as_str() {
-            // In a print/PDF context there are no interactive scrollbars, so
-            // `clip` and `scroll` both clip overflowing content to the box,
-            // identically to `hidden` (the existing clip path handles it).
-            "hidden" | "clip" | "scroll" => Overflow::Hidden,
-            "auto" => Overflow::Auto,
-            _ => Overflow::Visible,
+        // The shorthand accepts one or two keywords (`overflow: hidden visible`).
+        let mut parts = k.split_whitespace();
+        let first = parts.next().map(parse_raw_overflow);
+        let second = parts.next().map(parse_raw_overflow);
+        if let Some(x) = first {
+            overflow_x = Some(x);
+            overflow_y = Some(second.unwrap_or(x));
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow-x") {
+        overflow_x = Some(parse_raw_overflow(k));
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow-y") {
+        overflow_y = Some(parse_raw_overflow(k));
+    }
+    if overflow_x.is_some() || overflow_y.is_some() {
+        let (cx, cy) = coerce_overflow_axes(
+            overflow_x.unwrap_or(RawOverflow::Visible),
+            overflow_y.unwrap_or(RawOverflow::Visible),
+        );
+        // Collapse the two coerced axes into the single `overflow` field used by
+        // layout/paint. `auto` is preserved only when BOTH axes are `auto`
+        // (no clip until content overflows); any non-visible axis after
+        // coercion clips, which we model as `Hidden`.
+        style.overflow = match (cx, cy) {
+            (Overflow::Visible, Overflow::Visible) => Overflow::Visible,
+            (Overflow::Auto, Overflow::Auto) => Overflow::Auto,
+            _ => Overflow::Hidden,
         };
     }
 
@@ -6885,6 +6986,68 @@ mod tests {
         // Second listed shadow.
         assert!((style.box_shadow[1].offset_x + 12.0).abs() < 0.1); // -16px * 0.75
         assert_eq!(style.box_shadow[1].color.g, 0x83);
+    }
+
+    #[test]
+    fn overflow_clip_keyword_clips() {
+        let parent = ComputedStyle::default();
+        // `overflow: clip` clips to the box like hidden in our model.
+        let s = compute_style(HtmlTag::Div, Some("overflow: clip"), &parent);
+        assert_eq!(s.overflow, Overflow::Hidden);
+        assert!(s.overflow.clips());
+    }
+
+    #[test]
+    fn overflow_scroll_keyword_clips() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("overflow: scroll"), &parent);
+        assert_eq!(s.overflow, Overflow::Hidden);
+    }
+
+    #[test]
+    fn overflow_auto_clips_in_print() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("overflow: auto"), &parent);
+        assert_eq!(s.overflow, Overflow::Auto);
+        assert!(
+            s.overflow.clips(),
+            "auto clips overflowing content in print"
+        );
+    }
+
+    #[test]
+    fn overflow_x_hidden_y_visible_coerces_to_clip_both() {
+        // Per CSS Overflow 3: `overflow-x: hidden` is a scrolling value, so the
+        // sibling `overflow-y: visible` is coerced to `auto`, making the box
+        // clip on BOTH axes.
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("overflow-x: hidden; overflow-y: visible"),
+            &parent,
+        );
+        assert_eq!(s.overflow, Overflow::Hidden);
+        assert!(s.overflow.clips());
+    }
+
+    #[test]
+    fn overflow_both_visible_does_not_clip() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("overflow-x: visible; overflow-y: visible"),
+            &parent,
+        );
+        assert_eq!(s.overflow, Overflow::Visible);
+        assert!(!s.overflow.clips());
+    }
+
+    #[test]
+    fn overflow_y_only_hidden_clips() {
+        let parent = ComputedStyle::default();
+        // `overflow-y: hidden` alone: x defaults visible, coerced to auto -> clip.
+        let s = compute_style(HtmlTag::Div, Some("overflow-y: hidden"), &parent);
+        assert_eq!(s.overflow, Overflow::Hidden);
     }
 
     #[test]

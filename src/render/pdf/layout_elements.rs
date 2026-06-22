@@ -630,6 +630,7 @@ pub(super) fn render_nested_text_block(
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         render_cell_text(
             content,

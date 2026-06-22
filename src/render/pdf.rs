@@ -16,8 +16,8 @@ use crate::render::shading::{
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily, LinearGradient, Overflow,
-    Position, RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
+    BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily, LinearGradient, Position,
+    RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -128,6 +128,45 @@ fn border_inset_path(x: f32, y: f32, w: f32, h: f32, radii: [f32; 4], inset: f32
         (radii[3] - inset).max(0.0),
     ];
     rounded_rect_path_per_corner(ix, iy, iw, ih, inner)
+}
+
+/// Emit a PDF clip path for CSS `overflow: hidden`/`clip`/`scroll`/`auto`.
+///
+/// CSS clips overflow at the PADDING box: the border box `(x, y, w, h)`
+/// (bottom-left origin, PDF coordinates) inset by the per-side border widths
+/// `(bl, br, bt, bb)`. When `radius > 0` the clip follows the rounded corners,
+/// using the INNER radius (`radius - border`) at the padding box, matching the
+/// way borders paint inside the box. Returns the path operators WITHOUT the
+/// terminating `W n`, so callers append `"W n\n"` (or `"\nW n\n"`).
+#[allow(clippy::too_many_arguments)]
+fn overflow_clip_path(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    bl: f32,
+    br: f32,
+    bt: f32,
+    bb: f32,
+    radius: f32,
+) -> String {
+    // Padding box = border box inset by the per-side border widths.
+    let px = x + bl;
+    let py = y + bb;
+    let pw = (w - bl - br).max(0.0);
+    let ph = (h - bt - bb).max(0.0);
+    if radius > 0.0 {
+        // Inner radius shrinks by the (max) border width so the rounded clip
+        // hugs the inner border edge, like Chrome.
+        let inner_r = (radius - bl.max(br).max(bt).max(bb)).max(0.0);
+        if inner_r > 0.0 {
+            // `rounded_rect_path` ends with `h\n`; the caller appends `W n\n`.
+            return rounded_rect_path(px, py, pw, ph, inner_r);
+        }
+    }
+    // Trailing space (no newline) so the caller's `W n\n` yields `... re W n\n`
+    // on a single line (matching the established clip-path output convention).
+    format!("{px} {py} {pw} {ph} re ")
 }
 
 /// Whether a uniform border needs the special shared painter rather than the
@@ -602,24 +641,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         push_transform_cm(&mut content, t, cx, cy, render_width, border_box_h);
                     }
 
-                    // Apply clipping rect if overflow: hidden
+                    // Apply clipping rect if overflow clips. CSS clips at the
+                    // PADDING box (border box inset by the border widths) and the
+                    // rounded inner corners when border-radius is set, so the box
+                    // border stays fully visible and an oversized child / text
+                    // line cannot paint over it.
                     let needs_clip = clip_rect.is_some();
-                    if let Some((cx, cy, cw, ch)) = clip_rect {
-                        let clip_x = block_x + cx;
-                        let clip_y = block_y - ch - cy;
+                    if needs_clip {
                         content.push_str("q\n");
-                        if *border_radius > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                clip_x,
-                                clip_y,
-                                *cw,
-                                *ch,
-                                *border_radius,
-                            ));
-                            content.push_str("W n\n");
-                        } else {
-                            content.push_str(&format!("{clip_x} {clip_y} {cw} {ch} re W n\n",));
-                        }
+                        content.push_str(&overflow_clip_path(
+                            block_x,
+                            block_bottom,
+                            render_width,
+                            border_box_h,
+                            border.left.width,
+                            border.right.width,
+                            border.top.width,
+                            border.bottom.width,
+                            *border_radius,
+                        ));
+                        content.push_str("W n\n");
                     }
 
                     // Apply opacity via ExtGState if < 1.0
@@ -2961,17 +3002,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                             }
                                         }
 
-                                        // Clip and render children
-                                        let clip = *cont_overflow == Overflow::Hidden;
+                                        // Clip and render children at the padding
+                                        // box (border box inset by the borders).
+                                        let clip = cont_overflow.clips();
                                         if clip {
                                             content.push_str("q\n");
-                                            content.push_str(&format!(
-                                                "{} {} {} {} re W n\n",
+                                            content.push_str(&overflow_clip_path(
                                                 nested_x,
                                                 nested_y - cont_h,
                                                 cont_w,
-                                                cont_h
+                                                cont_h,
+                                                cont_border.left.width,
+                                                cont_border.right.width,
+                                                cont_border.top.width,
+                                                cont_border.bottom.width,
+                                                *cont_br,
                                             ));
+                                            content.push_str("W n\n");
                                         }
                                         let inner_x = nested_x + cont_pl + cont_border.left.width;
                                         let inner_w = (cont_w
@@ -3512,36 +3559,25 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         content.push_str("S\n");
                     }
 
-                    // Apply clip if overflow:hidden. Per CSS, `overflow` clips to
+                    // Apply clip if overflow clips. Per CSS, `overflow` clips to
                     // the *padding box* — the border is painted outside the clip
-                    // region and stays visible. Inset the clip rect by the border
-                    // widths so an oversized child can't paint over the border.
-                    let needs_clip = *c_overflow == Overflow::Hidden;
+                    // region and stays visible — and follows the rounded inner
+                    // corners when border-radius is set.
+                    let needs_clip = c_overflow.clips();
                     if needs_clip {
                         content.push_str("q\n");
-                        let clip_x = container_x + border.left.width;
-                        let clip_w =
-                            (container_w - border.left.width - border.right.width).max(0.0);
-                        let clip_h = (total_h - border.top.width - border.bottom.width).max(0.0);
-                        let clip_y = container_y_top - total_h + border.bottom.width;
-                        if *c_border_radius > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                clip_x,
-                                clip_y,
-                                clip_w,
-                                clip_h,
-                                *c_border_radius,
-                            ));
-                            content.push_str("\nW n\n");
-                        } else {
-                            content.push_str(&format!(
-                                "{x} {y} {w} {h} re W n\n",
-                                x = clip_x,
-                                y = clip_y,
-                                w = clip_w,
-                                h = clip_h,
-                            ));
-                        }
+                        content.push_str(&overflow_clip_path(
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                            border.left.width,
+                            border.right.width,
+                            border.top.width,
+                            border.bottom.width,
+                            *c_border_radius,
+                        ));
+                        content.push_str("W n\n");
                     }
 
                     // Render children recursively
@@ -4555,6 +4591,10 @@ fn render_container_children(
                 bg_alpha_counter,
                 custom_fonts,
                 prepared_custom_fonts,
+                page_shadings,
+                shading_counter,
+                pdf_writer,
+                page_images,
             );
             y = cursor_y;
         }
@@ -4946,6 +4986,29 @@ fn render_container_children(
                     }
                 }
 
+                // Apply the overflow clip (if any) around the text so overflowing
+                // lines are cut at the padding box, matching Chrome. The
+                // background and border above are drawn unclipped so the border
+                // stays fully visible; only the inline/line-box content is
+                // clipped. `tb_clip_rect` is set by layout for
+                // overflow:hidden/clip/scroll/auto.
+                let tb_needs_clip = tb_clip_rect.is_some();
+                if tb_needs_clip {
+                    content.push_str("q\n");
+                    content.push_str(&overflow_clip_path(
+                        render_x,
+                        render_y - child_h,
+                        render_w,
+                        child_h,
+                        border.left.width,
+                        border.right.width,
+                        border.top.width,
+                        border.bottom.width,
+                        *tb_border_radius,
+                    ));
+                    content.push_str("W n\n");
+                }
+
                 // Draw child text
                 let mut text_y = render_y - padding_top;
                 let mut tb_first_line = true;
@@ -4992,6 +5055,9 @@ fn render_container_children(
                         lx += rw;
                     }
                     text_y -= metrics.descender + metrics.half_leading;
+                }
+                if tb_needs_clip {
+                    content.push_str("Q\n");
                 }
                 if is_float {
                     // A float does not advance the flow cursor (its bottom is
@@ -5522,28 +5588,24 @@ fn render_container_children(
                         content.push_str("S\n");
                     }
 
-                    // Clip if overflow:hidden (use rounded rect when border-radius > 0)
-                    let clip = *overflow == Overflow::Hidden;
+                    // Clip if overflow clips (hidden/clip/scroll/auto). CSS clips
+                    // at the PADDING box (border box inset by the border widths)
+                    // and follows the rounded corners when border-radius is set.
+                    let clip = overflow.clips();
                     if clip {
                         content.push_str("q\n");
-                        if *cont_br > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                nk_x,
-                                nk_top_y - nk_total_h,
-                                nk_w,
-                                nk_total_h,
-                                *cont_br,
-                            ));
-                            content.push_str("\nW n\n");
-                        } else {
-                            content.push_str(&format!(
-                                "{cx} {cy} {cw} {ch} re W n\n",
-                                cx = nk_x,
-                                cy = nk_top_y - nk_total_h,
-                                cw = nk_w,
-                                ch = nk_total_h,
-                            ));
-                        }
+                        content.push_str(&overflow_clip_path(
+                            nk_x,
+                            nk_top_y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                            border.left.width,
+                            border.right.width,
+                            border.top.width,
+                            border.bottom.width,
+                            *cont_br,
+                        ));
+                        content.push_str("W n\n");
                     }
 
                     // Recurse into nested children
@@ -6227,6 +6289,10 @@ fn render_container_children(
             bg_alpha_counter,
             custom_fonts,
             prepared_custom_fonts,
+            page_shadings,
+            shading_counter,
+            pdf_writer,
+            page_images,
         );
     }
 }
@@ -6242,6 +6308,10 @@ fn render_nested_table_rows(
     bg_alpha_counter: &mut usize,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
+    page_shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     for element in elements {
         match element {
@@ -6634,6 +6704,59 @@ fn render_nested_table_rows(
                             lx += rw;
                         }
                         text_y -= metrics.descender + metrics.half_leading;
+                    }
+
+                    // Render the cell's nested block children (e.g. a grid
+                    // item's inner <div>), clipped to the cell's padding box when
+                    // the item has `overflow: hidden`/`clip`/`scroll`/`auto`.
+                    if !cell.nested_rows.is_empty() {
+                        let text_h: f32 = cell.lines.iter().map(|l| l.height).sum();
+                        let nested_clip = cell.clips;
+                        if nested_clip {
+                            content.push_str("q\n");
+                            content.push_str(&overflow_clip_path(
+                                box_x,
+                                box_y,
+                                box_w,
+                                box_h,
+                                cell.border.left.width,
+                                cell.border.right.width,
+                                cell.border.top.width,
+                                cell.border.bottom.width,
+                                0.0,
+                            ));
+                            content.push_str("W n\n");
+                        }
+                        let nested_x = box_x + cell.padding_left + cell.border.left.width;
+                        let nested_w = (box_w
+                            - cell.padding_left
+                            - cell.padding_right
+                            - cell.border.horizontal_width())
+                        .max(0.0);
+                        let nested_y =
+                            (box_y + box_h) - cell.padding_top - cell.border.top.width - text_h;
+                        let mut nested_abs: HashMap<usize, (f32, f32)> = HashMap::new();
+                        render_container_children(
+                            content,
+                            &cell.nested_rows,
+                            nested_x,
+                            nested_y,
+                            nested_w,
+                            custom_fonts,
+                            prepared_custom_fonts,
+                            page_ext_gstates,
+                            bg_alpha_counter,
+                            page_shadings,
+                            shading_counter,
+                            pdf_writer,
+                            page_images,
+                            cell.padding_left,
+                            cell.padding_top,
+                            &mut nested_abs,
+                        );
+                        if nested_clip {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     col_pos += span;
@@ -11103,6 +11226,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -12645,6 +12769,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -13666,6 +13791,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let cell_visible = TableCell {
             lines: vec![TextLine {
@@ -13687,6 +13813,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell_skip, cell_visible],
@@ -13775,6 +13902,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -13889,6 +14017,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -13986,6 +14115,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let mut content_right = String::new();
         render_cell_text(
@@ -14020,6 +14150,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
         let mut content_center = String::new();
         render_cell_text(
@@ -14104,6 +14235,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
 
         let mut content = String::new();
@@ -14173,6 +14305,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
 
         let mut content = String::new();
@@ -14241,6 +14374,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         };
 
         let mut content = String::new();
@@ -14837,6 +14971,37 @@ mod tests {
         assert!(
             content.contains("cm\n"),
             "CSS transform: skew() should produce a cm (concat matrix) operator in PDF"
+        );
+    }
+
+    #[test]
+    fn render_grid_item_overflow_hidden_paints_clipped_inner_block() {
+        // A grid item with overflow:hidden and an oversized inner block must
+        // paint the inner block (clipped to the cell), not drop it. Regression
+        // test for the grid-cell nested-block clip path.
+        let html = r#"
+            <div style="display: grid; grid-template-columns: 100px 100px; gap: 10px; width: 210px">
+                <div style="overflow: hidden; height: 80px; background: #eee">
+                    <div style="width: 200px; height: 160px; background: #2874a6"></div>
+                </div>
+                <div style="height: 80px; background: #ddd"></div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(pdf.starts_with(b"%PDF"));
+        // The inner block fill colour #2874a6 (0.156.. 0.454.. 0.650..) must be
+        // emitted, proving the oversized inner block is painted inside the cell.
+        assert!(
+            content.contains("0.15686275 0.45490196 0.6509804 rg"),
+            "grid item's oversized inner block should be painted (clipped) inside the cell"
+        );
+        // And a clip (W n) must be present for the overflow:hidden cell.
+        assert!(
+            content.contains("W n"),
+            "overflow:hidden grid cell should emit a clip path"
         );
     }
 

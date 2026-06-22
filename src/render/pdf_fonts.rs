@@ -433,6 +433,7 @@ mod tests {
             min_content_height: 0.0,
             hide_if_empty: false,
             grid_inset: None,
+            clips: false,
         }
     }
 

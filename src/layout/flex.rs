@@ -145,7 +145,7 @@ pub(crate) fn layout_flex_container(
                 containing_block: None,
                 box_shadow: style.box_shadow.clone(),
                 visible: style.visibility == Visibility::Visible,
-                clip_rect: if style.overflow == Overflow::Hidden {
+                clip_rect: if style.overflow.clips() {
                     Some((0.0, 0.0, block_w, container_h))
                 } else {
                     None
@@ -585,7 +585,7 @@ pub(crate) fn layout_flex_container(
             containing_block: None,
             box_shadow: child_style.box_shadow.clone(),
             visible: child_style.visibility == Visibility::Visible,
-            clip_rect: if child_style.overflow == Overflow::Hidden {
+            clip_rect: if child_style.overflow.clips() {
                 Some((0.0, 0.0, child_w, child_h))
             } else {
                 None
@@ -945,7 +945,7 @@ pub(crate) fn layout_flex_container(
             containing_block: None,
             box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
-            clip_rect: if style.overflow == Overflow::Hidden {
+            clip_rect: if style.overflow.clips() {
                 Some((0.0, 0.0, block_w, container_h))
             } else {
                 None

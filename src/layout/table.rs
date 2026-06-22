@@ -54,6 +54,11 @@ pub struct TableCell {
     /// the track. `None` for table cells (which always fill). Fields are the
     /// inset from the left/top of the track and the item's own painted size.
     pub grid_inset: Option<GridInset>,
+    /// Whether the cell clips its nested content (`overflow: hidden`/`clip`/
+    /// `scroll`/`auto` on a grid item). When true, the cell's `nested_rows` are
+    /// painted under a clip at the cell's padding box. `false` for table cells
+    /// and non-clipping grid items.
+    pub clips: bool,
 }
 
 /// Placement of a grid item's painted box within its (possibly larger) track
@@ -1043,6 +1048,7 @@ pub(crate) fn flatten_table(
                     min_content_height: 0.0,
                     hide_if_empty: false,
                     grid_inset: None,
+                    clips: false,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -1203,6 +1209,7 @@ pub(crate) fn flatten_table(
                 min_content_height,
                 hide_if_empty,
                 grid_inset: None,
+                clips: false,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1

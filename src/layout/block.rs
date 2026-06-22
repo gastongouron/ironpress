@@ -3,8 +3,8 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing, Clear,
-    ComputedStyle, Display, Float, Overflow, Position, TextAlign, TextOverflow, VerticalAlign,
-    Visibility, WhiteSpace, compute_style_with_context,
+    ComputedStyle, Display, Float, Position, TextAlign, TextOverflow, VerticalAlign, Visibility,
+    WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -711,7 +711,7 @@ pub(crate) fn layout_block_element(
                     clip_children_count: 0,
                     box_shadow: style.box_shadow.clone(),
                     visible: style.visibility == Visibility::Visible,
-                    clip_rect: if style.overflow == Overflow::Hidden {
+                    clip_rect: if style.overflow.clips() {
                         Some((0.0, 0.0, block_w, wrapper_h))
                     } else {
                         None
@@ -1164,7 +1164,7 @@ pub(crate) fn layout_block_element(
         // Apply text-overflow: ellipsis when overflow is hidden, white-space
         // is nowrap, and we have a fixed width.
         if style.text_overflow == TextOverflow::Ellipsis
-            && style.overflow == Overflow::Hidden
+            && style.overflow.clips()
             && style.white_space == WhiteSpace::NoWrap
             && style.width.is_some()
         {
@@ -1183,7 +1183,7 @@ pub(crate) fn layout_block_element(
 
         // Compute clip rect — CSS overflow:hidden clips to the padding box
         // (includes padding, excludes border).
-        let clip_rect = if style.overflow == Overflow::Hidden {
+        let clip_rect = if style.overflow.clips() {
             let text_height: f32 = lines.iter().map(|l| l.height).sum();
             let padding_box_h = resolve_padding_box_height(
                 text_height,

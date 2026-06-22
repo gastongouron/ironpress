@@ -240,6 +240,7 @@
   "overflow-hidden-grid-item": "74a7f529efab2874db7488403458ce49c9a0469887bbb2c92098ee0d61f8f44b",
   "overflow-hidden-nested": "6d9ff7ed60e45ec0ffdd7f7ad3f181e41917ff1b60b14ab95e0fdfa69e752f29",
   "overflow-hidden-text-clip": "534cb9c193be91ea2aff178c35f0e010a87642131c691c2ad5b15b54de6fa69e",
+  "overflow-padding-box-clip": "a682f97a0e2636f2a8701206848ed3eb4de7375df197f6d3cd6ba81b29d07779",
   "overflow-scroll-print-clip": "e021f9b6e5b3519a6037dec237568587cd5becd8e1ec47b19cb29f431576ccb9",
   "overflow-visible-no-clip": "f1172a8462f4fc07c280780e060bc71ec31388a5f0f421258872757530c4ae0e",
   "overflow-x-y-separate": "1220ffcf0cbbe19ac9e6d08ea9610e195ddc050313fea93a73cd489e04449643",

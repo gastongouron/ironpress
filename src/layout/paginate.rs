@@ -1,5 +1,5 @@
 use super::engine::{LayoutElement, Page, layout_element_paint_order, table_cell_content_height};
-use crate::style::computed::{BorderCollapse, Clear, Float, Overflow, Position};
+use crate::style::computed::{BorderCollapse, Clear, Float, Position};
 use std::collections::HashMap;
 
 fn advance_positioned_ancestors_after_page_break(
@@ -706,7 +706,7 @@ pub(crate) fn paginate(
                     .map(|c| estimate_element_height_bounded(c, 50))
                     .sum();
                 let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
-                let effective_h = if *overflow == Overflow::Hidden {
+                let effective_h = if overflow.clips() {
                     block_height.unwrap_or(content_h)
                 } else {
                     block_height.map_or(content_h, |h| content_h.max(h))

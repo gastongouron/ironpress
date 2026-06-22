@@ -406,6 +406,8 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "list-style-position"
             | "list-style"
             | "overflow"
+            | "overflow-x"
+            | "overflow-y"
             | "visibility"
             | "transform"
             | "transform-origin"

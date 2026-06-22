@@ -1,5 +1,19 @@
 [
   {
+    "id": "overflow-padding-box-clip",
+    "category": "overflow-clipping",
+    "feature": "overflow",
+    "subfeature": "padding-box-clip-edge",
+    "description": "overflow:hidden on a padded box clips its oversized child at the PADDING box: the child fills the padding box out to the inner border edge and is cut there, leaving the border fully visible and the top/left padding band showing.",
+    "file": "cases/overflow-clipping/overflow-padding-box-clip.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-block-flow", "probe-border-box"]
+  },
+  {
     "id": "overflow-hidden-clip",
     "category": "overflow-clipping",
     "feature": "overflow",

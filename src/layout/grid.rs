@@ -260,6 +260,97 @@ fn grid_item_outer_height(
     text_h + cs.padding.top + cs.padding.bottom
 }
 
+/// Lay out a grid item's block-level children into nested layout elements,
+/// sized against the item's content-box width. Returns the flattened layout
+/// elements (block children of the item); inline text is handled separately by
+/// the caller via `FlexTextRunCollector`. The cell's `overflow` clips these at
+/// paint time, so an oversized inner block is painted but cut to the cell.
+fn layout_grid_item_children(
+    item_el: &ElementNode,
+    item_style: &ComputedStyle,
+    ctx: &LayoutContext,
+    item_ancestors: &[AncestorInfo],
+    content_width: f32,
+    env: &mut LayoutEnv,
+) -> Vec<LayoutElement> {
+    use crate::parser::css::AncestorInfo;
+    use crate::style::computed::Display;
+
+    let mut out: Vec<LayoutElement> = Vec::new();
+    // Only block-level element children become nested layout rows; inline text
+    // is collected by the caller. A grid item is a block container, so its
+    // children flow as a block formatting context inside the item's content box.
+    let child_ctx = ctx.with_parent(content_width, item_style.height, item_style.font_size);
+
+    let mut child_ancestors: Vec<AncestorInfo> = item_ancestors.to_vec();
+    child_ancestors.push(AncestorInfo {
+        element: item_el,
+        child_index: 0,
+        sibling_count: item_el.children.len(),
+        preceding_siblings: Vec::new(),
+    });
+
+    let element_children: Vec<&ElementNode> = item_el
+        .children
+        .iter()
+        .filter_map(|c| match c {
+            DomNode::Element(e) => Some(e),
+            DomNode::Text(_) => None,
+        })
+        .collect();
+    let sibling_count = element_children.len();
+    let mut preceding: Vec<(String, Vec<String>)> = Vec::new();
+    for (idx, child_el) in element_children.iter().enumerate() {
+        // Skip inline children: their text is already collected for the cell
+        // `lines`. Only block / inline-block / flex / grid children need a
+        // nested layout element.
+        let child_style = compute_style_with_context(
+            child_el.tag,
+            child_el.style_attr(),
+            item_style,
+            env.rules,
+            child_el.tag_name(),
+            &child_el.class_list(),
+            child_el.id(),
+            &child_el.attributes,
+            &SelectorContext {
+                ancestors: child_ancestors.clone(),
+                child_index: idx,
+                sibling_count,
+                preceding_siblings: preceding.clone(),
+            },
+        );
+        let is_block = matches!(
+            child_style.display,
+            Display::Block | Display::InlineBlock | Display::Flex | Display::Grid
+        );
+        if is_block {
+            crate::layout::engine::flatten_element(
+                child_el,
+                item_style,
+                &child_ctx,
+                &mut out,
+                None,
+                &child_ancestors,
+                0,
+                idx,
+                sibling_count,
+                &preceding,
+                env,
+            );
+        }
+        preceding.push((
+            child_el.tag_name().to_string(),
+            child_el
+                .class_list()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ));
+    }
+    out
+}
+
 /// An empty filler cell that still occupies the track height so the grid row
 /// keeps its geometry when an item is absent in that column.
 fn empty_grid_cell(track_h: f32) -> TableCell {
@@ -280,6 +371,7 @@ fn empty_grid_cell(track_h: f32) -> TableCell {
         min_content_height: track_h,
         hide_if_empty: false,
         grid_inset: None,
+        clips: false,
     }
 }
 
@@ -676,6 +768,22 @@ pub(crate) fn layout_grid_container(
                 .background_color
                 .map(|c: crate::types::Color| c.to_f32_rgba());
 
+            // Lay out the grid item's block-level children (e.g. an inner
+            // <div>) into nested layout elements so they paint inside the cell,
+            // clipped by the cell's `overflow` at paint time. Grid items are
+            // block containers; without this, only inline text was collected and
+            // a block child (common with `overflow:hidden` to clip it) was
+            // dropped entirely.
+            let nested_rows = layout_grid_item_children(
+                child_el,
+                cs,
+                ctx,
+                &child_ancestors,
+                (track_w - cs.padding.left - cs.padding.right - cs.border.horizontal_width())
+                    .max(0.0),
+                env,
+            );
+
             // Per-item alignment: when the item has an explicit smaller size
             // than its track, position the painted box per justify/align-items.
             // A row-spanning item must paint across its spanned tracks without
@@ -698,7 +806,7 @@ pub(crate) fn layout_grid_container(
 
             cells.push(TableCell {
                 lines,
-                nested_rows: Vec::new(),
+                nested_rows,
                 bold: cs.font_weight == FontWeight::Bold,
                 background_color: bg,
                 padding_top: cs.padding.top,
@@ -713,6 +821,7 @@ pub(crate) fn layout_grid_container(
                 min_content_height: cell_min_h,
                 hide_if_empty: false,
                 grid_inset: inset,
+                clips: cs.overflow.clips(),
             });
             next_col = p.col + p.col_span;
         }
