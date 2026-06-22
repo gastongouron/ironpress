@@ -490,6 +490,13 @@ pub enum LayoutElement {
         row_height: f32,
         margin_top: f32,
         margin_bottom: f32,
+        /// Inline-axis (horizontal) offset of the flex container's border box
+        /// from its containing block's content-left edge. Carries the
+        /// container's own `margin-left` plus any `margin: auto` horizontal
+        /// centering, exactly like a block's `offset_left`. The top-level
+        /// renderer adds this to the page content-left so a flex container
+        /// honours its own horizontal margin like any other block.
+        offset_left: f32,
         /// Container background color.
         background_color: Option<(f32, f32, f32, f32)>,
         /// Full container width (including padding).

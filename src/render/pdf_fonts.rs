@@ -919,6 +919,7 @@ mod tests {
             row_height: 20.0,
             margin_top: 0.0,
             margin_bottom: 0.0,
+            offset_left: 0.0,
             background_color: None,
             container_width: 500.0,
             padding_top: 0.0,

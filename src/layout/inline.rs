@@ -353,6 +353,7 @@ pub(crate) fn layout_inline_block_group(
             row_height: rh,
             margin_top: 0.0,
             margin_bottom: 0.0,
+            offset_left: 0.0,
             background_color: None,
             container_width: available_width,
             padding_top: 0.0,

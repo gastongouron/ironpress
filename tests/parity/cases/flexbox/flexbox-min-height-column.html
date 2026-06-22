@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox min-height floors a shrinking column item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* In a column container the main axis is vertical. The three items declare a
+     height that together overflow the container, so flex-shrink removes the
+     overflow. min-height on the middle item floors how far IT may shrink,
+     forcing the other two to absorb the rest. */
+  .flex {
+    display: flex;
+    flex-direction: column;
+    width: 120px;
+    height: 300px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { width: 90px; height: 150px; flex-shrink: 1; border: 2px solid #102a43; }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; min-height: 120px; }
+  .c { background: #27ae60; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

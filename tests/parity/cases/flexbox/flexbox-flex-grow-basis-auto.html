@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-grow with flex-basis:auto</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* flex-grow:1 with basis:auto: each item starts at its declared width
+     (the auto basis) and the free space is added on top, so the wider base
+     item stays wider after growth. */
+  .flex {
+    display: flex;
+    width: 400px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { height: 80px; border: 2px solid #102a43; flex-grow: 1; flex-basis: auto; }
+  .a { background: #c0392b; width: 40px; }
+  .b { background: #2980b9; width: 120px; }
+  .c { background: #27ae60; width: 40px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

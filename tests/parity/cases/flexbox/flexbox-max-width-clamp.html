@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox max-width clamps a grown item</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* The first item would grow large but max-width caps it at 120px; the
+     leftover free space is redistributed to the other growing item. */
+  .flex {
+    display: flex;
+    width: 400px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { height: 80px; border: 2px solid #102a43; flex: 1 1 0; }
+  .a { background: #c0392b; max-width: 120px; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+    </div>
+  </div>
+</body>
+</html>

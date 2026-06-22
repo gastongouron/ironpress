@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-items:flex-end</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* align-items:flex-end anchors items to the cross-end (bottom) edge. */
+  .flex {
+    display: flex;
+    align-items: flex-end;
+    width: 360px;
+    height: 160px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { width: 90px; border: 2px solid #102a43; }
+  .a { background: #c0392b; height: 60px; }
+  .b { background: #2980b9; height: 110px; }
+  .c { background: #27ae60; height: 80px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

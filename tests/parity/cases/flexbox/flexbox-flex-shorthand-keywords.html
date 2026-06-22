@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex shorthand keywords</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* flex shorthand keywords:
+       flex:none    => 0 0 auto  (keeps declared width, no grow/shrink)
+       flex:auto    => 1 1 auto  (grows from declared width)
+       flex:1       => 1 1 0     (grows from zero) */
+  .flex {
+    display: flex;
+    width: 400px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { height: 80px; border: 2px solid #102a43; width: 80px; }
+  .a { background: #c0392b; flex: none; }
+  .b { background: #2980b9; flex: auto; }
+  .c { background: #27ae60; flex: 1; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

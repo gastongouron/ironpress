@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-shrink:0</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* The middle item refuses to shrink (flex-shrink:0); the two shrinkable
+     items (flex-shrink:1) absorb all of the overflow instead. */
+  .flex {
+    display: flex;
+    width: 300px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { height: 80px; border: 2px solid #102a43; flex-basis: 150px; }
+  .a { background: #c0392b; flex-shrink: 1; }
+  .b { background: #2980b9; flex-shrink: 0; }
+  .c { background: #27ae60; flex-shrink: 1; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

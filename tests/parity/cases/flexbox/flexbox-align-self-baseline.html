@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-self:baseline</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* Container is align-items:flex-start; one item opts into baseline alignment
+     with align-self:baseline against a baseline-aligned neighbour. */
+  .flex {
+    display: flex;
+    align-items: baseline;
+    width: 420px;
+    height: 160px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+    font-family: sans-serif;
+  }
+  .box {
+    width: 120px;
+    border: 2px solid #102a43;
+    color: #ffffff;
+    padding: 6px;
+  }
+  .a { background: #c0392b; font-size: 18px; }
+  .b { background: #2980b9; font-size: 36px; align-self: baseline; }
+  .c { background: #27ae60; font-size: 22px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a">Ag</div>
+      <div class="box b">Ag</div>
+      <div class="box c">Ag</div>
+    </div>
+  </div>
+</body>
+</html>

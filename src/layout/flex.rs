@@ -1,9 +1,10 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BoxSizing, Clear, ComputedStyle, Display, FlexDirection, FlexWrap, Float, JustifyContent,
-    Overflow, Position, TextAlign, VerticalAlign, Visibility, compute_style_with_context,
+    AlignContent, AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
+    BackgroundSize, BoxSizing, Clear, ComputedStyle, Display, FlexDirection, FlexWrap, Float,
+    JustifyContent, Overflow, Position, TextAlign, VerticalAlign, Visibility,
+    compute_style_with_context,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
@@ -41,6 +42,30 @@ pub(crate) fn layout_flex_container(
     if let Some(mw) = style.max_width {
         block_w = block_w.min(mw);
     }
+
+    // Horizontal offset of the flex container's border box from the containing
+    // block's content-left edge. A flex container is a block-level box, so it
+    // honours its own `margin-left` (and `margin: 0 auto` centering) exactly
+    // like `block.rs` does for normal blocks. Without this the top-level
+    // renderer painted every flex container flush at the page content-left,
+    // dropping its horizontal margin (vertical margin was already applied via
+    // `margin_top`/`margin_bottom`). Centering only applies when the container
+    // has a definite width narrower than the available space.
+    let has_explicit_width = style.width.is_some()
+        || style.max_width.is_some()
+        || style.min_width.is_some()
+        || style.percentage_sizing.width.is_some();
+    let h_offset = if has_explicit_width && block_w < available_width {
+        if style.margin_left_auto && style.margin_right_auto {
+            (available_width - block_w) / 2.0
+        } else if style.margin_left_auto {
+            available_width - block_w
+        } else {
+            style.margin.left
+        }
+    } else {
+        style.margin.left
+    };
 
     // Content width for flex main-axis distribution. `block_w` is the BORDER-box
     // width under `box-sizing: border-box` (so subtract border AND padding to reach
@@ -231,7 +256,45 @@ pub(crate) fn layout_flex_container(
         /// Index of the originating child element (document order). Used to map
         /// a (possibly reordered) item back to its `child_elements` entry.
         child_idx: usize,
+        /// Min/max clamps on the OUTER (border-box) main size. `min-width` /
+        /// `max-width` for a row container, `min-height` / `max-height` for a
+        /// column container. `max_main` is `f32::INFINITY` when unconstrained.
+        /// Grow and shrink both clamp each item to `[min_main, max_main]`.
+        min_main: f32,
+        max_main: f32,
     }
+
+    // Resolve an item's outer (border-box) main-axis min/max clamps from its
+    // computed min/max width-or-height for the container's main axis. Content-
+    // box values are inflated by the item's padding+border so the clamp applies
+    // to the border-box main size used throughout flex resolution.
+    let main_min_max = |child_style: &ComputedStyle| -> (f32, f32) {
+        let extra = if child_style.box_sizing == BoxSizing::ContentBox {
+            child_style.padding.left
+                + child_style.padding.right
+                + child_style.border.horizontal_width()
+        } else {
+            0.0
+        };
+        let extra_v = if child_style.box_sizing == BoxSizing::ContentBox {
+            child_style.padding.top
+                + child_style.padding.bottom
+                + child_style.border.vertical_width()
+        } else {
+            0.0
+        };
+        if style.flex_direction.is_row() {
+            let min = child_style.min_width.map_or(0.0, |v| v + extra);
+            let max = child_style.max_width.map_or(f32::INFINITY, |v| v + extra);
+            (min, max)
+        } else {
+            let min = child_style.min_height.map_or(0.0, |v| v + extra_v);
+            let max = child_style
+                .max_height
+                .map_or(f32::INFINITY, |v| v + extra_v);
+            (min, max)
+        }
+    };
 
     let mut items: Vec<FlexItem> = Vec::new();
 
@@ -281,7 +344,19 @@ pub(crate) fn layout_flex_container(
         // is the *content* width, so the outer box used for flex main-axis
         // layout is `width + padding + border`. For `border-box`, the
         // specified width is already the outer box.
-        let has_explicit_width = child_style.flex_basis.is_some() || child_style.width.is_some();
+        // Resolve a percentage `flex-basis` against the container's main-axis
+        // content size. For a row container that is `inner_width`; for a column
+        // container the main axis is the (often indefinite) height, where a
+        // percentage basis behaves like `auto`, so we only resolve it for row
+        // direction. The resolved length then feeds the same path as an explicit
+        // `flex-basis` length.
+        let resolved_basis = match child_style.flex_basis_pct {
+            Some(pct) if style.flex_direction.is_row() => Some((inner_width * pct).max(0.0)),
+            _ => child_style.flex_basis,
+        };
+        let has_explicit_width = resolved_basis.is_some()
+            || child_style.flex_basis_pct.is_some()
+            || child_style.width.is_some();
         let has_explicit_height = child_style.height.is_some();
         let inflate_outer = |w: f32| -> f32 {
             if child_style.box_sizing == BoxSizing::ContentBox {
@@ -303,7 +378,7 @@ pub(crate) fn layout_flex_container(
         let item_box_floor = child_style.border.horizontal_width()
             + child_style.padding.left
             + child_style.padding.right;
-        let child_w_initial = match child_style.flex_basis.or(child_style.width) {
+        let child_w_initial = match resolved_basis.or(child_style.width) {
             Some(w) => inflate_outer(w).max(item_box_floor),
             None => {
                 if child_style.flex_grow > 0.0 {
@@ -336,7 +411,7 @@ pub(crate) fn layout_flex_container(
         // wrapping decisions (content-box + padding + border for content-box),
         // child_w_for_layout is the content width used to lay out children so
         // percentage resolution against the parent content area is correct.
-        let child_w_for_flex = match child_style.flex_basis.or(child_style.width) {
+        let child_w_for_flex = match resolved_basis.or(child_style.width) {
             Some(w) => inflate_outer(w).max(item_box_floor),
             None => width_for_percentages / child_count as f32,
         };
@@ -463,6 +538,8 @@ pub(crate) fn layout_flex_container(
                 align_self: child_style.align_self,
                 order: child_style.order,
                 child_idx: idx,
+                min_main: main_min_max(&child_style).0,
+                max_main: main_min_max(&child_style).1,
             });
             continue;
         }
@@ -623,7 +700,27 @@ pub(crate) fn layout_flex_container(
         // otherwise a `box-sizing: border-box` item with an explicit height
         // measured short by its border, collapsing wrapped-line cross sizes and
         // column main-axis spacing.
-        let item_border_box_h = child_h + child_style.border.vertical_width();
+        let mut item_border_box_h = child_h + child_style.border.vertical_width();
+        // For a column container the main axis is the block axis, so `flex-basis`
+        // (a main-size) sets the item's height when no explicit `height` is
+        // given. Without this an empty `flex-basis: 150px` column item measured
+        // its content height (~0) and collapsed. A percentage basis resolves
+        // against the container's main (cross_size already folds the height) —
+        // we approximate it against `inner_cross_size` which is the resolved
+        // content height, computed later, so only the length basis is used here.
+        if !style.flex_direction.is_row() && !has_explicit_height {
+            if let Some(basis) = child_style.flex_basis {
+                let bb = if child_style.box_sizing == BoxSizing::ContentBox {
+                    basis
+                        + child_style.padding.top
+                        + child_style.padding.bottom
+                        + child_style.border.vertical_width()
+                } else {
+                    basis
+                };
+                item_border_box_h = bb;
+            }
+        }
         items.push(FlexItem {
             elements: vec![elem],
             width: child_w,
@@ -637,6 +734,8 @@ pub(crate) fn layout_flex_container(
             align_self: child_style.align_self,
             order: child_style.order,
             child_idx: idx,
+            min_main: main_min_max(&child_style).0,
+            max_main: main_min_max(&child_style).1,
         });
     }
 
@@ -654,7 +753,17 @@ pub(crate) fn layout_flex_container(
     let justify = style.justify_content;
     let align = style.align_items;
     let wrap = style.flex_wrap;
-    let gap = style.gap;
+    // Per-axis gaps. `column_gap` separates items along the inline axis,
+    // `row_gap` along the block axis. For a row container the main-axis gap is
+    // the column gap and the line (cross) gap is the row gap; for a column
+    // container they swap. `style.gap` is kept as the legacy single value.
+    let (main_gap, line_gap) = if direction.is_row() {
+        (style.column_gap, style.row_gap)
+    } else {
+        (style.row_gap, style.column_gap)
+    };
+    // `gap` is the main-axis gap used throughout the per-line packing math.
+    let gap = main_gap;
 
     // Group items into lines (for flex-wrap)
     struct FlexLine {
@@ -666,7 +775,7 @@ pub(crate) fn layout_flex_container(
     let mut lines: Vec<FlexLine> = Vec::new();
 
     match direction {
-        FlexDirection::Row => {
+        FlexDirection::Row | FlexDirection::RowReverse => {
             let max_main = inner_width;
             let mut current_line = FlexLine {
                 item_indices: Vec::new(),
@@ -682,7 +791,7 @@ pub(crate) fn layout_flex_container(
                     gap
                 };
 
-                if wrap == FlexWrap::Wrap
+                if wrap.wraps()
                     && !current_line.item_indices.is_empty()
                     && current_line.main_size + gap_extra + item_main > max_main
                 {
@@ -705,7 +814,7 @@ pub(crate) fn layout_flex_container(
                 lines.push(current_line);
             }
         }
-        FlexDirection::Column => {
+        FlexDirection::Column | FlexDirection::ColumnReverse => {
             // In column direction, each item is on its own "line" conceptually,
             // but we group them all into one line for simplicity (no column wrap needed yet)
             let mut line = FlexLine {
@@ -728,26 +837,27 @@ pub(crate) fn layout_flex_container(
     }
 
     // Compute container dimensions
-    let total_cross: f32 = match direction {
-        FlexDirection::Row => {
-            lines.iter().map(|l| l.cross_size).sum::<f32>()
-                + if lines.len() > 1 {
-                    (lines.len() - 1) as f32 * gap
-                } else {
-                    0.0
-                }
-        }
-        FlexDirection::Column => lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max),
+    let total_cross: f32 = if direction.is_row() {
+        lines.iter().map(|l| l.cross_size).sum::<f32>()
+            + if lines.len() > 1 {
+                (lines.len() - 1) as f32 * line_gap
+            } else {
+                0.0
+            }
+    } else {
+        lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max)
     };
 
-    let total_main: f32 = match direction {
-        FlexDirection::Row => inner_width,
-        FlexDirection::Column => lines.iter().map(|l| l.main_size).sum::<f32>(),
+    let total_main: f32 = if direction.is_row() {
+        inner_width
+    } else {
+        lines.iter().map(|l| l.main_size).sum::<f32>()
     };
 
-    let container_height = match direction {
-        FlexDirection::Row => total_cross,
-        FlexDirection::Column => total_main,
+    let container_height = if direction.is_row() {
+        total_cross
+    } else {
+        total_main
     };
 
     // `container_h` is the padding-box height (content + vertical padding).
@@ -764,7 +874,16 @@ pub(crate) fn layout_flex_container(
                 BoxSizing::ContentBox => h + pad_v,
                 BoxSizing::BorderBox => (h - border_v).max(0.0),
             };
-            container_h.max(target)
+            // For a column container a definite height is the main-axis size:
+            // it caps the content so flex-shrink can compress overflowing items
+            // into it (use the height directly, not max with the natural sum).
+            // For a row container the height is the cross size, where a taller
+            // explicit height must still contain the items (keep the max).
+            if direction.is_row() {
+                container_h.max(target)
+            } else {
+                target
+            }
         }
         None => container_h,
     };
@@ -795,7 +914,7 @@ pub(crate) fn layout_flex_container(
     // height — not its natural content height. The first flatten produced the
     // item at natural height; re-flatten it with the stretched height forced so
     // its inner layout (and its painted background/border) fill the cross axis.
-    if direction == FlexDirection::Row && lines.len() == 1 && inner_cross_size > 0.0 {
+    if direction.is_row() && lines.len() == 1 && inner_cross_size > 0.0 {
         for item in items.iter_mut() {
             let stretches = match item.align_self {
                 AlignSelf::Stretch => true,
@@ -873,29 +992,69 @@ pub(crate) fn layout_flex_container(
         }
     }
 
-    if direction == FlexDirection::Row && lines.len() == 1 {
+    if direction.is_row() && lines.len() == 1 {
         if let Some(line) = lines.first_mut() {
             line.cross_size = line.cross_size.max(inner_cross_size);
         }
     }
     // Recompute total_cross after possibly growing a single line.
-    let total_cross: f32 = match direction {
-        FlexDirection::Row => {
-            lines.iter().map(|l| l.cross_size).sum::<f32>()
-                + if lines.len() > 1 {
-                    (lines.len() - 1) as f32 * gap
-                } else {
-                    0.0
-                }
-        }
-        FlexDirection::Column => lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max),
+    let total_cross: f32 = if direction.is_row() {
+        lines.iter().map(|l| l.cross_size).sum::<f32>()
+            + if lines.len() > 1 {
+                (lines.len() - 1) as f32 * line_gap
+            } else {
+                0.0
+            }
+    } else {
+        lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max)
     };
+
+    // align-content distributes the wrapped flex LINES along the cross axis
+    // when the container has more than one line and spare cross space. Compute
+    // a per-line leading offset and an inter-line spacing. For wrap-reverse the
+    // line cross order is reversed (cross-end toward cross-start). Only applies
+    // to row direction (multi-line) — column wrapping is not yet supported.
+    let line_count = lines.len();
+    let (ac_lead, ac_between, ac_line_stretch) = if direction.is_row() && line_count > 1 {
+        let lines_cross: f32 = lines.iter().map(|l| l.cross_size).sum::<f32>();
+        let base_gaps = (line_count - 1) as f32 * line_gap;
+        let ac_free = (inner_cross_size - lines_cross - base_gaps).max(0.0);
+        match style.align_content {
+            AlignContent::FlexStart => (0.0, 0.0, 0.0),
+            AlignContent::FlexEnd => (ac_free, 0.0, 0.0),
+            AlignContent::Center => (ac_free / 2.0, 0.0, 0.0),
+            AlignContent::SpaceBetween => {
+                if line_count > 1 {
+                    (0.0, ac_free / (line_count - 1) as f32, 0.0)
+                } else {
+                    (0.0, 0.0, 0.0)
+                }
+            }
+            AlignContent::SpaceAround => {
+                let around = ac_free / line_count as f32;
+                (around / 2.0, around, 0.0)
+            }
+            AlignContent::SpaceEvenly => {
+                let ev = ac_free / (line_count + 1) as f32;
+                (ev, ev, 0.0)
+            }
+            // stretch grows each line equally to fill the spare cross space.
+            AlignContent::Stretch => (0.0, 0.0, ac_free / line_count as f32),
+        }
+    } else {
+        (0.0, 0.0, 0.0)
+    };
+    if ac_line_stretch > 0.0 {
+        for line in lines.iter_mut() {
+            line.cross_size += ac_line_stretch;
+        }
+    }
     let bg = style
         .background_color
         .map(|color: crate::types::Color| color.to_f32_rgba());
 
     // For column direction, emit container background separately
-    let emitted_column_bg = direction == FlexDirection::Column
+    let emitted_column_bg = !direction.is_row()
         && (has_background_paint(style) || style.border.has_any() || !style.box_shadow.is_empty());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
@@ -1043,19 +1202,34 @@ pub(crate) fn layout_flex_container(
         });
     }
 
-    // Position items within the flex container and emit them
-    let mut cross_offset = 0.0;
+    // Position items within the flex container and emit them. align-content
+    // leading bumps the first line away from the cross-start edge.
+    let mut cross_offset = ac_lead;
     // All flex cells across every line, merged into a single FlexRow for
     // row direction. This keeps container borders/backgrounds around every
     // wrapped line and keeps pagination flow correct.
     let mut all_flex_cells: Vec<FlexCell> = Vec::new();
 
-    for line in &lines {
+    // `flex-wrap: wrap-reverse` stacks the wrapped lines from the cross-end
+    // toward the cross-start, i.e. the visual line order is reversed. We keep
+    // the cross_offset accumulation forward (cross-start downward) but feed the
+    // lines in reversed order so the last source line lands at the top.
+    let line_order: Vec<usize> = if wrap == FlexWrap::WrapReverse {
+        (0..lines.len()).rev().collect()
+    } else {
+        (0..lines.len()).collect()
+    };
+
+    for (visual_pos, &line_idx) in line_order.iter().enumerate() {
+        let line = &lines[line_idx];
+        if visual_pos > 0 {
+            cross_offset += ac_between;
+        }
         let line_items: Vec<usize> = line.item_indices.clone();
         let line_item_count = line_items.len();
 
         match direction {
-            FlexDirection::Row => {
+            FlexDirection::Row | FlexDirection::RowReverse => {
                 let total_item_width: f32 = line_items.iter().map(|&i| items[i].width).sum();
                 let total_gap = if line_item_count > 1 {
                     (line_item_count - 1) as f32 * gap
@@ -1064,27 +1238,89 @@ pub(crate) fn layout_flex_container(
                 };
                 let mut free_space = inner_width - total_item_width - total_gap;
 
-                // Flex grow: distribute positive free space proportionally
+                // Flex grow: distribute positive free space proportionally,
+                // iterating so items that hit their `max-main` clamp are frozen
+                // and their unused share is redistributed to the rest (CSS
+                // Flexbox §9.7 "Resolving Flexible Lengths").
                 let total_grow: f32 = line_items.iter().map(|&i| items[i].flex_grow).sum();
                 if free_space > 0.0 && total_grow > 0.0 {
-                    for &i in &line_items {
-                        items[i].width += free_space * (items[i].flex_grow / total_grow);
+                    let mut frozen = vec![false; line_items.len()];
+                    let mut remaining = free_space;
+                    // Bounded iteration count: at most one item freezes per pass.
+                    for _ in 0..=line_items.len() {
+                        let active_grow: f32 = line_items
+                            .iter()
+                            .enumerate()
+                            .filter(|(li, _)| !frozen[*li])
+                            .map(|(_, &i)| items[i].flex_grow)
+                            .sum();
+                        if active_grow <= 0.0 || remaining <= 0.01 {
+                            break;
+                        }
+                        let mut newly_frozen = false;
+                        let mut consumed = 0.0;
+                        for (li, &i) in line_items.iter().enumerate() {
+                            if frozen[li] {
+                                continue;
+                            }
+                            let share = remaining * (items[i].flex_grow / active_grow);
+                            let target = items[i].width + share;
+                            if target >= items[i].max_main {
+                                consumed += items[i].max_main - items[i].width;
+                                items[i].width = items[i].max_main;
+                                frozen[li] = true;
+                                newly_frozen = true;
+                            } else {
+                                items[i].width = target;
+                                consumed += share;
+                            }
+                        }
+                        remaining -= consumed;
+                        if !newly_frozen {
+                            break;
+                        }
                     }
                     free_space = 0.0;
                 }
 
-                // Flex shrink: shrink items when overflowing
+                // Flex shrink: remove overflow weighted by shrink×base, freezing
+                // items that hit their `min-main` clamp and redistributing.
                 if free_space < 0.0 {
-                    let total_shrink_weighted: f32 = line_items
-                        .iter()
-                        .map(|&i| items[i].flex_shrink * items[i].base_width)
-                        .sum();
-                    if total_shrink_weighted > 0.0 {
-                        let deficit = -free_space;
-                        for &i in &line_items {
-                            let shrink_ratio =
-                                items[i].flex_shrink * items[i].base_width / total_shrink_weighted;
-                            items[i].width = (items[i].width - deficit * shrink_ratio).max(0.0);
+                    let mut frozen = vec![false; line_items.len()];
+                    let mut deficit = -free_space;
+                    for _ in 0..=line_items.len() {
+                        let total_weight: f32 = line_items
+                            .iter()
+                            .enumerate()
+                            .filter(|(li, _)| !frozen[*li])
+                            .map(|(_, &i)| items[i].flex_shrink * items[i].base_width)
+                            .sum();
+                        if total_weight <= 0.0 || deficit <= 0.01 {
+                            break;
+                        }
+                        let mut newly_frozen = false;
+                        let mut removed = 0.0;
+                        for (li, &i) in line_items.iter().enumerate() {
+                            if frozen[li] {
+                                continue;
+                            }
+                            let weight = items[i].flex_shrink * items[i].base_width;
+                            let reduce = deficit * (weight / total_weight);
+                            let target = items[i].width - reduce;
+                            let floor = items[i].min_main.max(0.0);
+                            if target <= floor {
+                                removed += items[i].width - floor;
+                                items[i].width = floor;
+                                frozen[li] = true;
+                                newly_frozen = true;
+                            } else {
+                                items[i].width = target;
+                                removed += reduce;
+                            }
+                        }
+                        deficit -= removed;
+                        if !newly_frozen {
+                            break;
                         }
                     }
                     free_space = 0.0;
@@ -1154,6 +1390,10 @@ pub(crate) fn layout_flex_container(
                     JustifyContent::SpaceAround => {
                         let around = free_space / line_item_count as f32;
                         (around / 2.0, around)
+                    }
+                    JustifyContent::SpaceEvenly => {
+                        let ev = free_space / (line_item_count + 1) as f32;
+                        (ev, ev)
                     }
                 };
 
@@ -1399,28 +1639,172 @@ pub(crate) fn layout_flex_container(
                     x += item.width + gap + extra_gap;
                 }
 
+                // `flex-direction: row-reverse` flips the main axis: main-start
+                // is the right edge. Mirror each cell's x within the content box
+                // so the first source item sits at the right and items run
+                // right-to-left (gaps and justify packing are preserved by the
+                // mirror because they are symmetric about the content box).
+                if direction == FlexDirection::RowReverse {
+                    for cell in flex_cells.iter_mut() {
+                        cell.x_offset = inner_width - cell.x_offset - cell.width;
+                    }
+                }
+
+                // `flex-wrap: wrap-reverse` flips the cross-start edge to the
+                // cross-end. Items that would anchor to a line's top (the
+                // default for non-stretched items) instead anchor to the line
+                // bottom. The renderer positions each cell within its line by
+                // `align`, so for a flex-start-anchored, non-stretching item we
+                // pre-shift its y by the slack inside the line to land it at the
+                // cross-end. (Stretch items already fill the line.)
+                let wrap_reversed = wrap == FlexWrap::WrapReverse;
+
                 // Stamp each cell with its cross-axis position within the
                 // container so a single FlexRow can span every wrapped line.
                 for cell in flex_cells.iter_mut() {
-                    cell.y_offset = cross_offset;
+                    let anchor_start = matches!(
+                        cell.align_self,
+                        AlignSelf::Auto | AlignSelf::FlexStart | AlignSelf::Baseline
+                    ) && (align == AlignItems::FlexStart
+                        || align == AlignItems::Baseline
+                        || cell.align_self == AlignSelf::FlexStart
+                        || cell.align_self == AlignSelf::Baseline
+                        || (matches!(cell.align_self, AlignSelf::Auto)
+                            && align == AlignItems::Stretch
+                            && cell.has_explicit_height));
+                    let cross_pad = if wrap_reversed && anchor_start {
+                        (line.cross_size - cell.natural_height).max(0.0)
+                    } else {
+                        0.0
+                    };
+                    cell.y_offset = cross_offset + cross_pad;
                     cell.line_cross_size = line.cross_size;
                 }
                 all_flex_cells.extend(flex_cells);
             }
-            FlexDirection::Column => {
-                let total_item_height: f32 = line_items.iter().map(|&i| items[i].height).sum();
+            FlexDirection::Column | FlexDirection::ColumnReverse => {
                 let total_gap = if line_item_count > 1 {
                     (line_item_count - 1) as f32 * gap
                 } else {
                     0.0
                 };
+
+                // Column main-axis flex grow/shrink: the main axis is the block
+                // (vertical) axis, so distribute/absorb the container's spare
+                // height across the items, clamped to each item's min/max main
+                // (min-height / max-height). Only run when the container has a
+                // definite main size (`inner_cross_size > 0`). Mirrors the row
+                // resolution but along the height.
+                if inner_cross_size > 0.0 {
+                    let sum_h: f32 = line_items.iter().map(|&i| items[i].height).sum();
+                    let mut col_free = inner_cross_size - sum_h - total_gap;
+                    let total_grow: f32 = line_items.iter().map(|&i| items[i].flex_grow).sum();
+                    if col_free > 0.0 && total_grow > 0.0 {
+                        let mut frozen = vec![false; line_items.len()];
+                        let mut remaining = col_free;
+                        for _ in 0..=line_items.len() {
+                            let active: f32 = line_items
+                                .iter()
+                                .enumerate()
+                                .filter(|(li, _)| !frozen[*li])
+                                .map(|(_, &i)| items[i].flex_grow)
+                                .sum();
+                            if active <= 0.0 || remaining <= 0.01 {
+                                break;
+                            }
+                            let mut froze = false;
+                            let mut consumed = 0.0;
+                            for (li, &i) in line_items.iter().enumerate() {
+                                if frozen[li] {
+                                    continue;
+                                }
+                                let share = remaining * (items[i].flex_grow / active);
+                                let target = items[i].height + share;
+                                if target >= items[i].max_main {
+                                    consumed += items[i].max_main - items[i].height;
+                                    items[i].height = items[i].max_main;
+                                    frozen[li] = true;
+                                    froze = true;
+                                } else {
+                                    items[i].height = target;
+                                    consumed += share;
+                                }
+                            }
+                            remaining -= consumed;
+                            if !froze {
+                                break;
+                            }
+                        }
+                        col_free = 0.0;
+                    }
+                    if col_free < 0.0 {
+                        let mut frozen = vec![false; line_items.len()];
+                        let mut deficit = -col_free;
+                        for _ in 0..=line_items.len() {
+                            let weight_sum: f32 = line_items
+                                .iter()
+                                .enumerate()
+                                .filter(|(li, _)| !frozen[*li])
+                                .map(|(_, &i)| items[i].flex_shrink * items[i].height)
+                                .sum();
+                            if weight_sum <= 0.0 || deficit <= 0.01 {
+                                break;
+                            }
+                            let mut froze = false;
+                            let mut removed = 0.0;
+                            for (li, &i) in line_items.iter().enumerate() {
+                                if frozen[li] {
+                                    continue;
+                                }
+                                let weight = items[i].flex_shrink * items[i].height;
+                                let reduce = deficit * (weight / weight_sum);
+                                let target = items[i].height - reduce;
+                                let floor = items[i].min_main.max(0.0);
+                                if target <= floor {
+                                    removed += items[i].height - floor;
+                                    items[i].height = floor;
+                                    frozen[li] = true;
+                                    froze = true;
+                                } else {
+                                    items[i].height = target;
+                                    removed += reduce;
+                                }
+                            }
+                            deficit -= removed;
+                            if !froze {
+                                break;
+                            }
+                        }
+                    }
+                    // Keep natural_height in sync so cross-axis emission uses the
+                    // resolved main size.
+                    for &i in &line_items {
+                        items[i].natural_height = items[i].height;
+                    }
+                }
+
+                let total_item_height: f32 = line_items.iter().map(|&i| items[i].height).sum();
                 // Main-axis (vertical) free space within the container's content
                 // box. `justify-content` distributes it as leading before the
                 // first item and extra spacing between items. `inner_cross_size`
                 // is the resolved content height once an explicit `height` /
                 // `min-height` has been honored.
                 let main_free_space = (inner_cross_size - total_item_height - total_gap).max(0.0);
-                let (leading, extra_gap) = match justify {
+                // For column-reverse the main axis points up (main-start is the
+                // bottom). We lay items out in reverse source order (top to
+                // bottom = last to first); swapping flex-start/flex-end then
+                // packs the free space on the correct (top) side so the visual
+                // result matches a bottom-anchored start edge.
+                let effective_justify = if direction == FlexDirection::ColumnReverse {
+                    match justify {
+                        JustifyContent::FlexStart => JustifyContent::FlexEnd,
+                        JustifyContent::FlexEnd => JustifyContent::FlexStart,
+                        other => other,
+                    }
+                } else {
+                    justify
+                };
+                let (leading, extra_gap) = match effective_justify {
                     JustifyContent::FlexStart => (0.0, 0.0),
                     JustifyContent::FlexEnd => (main_free_space, 0.0),
                     JustifyContent::Center => (main_free_space / 2.0, 0.0),
@@ -1435,6 +1819,10 @@ pub(crate) fn layout_flex_container(
                         let around = main_free_space / line_item_count as f32;
                         (around / 2.0, around)
                     }
+                    JustifyContent::SpaceEvenly => {
+                        let ev = main_free_space / (line_item_count + 1) as f32;
+                        (ev, ev)
+                    }
                 };
 
                 let mut y = 0.0;
@@ -1443,7 +1831,16 @@ pub(crate) fn layout_flex_container(
                 // nonzero leading bumps `y` so subsequent gap math stays correct.
                 let mut pending_leading = leading;
 
-                for (item_pos, &item_idx) in line_items.iter().enumerate() {
+                // `flex-direction: column-reverse` flips the main axis: the
+                // first source item is placed at the bottom. Iterating the line
+                // in reverse source order packs them bottom-to-top.
+                let column_order: Vec<usize> = if direction == FlexDirection::ColumnReverse {
+                    line_items.iter().rev().copied().collect()
+                } else {
+                    line_items.clone()
+                };
+
+                for (item_pos, &item_idx) in column_order.iter().enumerate() {
                     let item = &items[item_idx];
 
                     // `align-self` overrides the container's `align-items` on the
@@ -1453,12 +1850,17 @@ pub(crate) fn layout_flex_container(
                         AlignSelf::FlexStart => AlignItems::FlexStart,
                         AlignSelf::FlexEnd => AlignItems::FlexEnd,
                         AlignSelf::Center => AlignItems::Center,
+                        // Baseline has no first-baseline notion on the cross axis
+                        // of a column container; fall back to flex-start (the
+                        // cross-start edge), matching browser behaviour for
+                        // baseline alignment of empty boxes.
+                        AlignSelf::Baseline => AlignItems::FlexStart,
                         AlignSelf::Stretch => AlignItems::Stretch,
                     };
 
                     // Calculate cross-axis (horizontal) alignment
                     let x_offset = match effective_align {
-                        AlignItems::FlexStart => 0.0,
+                        AlignItems::FlexStart | AlignItems::Baseline => 0.0,
                         AlignItems::FlexEnd => inner_width - item.width,
                         AlignItems::Center => (inner_width - item.width) / 2.0,
                         AlignItems::Stretch => 0.0,
@@ -1535,6 +1937,24 @@ pub(crate) fn layout_flex_container(
                             } else {
                                 0.0
                             };
+                            // When the column flex resolution changed the item's
+                            // main (block) size (grow/shrink against the
+                            // container height, or a `flex-basis` height on an
+                            // empty box), paint the box at that resolved height.
+                            // `block_height` is a padding-box height (TextBlock
+                            // convention), so subtract the element's border. Only
+                            // applies to single-element items.
+                            let resolved_bh = if item.elements.len() == 1 {
+                                // item.height is the border-box main size + item
+                                // margins; block_height is a padding-box height,
+                                // so strip the element's own margins and border.
+                                let pad_box =
+                                    (item.height - *tb_mt - *tb_mb - tb_border.vertical_width())
+                                        .max(0.0);
+                                Some(pad_box)
+                            } else {
+                                *tb_bh
+                            };
                             output.push(LayoutElement::TextBlock {
                                 lines: tb_lines.clone(),
                                 margin_top: if y == 0.0 && !emitted_column_bg {
@@ -1564,7 +1984,7 @@ pub(crate) fn layout_flex_container(
                                 padding_right: *tb_pr,
                                 border: *tb_border,
                                 block_width: effective_width,
-                                block_height: *tb_bh,
+                                block_height: resolved_bh,
                                 opacity: *tb_op,
                                 mix_blend_mode: *tb_mix_blend,
                                 background_blend_mode: *tb_bg_blend,
@@ -1698,20 +2118,21 @@ pub(crate) fn layout_flex_container(
             }
         }
 
-        cross_offset += line.cross_size + gap;
+        cross_offset += line.cross_size + line_gap;
     }
 
     // Emit a single FlexRow carrying every line's cells for row direction.
     // The row's height is the container's inner cross size so pagination and
     // the visual border both include every wrapped line. Each cell's own
     // y_offset and line_cross_size handle per-line alignment internally.
-    if direction == FlexDirection::Row && !all_flex_cells.is_empty() {
+    if direction.is_row() && !all_flex_cells.is_empty() {
         let row_height = total_cross.max(inner_cross_size);
         output.push(LayoutElement::FlexRow {
             cells: all_flex_cells,
             row_height,
             margin_top: style.margin.top,
             margin_bottom: 0.0,
+            offset_left: h_offset,
             background_color: bg,
             container_width: block_w,
             padding_top: style.padding.top,

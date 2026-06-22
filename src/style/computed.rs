@@ -37,7 +37,16 @@ pub enum Display {
 pub enum FlexDirection {
     #[default]
     Row,
+    RowReverse,
     Column,
+    ColumnReverse,
+}
+
+impl FlexDirection {
+    /// Whether the main axis is the inline (horizontal) axis.
+    pub fn is_row(self) -> bool {
+        matches!(self, FlexDirection::Row | FlexDirection::RowReverse)
+    }
 }
 
 /// CSS justify-content property.
@@ -49,6 +58,7 @@ pub enum JustifyContent {
     Center,
     SpaceBetween,
     SpaceAround,
+    SpaceEvenly,
 }
 
 /// CSS align-items property.
@@ -57,6 +67,7 @@ pub enum AlignItems {
     FlexStart,
     FlexEnd,
     Center,
+    Baseline,
     #[default]
     Stretch,
 }
@@ -70,6 +81,22 @@ pub enum AlignSelf {
     FlexStart,
     FlexEnd,
     Center,
+    Baseline,
+    Stretch,
+}
+
+/// CSS align-content property (cross-axis distribution of flex LINES in a
+/// multi-line/wrapping flex container). Only takes effect when the container
+/// wraps onto more than one line.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum AlignContent {
+    FlexStart,
+    FlexEnd,
+    Center,
+    SpaceBetween,
+    SpaceAround,
+    SpaceEvenly,
+    #[default]
     Stretch,
 }
 
@@ -79,6 +106,14 @@ pub enum FlexWrap {
     #[default]
     NoWrap,
     Wrap,
+    WrapReverse,
+}
+
+impl FlexWrap {
+    /// Whether wrapping is enabled (either direction).
+    pub fn wraps(self) -> bool {
+        matches!(self, FlexWrap::Wrap | FlexWrap::WrapReverse)
+    }
 }
 
 /// A single track definition in `grid-template-columns`.
@@ -1088,9 +1123,16 @@ pub struct ComputedStyle {
     /// document order breaking ties. Not inherited.
     pub order: i32,
     pub flex_wrap: FlexWrap,
+    /// CSS `align-content` — cross-axis distribution of flex lines in a
+    /// multi-line container. Ignored for single-line containers.
+    pub align_content: AlignContent,
     pub flex_grow: f32,
     pub flex_shrink: f32,
     pub flex_basis: Option<f32>,
+    /// `flex-basis` expressed as a percentage of the container's inner main
+    /// size (0..1 fraction). Resolved at flex-layout time; takes precedence
+    /// over `flex_basis` when set.
+    pub flex_basis_pct: Option<f32>,
     pub gap: f32,
     pub overflow: Overflow,
     pub visibility: Visibility,
@@ -1300,9 +1342,11 @@ impl Default for ComputedStyle {
             align_self: AlignSelf::Auto,
             order: 0,
             flex_wrap: FlexWrap::NoWrap,
+            align_content: AlignContent::Stretch,
             flex_grow: 0.0,
             flex_shrink: 1.0,
             flex_basis: None,
+            flex_basis_pct: None,
             gap: 0.0,
             overflow: Overflow::Visible,
             visibility: Visibility::Visible,
@@ -1507,9 +1551,11 @@ pub fn compute_style_with_context(
     style.align_self = AlignSelf::Auto;
     style.order = 0;
     style.flex_wrap = FlexWrap::NoWrap;
+    style.align_content = AlignContent::Stretch;
     style.flex_grow = 0.0;
     style.flex_shrink = 1.0;
     style.flex_basis = None;
+    style.flex_basis_pct = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.visibility = Visibility::Visible;
@@ -1743,9 +1789,11 @@ pub fn compute_pseudo_element_style(
     style.align_self = AlignSelf::Auto;
     style.order = 0;
     style.flex_wrap = FlexWrap::NoWrap;
+    style.align_content = AlignContent::Stretch;
     style.flex_grow = 0.0;
     style.flex_shrink = 1.0;
     style.flex_basis = None;
+    style.flex_basis_pct = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.transform = None;
@@ -1965,6 +2013,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "flex-direction" => style.flex_direction = default.flex_direction,
         "justify-content" => style.justify_content = default.justify_content,
         "align-items" => style.align_items = default.align_items,
+        "align-content" => style.align_content = default.align_content,
         "align-self" => style.align_self = default.align_self,
         "order" => style.order = default.order,
         "flex-wrap" => style.flex_wrap = default.flex_wrap,
@@ -2127,6 +2176,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "flex-direction" => style.flex_direction = parent.flex_direction,
         "justify-content" => style.justify_content = parent.justify_content,
         "align-items" => style.align_items = parent.align_items,
+        "align-content" => style.align_content = parent.align_content,
         "align-self" => style.align_self = parent.align_self,
         "order" => style.order = parent.order,
         "flex-wrap" => style.flex_wrap = parent.flex_wrap,
@@ -2442,19 +2492,30 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
     }
 
+    // `flex-flow` shorthand sets flex-direction and/or flex-wrap (order-free).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex-flow") {
+        for token in k.split_whitespace() {
+            if let Some(dir) = parse_flex_direction(token) {
+                style.flex_direction = dir;
+            } else if let Some(wrap) = parse_flex_wrap(token) {
+                style.flex_wrap = wrap;
+            }
+        }
+    }
+
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex-direction") {
-        style.flex_direction = match k.as_str() {
-            "column" => FlexDirection::Column,
-            _ => FlexDirection::Row,
-        };
+        if let Some(dir) = parse_flex_direction(k) {
+            style.flex_direction = dir;
+        }
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-content") {
         style.justify_content = match k.as_str() {
-            "flex-end" => JustifyContent::FlexEnd,
+            "flex-end" | "end" | "right" => JustifyContent::FlexEnd,
             "center" => JustifyContent::Center,
             "space-between" => JustifyContent::SpaceBetween,
             "space-around" => JustifyContent::SpaceAround,
+            "space-evenly" => JustifyContent::SpaceEvenly,
             _ => JustifyContent::FlexStart,
         };
     }
@@ -2464,10 +2525,23 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "flex-start" | "start" => AlignItems::FlexStart,
             "flex-end" | "end" => AlignItems::FlexEnd,
             "center" => AlignItems::Center,
+            "baseline" => AlignItems::Baseline,
             _ => AlignItems::Stretch,
         };
         // Grid uses the same property with start/end/center/stretch keywords.
         style.grid_align_items = parse_grid_align(k);
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-content") {
+        style.align_content = match k.as_str() {
+            "flex-start" | "start" => AlignContent::FlexStart,
+            "flex-end" | "end" => AlignContent::FlexEnd,
+            "center" => AlignContent::Center,
+            "space-between" => AlignContent::SpaceBetween,
+            "space-around" => AlignContent::SpaceAround,
+            "space-evenly" => AlignContent::SpaceEvenly,
+            _ => AlignContent::Stretch,
+        };
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-self") {
@@ -2476,6 +2550,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "flex-start" | "start" => AlignSelf::FlexStart,
             "flex-end" | "end" => AlignSelf::FlexEnd,
             "center" => AlignSelf::Center,
+            "baseline" => AlignSelf::Baseline,
             "stretch" => AlignSelf::Stretch,
             _ => AlignSelf::Auto,
         };
@@ -2493,10 +2568,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex-wrap") {
-        style.flex_wrap = match k.as_str() {
-            "wrap" => FlexWrap::Wrap,
-            _ => FlexWrap::NoWrap,
-        };
+        if let Some(wrap) = parse_flex_wrap(k) {
+            style.flex_wrap = wrap;
+        }
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "flex-grow") {
@@ -2506,8 +2580,31 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.flex_shrink = v.max(0.0);
     }
     match get_non_special(map, "flex-basis") {
-        Some(CssValue::Length(v)) => style.flex_basis = Some(*v),
-        Some(CssValue::Keyword(k)) if k == "auto" => style.flex_basis = None,
+        Some(CssValue::Length(v)) => {
+            style.flex_basis = Some(*v);
+            style.flex_basis_pct = None;
+        }
+        Some(CssValue::Percentage(p)) => {
+            style.flex_basis_pct = Some(*p / 100.0);
+            style.flex_basis = None;
+        }
+        Some(CssValue::Keyword(k)) => match k.as_str() {
+            "auto" | "content" => {
+                style.flex_basis = None;
+                style.flex_basis_pct = None;
+            }
+            other => match parse_length(other) {
+                Some(CssValue::Percentage(p)) => {
+                    style.flex_basis_pct = Some(p / 100.0);
+                    style.flex_basis = None;
+                }
+                Some(CssValue::Length(v)) => {
+                    style.flex_basis = Some(v);
+                    style.flex_basis_pct = None;
+                }
+                _ => {}
+            },
+        },
         _ => {}
     }
 
@@ -2516,40 +2613,85 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         let parts: Vec<&str> = k.split_whitespace().collect();
         if let Some(first) = parts.first() {
             if *first == "none" {
+                // flex: none == 0 0 auto
                 style.flex_grow = 0.0;
                 style.flex_shrink = 0.0;
                 style.flex_basis = None;
+                style.flex_basis_pct = None;
             } else if *first == "auto" {
+                // flex: auto == 1 1 auto
                 style.flex_grow = 1.0;
                 style.flex_shrink = 1.0;
                 style.flex_basis = None;
+                style.flex_basis_pct = None;
+            } else if *first == "initial" {
+                // flex: initial == 0 1 auto
+                style.flex_grow = 0.0;
+                style.flex_shrink = 1.0;
+                style.flex_basis = None;
+                style.flex_basis_pct = None;
             } else if let Ok(grow) = first.parse::<f32>() {
+                // flex: <grow> == <grow> 1 0%
                 style.flex_grow = grow.max(0.0);
                 style.flex_shrink = 1.0;
                 style.flex_basis = Some(0.0);
+                style.flex_basis_pct = None;
                 if let Some(second) = parts.get(1) {
                     if let Ok(shrink) = second.parse::<f32>() {
                         style.flex_shrink = shrink.max(0.0);
                     }
                 }
                 if let Some(third) = parts.get(2) {
-                    if *third == "auto" {
+                    if *third == "auto" || *third == "content" {
+                        style.flex_basis = None;
+                        style.flex_basis_pct = None;
+                    } else if let Some(CssValue::Percentage(p)) =
+                        crate::parser::css::parse_length(third)
+                    {
+                        style.flex_basis_pct = Some(p / 100.0);
                         style.flex_basis = None;
                     } else if let Some(CssValue::Length(v)) =
                         crate::parser::css::parse_length(third)
                     {
                         style.flex_basis = Some(v);
+                        style.flex_basis_pct = None;
                     }
                 }
             }
         }
     }
 
-    if let Some(CssValue::Length(v)) = get_non_special(map, "gap") {
-        style.gap = *v;
-        style.grid_gap = *v;
-        style.column_gap = *v;
-        style.row_gap = *v;
+    // `gap: <row-gap> [<column-gap>]`. A single value sets both axes; the
+    // two-value form sets row-gap then column-gap (CSS Box Alignment §8.3).
+    // A single value arrives as `Length`; the two-value form as a `Keyword`
+    // (multi-token string), so handle both.
+    match get_non_special(map, "gap") {
+        Some(CssValue::Length(v)) => {
+            style.gap = *v;
+            style.grid_gap = *v;
+            style.column_gap = *v;
+            style.row_gap = *v;
+            style.column_gap_is_normal = false;
+        }
+        Some(CssValue::Keyword(k)) => {
+            let parts: Vec<&str> = k.split_whitespace().collect();
+            let resolve = |t: &str| match parse_length(t) {
+                Some(CssValue::Length(v)) => Some(v),
+                _ => None,
+            };
+            if let Some(row) = parts.first().and_then(|t| resolve(t)) {
+                let col = parts.get(1).and_then(|t| resolve(t)).unwrap_or(row);
+                style.row_gap = row;
+                style.column_gap = col;
+                // `gap` (single field used by the flex main axis) tracks the
+                // column gap for row containers; the layout consults row_gap /
+                // column_gap directly per axis.
+                style.gap = col;
+                style.grid_gap = row;
+                style.column_gap_is_normal = false;
+            }
+        }
+        _ => {}
     }
 
     // Grid template columns
@@ -5077,6 +5219,29 @@ fn parse_grid_align(k: &str) -> GridAlign {
         "end" | "flex-end" | "right" | "self-end" => GridAlign::End,
         "center" => GridAlign::Center,
         _ => GridAlign::Stretch,
+    }
+}
+
+/// Parse a single `flex-direction` keyword. Returns `None` for unrecognized
+/// tokens so the `flex-flow` shorthand can try them as a `flex-wrap` value.
+fn parse_flex_direction(k: &str) -> Option<FlexDirection> {
+    match k.trim() {
+        "row" => Some(FlexDirection::Row),
+        "row-reverse" => Some(FlexDirection::RowReverse),
+        "column" => Some(FlexDirection::Column),
+        "column-reverse" => Some(FlexDirection::ColumnReverse),
+        _ => None,
+    }
+}
+
+/// Parse a single `flex-wrap` keyword. Returns `None` for unrecognized tokens
+/// so the `flex-flow` shorthand can try them as a `flex-direction` value.
+fn parse_flex_wrap(k: &str) -> Option<FlexWrap> {
+    match k.trim() {
+        "nowrap" => Some(FlexWrap::NoWrap),
+        "wrap" => Some(FlexWrap::Wrap),
+        "wrap-reverse" => Some(FlexWrap::WrapReverse),
+        _ => None,
     }
 }
 
@@ -8321,6 +8486,117 @@ mod tests {
         parent.position = Position::Absolute;
         let style = compute_style(HtmlTag::Div, Some("position: inherit"), &parent);
         assert_eq!(style.position, Position::Absolute);
+    }
+
+    #[test]
+    fn flex_direction_reverse_keywords_parse() {
+        let p = ComputedStyle::default();
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("flex-direction: row-reverse"), &p).flex_direction,
+            FlexDirection::RowReverse
+        );
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("flex-direction: column-reverse"), &p).flex_direction,
+            FlexDirection::ColumnReverse
+        );
+    }
+
+    #[test]
+    fn flex_wrap_wrap_reverse_parses() {
+        let p = ComputedStyle::default();
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("flex-wrap: wrap-reverse"), &p).flex_wrap,
+            FlexWrap::WrapReverse
+        );
+    }
+
+    #[test]
+    fn flex_flow_shorthand_sets_both_axes() {
+        let p = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("flex-flow: column wrap"), &p);
+        assert_eq!(s.flex_direction, FlexDirection::Column);
+        assert_eq!(s.flex_wrap, FlexWrap::Wrap);
+        // Order-free.
+        let s2 = compute_style(
+            HtmlTag::Div,
+            Some("flex-flow: wrap-reverse row-reverse"),
+            &p,
+        );
+        assert_eq!(s2.flex_direction, FlexDirection::RowReverse);
+        assert_eq!(s2.flex_wrap, FlexWrap::WrapReverse);
+    }
+
+    #[test]
+    fn justify_content_space_evenly_parses() {
+        let p = ComputedStyle::default();
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("justify-content: space-evenly"), &p).justify_content,
+            JustifyContent::SpaceEvenly
+        );
+    }
+
+    #[test]
+    fn align_content_keywords_parse() {
+        let p = ComputedStyle::default();
+        for (kw, exp) in [
+            ("flex-start", AlignContent::FlexStart),
+            ("flex-end", AlignContent::FlexEnd),
+            ("center", AlignContent::Center),
+            ("space-between", AlignContent::SpaceBetween),
+            ("space-around", AlignContent::SpaceAround),
+            ("space-evenly", AlignContent::SpaceEvenly),
+            ("stretch", AlignContent::Stretch),
+        ] {
+            let s = compute_style(HtmlTag::Div, Some(&format!("align-content: {kw}")), &p);
+            assert_eq!(s.align_content, exp, "align-content: {kw}");
+        }
+    }
+
+    #[test]
+    fn align_items_and_self_baseline_parse() {
+        let p = ComputedStyle::default();
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("align-items: baseline"), &p).align_items,
+            AlignItems::Baseline
+        );
+        assert_eq!(
+            compute_style(HtmlTag::Div, Some("align-self: baseline"), &p).align_self,
+            AlignSelf::Baseline
+        );
+    }
+
+    #[test]
+    fn flex_basis_percentage_parses() {
+        let p = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("flex-basis: 25%"), &p);
+        assert!(s.flex_basis.is_none());
+        assert!((s.flex_basis_pct.unwrap() - 0.25).abs() < 1e-4);
+    }
+
+    #[test]
+    fn flex_shorthand_keywords_expand() {
+        let p = ComputedStyle::default();
+        let none = compute_style(HtmlTag::Div, Some("flex: none"), &p);
+        assert_eq!((none.flex_grow, none.flex_shrink), (0.0, 0.0));
+        assert!(none.flex_basis.is_none());
+        let auto = compute_style(HtmlTag::Div, Some("flex: auto"), &p);
+        assert_eq!((auto.flex_grow, auto.flex_shrink), (1.0, 1.0));
+        let one = compute_style(HtmlTag::Div, Some("flex: 1"), &p);
+        assert_eq!((one.flex_grow, one.flex_shrink), (1.0, 1.0));
+        assert_eq!(one.flex_basis, Some(0.0));
+    }
+
+    #[test]
+    fn gap_two_value_sets_row_and_column() {
+        let p = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("gap: 30px 10px"), &p);
+        // 30px -> 22.5pt row gap, 10px -> 7.5pt column gap.
+        assert!((s.row_gap - 22.5).abs() < 0.01, "row_gap={}", s.row_gap);
+        assert!(
+            (s.column_gap - 7.5).abs() < 0.01,
+            "column_gap={}",
+            s.column_gap
+        );
     }
 
     #[test]

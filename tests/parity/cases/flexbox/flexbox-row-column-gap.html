@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox row-gap / column-gap longhands</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* The row-gap and column-gap longhands set the two axes independently. */
+  .flex {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 24px;
+    column-gap: 16px;
+    width: 296px;
+    height: 240px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box { width: 80px; height: 70px; border: 2px solid #102a43; }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+  .d { background: #f39c12; }
+  .e { background: #8e44ad; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+      <div class="box d"></div>
+      <div class="box e"></div>
+    </div>
+  </div>
+</body>
+</html>

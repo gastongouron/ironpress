@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-content:center</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* Multi-line wrap container taller than its two flex lines, so align-content
+     distributes the lines along the cross axis. */
+  .flex {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: flex-start;
+    width: 220px;
+    height: 320px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 90px;
+    height: 70px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+  .d { background: #f39c12; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+      <div class="box d"></div>
+    </div>
+  </div>
+</body>
+</html>

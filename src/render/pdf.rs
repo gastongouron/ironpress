@@ -1733,6 +1733,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                 LayoutElement::FlexRow {
                     cells,
                     row_height,
+                    offset_left: flex_offset_left,
                     background_color,
                     container_width,
                     padding_top,
@@ -1757,12 +1758,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let row_y = page_size.height - margin.top - y_pos;
                     let full_height =
                         padding_top + row_height + padding_bottom + border.vertical_width();
+                    // Inline-axis origin of the flex container's border box: the
+                    // page content-left plus the container's own resolved
+                    // horizontal margin / auto-centering (see `FlexRow.offset_left`).
+                    let flex_left = margin.left + *flex_offset_left;
 
                     // Draw box shadow with blur
                     render_box_shadows(
                         &mut content,
                         box_shadow,
-                        margin.left,
+                        flex_left,
                         row_y - full_height,
                         *container_width,
                         full_height,
@@ -1773,7 +1778,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw container background
                     if let Some((r, g, b, a)) = background_color {
-                        let bg_x = margin.left;
+                        let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         let needs_flex_bg_alpha = *a < 1.0;
                         if needs_flex_bg_alpha {
@@ -1807,7 +1812,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw container linear gradient
                     if let Some(gradient) = background_gradient {
-                        let bg_x = margin.left;
+                        let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
                             content.push_str("q\n");
@@ -1837,7 +1842,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw container radial gradient
                     if let Some(gradient) = background_radial_gradient {
-                        let bg_x = margin.left;
+                        let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
                             content.push_str("q\n");
@@ -1867,7 +1872,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw container conic gradient
                     if let Some(gradient) = background_conic_gradient {
-                        let bg_x = margin.left;
+                        let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
                             content.push_str("q\n");
@@ -1897,7 +1902,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     render_box_shadows_inset(
                         &mut content,
                         box_shadow,
-                        margin.left,
+                        flex_left,
                         row_y - full_height,
                         *container_width,
                         full_height,
@@ -1908,7 +1913,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw SVG background image for flex container
                     if let Some(svg_tree) = background_svg {
-                        let bg_x = margin.left;
+                        let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         // Adjust reference box based on background-origin
                         let (ref_x, ref_y, ref_w, ref_h) = match flex_bg_origin {
@@ -1955,7 +1960,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Draw border
                     if border.has_any() {
-                        let bx = margin.left;
+                        let bx = flex_left;
                         let by = row_y - full_height;
                         let uniform = border.top.width == border.right.width
                             && border.top.width == border.bottom.width
@@ -2004,19 +2009,27 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 border.top.style,
                                 border.top.width,
                             ));
+                            // Stroke INSIDE the border box: center the stroke half a
+                            // border-width in from each edge so its outer edge meets
+                            // the box edge (matches block / image borders; without
+                            // this the flex frame straddled the edge and read ~1px
+                            // wide on each side, narrowing the inter-item gap).
+                            let half = border.top.width / 2.0;
                             content.push_str(&format!(
                                 "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
                                 bw = border.top.width,
-                                w = container_width,
-                                h = full_height,
+                                bx = bx + half,
+                                by = by + half,
+                                w = container_width - border.top.width,
+                                h = full_height - border.top.width,
                             ));
                             content.push_str(reset_dash_pattern(border.top.style));
                             end_border_alpha(&mut content, a);
                         } else {
-                            let x1 = bx;
-                            let x2 = bx + container_width;
-                            let y_top = row_y;
-                            let y_bottom = by;
+                            let x1 = bx + border.left.width / 2.0;
+                            let x2 = bx + container_width - border.right.width / 2.0;
+                            let y_top = row_y - border.top.width / 2.0;
+                            let y_bottom = by + border.bottom.width / 2.0;
                             if border.top.width > 0.0 {
                                 let (r, g, b) = border.top.color;
                                 let a = begin_border_alpha(
@@ -2099,7 +2112,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Render each flex cell at its computed x-offset
                     let text_area_top = row_y - border.top.width - padding_top;
                     for cell in cells {
-                        let cell_x = margin.left + padding_left + cell.x_offset;
+                        let cell_x = flex_left + padding_left + cell.x_offset;
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
                         // For single-line rows `line_cross_size == row_height`.
                         // For multi-line wrap, each cell's line_cross_size is its
@@ -2122,6 +2135,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             AlignSelf::FlexStart => AlignItems::FlexStart,
                             AlignSelf::FlexEnd => AlignItems::FlexEnd,
                             AlignSelf::Center => AlignItems::Center,
+                            AlignSelf::Baseline => AlignItems::Baseline,
                             AlignSelf::Stretch => AlignItems::Stretch,
                         };
                         let (cell_render_h, cell_y_shift) = match effective_align {
@@ -2132,7 +2146,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 (cell.natural_height, cell_y_origin)
                             }
                             AlignItems::Stretch => (line_cross, cell_y_origin),
-                            AlignItems::FlexStart => (cell.natural_height, cell_y_origin),
+                            // Baseline alignment without per-cell ascent metrics is
+                            // approximated as cross-start (top-anchored); the first
+                            // text line of each cell then begins at the line top.
+                            AlignItems::FlexStart | AlignItems::Baseline => {
+                                (cell.natural_height, cell_y_origin)
+                            }
                             AlignItems::FlexEnd => {
                                 let h = cell.natural_height;
                                 (h, cell_y_origin + line_cross - h)
@@ -2157,7 +2176,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // with `box-shadow`). We draw it before the background
                         // so the shadow sits behind the cell.
                         {
-                            let cell_bg_x = margin.left + padding_left + cell.x_offset;
+                            let cell_bg_x = flex_left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
                             render_box_shadows(
                                 &mut content,
@@ -2174,7 +2193,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell background
                         if let Some((r, g, b, a)) = cell.background_color {
-                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_x = flex_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let needs_fcell_bg_alpha = a < 1.0;
                             if needs_fcell_bg_alpha {
@@ -2207,7 +2226,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw inset box-shadow (after cell background, before borders).
                         {
-                            let cell_bg_x = margin.left + padding_left + cell.x_offset;
+                            let cell_bg_x = flex_left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
                             render_box_shadows_inset(
                                 &mut content,
@@ -2244,10 +2263,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str("S\n");
                                 end_border_alpha(&mut content, a);
                             } else {
-                                let bx1 = cell_x;
-                                let bx2 = cell_x + cell.width;
-                                let by1 = text_area_top - cell_y_shift;
-                                let by2 = text_area_top - cell_y_shift - cell_render_h;
+                                // Stroke INSIDE the cell's border box: center each
+                                // side's stroke half its width in from the edge so
+                                // the painted frame sits within the declared
+                                // border-box width (matches block / image borders).
+                                let box_left = cell_x;
+                                let box_right = cell_x + cell.width;
+                                let box_top = text_area_top - cell_y_shift;
+                                let box_bottom = text_area_top - cell_y_shift - cell_render_h;
+                                let bx1 = box_left + cell.border.left.width / 2.0;
+                                let bx2 = box_right - cell.border.right.width / 2.0;
+                                let by1 = box_top - cell.border.top.width / 2.0;
+                                let by2 = box_bottom + cell.border.bottom.width / 2.0;
                                 if cell.border.top.width > 0.0 {
                                     let (r, g, b) = cell.border.top.color;
                                     let a = begin_border_alpha(
@@ -2309,7 +2336,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell linear gradient
                         if let Some(gradient) = &cell.background_gradient {
-                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_x = flex_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -2339,7 +2366,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell radial gradient
                         if let Some(gradient) = &cell.background_radial_gradient {
-                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_x = flex_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -2369,7 +2396,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell conic gradient
                         if let Some(gradient) = &cell.background_conic_gradient {
-                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_x = flex_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -2396,7 +2423,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         if let Some(svg_tree) = &cell.background_svg {
-                            let bg_x = margin.left + padding_left + cell.x_offset;
+                            let bg_x = flex_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let (ref_x, ref_y, ref_w, ref_h) = match cell.background_origin {
                                 BackgroundOrigin::Content => (
@@ -5924,19 +5951,23 @@ fn render_container_children(
                         );
                         content
                             .push_str(&dash_pattern_for_style(border.top.style, border.top.width));
+                        // Stroke inside the border box (see top-level FlexRow arm).
+                        let half = border.top.width / 2.0;
                         content.push_str(&format!(
                             "{r} {g} {b} RG\n{bw} w\n{bx} {by} {w} {h} re\nS\n",
                             bw = border.top.width,
-                            w = flex_w,
-                            h = row_h,
+                            bx = bx + half,
+                            by = by + half,
+                            w = flex_w - border.top.width,
+                            h = row_h - border.top.width,
                         ));
                         content.push_str(reset_dash_pattern(border.top.style));
                         end_border_alpha(content, a);
                     } else {
-                        let x1 = bx;
-                        let x2 = bx + flex_w;
-                        let y_top = y;
-                        let y_bottom = by;
+                        let x1 = bx + border.left.width / 2.0;
+                        let x2 = bx + flex_w - border.right.width / 2.0;
+                        let y_top = y - border.top.width / 2.0;
+                        let y_bottom = by + border.bottom.width / 2.0;
                         if border.top.width > 0.0 {
                             let (r, g, b) = border.top.color;
                             let a = begin_border_alpha(
@@ -6043,6 +6074,7 @@ fn render_container_children(
                         AlignSelf::FlexStart => AlignItems::FlexStart,
                         AlignSelf::FlexEnd => AlignItems::FlexEnd,
                         AlignSelf::Center => AlignItems::Center,
+                        AlignSelf::Baseline => AlignItems::Baseline,
                         AlignSelf::Stretch => AlignItems::Stretch,
                     };
                     let (cell_h, cell_y_shift) = match effective_align {
@@ -6052,7 +6084,11 @@ fn render_container_children(
                             (cell.natural_height, cell.y_offset)
                         }
                         AlignItems::Stretch => (line_cross, cell.y_offset),
-                        AlignItems::FlexStart => (cell.natural_height, cell.y_offset),
+                        // Baseline is approximated as cross-start (see top-level
+                        // FlexRow arm) without per-cell ascent metrics.
+                        AlignItems::FlexStart | AlignItems::Baseline => {
+                            (cell.natural_height, cell.y_offset)
+                        }
                         AlignItems::FlexEnd => (
                             cell.natural_height,
                             cell.y_offset + line_cross - cell.natural_height,
@@ -14965,6 +15001,35 @@ mod tests {
         assert!(
             content.contains("1 0 0 RG"),
             "FlexRow border should use red stroke color"
+        );
+    }
+
+    #[test]
+    fn render_flexbox_honors_own_left_margin() {
+        // Regression: a top-level flex container must honour its own horizontal
+        // margin (like any block). The container background rect must be painted
+        // at page-content-left + the container's margin-left, not flush left.
+        // Page margin = 72pt (default); container margin-left = 40px = 30pt; so
+        // the background rect x-origin must be 102pt.
+        let html = r#"
+            <div style="display: flex; margin-left: 40px; width: 200px; background-color: #abcdef">
+                <div style="width: 50px">A</div>
+            </div>
+        "#;
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // The container background fill rectangle starts at x = 102 (72 + 30).
+        assert!(
+            content.contains("102 ") && content.contains("re\nf\n"),
+            "flex container background must be shifted right by its margin-left \
+             (expected x-origin 102pt); content did not contain it.\n{content}"
+        );
+        // It must NOT be painted flush at the page content-left (72pt).
+        assert!(
+            !content.contains("\n72 "),
+            "flex container background must not be flush at page content-left"
         );
     }
 

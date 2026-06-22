@@ -377,16 +377,26 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
 
     if matches!(
         property,
-        "flex-direction" | "justify-content" | "align-items" | "align-self" | "flex-wrap"
+        "flex-direction"
+            | "flex-flow"
+            | "justify-content"
+            | "align-items"
+            | "align-content"
+            | "align-self"
+            | "flex-wrap"
     ) {
         return Some(CssValue::Keyword(lower));
     }
 
-    if matches!(
-        property,
-        "flex-grow" | "flex-shrink" | "order" | "gap" | "grid-gap" | "column-gap"
-    ) {
+    if matches!(property, "flex-grow" | "flex-shrink" | "order") {
         return parse_length(val);
+    }
+
+    // Gap properties accept a single length or — for `gap` / `grid-gap` — a
+    // two-value `<row> <column>` form. A single value parses as a length; the
+    // two-value form is kept as a Keyword for the computed-style layer to split.
+    if matches!(property, "gap" | "grid-gap" | "column-gap" | "row-gap") {
+        return parse_length(val).or_else(|| Some(CssValue::Keyword(lower.clone())));
     }
 
     if property == "flex-basis" {
