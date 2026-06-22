@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin percent</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform-origin: 100% 0 pivots the scale about the box's top-right
+     corner, so the box grows toward the bottom-left. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 260px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 60px;
+    left: 150px;
+    width: 120px;
+    height: 90px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 150px;
+    width: 120px;
+    height: 90px;
+    background: #00838f;
+    transform: scale(1.5);
+    transform-origin: 100% 0;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

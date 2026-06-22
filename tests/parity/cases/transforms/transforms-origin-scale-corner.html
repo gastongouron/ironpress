@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin scale corner</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform-origin affects the scale pivot: with origin top-left, a
+     scale grows the box down and to the right while its top-left corner
+     stays anchored to the guide's top-left. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    width: 120px;
+    height: 90px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    width: 120px;
+    height: 90px;
+    background: #ad1457;
+    transform: scale(1.8);
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

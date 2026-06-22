@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform translate percent</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* translate() percentages resolve against the element's OWN border box:
+     translateX => 50% of width (120px => 60px), translateY => 50% of
+     height (90px => 45px). */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 240px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 120px;
+    height: 90px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 120px;
+    height: 90px;
+    background: #1565c0;
+    transform: translate(50%, 50%);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform rotate turn</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* rotate(0.25turn) == rotate(90deg). The non-square box becomes tall
+     when rotated a quarter turn about its center. */
+  .frame {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 110px;
+    left: 60px;
+    width: 160px;
+    height: 60px;
+    background: #2e7d32;
+    transform: rotate(0.25turn);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

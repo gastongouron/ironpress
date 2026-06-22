@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform rotate rad</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* rotate(0.5236rad) == rotate(30deg). Radian angle unit. */
+  .frame {
+    position: relative;
+    width: 300px;
+    height: 260px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 90px;
+    left: 70px;
+    width: 160px;
+    height: 90px;
+    background: #5d4037;
+    transform: rotate(0.5236rad);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

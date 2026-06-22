@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform scale negative</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* scale(-1, 1) mirrors horizontally about the box center. With a
+     two-tone box the left/right halves swap. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 200px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 50px;
+    left: 80px;
+    width: 160px;
+    height: 100px;
+    transform: scale(-1, 1);
+  }
+  .left { position: absolute; top: 0; left: 0; width: 80px; height: 100px; background: #e53935; }
+  .right { position: absolute; top: 0; left: 80px; width: 80px; height: 100px; background: #1e88e5; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box">
+      <div class="left"></div>
+      <div class="right"></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -599,7 +599,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cx = block_x + ox;
                         let cy = block_bottom + border_box_h - oy;
                         content.push_str("q\n");
-                        push_transform_cm(&mut content, t, cx, cy);
+                        push_transform_cm(&mut content, t, cx, cy, render_width, border_box_h);
                     }
 
                     // Apply clipping rect if overflow: hidden
@@ -2107,7 +2107,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             let cx = cell_x + ox;
                             let cy = text_area_top - cell_y_origin - oy;
                             content.push_str("q\n");
-                            push_transform_cm(&mut content, t, cx, cy);
+                            push_transform_cm(&mut content, t, cx, cy, cell.width, line_cross);
                         }
 
                         // Draw per-cell box-shadow (e.g. inline-block items
@@ -3109,7 +3109,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let cx = container_x + ox;
                         let cy = container_y_top - oy;
                         content.push_str("q\n");
-                        push_transform_cm(&mut content, t, cx, cy);
+                        push_transform_cm(&mut content, t, cx, cy, container_w, total_h);
                     }
 
                     // CSS clip-path: clip the element (and descendants) to the
@@ -4095,41 +4095,37 @@ fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
 /// caller wraps the element's drawing in `q` ... `Q`. Shared by every render
 /// arm so transforms behave identically for top-level, flex-cell, and nested
 /// (container / absolutely-positioned) elements.
+/// Emit the PDF `cm` operator for a CSS transform, pivoting around the resolved
+/// transform-origin `(cx, cy)` (PDF bottom-up coordinates). `box_w`/`box_h` are
+/// the element's border-box size in pt, used to resolve percentage `translate()`
+/// components. Every transform is reduced to its CSS affine matrix and then
+/// y-flip-conjugated around the pivot, so all transform kinds share one path.
 fn push_transform_cm(
     content: &mut String,
     t: &crate::style::computed::Transform,
     cx: f32,
     cy: f32,
+    box_w: f32,
+    box_h: f32,
 ) {
-    use crate::style::computed::Transform;
-    match t {
-        Transform::Rotate(deg) => {
-            let rad = -*deg * std::f32::consts::PI / 180.0;
-            let cos_v = rad.cos();
-            let sin_v = rad.sin();
-            let tx = cx - cx * cos_v + cy * sin_v;
-            let ty = cy - cx * sin_v - cy * cos_v;
-            content.push_str(&format!(
-                "{cos_v} {sin_v} {} {cos_v} {tx} {ty} cm\n",
-                -sin_v
-            ));
-        }
-        Transform::Scale(sx, sy) => {
-            let tx = cx - cx * sx;
-            let ty = cy - cy * sy;
-            content.push_str(&format!("{sx} 0 0 {sy} {tx} {ty} cm\n"));
-        }
-        Transform::Translate(dx, dy) => {
-            content.push_str(&format!("1 0 0 1 {dx} {} cm\n", -*dy));
-        }
-        Transform::Matrix(a, b, c, d, e, f) => {
-            // CSS->PDF Y-flip conjugation.
-            let (pa, pb, pc, pd, pe, pf) = (*a, -*b, -*c, *d, *e, -*f);
-            let ne = pa * (-cx) + pc * (-cy) + pe + cx;
-            let nf = pb * (-cx) + pd * (-cy) + pf + cy;
-            content.push_str(&format!("{pa} {pb} {pc} {pd} {ne} {nf} cm\n"));
-        }
-    }
+    let [a, b, c, d, e, f] = t.to_css_matrix(box_w, box_h);
+    // CSS->PDF Y-flip conjugation: negate the off-diagonal/shear and the
+    // vertical translation, then re-apply the pivot translation.
+    let (pa, pb, pc, pd, pe, pf) = (a, -b, -c, d, e, -f);
+    let ne = pa * (-cx) + pc * (-cy) + pe + cx;
+    let nf = pb * (-cx) + pd * (-cy) + pf + cy;
+    // Normalise signed zero so a pure scale/translate emits `... 0 0 ...`
+    // (not `-0`), keeping output byte-stable and human-readable.
+    let z = |v: f32| if v == 0.0 { 0.0 } else { v };
+    content.push_str(&format!(
+        "{} {} {} {} {} {} cm\n",
+        z(pa),
+        z(pb),
+        z(pc),
+        z(pd),
+        z(ne),
+        z(nf)
+    ));
 }
 
 /// Emit a circle/ellipse as four cubic Bézier arcs (PDF `c` operators) starting
@@ -5154,7 +5150,7 @@ fn render_container_children(
                         let cx = nk_x + ox;
                         let cy = nk_top_y - oy;
                         content.push_str("q\n");
-                        push_transform_cm(content, t, cx, cy);
+                        push_transform_cm(content, t, cx, cy, nk_w, nk_total_h);
                     }
                     let nk_needs_clip_path = nk_clip_path.is_some();
                     if let Some(cp) = nk_clip_path {

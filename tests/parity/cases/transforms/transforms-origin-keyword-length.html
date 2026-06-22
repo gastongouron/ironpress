@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin keyword + length</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Two-value transform-origin mixing a keyword and a length:
+     "left 20px" => x at the left edge (0), y at 20px from the top. The
+     rotation pivots about that anchor on the left edge. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 90px;
+    left: 60px;
+    width: 160px;
+    height: 100px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 90px;
+    left: 60px;
+    width: 160px;
+    height: 100px;
+    background: #4527a0;
+    transform: rotate(25deg);
+    transform-origin: left 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

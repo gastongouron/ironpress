@@ -406,10 +406,80 @@ pub enum Transform {
     Rotate(f32),
     /// Scale by (sx, sy).
     Scale(f32, f32),
-    /// Translate by (tx, ty) in pt.
-    Translate(f32, f32),
-    /// Pre-composed affine matrix (a, b, c, d, e, f) for chained transforms.
+    /// Translate by (tx, ty). When the corresponding `*_pct` flag is set the
+    /// value is a percentage (0..100) resolved against the element's OWN
+    /// border-box width (tx) / height (ty) at render time; otherwise it is an
+    /// absolute length in pt.
+    Translate {
+        tx: f32,
+        ty: f32,
+        tx_pct: bool,
+        ty_pct: bool,
+    },
+    /// Pre-composed affine matrix `(a, b, c, d, e, f)` for chained transforms.
+    ///
+    /// `e`/`f` are constant pt translations; `e_w`/`e_h`/`f_w`/`f_h` are
+    /// coefficients (fractions) multiplying the box width/height to account for
+    /// percentage `translate()` components that appear anywhere in the chain.
+    /// At render time the effective translation is
+    /// `e + e_w*w + e_h*h` / `f + f_w*w + f_h*h`.
     Matrix(f32, f32, f32, f32, f32, f32),
+    /// Composed matrix carrying percentage-translate coefficients (see above).
+    /// Only emitted when a chained transform contains a `%` translate; plain
+    /// chains collapse to [`Transform::Matrix`].
+    MatrixPct {
+        a: f32,
+        b: f32,
+        c: f32,
+        d: f32,
+        e: f32,
+        f: f32,
+        e_w: f32,
+        e_h: f32,
+        f_w: f32,
+        f_h: f32,
+    },
+}
+
+impl Transform {
+    /// Resolve this transform to a concrete CSS affine matrix `[a, b, c, d, e, f]`
+    /// given the element's border-box size in pt. Percentage translate
+    /// components resolve against `w`/`h` here. The returned matrix is in CSS
+    /// (y-down) convention; the renderer applies the y-flip + origin
+    /// conjugation.
+    pub fn to_css_matrix(self, w: f32, h: f32) -> [f32; 6] {
+        match self {
+            Transform::Rotate(deg) => {
+                let rad = deg * std::f32::consts::PI / 180.0;
+                let (c, s) = (rad.cos(), rad.sin());
+                [c, s, -s, c, 0.0, 0.0]
+            }
+            Transform::Scale(sx, sy) => [sx, 0.0, 0.0, sy, 0.0, 0.0],
+            Transform::Translate {
+                tx,
+                ty,
+                tx_pct,
+                ty_pct,
+            } => {
+                let ex = if tx_pct { tx / 100.0 * w } else { tx };
+                let ey = if ty_pct { ty / 100.0 * h } else { ty };
+                [1.0, 0.0, 0.0, 1.0, ex, ey]
+            }
+            Transform::Matrix(a, b, c, d, e, f) => [a, b, c, d, e, f],
+            Transform::MatrixPct {
+                a,
+                b,
+                c,
+                d,
+                e,
+                f,
+                e_w,
+                e_h,
+                f_w,
+                f_h,
+            } => [a, b, c, d, e + e_w * w + e_h * h, f + f_w * w + f_h * h],
+        }
+    }
 }
 
 /// CSS `transform-origin`: the pivot point for an element's transform.
@@ -2882,15 +2952,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
     }
 
-    // Transform
+    // Transform. `none` is an explicit reset; any other value that fails to
+    // parse leaves the current value untouched.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform") {
-        if let Some(t) = parse_transform(k) {
+        if k.trim() == "none" {
+            style.transform = None;
+        } else if let Some(t) = parse_transform(k, style.font_size, style.root_font_size) {
             style.transform = Some(t);
         }
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform-origin") {
-        if let Some(origin) = parse_transform_origin(k) {
+        if let Some(origin) = parse_transform_origin(k, style.font_size, style.root_font_size) {
             style.transform_origin = origin;
         }
     }
@@ -4293,21 +4366,52 @@ fn parse_shadow_length(val: &str) -> Option<f32> {
 
 /// Parse a single CSS transform function (e.g. `rotate(45deg)`).
 ///
-/// Returns the parsed transform and `None` when the function is unknown.
-fn parse_single_transform(val: &str) -> Option<Transform> {
+/// Returns the parsed transform and `None` when the function is unknown or
+/// malformed. `font_size`/`root_font_size` (pt) resolve em/rem length args.
+fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Option<Transform> {
     let val = val.trim();
+    let len = |s: &str| parse_transform_length(s, font_size, root_font_size);
+    let mk_translate = |x: Option<(f32, bool)>, y: Option<(f32, bool)>| {
+        let (tx, tx_pct) = x.unwrap_or((0.0, false));
+        let (ty, ty_pct) = y.unwrap_or((0.0, false));
+        Transform::Translate {
+            tx,
+            ty,
+            tx_pct,
+            ty_pct,
+        }
+    };
 
     if let Some(inner) = val
         .strip_prefix("rotate(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        let inner = inner.trim();
-        let degrees = if let Some(n) = inner.strip_suffix("deg") {
-            n.trim().parse::<f32>().ok()?
-        } else {
-            inner.parse::<f32>().ok()?
-        };
-        return Some(Transform::Rotate(degrees));
+        return Some(Transform::Rotate(parse_angle_deg(inner)?));
+    }
+
+    // rotateZ() is the 2D z-axis rotation (== rotate()). rotateX/rotateY are 3D
+    // rotations about an in-plane axis; with no perspective they collapse to a
+    // horizontal/vertical scale-by-cos. We approximate them as that scale so the
+    // whole list is not discarded (Chrome renders the projected footprint).
+    if let Some(inner) = val
+        .strip_prefix("rotateZ(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return Some(Transform::Rotate(parse_angle_deg(inner)?));
+    }
+    if let Some(inner) = val
+        .strip_prefix("rotateX(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let rad = parse_angle_deg(inner)? * std::f32::consts::PI / 180.0;
+        return Some(Transform::Scale(1.0, rad.cos()));
+    }
+    if let Some(inner) = val
+        .strip_prefix("rotateY(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let rad = parse_angle_deg(inner)? * std::f32::consts::PI / 180.0;
+        return Some(Transform::Scale(rad.cos(), 1.0));
     }
 
     if let Some(inner) = val
@@ -4333,7 +4437,13 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
             return Some(Transform::Scale(s, s));
         } else if parts.len() == 2 {
             let sx = parts[0].trim().parse::<f32>().ok()?;
-            let sy = parts[1].trim().parse::<f32>().ok()?;
+            // CSS: an omitted/empty second arg defaults to the first.
+            let sy_tok = parts[1].trim();
+            let sy = if sy_tok.is_empty() {
+                sx
+            } else {
+                sy_tok.parse::<f32>().ok()?
+            };
             return Some(Transform::Scale(sx, sy));
         }
     }
@@ -4342,16 +4452,16 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         .strip_prefix("translateX(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        let tx = parse_transform_length(inner.trim())?;
-        return Some(Transform::Translate(tx, 0.0));
+        let x = len(inner.trim())?;
+        return Some(mk_translate(Some(x), None));
     }
 
     if let Some(inner) = val
         .strip_prefix("translateY(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        let ty = parse_transform_length(inner.trim())?;
-        return Some(Transform::Translate(0.0, ty));
+        let y = len(inner.trim())?;
+        return Some(mk_translate(None, Some(y)));
     }
 
     if let Some(inner) = val
@@ -4360,28 +4470,20 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
     {
         let parts: Vec<&str> = inner.split(',').collect();
         if parts.len() == 2 {
-            let tx = parse_transform_length(parts[0].trim())?;
-            let ty = parse_transform_length(parts[1].trim())?;
-            return Some(Transform::Translate(tx, ty));
+            let x = len(parts[0].trim())?;
+            let y = len(parts[1].trim())?;
+            return Some(mk_translate(Some(x), Some(y)));
         } else if parts.len() == 1 {
-            let tx = parse_transform_length(parts[0].trim())?;
-            return Some(Transform::Translate(tx, 0.0));
+            let x = len(parts[0].trim())?;
+            return Some(mk_translate(Some(x), None));
         }
     }
 
     if let Some(inner) = val.strip_prefix("skew(").and_then(|s| s.strip_suffix(')')) {
         let parts: Vec<&str> = inner.split(',').collect();
-        let ax = parts
-            .first()?
-            .trim()
-            .strip_suffix("deg")
-            .and_then(|n| n.parse::<f32>().ok())?;
+        let ax = parse_angle_deg(parts.first()?.trim())?;
         let ay = if parts.len() >= 2 {
-            parts[1]
-                .trim()
-                .strip_suffix("deg")
-                .and_then(|n| n.parse::<f32>().ok())
-                .unwrap_or(0.0)
+            parse_angle_deg(parts[1].trim()).unwrap_or(0.0)
         } else {
             0.0
         };
@@ -4391,20 +4493,12 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
     }
 
     if let Some(inner) = val.strip_prefix("skewX(").and_then(|s| s.strip_suffix(')')) {
-        let deg = inner
-            .trim()
-            .strip_suffix("deg")
-            .and_then(|n| n.parse::<f32>().ok())?;
-        let tan_x = (deg * std::f32::consts::PI / 180.0).tan();
+        let tan_x = (parse_angle_deg(inner)? * std::f32::consts::PI / 180.0).tan();
         return Some(Transform::Matrix(1.0, 0.0, tan_x, 1.0, 0.0, 0.0));
     }
 
     if let Some(inner) = val.strip_prefix("skewY(").and_then(|s| s.strip_suffix(')')) {
-        let deg = inner
-            .trim()
-            .strip_suffix("deg")
-            .and_then(|n| n.parse::<f32>().ok())?;
-        let tan_y = (deg * std::f32::consts::PI / 180.0).tan();
+        let tan_y = (parse_angle_deg(inner)? * std::f32::consts::PI / 180.0).tan();
         return Some(Transform::Matrix(1.0, tan_y, 0.0, 1.0, 0.0, 0.0));
     }
 
@@ -4412,50 +4506,92 @@ fn parse_single_transform(val: &str) -> Option<Transform> {
         .strip_prefix("matrix(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        let nums: Vec<f32> = inner
-            .split(',')
-            .filter_map(|p| p.trim().parse::<f32>().ok())
-            .collect();
-        if nums.len() == 6 {
-            // a, b, c, d are unitless; e, f are pixel translations -> points.
-            return Some(Transform::Matrix(
-                nums[0],
-                nums[1],
-                nums[2],
-                nums[3],
-                nums[4] * 0.75,
-                nums[5] * 0.75,
-            ));
+        // Per spec an unparseable argument makes the whole function invalid; map
+        // each token through parse (no filtering) so a bad token => None rather
+        // than silently shifting arity.
+        let toks: Vec<&str> = inner.split(',').collect();
+        if toks.len() != 6 {
+            return None;
         }
+        let mut nums = [0.0_f32; 6];
+        for (i, tok) in toks.iter().enumerate() {
+            nums[i] = tok.trim().parse::<f32>().ok()?;
+        }
+        // a, b, c, d are unitless; e, f are pixel translations -> points.
+        return Some(Transform::Matrix(
+            nums[0],
+            nums[1],
+            nums[2],
+            nums[3],
+            nums[4] * 0.75,
+            nums[5] * 0.75,
+        ));
     }
 
     None
 }
 
-/// Convert a Transform into its affine matrix (a, b, c, d, e, f).
-fn transform_to_matrix(t: &Transform) -> [f32; 6] {
-    match t {
+/// Extended affine matrix carrying percentage-translate coefficients:
+/// `[a, b, c, d, e, f, e_w, e_h, f_w, f_h]`, where the effective translation for
+/// a box of size `w`×`h` is `e + e_w*w + e_h*h` / `f + f_w*w + f_h*h`. This lets
+/// `%` translate components survive composition without knowing the box size.
+type ExtMatrix = [f32; 10];
+
+/// Convert a single Transform into its extended affine matrix.
+fn transform_to_ext(t: &Transform) -> ExtMatrix {
+    match *t {
         Transform::Rotate(deg) => {
             let rad = deg * std::f32::consts::PI / 180.0;
-            let c = rad.cos();
-            let s = rad.sin();
-            [c, s, -s, c, 0.0, 0.0]
+            let (c, s) = (rad.cos(), rad.sin());
+            [c, s, -s, c, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         }
-        Transform::Scale(sx, sy) => [*sx, 0.0, 0.0, *sy, 0.0, 0.0],
-        Transform::Translate(tx, ty) => [1.0, 0.0, 0.0, 1.0, *tx, *ty],
-        Transform::Matrix(a, b, c, d, e, f) => [*a, *b, *c, *d, *e, *f],
+        Transform::Scale(sx, sy) => [sx, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        Transform::Translate {
+            tx,
+            ty,
+            tx_pct,
+            ty_pct,
+        } => {
+            let (e, e_w) = if tx_pct { (0.0, tx / 100.0) } else { (tx, 0.0) };
+            let (f, f_h) = if ty_pct { (0.0, ty / 100.0) } else { (ty, 0.0) };
+            [1.0, 0.0, 0.0, 1.0, e, f, e_w, 0.0, 0.0, f_h]
+        }
+        Transform::Matrix(a, b, c, d, e, f) => [a, b, c, d, e, f, 0.0, 0.0, 0.0, 0.0],
+        Transform::MatrixPct {
+            a,
+            b,
+            c,
+            d,
+            e,
+            f,
+            e_w,
+            e_h,
+            f_w,
+            f_h,
+        } => [a, b, c, d, e, f, e_w, e_h, f_w, f_h],
     }
 }
 
-/// Multiply two 2D affine matrices: result = lhs × rhs.
-fn multiply_matrices(lhs: &[f32; 6], rhs: &[f32; 6]) -> [f32; 6] {
+/// Multiply two extended affine matrices: `result = lhs × rhs`. The linear part
+/// (a..d) multiplies normally; the translation columns (constant + per-dim
+/// coefficients) each transform through `lhs`'s linear part, keeping the result
+/// affine in `(w, h)`.
+fn multiply_ext(lhs: &ExtMatrix, rhs: &ExtMatrix) -> ExtMatrix {
+    let lin = |x: f32, y: f32| (lhs[0] * x + lhs[2] * y, lhs[1] * x + lhs[3] * y);
+    let (e, f) = lin(rhs[4], rhs[5]);
+    let (ew, fw) = lin(rhs[6], rhs[8]);
+    let (eh, fh) = lin(rhs[7], rhs[9]);
     [
         lhs[0] * rhs[0] + lhs[2] * rhs[1],
         lhs[1] * rhs[0] + lhs[3] * rhs[1],
         lhs[0] * rhs[2] + lhs[2] * rhs[3],
         lhs[1] * rhs[2] + lhs[3] * rhs[3],
-        lhs[0] * rhs[4] + lhs[2] * rhs[5] + lhs[4],
-        lhs[1] * rhs[4] + lhs[3] * rhs[5] + lhs[5],
+        e + lhs[4],
+        f + lhs[5],
+        ew + lhs[6],
+        eh + lhs[7],
+        fw + lhs[8],
+        fh + lhs[9],
     ]
 }
 
@@ -4466,7 +4602,10 @@ fn multiply_matrices(lhs: &[f32; 6], rhs: &[f32; 6]) -> [f32; 6] {
 /// Parse a single `transform-origin` axis component into
 /// `(fraction, length_px)`. `horizontal` selects which keywords are valid for
 /// disambiguating a bare `left`/`right`/`top`/`bottom`/`center`.
-fn parse_origin_component(token: &str) -> Option<(f32, f32)> {
+/// Parse a single `transform-origin` axis component into `(fraction, length_pt)`.
+/// Keywords/percentages set the fraction; absolute/font-relative lengths resolve
+/// to pt. `font_size`/`root_font_size` are in pt.
+fn parse_origin_component(token: &str, font_size: f32, root_font_size: f32) -> Option<(f32, f32)> {
     let lowered = token.trim().to_ascii_lowercase();
     let t = lowered.as_str();
     match t {
@@ -4477,26 +4616,17 @@ fn parse_origin_component(token: &str) -> Option<(f32, f32)> {
             if let Some(pct) = t.strip_suffix('%') {
                 pct.trim().parse::<f32>().ok().map(|p| (p / 100.0, 0.0))
             } else {
-                parse_length_px(t).map(|px| (0.0, px))
+                parse_abs_length_pt(t, font_size, root_font_size).map(|pt| (0.0, pt))
             }
         }
     }
 }
 
-/// Parse a CSS length (px/pt/em-less absolute) token to pixels for
-/// `transform-origin`. Falls back to a bare number treated as pixels.
-fn parse_length_px(t: &str) -> Option<f32> {
-    let t = t.trim();
-    if let Some(v) = t.strip_suffix("px") {
-        v.trim().parse::<f32>().ok()
-    } else if let Some(v) = t.strip_suffix("pt") {
-        v.trim().parse::<f32>().ok().map(|pt| pt * 96.0 / 72.0)
-    } else {
-        t.parse::<f32>().ok()
-    }
-}
-
-fn parse_transform_origin(val: &str) -> Option<TransformOrigin> {
+fn parse_transform_origin(
+    val: &str,
+    font_size: f32,
+    root_font_size: f32,
+) -> Option<TransformOrigin> {
     let val = val.trim();
     if val.is_empty() {
         return None;
@@ -4506,20 +4636,20 @@ fn parse_transform_origin(val: &str) -> Option<TransformOrigin> {
     // swapped (e.g. `top left`). Otherwise the first token is the x axis.
     let is_vertical = |s: &str| s.eq_ignore_ascii_case("top") || s.eq_ignore_ascii_case("bottom");
     let is_horizontal = |s: &str| s.eq_ignore_ascii_case("left") || s.eq_ignore_ascii_case("right");
+    // A trailing third token is the z-offset (3D); ignored in 2D rendering.
     let (x_tok, y_tok) = match tokens.as_slice() {
         [a] => (*a, "center"),
-        [a, b] => {
+        [a, b] | [a, b, _] => {
             if is_vertical(a) || is_horizontal(b) {
                 (*b, *a) // swapped: vertical keyword came first
             } else {
                 (*a, *b)
             }
         }
-        [a, b, ..] => (*a, *b),
-        [] => return None,
+        _ => return None,
     };
-    let (x_fraction, x_length) = parse_origin_component(x_tok)?;
-    let (y_fraction, y_length) = parse_origin_component(y_tok)?;
+    let (x_fraction, x_length) = parse_origin_component(x_tok, font_size, root_font_size)?;
+    let (y_fraction, y_length) = parse_origin_component(y_tok, font_size, root_font_size)?;
     Some(TransformOrigin {
         x_fraction,
         x_length,
@@ -4528,7 +4658,7 @@ fn parse_transform_origin(val: &str) -> Option<TransformOrigin> {
     })
 }
 
-fn parse_transform(val: &str) -> Option<Transform> {
+fn parse_transform(val: &str, font_size: f32, root_font_size: f32) -> Option<Transform> {
     let val = val.trim();
     if val == "none" {
         return None;
@@ -4555,33 +4685,103 @@ fn parse_transform(val: &str) -> Option<Transform> {
     }
 
     if functions.len() == 1 {
-        return parse_single_transform(functions[0]);
+        return parse_single_transform(functions[0], font_size, root_font_size);
     }
 
     // Multiple transforms — compose into a single matrix.
     // CSS: transforms are applied right-to-left, but the `cm` operator
     // in PDF also post-multiplies, so we compose left-to-right here and
     // the renderer will apply the resulting matrix around the centre.
-    let mut result = [1.0_f32, 0.0, 0.0, 1.0, 0.0, 0.0]; // identity
+    // Percentage `translate()` components are carried as box-size coefficients
+    // (see `ExtMatrix`) so they survive composition without the box size.
+    let mut result: ExtMatrix = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     for func in &functions {
-        let t = parse_single_transform(func)?;
-        let m = transform_to_matrix(&t);
-        result = multiply_matrices(&result, &m);
+        let t = parse_single_transform(func, font_size, root_font_size)?;
+        result = multiply_ext(&result, &transform_to_ext(&t));
     }
 
-    Some(Transform::Matrix(
-        result[0], result[1], result[2], result[3], result[4], result[5],
-    ))
+    // Collapse to the cheaper `Matrix` form when no percentage translate is
+    // present; otherwise keep the coefficients for render-time resolution.
+    if result[6] == 0.0 && result[7] == 0.0 && result[8] == 0.0 && result[9] == 0.0 {
+        Some(Transform::Matrix(
+            result[0], result[1], result[2], result[3], result[4], result[5],
+        ))
+    } else {
+        Some(Transform::MatrixPct {
+            a: result[0],
+            b: result[1],
+            c: result[2],
+            d: result[3],
+            e: result[4],
+            f: result[5],
+            e_w: result[6],
+            e_h: result[7],
+            f_w: result[8],
+            f_h: result[9],
+        })
+    }
 }
 
-/// Parse a length value for transform translate (px or pt or bare number).
-fn parse_transform_length(val: &str) -> Option<f32> {
+/// Parse a length/percentage argument to `translate()` into `(value, is_percent)`.
+///
+/// Absolute units (px/pt/in/cm/mm/pc) and font-relative units (em/rem) resolve
+/// to pt; a `%` token returns the raw percentage with `is_percent = true` (it is
+/// resolved against the element's own border box at render time). A bare number
+/// is treated as pixels (lenient, matching the legacy fallback). `font_size` and
+/// `root_font_size` are in pt.
+fn parse_transform_length(val: &str, font_size: f32, root_font_size: f32) -> Option<(f32, bool)> {
+    let val = val.trim();
+    if let Some(n) = val.strip_suffix('%') {
+        return n.trim().parse::<f32>().ok().map(|v| (v, true));
+    }
+    parse_abs_length_pt(val, font_size, root_font_size).map(|v| (v, false))
+}
+
+/// Resolve a CSS absolute/font-relative length token to pt. Returns `None` for
+/// percentages or unknown units. A bare number is treated as pixels.
+fn parse_abs_length_pt(val: &str, font_size: f32, root_font_size: f32) -> Option<f32> {
     let val = val.trim();
     if let Some(n) = val.strip_suffix("px") {
-        n.parse::<f32>().ok().map(|v| v * 0.75)
+        n.trim().parse::<f32>().ok().map(|v| v * 0.75)
     } else if let Some(n) = val.strip_suffix("pt") {
-        n.parse::<f32>().ok()
+        n.trim().parse::<f32>().ok()
+    } else if let Some(n) = val.strip_suffix("rem") {
+        n.trim().parse::<f32>().ok().map(|v| v * root_font_size)
+    } else if let Some(n) = val.strip_suffix("em") {
+        n.trim().parse::<f32>().ok().map(|v| v * font_size)
+    } else if let Some(n) = val.strip_suffix("in") {
+        n.trim().parse::<f32>().ok().map(|v| v * 72.0)
+    } else if let Some(n) = val.strip_suffix("cm") {
+        n.trim().parse::<f32>().ok().map(|v| v * 72.0 / 2.54)
+    } else if let Some(n) = val.strip_suffix("mm") {
+        n.trim().parse::<f32>().ok().map(|v| v * 72.0 / 25.4)
+    } else if let Some(n) = val.strip_suffix("pc") {
+        n.trim().parse::<f32>().ok().map(|v| v * 12.0)
     } else {
+        // Bare number: lenient fallback (treated as pt), matching legacy
+        // behaviour for `translate()`/`transform-origin` fixtures.
+        val.parse::<f32>().ok()
+    }
+}
+
+/// Parse a CSS angle token (deg/rad/grad/turn, or bare number = degrees) to
+/// degrees. Reused by `rotate()` and `skew*()`.
+fn parse_angle_deg(val: &str) -> Option<f32> {
+    let val = val.trim();
+    if let Some(n) = val.strip_suffix("deg") {
+        n.trim().parse::<f32>().ok()
+    } else if let Some(n) = val.strip_suffix("grad") {
+        n.trim().parse::<f32>().ok().map(|g| g * 0.9)
+    } else if let Some(n) = val.strip_suffix("turn") {
+        n.trim().parse::<f32>().ok().map(|t| t * 360.0)
+    } else if let Some(n) = val.strip_suffix("rad") {
+        n.trim()
+            .parse::<f32>()
+            .ok()
+            .map(|r| r * 180.0 / std::f32::consts::PI)
+    } else {
+        // Bare number: CSS treats a unitless angle as invalid, but ironpress is
+        // lenient elsewhere and existing fixtures rely on bare degrees.
         val.parse::<f32>().ok()
     }
 }
@@ -6821,7 +7021,15 @@ mod tests {
             Some("transform: translate(10pt, 20pt)"),
             &parent,
         );
-        assert_eq!(style.transform, Some(Transform::Translate(10.0, 20.0)));
+        assert_eq!(
+            style.transform,
+            Some(Transform::Translate {
+                tx: 10.0,
+                ty: 20.0,
+                tx_pct: false,
+                ty_pct: false
+            })
+        );
     }
 
     #[test]
@@ -6833,12 +7041,63 @@ mod tests {
             &parent,
         );
         let t = style.transform.unwrap();
-        if let Transform::Translate(tx, ty) = t {
+        if let Transform::Translate {
+            tx,
+            ty,
+            tx_pct,
+            ty_pct,
+            ..
+        } = t
+        {
             assert!((tx - 7.5).abs() < 0.1); // 10 * 0.75
             assert!((ty - 15.0).abs() < 0.1); // 20 * 0.75
+            assert!(!tx_pct && !ty_pct);
         } else {
             panic!("Expected Translate");
         }
+    }
+
+    #[test]
+    fn transform_translate_percent() {
+        // translate(50%, 25%) keeps the raw percentages with the pct flags set;
+        // they resolve against the element's own border box at render time.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("transform: translate(50%, 25%)"),
+            &parent,
+        );
+        assert_eq!(
+            style.transform,
+            Some(Transform::Translate {
+                tx: 50.0,
+                ty: 25.0,
+                tx_pct: true,
+                ty_pct: true
+            })
+        );
+        // The render-time resolution multiplies the percentage by the box size.
+        let m = style.transform.unwrap().to_css_matrix(200.0, 80.0);
+        assert!((m[4] - 100.0).abs() < 0.01); // 50% of 200pt
+        assert!((m[5] - 20.0).abs() < 0.01); // 25% of 80pt
+    }
+
+    #[test]
+    fn transform_translatex_percent() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("transform: translateX(50%)"), &parent);
+        assert_eq!(
+            style.transform,
+            Some(Transform::Translate {
+                tx: 50.0,
+                ty: 0.0,
+                tx_pct: true,
+                ty_pct: false
+            })
+        );
+        let m = style.transform.unwrap().to_css_matrix(120.0, 60.0);
+        assert!((m[4] - 60.0).abs() < 0.01); // 50% of 120pt width
+        assert!(m[5].abs() < 0.01); // no Y translation
     }
 
     #[test]
@@ -8325,27 +8584,40 @@ mod tests {
 
     // --- parse_transform edge cases (lines 1207, 1233-1235, 1239, 1250) ---
 
+    /// Parse a transform with default (12pt) font sizes for em/rem resolution.
+    fn pt(val: &str) -> Option<Transform> {
+        parse_transform(val, 12.0, 12.0)
+    }
+
     #[test]
     fn parse_transform_rotate_bare_number() {
-        let t = parse_transform("rotate(45)");
+        let t = pt("rotate(45)");
         assert_eq!(t, Some(Transform::Rotate(45.0)));
     }
 
     #[test]
     fn parse_transform_translate_single_arg() {
-        let t = parse_transform("translate(10pt)");
-        assert_eq!(t, Some(Transform::Translate(10.0, 0.0)));
+        let t = pt("translate(10pt)");
+        assert_eq!(
+            t,
+            Some(Transform::Translate {
+                tx: 10.0,
+                ty: 0.0,
+                tx_pct: false,
+                ty_pct: false
+            })
+        );
     }
 
     #[test]
     fn parse_transform_unknown_returns_none() {
-        let t = parse_transform("perspective(500px)");
+        let t = pt("perspective(500px)");
         assert!(t.is_none());
     }
 
     #[test]
     fn parse_transform_skew() {
-        let t = parse_transform("skew(30deg)");
+        let t = pt("skew(30deg)");
         assert!(t.is_some());
         if let Some(Transform::Matrix(a, _b, c, _d, _e, _f)) = t {
             assert!((a - 1.0).abs() < 0.001);
@@ -8357,40 +8629,86 @@ mod tests {
 
     #[test]
     fn parse_transform_chained() {
-        let t = parse_transform("rotate(10deg) scale(1.1)");
+        let t = pt("rotate(10deg) scale(1.1)");
         assert!(t.is_some());
         assert!(matches!(t, Some(Transform::Matrix(..))));
     }
 
     #[test]
     fn parse_transform_scale_x_y() {
-        assert_eq!(
-            parse_transform("scaleX(1.5)"),
-            Some(Transform::Scale(1.5, 1.0))
-        );
-        assert_eq!(
-            parse_transform("scaleY(0.5)"),
-            Some(Transform::Scale(1.0, 0.5))
-        );
+        assert_eq!(pt("scaleX(1.5)"), Some(Transform::Scale(1.5, 1.0)));
+        assert_eq!(pt("scaleY(0.5)"), Some(Transform::Scale(1.0, 0.5)));
     }
 
     #[test]
     fn parse_transform_translate_x_y() {
         assert!(matches!(
-            parse_transform("translateX(40px)"),
-            Some(Transform::Translate(_, 0.0))
+            pt("translateX(40px)"),
+            Some(Transform::Translate { ty: y, .. }) if y == 0.0
         ));
         assert!(matches!(
-            parse_transform("translateY(20px)"),
-            Some(Transform::Translate(0.0, _))
+            pt("translateY(20px)"),
+            Some(Transform::Translate { tx: x, .. }) if x == 0.0
         ));
     }
 
     #[test]
     fn parse_transform_length_bare_number() {
-        let result = parse_transform_length("42");
-        assert!(result.is_some());
-        assert!((result.unwrap() - 42.0).abs() < 0.1);
+        let result = parse_transform_length("42", 12.0, 12.0);
+        assert_eq!(result, Some((42.0, false)));
+    }
+
+    #[test]
+    fn parse_transform_angle_units() {
+        // 0.25turn == 90deg, 1.5708rad ~= 90deg, 100grad == 90deg.
+        assert_eq!(pt("rotate(0.25turn)"), Some(Transform::Rotate(90.0)));
+        assert_eq!(pt("rotate(100grad)"), Some(Transform::Rotate(90.0)));
+        if let Some(Transform::Rotate(deg)) = pt("rotate(1.5708rad)") {
+            assert!((deg - 90.0).abs() < 0.05);
+        } else {
+            panic!("expected Rotate from rad");
+        }
+        assert_eq!(pt("rotate(-90deg)"), Some(Transform::Rotate(-90.0)));
+    }
+
+    #[test]
+    fn parse_transform_scale_negative_and_omitted() {
+        assert_eq!(pt("scale(-1, 1)"), Some(Transform::Scale(-1.0, 1.0)));
+        // A single arg mirrors to both axes.
+        assert_eq!(pt("scale(2)"), Some(Transform::Scale(2.0, 2.0)));
+    }
+
+    #[test]
+    fn parse_transform_translate_em_rem() {
+        // 2em at 12pt font => 24pt; 1rem at 12pt root => 12pt.
+        assert_eq!(
+            pt("translate(2em, 1rem)"),
+            Some(Transform::Translate {
+                tx: 24.0,
+                ty: 12.0,
+                tx_pct: false,
+                ty_pct: false
+            })
+        );
+    }
+
+    #[test]
+    fn parse_transform_matrix_malformed_rejected() {
+        // A non-numeric token makes the whole function invalid (None), rather
+        // than silently dropping it and shifting the arity.
+        assert!(pt("matrix(1,2,3,bad,5,6)").is_none());
+        assert!(pt("matrix(1,0,0,1,10,20)").is_some());
+    }
+
+    #[test]
+    fn parse_transform_compound_percent() {
+        // scale(2) translate(50%) — the % resolves against own box THEN scales.
+        let t = pt("scale(2) translate(50%, 0%)").expect("compound");
+        assert!(matches!(t, Transform::MatrixPct { .. }));
+        let m = t.to_css_matrix(100.0, 40.0);
+        // a == 2 (scale x), e == 2 * (50% of 100) == 100.
+        assert!((m[0] - 2.0).abs() < 0.01);
+        assert!((m[4] - 100.0).abs() < 0.01);
     }
 
     // --- grid-template-columns bare number (line 1270) ---

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform compound order</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Compound order dependence: translate() then rotate() composes
+     differently from rotate() then translate(). Two boxes with the same
+     two functions in swapped order land in distinct places. */
+  .frame {
+    position: relative;
+    width: 360px;
+    height: 320px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .a {
+    position: absolute;
+    top: 40px;
+    left: 60px;
+    width: 120px;
+    height: 70px;
+    background: #1565c0;
+    transform: translate(80px, 0) rotate(40deg);
+  }
+  .b {
+    position: absolute;
+    top: 40px;
+    left: 60px;
+    width: 120px;
+    height: 70px;
+    background: #e53935;
+    transform: rotate(40deg) translate(80px, 0);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

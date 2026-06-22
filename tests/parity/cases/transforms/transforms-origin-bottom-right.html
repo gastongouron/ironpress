@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin bottom right</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform-origin: bottom right pivots the rotation about the box's
+     bottom-right corner instead of its center. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 280px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 120px;
+    left: 120px;
+    width: 160px;
+    height: 100px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 120px;
+    left: 120px;
+    width: 160px;
+    height: 100px;
+    background: #283593;
+    transform: rotate(30deg);
+    transform-origin: bottom right;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

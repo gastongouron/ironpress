@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform skewX</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* skewX(20deg) shears horizontally about the box center, turning the
+     rectangle into a parallelogram leaning right. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 220px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 60px;
+    left: 90px;
+    width: 140px;
+    height: 100px;
+    background: #283593;
+    transform: skewX(20deg);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

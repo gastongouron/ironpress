@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform-origin length</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* transform-origin with px length values pivots the scale about a point
+     20px/20px from the box top-left. The box grows toward the
+     bottom-right from that anchor. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 260px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .guide {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    width: 120px;
+    height: 90px;
+    background: #cfd8dc;
+  }
+  .box {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    width: 120px;
+    height: 90px;
+    background: #6a1b9a;
+    transform: scale(1.6);
+    transform-origin: 20px 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="guide"></div>
+    <div class="box"></div>
+  </div>
+</body>
+</html>

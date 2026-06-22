@@ -3302,7 +3302,12 @@ mod tests {
         if let (_, LayoutElement::TextBlock { transform, .. }) = &pages[0].elements[0] {
             assert_eq!(
                 *transform,
-                Some(crate::style::computed::Transform::Translate(10.0, 20.0))
+                Some(crate::style::computed::Transform::Translate {
+                    tx: 10.0,
+                    ty: 20.0,
+                    tx_pct: false,
+                    ty_pct: false
+                })
             );
         } else {
             panic!("Expected TextBlock");

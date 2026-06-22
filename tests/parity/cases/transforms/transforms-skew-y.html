@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform skewY</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* skewY(20deg) shears vertically about the box center. */
+  .frame {
+    position: relative;
+    width: 320px;
+    height: 240px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 70px;
+    left: 90px;
+    width: 140px;
+    height: 100px;
+    background: #00695c;
+    transform: skewY(20deg);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

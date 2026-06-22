@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>transform compound scale translate</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* scale(2) translate(40px, 20px): because translate follows scale, the
+     translation distance is itself scaled (effective 80px, 40px), and the
+     box is twice as large. */
+  .frame {
+    position: relative;
+    width: 360px;
+    height: 300px;
+    margin: 30px;
+    background: #eef2f7;
+    border: 2px solid #b0bec5;
+  }
+  .box {
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    width: 100px;
+    height: 70px;
+    background: #00897b;
+    transform: scale(2) translate(40px, 20px);
+    transform-origin: top left;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="box"></div>
+  </div>
+</body>
+</html>
