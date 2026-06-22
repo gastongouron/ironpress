@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>calc with nested parentheses</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Aspirational: css-values-4 10.9 allows parenthesised sub-expressions inside
+     calc(). The percentage prevents lightningcss from folding, so this needs
+     ironpress's evaluator to honour the parentheses. ironpress's calc tokenizer
+     is currently flat (no grouping), so this is not yet supported.
+     Parent 400x200px. child width = calc(2 * (10% + 20px)) = 2*(40+20) = 120px;
+     height = calc(2 * (10% + 10px)) = 2*(20+10) = 60px. */
+  .parent { width: 400px; height: 200px; background: #dddddd; }
+  .child {
+    width: calc(2 * (10% + 20px));
+    height: calc(2 * (10% + 10px));
+    background: #1b9e77;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

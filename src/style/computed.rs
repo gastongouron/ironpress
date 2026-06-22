@@ -2929,7 +2929,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Border shorthand: "1px solid black"
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border") {
         let k = resolve_embedded_vars(k, &style.custom_properties);
-        let (w, c, bs) = parse_border_shorthand(&k);
+        let (w, c, bs) = parse_border_shorthand(&k, style.font_size);
         style.border = BorderSides::uniform_styled(w, c, bs);
     }
 
@@ -2978,7 +2978,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     ] {
         if let Some(CssValue::Keyword(k)) = get_non_special(map, prop) {
             let k = resolve_embedded_vars(k, &style.custom_properties);
-            let (w, c, bs) = parse_border_shorthand(&k);
+            let (w, c, bs) = parse_border_shorthand(&k, style.font_size);
             setter(style, w, c, bs);
         }
     }
@@ -3069,11 +3069,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.background_blend_mode = BlendMode::from_keyword(k);
     }
 
-    if let Some(CssValue::Length(v)) = get_non_special(map, "border-width") {
-        style.border.top.width = *v;
-        style.border.right.width = *v;
-        style.border.bottom.width = *v;
-        style.border.left.width = *v;
+    // Uniform `border-width`. Absolute lengths (pt) apply directly; a font-relative
+    // width (em/ex/ch) arrives as CssValue::Number (an em factor) and resolves
+    // against the element's font-size, mirroring the margin path. Without this an
+    // em-unit border width is silently dropped (width = 0).
+    if let Some(w) = resolve_border_width(get_non_special(map, "border-width"), style.font_size) {
+        style.border.top.width = w;
+        style.border.right.width = w;
+        style.border.bottom.width = w;
+        style.border.left.width = w;
     }
 
     if let Some(CssValue::Color(c)) = get_non_special(map, "border-color") {
@@ -3114,8 +3118,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             (|s: &mut ComputedStyle, w| s.border.left.width = w) as fn(&mut ComputedStyle, f32),
         ),
     ] {
-        if let Some(CssValue::Length(v)) = get_non_special(map, prop) {
-            setter(style, *v);
+        if let Some(w) = resolve_border_width(get_non_special(map, prop), style.font_size) {
+            setter(style, w);
         }
     }
 
@@ -3295,7 +3299,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // `column-rule` shorthand and longhands. The rule is the vertical line drawn
     // in each column gap; width/style/color mirror a single border side.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "column-rule") {
-        style.column_rule = parse_column_rule_shorthand(k);
+        style.column_rule = parse_column_rule_shorthand(k, style.font_size);
     }
     if let Some(val) = get_non_special(map, "column-rule-width") {
         if let CssValue::Length(w) = val {
@@ -5762,7 +5766,11 @@ fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
     while let Some(pos) = rest.find("var(") {
         out.push_str(&rest[..pos]);
         let after = &rest[pos + 4..];
-        let Some(close) = after.find(')') else {
+        // Find the paren that closes THIS var(), accounting for nested var()
+        // inside the fallback (e.g. `var(--a, var(--b, 12px))`). A naive
+        // `find(')')` would stop at the inner var()'s `)`, truncating the
+        // fallback and dropping the whole substitution.
+        let Some(close) = matching_close_paren(after) else {
             out.push_str(rest);
             return out;
         };
@@ -5778,6 +5786,27 @@ fn resolve_embedded_vars(raw: &str, cp: &HashMap<String, String>) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// Byte offset of the `)` that closes the parenthesis group `s` is inside of,
+/// where `s` is the text immediately AFTER an opening `(`. Returns `None` if the
+/// group is unterminated. Nested `(...)` (e.g. a fallback containing another
+/// `var(...)`) are skipped so the offset is the OUTER group's close.
+fn matching_close_paren(s: &str) -> Option<usize> {
+    let mut depth = 0u32;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                if depth == 0 {
+                    return Some(i);
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// A single border-radius token resolved to either an absolute length (points)
@@ -5872,8 +5901,8 @@ fn parse_border_style_keyword(keyword: &str) -> BorderStyle {
 /// initial `column-rule-width` is `medium`, so a shorthand that names a visible
 /// style without a width (e.g. `column-rule: dotted blue`) still paints at the
 /// medium width rather than the 0 the border tokenizer leaves it at.
-fn parse_column_rule_shorthand(k: &str) -> BorderSide {
-    let (mut width, color, style) = parse_border_shorthand(k);
+fn parse_column_rule_shorthand(k: &str, font_size: f32) -> BorderSide {
+    let (mut width, color, style) = parse_border_shorthand(k, font_size);
     if width <= 0.0 && style != BorderStyle::None {
         width = MEDIUM_RULE_WIDTH_PT;
     }
@@ -5888,7 +5917,24 @@ fn parse_column_rule_shorthand(k: &str) -> BorderSide {
 /// shorthand and longhand defaults.
 const MEDIUM_RULE_WIDTH_PT: f32 = 2.25;
 
-fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
+/// Resolve a `border-*-width` CssValue (uniform or per-side) to points using the
+/// element's `font_size` as the em basis. Absolute lengths (`CssValue::Length`,
+/// already in pt) apply directly; a font-relative width (`em`/`ex`/`ch`, which
+/// `parse_length` emits as `CssValue::Number` — an em factor) multiplies by the
+/// font-size, mirroring the margin/width paths. `rem` resolves against the same
+/// font-size (the consumers run before the root-font-size context is built, and a
+/// `rem` border width is exceedingly rare). Returns `None` for anything that
+/// isn't a usable length so the caller leaves the existing width untouched.
+fn resolve_border_width(val: Option<&CssValue>, font_size: f32) -> Option<f32> {
+    match val? {
+        CssValue::Length(v) => Some(*v),
+        CssValue::Number(v) => Some(*v * font_size),
+        CssValue::Rem(v) => Some(*v * font_size),
+        _ => None,
+    }
+}
+
+fn parse_border_shorthand(k: &str, font_size: f32) -> (f32, Option<Color>, BorderStyle) {
     // A function color such as `rgba(38, 50, 56, 0.35)` contains internal spaces,
     // so pull it out (and remove it from the string) before tokenizing on
     // whitespace. Otherwise the rgba(...) would shatter into several "words" and
@@ -5898,26 +5944,25 @@ fn parse_border_shorthand(k: &str) -> (f32, Option<Color>, BorderStyle) {
     let mut width = 0.0f32;
     let mut border_style = BorderStyle::Solid;
     for part in &parts {
-        if let Some(n) = part.strip_suffix("px") {
-            if let Ok(v) = n.parse::<f32>() {
-                width = v * 0.75; // px to pt
-            }
-        } else if let Some(n) = part.strip_suffix("pt") {
-            if let Ok(v) = n.parse::<f32>() {
-                width = v;
-            }
-        } else {
-            match *part {
-                "dashed" => border_style = BorderStyle::Dashed,
-                "dotted" => border_style = BorderStyle::Dotted,
-                "double" => border_style = BorderStyle::Double,
-                "none" | "hidden" => border_style = BorderStyle::None,
-                "solid" => border_style = BorderStyle::Solid,
-                // CSS keyword border widths.
-                "thin" => width = 0.75,
-                "medium" => width = 2.25,
-                "thick" => width = 3.75,
-                _ => {}
+        match *part {
+            "dashed" => border_style = BorderStyle::Dashed,
+            "dotted" => border_style = BorderStyle::Dotted,
+            "double" => border_style = BorderStyle::Double,
+            "none" | "hidden" => border_style = BorderStyle::None,
+            "solid" => border_style = BorderStyle::Solid,
+            // CSS keyword border widths.
+            "thin" => width = 0.75,
+            "medium" => width = 2.25,
+            "thick" => width = 3.75,
+            // Any length token (px/pt/em/ex/ch/cm/mm/Q/in/pc/rem). `parse_length`
+            // returns pt for absolute units and an em factor (Number) for
+            // font-relative units; resolve_border_width applies the font-size
+            // basis. Previously only px/pt were handled, so an em/cm/etc. width
+            // was silently dropped (width = 0) — e.g. `border: 0.2em solid`.
+            other => {
+                if let Some(w) = resolve_border_width(parse_length(other).as_ref(), font_size) {
+                    width = w;
+                }
             }
         }
     }
@@ -7015,6 +7060,68 @@ mod tests {
         assert_eq!(c.r, 255);
         assert_eq!(c.g, 0);
         assert_eq!(c.b, 0);
+    }
+
+    #[test]
+    fn border_shorthand_em_width_resolves_against_font_size() {
+        // Regression: a font-relative border width in the `border` shorthand
+        // (e.g. `0.2em`) was dropped, leaving width = 0. font-size:20px -> 1em
+        // = 20px, so 0.2em = 4px = 3pt. Width/height in em must also resolve.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20px; border: 0.2em solid #11305f"),
+            &parent,
+        );
+        // 0.2em * 20px = 4px = 3pt.
+        assert!(
+            (style.border.top.width - 3.0).abs() < 0.05,
+            "em border width should be 3pt, got {}",
+            style.border.top.width
+        );
+        assert!((style.border.bottom.width - 3.0).abs() < 0.05);
+        let c = style.border.top.color.unwrap();
+        assert_eq!((c.r, c.g, c.b), (0x11, 0x30, 0x5f));
+    }
+
+    #[test]
+    fn border_width_longhand_em_resolves_against_font_size() {
+        // The uniform `border-width` and per-side longhands accept em widths too.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20px; border-style: solid; border-width: 0.5em"),
+            &parent,
+        );
+        // 0.5em * 20px = 10px = 7.5pt.
+        assert!(
+            (style.border.top.width - 7.5).abs() < 0.05,
+            "em uniform border width should be 7.5pt, got {}",
+            style.border.top.width
+        );
+        let per_side = compute_style(
+            HtmlTag::Div,
+            Some("font-size: 20px; border-top-style: solid; border-top-width: 0.25em"),
+            &parent,
+        );
+        // 0.25em * 20px = 5px = 3.75pt.
+        assert!((per_side.border.top.width - 3.75).abs() < 0.05);
+    }
+
+    #[test]
+    fn nested_var_fallback_in_border_shorthand_resolves() {
+        // Regression: `var(--a, var(--b, #11305f))` in a shorthand had its
+        // fallback truncated at the inner `)`, dropping the substitution and
+        // leaving the border the black default. Neither custom property is
+        // defined, so the innermost literal color must win.
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("border: 4px solid var(--bc, var(--bc2, #11305f))"),
+            &parent,
+        );
+        let c = style.border.top.color.unwrap();
+        assert_eq!((c.r, c.g, c.b), (0x11, 0x30, 0x5f));
     }
 
     #[test]

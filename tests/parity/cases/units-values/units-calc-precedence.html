@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>calc operator precedence with percentage</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 10.9: * binds tighter than + -. The percentage keeps lightningcss
+     from constant-folding, so this exercises ironpress's own calc evaluator.
+     Parent 400x200px. child width = calc(50% + 10px * 2) = 200 + 20 = 220px;
+     height = calc(50% + 5px * 4) = 100 + 20 = 120px. */
+  .parent { width: 400px; height: 200px; background: #dddddd; }
+  .child {
+    width: calc(50% + 10px * 2);
+    height: calc(50% + 5px * 4);
+    background: #2d6cdf;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

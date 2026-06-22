@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>calc division by a unitless number with percentage</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 10.9: a dimension may only be divided by a <number>. The
+     percentage defeats lightningcss folding, exercising ironpress's evaluator.
+     Parent 480x240px. child width = calc(50% / 1) = 240px;
+     height = calc(100% / 2) = 120px. */
+  .parent { width: 480px; height: 240px; background: #dddddd; }
+  .child {
+    width: calc(50% / 1);
+    height: calc(100% / 2);
+    background: #d95f02;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

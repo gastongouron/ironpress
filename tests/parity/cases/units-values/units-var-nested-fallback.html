@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nested var() fallback</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 / CSS Variables: var()'s fallback may itself be a var(). With
+     neither custom property defined, the innermost literal fallback wins.
+     width = var(--w, var(--w2, 240px)) = 240px;
+     height = var(--h, var(--h2, 120px)) = 120px;
+     color  = var(--c, var(--c2, #2d6cdf)). */
+  .box {
+    width: var(--w, var(--w2, 240px));
+    height: var(--h, var(--h2, 120px));
+    background: var(--c, var(--c2, #2d6cdf));
+    border: 4px solid var(--bc, var(--bc2, #11305f));
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

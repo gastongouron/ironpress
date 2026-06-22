@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clamp where the MIN bound wins</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 10.2: clamp(MIN, VAL, MAX) == max(MIN, min(VAL, MAX)). Here the
+     preferred percentage is below MIN, so MIN wins (the opposite of the existing
+     units-clamp fixture, which exercises the MAX clamp).
+     Parent 400x200px. child width = clamp(200px, 10%, 240px): 10% = 40px < 200,
+     so 200px. height = clamp(100px, 10%, 200px): 10% = 20px < 100, so 100px. */
+  .parent { width: 400px; height: 200px; background: #dddddd; }
+  .child {
+    width: clamp(200px, 10%, 240px);
+    height: clamp(100px, 10%, 200px);
+    background: #1f78b4;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

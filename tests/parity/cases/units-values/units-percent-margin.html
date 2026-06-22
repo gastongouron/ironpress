@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>percentage margin resolves against containing-block width</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 5.5 + CSS2 box model: margin percentages resolve against the
+     containing block WIDTH. Parent 400x200px. child margin-left:25% = 100px and
+     margin-top:25% = 100px (both 25% of the 400px width), child 200x60px. */
+  .parent { width: 400px; height: 200px; background: #dddddd; }
+  .child {
+    margin-left: 25%;
+    margin-top: 25%;
+    width: 200px;
+    height: 60px;
+    background: #d95f02;
+  }
+</style>
+</head>
+<body>
+  <div class="parent">
+    <div class="child"></div>
+  </div>
+</body>
+</html>

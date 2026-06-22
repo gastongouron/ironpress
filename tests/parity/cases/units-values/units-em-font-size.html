@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>em on font-size resolves against parent</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* css-values-4 6.1.1: em in a font-* value resolves against the PARENT's
+     computed font-size. Parent font-size:20px, so .box font-size:2em = 40px.
+     Then 6em = 240px wide and 3em = 120px tall against the box's own 40px em. */
+  .outer { font-size: 20px; }
+  .box {
+    font-size: 2em;
+    width: 6em;
+    height: 3em;
+    background: #2d6cdf;
+    border: 0.1em solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div class="box"></div>
+  </div>
+</body>
+</html>

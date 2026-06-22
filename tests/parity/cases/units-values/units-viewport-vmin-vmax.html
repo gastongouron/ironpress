@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>viewport vmin / vmax units</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Aspirational: css-values-4 6.1.2.2 vmin = 1% of the smaller viewport axis,
+     vmax = 1% of the larger. ironpress only resolves vw/vh, so vmin/vmax are
+     currently unsupported. The .top box uses vmin (smaller axis), .bottom vmax. */
+  .top {
+    width: 40vmin;
+    height: 10vmin;
+    background: #2d6cdf;
+  }
+  .bottom {
+    width: 30vmax;
+    height: 8vmax;
+    background: #d95f02;
+  }
+</style>
+</head>
+<body>
+  <div class="top"></div>
+  <div class="bottom"></div>
+</body>
+</html>
