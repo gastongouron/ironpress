@@ -40,13 +40,10 @@ pub(crate) fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
     }
 }
 
-/// Probe raw bytes for SVG content and parse into an `SvgTree`.
-///
-/// Uses a heuristic on the first 512 bytes (via `String::from_utf8_lossy` so
-/// that non-UTF-8 binary content is safely rejected) and then parses the full
-/// content through the HTML parser to extract the `<svg>` element.
-pub(crate) fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
-    // Heuristic: check if the content looks like SVG (XML with an <svg element).
+/// Heuristic SVG sniff over raw bytes (first 512 bytes, UTF-8-lossy so binary
+/// content is safely rejected): true when the content looks like an XML/SVG
+/// document. Used to gate both the internal SVG parser and the mask rasteriser.
+pub(crate) fn looks_like_svg(raw: &[u8]) -> bool {
     let prefix = if raw.len() > 512 { &raw[..512] } else { raw };
     let text = String::from_utf8_lossy(prefix);
     let trimmed = text.trim_start_matches('\u{FEFF}').trim_start();
@@ -56,15 +53,25 @@ pub(crate) fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgT
         || trimmed.starts_with("<!--")
         || trimmed_lower.starts_with("<!doctype"))
     {
-        return None;
+        return false;
     }
     // For the comment case, search the full content (comments may exceed the
     // 512-byte prefix before the <svg> tag appears).
     if trimmed.starts_with("<!--") {
-        let full_text = String::from_utf8_lossy(raw);
-        if !full_text.contains("<svg") {
-            return None;
-        }
+        return String::from_utf8_lossy(raw).contains("<svg");
+    }
+    true
+}
+
+/// Probe raw bytes for SVG content and parse into an `SvgTree`.
+///
+/// Uses a heuristic on the first 512 bytes (via `String::from_utf8_lossy` so
+/// that non-UTF-8 binary content is safely rejected) and then parses the full
+/// content through the HTML parser to extract the `<svg>` element.
+pub(crate) fn try_parse_svg_bytes(raw: &[u8]) -> Option<crate::parser::svg::SvgTree> {
+    // Heuristic: check if the content looks like SVG (XML with an <svg element).
+    if !looks_like_svg(raw) {
+        return None;
     }
 
     // Parse the full SVG content — use lossy conversion so that stray non-UTF-8

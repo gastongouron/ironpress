@@ -197,8 +197,8 @@ pub enum ClipPath {
     Polygon(Vec<((f32, bool), (f32, bool))>),
 }
 
-/// A CSS `mask-image` source (css-masking-1 §3.1). Only the deterministic
-/// CSS-image sources (gradients) are modelled; `url()` references are deferred.
+/// A CSS `mask-image` source (css-masking-1 §3.1). The deterministic CSS-image
+/// sources (gradients) and `url()` references to an SVG image are modelled.
 #[derive(Debug, Clone)]
 pub enum MaskSource {
     /// `linear-gradient(...)` / `repeating-linear-gradient(...)`.
@@ -207,6 +207,9 @@ pub enum MaskSource {
     Radial(RadialGradient),
     /// `conic-gradient(...)` / `repeating-conic-gradient(...)`.
     Conic(ConicGradient),
+    /// `url(...)` pointing at an SVG image (data URI or file). Holds the raw SVG
+    /// bytes; rasterised to a coverage buffer at paint time (css-masking-1 §3.2).
+    Svg(std::sync::Arc<Vec<u8>>),
 }
 
 /// CSS `mask-mode` (css-masking-1 §3.4): how the mask layer's pixels are turned
@@ -6034,7 +6037,42 @@ fn parse_mask_image(val: &str) -> Option<Option<MaskSource>> {
             .or_else(|| parse_conic_gradient(first))
             .map(|g| Some(MaskSource::Conic(g)));
     }
+    // `url(...)` mask reference (css-masking-1 §3.1). Only SVG image sources are
+    // supported as masks: the referenced SVG is loaded and rasterised to a
+    // coverage buffer at paint time. Non-SVG / unloadable urls leave the value
+    // unchanged (return `None`) rather than clearing it. Parse from the whole
+    // `raw` value because a `url(data:...)` argument legitimately contains commas
+    // (so the layer split on `,` would truncate the data URI).
+    if lower.starts_with("url(") {
+        return parse_mask_url_svg(raw).map(MaskSource::Svg).map(Some);
+    }
     None
+}
+
+/// Resolve a `url(...)` mask reference to raw SVG bytes (css-masking-1 §3.1).
+///
+/// Returns `Some(bytes)` only when the reference loads and looks like SVG;
+/// otherwise `None` so the caller leaves the existing mask value untouched.
+fn parse_mask_url_svg(val: &str) -> Option<std::sync::Arc<Vec<u8>>> {
+    let inner = val.strip_prefix("url(")?.strip_suffix(')')?.trim();
+    // Strip optional surrounding quotes.
+    let url = inner
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .or_else(|| inner.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
+        .unwrap_or(inner)
+        .trim();
+    if url.is_empty() {
+        return None;
+    }
+    let (bytes, _mime) = crate::layout::images::load_src_bytes(url)?;
+    // Accept only sources whose bytes actually sniff as SVG, since the mask
+    // rasteriser only understands SVG image sources. The MIME alone is not
+    // trusted (it can mislabel non-SVG payloads).
+    if !crate::layout::images::looks_like_svg(&bytes) {
+        return None;
+    }
+    Some(std::sync::Arc::new(bytes))
 }
 
 /// Parse a CSS Grid box-alignment keyword (`start`/`end`/`center`/`stretch`).
@@ -9664,9 +9702,10 @@ mod tests {
     }
 
     #[test]
-    fn mask_image_url_is_unsupported_and_left_unset() {
-        // url() mask references are deferred — parsing must not panic and must
-        // leave `mask_image` as None (no source) rather than a bogus value.
+    fn mask_image_url_non_svg_is_left_unset() {
+        // A url() that doesn't resolve to SVG content (here invalid base64 bytes
+        // that don't sniff as SVG) must not panic and must leave `mask_image` as
+        // None rather than a bogus value — only SVG image masks are modelled.
         let parent = ComputedStyle::default();
         let style = compute_style(
             HtmlTag::Div,
@@ -9674,6 +9713,45 @@ mod tests {
             &parent,
         );
         assert!(style.mask_image.is_none());
+    }
+
+    #[test]
+    fn mask_image_url_svg_data_uri_is_loaded() {
+        // A url() data-URI SVG mask (css-masking-1 §3.1) must populate
+        // `mask_image` with an Svg source carrying the raw bytes.
+        // base64 of: <svg xmlns="http://www.w3.org/2000/svg" width="10"
+        //   height="10"><circle cx="5" cy="5" r="4" fill="#fff"/></svg>
+        let b64 = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjQiIGZpbGw9IiNmZmYiLz48L3N2Zz4=";
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(&format!(
+                "mask-image: url(\"data:image/svg+xml;base64,{b64}\")"
+            )),
+            &parent,
+        );
+        assert!(
+            matches!(style.mask_image, Some(MaskSource::Svg(_))),
+            "a data-URI SVG url() mask must populate mask_image as Svg"
+        );
+    }
+
+    #[test]
+    fn webkit_mask_image_url_svg_alias_is_loaded() {
+        // The -webkit-mask-image alias of a url() SVG mask must behave the same.
+        let b64 = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjQiIGZpbGw9IiNmZmYiLz48L3N2Zz4=";
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some(&format!(
+                "-webkit-mask-image: url(\"data:image/svg+xml;base64,{b64}\")"
+            )),
+            &parent,
+        );
+        assert!(
+            matches!(style.mask_image, Some(MaskSource::Svg(_))),
+            "the -webkit-mask-image url() SVG alias must populate mask_image"
+        );
     }
 
     #[test]

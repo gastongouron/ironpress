@@ -10272,8 +10272,68 @@ fn rasterize_mask_coverage(
                 }
             }
         }
+        // SVG `url()` masks are rasterised by `rasterize_svg_mask_coverage` and
+        // never reach this gradient sampler.
+        MaskSource::Svg(_) => {}
     }
     out
+}
+
+/// Rasterise an SVG `url()` mask source to a `px_w` × `px_h` DeviceGray coverage
+/// buffer (row 0 = top of the box, matching PDF image sample order), reusing the
+/// `resvg`/`usvg`/`tiny-skia` stack already vendored for SVG rendering.
+///
+/// The SVG is scaled to fill the box (its viewBox stretched to `px_w`×`px_h`,
+/// matching the default `mask-size: auto` + `mask-repeat: no-repeat` of these
+/// fixtures), rendered into a premultiplied-RGBA pixmap, then each pixel reduced
+/// to one coverage byte under `mode` (css-masking-1 §3.4). The initial
+/// `mask-mode: match-source` resolves to luminance for an SVG image (the
+/// referenced image's luminance defines coverage, unlike a CSS gradient image
+/// which uses alpha).
+fn rasterize_svg_mask_coverage(
+    svg_bytes: &[u8],
+    mode: crate::style::computed::MaskMode,
+    px_w: u32,
+    px_h: u32,
+) -> Option<Vec<u8>> {
+    use crate::style::computed::MaskMode;
+    use resvg::tiny_skia;
+    use resvg::usvg;
+
+    let opt = usvg::Options::default();
+    let tree = usvg::Tree::from_data(svg_bytes, &opt).ok()?;
+    let svg_size = tree.size();
+    let (sw, sh) = (svg_size.width(), svg_size.height());
+    if sw <= 0.0 || sh <= 0.0 {
+        return None;
+    }
+    let mut pixmap = tiny_skia::Pixmap::new(px_w, px_h)?;
+    // Stretch the SVG's intrinsic size to fill the box pixel buffer.
+    let transform = tiny_skia::Transform::from_scale(px_w as f32 / sw, px_h as f32 / sh);
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+
+    // The pixmap is premultiplied sRGB RGBA. For `match-source` on an image and
+    // for `luminance`, coverage is the (premultiplied) Rec.709 luma; for `alpha`
+    // it is the alpha channel directly.
+    let data = pixmap.data();
+    let mut out = Vec::with_capacity((px_w * px_h) as usize);
+    for px in data.chunks_exact(4) {
+        // tiny-skia stores premultiplied RGBA; r/g/b are already × alpha.
+        let (r, g, b, a) = (
+            px[0] as f32 / 255.0,
+            px[1] as f32 / 255.0,
+            px[2] as f32 / 255.0,
+            px[3] as f32 / 255.0,
+        );
+        let cov = match mode {
+            MaskMode::Alpha => a,
+            // `luminance` and `match-source` (image) both use luminance. The
+            // RGB are premultiplied, so the product already folds in alpha.
+            MaskMode::Luminance | MaskMode::MatchSource => 0.2126 * r + 0.7152 * g + 0.0722 * b,
+        };
+        out.push((cov.clamp(0.0, 1.0) * 255.0).round() as u8);
+    }
+    Some(out)
 }
 
 fn flate_compress(data: &[u8]) -> Option<Vec<u8>> {
@@ -10486,7 +10546,12 @@ impl PdfWriter {
         // large box can't blow up the PDF. Coverage is one DeviceGray byte/pixel.
         let px_w = ((w / 0.75).round() as u32).clamp(1, 1024);
         let px_h = ((h / 0.75).round() as u32).clamp(1, 1024);
-        let coverage = rasterize_mask_coverage(source, mode, px_w, px_h);
+        let coverage = match source {
+            crate::style::computed::MaskSource::Svg(bytes) => {
+                rasterize_svg_mask_coverage(bytes, mode, px_w, px_h)?
+            }
+            _ => rasterize_mask_coverage(source, mode, px_w, px_h),
+        };
 
         // DeviceGray coverage image (luminosity source for the group).
         let gray_stream = flate_compress(&coverage)?;
