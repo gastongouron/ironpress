@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 79.33,
-    "pass": 439,
+    "score_pct": 79.49,
+    "pass": 440,
     "partial": 93,
-    "fail": 80,
+    "fail": 79,
     "unknown": 1,
     "total": 613,
     "scored_ratio_pct": 99.84
@@ -9375,11 +9375,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 93.02,
+      "score_pct": 95.35,
       "counts": {
-        "pass": 40,
+        "pass": 41,
         "partial": 0,
-        "fail": 3,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
@@ -14318,11 +14318,11 @@
         },
         {
           "feature": "width",
-          "score_pct": 66.67,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -14535,8 +14535,8 @@
               "subfeature": "fit-content",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 62.56,
+              "status": "PASS",
+              "diff_pct": 0.08,
               "weight": 1.0,
               "description": "width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing).",
               "note": "",
@@ -14546,12 +14546,12 @@
                 "probe-block-flow"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "3076ea4c3f3aac691d2f45d6414dab1629abb9a0d0ea7efc7d4e7b0c4c3a3bf3",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "GeometryShift",
                 "secondary": [],
-                "headline": "fill recolour ΔRGB(-187,-130,-23) (ΔE 40.3)",
+                "headline": "content shifted ~0.0px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -14562,11 +14562,11 @@
                   "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    -187,
-                    -130,
-                    -23
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 40.28464031976645,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -14576,14 +14576,14 @@
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
                       149.76,
                       0.0,
-                      399.68,
+                      149.76,
                       89.6
                     ],
-                    "area_pct": 62.56,
+                    "area_pct": 0.08,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -14591,18 +14591,18 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      -187,
-                      -130,
-                      -23
+                      0,
+                      0,
+                      0
                     ],
-                    "delta_e": 40.28464031976645,
+                    "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      0.0,
+                      0.32,
                       0.0
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(-187,-130,-23) (ΔE 40.3)"
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
@@ -14621,10 +14621,10 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 62.56% interiorΔE 40.28",
-                  "magnitude": 62.56
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",

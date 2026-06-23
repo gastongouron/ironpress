@@ -1,9 +1,11 @@
-use crate::parser::dom::{ElementNode, HtmlTag};
+use crate::parser::css::{CssRule, SelectorContext};
+use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight, LinearGradient,
-    ListStyleType, Position, RadialGradient, Visibility,
+    ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight,
+    IntrinsicWidthKeyword, LinearGradient, ListStyleType, Position, RadialGradient, Visibility,
+    compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -11,8 +13,8 @@ use super::context::ContainingBlock;
 use super::engine::{CounterState, InlineBox, LayoutBorder, LayoutElement, TextLine, TextRun};
 use super::images::build_raster_background_tree;
 use super::text::{
-    TextWrapOptions, estimate_word_width, push_text_run_with_fallback, resolve_style_font_family,
-    resolved_line_height_factor, wrap_text_runs,
+    TextWrapOptions, collapse_whitespace, estimate_word_width, push_text_run_with_fallback,
+    resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
 };
 
 // ---------------------------------------------------------------------------
@@ -275,6 +277,302 @@ pub(crate) fn collects_as_inline_text(tag: HtmlTag) -> bool {
     // `<svg>` and `<img>` are replaced elements: they produce their own layout
     // element (vector / raster) rather than contributing inline text runs.
     tag != HtmlTag::Svg && tag != HtmlTag::Img && tag.is_inline()
+}
+
+// ---------------------------------------------------------------------------
+// css-sizing-3 § 5.1 — intrinsic widths (min-content / max-content / fit-content)
+// ---------------------------------------------------------------------------
+
+/// css-sizing-3 § 5.1 intrinsic width result for one box: its *content-box*
+/// min-content and max-content widths (padding/border excluded).
+#[derive(Clone, Copy, Debug)]
+struct IntrinsicWidths {
+    /// Narrowest the content can be without inner overflow.
+    min_content: f32,
+    /// Widest the content wants to be with no line wrapping.
+    max_content: f32,
+}
+
+/// Horizontal padding+border of a box, used to convert between its content-box
+/// and border-box (outer) widths.
+fn box_horizontal_extra(style: &ComputedStyle) -> f32 {
+    style.padding.left + style.padding.right + style.border.horizontal_width()
+}
+
+/// Compute the *outer* (margin-box) min/max-content contribution of a single
+/// child box, per css-sizing-3 § 5.1: the box's own content min/max-content plus
+/// its padding, border and horizontal margins.
+///
+/// `style` is the child's already-computed style and `el` its DOM subtree.
+/// `parent_style` is needed to cascade grandchildren during recursion.
+fn outer_intrinsic_widths(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+) -> IntrinsicWidths {
+    let inner = content_intrinsic_widths(el, style, rules, fonts);
+    // A definite length width fixes both intrinsic sizes to the content width
+    // (border-box widths are converted back to content width). Percentage and
+    // `auto`/keyword widths fall through to the content-based size.
+    let inner = if let Some(w) = style.width {
+        let content_w = if style.box_sizing == BoxSizing::BorderBox {
+            (w - box_horizontal_extra(style)).max(0.0)
+        } else {
+            w
+        };
+        IntrinsicWidths {
+            min_content: content_w,
+            max_content: content_w,
+        }
+    } else {
+        inner
+    };
+    // Min-/max-width clamps apply to the *content* width here (both box-sizing
+    // modes track content width at this point). Min wins over max.
+    let mut min_c = inner.min_content;
+    let mut max_c = inner.max_content;
+    if let Some(mw) = style.max_width {
+        let cap = if style.box_sizing == BoxSizing::BorderBox {
+            (mw - box_horizontal_extra(style)).max(0.0)
+        } else {
+            mw
+        };
+        min_c = min_c.min(cap);
+        max_c = max_c.min(cap);
+    }
+    if let Some(mw) = style.min_width {
+        let floor = if style.box_sizing == BoxSizing::BorderBox {
+            (mw - box_horizontal_extra(style)).max(0.0)
+        } else {
+            mw
+        };
+        min_c = min_c.max(floor);
+        max_c = max_c.max(floor);
+    }
+    // Convert the content widths to outer (margin-box) widths.
+    let outer_extra = box_horizontal_extra(style) + style.margin.left + style.margin.right;
+    IntrinsicWidths {
+        min_content: min_c + outer_extra,
+        max_content: max_c + outer_extra,
+    }
+}
+
+/// Compute the *content-box* min/max-content widths of an element from its
+/// children (css-sizing-3 § 5.1). Block children stack vertically, so the
+/// element's content width is the max of its children's outer contributions;
+/// inline content (text / inline boxes) contributes its run width (max-content =
+/// unwrapped width, min-content = widest single word).
+fn content_intrinsic_widths(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+) -> IntrinsicWidths {
+    let mut block_min = 0.0f32;
+    let mut block_max = 0.0f32;
+    // Inline run accumulated across consecutive inline children/text nodes. Min
+    // content is the widest single word; max content is the running line width.
+    let mut inline_min = 0.0f32;
+    let mut inline_line = 0.0f32;
+
+    let font_family = resolve_style_font_family(style, fonts);
+    let bold = style.font_weight == FontWeight::Bold;
+    let italic = style.font_style == FontStyle::Italic;
+
+    let flush_inline =
+        |block_min: &mut f32, block_max: &mut f32, inline_min: &mut f32, inline_line: &mut f32| {
+            *block_min = block_min.max(*inline_min);
+            *block_max = block_max.max(*inline_line);
+            *inline_min = 0.0;
+            *inline_line = 0.0;
+        };
+
+    for child in &el.children {
+        match child {
+            DomNode::Text(text) => {
+                accumulate_text_intrinsic(
+                    text,
+                    style.font_size,
+                    &font_family,
+                    bold,
+                    italic,
+                    fonts,
+                    &mut inline_min,
+                    &mut inline_line,
+                );
+            }
+            DomNode::Element(child_el) => {
+                let cls = child_el.class_list();
+                let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
+                let child_style = compute_style_with_context(
+                    child_el.tag,
+                    child_el.style_attr(),
+                    style,
+                    rules,
+                    child_el.tag_name(),
+                    &cls_refs,
+                    child_el.id(),
+                    &child_el.attributes,
+                    &SelectorContext::default(),
+                );
+                let is_block = child_style.display == Display::Block
+                    || child_style.display == Display::Flex
+                    || child_style.display == Display::Grid
+                    || recurses_as_layout_child(child_el.tag);
+                if is_block && !collects_as_inline_text(child_el.tag) {
+                    flush_inline(
+                        &mut block_min,
+                        &mut block_max,
+                        &mut inline_min,
+                        &mut inline_line,
+                    );
+                    let widths = outer_intrinsic_widths(child_el, &child_style, rules, fonts);
+                    block_min = block_min.max(widths.min_content);
+                    block_max = block_max.max(widths.max_content);
+                } else {
+                    // Inline element: its text contributes to the current line.
+                    // Recurse into inline children for nested inline text.
+                    accumulate_inline_element(
+                        child_el,
+                        &child_style,
+                        rules,
+                        fonts,
+                        &mut inline_min,
+                        &mut inline_line,
+                    );
+                }
+            }
+        }
+    }
+    flush_inline(
+        &mut block_min,
+        &mut block_max,
+        &mut inline_min,
+        &mut inline_line,
+    );
+
+    IntrinsicWidths {
+        min_content: block_min,
+        max_content: block_max,
+    }
+}
+
+/// Accumulate a text node's intrinsic-width contribution to the current inline
+/// line. `inline_line` grows by the unwrapped run width (max-content); the
+/// widest single word feeds `inline_min` (min-content).
+#[allow(clippy::too_many_arguments)]
+fn accumulate_text_intrinsic(
+    text: &str,
+    font_size: f32,
+    font_family: &crate::style::computed::FontFamily,
+    bold: bool,
+    italic: bool,
+    fonts: &HashMap<String, TtfFont>,
+    inline_min: &mut f32,
+    inline_line: &mut f32,
+) {
+    let collapsed = collapse_whitespace(text);
+    if collapsed.is_empty() {
+        return;
+    }
+    // Max-content: the whole run on one line (with its collapsed spaces).
+    let run_w = estimate_word_width(&collapsed, font_size, font_family, bold, italic, fonts);
+    *inline_line += run_w;
+    // Min-content: the widest single word (no soft-wrap opportunity inside it).
+    for word in collapsed.split(' ') {
+        if word.is_empty() {
+            continue;
+        }
+        let w = estimate_word_width(word, font_size, font_family, bold, italic, fonts);
+        *inline_min = inline_min.max(w);
+    }
+}
+
+/// Accumulate an inline element's text (recursively) into the current line.
+fn accumulate_inline_element(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+    inline_min: &mut f32,
+    inline_line: &mut f32,
+) {
+    let font_family = resolve_style_font_family(style, fonts);
+    let bold = style.font_weight == FontWeight::Bold;
+    let italic = style.font_style == FontStyle::Italic;
+    for child in &el.children {
+        match child {
+            DomNode::Text(text) => {
+                accumulate_text_intrinsic(
+                    text,
+                    style.font_size,
+                    &font_family,
+                    bold,
+                    italic,
+                    fonts,
+                    inline_min,
+                    inline_line,
+                );
+            }
+            DomNode::Element(child_el) if collects_as_inline_text(child_el.tag) => {
+                let cls = child_el.class_list();
+                let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
+                let child_style = compute_style_with_context(
+                    child_el.tag,
+                    child_el.style_attr(),
+                    style,
+                    rules,
+                    child_el.tag_name(),
+                    &cls_refs,
+                    child_el.id(),
+                    &child_el.attributes,
+                    &SelectorContext::default(),
+                );
+                accumulate_inline_element(
+                    child_el,
+                    &child_style,
+                    rules,
+                    fonts,
+                    inline_min,
+                    inline_line,
+                );
+            }
+            // A nested block / replaced element inside inline content is rare in
+            // print fixtures; ignore it for intrinsic measurement.
+            DomNode::Element(_) => {}
+        }
+    }
+}
+
+/// css-sizing-3 § 5.1: resolve a block box's border-box width for an intrinsic
+/// `width` keyword. `available_width` is the stretch-fit basis (the containing
+/// block's content width). Returns the resolved *border-box* width.
+pub(crate) fn resolve_intrinsic_keyword_width(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    keyword: IntrinsicWidthKeyword,
+    available_width: f32,
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    let inner = content_intrinsic_widths(el, style, rules, fonts);
+    let extra = box_horizontal_extra(style);
+    // Border-box widths for each keyword (content width + padding + border).
+    let min_content = inner.min_content + extra;
+    let max_content = inner.max_content + extra;
+    let resolved = match keyword {
+        IntrinsicWidthKeyword::MinContent => min_content,
+        IntrinsicWidthKeyword::MaxContent => max_content,
+        IntrinsicWidthKeyword::FitContent => {
+            // fit-content = min(max-content, max(min-content, stretch-fit)).
+            // The stretch-fit term is the available (border-box) width less the
+            // box's horizontal margins (css-sizing-3 § 5.1).
+            let stretch = (available_width - style.margin.left - style.margin.right).max(0.0);
+            max_content.min(min_content.max(stretch))
+        }
+    };
+    resolved.max(0.0)
 }
 
 // ---------------------------------------------------------------------------

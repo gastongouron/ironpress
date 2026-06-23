@@ -545,6 +545,19 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword("auto".to_string()));
     }
 
+    // css-sizing-3 § 5.1 intrinsic-sizing keywords on `width` (`min-content`,
+    // `max-content`, `fit-content`). Preserve them as keywords so the computed
+    // style layer can record `width_keyword`; otherwise they would fall through
+    // to `parse_length` and be dropped (treated as `auto`).
+    if property == "width"
+        && matches!(
+            lower.as_str(),
+            "min-content" | "max-content" | "fit-content"
+        )
+    {
+        return Some(CssValue::Keyword(lower));
+    }
+
     // line-height: a bare number (e.g. `1.6`) is a unitless multiplier,
     // not a length.  Only values with explicit units should be Length.
     if property == "line-height" {

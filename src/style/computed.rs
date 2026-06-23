@@ -679,6 +679,27 @@ pub enum BoxSizing {
     BorderBox,
 }
 
+/// CSS intrinsic-sizing keyword for the `width` property (css-sizing-3 § 5.1).
+///
+/// When `width` is one of these keywords the declared length is *intrinsic*: the
+/// box is sized from its content rather than to a fixed value or the available
+/// space. `ComputedStyle.width` stays `None` (so existing length/percentage/auto
+/// paths are untouched) and this enum records which keyword was used so block
+/// layout can compute the corresponding content-based width.
+// Variant names deliberately mirror the CSS keyword family
+// (`min-content` / `max-content` / `fit-content`); the shared `Content` suffix is
+// part of the spec vocabulary, so keep it rather than abbreviating.
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicWidthKeyword {
+    /// Narrowest width the content can take without overflow.
+    MinContent,
+    /// Widest the content wants to be with no line wrapping.
+    MaxContent,
+    /// `min(max-content, max(min-content, stretch-fit))` — shrink-to-fit.
+    FitContent,
+}
+
 /// CSS text-transform property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum TextTransform {
@@ -1141,6 +1162,11 @@ pub struct ComputedStyle {
     pub border: BorderSides,
     pub display: Display,
     pub width: Option<f32>,
+    /// css-sizing-3 § 5.1 intrinsic `width` keyword (`min-content` / `max-content`
+    /// / `fit-content`). `None` for the usual length/percentage/`auto` cases. When
+    /// set, `width` is left `None` and block layout derives the box width from its
+    /// content instead of filling the available width.
+    pub width_keyword: Option<IntrinsicWidthKeyword>,
     pub height: Option<f32>,
     pub max_width: Option<f32>,
     pub min_width: Option<f32>,
@@ -1441,6 +1467,7 @@ impl Default for ComputedStyle {
             border: BorderSides::default(),
             display: Display::Block,
             width: None,
+            width_keyword: None,
             height: None,
             max_width: None,
             min_width: None,
@@ -1668,6 +1695,7 @@ pub fn compute_style_with_context(
 
     // Reset non-inherited sizing and opacity properties
     style.width = None;
+    style.width_keyword = None;
     style.height = None;
     style.max_width = None;
     style.min_width = None;
@@ -1962,6 +1990,7 @@ pub fn compute_pseudo_element_style(
     style.reset_background();
     style.border = BorderSides::default();
     style.width = None;
+    style.width_keyword = None;
     style.height = None;
     style.max_width = None;
     style.min_width = None;
@@ -2168,6 +2197,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "display" => style.display = default.display,
         "width" => {
             style.width = default.width;
+            style.width_keyword = default.width_keyword;
             style.percentage_sizing.width = default.percentage_sizing.width;
         }
         "height" => {
@@ -2332,6 +2362,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "display" => style.display = parent.display,
         "width" => {
             style.width = parent.width;
+            style.width_keyword = parent.width_keyword;
             style.percentage_sizing.width = parent.percentage_sizing.width;
         }
         "height" => {
@@ -3171,12 +3202,33 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "width") {
         style.width = Some(*v);
+        style.width_keyword = None;
         style.percentage_sizing.width = None;
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "width") {
         // em value — multiply by current font-size
         style.width = Some(*v * style.font_size);
+        style.width_keyword = None;
         style.percentage_sizing.width = None;
+    }
+    // css-sizing-3 § 5.1 intrinsic-sizing keywords (`min-content` / `max-content`
+    // / `fit-content`). These keep `width` as `None` (so the auto/length/percentage
+    // paths are untouched) and record the keyword for block layout to derive a
+    // content-based width. `auto` and any other keyword leave the box as `auto`.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "width") {
+        let kw = match k.trim().to_ascii_lowercase().as_str() {
+            "min-content" => Some(IntrinsicWidthKeyword::MinContent),
+            "max-content" => Some(IntrinsicWidthKeyword::MaxContent),
+            "fit-content" => Some(IntrinsicWidthKeyword::FitContent),
+            _ => None,
+        };
+        if kw.is_some() {
+            style.width = None;
+            style.width_keyword = kw;
+            style.percentage_sizing.width = None;
+        } else if k.trim().eq_ignore_ascii_case("auto") {
+            style.width_keyword = None;
+        }
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "height") {

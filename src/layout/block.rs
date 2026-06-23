@@ -104,6 +104,23 @@ pub(crate) fn layout_block_element(
         // because the style-time parent width was unknown). Resolve the
         // late-bound percentage against the containing block content width.
         block_w = (pct / 100.0 * percent_width_basis + content_box_extra).min(available_width);
+    } else if let Some(keyword) = style.width_keyword {
+        // css-sizing-3 § 5.1 intrinsic-sizing keyword (`min-content` /
+        // `max-content` / `fit-content`). Size the box from its content rather
+        // than filling the available width. `resolve_intrinsic_keyword_width`
+        // returns the border-box width (it already adds this box's padding and
+        // border, respecting box-sizing) and, for `fit-content`, clamps the
+        // stretch-fit term to the available content width less margins. This path
+        // is only taken when `width` is `None` and there is no `%` width, so it
+        // never perturbs the normal length/percentage/auto behaviour.
+        block_w = crate::layout::helpers::resolve_intrinsic_keyword_width(
+            el,
+            style,
+            keyword,
+            available_width,
+            env.rules,
+            env.fonts,
+        );
     } else if margin_h > 0.0 {
         block_w = (available_width - margin_h).max(0.0);
     }
