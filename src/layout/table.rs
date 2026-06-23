@@ -494,6 +494,80 @@ fn resolve_fixed_table_columns(
     resolved_widths
 }
 
+/// The collapsed table's outer left/right border widths, taken from the left
+/// border of the first cell and the right border of the last cell in the first
+/// row. Returns `(0.0, 0.0)` when there are no cells. Used to shrink the column
+/// tracks so the outer borders fit inside the table's declared width
+/// (`border-collapse: collapse`).
+fn collapse_outer_horizontal_borders(
+    rows: &[&ElementNode],
+    table_style: &ComputedStyle,
+    rules: &[CssRule],
+    table_ancestors: &[AncestorInfo],
+) -> (f32, f32) {
+    if table_style.border_collapse != BorderCollapse::Collapse {
+        return (0.0, 0.0);
+    }
+    let Some(first_row) = rows.first() else {
+        return (0.0, 0.0);
+    };
+    let cells: Vec<&ElementNode> = first_row
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th => Some(e),
+            _ => None,
+        })
+        .collect();
+    if cells.is_empty() {
+        return (0.0, 0.0);
+    }
+    let row_classes = first_row.class_list();
+    let row_style = compute_style_with_context(
+        first_row.tag,
+        first_row.style_attr(),
+        table_style,
+        rules,
+        first_row.tag_name(),
+        &row_classes,
+        first_row.id(),
+        &first_row.attributes,
+        &SelectorContext {
+            ancestors: table_ancestors.to_vec(),
+            child_index: 0,
+            sibling_count: rows.len(),
+            preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
+        },
+    );
+    let cell_count = cells.len();
+    let cell_border = |idx: usize, cell: &ElementNode| -> ComputedStyle {
+        let classes = cell.class_list();
+        compute_style_with_context(
+            cell.tag,
+            cell.style_attr(),
+            &row_style,
+            rules,
+            cell.tag_name(),
+            &classes,
+            cell.id(),
+            &cell.attributes,
+            &SelectorContext {
+                ancestors: table_ancestors.to_vec(),
+                child_index: idx,
+                sibling_count: cell_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            },
+        )
+    };
+    let first = cell_border(0, cells[0]);
+    let last = cell_border(cell_count - 1, cells[cell_count - 1]);
+    (first.border.left.width, last.border.right.width)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn flatten_table(
     el: &ElementNode,
@@ -714,6 +788,15 @@ pub(crate) fn flatten_table(
     // the N columns is `inner_width - (N+1) * border_spacing`. Without this reduction
     // the columns are distributed across the full width and the table overflows by
     // exactly `(N+1) * border_spacing` on the right.
+    // For `border-collapse: collapse`, the cell borders are painted INSIDE the
+    // table's border box (CSS2 §17.6.2): the table width includes them. ironpress
+    // strokes borders centered on cell edges, so the column tracks (measured
+    // center-to-center) span `width - outer_left/2 - outer_right/2`; the
+    // `collapse_paint_offset` then nudges the painted table right by `outer_left/2`
+    // so the outer border's outer pixel lands on the table box edge. Without this
+    // reduction the columns sum to the full width and the table renders too wide.
+    let (outer_left_border, outer_right_border) =
+        collapse_outer_horizontal_borders(&rows, style, rules, &table_ancestors);
     let columns_width = if matches!(
         style.border_collapse,
         crate::style::computed::BorderCollapse::Separate
@@ -721,6 +804,8 @@ pub(crate) fn flatten_table(
         && num_cols > 0
     {
         (inner_width - (num_cols as f32 + 1.0) * style.border_spacing).max(0.0)
+    } else if style.border_collapse == BorderCollapse::Collapse {
+        (inner_width - outer_left_border / 2.0 - outer_right_border / 2.0).max(0.0)
     } else {
         inner_width
     };
@@ -743,6 +828,13 @@ pub(crate) fn flatten_table(
         // --- Auto-sizing pass: measure preferred content width for each column ---
         let min_col_width: f32 = 30.0;
         let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
+        // Per-column MIN-content width (CSS2 §17.5.2): the narrowest the column
+        // can be without overflowing its unbreakable content. For normal wrapping
+        // that is the longest single word; for `white-space: nowrap`/`pre` the
+        // content cannot wrap at all, so it is the full content width. The table's
+        // used width is floored at the sum of these, so nowrap content overflows
+        // an undersized declared `width` (Chrome) instead of being crushed.
+        let mut min_widths: Vec<f32> = vec![0.0; num_cols];
 
         for (sizing_row_idx, row) in rows.iter().enumerate() {
             let row_classes = row.class_list();
@@ -858,6 +950,11 @@ pub(crate) fn flatten_table(
                         // folds in), so measuring the full run here would under-size
                         // the column and force max-content text to wrap. Track the
                         // longest single word too, so short headings never hyphenate.
+                        // `nowrap`/`pre`: the run cannot break, so its min-content
+                        // equals its max-content (the whole run width).
+                        let cell_nowrap =
+                            matches!(cell_style.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre);
+                        let mut content_min_width = 0.0f32;
                         let content_width: f32 = runs
                             .iter()
                             .map(|run| {
@@ -887,7 +984,15 @@ pub(crate) fn flatten_table(
                                     line_width += word_width;
                                     longest_word_width = longest_word_width.max(word_width);
                                 }
-                                line_width.max(longest_word_width)
+                                let run_max = line_width.max(longest_word_width);
+                                // Min-content per run: longest unbreakable word, or
+                                // the full run when it cannot wrap.
+                                content_min_width += if cell_nowrap {
+                                    run_max
+                                } else {
+                                    longest_word_width
+                                };
+                                run_max
                             })
                             .sum();
                         // The line wrapper accumulates word/space widths in a
@@ -915,21 +1020,34 @@ pub(crate) fn flatten_table(
                         let explicit_cell_width =
                             resolve_cell_track_width(cell_el, &cell_style, inner_width)
                                 .unwrap_or(0.0);
-                        let total_preferred = (content_width.max(nested_width)
-                            + cell_style.padding.left
-                            + cell_style.padding.right)
+                        // Content-box → border-box: the column track must hold the
+                        // content plus the cell's horizontal padding AND border
+                        // (borders paint inside the cell box).
+                        let cell_padding_x = cell_style.padding.left
+                            + cell_style.padding.right
+                            + cell_style.border.horizontal_width();
+                        let total_preferred = (content_width.max(nested_width) + cell_padding_x)
+                            .max(explicit_cell_width);
+                        // Min-content includes padding and is floored by an explicit
+                        // cell width (an explicit `width` makes the column at least
+                        // that wide even for shrinking).
+                        let total_min = (content_min_width.max(nested_width) + cell_padding_x)
                             .max(explicit_cell_width);
                         if colspan == 1 {
                             if col_pos < num_cols {
                                 preferred_widths[col_pos] =
                                     preferred_widths[col_pos].max(total_preferred);
+                                min_widths[col_pos] = min_widths[col_pos].max(total_min);
                             }
                         } else {
                             let per_col = total_preferred / colspan as f32;
+                            let per_col_min = total_min / colspan as f32;
                             for i in 0..colspan {
                                 if col_pos + i < num_cols {
                                     preferred_widths[col_pos + i] =
                                         preferred_widths[col_pos + i].max(per_col);
+                                    min_widths[col_pos + i] =
+                                        min_widths[col_pos + i].max(per_col_min);
                                 }
                             }
                         }
@@ -939,10 +1057,12 @@ pub(crate) fn flatten_table(
             }
         }
 
-        for width in &mut preferred_widths {
+        for (width, min_w) in preferred_widths.iter_mut().zip(min_widths.iter_mut()) {
             if *width < min_col_width {
                 *width = min_col_width;
             }
+            // A column can never be narrower than its own min-content.
+            *min_w = min_w.max(0.0).min(*width);
         }
 
         if has_explicit_widths {
@@ -972,11 +1092,33 @@ pub(crate) fn flatten_table(
                     preferred_widths
                 }
             } else {
-                let scale = columns_width / total_preferred;
-                preferred_widths
-                    .iter()
-                    .map(|width| (width * scale).max(min_col_width))
-                    .collect()
+                // The columns' max-content sum exceeds the available width, so they
+                // must shrink. CSS2 §17.5.2.2: distribute the deficit across the
+                // columns' shrinkable headroom (max − min), never below each
+                // column's min-content. When even the min-content sum exceeds the
+                // available width, the table overflows (e.g. `white-space: nowrap`
+                // wider than the declared `width`) rather than crushing the text.
+                let total_min: f32 = min_widths.iter().sum();
+                if total_min >= columns_width {
+                    // Cannot fit even at min-content: use min-content widths and let
+                    // the table overflow its declared width.
+                    min_widths.clone()
+                } else {
+                    let shrinkable: f32 = total_preferred - total_min;
+                    let deficit = total_preferred - columns_width;
+                    preferred_widths
+                        .iter()
+                        .zip(min_widths.iter())
+                        .map(|(pref, min_w)| {
+                            if shrinkable > 0.0 {
+                                let headroom = pref - min_w;
+                                pref - deficit * (headroom / shrinkable)
+                            } else {
+                                *pref
+                            }
+                        })
+                        .collect()
+                }
             }
         }
     };
@@ -1131,9 +1273,30 @@ pub(crate) fn flatten_table(
                 &cell_el.attributes,
                 &cell_selector_ctx,
             );
-            // Compute effective width from auto-sized column widths
+            // Compute effective width from auto-sized column widths. Cell borders
+            // are painted INSIDE the cell box (CSS2 §17.6: the border-box is the
+            // column width), so the content box is inset by the border and the
+            // padding on every side — matching Chrome, which positions cell content
+            // (text and nested blocks) at the inner border+padding edge.
+            //
+            // Under `border-collapse: collapse` adjacent borders merge and each cell
+            // owns only HALF of a collapsed border (the rest belongs to the shared
+            // grid line), so the content box subtracts half the border width;
+            // `separate` subtracts the full border.
+            let cell_border = LayoutBorder::from_computed(&cell_style.border);
+            let border_inset_factor = if style.border_collapse == BorderCollapse::Collapse {
+                0.5
+            } else {
+                1.0
+            };
+            let inset_left = cell_border.left.width * border_inset_factor + cell_style.padding.left;
+            let inset_right =
+                cell_border.right.width * border_inset_factor + cell_style.padding.right;
+            let inset_top = cell_border.top.width * border_inset_factor + cell_style.padding.top;
+            let inset_bottom =
+                cell_border.bottom.width * border_inset_factor + cell_style.padding.bottom;
             let effective_width: f32 = col_widths.iter().skip(col_pos).take(colspan).copied().sum();
-            let cell_inner = effective_width - cell_style.padding.left - cell_style.padding.right;
+            let cell_inner = effective_width - inset_left - inset_right;
             let mut cell_content_style = cell_style.clone();
             cell_content_style.width = Some(cell_inner.max(0.0));
             // A cell's `height` is its border-box; a child's `height: %` resolves
@@ -1147,7 +1310,7 @@ pub(crate) fn flatten_table(
                     h,
                     cell_style.padding.top,
                     cell_style.padding.bottom,
-                    cell_style.border.vertical_width(),
+                    (cell_border.top.width + cell_border.bottom.width) * border_inset_factor,
                     cell_style.box_sizing,
                 )
             });
@@ -1206,18 +1369,15 @@ pub(crate) fn flatten_table(
                 .map(|c: crate::types::Color| c.to_f32_rgba());
 
             // An explicit cell height is a minimum on the cell's rendered box.
-            // Cell borders are painted *inside* the cell box, so the rendered
-            // height equals this value directly (no border is added later).
-            // For border-box, the declared height already includes the border,
-            // so keep it whole — subtracting the border would render the cell
-            // short by its border thickness. For content-box, add the padding
-            // (the border, drawn inside, needs no extra room).
-            let cell_border = LayoutBorder::from_computed(&cell_style.border);
+            // The intrinsic content height now folds the cell border into its top/
+            // bottom inset (see `padding_*` below), so the minimum must match that
+            // basis: for content-box, add padding AND border; for border-box, the
+            // declared height already includes both, so keep it whole.
             let min_content_height = cell_style.height.map_or(0.0, |h| {
                 if cell_style.box_sizing == BoxSizing::BorderBox {
                     h
                 } else {
-                    h + cell_style.padding.top + cell_style.padding.bottom
+                    h + inset_top + inset_bottom
                 }
             });
             // Under `empty-cells: hide`, a cell with no in-flow content has its
@@ -1231,10 +1391,12 @@ pub(crate) fn flatten_table(
                 nested_rows,
                 bold: cell_style.font_weight == FontWeight::Bold,
                 background_color: bg,
-                padding_top: cell_style.padding.top + block_margin_top,
-                padding_right: cell_style.padding.right,
-                padding_bottom: cell_style.padding.bottom + block_margin_bottom,
-                padding_left: cell_style.padding.left,
+                // `padding_*` here is the cell's CONTENT inset (border + padding):
+                // borders paint inside the cell box, so content is offset past both.
+                padding_top: inset_top + block_margin_top,
+                padding_right: inset_right,
+                padding_bottom: inset_bottom + block_margin_bottom,
+                padding_left: inset_left,
                 colspan,
                 rowspan,
                 border: cell_border,
@@ -1322,7 +1484,17 @@ pub(crate) fn flatten_table(
     // narrower than `inner_width`, so the background must follow the columns, not
     // the containing block.
     let columns_sum: f32 = col_widths.iter().sum();
-    let box_width = columns_sum + edge_spacing_h * (col_widths.len().saturating_add(1) as f32);
+    // For collapse the column tracks were shrunk by the outer borders (which paint
+    // inside the table box); add them back so the table-level background/border box
+    // spans the full border-box width.
+    let collapse_outer_w = if style.border_collapse == BorderCollapse::Collapse {
+        outer_left_border / 2.0 + outer_right_border / 2.0
+    } else {
+        0.0
+    };
+    let box_width = columns_sum
+        + edge_spacing_h * (col_widths.len().saturating_add(1) as f32)
+        + collapse_outer_w;
 
     // The last row carries the bottom vertical `border-spacing` gap plus the
     // table's own `margin-bottom`, so the in-flow height below the rows matches

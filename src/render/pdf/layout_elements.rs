@@ -231,6 +231,30 @@ pub(super) fn compute_row_height(cells: &[TableCell]) -> f32 {
         .fold(0.0f32, f32::max)
 }
 
+/// Paint-origin shift for a `border-collapse: collapse` table (CSS2 §17.6.2).
+/// ironpress strokes each cell border CENTERED on its box edge, so the table's
+/// outer collapsed border extends half its width OUTSIDE the table's border box.
+/// Chrome instead keeps the whole collapsed border inside the table box (the
+/// border-box left edge IS the outer pixel of the border). Shifting the painted
+/// table right/down by half the outer border makes the outer edge land on the
+/// box edge — aligning collapsed tables with Chrome (separate tables, which inset
+/// their borders, already align). Returns `(dx, dy)` to add to the paint origin.
+pub(super) fn collapse_paint_offset(
+    cells: &[TableCell],
+    border_collapse: BorderCollapse,
+) -> (f32, f32) {
+    if border_collapse != BorderCollapse::Collapse {
+        return (0.0, 0.0);
+    }
+    // Outer-left border = left border of the first real (non-phantom) cell;
+    // outer-top border = its top border. These are the table's leading edges.
+    let lead = cells.iter().find(|c| c.rowspan != 0);
+    match lead {
+        Some(cell) => (cell.border.left.width / 2.0, cell.border.top.width / 2.0),
+        None => (0.0, 0.0),
+    }
+}
+
 pub(super) fn table_cell_geometry(
     col_widths: &[f32],
     col_pos: usize,
@@ -669,7 +693,8 @@ pub(super) fn render_nested_layout_elements(
                 } else {
                     *border_spacing
                 };
-                let row_y = planned_element.top_y;
+                let (collapse_dx, collapse_dy) = collapse_paint_offset(cells, *border_collapse);
+                let row_y = planned_element.top_y - collapse_dy;
                 let row_height = compute_row_height(cells);
                 let baseline_shifts = row_baseline_shifts(cells, ctx.text.custom_fonts);
 
@@ -685,7 +710,7 @@ pub(super) fn render_nested_layout_elements(
                         col_pos,
                         cell.colspan,
                         spacing,
-                        planned_element.origin_x,
+                        planned_element.origin_x + collapse_dx,
                     );
 
                     let cell_height = if cell.rowspan > 1 {

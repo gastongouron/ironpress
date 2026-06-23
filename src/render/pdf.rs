@@ -26,8 +26,8 @@ use std::io::Write as _;
 mod layout_elements;
 
 use layout_elements::{
-    NestedLayoutFrame, PageRenderContext, TableCellRenderBox, compute_row_height,
-    render_cell_content, row_baseline_shifts, table_cell_geometry,
+    NestedLayoutFrame, PageRenderContext, TableCellRenderBox, collapse_paint_offset,
+    compute_row_height, render_cell_content, row_baseline_shifts, table_cell_geometry,
 };
 
 #[cfg(test)]
@@ -1648,12 +1648,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     border_spacing,
                     ..
                 } => {
-                    let row_y = page_size.height - margin.top - y_pos;
                     let spacing = if *border_collapse == BorderCollapse::Collapse {
                         0.0
                     } else {
                         *border_spacing
                     };
+                    // Collapsed tables paint their outer border half-outside the
+                    // box (centered stroke), so shift the painted table right/down
+                    // by half the outer border to land the outer edge on the table
+                    // box edge — matching Chrome (see `collapse_paint_offset`).
+                    let (collapse_dx, collapse_dy) = collapse_paint_offset(cells, *border_collapse);
+                    let row_y = page_size.height - margin.top - y_pos - collapse_dy;
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
                     let row_height = compute_row_height(cells);
@@ -1674,7 +1679,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             col_pos,
                             cell.colspan,
                             spacing,
-                            margin.left,
+                            margin.left + collapse_dx,
                         );
 
                         // For cells with rowspan > 1, compute the total height
