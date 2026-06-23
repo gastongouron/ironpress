@@ -1676,9 +1676,13 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // available width on the start side, recentring/reflowing
                         // the first line within the remaining space.
                         let first_line_indent = if line_idx == 0 { *text_indent } else { 0.0 };
+                        // Drop-cap float exclusion: the line is shifted right so
+                        // its inline content wraps beside the floated
+                        // `::first-letter` (css-pseudo-4 §2.2 + css2 §9.5).
+                        let line_inset = line.x_offset;
                         let text_x = match text_align {
                             TextAlign::Left | TextAlign::Justify => {
-                                padding_box_x + padding_left + first_line_indent
+                                padding_box_x + padding_left + first_line_indent + line_inset
                             }
                             TextAlign::Center => {
                                 let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
@@ -5881,10 +5885,13 @@ fn render_container_children(
                     // `ul` padding-left carried onto each `li` — was dropped.)
                     let content_x = render_x + padding_left;
                     let content_w = (render_w - padding_left - padding_right).max(0.0);
+                    // Drop-cap float exclusion: shift the line right so its text
+                    // wraps beside the floated `::first-letter` (css2 §9.5).
+                    let line_inset = line.x_offset;
                     let text_x = match text_align {
                         TextAlign::Right => content_x + (content_w - line_width).max(0.0),
                         TextAlign::Center => content_x + (content_w - line_width).max(0.0) / 2.0,
-                        _ => content_x + first_line_indent,
+                        _ => content_x + first_line_indent + line_inset,
                     };
                     let line_top_y = text_y + metrics.ascender + metrics.half_leading;
                     let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
@@ -8287,9 +8294,17 @@ struct LineBoxMetrics {
 }
 
 fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> LineBoxMetrics {
-    let (mut ascender, descender) = line.runs.iter().filter(|r| r.inline_box.is_none()).fold(
-        (0.0f32, 0.0f32),
-        |(max_ascender, max_descender), run| {
+    let (mut ascender, descender) = line
+        .runs
+        .iter()
+        .filter(|r| r.inline_box.is_none())
+        // A floated `::first-letter` drop cap stays inline on the first line but
+        // is out of flow (css2 §9.5): its enlarged glyph overflows the line box
+        // downward and must NOT raise the line's ascent/descent. It is marked by
+        // an explicit line-height factor capped well below 1 (its line box was
+        // reduced to the surrounding line height in `apply_first_letter_style`).
+        .filter(|r| !(r.line_height_factor.is_finite() && r.line_height_factor < 0.9))
+        .fold((0.0f32, 0.0f32), |(max_ascender, max_descender), run| {
             let (ascender_ratio, descender_ratio) = crate::fonts::font_metrics_ratios(
                 &run.font_family,
                 run.bold,
@@ -8300,8 +8315,7 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 max_ascender.max(ascender_ratio * run.font_size),
                 max_descender.max(descender_ratio * run.font_size),
             )
-        },
-    );
+        });
     // A baseline-aligned inline box contributes `baseline_ascent` above the line
     // baseline and `height - baseline_ascent` below it (CSS2 §10.8.1), so it
     // raises both the line's ascent and descent when it extends past the
@@ -11297,7 +11311,11 @@ mod tests {
     }
 
     fn test_text_line(runs: Vec<TextRun>) -> TextLine {
-        TextLine { runs, height: 14.0 }
+        TextLine {
+            runs,
+            height: 14.0,
+            x_offset: 0.0,
+        }
     }
 
     fn test_text_block(lines: Vec<TextLine>) -> LayoutElement {
@@ -12988,10 +13006,12 @@ mod tests {
                 TextLine {
                     runs: vec![empty_run.clone()],
                     height: 14.0,
+                    x_offset: 0.0,
                 },
                 TextLine {
                     runs: vec![empty_run.clone(), non_empty_run],
                     height: 14.0,
+                    x_offset: 0.0,
                 },
             ],
             nested_rows: Vec::new(),
@@ -14548,6 +14568,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 16.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15582,6 +15603,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15607,6 +15629,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run_visible],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15699,6 +15722,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15817,6 +15841,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15918,6 +15943,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run.clone()],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -15956,6 +15982,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -16039,10 +16066,12 @@ mod tests {
                 TextLine {
                     runs: vec![underline_run],
                     height: 14.0,
+                    x_offset: 0.0,
                 },
                 TextLine {
                     runs: vec![strike_run],
                     height: 14.0,
+                    x_offset: 0.0,
                 },
             ],
             nested_rows: Vec::new(),
@@ -16117,6 +16146,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,
@@ -16189,6 +16219,7 @@ mod tests {
             lines: vec![TextLine {
                 runs: vec![run],
                 height: 14.0,
+                x_offset: 0.0,
             }],
             nested_rows: Vec::new(),
             bold: false,

@@ -161,6 +161,13 @@ pub(crate) struct TextWrapOptions {
     /// space at the start of the first line, so that line has less room before it
     /// wraps. Subsequent lines are unaffected.
     pub(crate) text_indent: f32,
+    /// Float-exclusion inset of a `::first-letter { float: left }` drop cap: the
+    /// first `dropcap_lines` formatted lines have `dropcap_width` less room and
+    /// are shifted right by it so they wrap beside the floated initial. Line 0
+    /// already starts after the inline drop-cap glyph, so it keeps `x_offset = 0`
+    /// but its available width is still reduced. Zero when there is no drop cap.
+    pub(crate) dropcap_width: f32,
+    pub(crate) dropcap_lines: usize,
 }
 
 impl TextWrapOptions {
@@ -179,7 +186,17 @@ impl TextWrapOptions {
             pre_wrap: false,
             break_spaces: false,
             text_indent: 0.0,
+            dropcap_width: 0.0,
+            dropcap_lines: 0,
         }
+    }
+
+    /// Reserve a left float-exclusion for a `::first-letter` drop cap: the first
+    /// `lines` formatted lines lose `width` of inline room and are inset by it.
+    pub(crate) const fn with_drop_cap(mut self, width: f32, lines: usize) -> Self {
+        self.dropcap_width = width;
+        self.dropcap_lines = lines;
+        self
     }
 
     pub(crate) const fn with_rtl(mut self, rtl: bool) -> Self {
@@ -472,6 +489,7 @@ pub(crate) fn wrap_text_runs(
         return vec![TextLine {
             runs,
             height: line_height,
+            x_offset: 0.0,
         }];
     }
 
@@ -490,11 +508,25 @@ pub(crate) fn wrap_text_runs(
     // CSS `text-indent` only shortens the FIRST formatted line: the inline
     // content available before wrapping is `max_width - text_indent` while no
     // line has been emitted yet, and the full `max_width` afterwards.
-    let line_max_width = |emitted: usize| {
-        if emitted == 0 {
-            (options.max_width - options.text_indent).max(0.0)
+    //
+    // A `::first-letter { float: left }` drop cap reduces inline room on the
+    // lines it overlaps. Line 0 already carries the enlarged glyph as its first
+    // run (its advance is counted in `current_width`), so only lines 1..N lose
+    // `dropcap_width` of room here; they are also shifted right by the same
+    // amount at emission time (`drop_cap_offset`).
+    let drop_cap_offset = |emitted: usize| {
+        if options.dropcap_lines > 0 && emitted >= 1 && emitted < options.dropcap_lines {
+            options.dropcap_width
         } else {
-            options.max_width
+            0.0
+        }
+    };
+    let line_max_width = |emitted: usize| {
+        let dc = drop_cap_offset(emitted);
+        if emitted == 0 {
+            (options.max_width - options.text_indent - dc).max(0.0)
+        } else {
+            (options.max_width - dc).max(0.0)
         }
     };
 
@@ -510,6 +542,7 @@ pub(crate) fn wrap_text_runs(
             lines.push(TextLine {
                 runs: std::mem::take(&mut current_runs),
                 height: line_height,
+                x_offset: 0.0,
             });
             current_width = 0.0;
             line_height = run_line_height(&template);
@@ -566,6 +599,7 @@ pub(crate) fn wrap_text_runs(
                     lines.push(TextLine {
                         runs: std::mem::take(&mut current_runs),
                         height: line_height,
+                        x_offset: 0.0,
                     });
                     current_width = 0.0;
                     line_height = options.default_font_size * line_height_factor;
@@ -638,6 +672,7 @@ pub(crate) fn wrap_text_runs(
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
+                    x_offset: 0.0,
                 });
                 current_width = 0.0;
                 line_height = options.default_font_size * line_height_factor;
@@ -684,6 +719,7 @@ pub(crate) fn wrap_text_runs(
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
+                    x_offset: 0.0,
                 });
                 current_width = 0.0;
                 line_height = run_line_height(&template);
@@ -800,6 +836,7 @@ pub(crate) fn wrap_text_runs(
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
+                    x_offset: 0.0,
                 });
                 current_width = 0.0;
                 line_height = run_line_height(&template);
@@ -825,6 +862,7 @@ pub(crate) fn wrap_text_runs(
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
+                    x_offset: 0.0,
                 });
                 current_width = 0.0;
                 line_height = run_line_height(&template);
@@ -842,6 +880,7 @@ pub(crate) fn wrap_text_runs(
             lines.push(TextLine {
                 runs: std::mem::take(&mut current_runs),
                 height: line_height,
+                x_offset: 0.0,
             });
             current_width = 0.0;
             line_height = run_line_height(&template);
@@ -924,7 +963,17 @@ pub(crate) fn wrap_text_runs(
         lines.push(TextLine {
             runs: current_runs,
             height: line_height,
+            x_offset: 0.0,
         });
+    }
+
+    // Apply the drop-cap float exclusion: shift the lines that overlap the
+    // floated `::first-letter` right by `dropcap_width` so they wrap beside it.
+    // Line 0 already starts after the inline glyph, so it keeps `x_offset = 0`.
+    if options.dropcap_lines > 0 && options.dropcap_width > 0.0 {
+        for (i, line) in lines.iter_mut().enumerate() {
+            line.x_offset = drop_cap_offset(i);
+        }
     }
 
     lines
@@ -999,6 +1048,7 @@ pub(crate) fn apply_text_overflow_ellipsis(
             ..template
         }],
         height: line.height,
+        x_offset: line.x_offset,
     };
 
     // Remove any additional lines (shouldn't exist with nowrap, but just in case)

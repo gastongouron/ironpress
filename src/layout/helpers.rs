@@ -863,28 +863,47 @@ fn is_symbol(c: char) -> bool {
     matches!(c, '$' | '£' | '€' | '¥' | '#' | '%' | '+' | '<' | '=' | '>')
 }
 
+/// Float-exclusion geometry for a `::first-letter { float: left }` drop cap
+/// (css-pseudo-4 §2.2 + css2 §9.5). The enlarged initial stays inline at the
+/// start of the first line (where it overflows its line box downward), and the
+/// first `span_lines` formatted lines are inset by `width` so the following text
+/// wraps beside it.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DropCap {
+    /// Inline width occupied by the drop cap: its glyph advance plus the
+    /// first-letter's `padding-right`. Lines that overlap it are inset by this.
+    pub width: f32,
+    /// Number of formatted lines the drop cap vertically spans (and therefore
+    /// the count of lines to inset), `ceil(cap_height / line_height)`.
+    pub span_lines: usize,
+}
+
 /// Split off the leading `::first-letter` unit of the first text-bearing run and
 /// restyle it (css-pseudo-4 §2.2). Mutates `runs` in place: the matched run is
 /// replaced by an optional leading-whitespace run, the styled first-letter run,
 /// and the remainder run. Applies the restricted property set (font/color/
-/// decoration/transform). Drop-cap float reservation is not modeled, so the
-/// enlarged letter renders inline at the start of the first line.
+/// decoration/transform).
+///
+/// When the first-letter is `float: left`, it becomes a drop cap: the enlarged
+/// glyph stays inline on the first line but its line-box contribution is capped
+/// to the surrounding line height (so it does not push the following lines down,
+/// css2 §9.5 — a float is taken out of normal flow). The returned [`DropCap`]
+/// then tells the caller to inset the lines that overlap it. Returns `None` for
+/// a non-floating first-letter.
 pub(crate) fn apply_first_letter_style(
     runs: &mut Vec<TextRun>,
     fl: &ComputedStyle,
     fonts: &HashMap<String, TtfFont>,
-) {
+    block_line_height: f32,
+) -> Option<DropCap> {
     // Find the first run carrying renderable text (skip pure-whitespace and
     // atomic-box runs, which precede the first letter, e.g. a ::before marker).
-    let Some(pos) = runs
+    let pos = runs
         .iter()
-        .position(|r| r.inline_box.is_none() && !r.text.trim().is_empty())
-    else {
-        return;
-    };
+        .position(|r| r.inline_box.is_none() && !r.text.trim().is_empty())?;
     let split = first_letter_len(&runs[pos].text);
     if split == 0 {
-        return;
+        return None;
     }
     let base = runs[pos].clone();
     let first_text = base.text[..split].to_string();
@@ -903,6 +922,40 @@ pub(crate) fn apply_first_letter_style(
     letter_run.background_color = fl.background_color.map(|c| c.to_f32_rgba());
     letter_run.line_height_factor = resolved_line_height_factor(fl, fonts);
 
+    // `::first-letter { float: left }` — drop cap (css-pseudo-4 §2.2 + css2 §9.5).
+    // The float is taken out of normal flow, so it must NOT inflate its line box.
+    // Cap the enlarged glyph's line-height contribution to the surrounding line
+    // height; the glyph then overflows downward, spanning several lines, and we
+    // report how many so the caller insets them. A non-floating first-letter
+    // keeps its natural (possibly larger) line box and returns no drop cap.
+    let drop_cap = if matches!(fl.float, crate::style::computed::Float::Left) && fl.font_size > 0.0
+    {
+        let glyph_w = estimate_word_width(
+            &letter_run.text,
+            letter_run.font_size,
+            &letter_run.font_family,
+            letter_run.bold,
+            letter_run.italic,
+            fonts,
+        );
+        let width = glyph_w + fl.padding.right.max(0.0);
+        // The drop cap's visual cap height ≈ its font size (the glyph box). It
+        // spans `ceil(cap_height / line_height)` formatted lines.
+        let span_lines = if block_line_height > 0.0 {
+            (fl.font_size / block_line_height).ceil().max(1.0) as usize
+        } else {
+            1
+        };
+        // Keep the glyph inline on the first line, but cap its line-box height to
+        // the surrounding line height so following lines are not pushed down.
+        if block_line_height > 0.0 {
+            letter_run.line_height_factor = block_line_height / fl.font_size;
+        }
+        Some(DropCap { width, span_lines })
+    } else {
+        None
+    };
+
     let mut replacement = Vec::with_capacity(2);
     replacement.push(letter_run);
     if !rest_text.is_empty() {
@@ -911,6 +964,8 @@ pub(crate) fn apply_first_letter_style(
         replacement.push(rest_run);
     }
     runs.splice(pos..=pos, replacement);
+
+    drop_cap
 }
 
 fn apply_text_transform(text: &str, transform: crate::style::computed::TextTransform) -> String {

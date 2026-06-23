@@ -422,6 +422,7 @@ mod tests {
         TextLine {
             runs: vec![],
             height: 12.0,
+            x_offset: 0.0,
         }
     }
 
@@ -1030,6 +1031,7 @@ mod tests {
         let line = TextLine {
             runs: vec![run],
             height: 12.0,
+            x_offset: 0.0,
         };
         let element = text_block_element(vec![line]);
         let fonts: HashMap<String, TtfFont> = HashMap::new();

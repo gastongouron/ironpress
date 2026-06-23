@@ -1675,6 +1675,7 @@ pub(crate) fn layout_flex_container(
                                     merged_lines.push(TextLine {
                                         runs: Vec::new(),
                                         height: *margin_top,
+                                        x_offset: 0.0,
                                     });
                                 }
                                 merged_lines.extend(tb_lines.iter().cloned());
@@ -2025,6 +2026,14 @@ pub(crate) fn layout_flex_container(
                 // (which already folds in the container's border + padding); a
                 // nonzero leading bumps `y` so subsequent gap math stays correct.
                 let mut pending_leading = leading;
+                // Per css-flexbox-1 § 6, flex-item margins never collapse — not
+                // with each other, nor with the container. The downstream block
+                // flow *does* collapse adjacent sibling margins, so we fold the
+                // previous item's bottom margin into the next item's leading and
+                // emit each item with `margin_bottom: 0`. That keeps the full
+                // `prev.margin_bottom + next.margin_top` gap (e.g. 40 + 30 = 70px)
+                // instead of the collapsed `max(40, 30) = 40px` of block flow.
+                let mut prev_item_margin_bottom = 0.0_f32;
 
                 // `flex-direction: column-reverse` flips the main axis: the
                 // first source item is placed at the bottom. Iterating the line
@@ -2082,6 +2091,10 @@ pub(crate) fn layout_flex_container(
                         extra_gap
                     };
                     let mut item_first_elem = true;
+                    // The bottom margin of this item's last emitted element,
+                    // folded into the next item's leading (flex margins don't
+                    // collapse). Reset per item.
+                    let mut item_last_margin_bottom = 0.0_f32;
 
                     for elem in &item.elements {
                         if let LayoutElement::TextBlock {
@@ -2133,6 +2146,9 @@ pub(crate) fn layout_flex_container(
                             } else {
                                 0.0
                             };
+                            // Carry this element's bottom margin to the next
+                            // item's leading (flex margins don't collapse).
+                            item_last_margin_bottom = *tb_mb;
                             // When the column flex resolution changed the item's
                             // main (block) size (grow/shrink against the
                             // container height, or a `flex-basis` height on an
@@ -2168,10 +2184,17 @@ pub(crate) fn layout_flex_container(
                                         + justify_lead
                                         + *tb_mt
                                 } else {
-                                    // Apply gap between column-direction flex items.
-                                    gap + justify_lead + *tb_mt
+                                    // Apply gap between column-direction flex
+                                    // items, plus the previous item's bottom
+                                    // margin (flex margins don't collapse, so we
+                                    // sum rather than let the flow collapse them).
+                                    gap + justify_lead + prev_item_margin_bottom + *tb_mt
                                 },
-                                margin_bottom: *tb_mb,
+                                // Flex-item margins never collapse; the prior
+                                // item's bottom margin is folded into this item's
+                                // leading above, so emit 0 here to avoid the
+                                // downstream block flow collapsing them.
+                                margin_bottom: 0.0,
                                 text_align: *tb_ta,
                                 background_color: *tb_bg,
                                 padding_top: *tb_pt,
@@ -2252,7 +2275,7 @@ pub(crate) fn layout_flex_container(
                             } else if y == 0.0 {
                                 style.border.top.width + style.padding.top + justify_lead
                             } else {
-                                gap + justify_lead
+                                gap + justify_lead + prev_item_margin_bottom
                             };
                             output.push(LayoutElement::Container {
                                 children: vec![elem.clone()],
@@ -2318,6 +2341,7 @@ pub(crate) fn layout_flex_container(
                     }
 
                     y += item.height + gap;
+                    prev_item_margin_bottom = item_last_margin_bottom;
                 }
             }
         }

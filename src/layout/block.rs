@@ -1197,9 +1197,18 @@ pub(crate) fn layout_block_element(
 
     // `::first-letter` (css-pseudo-4 §2.2): split off and restyle the first
     // typographic letter unit before line breaking so its (possibly larger)
-    // glyph participates in wrapping.
+    // glyph participates in wrapping. A `float: left` first-letter becomes a drop
+    // cap and returns its float-exclusion geometry, applied to the wrapped lines
+    // below.
+    let mut drop_cap: Option<crate::layout::helpers::DropCap> = None;
     if let Some(ref fl) = first_letter_style {
-        crate::layout::helpers::apply_first_letter_style(&mut runs, fl, env.fonts);
+        let block_line_height = style.font_size * resolved_line_height_factor(style, env.fonts);
+        drop_cap = crate::layout::helpers::apply_first_letter_style(
+            &mut runs,
+            fl,
+            env.fonts,
+            block_line_height,
+        );
     }
 
     let had_text_runs = runs.iter().any(|r| !r.text.trim().is_empty());
@@ -1260,7 +1269,13 @@ pub(crate) fn layout_block_element(
             // reserve that space before breaking — otherwise the first line packs
             // full-width text that then overflows once shifted at paint time
             // (css-text-3 §8).
-            .with_text_indent(style.text_indent),
+            .with_text_indent(style.text_indent)
+            // A `::first-letter { float: left }` drop cap reserves a left
+            // exclusion on the lines it overlaps (css-pseudo-4 §2.2 + css2 §9.5).
+            .with_drop_cap(
+                drop_cap.map_or(0.0, |d| d.width),
+                drop_cap.map_or(0, |d| d.span_lines),
+            ),
             env.fonts,
         );
 

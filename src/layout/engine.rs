@@ -330,10 +330,16 @@ impl InlineBox {
 }
 
 /// A laid-out line of text runs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TextLine {
     pub runs: Vec<TextRun>,
     pub height: f32,
+    /// Left inset applied to this line's inline content, in px. Used for the
+    /// float exclusion of a `::first-letter { float: left }` drop cap
+    /// (css-pseudo-4 §2.2 + css2 §9.5): the lines that vertically overlap the
+    /// floated initial are shifted right by the drop cap's width so they wrap
+    /// beside it. Zero for ordinary lines.
+    pub x_offset: f32,
 }
 
 /// The format of an embedded image.
@@ -1403,6 +1409,7 @@ pub(crate) fn flatten_element(
                 inline_box: None,
             }],
             height: style.font_size * resolved_line_height_factor(&style, env.fonts),
+            x_offset: 0.0,
         };
         output.push(LayoutElement::TextBlock {
             lines: vec![line],
