@@ -40,7 +40,7 @@ pub(crate) fn measure_text_width(
     fonts: &HashMap<String, TtfFont>,
 ) -> Option<f32> {
     let (_, font) = resolve_custom_font(font_family, bold, italic, fonts)?;
-    shape_text_with_font(text, font_size, font).map(|run| run.width)
+    shape_text_with_font(text, font_size, font, false).map(|run| run.width)
 }
 
 pub(crate) fn custom_font_line_height(
@@ -58,7 +58,7 @@ pub(crate) fn custom_font_line_height(
 
 pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Option<ShapedRun> {
     let (_, font) = resolve_custom_font(&run.font_family, run.bold, run.italic, fonts)?;
-    shape_text_with_font(&run.text, run.font_size, font)
+    shape_text_with_font(&run.text, run.font_size, font, run.disable_ligatures)
 }
 
 /// Try to shape `run` with the Unicode fallback font.
@@ -103,7 +103,9 @@ pub(crate) fn shape_with_unicode_fallback<'a>(
     ];
     for fk in fallback_keys {
         if let Some((key, font)) = fonts.get_key_value(fk) {
-            if let Some(shaped) = shape_text_with_font(&run.text, run.font_size, font) {
+            if let Some(shaped) =
+                shape_text_with_font(&run.text, run.font_size, font, run.disable_ligatures)
+            {
                 // Only use this font if ALL glyphs are resolved (no .notdef)
                 let all_resolved =
                     !shaped.glyphs.is_empty() && shaped.glyphs.iter().all(|g| g.glyph_id != 0);
@@ -168,7 +170,12 @@ pub(crate) fn split_run_by_font_coverage(
     segments
 }
 
-fn shape_text_with_font(text: &str, font_size: f32, font: &TtfFont) -> Option<ShapedRun> {
+fn shape_text_with_font(
+    text: &str,
+    font_size: f32,
+    font: &TtfFont,
+    disable_ligatures: bool,
+) -> Option<ShapedRun> {
     if text.is_empty() {
         return Some(ShapedRun {
             glyphs: Vec::new(),
@@ -184,7 +191,19 @@ fn shape_text_with_font(text: &str, font_size: f32, font: &TtfFont) -> Option<Sh
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    let shaped = rustybuzz::shape(&face, &[], buffer);
+    // `font-feature-settings: "liga" 0` (css-fonts-3 §6.4): turn off the
+    // standard and contextual ligature features so the shaper keeps the
+    // letters as separate glyphs (e.g. "fi"/"ffi" don't ligate).
+    let features = if disable_ligatures {
+        vec![
+            rustybuzz::Feature::new(rustybuzz::ttf_parser::Tag::from_bytes(b"liga"), 0, ..),
+            rustybuzz::Feature::new(rustybuzz::ttf_parser::Tag::from_bytes(b"clig"), 0, ..),
+        ]
+    } else {
+        Vec::new()
+    };
+
+    let shaped = rustybuzz::shape(&face, &features, buffer);
     let infos = shaped.glyph_infos();
     let positions = shaped.glyph_positions();
     if infos.len() != positions.len() {
@@ -280,6 +299,8 @@ mod tests {
             num_h_metrics: 0,
             flags: 0,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(Vec::new()),
         }
     }
@@ -287,7 +308,7 @@ mod tests {
     #[test]
     fn shape_text_with_font_empty_string_returns_zero_width() {
         let font = make_stub_font();
-        let run = shape_text_with_font("", 12.0, &font).unwrap();
+        let run = shape_text_with_font("", 12.0, &font, false).unwrap();
         assert_eq!(run.width, 0.0);
         assert!(run.glyphs.is_empty());
     }
@@ -429,6 +450,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
@@ -452,6 +474,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
@@ -463,7 +486,7 @@ mod tests {
     #[test]
     fn shape_text_with_font_returns_none_for_invalid_font_data() {
         let font = make_stub_font(); // data is Vec::new(), rustybuzz can't parse it
-        assert!(shape_text_with_font("hello", 12.0, &font).is_none());
+        assert!(shape_text_with_font("hello", 12.0, &font, false).is_none());
     }
 
     // -----------------------------------------------------------------------
@@ -502,7 +525,7 @@ mod tests {
             Some(f) => f,
             None => return, // font not available on this machine, skip
         };
-        let result = shape_text_with_font("Hi", 12.0, &font);
+        let result = shape_text_with_font("Hi", 12.0, &font, false);
         let run = result.expect("shaping should succeed with a real font");
         assert_eq!(run.glyphs.len(), 2, "two glyphs for two-character input");
         assert!(run.width > 0.0, "shaped width must be positive");
@@ -518,7 +541,7 @@ mod tests {
             Some(f) => f,
             None => return,
         };
-        let run = shape_text_with_font("A", 10.0, &font).unwrap();
+        let run = shape_text_with_font("A", 10.0, &font, false).unwrap();
         assert_eq!(run.glyphs.len(), 1);
         let g = &run.glyphs[0];
         // x_advance should be a non-negative scaled value for a normal glyph

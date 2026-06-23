@@ -73,6 +73,15 @@ pub struct TtfFont {
     /// face from a regular face that a font query merely *substituted* for a
     /// missing bold, so it can synthesise (faux) bold only when truly needed.
     pub is_bold: bool,
+    /// The font's x-height in font units (css-values-4 §6.1.1 `ex`). Sourced
+    /// from `OS/2.sxHeight` (version >= 2) when present and positive, otherwise
+    /// measured from the `'x'` glyph's bounding-box top — matching how Chrome
+    /// resolves the `ex` unit when the metric is absent. `0` if undeterminable.
+    pub x_height: u16,
+    /// Advance width of the `'0'` (ZERO) glyph in font units (css-values-4
+    /// §6.1.1 `ch`). `0` if the digit is absent. Chrome resolves `ch` to this
+    /// advance, falling back to 0.5em when the glyph is missing.
+    pub zero_advance: u16,
     /// Raw TTF data for embedding. Wrapped in Arc so cloning a TtfFont
     /// (e.g. from the bundled font cache) is O(1) instead of copying ~400KB.
     pub data: std::sync::Arc<Vec<u8>>,
@@ -101,6 +110,24 @@ impl TtfFont {
     pub fn char_width(&self, ch: u16) -> u16 {
         let glyph_id = self.cmap.get(&(ch as u32)).copied().unwrap_or(0);
         self.glyph_width(glyph_id)
+    }
+
+    /// x-height as a fraction of the em (css-values-4 §6.1.1 `ex`). Falls back
+    /// to the CSS-recommended 0.5em when the metric could not be determined.
+    pub fn x_height_ratio(&self) -> f32 {
+        if self.units_per_em == 0 || self.x_height == 0 {
+            return 0.5;
+        }
+        f32::from(self.x_height) / f32::from(self.units_per_em)
+    }
+
+    /// `ch` advance (the `'0'` glyph) as a fraction of the em (css-values-4
+    /// §6.1.1). Falls back to the CSS-recommended 0.5em when undeterminable.
+    pub fn ch_ratio(&self) -> f32 {
+        if self.units_per_em == 0 || self.zero_advance == 0 {
+            return 0.5;
+        }
+        f32::from(self.zero_advance) / f32::from(self.units_per_em)
     }
 
     /// Get the advance width for a glyph in PDF units (1/1000 of text space).
@@ -298,6 +325,36 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
     let mac_style_bold = data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x1) != 0;
     let is_bold = os2_bold || mac_style_bold;
 
+    // x-height for the CSS `ex` unit. Prefer OS/2.sxHeight (version >= 2,
+    // offset +86 as a signed FWORD); when absent or non-positive, measure the
+    // 'x' glyph's bounding-box top — this mirrors Chrome's `ex` resolution for
+    // fonts (such as the bundled DejaVu-derived faces) whose OS/2 table predates
+    // version 2 and therefore carries no sxHeight field.
+    let os2_x_height = tables.get(b"OS/2").and_then(|os2| {
+        let off = os2.offset as usize;
+        let version = read_u16(&data, off);
+        if version >= 2 && data.len() >= off + 88 {
+            let sx = read_i16(&data, off + 86);
+            (sx > 0).then_some(sx as u16)
+        } else {
+            None
+        }
+    });
+    let x_height = os2_x_height
+        .or_else(|| measure_glyph_y_max(&data, 'x'))
+        .unwrap_or(0);
+    // ch unit: advance of the '0' (ZERO) glyph.
+    let zero_advance = cmap
+        .get(&u32::from('0'))
+        .map(|&gid| {
+            if (gid as usize) < glyph_widths.len() {
+                glyph_widths[gid as usize]
+            } else {
+                0
+            }
+        })
+        .unwrap_or(0);
+
     Ok(TtfFont {
         font_name,
         units_per_em,
@@ -309,8 +366,21 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         num_h_metrics,
         flags,
         is_bold,
+        x_height,
+        zero_advance,
         data: std::sync::Arc::new(data),
     })
+}
+
+/// Measure the bounding-box top (`yMax`, in font units) of the glyph for `ch`.
+///
+/// Used to derive the x-height for the CSS `ex` unit when `OS/2.sxHeight` is
+/// absent. Returns `None` when the character has no glyph or no contour bounds.
+fn measure_glyph_y_max(data: &[u8], ch: char) -> Option<u16> {
+    let face = rustybuzz::ttf_parser::Face::parse(data, 0).ok()?;
+    let gid = face.glyph_index(ch)?;
+    let bbox = face.glyph_bounding_box(gid)?;
+    (bbox.y_max > 0).then_some(bbox.y_max as u16)
 }
 
 fn parse_os2_typographic_metrics(
@@ -884,6 +954,8 @@ mod tests {
             num_h_metrics: 2,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 700); // last width
@@ -903,6 +975,8 @@ mod tests {
             num_h_metrics: 0,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 0);
@@ -1626,6 +1700,8 @@ mod tests {
             num_h_metrics: 1,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
         };
         // Should not panic; 65535 * 1000 / 1000 = 65535
@@ -1650,10 +1726,54 @@ mod tests {
             num_h_metrics: 1,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width_scaled(65, 12.0), 0.0);
         assert_eq!(font.char_width_pdf(65), 0);
+    }
+
+    fn metrics_font(units_per_em: u16, x_height: u16, zero_advance: u16) -> TtfFont {
+        TtfFont {
+            font_name: String::new(),
+            units_per_em,
+            bbox: [0; 4],
+            pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
+            layout_metrics: FontVerticalMetrics::new(0, 0, 0),
+            cmap: HashMap::new(),
+            glyph_widths: Vec::new(),
+            num_h_metrics: 0,
+            flags: 32,
+            is_bold: false,
+            x_height,
+            zero_advance,
+            data: std::sync::Arc::new(vec![]),
+        }
+    }
+
+    #[test]
+    fn x_height_ratio_uses_metric_when_present() {
+        let font = metrics_font(2048, 1120, 0);
+        assert!((font.x_height_ratio() - 1120.0 / 2048.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn x_height_ratio_falls_back_to_half_em() {
+        // No x-height metric -> css-values-4 fallback of 0.5em.
+        assert_eq!(metrics_font(2048, 0, 0).x_height_ratio(), 0.5);
+        assert_eq!(metrics_font(0, 1120, 0).x_height_ratio(), 0.5);
+    }
+
+    #[test]
+    fn ch_ratio_uses_zero_advance_when_present() {
+        let font = metrics_font(2048, 0, 1024);
+        assert!((font.ch_ratio() - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ch_ratio_falls_back_to_half_em() {
+        assert_eq!(metrics_font(2048, 0, 0).ch_ratio(), 0.5);
     }
 
     #[test]

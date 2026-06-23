@@ -61,20 +61,16 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
         return number.parse::<f32>().ok().map(CssValue::Percentage);
     }
 
-    // Font-relative ex/ch (approximate as a fraction of the em; resolved against
-    // font-size downstream like `em`). Checked before `em`-free fallthrough; they
-    // don't end in "em" so they don't collide with the `em` branch above.
+    // Font-relative ex/ch (css-values-4 §6.1.1): `ex` is the resolved font's
+    // x-height, `ch` the advance of its `'0'` glyph. The raw coefficient is
+    // preserved so the metric can be applied against the actual font downstream
+    // (falling back to 0.5em only when no font metric is available). Checked
+    // before the `em` branch — they don't end in "em" so they don't collide.
     if let Some(number) = val.strip_suffix("ex") {
-        return number
-            .parse::<f32>()
-            .ok()
-            .map(|v| CssValue::Number(v * 0.5));
+        return number.parse::<f32>().ok().map(CssValue::Ex);
     }
     if let Some(number) = val.strip_suffix("ch") {
-        return number
-            .parse::<f32>()
-            .ok()
-            .map(|v| CssValue::Number(v * 0.5));
+        return number.parse::<f32>().ok().map(CssValue::Ch);
     }
 
     // Absolute length units → points (1pt = 1/72in). CssValue::Length is in pt.
@@ -479,6 +475,9 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "word-wrap"
             | "word-break"
             | "text-transform"
+            | "font-variant"
+            | "font-variant-caps"
+            | "font-feature-settings"
             | "direction"
             | "object-fit"
             | "object-position"

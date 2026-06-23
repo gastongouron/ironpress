@@ -728,6 +728,7 @@ pub(crate) fn wrap_text_runs(
                 current_runs.push(TextRun {
                     text: " ".to_string(),
                     inline_box: None,
+                    disable_ligatures: false,
                     ..template.clone()
                 });
                 current_width += lead_space;
@@ -936,6 +937,7 @@ pub(crate) fn wrap_text_runs(
                     border_radius: 0.0,
                     line_height_factor: prev_run.line_height_factor,
                     inline_box: None,
+                    disable_ligatures: false,
                 });
                 word
             } else {
@@ -1053,6 +1055,78 @@ pub(crate) fn apply_text_overflow_ellipsis(
 
     // Remove any additional lines (shouldn't exist with nowrap, but just in case)
     lines.truncate(1);
+}
+
+// ---------------------------------------------------------------------------
+// push_styled_run (font-variant / font-feature-settings)
+// ---------------------------------------------------------------------------
+
+/// Synthetic small-caps scale: lowercase letters render as uppercase glyphs at
+/// this fraction of the font size, so their cap-height lands near the normal
+/// x-height — matching how browsers synthesise small-caps for faces without a
+/// real `smcp` feature (css-fonts-4 §6.5). ~0.7 places a synthesised small-cap's
+/// cap-height at roughly the font's x-height for typical serif/sans faces.
+const SMALL_CAPS_SCALE: f32 = 0.7;
+
+/// Push the text for one styled inline fragment, applying `font-variant: small-caps`
+/// synthesis and the `font-feature-settings` ligature flag (css-fonts-3/4) before
+/// the standard fallback-splitting in [`push_text_run_with_fallback`].
+///
+/// `template` carries the run's resolved style (font, color, decorations, …) and
+/// the already text-transformed text. For small-caps, the text is split at
+/// case boundaries: characters that are already uppercase keep the full size,
+/// while lowercase characters are uppercased and emitted at [`SMALL_CAPS_SCALE`].
+fn push_styled_run(
+    template: TextRun,
+    caps: crate::style::computed::FontVariantCaps,
+    ligatures_enabled: bool,
+    runs: &mut Vec<TextRun>,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    use crate::style::computed::FontVariantCaps;
+
+    let mut template = template;
+    template.disable_ligatures = !ligatures_enabled;
+
+    if caps != FontVariantCaps::SmallCaps {
+        push_text_run_with_fallback(template, runs, fonts);
+        return;
+    }
+
+    // Split into runs of "already uppercase / non-letter" (full size) vs
+    // "lowercase" (uppercased + scaled). Characters that don't change under
+    // uppercasing (digits, punctuation, already-capital letters) stay full size.
+    let base_size = template.font_size;
+    let small_size = base_size * SMALL_CAPS_SCALE;
+    let mut current = String::new();
+    let mut current_small = false;
+
+    let flush = |text: &mut String, small: bool, runs: &mut Vec<TextRun>| {
+        if text.is_empty() {
+            return;
+        }
+        let mut run = template.clone();
+        run.text = std::mem::take(text);
+        run.font_size = if small { small_size } else { base_size };
+        push_text_run_with_fallback(run, runs, fonts);
+    };
+
+    for ch in template.text.chars() {
+        // A character is "small-capped" when uppercasing actually changes it
+        // (i.e. it is a lowercase letter).
+        let upper: String = ch.to_uppercase().collect();
+        let is_small = upper != ch.to_string();
+        if !current.is_empty() && is_small != current_small {
+            flush(&mut current, current_small, runs);
+        }
+        current_small = is_small;
+        if is_small {
+            current.push_str(&upper);
+        } else {
+            current.push(ch);
+        }
+    }
+    flush(&mut current, current_small, runs);
 }
 
 // ---------------------------------------------------------------------------
@@ -1425,7 +1499,7 @@ fn collect_text_runs_inner(
                     } else {
                         (None, (0.0, 0.0), 0.0)
                     };
-                    push_text_run_with_fallback(
+                    push_styled_run(
                         TextRun {
                             text: processed,
                             font_size: parent_style.font_size,
@@ -1442,7 +1516,10 @@ fn collect_text_runs_inner(
                             border_radius: br,
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
                             inline_box: None,
+                            disable_ligatures: false,
                         },
+                        parent_style.font_variant_caps,
+                        parent_style.ligatures_enabled,
                         runs,
                         fonts,
                     );
@@ -1467,6 +1544,7 @@ fn collect_text_runs_inner(
                             border_radius: 0.0,
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
                             inline_box: None,
+                            disable_ligatures: false,
                         });
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
@@ -1543,6 +1621,7 @@ fn collect_text_runs_inner(
                                     border_radius: 0.0,
                                     line_height_factor,
                                     inline_box: Some(Box::new(boxed)),
+                                    disable_ligatures: false,
                                 });
                             }
                             continue;
@@ -1663,7 +1742,7 @@ impl<'a> FlexTextRunCollector<'a> {
                         crate::style::computed::TextTransform::None => processed,
                     };
                     if !processed.is_empty() {
-                        push_text_run_with_fallback(
+                        push_styled_run(
                             TextRun {
                                 text: processed,
                                 font_size: parent_style.font_size,
@@ -1685,7 +1764,10 @@ impl<'a> FlexTextRunCollector<'a> {
                                     self.fonts,
                                 ),
                                 inline_box: None,
+                                disable_ligatures: false,
                             },
+                            parent_style.font_variant_caps,
+                            parent_style.ligatures_enabled,
                             self.runs,
                             self.fonts,
                         );
@@ -1752,6 +1834,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 self.fonts,
                             ),
                             inline_box: None,
+                            disable_ligatures: false,
                         });
                         continue;
                     }
@@ -1792,6 +1875,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 self.fonts,
                             ),
                             inline_box: None,
+                            disable_ligatures: false,
                         });
                     }
                 }
@@ -1821,6 +1905,7 @@ mod indent_tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         }
     }
 

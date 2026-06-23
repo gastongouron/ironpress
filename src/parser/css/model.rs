@@ -91,6 +91,13 @@ pub enum CssValue {
     Number(f32),
     /// Percentage value (0-100 range, e.g. 50% stored as 50.0).
     Percentage(f32),
+    /// `ex` unit (css-values-4 §6.1.1): a multiple of the resolved font's
+    /// x-height. Stored as the raw coefficient (e.g. `4ex` -> `Ex(4.0)`),
+    /// resolved against the font metrics downstream.
+    Ex(f32),
+    /// `ch` unit (css-values-4 §6.1.1): a multiple of the advance of the `'0'`
+    /// glyph in the resolved font. Stored as the raw coefficient.
+    Ch(f32),
     /// Rem value (relative to root font-size).
     Rem(f32),
     /// Viewport-width percentage.

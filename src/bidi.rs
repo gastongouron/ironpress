@@ -146,6 +146,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         }
     }
 

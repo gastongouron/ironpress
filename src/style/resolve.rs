@@ -154,6 +154,13 @@ pub fn resolve_length_value_in_context(
         CssValue::Length(v) => Some(*v),
         CssValue::Number(v) => Some(*v),
         CssValue::Percentage(v) => Some(ctx.parent_width * v / 100.0),
+        // ex/ch resolve against the element's own font metrics. The resolution
+        // context does not carry the font, so use the css-values-4 fallbacks
+        // (x-height ~= 0.5em, '0' advance ~= 0.5em). The `font-size` property —
+        // where the metric matters most and the font *is* known — resolves these
+        // with real metrics in `apply_style_map`.
+        CssValue::Ex(v) => Some(*v * 0.5 * ctx.font_size),
+        CssValue::Ch(v) => Some(*v * 0.5 * ctx.font_size),
         CssValue::Rem(v) => Some(*v * ctx.root_font_size),
         CssValue::Vw(v) => Some(ctx.page_width * v / 100.0),
         CssValue::Vh(v) => Some(ctx.page_height * v / 100.0),

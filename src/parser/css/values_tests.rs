@@ -53,6 +53,15 @@ fn parse_length_units() {
         parse_length("1.5em"),
         Some(CssValue::Number(v)) if (v - 1.5).abs() < 0.01
     ));
+    // ex/ch preserve the raw coefficient for font-metric resolution downstream.
+    assert!(matches!(
+        parse_length("4ex"),
+        Some(CssValue::Ex(v)) if (v - 4.0).abs() < 0.01
+    ));
+    assert!(matches!(
+        parse_length("5ch"),
+        Some(CssValue::Ch(v)) if (v - 5.0).abs() < 0.01
+    ));
 }
 
 #[test]

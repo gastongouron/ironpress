@@ -282,7 +282,12 @@ pub struct FontStack {
 
 impl Default for FontStack {
     fn default() -> Self {
-        Self::from_family(FontFamily::Helvetica)
+        // The UA-initial generic font-family is `serif` (matching Chrome's
+        // default "standard" font). This makes unstyled text and the `ex`/`ch`
+        // font-relative units resolve against serif metrics, and keeps `serif`
+        // distinct from an explicit `sans-serif` (which both previously mapped
+        // to Helvetica).
+        Self::from_family(FontFamily::TimesRoman)
     }
 }
 
@@ -710,6 +715,17 @@ pub enum TextTransform {
     Uppercase,
     Lowercase,
     Capitalize,
+}
+
+/// CSS `font-variant-caps` (css-fonts-4 §6.5) — the caps-related subset of
+/// `font-variant`. Only `small-caps` is synthesised (the bundled faces carry no
+/// real small-caps OpenType feature); other sub-values fall back to `Normal`.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum FontVariantCaps {
+    #[default]
+    Normal,
+    /// `small-caps`: lowercase letters render as smaller uppercase forms.
+    SmallCaps,
 }
 
 /// CSS white-space property.
@@ -1315,6 +1331,13 @@ pub struct ComputedStyle {
     pub outline_offset: f32,
     pub box_sizing: BoxSizing,
     pub text_transform: TextTransform,
+    /// CSS `font-variant-caps` / `font-variant: small-caps` (css-fonts-4 §6.5).
+    pub font_variant_caps: FontVariantCaps,
+    /// Whether standard/contextual ligatures are enabled (css-fonts-3 §6.4 /
+    /// css-fonts-4 §6.11). Defaults to `true`; set to `false` by
+    /// `font-feature-settings: "liga" 0` (and `clig`/`dlig` off) to suppress
+    /// the shaper's default ligature substitution.
+    pub ligatures_enabled: bool,
     pub text_indent: f32,
     pub white_space: WhiteSpace,
     pub letter_spacing: f32,
@@ -1469,7 +1492,7 @@ impl Default for ComputedStyle {
             viewport_height: 841.89,
             font_weight: FontWeight::Normal,
             font_style: FontStyle::Normal,
-            font_family: FontFamily::Helvetica,
+            font_family: FontFamily::TimesRoman,
             font_stack: FontStack::default(),
             color: Color::BLACK,
             background_color: None,
@@ -1563,6 +1586,8 @@ impl Default for ComputedStyle {
             outline_offset: 0.0,
             box_sizing: BoxSizing::ContentBox,
             text_transform: TextTransform::None,
+            font_variant_caps: FontVariantCaps::Normal,
+            ligatures_enabled: true,
             text_indent: 0.0,
             white_space: WhiteSpace::Normal,
             letter_spacing: 0.0,
@@ -2174,6 +2199,9 @@ fn is_inherited_property(property: &str) -> bool {
             | "word-spacing"
             | "text-indent"
             | "text-transform"
+            | "font-variant"
+            | "font-variant-caps"
+            | "font-feature-settings"
             | "white-space"
             | "overflow-wrap"
             | "word-wrap"
@@ -2537,6 +2565,36 @@ fn get_non_special<'a>(map: &'a StyleMap, key: &str) -> Option<&'a CssValue> {
     })
 }
 
+/// Parse a `font-feature-settings` value (css-fonts-3 §6.4) and report whether
+/// it turns standard ligatures OFF. The value is a comma-separated list of
+/// `<tag> [<value>]` entries; a ligature tag (`liga`, `clig`, `dlig`, `hlig`)
+/// followed by `0` or `off` disables ligatures, while `1`/`on`/omitted enables.
+fn ligatures_disabled_by_feature_settings(value: &str) -> bool {
+    let mut disabled = false;
+    for entry in value.split(',') {
+        let entry = entry.trim();
+        let mut parts = entry.split_whitespace();
+        let Some(tag) = parts.next() else { continue };
+        let tag = tag
+            .trim_matches(|c| c == '"' || c == '\'')
+            .to_ascii_lowercase();
+        if !matches!(tag.as_str(), "liga" | "clig" | "dlig" | "hlig") {
+            continue;
+        }
+        let on = match parts.next() {
+            None => true,
+            Some(v) => !matches!(v.to_ascii_lowercase().as_str(), "0" | "off"),
+        };
+        if on {
+            // An explicit enable cancels any prior disable in the same list.
+            disabled = false;
+        } else {
+            disabled = true;
+        }
+    }
+    disabled
+}
+
 /// Whether to apply normal (non-important) or `!important` declarations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Importance {
@@ -2626,6 +2684,20 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Number(v)) = get_non_special(map, "font-size") {
         // em value — multiply by current font-size
         style.font_size *= *v;
+    }
+    // ex/ch on `font-size` (css-values-4 §6.1.1): the unit refers to the
+    // *parent* element's font (the value is computed before the new font-size
+    // takes effect), so resolve the x-height / '0'-advance against the parent's
+    // resolved font. Falls back to the 0.5em approximation when no font context
+    // is active (e.g. the font is not loaded). `style.font_size` currently holds
+    // the inherited parent size, matching the `em`/`Number` branch above.
+    if let Some(CssValue::Ex(v)) = get_non_special(map, "font-size") {
+        let ratio = crate::style::font_ctx::style_x_height_ratio(parent).unwrap_or(0.5);
+        style.font_size *= *v * ratio;
+    }
+    if let Some(CssValue::Ch(v)) = get_non_special(map, "font-size") {
+        let ratio = crate::style::font_ctx::style_ch_ratio(parent).unwrap_or(0.5);
+        style.font_size *= *v * ratio;
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-weight") {
@@ -3895,6 +3967,28 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "capitalize" => TextTransform::Capitalize,
             _ => TextTransform::None,
         };
+    }
+
+    // font-variant-caps (css-fonts-4 §6.5) and the `font-variant` shorthand
+    // (css-fonts-3 §6.5). Only `small-caps` is synthesised; any other token (or
+    // `normal`/`none`) resets to Normal. The shorthand may carry several
+    // space-separated tokens, so scan for the `small-caps` keyword.
+    let caps_value =
+        get_non_special(map, "font-variant-caps").or_else(|| get_non_special(map, "font-variant"));
+    if let Some(CssValue::Keyword(k)) = caps_value {
+        let lower = k.to_ascii_lowercase();
+        style.font_variant_caps = if lower.split_whitespace().any(|t| t == "small-caps") {
+            FontVariantCaps::SmallCaps
+        } else {
+            FontVariantCaps::Normal
+        };
+    }
+
+    // font-feature-settings (css-fonts-3 §6.4): honour explicit ligature
+    // control. `"liga" 0` (or `clig`/`dlig` set to 0/off) disables the shaper's
+    // default ligature substitution; the inverse (or omission) leaves it on.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-feature-settings") {
+        style.ligatures_enabled = !ligatures_disabled_by_feature_settings(k);
     }
 
     // Text-indent
@@ -8039,9 +8133,12 @@ mod tests {
     }
 
     #[test]
-    fn font_family_default_is_helvetica() {
+    fn font_family_default_is_serif() {
+        // The UA-initial font-family is a serif face (matching Chrome's default
+        // "standard" font), so unstyled text and the `ex`/`ch` units resolve
+        // against serif metrics rather than sans-serif.
         let style = ComputedStyle::default();
-        assert_eq!(style.font_family, FontFamily::Helvetica);
+        assert_eq!(style.font_family, FontFamily::TimesRoman);
     }
 
     #[test]
@@ -8049,6 +8146,75 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Span, Some("font-family: serif"), &parent);
         assert_eq!(style.font_family, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn font_variant_small_caps_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Span, Some("font-variant: small-caps"), &parent);
+        assert_eq!(style.font_variant_caps, FontVariantCaps::SmallCaps);
+        let caps = compute_style(
+            HtmlTag::Span,
+            Some("font-variant-caps: small-caps"),
+            &parent,
+        );
+        assert_eq!(caps.font_variant_caps, FontVariantCaps::SmallCaps);
+    }
+
+    #[test]
+    fn font_variant_normal_resets_small_caps() {
+        let mut parent = ComputedStyle::default();
+        parent.font_variant_caps = FontVariantCaps::SmallCaps;
+        let style = compute_style(HtmlTag::Span, Some("font-variant: normal"), &parent);
+        assert_eq!(style.font_variant_caps, FontVariantCaps::Normal);
+    }
+
+    #[test]
+    fn font_variant_caps_inherits() {
+        let mut parent = ComputedStyle::default();
+        parent.font_variant_caps = FontVariantCaps::SmallCaps;
+        let style = compute_style(HtmlTag::Span, None, &parent);
+        assert_eq!(style.font_variant_caps, FontVariantCaps::SmallCaps);
+    }
+
+    #[test]
+    fn font_feature_settings_liga_off_disables_ligatures() {
+        let parent = ComputedStyle::default();
+        assert!(parent.ligatures_enabled);
+        let style = compute_style(
+            HtmlTag::Span,
+            Some("font-feature-settings: \"liga\" 0"),
+            &parent,
+        );
+        assert!(!style.ligatures_enabled);
+    }
+
+    #[test]
+    fn font_feature_settings_liga_on_keeps_ligatures() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Span,
+            Some("font-feature-settings: \"liga\" 1"),
+            &parent,
+        );
+        assert!(style.ligatures_enabled);
+    }
+
+    #[test]
+    fn ligatures_disabled_by_feature_settings_parsing() {
+        assert!(ligatures_disabled_by_feature_settings("\"liga\" 0"));
+        assert!(ligatures_disabled_by_feature_settings("'clig' off"));
+        assert!(ligatures_disabled_by_feature_settings(
+            "\"liga\" 0, \"dlig\" 0"
+        ));
+        assert!(!ligatures_disabled_by_feature_settings("\"liga\" 1"));
+        assert!(!ligatures_disabled_by_feature_settings("\"liga\""));
+        // A non-ligature feature does not affect ligatures.
+        assert!(!ligatures_disabled_by_feature_settings("\"kern\" 0"));
+        // A later enable cancels an earlier disable.
+        assert!(!ligatures_disabled_by_feature_settings(
+            "\"liga\" 0, \"liga\" 1"
+        ));
     }
 
     #[test]
@@ -9862,10 +10028,10 @@ mod tests {
     #[test]
     fn font_family_inherit_from_parent() {
         let mut parent = ComputedStyle::default();
-        parent.font_family = FontFamily::TimesRoman;
-        parent.font_stack = FontStack::from_family(FontFamily::TimesRoman);
+        parent.font_family = FontFamily::Helvetica;
+        parent.font_stack = FontStack::from_family(FontFamily::Helvetica);
         let style = compute_style(HtmlTag::Span, Some("font-family: inherit"), &parent);
-        assert_eq!(style.font_family, FontFamily::TimesRoman);
+        assert_eq!(style.font_family, FontFamily::Helvetica);
     }
 
     #[test]

@@ -782,6 +782,8 @@ mod tests {
             num_h_metrics: 1,
             flags: 0,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
         }
     }

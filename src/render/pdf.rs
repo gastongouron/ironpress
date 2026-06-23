@@ -948,6 +948,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     custom_fonts: &HashMap<String, TtfFont>,
     decoration: Option<&PageDecoration>,
 ) -> Result<(), IronpressError> {
+    // Keep `ex`/`ch` style resolution font-aware during any render-time style
+    // recomputation (e.g. pseudo-elements), matching the layout pass.
+    let _font_ctx = crate::style::font_ctx::FontCtxGuard::new(custom_fonts);
     let mut pdf_writer = PdfWriter::new();
     let available_width = page_size.width - margin.left - margin.right;
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
@@ -11307,6 +11310,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         }
     }
 
@@ -12983,6 +12987,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -13000,6 +13005,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let cell = TableCell {
             lines: vec![
@@ -13094,6 +13100,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -13113,6 +13120,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -13132,6 +13140,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -13337,13 +13346,14 @@ mod tests {
         );
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let pdf_str = String::from_utf8_lossy(&pdf);
-        // The total row cells should use Helvetica-Bold
+        // The total row cells inherit the UA-default serif family, so the bold
+        // descendant selector resolves to Times-Bold at 12pt.
         assert!(
-            pdf_str.contains("/Helvetica-Bold 12 Tf"),
-            "Total row should use Helvetica-Bold at 12pt, PDF content:\n{}",
+            pdf_str.contains("/Times-Bold 12 Tf"),
+            "Total row should use Times-Bold at 12pt, PDF content:\n{}",
             pdf_str
                 .lines()
-                .filter(|l| l.contains("Helvetica"))
+                .filter(|l| l.contains("Times"))
                 .collect::<Vec<_>>()
                 .join("\n")
         );
@@ -14496,8 +14506,11 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let pdf_str = String::from_utf8_lossy(&pdf);
+        // The flex item shrinks to content; the words may render as separate
+        // text-show operators, so assert each word is present rather than the
+        // joined string.
         assert!(
-            pdf_str.contains("Flex Borders"),
+            pdf_str.contains("(Flex)") && pdf_str.contains("(Borders)"),
             "Should render flex content"
         );
         // Non-uniform borders produce per-side strokes
@@ -14563,6 +14576,7 @@ mod tests {
             border_radius: 3.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -14628,6 +14642,7 @@ mod tests {
             border_radius: 4.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -14645,6 +14660,7 @@ mod tests {
             border_radius: 8.0, // Different border_radius
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -14713,6 +14729,8 @@ mod tests {
             num_h_metrics: 96,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
         };
         let mut fonts = HashMap::new();
@@ -14776,6 +14794,8 @@ mod tests {
             num_h_metrics: 96,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(vec![0u8; 64]),
         };
         let mut fonts = HashMap::new();
@@ -14817,6 +14837,8 @@ mod tests {
             num_h_metrics: 3,
             flags: 32,
             is_bold: false,
+            x_height: 0,
+            zero_advance: 0,
             data: std::sync::Arc::new(Vec::new()),
         };
         let shaped = crate::text::ShapedRun {
@@ -15593,6 +15615,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let run_visible = TextRun {
             text: "Visible".to_string(),
@@ -15717,6 +15740,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -15811,6 +15835,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let mut border = LayoutBorder::default();
         border.top = LayoutBorderSide {
@@ -15936,6 +15961,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
 
         // Test right-align
@@ -16042,6 +16068,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
         let strike_run = TextRun {
             text: "Strike".to_string(),
@@ -16059,6 +16086,7 @@ mod tests {
             border_radius: 0.0,
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16140,6 +16168,7 @@ mod tests {
             border_radius: 4.0, // Triggers rounded rect for inline background
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16213,6 +16242,7 @@ mod tests {
             border_radius: 0.0, // No rounding — should use rectangle
             line_height_factor: f32::NAN,
             inline_box: None,
+            disable_ligatures: false,
         };
 
         let cell = crate::layout::engine::TableCell {
