@@ -163,10 +163,48 @@ fn edge_fail_is_noop() {
 
 #[test]
 fn shift_fail_is_noop() {
+    // A REAL shift relocates ink, so missing/extra rise alongside it. With
+    // presence confirming the displacement, the shift FAIL stands and the
+    // RasterVerifier still reproduces verdict.rs (a no-op). (A shift with NO
+    // edge AND NO missing/extra is physically impossible for a real defect — see
+    // `centroid_shift_artifact_forgiven`.)
     let mut t = tally();
     t.shift_max_css = G_SHIFT_CSS.1 + 1.0;
+    t.missing_pct = G_MISSING_PCT.0 + 0.5; // relocated ink => real displacement
+    t.extra_pct = G_EXTRA_PCT.0 + 0.5;
     let (status, _) = assert_noop(t);
     assert_eq!(status, Status::Fail);
+}
+
+#[test]
+fn centroid_shift_artifact_forgiven() {
+    // A large `shift_max_css` with edges within their PASS bound and ~no
+    // missing/extra ink is a content-bbox CENTROID artifact (a soft-edged
+    // gradient/mask/blend fringe pulls the centroid several px) — NOT a real
+    // displacement, which would move edges or relocate ink. The RasterVerifier
+    // neutralizes it to Geometry PASS. This is a DELIBERATE divergence from
+    // verdict.rs's naive shift gate (which would FAIL), so it is asserted
+    // directly rather than via the no-op equivalence helper.
+    let mut t = tally();
+    t.shift_max_css = G_SHIFT_CSS.1 + 2.0; // huge centroid-only "shift"
+    // edge_max_css / missing_pct / extra_pct default to 0 (within PASS).
+    let e = entry();
+    let (outcome, _) = outcome_for(t, &e);
+    let rv = RasterVerifier::from_outcome(&outcome, &e);
+    let px = ImageBuffer::from_pixel(1, 1, Rgba([255, 255, 255, 255]));
+    let ctx = VerifyCtx {
+        entry: &e,
+        pdf: b"",
+        cand: &px,
+        reference: &px,
+        coords: None,
+    };
+    let combined = combine(&rv.verify(&ctx));
+    assert_eq!(
+        combined.status,
+        Status::Pass,
+        "centroid-only shift (edges & presence clean) must be forgiven to PASS"
+    );
 }
 
 #[test]

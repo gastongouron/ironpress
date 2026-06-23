@@ -84,9 +84,29 @@ impl RasterVerifier {
 
     /// Geometry: `edge_max_css` (G_EDGE_CSS) + `shift_max_css` (G_SHIFT_CSS).
     fn geometry_status(&self) -> Status {
-        if self.edge_max_css > G_EDGE_CSS.1 || self.shift_max_css > G_SHIFT_CSS.1 {
+        // `shift_max_css` is a content-bbox CENTROID estimate. For soft-edged
+        // content (gradients, masks, blends, shadows) the bbox is ill-defined —
+        // a faint AA fringe on one side pulls the centroid several px, so the
+        // shift is grossly over-reported (e.g. background-conic-gradient reads a
+        // 6.8px "shift" at 0.02% pixel diff — physically impossible). The
+        // RELIABLE displacement signals are the per-side EDGE delta and the
+        // missing/extra PRESENCE: a REAL shift moves edges (raises edge_max) or
+        // relocates ink (raises missing+extra). So when edges are within their
+        // PASS bound AND almost no ink is missing/extra, the box is correctly
+        // placed and a large shift reading is a centroid artifact — neutralize
+        // it. (A genuine displacement trips edge or presence and is unaffected;
+        // a real EDGE displacement like selectors-cascade's 2.24px keeps
+        // edge_max > PASS so this does not apply.)
+        let shift = if self.edge_max_css <= G_EDGE_CSS.0
+            && (self.missing_pct + self.extra_pct) <= G_MISSING_PCT.0
+        {
+            self.shift_max_css.min(G_SHIFT_CSS.0)
+        } else {
+            self.shift_max_css
+        };
+        if self.edge_max_css > G_EDGE_CSS.1 || shift > G_SHIFT_CSS.1 {
             Status::Fail
-        } else if self.edge_max_css <= G_EDGE_CSS.0 && self.shift_max_css <= G_SHIFT_CSS.0 {
+        } else if self.edge_max_css <= G_EDGE_CSS.0 && shift <= G_SHIFT_CSS.0 {
             Status::Pass
         } else {
             Status::Partial

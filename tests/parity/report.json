@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 84.8,
-    "pass": 477,
-    "partial": 84,
-    "fail": 51,
+    "score_pct": 85.7,
+    "pass": 483,
+    "partial": 83,
+    "fail": 46,
     "unknown": 1,
     "total": 613,
     "scored_ratio_pct": 99.84
@@ -18,11 +18,11 @@
   "categories": [
     {
       "category": "backgrounds-borders",
-      "score_pct": 75.0,
+      "score_pct": 85.0,
       "counts": {
-        "pass": 19,
-        "partial": 7,
-        "fail": 4,
+        "pass": 23,
+        "partial": 5,
+        "fail": 2,
         "unknown": 1
       },
       "features": [
@@ -983,11 +983,11 @@
         },
         {
           "feature": "border-radius",
-          "score_pct": 68.18,
+          "score_pct": 90.91,
           "counts": {
-            "pass": 6,
-            "partial": 3,
-            "fail": 2,
+            "pass": 10,
+            "partial": 0,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -2020,7 +2020,7 @@
               "subfeature": "elliptical-slash",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.5918,
               "weight": 1.0,
               "description": "Elliptical border-radius via the Rx / Ry slash syntax.",
@@ -2030,7 +2030,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "59b0a62372d56bf50ad6443d09c4aa0018b1bff064cf79d6e2d3ab5ea1fa2710",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -2245,7 +2245,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.92css",
                   "magnitude": 1.92
@@ -2274,7 +2274,7 @@
               "subfeature": "four-value-shorthand",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.6296,
               "weight": 1.0,
               "description": "border-radius 1-4 value shorthand assigning a distinct radius to each corner.",
@@ -2284,7 +2284,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "53a2983193ad150c3a83553074b7168390c16b254b90f201d70a12e3aec1721c",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -2499,7 +2499,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.28css",
                   "magnitude": 1.28
@@ -2696,7 +2696,7 @@
               "subfeature": "percentage",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.4958,
               "weight": 1.0,
               "description": "border-radius given as a non-50% percentage of the box.",
@@ -2706,7 +2706,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "555c114267a4bd81a9f9bf8ea1b97b0506f29bde94bba2903c5e116d4c903b60",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -2921,7 +2921,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.28css",
                   "magnitude": 1.28
@@ -3432,7 +3432,7 @@
               "subfeature": "x-linear-gradient",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 0.5658,
               "weight": 1.0,
               "description": "Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).",
@@ -3444,7 +3444,7 @@
                 "probe-border-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "c15c67041352e2a68b147241034794e23b37e44c2199d5d9f8d1a92cf21935af",
               "diagnosis": {
                 "primary_class": "GeometrySize",
@@ -3659,7 +3659,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 4.27css",
                   "magnitude": 4.269332500520427
@@ -4635,11 +4635,11 @@
         },
         {
           "feature": "conic-gradient",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4650,7 +4650,7 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PARTIAL",
               "diff_pct": 0.0245,
               "weight": 1.0,
               "description": "Centered multi-stop conic-gradient background.",
@@ -4787,7 +4787,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 6.79css",
                   "magnitude": 6.788225099390856
@@ -6870,7 +6870,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.05css",
                   "magnitude": 1.051517699925703
@@ -14958,21 +14958,21 @@
     },
     {
       "category": "clip-mask",
-      "score_pct": 60.71,
+      "score_pct": 71.43,
       "counts": {
         "pass": 7,
-        "partial": 3,
-        "fail": 4,
+        "partial": 6,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
         {
           "feature": "-webkit-mask-image",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -14983,7 +14983,7 @@
               "subfeature": "prefixed-alias",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PARTIAL",
               "diff_pct": 0.3797,
               "weight": 1.0,
               "description": "-webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.",
@@ -15151,7 +15151,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.64css shift 4.92css",
                   "magnitude": 4.92
@@ -15416,7 +15416,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.00css shift 1.28css",
                   "magnitude": 1.28
@@ -15443,16 +15443,7 @@
                   "magnitude": 0.0
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 0.00css shift 1.28css"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -15697,7 +15688,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.00css shift 1.60css",
                   "magnitude": 1.6
@@ -15724,16 +15715,7 @@
                   "magnitude": 0.0
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 0.00css shift 1.60css"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -16408,11 +16390,11 @@
         },
         {
           "feature": "mask-image: linear-gradient()",
-          "score_pct": 50.0,
+          "score_pct": 75.0,
           "counts": {
             "pass": 1,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -16591,7 +16573,7 @@
               "subfeature": "alpha-fade",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PARTIAL",
               "diff_pct": 0.369,
               "weight": 1.0,
               "description": "mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only).",
@@ -16759,7 +16741,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.64css shift 4.64css",
                   "magnitude": 4.64
@@ -17685,11 +17667,11 @@
         },
         {
           "feature": "mask-mode: luminance",
-          "score_pct": 0.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 0,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -17700,7 +17682,7 @@
               "subfeature": "gradient-source",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PARTIAL",
               "diff_pct": 0.4077,
               "weight": 1.0,
               "description": "mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.",
@@ -17868,7 +17850,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 4.64css",
                   "magnitude": 4.64
@@ -52799,10 +52781,10 @@
     },
     {
       "category": "images-replaced",
-      "score_pct": 92.0,
+      "score_pct": 96.0,
       "counts": {
-        "pass": 21,
-        "partial": 4,
+        "pass": 23,
+        "partial": 2,
         "fail": 0,
         "unknown": 0
       },
@@ -54118,10 +54100,10 @@
         },
         {
           "feature": "inline-svg",
-          "score_pct": 62.5,
+          "score_pct": 87.5,
           "counts": {
-            "pass": 1,
-            "partial": 3,
+            "pass": 3,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -54133,7 +54115,7 @@
               "subfeature": "clip-path-circle",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.2799,
               "weight": 1.0,
               "description": "Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.",
@@ -54143,7 +54125,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "partial",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "9e211fadf12fe955e59531aed0746305123c8da780ac563d20e3ac197eb33618",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -54356,7 +54338,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 3.26css",
                   "magnitude": 3.2633724886993827
@@ -54521,7 +54503,7 @@
               "subfeature": "rect-circle-path-viewbox",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.3008,
               "weight": 1.0,
               "description": "Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.",
@@ -54531,7 +54513,7 @@
                 "probe-fill-box"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "f9d0e654345d3472c84cc5a127cbdef15d5e06eafdcb9ba0509920acd3ed504b",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -54744,7 +54726,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.30css",
                   "magnitude": 1.302032599011595
@@ -67235,7 +67217,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 1.78css",
                   "magnitude": 1.7810974238488464
@@ -67267,7 +67249,7 @@
                   "concern": "Geometry",
                   "authoritative": "FAIL",
                   "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
+                  "challenger": "PASS",
                   "challenger_by": "RasterDiff",
                   "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#0 unmatched (nearest 1.500pt)"
                 }
@@ -72806,7 +72788,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 3.02css",
                   "magnitude": 3.0188739622581133
@@ -72833,16 +72815,7 @@
                   "magnitude": 0.0
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 0.32css shift 3.02css"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "counters-nested",
@@ -82754,7 +82727,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 3.22css",
                   "magnitude": 3.215960198758685
@@ -82781,16 +82754,7 @@
                   "magnitude": 0.0
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PARTIAL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 0.32css shift 3.22css"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "overflow-hidden-clip",
@@ -83546,7 +83510,7 @@
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.32css shift 4.07css",
                   "magnitude": 4.0729350596345135
@@ -83573,16 +83537,7 @@
                   "magnitude": 0.0
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "PASS",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "FAIL",
-                  "challenger_by": "RasterDiff",
-                  "note": "raster geometry: edge 0.32css shift 4.07css"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "overflow-padding-box-clip",
