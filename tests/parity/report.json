@@ -7,9 +7,9 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 81.05,
-    "pass": 449,
-    "partial": 94,
+    "score_pct": 81.78,
+    "pass": 458,
+    "partial": 85,
     "fail": 69,
     "unknown": 1,
     "total": 613,
@@ -417,8 +417,8 @@
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 39.450pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 40.500pt)",
-                  "magnitude": 40.5
+                  "headline": "pdf-geom: gross page offset 79.950pt (> 3pt) — content displaced; worst fill#0 h Δ81.000pt",
+                  "magnitude": 81.0
                 }
               ],
               "disagreements": [
@@ -428,7 +428,7 @@
                   "authoritative_by": "PdfGeometry",
                   "challenger": "PASS",
                   "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: gross page offset 39.450pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 40.500pt)"
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: gross page offset 79.950pt (> 3pt) — content displaced; worst fill#0 h Δ81.000pt"
                 }
               ]
             },
@@ -51368,8 +51368,8 @@
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#1 h Δ3.000pt",
-                  "magnitude": 3.0
+                  "headline": "pdf-geom FAIL: border#0 unmatched (nearest 1.500pt)",
+                  "magnitude": 1.5
                 }
               ],
               "disagreements": [
@@ -51379,7 +51379,7 @@
                   "authoritative_by": "PdfGeometry",
                   "challenger": "PARTIAL",
                   "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#1 h Δ3.000pt"
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: border#0 unmatched (nearest 1.500pt)"
                 }
               ]
             },
@@ -71042,14 +71042,14 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: table (`tables-basic-grid`)",
+              "attribution": "REAL",
               "html_sha256": "7aca1f5520615958d8b4602e55f685d468d70ab7954831385b9a7f39ceb05d4d",
               "diagnosis": {
                 "primary_class": "ColorValue",
                 "secondary": [
                   "Missing"
                 ],
-                "headline": "via tables-basic-grid: fill recolour ΔRGB(-25,+18,+22) (ΔE 44.3)",
+                "headline": "fill recolour ΔRGB(-25,+18,+22) (ΔE 44.3)",
                 "magnitude": {
                   "edge_delta_css": [
                     -0.32,
@@ -71332,7 +71332,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`)",
+              "attribution": "REAL",
               "html_sha256": "cfa53772cf779976b862ebfb50670b3d94f5f0e59841f9339e794b1971a7cec3",
               "diagnosis": {
                 "primary_class": "Extra",
@@ -71340,7 +71340,7 @@
                   "Missing",
                   "ColorValue"
                 ],
-                "headline": "via tables-thead-tbody-tfoot: extra paint where Chrome is blank (23.1%)",
+                "headline": "extra paint where Chrome is blank (23.1%)",
                 "magnitude": {
                   "edge_delta_css": [
                     29.76,
@@ -80163,7 +80163,7 @@
                   "verifier": "PdfGeometry",
                   "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: worst fill#5 w/size Δ0.500pt (offset 1.050pt cancelled)",
+                  "headline": "pdf-geom: worst fill#3 w/size Δ0.500pt (offset 1.050pt cancelled)",
                   "magnitude": 0.5
                 }
               ],
@@ -100244,20 +100244,20 @@
     },
     {
       "category": "tables",
-      "score_pct": 57.41,
+      "score_pct": 74.07,
       "counts": {
-        "pass": 5,
-        "partial": 21,
+        "pass": 14,
+        "partial": 12,
         "fail": 1,
         "unknown": 0
       },
       "features": [
         {
           "feature": "border-collapse",
-          "score_pct": 75.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 1,
-            "partial": 1,
+            "pass": 2,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -100269,7 +100269,7 @@
               "subfeature": "collapse",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 1.2332,
               "weight": 1.0,
               "description": "border-collapse:collapse merges adjacent 4px cell borders into shared single edges.",
@@ -100280,7 +100280,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "fe9e54fd617df63d8f4527ff59dc683cf904e6b7bbdd9d3270212da5f56698c6",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -100516,22 +100516,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#16 unmatched (nearest 58.500pt)",
-                  "magnitude": 58.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 1.050pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#16 unmatched (nearest 58.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-border-separate",
@@ -101843,22 +101834,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#9 unmatched (nearest 111.000pt)",
-                  "magnitude": 111.0
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.375pt (offset 0.675pt cancelled)",
+                  "magnitude": 0.3749999999999858
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#9 unmatched (nearest 111.000pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-caption-side-bottom",
@@ -102115,8 +102097,8 @@
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 7.050pt (> 3pt) — content displaced; worst fill#9 unmatched (nearest 93.000pt)",
-                  "magnitude": 93.0
+                  "headline": "pdf-geom: gross page offset 7.050pt (> 3pt) — content displaced; worst fill#4 w/size Δ101.250pt",
+                  "magnitude": 101.24999999999999
                 }
               ],
               "disagreements": [
@@ -102126,7 +102108,7 @@
                   "authoritative_by": "PdfGeometry",
                   "challenger": "PASS",
                   "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: gross page offset 7.050pt (> 3pt) — content displaced; worst fill#9 unmatched (nearest 93.000pt)"
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: gross page offset 7.050pt (> 3pt) — content displaced; worst fill#4 w/size Δ101.250pt"
                 }
               ]
             }
@@ -102397,22 +102379,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#8 unmatched (nearest 103.875pt)",
-                  "magnitude": 103.875
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.188pt (offset 0.863pt cancelled)",
+                  "magnitude": 0.1875000000000071
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#8 unmatched (nearest 103.875pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -102680,22 +102653,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#10 unmatched (nearest 132.562pt)",
-                  "magnitude": 132.5625
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.375pt (offset 0.862pt cancelled)",
+                  "magnitude": 0.375
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#10 unmatched (nearest 132.562pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -102963,22 +102927,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#12 unmatched (nearest 72.938pt)",
-                  "magnitude": 72.9375
+                  "headline": "pdf-geom: worst fill#2 w/size Δ0.562pt (offset 0.862pt cancelled)",
+                  "magnitude": 0.5625
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#12 unmatched (nearest 72.938pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -103381,10 +103336,10 @@
         },
         {
           "feature": "rowspan",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 2,
+            "pass": 2,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -103396,7 +103351,7 @@
               "subfeature": "rowspan-2",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.7571,
               "weight": 1.0,
               "description": "A first-column cell with rowspan=2 spans both rows while later columns stay single-row.",
@@ -103407,7 +103362,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "ed7eba48e8bb3dde9586e3f3eefa7a212584b325b3516221e03b76a4fd7d0261",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -103643,22 +103598,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#18 unmatched (nearest 76.500pt)",
-                  "magnitude": 76.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#18 unmatched (nearest 76.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-rowspan-stagger",
@@ -103667,7 +103613,7 @@
               "subfeature": "stagger-shift",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.7486,
               "weight": 1.0,
               "description": "A rowspan=2 first-column cell shifts later rows' cells into the remaining columns.",
@@ -103678,7 +103624,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "b2a2a0adb1eab298c4ad354ef553c8eef0a2b5e6a6d66805369a38f86e5422ec",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -103914,22 +103860,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#14 unmatched (nearest 88.500pt)",
-                  "magnitude": 88.5
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#14 unmatched (nearest 88.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -104197,31 +104134,22 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#11 unmatched (nearest 132.469pt)",
-                  "magnitude": 132.46875
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.375pt (offset 0.956pt cancelled)",
+                  "magnitude": 0.375
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#11 unmatched (nearest 132.469pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
         {
           "feature": "table",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -104233,7 +104161,7 @@
               "subfeature": "basic-grid",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.51,
               "weight": 1.0,
               "description": "2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.",
@@ -104244,7 +104172,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "20fd61138cbf53a1d1ae2a48601e60a30ad3077d24f6ffbd435bf5c140827acc",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -104480,31 +104408,22 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#12 unmatched (nearest 88.500pt)",
-                  "magnitude": 88.5
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#12 unmatched (nearest 88.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
         {
           "feature": "table-layout",
-          "score_pct": 37.5,
+          "score_pct": 62.5,
           "counts": {
-            "pass": 0,
-            "partial": 3,
+            "pass": 2,
+            "partial": 1,
             "fail": 1,
             "unknown": 0
           },
@@ -104516,7 +104435,7 @@
               "subfeature": "auto",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.886,
               "weight": 1.0,
               "description": "table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).",
@@ -104527,7 +104446,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "87459310f1d4d4b321a8c03b90159dc8044c12e1136b29d7c7196da7525f4832",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -104763,22 +104682,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#12 unmatched (nearest 118.500pt)",
-                  "magnitude": 118.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#12 unmatched (nearest 118.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-layout-auto-overflow",
@@ -105039,8 +104949,8 @@
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#2 w/size Δ99.627pt",
-                  "magnitude": 99.62694999999998
+                  "headline": "pdf-geom FAIL: fill#0 unmatched (nearest 1.438pt)",
+                  "magnitude": 1.4384800000000055
                 }
               ],
               "disagreements": []
@@ -105052,7 +104962,7 @@
               "subfeature": "fixed",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.1779,
               "weight": 1.0,
               "description": "table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.",
@@ -105063,7 +104973,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "cc7abfd9dc2e8b0881c8eb908980264500cd76dc74e6ba216b4cde42b8ba512c",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -105241,22 +105151,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#10 unmatched (nearest 133.500pt)",
-                  "magnitude": 133.5
+                  "headline": "pdf-geom: worst fill#1 w/size Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#10 unmatched (nearest 133.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-layout-fixed-remainder",
@@ -105512,31 +105413,22 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#12 unmatched (nearest 132.375pt)",
-                  "magnitude": 132.375
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.375pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.375
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#12 unmatched (nearest 132.375pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
         {
           "feature": "table-sections",
-          "score_pct": 50.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
-            "partial": 1,
+            "pass": 1,
+            "partial": 0,
             "fail": 0,
             "unknown": 0
           },
@@ -105548,7 +105440,7 @@
               "subfeature": "thead-tbody-tfoot",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.7627,
               "weight": 1.0,
               "description": "thead, tbody and tfoot row groups render in document order with distinct section backgrounds.",
@@ -105559,7 +105451,7 @@
                 "probe-block-flow"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "de1957eb1f5a0d2b53c04e9bc319c068455a5d3a831d2df6ff60ccdbca233159",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -105795,22 +105687,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#12 unmatched (nearest 111.000pt)",
-                  "magnitude": 111.0
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#12 unmatched (nearest 111.000pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
@@ -106080,31 +105963,22 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)",
-                  "magnitude": 88.5
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
         {
           "feature": "th-cell",
-          "score_pct": 50.0,
+          "score_pct": 75.0,
           "counts": {
-            "pass": 0,
-            "partial": 2,
+            "pass": 1,
+            "partial": 1,
             "fail": 0,
             "unknown": 0
           },
@@ -106366,8 +106240,8 @@
                   "verifier": "PdfGeometry",
                   "status": "FAIL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#8 unmatched (nearest 133.500pt)",
-                  "magnitude": 133.5
+                  "headline": "pdf-geom: gross page offset 17.325pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 18.000pt)",
+                  "magnitude": 18.0
                 }
               ],
               "disagreements": [
@@ -106377,7 +106251,7 @@
                   "authoritative_by": "PdfGeometry",
                   "challenger": "PASS",
                   "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#8 unmatched (nearest 133.500pt)"
+                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom: gross page offset 17.325pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 18.000pt)"
                 }
               ]
             },
@@ -106388,7 +106262,7 @@
               "subfeature": "header-default",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 1.2527,
               "weight": 1.0,
               "description": "th header cells in the first row vs td data cells, with distinct fills and text.",
@@ -106400,7 +106274,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "784addea77e8438d68230b05db079a45618e3aaa1d2a12af6b167c4d47171c64",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -106636,31 +106510,22 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#8 unmatched (nearest 111.000pt)",
-                  "magnitude": 111.0
+                  "headline": "pdf-geom: worst fill#0 w/size Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#8 unmatched (nearest 111.000pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         },
         {
           "feature": "vertical-align",
-          "score_pct": 50.0,
+          "score_pct": 66.67,
           "counts": {
-            "pass": 0,
-            "partial": 3,
+            "pass": 1,
+            "partial": 2,
             "fail": 0,
             "unknown": 0
           },
@@ -106919,22 +106784,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#8 w/size Δ87.750pt",
-                  "magnitude": 87.75
+                  "headline": "pdf-geom: worst fill#1 pos Δ0.375pt (offset 0.863pt cancelled)",
+                  "magnitude": 0.375
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#8 w/size Δ87.750pt"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-vertical-align-baseline",
@@ -106943,7 +106799,7 @@
               "subfeature": "baseline-uniform",
               "interaction_of": [],
               "base_ids": [],
-              "status": "PARTIAL",
+              "status": "PASS",
               "diff_pct": 0.5636,
               "weight": 1.0,
               "description": "vertical-align:baseline aligns same-size cell text on a shared row baseline.",
@@ -106955,7 +106811,7 @@
                 "probe-text-baseline"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "083e335982ddca27ae48ae80a729a7a4268a1a44a3a98d7a2b6a0a2993c239c9",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -107191,22 +107047,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)",
-                  "magnitude": 88.5
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)"
-                }
-              ]
+              "disagreements": []
             },
             {
               "id": "tables-vertical-align-baseline-sizes",
@@ -107464,22 +107311,13 @@
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)",
-                  "magnitude": 88.5
+                  "headline": "pdf-geom: worst fill#0 pos Δ0.000pt (offset 0.675pt cancelled)",
+                  "magnitude": 1.4210854715202004e-14
                 }
               ],
-              "disagreements": [
-                {
-                  "concern": "Geometry",
-                  "authoritative": "FAIL",
-                  "authoritative_by": "PdfGeometry",
-                  "challenger": "PASS",
-                  "challenger_by": "RasterDiff",
-                  "note": "vector FAIL capped to PARTIAL (image not broken): pdf-geom FAIL: fill#9 unmatched (nearest 88.500pt)"
-                }
-              ]
+              "disagreements": []
             }
           ]
         }
@@ -125799,24 +125637,6 @@
       "confounded_count": 1,
       "confounded_ids": [
         "inline-block-x-vertical-align"
-      ]
-    },
-    {
-      "id": "tables-basic-grid",
-      "feature": "table",
-      "status": "PARTIAL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "tables-x-flexbox-nested"
-      ]
-    },
-    {
-      "id": "tables-thead-tbody-tfoot",
-      "feature": "table-sections",
-      "status": "PARTIAL",
-      "confounded_count": 1,
-      "confounded_ids": [
-        "tables-x-typography-bold"
       ]
     }
   ],
