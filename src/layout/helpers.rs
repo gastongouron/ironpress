@@ -1463,17 +1463,18 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
     let (raw, _mime) = crate::layout::images::load_src_bytes(&image_src)?;
     let image = crate::layout::images::load_image_bytes(raw)?;
 
-    let intrinsic_w = image.source_width.max(1) as f32;
-    let intrinsic_h = image.source_height.max(1) as f32;
-    // Resolve the painted size: explicit dimensions win; a single explicit
-    // dimension scales the other by the intrinsic aspect ratio; otherwise use
-    // the intrinsic pixel size (CSS px == intrinsic px at 1x).
-    let (width, height) = match (pseudo_style.width, pseudo_style.height) {
-        (Some(w), Some(h)) => (w.max(0.0), h.max(0.0)),
-        (Some(w), None) => (w.max(0.0), w.max(0.0) * intrinsic_h / intrinsic_w),
-        (None, Some(h)) => (h.max(0.0) * intrinsic_w / intrinsic_h, h.max(0.0)),
-        (None, None) => (intrinsic_w, intrinsic_h),
-    };
+    // Intrinsic image pixels map to CSS px at 1x, and CSS px → PDF points at
+    // 1px = 0.75pt (96dpi). The same conversion is applied to `<img>` intrinsic
+    // sizing (see layout::images). Without it the intrinsic size would be read
+    // as points and the image would render ~1.33x too large.
+    //
+    // A pseudo-element whose `content` is a single `url()` image is a generated
+    // *content* replaced box: its size is the image's intrinsic size, and the
+    // `width`/`height` properties do NOT apply to it (matching Chrome). So the
+    // box always paints at the intrinsic dimensions regardless of any declared
+    // `width`/`height` on the pseudo rule.
+    let width = image.source_width.max(1) as f32 * 0.75;
+    let height = image.source_height.max(1) as f32 * 0.75;
 
     Some(InlineBox {
         width,

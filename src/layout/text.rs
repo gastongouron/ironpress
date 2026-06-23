@@ -188,6 +188,22 @@ impl TextWrapOptions {
     }
 }
 
+/// One wrappable token (a word, a preserved space-run, a `\n`, or an atomic
+/// inline box) together with the style it was split from and two flags that
+/// control inter-word spacing.
+struct StyledWord {
+    text: String,
+    run: TextRun,
+    /// The token preserves its own internal whitespace (pre-wrap space runs,
+    /// atomic boxes): the wrapper never injects an inter-word space before it.
+    preserve_spacing: bool,
+    /// The token is directly adjacent to the previous token in the source with
+    /// no collapsible whitespace at the boundary (e.g. a `::before` pseudo run
+    /// abutting the element's own text). The wrapper must not synthesise an
+    /// inter-word space before it even though it starts a new run.
+    joins_prev: bool,
+}
+
 /// Split a segment of text that preserves its internal whitespace into
 /// alternating word-runs and space-runs. Used for `white-space: pre-wrap`,
 /// where spaces must be preserved verbatim but lines may still wrap at the
@@ -195,23 +211,29 @@ impl TextWrapOptions {
 /// flagged `preserve_spacing = true` so the wrapper never injects its own
 /// inter-word space; soft wrapping then happens via the generic
 /// "token overflows the line" break.
-fn split_preserving_spaces(
-    segment: &str,
-    template: &TextRun,
-    out: &mut Vec<(String, TextRun, bool)>,
-) {
+fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
     let mut current = String::new();
     let mut current_is_space: Option<bool> = None;
     for ch in segment.chars() {
         let is_space = ch == ' ' || ch == '\t';
         if current_is_space != Some(is_space) && !current.is_empty() {
-            out.push((std::mem::take(&mut current), template.clone(), true));
+            out.push(StyledWord {
+                text: std::mem::take(&mut current),
+                run: template.clone(),
+                preserve_spacing: true,
+                joins_prev: false,
+            });
         }
         current_is_space = Some(is_space);
         current.push(ch);
     }
     if !current.is_empty() {
-        out.push((current, template.clone(), true));
+        out.push(StyledWord {
+            text: current,
+            run: template.clone(),
+            preserve_spacing: true,
+            joins_prev: false,
+        });
     }
 }
 
@@ -295,26 +317,65 @@ pub(crate) fn wrap_text_runs(
     // Concatenate all text then re-split by words, preserving run styles.
     // For text containing \n (white-space: pre), split on newlines first,
     // then split each segment by words.
-    let mut styled_words: Vec<(String, TextRun, bool)> = Vec::new();
+    //
+    // `prev_run_ends_ws` tracks whether the previously processed run ended in
+    // collapsible whitespace. The first word of a run joins the prior word with
+    // no inter-word space (`joins_prev`) only when the run boundary carried no
+    // whitespace on either side — e.g. a `::before` pseudo run abutting the
+    // element's own text (`<>` + `widget` → `<>widget`, never `<> widget`).
+    let mut styled_words: Vec<StyledWord> = Vec::new();
+    let mut prev_run_ends_ws = true;
     for run in &runs {
+        let run_starts_ws = run.text.chars().next().is_some_and(char::is_whitespace);
+        // The first emitted word of this run is directly adjacent to the prior
+        // content when neither side of the boundary had whitespace.
+        let first_word_joins = !prev_run_ends_ws && !run_starts_ws;
+        let run_ends_ws = run.text.chars().last().is_some_and(char::is_whitespace);
+
         if run.inline_box.is_some() {
             // Atomic inline box: a single, unbreakable token. `preserve_spacing`
             // is true so no inter-word space is injected before it.
-            styled_words.push((String::new(), run.clone(), true));
+            styled_words.push(StyledWord {
+                text: String::new(),
+                run: run.clone(),
+                preserve_spacing: true,
+                joins_prev: false,
+            });
+            // An atomic box is not whitespace; the next run abuts it directly.
+            prev_run_ends_ws = false;
             continue;
         }
         if run.text == "\n" {
-            styled_words.push(("\n".to_string(), run.clone(), false));
+            styled_words.push(StyledWord {
+                text: "\n".to_string(),
+                run: run.clone(),
+                preserve_spacing: false,
+                joins_prev: false,
+            });
+            prev_run_ends_ws = true;
             continue;
         }
+        // Index of the first non-`\n` word token emitted from this run, used to
+        // apply `first_word_joins` only to that token.
+        let first_word_idx = styled_words.len();
         let has_newlines = run.text.contains('\n');
-        let has_preserved_spacing = run.text.chars().next().is_some_and(char::is_whitespace)
-            || run.text.chars().last().is_some_and(char::is_whitespace)
-            || run.text.contains("  ");
+        // A run is kept as a single verbatim token (rather than word-split) only
+        // when it carries *internal* significant whitespace that `split_whitespace`
+        // would lose: a leading space (e.g. generated " label") or a collapsed-out
+        // double space (white-space: pre). A trailing-only space is NOT a reason —
+        // it merely records a soft boundary (`prev_run_ends_ws` below) so the next
+        // run is spaced from this one; word-splitting drops the trailing char but
+        // keeps that boundary, which is what we want for `a <b>b</b>` → "a b".
+        let has_preserved_spacing = run_starts_ws || run.text.contains("  ");
         if has_newlines {
             for (seg_idx, segment) in run.text.split('\n').enumerate() {
                 if seg_idx > 0 {
-                    styled_words.push(("\n".to_string(), run.clone(), false));
+                    styled_words.push(StyledWord {
+                        text: "\n".to_string(),
+                        run: run.clone(),
+                        preserve_spacing: false,
+                        joins_prev: false,
+                    });
                 }
                 if segment.is_empty() {
                     continue;
@@ -328,11 +389,21 @@ pub(crate) fn wrap_text_runs(
                         // boundaries; split so the generic overflow break can act.
                         split_preserving_spaces(segment, run, &mut styled_words);
                     } else {
-                        styled_words.push((segment.to_string(), run.clone(), true));
+                        styled_words.push(StyledWord {
+                            text: segment.to_string(),
+                            run: run.clone(),
+                            preserve_spacing: true,
+                            joins_prev: false,
+                        });
                     }
                 } else {
                     for word in segment.split_whitespace() {
-                        styled_words.push((word.to_string(), run.clone(), false));
+                        styled_words.push(StyledWord {
+                            text: word.to_string(),
+                            run: run.clone(),
+                            preserve_spacing: false,
+                            joins_prev: false,
+                        });
                     }
                 }
             }
@@ -340,13 +411,33 @@ pub(crate) fn wrap_text_runs(
             if options.pre_wrap {
                 split_preserving_spaces(&run.text, run, &mut styled_words);
             } else {
-                styled_words.push((run.text.clone(), run.clone(), true));
+                styled_words.push(StyledWord {
+                    text: run.text.clone(),
+                    run: run.clone(),
+                    preserve_spacing: true,
+                    joins_prev: false,
+                });
             }
         } else {
             for word in run.text.split_whitespace() {
-                styled_words.push((word.to_string(), run.clone(), false));
+                styled_words.push(StyledWord {
+                    text: word.to_string(),
+                    run: run.clone(),
+                    preserve_spacing: false,
+                    joins_prev: false,
+                });
             }
         }
+
+        // Tag the run's first word token so it abuts the prior content when the
+        // boundary carried no whitespace.
+        if first_word_joins
+            && let Some(first) = styled_words.get_mut(first_word_idx)
+            && first.text != "\n"
+        {
+            first.joins_prev = true;
+        }
+        prev_run_ends_ws = run_ends_ws;
     }
 
     if styled_words.is_empty() && !runs.is_empty() {
@@ -357,8 +448,7 @@ pub(crate) fn wrap_text_runs(
     }
 
     // Use a VecDeque so hyphenation remainders can be re-queued for processing.
-    let mut queue: std::collections::VecDeque<(String, TextRun, bool)> =
-        styled_words.into_iter().collect();
+    let mut queue: std::collections::VecDeque<StyledWord> = styled_words.into_iter().collect();
 
     // CSS `text-indent` only shortens the FIRST formatted line: the inline
     // content available before wrapping is `max_width - text_indent` while no
@@ -371,7 +461,13 @@ pub(crate) fn wrap_text_runs(
         }
     };
 
-    while let Some((word, template, preserve_spacing)) = queue.pop_front() {
+    while let Some(StyledWord {
+        text: word,
+        run: template,
+        preserve_spacing,
+        joins_prev,
+    }) = queue.pop_front()
+    {
         if word == "\n" {
             // Line break
             lines.push(TextLine {
@@ -489,7 +585,7 @@ pub(crate) fn wrap_text_runs(
             fonts,
         );
 
-        let needed = if current_width > 0.0 && !preserve_spacing {
+        let needed = if current_width > 0.0 && !preserve_spacing && !joins_prev {
             space_width + word_width
         } else {
             word_width
@@ -551,7 +647,12 @@ pub(crate) fn wrap_text_runs(
                 });
                 current_width = 0.0;
                 line_height = run_line_height(&template);
-                queue.push_front((remainder, template, false));
+                queue.push_front(StyledWord {
+                    text: remainder,
+                    run: template,
+                    preserve_spacing: false,
+                    joins_prev: false,
+                });
                 continue;
             }
         }
@@ -577,7 +678,7 @@ pub(crate) fn wrap_text_runs(
             .last()
             .and_then(|r: &TextRun| r.text.chars().last())
             .is_some_and(char::is_whitespace);
-        let needs_space = current_width > 0.0 && !preserve_spacing && !prev_ends_ws;
+        let needs_space = current_width > 0.0 && !preserve_spacing && !prev_ends_ws && !joins_prev;
         let prev_bg = current_runs
             .last()
             .and_then(|r: &TextRun| r.background_color);
@@ -1016,7 +1117,35 @@ fn collect_text_runs_inner(
                 } else if pre_line {
                     collapse_whitespace_pre_line(text)
                 } else {
-                    collapse_whitespace(text)
+                    // CSS whitespace collapsing applies across the *whole* inline
+                    // formatting context, not per text node. `collapse_whitespace`
+                    // trims each node's edges, which would silently drop the space
+                    // in `<span>a</span> <span>b</span>` (a lone-space text node
+                    // between two inline elements). Re-attach a single collapsible
+                    // edge space when the node carried one AND it sits between
+                    // inline content (i.e. not at the block's leading edge), so the
+                    // line breaker — which is whitespace-aware — keeps the inter-
+                    // element space without synthesising spurious spaces elsewhere
+                    // (e.g. between a `::before` run and the element's own text).
+                    let mut collapsed = collapse_whitespace(text);
+                    let starts_ws = text.chars().next().is_some_and(char::is_whitespace);
+                    let ends_ws = text.chars().last().is_some_and(char::is_whitespace);
+                    let prev_has_trailing_content = runs
+                        .last()
+                        .is_some_and(|r: &TextRun| !r.text.is_empty() && r.text != "\n");
+                    if starts_ws && prev_has_trailing_content {
+                        let prev_ends_ws = runs
+                            .last()
+                            .and_then(|r: &TextRun| r.text.chars().last())
+                            .is_some_and(char::is_whitespace);
+                        if !prev_ends_ws {
+                            collapsed.insert(0, ' ');
+                        }
+                    }
+                    if ends_ws && !collapsed.is_empty() && !collapsed.ends_with(' ') {
+                        collapsed.push(' ');
+                    }
+                    collapsed
                 };
                 // Apply CSS text-transform
                 let processed = match parent_style.text_transform {

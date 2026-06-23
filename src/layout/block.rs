@@ -364,8 +364,43 @@ pub(crate) fn layout_block_element(
     let after_is_abs = after_style
         .as_ref()
         .is_some_and(|s| s.position == Position::Absolute);
+    // A non-absolute block-level `::before`/`::after` (e.g.
+    // `.card::before { content: "HEADER"; display: block }`) is an in-flow
+    // block-level child of the originating element: it must be laid out INSIDE
+    // the element's content box as the first/last block, not as a sibling
+    // before/after it (css-content-3 §1, css-display-3). It therefore forces the
+    // Container wrapper path just like a real block child does.
+    let has_block_before = before_style
+        .as_ref()
+        .is_some_and(|s| pseudo_is_block_like(s) && s.position != Position::Absolute);
+    let has_block_after = after_style
+        .as_ref()
+        .is_some_and(|s| pseudo_is_block_like(s) && s.position != Position::Absolute);
+    let has_inflow_block_pseudo = has_block_before || has_block_after;
+    // `early_has_visual`/`nesting_depth` are needed both here (to decide whether
+    // a block pseudo routes through the Container wrapper) and later (to gate the
+    // wrapper itself), so compute them once up front.
+    let early_has_visual = has_background_paint(style)
+        || style.border.has_any()
+        || style.border_radius > 0.0
+        || !style.box_shadow.is_empty();
+    let nesting_depth = ancestors.len();
+    // A block-level `::before` is normally emitted here as the first in-flow
+    // block. But when this element takes the Container wrapper path (it has
+    // visual box decoration AND in-flow block content), the pseudo must instead
+    // be nested INSIDE the wrapper as its first child — handled below — so it
+    // sits within the element's padding box rather than as a preceding sibling.
+    let has_block_kids_for_wrapper = nesting_depth < 40
+        && early_has_visual
+        && (has_inflow_block_pseudo
+            || el.children.iter().any(|c| {
+                matches!(c, DomNode::Element(e)
+                if (e.tag.is_block() || e.tag == HtmlTag::Svg)
+                    && !collects_as_inline_text(e.tag))
+            }));
+    let block_pseudo_via_wrapper = has_inflow_block_pseudo && has_block_kids_for_wrapper;
     if let Some(ref ps) = before_style {
-        if pseudo_is_block_like(ps) && !before_is_abs {
+        if pseudo_is_block_like(ps) && !before_is_abs && !block_pseudo_via_wrapper {
             output.push(build_pseudo_block(
                 ps,
                 el,
@@ -542,24 +577,6 @@ pub(crate) fn layout_block_element(
             false
         }
     });
-
-    // Check if this block has visual properties AND block children.
-    // When true, inline text is collected separately and block children
-    // are processed via the needs_wrapper path for correct nesting.
-    let early_has_visual = has_background_paint(style)
-        || style.border.has_any()
-        || style.border_radius > 0.0
-        || !style.box_shadow.is_empty();
-    // Limit nesting depth to prevent stack overflow on deeply nested HTML.
-    // Beyond depth 40, fall back to flat text collection instead of Containers.
-    let nesting_depth = ancestors.len();
-    let has_block_kids_for_wrapper = nesting_depth < 40
-        && early_has_visual
-        && el.children.iter().any(|c| {
-            matches!(c, DomNode::Element(e)
-                if (e.tag.is_block() || e.tag == HtmlTag::Svg)
-                    && !collects_as_inline_text(e.tag))
-        });
 
     if has_math_children {
         // Split mode: interleave TextBlocks and MathBlocks
@@ -1318,7 +1335,12 @@ pub(crate) fn layout_block_element(
 
         // When this block has visual properties AND block children,
         // save the inline text for inclusion inside the wrapper instead
-        // of emitting it directly.  The wrapper path will use it.
+        // of emitting it directly.  The wrapper path will use it. In that case
+        // the inline text becomes an anonymous block-level box *inside* the
+        // wrapper: the wrapper (Container) paints the element's background,
+        // border, padding and offsets, so this inner box must carry none of them
+        // (otherwise the border/background/indent would be drawn twice — once on
+        // the Container and again around the inline text).
         let inline_tb = LayoutElement::TextBlock {
             lines,
             margin_top: if has_block_kids_for_wrapper {
@@ -1338,34 +1360,102 @@ pub(crate) fn layout_block_element(
             } else {
                 style.padding.top
             },
-            padding_bottom: style.padding.bottom,
-            padding_left: style.padding.left,
-            padding_right: style.padding.right,
-            border: LayoutBorder::from_computed(&style.border),
-            block_width: explicit_width,
+            padding_bottom: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                style.padding.bottom
+            },
+            padding_left: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                style.padding.left
+            },
+            padding_right: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                style.padding.right
+            },
+            border: if has_block_kids_for_wrapper {
+                LayoutBorder::default()
+            } else {
+                LayoutBorder::from_computed(&style.border)
+            },
+            block_width: if has_block_kids_for_wrapper {
+                None
+            } else {
+                explicit_width
+            },
             block_height: effective_height.map(|_| total_h),
             opacity: style.opacity,
             mix_blend_mode: style.mix_blend_mode,
             background_blend_mode: style.background_blend_mode,
-            float: style.float,
+            float: if has_block_kids_for_wrapper {
+                Float::None
+            } else {
+                style.float
+            },
             clear: style.clear,
-            position: style.position,
-            offset_top: resolved_top,
-            offset_left: resolved_left + auto_offset_left,
+            position: if has_block_kids_for_wrapper {
+                Position::Static
+            } else {
+                style.position
+            },
+            offset_top: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                resolved_top
+            },
+            offset_left: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                resolved_left + auto_offset_left
+            },
             offset_bottom: style.bottom.unwrap_or(0.0),
             offset_right: style.right.unwrap_or(0.0),
             containing_block: elem_cb,
-            box_shadow: style.box_shadow.clone(),
+            box_shadow: if has_block_kids_for_wrapper {
+                Vec::new()
+            } else {
+                style.box_shadow.clone()
+            },
             visible: style.visibility == Visibility::Visible,
-            clip_rect,
-            transform: style.transform,
+            clip_rect: if has_block_kids_for_wrapper {
+                None
+            } else {
+                clip_rect
+            },
+            transform: if has_block_kids_for_wrapper {
+                None
+            } else {
+                style.transform
+            },
             transform_origin: style.transform_origin,
-            border_radius: style.border_radius,
-            border_radii: style.border_radii,
-            border_radii_y: style.border_radii_y,
+            border_radius: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                style.border_radius
+            },
+            border_radii: if has_block_kids_for_wrapper {
+                [0.0; 4]
+            } else {
+                style.border_radii
+            },
+            border_radii_y: if has_block_kids_for_wrapper {
+                [0.0; 4]
+            } else {
+                style.border_radii_y
+            },
             outline_offset: style.outline_offset,
-            outline_width: style.outline_width,
-            outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+            outline_width: if has_block_kids_for_wrapper {
+                0.0
+            } else {
+                style.outline_width
+            },
+            outline_color: if has_block_kids_for_wrapper {
+                None
+            } else {
+                style.outline_color.map(|c| c.to_f32_rgb())
+            },
             text_indent: style.text_indent,
             letter_spacing: style.letter_spacing,
             word_spacing: style.word_spacing,
@@ -1409,7 +1499,10 @@ pub(crate) fn layout_block_element(
         }
         // Only emit non-absolute before pseudo-elements here.
         // Absolute positioned ::before will be emitted after children processing.
-        if !before_is_abs {
+        // When this block routes its block-level pseudos through the Container
+        // wrapper (visual box + in-flow block content), skip this sibling emit —
+        // the wrapper nests the pseudo inside the padding box instead.
+        if !before_is_abs && !block_pseudo_via_wrapper {
             push_block_pseudo(
                 output,
                 before_style.as_ref(),
@@ -1482,8 +1575,24 @@ pub(crate) fn layout_block_element(
         && nesting_depth < 40
     {
         // Pre-flatten children to measure total height.
-        // If there's saved inline content, include it as the first child.
+        // A non-absolute block-level `::before` is the element's first in-flow
+        // block child, so it is laid out inside the wrapper ahead of the
+        // element's own inline content (css-content-3 §1).
         let mut child_elements: Vec<LayoutElement> = Vec::new();
+        if has_block_before && !before_is_abs {
+            if let Some(ref ps) = before_style {
+                child_elements.push(build_pseudo_block(
+                    ps,
+                    el,
+                    inner_width,
+                    env.fonts,
+                    None,
+                    positioned_depth,
+                    env.counter_state,
+                ));
+            }
+        }
+        // If there's saved inline content, include it as the next child.
         if let Some(inline_el) = saved_inline_element.take() {
             child_elements.push(inline_el);
         }
@@ -1592,6 +1701,23 @@ pub(crate) fn layout_block_element(
                 child_ancestors,
                 env.fonts,
             );
+        }
+        // A non-absolute block-level `::after` is the element's last in-flow
+        // block child, laid out inside the wrapper after all real children
+        // (css-content-3 §1). Appended before height measurement and margin
+        // collapsing so it contributes to the box's height.
+        if has_block_after && !after_is_abs {
+            if let Some(ref ps) = after_style {
+                child_elements.push(build_pseudo_block(
+                    ps,
+                    el,
+                    inner_width,
+                    env.fonts,
+                    None,
+                    positioned_depth,
+                    env.counter_state,
+                ));
+            }
         }
         // CSS 2.1 § 8.3.1: margins of a block and its first/last in-flow
         // children collapse when no padding/border/line box separates them.

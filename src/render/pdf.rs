@@ -5439,6 +5439,45 @@ fn render_container_children(
                             lx += inline.outer_width();
                             continue;
                         }
+                        if run.text.is_empty() {
+                            continue;
+                        }
+                        let run_width = estimate_run_width_with_fonts(run, custom_fonts);
+                        // Per-run inline background (e.g. a `::first-letter`/
+                        // `::first-line` `background-color`, or a highlighted
+                        // inline span): paint the rectangle behind the glyphs
+                        // before drawing the text. Mirrors the other line-box
+                        // render paths (table cells, absolute boxes).
+                        if let Some((br, bgc, bb, ba)) = run.background_color {
+                            let needs_inline_bg_alpha = ba < 1.0;
+                            if needs_inline_bg_alpha {
+                                let gs_name = format!("GStbiba{bg_alpha_counter}");
+                                *bg_alpha_counter += 1;
+                                page_ext_gstates.push((gs_name.clone(), ba));
+                                content.push_str(&format!("/{gs_name} gs\n"));
+                            }
+                            let (pad_h, pad_v) = run.padding;
+                            let rx = lx - pad_h;
+                            let ry = text_y - 2.0 - pad_v;
+                            let rw2 = run_width + pad_h * 2.0;
+                            let rh = run.font_size + 2.0 + pad_v * 2.0;
+                            content.push_str(&format!("{br} {bgc} {bb} rg\n"));
+                            if run.border_radius > 0.0 {
+                                content.push_str(&rounded_rect_path(
+                                    rx,
+                                    ry,
+                                    rw2,
+                                    rh,
+                                    run.border_radius,
+                                ));
+                                content.push_str("\nf\n");
+                            } else {
+                                content.push_str(&format!("{rx} {ry} {rw2} {rh} re\nf\n"));
+                            }
+                            if needs_inline_bg_alpha {
+                                content.push_str("/GSDefault gs\n");
+                            }
+                        }
                         let rw = render_run_text(
                             content,
                             run,
