@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 78.92%  (PASS 438 · PARTIAL 90 · FAIL 84 · UNKNOWN 1 · total 613)
+Overall: 79.25%  (PASS 439 · PARTIAL 92 · FAIL 81 · UNKNOWN 1 · total 613)
 Scored coverage: 99.84% (612 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -34,12 +34,9 @@ None — every fixture's HTML matches `refs.lock`.
 
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
-| FAIL | REAL | ColorValue | 1.39 | backgrounds-borders | border | per-side-width-color | border-per-side-colors | fill recolour ΔRGB(-42,-49,+172) (ΔE 62.6) |
-| FAIL | REAL | Extra | 9.20 | backgrounds-borders | border-radius | 50pct-nonsquare | border-radius-ellipse-nonsquare | extra paint where Chrome is blank (9.9%) |
 | FAIL | REAL | ColorValue | 9.51 | backgrounds-borders | border-radius | uniform | border-radius-uniform | fill recolour ΔRGB(+57,+0,+8) (ΔE 9.2) |
 | FAIL | REAL | GeometrySize | 0.57 | backgrounds-borders | border-radius | x-linear-gradient | border-radius-x-linear-gradient | box −0.3px on left edge (size/box-model mismatch) |
-| FAIL | REAL | Missing | 7.99 | backgrounds-borders | border-style | dashed | border-style-dashed | content clipped/truncated (48.0% missing) |
-| FAIL | REAL | Missing | 5.11 | backgrounds-borders | border-style | dotted | border-style-dotted | content clipped/truncated (32.6% missing) |
+| FAIL | REAL | Missing | 6.52 | backgrounds-borders | border-style | dashed | border-style-dashed | content clipped/truncated (28.3% missing) |
 | FAIL | REAL | ColorValue | 0.02 | backgrounds-borders | conic-gradient | center | background-conic-gradient | fill recolour ΔRGB(+1,+5,+7) (ΔE 3.2) |
 | FAIL | REAL | ColorValue | 8.97 | backgrounds-gradients | background-origin | content-box | background-origin-content-box | fill recolour ΔRGB(-9,+71,-24) (ΔE 45.0) |
 | FAIL | REAL | ColorValue | 8.40 | backgrounds-gradients | background-size | explicit-length | background-size-length | fill recolour ΔRGB(+190,+114,+194) (ΔE 45.0) |
@@ -104,7 +101,7 @@ None — every fixture's HTML matches `refs.lock`.
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 68.33% | 18 | 5 | 7 | 1 |
+| backgrounds-borders | 75.00% | 19 | 7 | 4 | 1 |
 | backgrounds-gradients | 86.54% | 22 | 1 | 3 | 0 |
 | block-box-model | 93.02% | 40 | 0 | 3 | 0 |
 | clip-mask | 60.71% | 7 | 3 | 4 | 0 |
@@ -235,32 +232,32 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.30 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 68.33%
+### backgrounds-borders — 75.00%
 - **background-color** — 100.00%
   - PASS 0.53% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
-- **border** — 50.00%
-  - FAIL 1.39% border=per-side-width-color — `border-per-side-colors` — Box with four different per-side border widths and colors.
+- **border** — 66.67%
+  - PARTIAL 1.10% border=per-side-width-color — `border-per-side-colors` — Box with four different per-side border widths and colors.
   - PASS 0.00% border=solid-width — `border-solid-width` — Box with a uniform 8px solid border around a light fill.
   - PARTIAL 1.11% border=width-keywords — `border-width-keywords` — Per-side border-width keywords thin/medium/thick.
 - **border-color** — 75.00%
   - PASS 0.00% border-color=currentcolor — `border-color-currentcolor` — border-color currentColor resolves to the element color.
-  - PARTIAL 0.94% border-color=transparent-side — `border-color-transparent` — border-color transparent on one side, solid on the rest.
-- **border-radius** — 59.09%
+  - PARTIAL 0.83% border-color=transparent-side — `border-color-transparent` — border-color transparent on one side, solid on the rest.
+- **border-radius** — 68.18%
   - PASS 0.45% border-radius=50pct-circle — `border-radius-circle` — Square box turned into a filled circle via border-radius 50%.
   - PASS 0.67% border-radius=overlap-clamping — `border-radius-clamped` — border-radius larger than half the box is clamped/normalized to fit.
   - PASS 0.71% border-radius=corner-longhands — `border-radius-corner-longhands` — Per-corner border-radius longhands (top-left + bottom-right rounded, others square).
-  - FAIL 9.20% border-radius=50pct-nonsquare — `border-radius-ellipse-nonsquare` — border-radius 50% on a non-square box (elliptical corners).
-  - PARTIAL 5.00% border-radius=elliptical-slash — `border-radius-elliptical` — Elliptical border-radius via the Rx / Ry slash syntax.
+  - PASS 0.48% border-radius=50pct-nonsquare — `border-radius-ellipse-nonsquare` — border-radius 50% on a non-square box (elliptical corners).
+  - PARTIAL 0.59% border-radius=elliptical-slash — `border-radius-elliptical` — Elliptical border-radius via the Rx / Ry slash syntax.
   - PARTIAL 0.63% border-radius=four-value-shorthand — `border-radius-four-values` — border-radius 1-4 value shorthand assigning a distinct radius to each corner.
   - PASS 0.66% border-radius=per-corner — `border-radius-per-corner` — Filled box with two rounded corners and two square corners.
   - PARTIAL 0.50% border-radius=percentage — `border-radius-percentage` — border-radius given as a non-50% percentage of the box.
   - PASS 0.64% border-radius=two-value-shorthand — `border-radius-two-values` — border-radius two-value shorthand (TL/BR vs TR/BL diagonal radii).
   - FAIL 9.51% border-radius=uniform — `border-radius-uniform` — Filled box with a uniform 24px border-radius and a solid border.
   - FAIL 0.57% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
-- **border-style** — 50.00%
-  - FAIL 7.99% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
-  - FAIL 5.11% border-style=dotted — `border-style-dotted` — Box with a 6px dotted border.
+- **border-style** — 62.50%
+  - FAIL 6.52% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
+  - PARTIAL 1.10% border-style=dotted — `border-style-dotted` — Box with a 6px dotted border.
   - PASS 0.00% border-style=double — `border-style-double` — Box with a 10px double border (two solid rules separated by a gap).
   - PASS 0.00% border-style=none-no-paint — `border-style-none` — border-style none paints no border while reserving the declared width via longhands.
 - **box-shadow** — 100.00%

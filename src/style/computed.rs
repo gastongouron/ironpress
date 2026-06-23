@@ -1249,9 +1249,21 @@ pub struct ComputedStyle {
     /// shorthand and the per-corner longhands. Resolved against `border_radius`
     /// in layout when zero.
     pub border_radii: [f32; 4],
+    /// Per-corner VERTICAL border radii in points (same corner order). CSS
+    /// allows elliptical corners with distinct horizontal/vertical radii (the
+    /// `Rx / Ry` slash syntax, or `border-radius: 50%` on a non-square box where
+    /// the horizontal radius is width-relative and the vertical radius is
+    /// height-relative). `border_radii` holds the horizontal radii; this holds
+    /// the matching vertical radii. Equal to `border_radii` for circular corners,
+    /// so the renderer falls back to its circular-arc path unless they differ.
+    pub border_radii_y: [f32; 4],
     /// Per-corner percentage radii (same corner order). Resolved in layout
     /// against the box dimensions, mirroring `border_radius_pct`.
     pub border_radii_pct: [Option<f32>; 4],
+    /// Per-corner VERTICAL percentage radii (same corner order), resolved in
+    /// layout against the box HEIGHT (horizontal `border_radii_pct` resolve
+    /// against width). Used for elliptical corners from percentage values.
+    pub border_radii_y_pct: [Option<f32>; 4],
     pub outline_width: f32,
     pub outline_color: Option<Color>,
     /// CSS `outline-offset`: gap (in points) between the border edge and the
@@ -1491,7 +1503,9 @@ impl Default for ComputedStyle {
             border_radius: 0.0,
             border_radius_pct: None,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             border_radii_pct: [None; 4],
+            border_radii_y_pct: [None; 4],
             outline_width: 0.0,
             outline_color: None,
             outline_offset: 0.0,
@@ -1723,6 +1737,8 @@ pub fn compute_style_with_context(
     style.border_radius = 0.0;
     style.border_radii = [0.0; 4];
     style.border_radii_pct = [None; 4];
+    style.border_radii_y = [0.0; 4];
+    style.border_radii_y_pct = [None; 4];
     style.outline_width = 0.0;
     style.outline_color = None;
     style.outline_offset = 0.0;
@@ -2014,6 +2030,8 @@ pub fn compute_pseudo_element_style(
     style.border_radius = 0.0;
     style.border_radii = [0.0; 4];
     style.border_radii_pct = [None; 4];
+    style.border_radii_y = [0.0; 4];
+    style.border_radii_y_pct = [None; 4];
     style.outline_width = 0.0;
     style.outline_color = None;
     style.outline_offset = 0.0;
@@ -3592,19 +3610,23 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         Some(CssValue::Length(v)) => {
             style.border_radius = *v;
             style.border_radii = [*v; 4];
+            style.border_radii_y = [*v; 4];
         }
         Some(CssValue::Percentage(pct)) => {
-            // Resolve percentage border-radius against the smaller dimension.
-            // Use width if available, otherwise store a sentinel that the
-            // layout engine resolves later.  For the common `50%` case on a
-            // square element this produces a perfect circle.
+            // Percentage border-radius resolves per-axis in layout: the
+            // horizontal radius against the box width and the vertical against
+            // its height. On a square box `50%` is a circle; on a non-square box
+            // it is an ellipse. We seed both axes here and resolve in layout.
             style.border_radius_pct = Some(*pct);
             style.border_radii_pct = [Some(*pct); 4];
+            style.border_radii_y_pct = [Some(*pct); 4];
         }
         Some(CssValue::Keyword(k)) => {
-            let (radii, radii_pct) = parse_border_radius_shorthand(k);
+            let (radii, radii_pct, radii_y, radii_y_pct) = parse_border_radius_shorthand(k);
             style.border_radii = radii;
             style.border_radii_pct = radii_pct;
+            style.border_radii_y = radii_y;
+            style.border_radii_y_pct = radii_y_pct;
             // Keep the legacy uniform field meaningful for the all-equal case so
             // older single-radius code paths still round.
             if radii.iter().all(|r| (*r - radii[0]).abs() < f32::EPSILON)
@@ -3614,6 +3636,32 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             }
             if radii_pct.iter().all(|p| *p == radii_pct[0]) {
                 style.border_radius_pct = radii_pct[0];
+            }
+        }
+        // Non-percentage relative units (rem/vw/vh/calc/var) resolve against the
+        // length context now (they don't depend on the element's own box). A
+        // PERCENTAGE never reaches here — it is handled above as a layout-time
+        // hint so it can resolve per-axis against the element's own box.
+        Some(other @ (CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_))) => {
+            if let Some(v) = crate::style::resolve::try_resolve_to_length_in_context(
+                other,
+                &style.custom_properties,
+                length_context,
+            ) {
+                style.border_radius = v;
+                style.border_radii = [v; 4];
+                style.border_radii_y = [v; 4];
+            }
+        }
+        Some(other @ (CssValue::Calc(_) | CssValue::Var(_, _))) => {
+            if let Some(v) = crate::style::resolve::try_resolve_to_length_in_context(
+                other,
+                &style.custom_properties,
+                length_context,
+            ) {
+                style.border_radius = v;
+                style.border_radii = [v; 4];
+                style.border_radii_y = [v; 4];
             }
         }
         _ => {}
@@ -3626,34 +3674,45 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         ("border-bottom-right-radius", 2),
         ("border-bottom-left-radius", 3),
     ] {
+        let assign = |radii: &mut [f32; 4], pct: &mut [Option<f32>; 4], tok: RadiusToken| match tok
+        {
+            RadiusToken::Len(v) => {
+                radii[idx] = v;
+                pct[idx] = None;
+            }
+            RadiusToken::Pct(p) => {
+                pct[idx] = Some(p);
+                radii[idx] = 0.0;
+            }
+        };
         match get_non_special(map, prop) {
             Some(CssValue::Length(v)) => {
                 style.border_radii[idx] = *v;
                 style.border_radii_pct[idx] = None;
+                style.border_radii_y[idx] = *v;
+                style.border_radii_y_pct[idx] = None;
             }
             Some(CssValue::Percentage(p)) => {
                 style.border_radii_pct[idx] = Some(*p);
                 style.border_radii[idx] = 0.0;
+                style.border_radii_y_pct[idx] = Some(*p);
+                style.border_radii_y[idx] = 0.0;
             }
             Some(CssValue::Keyword(k)) => {
-                // Corner longhands may carry two values (horizontal / vertical);
-                // take the first (horizontal) radius for our circular corners.
-                if let Some(tok) = k
-                    .split('/')
-                    .next()
-                    .and_then(|h| h.split_whitespace().next())
-                    .and_then(parse_radius_token)
-                {
-                    match tok {
-                        RadiusToken::Len(v) => {
-                            style.border_radii[idx] = v;
-                            style.border_radii_pct[idx] = None;
-                        }
-                        RadiusToken::Pct(p) => {
-                            style.border_radii_pct[idx] = Some(p);
-                            style.border_radii[idx] = 0.0;
-                        }
-                    }
+                // Corner longhand grammar: `<horizontal> [vertical]` — two
+                // space-separated tokens give an elliptical corner. A single
+                // token applies to both axes (circular).
+                let mut toks = k.split_whitespace();
+                let h = toks.next().and_then(parse_radius_token);
+                let v = toks.next().and_then(parse_radius_token);
+                if let Some(htok) = h {
+                    assign(&mut style.border_radii, &mut style.border_radii_pct, htok);
+                    let vtok = v.unwrap_or(htok);
+                    assign(
+                        &mut style.border_radii_y,
+                        &mut style.border_radii_y_pct,
+                        vtok,
+                    );
                 }
             }
             _ => {}
@@ -3968,11 +4027,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             s.border.bottom.width = v;
             s.border.left.width = v;
         }),
-        ("border-radius", |s, v| {
-            s.border_radius = v;
-            s.border_radii = [v; 4];
-            s.border_radii_pct = [None; 4];
-        }),
+        // NOTE: `border-radius` is intentionally NOT in this list. A border-radius
+        // percentage resolves against the element's OWN border box (horizontal
+        // radii against its width, vertical against its height) per CSS
+        // Backgrounds §5.1 — NOT against the parent/containing-block width. The
+        // dedicated `border-radius` match above keeps the percentage as a hint
+        // (`border_radii_pct` / `border_radii_y_pct`) and the block/flex layout
+        // resolves it per-axis once the element's box is known. Eagerly resolving
+        // it here against `parent_width` produced circular (and on non-square
+        // boxes, wrong-sized) corners.
         ("text-indent", |s, v| s.text_indent = v),
         ("letter-spacing", |s, v| s.letter_spacing = v),
         ("word-spacing", |s, v| s.word_spacing = v),
@@ -6185,32 +6248,49 @@ fn expand_radius_group(tokens: &[RadiusToken]) -> [RadiusToken; 4] {
     }
 }
 
-/// Parse a full `border-radius` value into per-corner absolute radii (points)
-/// and per-corner percentages. The grammar is
-/// `<h1> [h2 h3 h4] [ / <v1> [v2 v3 v4] ]`; we model corners with a single
-/// radius (the horizontal group) since the renderer draws circular corners —
-/// the vertical group is parsed for completeness but, when present and equal in
-/// count, the larger circular approximation uses the horizontal radius. Returns
-/// `(radii_pt, radii_pct)` in corner order.
-fn parse_border_radius_shorthand(value: &str) -> ([f32; 4], [Option<f32>; 4]) {
-    let horiz_part = value.split('/').next().unwrap_or("").trim();
-    let tokens: Vec<RadiusToken> = horiz_part
-        .split_whitespace()
-        .filter_map(parse_radius_token)
-        .collect();
-    if tokens.is_empty() {
-        return ([0.0; 4], [None; 4]);
-    }
-    let corners = expand_radius_group(&tokens);
-    let mut radii = [0.0f32; 4];
-    let mut radii_pct = [None; 4];
-    for (i, c) in corners.iter().enumerate() {
-        match c {
-            RadiusToken::Len(v) => radii[i] = *v,
-            RadiusToken::Pct(p) => radii_pct[i] = Some(*p),
+/// Parse a full `border-radius` value into per-corner horizontal and vertical
+/// radii. The grammar is `<h1> [h2 h3 h4] [ / <v1> [v2 v3 v4] ]`: the optional
+/// part after `/` gives the VERTICAL radii (elliptical corners). When no `/`
+/// group is present the vertical radii equal the horizontal ones (circular
+/// corners). Returns `(radii_x_pt, radii_x_pct, radii_y_pt, radii_y_pct)` in
+/// [top-left, top-right, bottom-right, bottom-left] corner order.
+#[allow(clippy::type_complexity)]
+fn parse_border_radius_shorthand(
+    value: &str,
+) -> ([f32; 4], [Option<f32>; 4], [f32; 4], [Option<f32>; 4]) {
+    let mut parts = value.split('/');
+    let horiz_part = parts.next().unwrap_or("").trim();
+    let vert_part = parts.next().map(str::trim);
+    let parse_group = |s: &str| -> Option<[RadiusToken; 4]> {
+        let tokens: Vec<RadiusToken> = s
+            .split_whitespace()
+            .filter_map(parse_radius_token)
+            .collect();
+        if tokens.is_empty() {
+            None
+        } else {
+            Some(expand_radius_group(&tokens))
         }
-    }
-    (radii, radii_pct)
+    };
+    let Some(h_corners) = parse_group(horiz_part) else {
+        return ([0.0; 4], [None; 4], [0.0; 4], [None; 4]);
+    };
+    // Vertical group defaults to the horizontal one (circular corners).
+    let v_corners = vert_part.and_then(parse_group).unwrap_or(h_corners);
+    let to_arrays = |corners: [RadiusToken; 4]| -> ([f32; 4], [Option<f32>; 4]) {
+        let mut radii = [0.0f32; 4];
+        let mut radii_pct = [None; 4];
+        for (i, c) in corners.iter().enumerate() {
+            match c {
+                RadiusToken::Len(v) => radii[i] = *v,
+                RadiusToken::Pct(p) => radii_pct[i] = Some(*p),
+            }
+        }
+        (radii, radii_pct)
+    };
+    let (rx, rx_pct) = to_arrays(h_corners);
+    let (ry, ry_pct) = to_arrays(v_corners);
+    (rx, rx_pct, ry, ry_pct)
 }
 
 /// Map a CSS `border-style` keyword to a `BorderStyle`. Unknown keywords keep
@@ -12296,7 +12376,13 @@ mod tests {
     fn border_radius_from_percentage() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("border-radius: 50%"), &parent);
-        assert!(s.border_radius > 0.0);
+        // A percentage border-radius is kept as a layout-time hint (it resolves
+        // per-axis against the element's OWN box: horizontal radii against width,
+        // vertical against height), not eagerly against the parent width. The
+        // block/flex layout turns the hint into absolute radii.
+        assert_eq!(s.border_radius_pct, Some(50.0));
+        assert_eq!(s.border_radii_pct, [Some(50.0); 4]);
+        assert_eq!(s.border_radii_y_pct, [Some(50.0); 4]);
     }
 
     #[test]

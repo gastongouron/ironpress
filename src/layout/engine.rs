@@ -407,6 +407,9 @@ pub enum LayoutElement {
         /// Per-corner radii [top-left, top-right, bottom-right, bottom-left] in
         /// points. Equal to `[border_radius; 4]` for uniform rounding.
         border_radii: [f32; 4],
+        /// Per-corner VERTICAL radii (same order) for elliptical corners. Equal
+        /// to `border_radii` for circular corners.
+        border_radii_y: [f32; 4],
         outline_width: f32,
         outline_color: Option<(f32, f32, f32)>,
         /// CSS `outline-offset` in points (gap between border edge and outline).
@@ -567,6 +570,9 @@ pub enum LayoutElement {
         /// Per-corner radii [top-left, top-right, bottom-right, bottom-left] in
         /// points. Equal to `[border_radius; 4]` for uniform rounding.
         border_radii: [f32; 4],
+        /// Per-corner VERTICAL radii (same order) for elliptical corners. Equal
+        /// to `border_radii` for circular corners.
+        border_radii_y: [f32; 4],
         padding_top: f32,
         padding_bottom: f32,
         padding_left: f32,
@@ -674,6 +680,7 @@ impl LayoutElement {
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
@@ -921,6 +928,7 @@ pub fn layout_with_rules_and_fonts(
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
@@ -1125,6 +1133,7 @@ fn flatten_nodes(
                             transform_origin: crate::style::computed::TransformOrigin::default(),
                             border_radius: 0.0,
                             border_radii: [0.0; 4],
+                            border_radii_y: [0.0; 4],
                             outline_offset: 0.0,
                             outline_width: 0.0,
                             outline_color: None,
@@ -1396,6 +1405,7 @@ pub(crate) fn flatten_element(
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
@@ -1600,6 +1610,7 @@ pub(crate) fn flatten_element(
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
             border_radii: style.border_radii,
+            border_radii_y: style.border_radii_y,
             outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
@@ -1756,6 +1767,7 @@ pub(crate) fn flatten_element(
             transform_origin: style.transform_origin,
             border_radius: style.border_radius,
             border_radii: style.border_radii,
+            border_radii_y: style.border_radii_y,
             outline_offset: style.outline_offset,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
@@ -2178,6 +2190,7 @@ pub(crate) fn flatten_element(
                 transform_origin: style.transform_origin,
                 border_radius: style.border_radius,
                 border_radii: style.border_radii,
+                border_radii_y: style.border_radii_y,
                 outline_offset: style.outline_offset,
                 outline_width: style.outline_width,
                 outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
@@ -5124,6 +5137,7 @@ mod tests {
                 transform_origin: crate::style::computed::TransformOrigin::default(),
                 border_radius: 0.0,
                 border_radii: [0.0; 4],
+                border_radii_y: [0.0; 4],
                 outline_offset: 0.0,
                 outline_width: 0.0,
                 outline_color: None,
@@ -5259,6 +5273,7 @@ mod tests {
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
@@ -10060,6 +10075,7 @@ line 3</pre>
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,

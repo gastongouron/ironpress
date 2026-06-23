@@ -215,6 +215,40 @@ fn paint_uniform_border(
         content.push_str(&format!("{third} w\n"));
         content.push_str(&border_inset_path(x, y, w, h, radii, bw - third / 2.0));
         content.push_str("S\n");
+    } else if (side.style == crate::style::computed::BorderStyle::Dashed
+        || side.style == crate::style::computed::BorderStyle::Dotted)
+        && !radii_any(radii)
+    {
+        // Corner-symmetric dashed/dotted: stroke each side as its own centerline
+        // with a per-side dash array tuned so an integer number of dashes/dots
+        // fits the side with one centered on each corner (CSS Backgrounds §4.3:
+        // "choose a spacing that makes the corners symmetrical"). This matches
+        // Chrome far better than dashing one continuous rectangle perimeter,
+        // which drifts out of phase and skips corners.
+        let half = bw / 2.0;
+        let inner_w = (w - bw).max(0.0);
+        let inner_h = (h - bw).max(0.0);
+        // Side centerline endpoints (corner to corner), insetting by half-width.
+        let left = x + half;
+        let right = x + w - half;
+        let top = y + h - half;
+        let bottom = y + half;
+        let dotted = side.style == crate::style::computed::BorderStyle::Dotted;
+        // Horizontal sides span inner_w corner-to-corner; vertical span inner_h.
+        let (h_arr, h_phase) = corner_dash_array(inner_w, bw, dotted);
+        let (v_arr, v_phase) = corner_dash_array(inner_h, bw, dotted);
+        let cap = if dotted { "1 J\n" } else { "0 J\n" };
+        content.push_str(cap);
+        content.push_str(&format!("{bw} w\n"));
+        // Top and bottom (horizontal).
+        content.push_str(&format!("[{h_arr}] {h_phase} d\n"));
+        content.push_str(&format!("{left} {top} m {right} {top} l S\n"));
+        content.push_str(&format!("{left} {bottom} m {right} {bottom} l S\n"));
+        // Left and right (vertical).
+        content.push_str(&format!("[{v_arr}] {v_phase} d\n"));
+        content.push_str(&format!("{left} {top} m {left} {bottom} l S\n"));
+        content.push_str(&format!("{right} {top} m {right} {bottom} l S\n"));
+        content.push_str("[] 0 d\n0 J\n");
     } else {
         content.push_str(&dash_pattern_for_style(side.style, bw));
         content.push_str(&format!("{bw} w\n"));
@@ -223,6 +257,155 @@ fn paint_uniform_border(
         content.push_str(reset_dash_pattern(side.style));
     }
     end_border_alpha(content, a);
+}
+
+/// Compute a corner-symmetric dash array + phase for one border side of length
+/// `len` (corner-to-corner along the side centerline) and stroke width `bw`.
+///
+/// CSS leaves dash/dot metrics implementation-defined but recommends symmetric
+/// corners. We target Chrome's look: dots are diameter `bw` spaced one diameter
+/// apart (period `2*bw`); dashes are ~`3*bw` long with an equal gap (period
+/// `~2*dash`). We then snap the period so a whole number of "on" segments lands
+/// with one centered at each end (corner), and set the dash phase so the side
+/// starts mid-gap such that the first on-segment is centered on the start
+/// corner. Returns `(array_string, phase)` for the PDF `d` operator.
+fn corner_dash_array(len: f32, bw: f32, dotted: bool) -> (String, f32) {
+    let len = len.max(0.0);
+    if len <= 0.0 || bw <= 0.0 {
+        return (format!("{bw}"), 0.0);
+    }
+    // Nominal on/gap lengths. Matched to Chrome's look: dots are diameter `bw`
+    // spaced one diameter apart (period `2*bw`); dashes are ~`2*bw` long with a
+    // ~`1*bw` gap (period `~3*bw`, dash:gap ≈ 2:1).
+    let (on, gap) = if dotted {
+        (bw, bw)
+    } else {
+        ((bw * 2.0).max(1.0), bw.max(1.0))
+    };
+    let period = on + gap;
+    // We want a dash/dot centered at each corner. Treat the side as having an
+    // on-segment centered at 0 and at `len`. The number of periods across the
+    // side is round(len / period), at least 1. Adjust the period so it divides
+    // `len` exactly into `n` whole periods (keeping corners symmetric).
+    let n = (len / period).round().max(1.0);
+    let adj_period = len / n;
+    // Keep the on/gap ratio of the nominal pattern.
+    let on_ratio = on / period;
+    let adj_on = (adj_period * on_ratio).max(if dotted { 0.0 } else { 1.0 });
+    let adj_gap = (adj_period - adj_on).max(0.1);
+    // Phase: shift back by half an on-segment so the first on-segment straddles
+    // the start corner (its center sits at the corner). For dotted (zero-length
+    // on under a round cap) the dot is the cap, so center it at the corner by
+    // phasing back half a period of the cap — i.e. start at the corner.
+    let phase = if dotted { 0.0 } else { adj_on / 2.0 };
+    if dotted {
+        // Zero-length dash under round cap = a dot of diameter `bw`.
+        (format!("0 {adj_period}"), phase)
+    } else {
+        (format!("{adj_on} {adj_gap}"), phase)
+    }
+}
+
+/// Whether a (rectangular, radius-free) border should use the filled-trapezoid
+/// miter painter rather than centerline strokes. CSS renders the corner where
+/// two adjacent borders meet as a diagonal seam (each side fills a trapezoid
+/// from its two outer corners to its two inner corners). That only matters when
+/// adjacent sides differ in color or width — for a fully uniform border the
+/// stroke path already produces the correct square frame, so we keep its
+/// byte-stable output. Only plain `solid` (or `none`) sides are handled here;
+/// dashed/dotted/double still stroke.
+fn border_needs_miter_fill(border: &crate::layout::engine::LayoutBorder) -> bool {
+    let sides = [&border.top, &border.right, &border.bottom, &border.left];
+    let solidish = sides.iter().all(|s| {
+        s.width <= 0.0
+            || s.style == crate::style::computed::BorderStyle::Solid
+            || s.style == crate::style::computed::BorderStyle::None
+    });
+    if !solidish {
+        return false;
+    }
+    // The miter fill only matters where two ADJACENT painted sides differ in
+    // COLOR (or alpha): that is the corner where CSS splits the color on a
+    // diagonal seam. When adjacent sides share a color (even with different
+    // widths), the centerline strokes already overlap into one continuous frame
+    // with no visible seam, so we keep the simpler — and more pixel-stable —
+    // stroke path. Opposite-only pairs never share a corner and are excluded.
+    let adjacent_pairs = [
+        (&border.top, &border.right),
+        (&border.right, &border.bottom),
+        (&border.bottom, &border.left),
+        (&border.left, &border.top),
+    ];
+    adjacent_pairs
+        .iter()
+        .any(|(a, b)| a.width > 0.0 && b.width > 0.0 && (a.color != b.color || a.alpha != b.alpha))
+}
+
+/// Paint a non-uniform rectangular border as four filled trapezoids meeting at
+/// 45°-ish diagonal miters, matching CSS Backgrounds §6.2: each side's color
+/// fills the quad from its two outer border-box corners to its two inner
+/// (padding-box) corners. `(x, y)` is the border-box bottom-left in PDF
+/// (bottom-up) coords; `w`×`h` is the border-box size. Only solid sides are
+/// drawn (others are skipped by the caller's dispatch).
+#[allow(clippy::too_many_arguments)]
+fn paint_miter_border(
+    content: &mut String,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    border: &crate::layout::engine::LayoutBorder,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+) {
+    let t = border.top.width.max(0.0);
+    let r = border.right.width.max(0.0);
+    let b = border.bottom.width.max(0.0);
+    let l = border.left.width.max(0.0);
+    // Outer corners.
+    let (ol, or_, ob, ot) = (x, x + w, y, y + h); // left,right,bottom,top edges
+    // Inner corners (padding box edges).
+    let (il, ir, ib, it) = (x + l, x + w - r, y + b, y + h - t);
+    let mut fill = |content: &mut String,
+                    pts: [(f32, f32); 4],
+                    side: &crate::layout::engine::LayoutBorderSide| {
+        if side.width <= 0.0 || side.style == crate::style::computed::BorderStyle::None {
+            return;
+        }
+        let (cr, cg, cb) = side.color;
+        let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, side.alpha);
+        content.push_str(&format!("{cr} {cg} {cb} rg\n"));
+        content.push_str(&format!("{} {} m\n", pts[0].0, pts[0].1));
+        for p in &pts[1..] {
+            content.push_str(&format!("{} {} l\n", p.0, p.1));
+        }
+        content.push_str("h\nf\n");
+        end_border_alpha(content, a);
+    };
+    // Top: outer TL, outer TR, inner TR, inner TL.
+    fill(
+        content,
+        [(ol, ot), (or_, ot), (ir, it), (il, it)],
+        &border.top,
+    );
+    // Right: outer TR, outer BR, inner BR, inner TR.
+    fill(
+        content,
+        [(or_, ot), (or_, ob), (ir, ib), (ir, it)],
+        &border.right,
+    );
+    // Bottom: outer BR, outer BL, inner BL, inner BR.
+    fill(
+        content,
+        [(or_, ob), (ol, ob), (il, ib), (ir, ib)],
+        &border.bottom,
+    );
+    // Left: outer BL, outer TL, inner TL, inner BL.
+    fill(
+        content,
+        [(ol, ob), (ol, ot), (il, it), (il, ib)],
+        &border.left,
+    );
 }
 
 /// Paint a multi-column `column-rule` as a single vertical line of width `w`
@@ -611,6 +794,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_origin,
                     border_radius,
                     border_radii: tb_radii,
+                    border_radii_y: tb_radii_y,
                     outline_width,
                     outline_color,
                     outline_offset: tb_outline_offset,
@@ -747,22 +931,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
-                        if radii_any(*tb_radii) && !radii_uniform(*tb_radii) {
-                            content.push_str(&rounded_rect_path_per_corner(
-                                block_x,
-                                bg_y,
-                                render_width,
-                                border_box_h,
-                                *tb_radii,
-                            ));
-                        } else if *border_radius > 0.0 {
-                            content.push_str(&rounded_rect_path(
-                                block_x,
-                                bg_y,
-                                render_width,
-                                border_box_h,
-                                *border_radius,
-                            ));
+                        if let Some(path) = rounded_box_path(
+                            block_x,
+                            bg_y,
+                            render_width,
+                            border_box_h,
+                            *tb_radii,
+                            *tb_radii_y,
+                        ) {
+                            content.push_str(&path);
                         } else {
                             content.push_str(&format!(
                                 "{x} {y} {w} {h} re\n",
@@ -1012,6 +1189,24 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             ));
                             content.push_str("S\n");
                             end_border_alpha(&mut content, a);
+                        } else if !radii_any(*tb_radii)
+                            && *border_radius <= 0.0
+                            && border_needs_miter_fill(border)
+                        {
+                            // Different per-side colors/widths on a square box: fill
+                            // each side as a trapezoid so corners meet on a diagonal
+                            // miter seam (CSS Backgrounds §6.2), not as overlapping
+                            // centerline strokes that leave a single-color corner.
+                            paint_miter_border(
+                                &mut content,
+                                block_x,
+                                block_bottom,
+                                render_width,
+                                border_box_h,
+                                border,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                            );
                         } else {
                             // Per-side stroke centerlines sit half a border-width
                             // inside the border-box edges (border paints inward).
@@ -3190,6 +3385,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     border,
                     border_radius: c_border_radius,
                     border_radii: c_border_radii,
+                    border_radii_y: c_border_radii_y,
                     outline_width: c_outline_width,
                     outline_color: c_outline_color,
                     outline_offset: c_outline_offset,
@@ -3347,22 +3543,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
                             content.push_str(&format!("{r} {g} {b} rg\n"));
                             let c_bg_y = container_y_top - total_h;
-                            if radii_any(*c_border_radii) && !radii_uniform(*c_border_radii) {
-                                content.push_str(&rounded_rect_path_per_corner(
-                                    container_x,
-                                    c_bg_y,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radii,
-                                ));
-                            } else if *c_border_radius > 0.0 {
-                                content.push_str(&rounded_rect_path(
-                                    container_x,
-                                    c_bg_y,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radius,
-                                ));
+                            if let Some(path) = rounded_box_path(
+                                container_x,
+                                c_bg_y,
+                                container_w,
+                                total_h,
+                                *c_border_radii,
+                                *c_border_radii_y,
+                            ) {
+                                content.push_str(&path);
                             } else {
                                 content.push_str(&format!(
                                     "{x} {y} {w} {h} re\n",
@@ -3577,6 +3766,25 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 ));
                                 content.push_str("S\n");
                                 end_border_alpha(&mut content, a);
+                            } else if !radii_any(*c_border_radii)
+                                && *c_border_radius <= 0.0
+                                && border_needs_miter_fill(border)
+                            {
+                                // Different per-side colors/widths on a square box:
+                                // fill each side as a trapezoid so adjacent colors
+                                // meet on a diagonal miter (CSS Backgrounds §6.2),
+                                // rather than overlapping centerline strokes that
+                                // leave a single-color corner seam.
+                                paint_miter_border(
+                                    &mut content,
+                                    cbox_x,
+                                    cbox_bottom,
+                                    container_w,
+                                    total_h,
+                                    border,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                );
                             } else {
                                 let bx1 = container_x;
                                 let bx2 = container_x + container_w;
@@ -5277,6 +5485,7 @@ fn render_container_children(
                 outline_color: nk_outline_color,
                 outline_offset: nk_outline_offset,
                 border_radii: cont_radii,
+                border_radii_y: cont_radii_y,
                 positioned_depth: nk_positioned_depth,
                 containing_block: nk_containing_block,
                 ..
@@ -5462,18 +5671,15 @@ fn render_container_children(
                             }
                             content.push_str(&format!("{r} {g} {b} rg\n"));
                             let bg_cy = nk_top_y - nk_total_h;
-                            if radii_any(*cont_radii) && !radii_uniform(*cont_radii) {
-                                content.push_str(&rounded_rect_path_per_corner(
-                                    nk_x,
-                                    bg_cy,
-                                    nk_w,
-                                    nk_total_h,
-                                    *cont_radii,
-                                ));
-                            } else if *cont_br > 0.0 {
-                                content.push_str(&rounded_rect_path(
-                                    nk_x, bg_cy, nk_w, nk_total_h, *cont_br,
-                                ));
+                            if let Some(path) = rounded_box_path(
+                                nk_x,
+                                bg_cy,
+                                nk_w,
+                                nk_total_h,
+                                *cont_radii,
+                                *cont_radii_y,
+                            ) {
+                                content.push_str(&path);
                             } else {
                                 content.push_str(&format!(
                                     "{cx} {cy} {cw} {ch} re\n",
@@ -8645,6 +8851,113 @@ fn rounded_rect_path_per_corner(x: f32, y: f32, w: f32, h: f32, radii: [f32; 4])
     )
 }
 
+/// Build a rounded-rectangle path with ELLIPTICAL corners: each corner has a
+/// distinct horizontal (`rx`) and vertical (`ry`) radius. `rx`/`ry` are in
+/// [top-left, top-right, bottom-right, bottom-left] order. Applies the CSS
+/// Backgrounds §5.1 overlap-clamping factor `f` (computed per axis) and draws
+/// each corner as a quarter ellipse via a cubic Bézier whose control handles are
+/// scaled by `0.5523` along each axis. `(x, y)` is the bottom-left in PDF
+/// (bottom-up) coords; `w`×`h` is the box size. Used for `border-radius: 50%` on
+/// non-square boxes and the `Rx / Ry` slash syntax.
+fn rounded_rect_path_elliptical(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    rx: [f32; 4],
+    ry: [f32; 4],
+) -> String {
+    let mut rx = [
+        rx[0].max(0.0),
+        rx[1].max(0.0),
+        rx[2].max(0.0),
+        rx[3].max(0.0),
+    ];
+    let mut ry = [
+        ry[0].max(0.0),
+        ry[1].max(0.0),
+        ry[2].max(0.0),
+        ry[3].max(0.0),
+    ];
+    // CSS overlap clamping: f = min over each edge of L_edge / sum_of_radii_on_edge,
+    // using horizontal radii on the top/bottom edges and vertical on left/right.
+    let mut f = 1.0f32;
+    let edges = [
+        (rx[0] + rx[1], w), // top: TL.x + TR.x vs width
+        (rx[3] + rx[2], w), // bottom: BL.x + BR.x vs width
+        (ry[0] + ry[3], h), // left: TL.y + BL.y vs height
+        (ry[1] + ry[2], h), // right: TR.y + BR.y vs height
+    ];
+    for (sum, len) in edges {
+        if sum > len && sum > 0.0 {
+            f = f.min(len / sum);
+        }
+    }
+    if f < 1.0 {
+        for i in 0..4 {
+            rx[i] *= f;
+            ry[i] *= f;
+        }
+    }
+    let kf = 0.552_284_8;
+    // Corner radii: [tl, tr, br, bl].
+    let (tlx, trx, brx, blx) = (rx[0], rx[1], rx[2], rx[3]);
+    let (tly, try_, bry, bly) = (ry[0], ry[1], ry[2], ry[3]);
+    let xl = x;
+    let xr = x + w;
+    let yt = y + h;
+    let yb = y;
+    format!(
+        // Start just right of the top-left corner, run clockwise.
+        "{a} {yt} m\n\
+         {b} {yt} l {b2} {yt} {xr} {tr_y2} {xr} {tr_y} c\n\
+         {xr} {br_y} l {xr} {br_y2} {br_x2} {yb} {br_x} {yb} c\n\
+         {bl_x} {yb} l {bl_x2} {yb} {xl} {bl_y2} {xl} {bl_y} c\n\
+         {xl} {tl_y} l {xl} {tl_y2} {tl_x2} {yt} {a} {yt} c\n\
+         h\n",
+        a = xl + tlx,                  // top edge start (after TL)
+        b = xr - trx,                  // top edge end (before TR)
+        b2 = xr - trx + trx * kf,      // TR control x
+        tr_y = yt - try_,              // TR arc end y
+        tr_y2 = yt - try_ + try_ * kf, // TR control y
+        br_y = yb + bry,               // right edge end (before BR)
+        br_y2 = yb + bry - bry * kf,   // BR control y
+        br_x = xr - brx,               // BR arc end x
+        br_x2 = xr - brx + brx * kf,   // BR control x
+        bl_x = xl + blx,               // bottom edge end (before BL)
+        bl_x2 = xl + blx - blx * kf,   // BL control x
+        bl_y = yb + bly,               // BL arc end y
+        bl_y2 = yb + bly - bly * kf,   // BL control y
+        tl_y = yt - tly,               // left edge end (before TL)
+        tl_y2 = yt - tly + tly * kf,   // TL control y
+        tl_x2 = xl + tlx - tlx * kf,   // TL control x
+    )
+}
+
+/// Whether two per-corner radii arrays differ (elliptical corners needed).
+fn radii_elliptical(rx: [f32; 4], ry: [f32; 4]) -> bool {
+    (0..4).any(|i| (rx[i] - ry[i]).abs() > 1e-4)
+}
+
+/// Pick the right rounded-rectangle path for a box with per-corner horizontal
+/// (`rx`) and vertical (`ry`) radii: an elliptical path when the two axes
+/// differ, a per-corner circular path when they are uniform-axis but differ
+/// across corners, the byte-stable uniform path when all corners share one
+/// radius, or `None` (square box) when no corner is rounded. The caller emits a
+/// plain `re` rectangle for the `None` case so existing output stays stable.
+fn rounded_box_path(x: f32, y: f32, w: f32, h: f32, rx: [f32; 4], ry: [f32; 4]) -> Option<String> {
+    if !radii_any(rx) && !radii_any(ry) {
+        return None;
+    }
+    if radii_elliptical(rx, ry) {
+        return Some(rounded_rect_path_elliptical(x, y, w, h, rx, ry));
+    }
+    if radii_uniform(rx) {
+        return Some(rounded_rect_path(x, y, w, h, rx[0]));
+    }
+    Some(rounded_rect_path_per_corner(x, y, w, h, rx))
+}
+
 /// Whether per-corner radii are effectively uniform (all equal). Uniform boxes
 /// use the simpler `rounded_rect_path` to keep golden output byte-stable.
 fn radii_uniform(radii: [f32; 4]) -> bool {
@@ -10191,6 +10504,7 @@ mod tests {
             transform_origin: crate::style::computed::TransformOrigin::default(),
             border_radius: 0.0,
             border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
             outline_offset: 0.0,
             outline_width: 0.0,
             outline_color: None,
@@ -11006,10 +11320,16 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        // Dash length scales with the 1.5pt (2px) border width: 3x on/off.
+        // Corner-symmetric dashed borders stroke each side with its own dash
+        // array (snapped so a dash lands at every corner). The exact on/gap
+        // values depend on the side length, but every dashed array is of the
+        // form `[<on> <gap>] <phase> d` with a non-zero leading `on` segment.
+        let has_dash_array = content
+            .lines()
+            .any(|l| l.ends_with(" d") && l.starts_with('[') && !l.starts_with("[0 "));
         assert!(
-            content.contains("[4.5 4.5] 0 d"),
-            "Dashed border should emit a width-scaled dash pattern. Got: {}",
+            has_dash_array,
+            "Dashed border should emit a per-side dash array. Got: {}",
             &content[..content.len().min(2000)]
         );
         assert!(
@@ -11025,12 +11345,20 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        // Round dots: a round line cap (`1 J`) over a zero-length dash spaced 2x
-        // the 1.5pt width apart.
+        // Round dots: a round line cap (`1 J`) over a zero-length dash. The dot
+        // spacing is snapped per side for corner symmetry, so the gap is close to
+        // 2x the 1.5pt width but not exactly `[0 3]`.
         assert!(
-            content.contains("1 J\n[0 3] 0 d"),
-            "Dotted border should emit a round-cap dot pattern. Got: {}",
+            content.contains("1 J\n"),
+            "Dotted border should set a round line cap. Got: {}",
             &content[..content.len().min(2000)]
+        );
+        let has_dot_array = content
+            .lines()
+            .any(|l| l.ends_with(" d") && l.starts_with("[0 "));
+        assert!(
+            has_dot_array,
+            "Dotted border should emit a zero-length-dash (round dot) array"
         );
     }
 
@@ -13111,24 +13439,28 @@ mod tests {
 
     #[test]
     fn per_side_border_rendering() {
-        // Covers lines 390-396: non-uniform per-side borders (left border with x_left offset)
+        // Four differently-colored solid sides meet at diagonal miters, so each
+        // side paints as a filled trapezoid (`rg` fill) rather than a centerline
+        // stroke. This keeps adjacent-color corners on the 45° seam (CSS
+        // Backgrounds §6.2) instead of leaving a single-color overlap.
         let html = r#"<div style="border-top: 2pt solid red; border-right: 3pt solid green; border-bottom: 1pt solid blue; border-left: 4pt solid black; width: 200pt; height: 50pt">Borders</div>"#;
         let nodes = parse_html(html).unwrap();
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let pdf_str = String::from_utf8_lossy(&pdf);
-        // Non-uniform borders produce per-side stroke commands
+        // Each side's color is now a fill (`rg`), not a stroke (`RG`).
         assert!(
-            pdf_str.contains("1 0 0 RG"),
-            "Should have red top border stroke"
+            pdf_str.contains("1 0 0 rg"),
+            "Should have red top border fill"
         );
         assert!(
-            pdf_str.contains("0 0 0 RG"),
-            "Should have black left border stroke"
+            pdf_str.contains("0 0 0 rg"),
+            "Should have black left border fill"
         );
+        // Trapezoid corners: the miter geometry closes each side with `h\nf`.
         assert!(
-            pdf_str.contains("l\nS\n") || pdf_str.contains("l S\n"),
-            "Should have per-side line strokes"
+            pdf_str.contains("h\nf\n"),
+            "Per-side miter borders should fill closed trapezoids"
         );
     }
 
