@@ -331,29 +331,62 @@ pub(crate) fn layout_inline_block_group(
         return;
     }
 
+    // CSS2 §10.8: every line box contains a "strut" — a zero-width inline box
+    // with the block's own font and `line-height`. Even a line that holds only
+    // atomic inline boxes (e.g. `<span class=chip>` with no text) is therefore at
+    // least as tall as that strut, and the strut's portion *below* the baseline is
+    // reserved under the in-flow boxes. Baseline-aligned inline-blocks sit above
+    // the line baseline, so this descent appears as extra space at the bottom of
+    // the line box — which is why a line of empty chips is taller than the chips
+    // themselves. Compute the strut split about the baseline from the parent's
+    // font metrics so a `font-size: 0` container (strut = 0) is unaffected.
+    let strut_lh = parent_style.font_size * resolved_line_height_factor(parent_style, fonts);
+    let parent_family = super::text::resolve_style_font_family(parent_style, fonts);
+    let (strut_asc, strut_desc) = crate::fonts::font_metrics_ratios(
+        &parent_family,
+        parent_style.font_weight == crate::style::computed::FontWeight::Bold,
+        parent_style.font_style == crate::style::computed::FontStyle::Italic,
+        fonts,
+    );
+    let strut_total = (strut_asc + strut_desc).max(f32::EPSILON);
+    let strut_above = strut_lh * strut_asc / strut_total;
+    let strut_below = strut_lh * strut_desc / strut_total;
+
     // Position items horizontally, wrapping to new rows when they exceed available width
     let mut rows: Vec<(Vec<FlexCell>, f32)> = Vec::new(); // (cells, row_height)
     let mut current_cells: Vec<FlexCell> = Vec::new();
     let mut x = 0.0f32;
-    let mut row_height = 0.0f32;
+    // Tallest in-flow box on the current row (its extent above the line baseline,
+    // which for these top-anchored baseline boxes is the full margin-box height).
+    let mut max_item_height = 0.0f32;
+    // The line box must contain both the tallest box and the strut above the
+    // baseline, plus the strut's descent below it.
+    let finish_row_height =
+        |max_item_height: f32| -> f32 { max_item_height.max(strut_above) + strut_below };
 
     for item in &items {
         let item_total_w = item.margin_left + item.width + item.margin_right;
         // Wrap to new row if this item would overflow
         if !current_cells.is_empty() && x + item_total_w > available_width + 0.01 {
-            rows.push((std::mem::take(&mut current_cells), row_height));
+            rows.push((
+                std::mem::take(&mut current_cells),
+                finish_row_height(max_item_height),
+            ));
             x = 0.0;
-            row_height = 0.0;
+            max_item_height = 0.0;
         }
 
         x += item.margin_left;
-        let natural_h: f32 = item.lines.iter().map(|l| l.height).sum();
         current_cells.push(FlexCell {
             lines: item.lines.clone(),
             x_offset: x,
             width: item.width,
-            natural_height: natural_h,
-            has_explicit_height: false,
+            // The inline-block paints at its own border-box height (`item.height`,
+            // which already folds in padding + border), independent of the line
+            // box. Marking it explicit-height keeps the painter from stretching it
+            // to the line's cross size when the line reserves the text strut.
+            natural_height: item.height,
+            has_explicit_height: true,
             align_self: crate::style::computed::AlignSelf::Auto,
             text_align: item.text_align,
             background_color: item.background_color,
@@ -381,11 +414,11 @@ pub(crate) fn layout_inline_block_group(
             line_cross_size: 0.0,
         });
         x += item.width + item.margin_right;
-        row_height = row_height.max(item.height);
+        max_item_height = max_item_height.max(item.height);
     }
     // Flush last row
     if !current_cells.is_empty() {
-        rows.push((current_cells, row_height));
+        rows.push((current_cells, finish_row_height(max_item_height)));
     }
 
     for (cells, rh) in rows {
@@ -414,7 +447,15 @@ pub(crate) fn layout_inline_block_group(
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
             background_clip: BackgroundClip::Border,
-            align_items: crate::style::computed::AlignItems::Stretch,
+            // Inline-blocks are NOT flex items: they keep their own height and
+            // align to the line's text baseline (`vertical-align: baseline`),
+            // never stretching to fill the line box. The painter's `Baseline`
+            // path preserves each cell's natural height — shifting content boxes
+            // so their baseline meets the line baseline, and top-anchoring boxes
+            // with no text baseline (e.g. empty chips) at cross-start. Using
+            // `Stretch` here would wrongly inflate a chip's painted box to the
+            // full line height once the line reserves the text strut's descent.
+            align_items: crate::style::computed::AlignItems::Baseline,
             positioned_depth: 0,
         });
     }
