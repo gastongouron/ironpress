@@ -1249,6 +1249,7 @@ pub(crate) fn layout_block_element(
                 style.white_space,
                 WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
             ))
+            .with_break_spaces(style.white_space == WhiteSpace::BreakSpaces)
             // text-indent shortens the FIRST formatted line, so the wrapper must
             // reserve that space before breaking — otherwise the first line packs
             // full-width text that then overflows once shifted at paint time

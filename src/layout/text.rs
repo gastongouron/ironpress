@@ -147,7 +147,16 @@ pub(crate) struct TextWrapOptions {
     /// `white-space: pre-wrap`: preserve spaces/newlines but still allow soft
     /// wrapping at space boundaries. Distinguishes pre-wrap (wraps) from `pre`
     /// (which the caller renders with an unbounded width so it never wraps).
+    /// Also set for `break-spaces`, which shares the preserve-and-wrap token
+    /// splitting; `break_spaces` then selects the stricter line-breaking rules.
     pub(crate) pre_wrap: bool,
+    /// `white-space: break-spaces` (css-text-3 §3): like `pre-wrap` but a soft
+    /// wrap opportunity exists after *every* preserved space (including between
+    /// adjacent spaces) and preserved spaces NEVER hang — they always take up
+    /// space at the line end. The combination makes the breaker roll a following
+    /// word onto the next line whenever that word's own trailing space would
+    /// overflow, since the spaces it would sit after cannot hang.
+    pub(crate) break_spaces: bool,
     /// CSS `text-indent` applied to the first formatted line: it consumes inline
     /// space at the start of the first line, so that line has less room before it
     /// wraps. Subsequent lines are unaffected.
@@ -168,6 +177,7 @@ impl TextWrapOptions {
             overflow_wrap,
             paragraph_rtl: false,
             pre_wrap: false,
+            break_spaces: false,
             text_indent: 0.0,
         }
     }
@@ -179,6 +189,18 @@ impl TextWrapOptions {
 
     pub(crate) const fn with_pre_wrap(mut self, pre_wrap: bool) -> Self {
         self.pre_wrap = pre_wrap;
+        self
+    }
+
+    /// Enable `white-space: break-spaces` line breaking. Implies `pre_wrap`
+    /// (preserve spaces and newlines, still soft-wrap) plus the break-spaces
+    /// rules: every preserved space is a wrap opportunity and trailing spaces do
+    /// not hang.
+    pub(crate) const fn with_break_spaces(mut self, break_spaces: bool) -> Self {
+        self.break_spaces = break_spaces;
+        if break_spaces {
+            self.pre_wrap = true;
+        }
         self
     }
 
@@ -450,6 +472,15 @@ pub(crate) fn wrap_text_runs(
     // Use a VecDeque so hyphenation remainders can be re-queued for processing.
     let mut queue: std::collections::VecDeque<StyledWord> = styled_words.into_iter().collect();
 
+    // `white-space: break-spaces` line-break bookkeeping (css-text-3 §3). A soft
+    // wrap opportunity exists only *after* a preserved space, so a word placed
+    // after such spaces cannot itself end a line — if the next space would
+    // overflow (spaces never hang under break-spaces), the line must roll back to
+    // the last opportunity, sending the trailing word to the next line.
+    // `bs_break_run_idx` is the count of runs in `current_runs` at the last such
+    // opportunity (just after a placed space run).
+    let mut bs_break_run_idx: usize = 0;
+
     // CSS `text-indent` only shortens the FIRST formatted line: the inline
     // content available before wrapping is `max_width - text_indent` while no
     // line has been emitted yet, and the full `max_width` afterwards.
@@ -476,6 +507,91 @@ pub(crate) fn wrap_text_runs(
             });
             current_width = 0.0;
             line_height = run_line_height(&template);
+            bs_break_run_idx = 0;
+            continue;
+        }
+
+        // `white-space: break-spaces` preserved-space token (css-text-3 §3).
+        // Differs from pre-wrap in two ways: every preserved space is itself a
+        // soft wrap opportunity (so a long run may break mid-run), and preserved
+        // spaces NEVER hang — they always occupy width at the line end. Because a
+        // line may break only *after* a space, a word placed after a space run
+        // cannot end a line on its own: if a later space would overflow, the line
+        // rolls back to the opportunity after the last fitting space, moving the
+        // trailing word to the next line. We record that opportunity here.
+        if options.break_spaces
+            && preserve_spacing
+            && template.inline_box.is_none()
+            && !word.is_empty()
+            && word.chars().all(|c| c == ' ' || c == '\t')
+        {
+            let max_w = line_max_width(lines.len());
+            let single_sp = estimate_word_width(
+                " ",
+                template.font_size,
+                &template.font_family,
+                template.bold,
+                template.italic,
+                fonts,
+            );
+            // Place spaces one at a time so the run can break between adjacent
+            // spaces (a wrap opportunity exists after each).
+            let mut pending = String::new();
+            for c in word.chars() {
+                if current_width > 0.0 && current_width + single_sp > max_w + 0.01 {
+                    // This space overflows. Spaces do not hang under break-spaces,
+                    // so the line must break. The line may only end after a space,
+                    // so any word placed since the last opportunity
+                    // (`bs_break_run_idx`) cannot stay: roll it back onto the next
+                    // line. Spaces already accumulated in `pending` belong to this
+                    // overflowing run and break here too.
+                    if !pending.is_empty() {
+                        current_runs.push(TextRun {
+                            text: std::mem::take(&mut pending),
+                            ..template.clone()
+                        });
+                    }
+                    // Split off the trailing word (runs after the last opportunity)
+                    // so it begins the next line. Clamp the index in case an
+                    // earlier word-overflow flush shortened `current_runs`.
+                    let split_at = bs_break_run_idx.min(current_runs.len());
+                    let rolled: Vec<TextRun> = current_runs.split_off(split_at);
+                    line_height = line_height.max(run_line_height(&template));
+                    lines.push(TextLine {
+                        runs: std::mem::take(&mut current_runs),
+                        height: line_height,
+                    });
+                    current_width = 0.0;
+                    line_height = options.default_font_size * line_height_factor;
+                    bs_break_run_idx = 0;
+                    // Re-place the rolled-back word at the start of the new line.
+                    for r in rolled {
+                        current_width += estimate_word_width(
+                            &r.text,
+                            r.font_size,
+                            &r.font_family,
+                            r.bold,
+                            r.italic,
+                            fonts,
+                        );
+                        line_height = line_height.max(run_line_height(&r));
+                        current_runs.push(r);
+                    }
+                }
+                pending.push(c);
+                current_width += single_sp;
+            }
+            if !pending.is_empty() {
+                line_height = line_height.max(run_line_height(&template));
+                current_runs.push(TextRun {
+                    text: pending,
+                    ..template.clone()
+                });
+            }
+            // A soft wrap opportunity now exists after these spaces: a following
+            // word may be rolled back to here if it cannot be followed by its own
+            // trailing space without overflow.
+            bs_break_run_idx = current_runs.len();
             continue;
         }
 
@@ -692,6 +808,7 @@ pub(crate) fn wrap_text_runs(
             });
             current_width = 0.0;
             line_height = run_line_height(&template);
+            bs_break_run_idx = 0;
         }
 
         // When transitioning between runs with different backgrounds,
@@ -1658,5 +1775,57 @@ mod indent_tests {
             indented.len() >= 2,
             "indented paragraph should wrap to at least two lines"
         );
+    }
+
+    /// Concatenate a line's runs back into its rendered text.
+    fn line_text(line: &TextLine) -> String {
+        line.runs.iter().map(|r| r.text.as_str()).collect()
+    }
+
+    #[test]
+    fn break_spaces_rolls_word_past_non_hanging_spaces() {
+        // css-text-3 §3 break-spaces: preserved spaces never hang and a wrap
+        // opportunity exists after each. With `alpha    beta gamma`, once `alpha`
+        // plus the four preserved spaces fill most of the line, `beta` fits but
+        // its own trailing space would overflow — and since that space cannot
+        // hang, the line must roll back to after the four spaces, sending `beta`
+        // to the next line. Contrast with pre-wrap, where the trailing space
+        // hangs so `alpha    beta` stays together.
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let runs = vec![plain_run("alpha    beta gamma")];
+        // Helvetica metrics: pick a width that fits "alpha" + 4 spaces + "beta"
+        // but not the following space, mirroring the parity fixtures.
+        let alpha =
+            estimate_word_width("alpha", 16.0, &FontFamily::Helvetica, false, false, &fonts);
+        let beta = estimate_word_width("beta", 16.0, &FontFamily::Helvetica, false, false, &fonts);
+        let sp = estimate_word_width(" ", 16.0, &FontFamily::Helvetica, false, false, &fonts);
+        // Room for alpha + 4 spaces + beta, but not a 5th space after beta.
+        let width = alpha + 4.0 * sp + beta + sp * 0.5;
+        let opts = TextWrapOptions::new(width, 16.0, 1.2, OverflowWrap::Normal);
+
+        let pre_wrap = wrap_text_runs(runs.clone(), opts.with_pre_wrap(true), &fonts);
+        let break_spaces = wrap_text_runs(runs, opts.with_break_spaces(true), &fonts);
+
+        // pre-wrap keeps the trailing space hanging, so beta stays on line 1.
+        assert!(
+            line_text(&pre_wrap[0]).contains("beta"),
+            "pre-wrap line 1 should keep beta: {:?}",
+            line_text(&pre_wrap[0])
+        );
+        // break-spaces rolls beta onto the next line; line 1 ends after the
+        // preserved spaces.
+        assert!(
+            !line_text(&break_spaces[0]).contains("beta"),
+            "break-spaces line 1 should not contain beta: {:?}",
+            line_text(&break_spaces[0])
+        );
+        assert!(
+            line_text(&break_spaces[1]).trim_start().starts_with("beta"),
+            "break-spaces line 2 should start with beta: {:?}",
+            line_text(&break_spaces[1])
+        );
+        // The four preserved spaces are retained (non-hanging) at the end of
+        // line 1: "alpha" + four spaces.
+        assert_eq!(line_text(&break_spaces[0]), "alpha    ");
     }
 }
