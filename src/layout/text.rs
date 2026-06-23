@@ -544,23 +544,51 @@ pub(crate) fn wrap_text_runs(
                 line_height = run_line_height(&template);
             }
             current_width += box_w;
-            // A baseline-aligned box contributes `baseline_ascent` above the
-            // line baseline and `height - baseline_ascent` below it. The line box
-            // must contain both that ascent (plus the surrounding text's own
-            // ascent does too) and the box's descent beneath the baseline. When
-            // the box has no content baseline its whole height sits above the
-            // baseline, so leave room for the text descender beneath it.
+            // CSS2 §10.8: the line box must be tall enough to contain every
+            // inline-level box after vertical alignment. For baseline/sub/super
+            // boxes the height is the sum of the line's total extent ABOVE the
+            // baseline and the total extent BELOW it, each the max over the box
+            // and the surrounding text. A box's own baseline sits `baseline_ascent`
+            // below its top edge (CSS2 §10.8.1); with no content baseline the
+            // whole box rests above the line baseline (its bottom edge on it).
+            // Sub/super then shift the box's baseline down/up relative to the line
+            // baseline, moving its extents to the opposite side.
             let box_extent = match inline.vertical_align {
                 crate::style::computed::VerticalAlign::Baseline
                 | crate::style::computed::VerticalAlign::Sub
-                | crate::style::computed::VerticalAlign::Super => match inline.baseline_ascent {
-                    Some(ascent) => {
-                        // ascent above baseline + max(box descent, text descent)
-                        let box_descent = (inline.height - ascent).max(0.0);
-                        ascent + box_descent.max(template.font_size * 0.22)
-                    }
-                    None => inline.height + template.font_size * 0.22,
-                },
+                | crate::style::computed::VerticalAlign::Super => {
+                    let box_ascent = inline.baseline_ascent.unwrap_or(inline.height);
+                    let box_descent = (inline.height - box_ascent).max(0.0);
+                    let shift = match inline.vertical_align {
+                        crate::style::computed::VerticalAlign::Sub => {
+                            -template.font_size * crate::render::pdf::SUB_SHIFT_RATIO
+                        }
+                        crate::style::computed::VerticalAlign::Super => {
+                            template.font_size * crate::render::pdf::SUPER_SHIFT_RATIO
+                        }
+                        _ => 0.0,
+                    };
+                    let box_above = (box_ascent + shift).max(0.0);
+                    let box_below = (box_descent - shift).max(0.0);
+                    // The surrounding text's own extents above and below the line
+                    // baseline. Split the text's line-height (`run_line_height`,
+                    // which already folds in any explicit `line-height` leading)
+                    // about the baseline in proportion to the font's ascent and
+                    // descent, so `text_above + text_below == run_line_height`
+                    // exactly for pure text — only a box that reaches PAST the
+                    // text on one side then grows the line on that side.
+                    let (asc_ratio, desc_ratio) = crate::fonts::font_metrics_ratios(
+                        &template.font_family,
+                        template.bold,
+                        template.italic,
+                        fonts,
+                    );
+                    let total_ratio = (asc_ratio + desc_ratio).max(f32::EPSILON);
+                    let lh = run_line_height(&template);
+                    let text_above = lh * asc_ratio / total_ratio;
+                    let text_below = lh * desc_ratio / total_ratio;
+                    box_above.max(text_above) + box_below.max(text_below)
+                }
                 _ => inline.height,
             };
             line_height = line_height.max(box_extent);

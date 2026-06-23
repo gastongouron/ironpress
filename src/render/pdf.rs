@@ -7425,6 +7425,15 @@ fn render_run_text(
 ///
 /// Falls back to per-run `render_run_text` when any run requires custom-font
 /// shaping (complex glyph positioning).
+/// `vertical-align: super`/`sub` raise/lower an atomic inline box's baseline by
+/// these fractions of the parent (line) font size. CSS leaves the exact amount
+/// to the UA; these match Chromium's measured superscript/subscript offsets.
+/// Used both when positioning the box (`render_inline_box`) and when growing the
+/// line box to contain it (`line_box_metrics`, `wrap_text_runs`), so the box and
+/// the line box that holds it stay consistent.
+pub(crate) const SUPER_SHIFT_RATIO: f32 = 0.38;
+pub(crate) const SUB_SHIFT_RATIO: f32 = 0.23;
+
 /// Paint an atomic inline box (`display: inline-block`) inside a line of text.
 ///
 /// `box_x` is the left edge of the box in PDF coordinates; `baseline_y` is the
@@ -7465,9 +7474,10 @@ fn render_inline_box(
         // a quarter-em above the baseline.
         VerticalAlign::Middle => baseline_y + line_font_size * 0.25 - h / 2.0,
         // Sub/super shift the box's baseline below/above the line baseline by a
-        // fraction of the parent font size (css-inline-3; CSS2 §10.8.1).
-        VerticalAlign::Sub => align_baseline(baseline_y - line_font_size * 0.2),
-        VerticalAlign::Super => align_baseline(baseline_y + line_font_size * 0.3),
+        // fraction of the parent font size (css-inline-3; CSS2 §10.8.1). The
+        // fractions match Chromium's measured subscript/superscript offsets.
+        VerticalAlign::Sub => align_baseline(baseline_y - line_font_size * SUB_SHIFT_RATIO),
+        VerticalAlign::Super => align_baseline(baseline_y + line_font_size * SUPER_SHIFT_RATIO),
         // Baseline: align the box's baseline to the line baseline.
         VerticalAlign::Baseline => align_baseline(baseline_y),
     };
@@ -7689,12 +7699,12 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
             // moving its extents by a fraction of the run font size.
             let (above, below) = match inline.vertical_align {
                 VerticalAlign::Sub => (
-                    box_ascent - run.font_size * 0.2,
-                    box_descent + run.font_size * 0.2,
+                    box_ascent - run.font_size * SUB_SHIFT_RATIO,
+                    box_descent + run.font_size * SUB_SHIFT_RATIO,
                 ),
                 VerticalAlign::Super => (
-                    box_ascent + run.font_size * 0.3,
-                    box_descent - run.font_size * 0.3,
+                    box_ascent + run.font_size * SUPER_SHIFT_RATIO,
+                    box_descent - run.font_size * SUPER_SHIFT_RATIO,
                 ),
                 _ => (box_ascent, box_descent),
             };
