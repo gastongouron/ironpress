@@ -232,6 +232,19 @@ pub(super) fn compute_row_height(cells: &[TableCell]) -> f32 {
         .fold(0.0f32, f32::max)
 }
 
+/// Compute a grid row's painted height. Unlike a table row, a grid track size is
+/// resolved during layout (css-grid-1 §11): the row track already accounts for
+/// each item's definite/auto height, and a grid item with a definite height does
+/// NOT grow its track when its content is taller — the content overflows the box
+/// instead. So the painted row height is the track height carried on each cell as
+/// `min_content_height`, never grown by the cells' intrinsic content height.
+pub(super) fn compute_grid_row_height(cells: &[TableCell]) -> f32 {
+    cells
+        .iter()
+        .map(|cell| cell.min_content_height)
+        .fold(0.0f32, f32::max)
+}
+
 /// Paint-origin shift for a `border-collapse: collapse` table (CSS2 §17.6.2).
 /// ironpress strokes each cell border CENTERED on its box edge, so the table's
 /// outer collapsed border extends half its width OUTSIDE the table's border box.
@@ -700,6 +713,9 @@ pub(super) fn render_nested_text_block(
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         render_cell_text(
             content,

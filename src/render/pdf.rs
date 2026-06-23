@@ -28,7 +28,8 @@ mod layout_elements;
 
 use layout_elements::{
     NestedLayoutFrame, PageRenderContext, TableCellRenderBox, collapse_paint_offset,
-    compute_row_height, render_cell_content, row_baseline_shifts, table_cell_geometry,
+    compute_grid_row_height, compute_row_height, render_cell_content, row_baseline_shifts,
+    table_cell_geometry,
 };
 
 #[cfg(test)]
@@ -2128,7 +2129,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     ..
                 } => {
                     let row_y = page_size.height - margin.top - y_pos;
-                    let row_height = compute_row_height(cells) + grid_pt + grid_pb;
+                    let row_height = compute_grid_row_height(cells) + grid_pt + grid_pb;
                     let grid_total_w: f32 = col_widths.iter().sum::<f32>()
                         + gap * col_widths.len().saturating_sub(1) as f32
                         + grid_pl
@@ -2208,7 +2209,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         // Draw cell background
-                        let cell_content_h = compute_row_height(cells);
+                        let cell_content_h = compute_grid_row_height(cells);
                         if let Some((r, g, b, a)) = cell.background_color {
                             let needs_grid_bg_alpha = a < 1.0;
                             if needs_grid_bg_alpha {
@@ -2227,6 +2228,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str("/GSDefault gs\n");
                             }
                         }
+
+                        // Draw cell gradient backgrounds across the cell box.
+                        paint_cell_gradient_backgrounds(
+                            &mut content,
+                            cell,
+                            cell_x,
+                            cell_row_y - cell_content_h,
+                            cell_w,
+                            cell_content_h,
+                            &mut page_shadings,
+                            &mut shading_counter,
+                        );
 
                         // Render cell text
                         let mut page_context = PageRenderContext::new(
@@ -6875,12 +6888,24 @@ fn render_container_children(
                 padding_left: flex_pl,
                 row_height: flex_row_h,
                 align_items,
+                positioned_depth: flex_positioned_depth,
                 ..
             } => {
                 cursor_y -= collapsed_margin_top_extra(*flex_mt, prev_margin_bottom);
                 y = cursor_y;
                 let row_h =
                     crate::layout::engine::estimate_element_height(child) - flex_mt - flex_mb;
+
+                // A flex container that establishes a containing block records its
+                // PADDING-box origin (border-box left, border-box top minus the top
+                // border) under its `positioned_depth`, so absolutely-positioned
+                // children nested in a static ancestor anchor to its padding box —
+                // mirroring the top-level pagination path. Without this an abs child
+                // of a flex container nested inside a padded block lost the
+                // ancestor's offset and was placed at the wrong origin.
+                if *flex_positioned_depth > 0 {
+                    abs_origins.insert(*flex_positioned_depth, (x, y - border.top.width));
+                }
                 // The flex container honors its explicit width: paint its
                 // background at `container_width` (already clamped to the
                 // layout-time available width), not the full available width.
@@ -7627,7 +7652,7 @@ fn render_nested_table_rows(
             } => {
                 cursor_y -= margin_top;
                 let row_y = cursor_y;
-                let row_height = compute_row_height(cells) + grid_pt + grid_pb;
+                let row_height = compute_grid_row_height(cells) + grid_pt + grid_pb;
                 let grid_total_w: f32 = col_widths.iter().sum::<f32>()
                     + gap * col_widths.len().saturating_sub(1) as f32
                     + grid_pl
@@ -7698,7 +7723,7 @@ fn render_nested_table_rows(
                 }
 
                 let cell_row_y = row_y - grid_pt;
-                let cell_content_h = compute_row_height(cells);
+                let cell_content_h = compute_grid_row_height(cells);
                 let mut col_pos: usize = 0;
                 for cell in cells.iter() {
                     let span = cell.colspan.max(1);
@@ -7747,6 +7772,21 @@ fn render_nested_table_rows(
                             content.push_str("/GSDefault gs\n");
                         }
                     }
+
+                    // Draw cell gradient backgrounds. A grid item is a block
+                    // container, so a `background: linear/radial/conic-gradient`
+                    // paints across the cell's border box just like any block
+                    // (css-backgrounds-3 §3), clipped to the painted box.
+                    paint_cell_gradient_backgrounds(
+                        content,
+                        cell,
+                        box_x,
+                        box_y,
+                        box_w,
+                        box_h,
+                        page_shadings,
+                        shading_counter,
+                    );
 
                     // Draw per-cell border around the painted box. Use the
                     // shared image-border helper so each stroke is centered
@@ -8502,6 +8542,66 @@ fn gradient_layer_tiles(
         }
     }
     tiles
+}
+
+/// Paint a grid/table cell's gradient backgrounds over its painted box.
+///
+/// A grid item (and a table cell) is a block container, so a `background` with a
+/// `linear-gradient()`/`radial-gradient()`/`conic-gradient()` paints across the
+/// cell's border box exactly like a normal block (css-backgrounds-3 §3). The
+/// fill is clipped to the box so it never bleeds past the cell edges. Painted
+/// after the cell's solid `background-color` and before its border, matching the
+/// block paint order.
+#[allow(clippy::too_many_arguments)]
+fn paint_cell_gradient_backgrounds(
+    content: &mut String,
+    cell: &TableCell,
+    box_x: f32,
+    box_y: f32,
+    box_w: f32,
+    box_h: f32,
+    shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
+) {
+    if box_w <= 0.0 || box_h <= 0.0 {
+        return;
+    }
+    if let Some(gradient) = &cell.background_gradient {
+        content.push_str("q\n");
+        content.push_str(&format!("{box_x} {box_y} {box_w} {box_h} re\nW n\n"));
+        render_linear_gradient(
+            content,
+            gradient,
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            shadings,
+            shading_counter,
+        );
+        content.push_str("Q\n");
+    }
+    if let Some(gradient) = &cell.background_radial_gradient {
+        content.push_str("q\n");
+        content.push_str(&format!("{box_x} {box_y} {box_w} {box_h} re\nW n\n"));
+        render_radial_gradient(
+            content,
+            gradient,
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            shadings,
+            shading_counter,
+        );
+        content.push_str("Q\n");
+    }
+    if let Some(gradient) = &cell.background_conic_gradient {
+        content.push_str("q\n");
+        content.push_str(&format!("{box_x} {box_y} {box_w} {box_h} re\nW n\n"));
+        render_conic_gradient(content, gradient, box_x, box_y, box_w, box_h);
+        content.push_str("Q\n");
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -12910,6 +13010,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -14462,6 +14565,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let mut content = String::new();
         let fonts = HashMap::new();
@@ -15493,6 +15599,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let cell_visible = TableCell {
             lines: vec![TextLine {
@@ -15515,6 +15624,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell_skip, cell_visible],
@@ -15604,6 +15716,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -15719,6 +15834,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let element = LayoutElement::TableRow {
             cells: vec![cell],
@@ -15817,6 +15935,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let mut content_right = String::new();
         render_cell_text(
@@ -15852,6 +15973,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
         let mut content_center = String::new();
         render_cell_text(
@@ -15937,6 +16061,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
 
         let mut content = String::new();
@@ -16007,6 +16134,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
 
         let mut content = String::new();
@@ -16076,6 +16206,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         };
 
         let mut content = String::new();

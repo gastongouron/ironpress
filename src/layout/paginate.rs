@@ -93,9 +93,14 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             padding_bottom,
             ..
         } => {
+            // A grid row occupies its resolved track height (css-grid-1 §11),
+            // carried on each cell as `min_content_height`. A grid item with a
+            // definite height does NOT grow its track when its content is taller
+            // (the content overflows), so the row height must not be inflated by
+            // the cells' intrinsic content height the way a table row's is.
             let row_h = cells
                 .iter()
-                .map(table_cell_content_height)
+                .map(|cell| cell.min_content_height)
                 .fold(0.0f32, f32::max);
             margin_top + padding_top + row_h + padding_bottom + margin_bottom
         }
@@ -631,9 +636,11 @@ pub(crate) fn paginate(
                 margin_bottom,
                 ..
             } => {
+                // Grid track height (resolved at layout) — never grown by the
+                // cells' intrinsic content height (css-grid-1 §11).
                 let row_height = cells
                     .iter()
-                    .map(table_cell_content_height)
+                    .map(|cell| cell.min_content_height)
                     .fold(0.0f32, f32::max);
                 (row_height, *margin_top, *margin_bottom)
             }

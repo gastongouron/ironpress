@@ -444,6 +444,9 @@ mod tests {
             hide_if_empty: false,
             grid_inset: None,
             clips: false,
+            background_gradient: None,
+            background_radial_gradient: None,
+            background_conic_gradient: None,
         }
     }
 

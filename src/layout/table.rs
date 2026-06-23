@@ -59,6 +59,15 @@ pub struct TableCell {
     /// painted under a clip at the cell's padding box. `false` for table cells
     /// and non-clipping grid items.
     pub clips: bool,
+    /// CSS `linear-gradient()` background painted across the cell's box. Grid
+    /// items (and table cells) are block containers, so a gradient/image
+    /// `background` paints over the cell area exactly like a normal block
+    /// (css-backgrounds-3 §3). `None` when the cell has no gradient background.
+    pub background_gradient: Option<crate::style::computed::LinearGradient>,
+    /// CSS `radial-gradient()` background painted across the cell's box.
+    pub background_radial_gradient: Option<crate::style::computed::RadialGradient>,
+    /// CSS `conic-gradient()` background painted across the cell's box.
+    pub background_conic_gradient: Option<crate::style::computed::ConicGradient>,
 }
 
 /// Placement of a grid item's painted box within its (possibly larger) track
@@ -1219,6 +1228,9 @@ pub(crate) fn flatten_table(
                     hide_if_empty: false,
                     grid_inset: None,
                     clips: false,
+                    background_gradient: None,
+                    background_radial_gradient: None,
+                    background_conic_gradient: None,
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
@@ -1406,6 +1418,9 @@ pub(crate) fn flatten_table(
                 hide_if_empty,
                 grid_inset: None,
                 clips: false,
+                background_gradient: None,
+                background_radial_gradient: None,
+                background_conic_gradient: None,
             });
 
             // Mark subsequent rows as occupied if rowspan > 1

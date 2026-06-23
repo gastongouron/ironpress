@@ -310,6 +310,22 @@ fn layout_grid_item_children(
         inner_style.border = Default::default();
         inner_style.background_color = None;
         inner_style.width = Some(content_width);
+        // The inner formatting context spans the item's CONTENT box, so a definite
+        // item height must be reduced to its content-box height here (the cell's
+        // border + padding are stripped above). Otherwise an inner flex/grid would
+        // use the full border-box height for cross-axis sizing / `align-items`,
+        // pushing centered items down by the padding+border amount.
+        if let Some(h) = item_style.height {
+            let content_h = if item_style.box_sizing == BoxSizing::BorderBox {
+                (h - item_style.border.vertical_width()
+                    - item_style.padding.top
+                    - item_style.padding.bottom)
+                    .max(0.0)
+            } else {
+                h
+            };
+            inner_style.height = Some(content_h);
+        }
         if item_style.display == Display::Flex {
             crate::layout::flex::layout_flex_container(
                 item_el,
@@ -421,6 +437,9 @@ fn empty_grid_cell(track_h: f32) -> TableCell {
         hide_if_empty: false,
         grid_inset: None,
         clips: false,
+        background_gradient: None,
+        background_radial_gradient: None,
+        background_conic_gradient: None,
     }
 }
 
@@ -1241,6 +1260,9 @@ pub(crate) fn layout_grid_container(
                 hide_if_empty: false,
                 grid_inset: inset,
                 clips: cs.overflow.clips(),
+                background_gradient: cs.background_gradient.clone(),
+                background_radial_gradient: cs.background_radial_gradient.clone(),
+                background_conic_gradient: cs.background_conic_gradient.clone(),
             });
             next_col = p.col + p.col_span;
         }
@@ -1294,8 +1316,12 @@ pub(crate) fn layout_grid_container(
     let establishes_cb = crate::layout::helpers::establishes_containing_block(style);
     let grid_positioned_depth = if establishes_cb { positioned_depth } else { 0 };
     if !abs_child_indices.is_empty() {
-        // Content-box height of the grid container for `bottom` resolution.
-        let cb_content_height = style
+        // The containing block for an absolutely-positioned child of a grid
+        // container is the grid container's PADDING box (CSS2 §10.1, css-grid-1
+        // §9). So `bottom`/`right` insets resolve against the padding-box extent,
+        // not the content box — using the content box would place a bottom-anchored
+        // box `padding-top + padding-bottom` too high.
+        let content_box_height = style
             .height
             .map(|h| {
                 if style.box_sizing == BoxSizing::BorderBox {
@@ -1305,14 +1331,16 @@ pub(crate) fn layout_grid_container(
                 }
             })
             .unwrap_or(content_height);
+        let cb_padding_height = content_box_height + style.padding.top + style.padding.bottom;
+        let cb_padding_width = inner_width.max(0.0) + style.padding.left + style.padding.right;
         let cb = ContainingBlock {
-            // Padding-box left, relative to the wrapping Container's content
+            // Padding-box top-left, relative to the wrapping Container's content
             // origin. The Container seeds abs_origins at its border-box inner
             // corner (border edge), so an abs child anchored to the padding box
             // offsets by the container's padding only (border already folded in).
             x: style.padding.left,
-            width: inner_width.max(0.0),
-            height: cb_content_height,
+            width: cb_padding_width,
+            height: cb_padding_height,
             depth: grid_positioned_depth,
         };
         for &idx in &abs_child_indices {
@@ -1328,9 +1356,9 @@ pub(crate) fn layout_grid_container(
             });
             let child_ctx = ctx
                 .with_parent_and_basis(
-                    inner_width.max(0.0),
-                    inner_width.max(0.0),
-                    Some(cb_content_height.max(1.0)),
+                    cb_padding_width.max(0.0),
+                    cb_padding_width.max(0.0),
+                    Some(cb_padding_height.max(1.0)),
                     style.font_size,
                 )
                 .with_containing_block(Some(cb));

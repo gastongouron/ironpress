@@ -355,15 +355,21 @@ pub(crate) fn wrap_text_runs(
         let run_ends_ws = run.text.chars().last().is_some_and(char::is_whitespace);
 
         if run.inline_box.is_some() {
-            // Atomic inline box: a single, unbreakable token. `preserve_spacing`
-            // is true so no inter-word space is injected before it.
+            // Atomic inline box (`display: inline-block`): a single, unbreakable
+            // token that takes part in inline spacing like a word. A collapsible
+            // space in the source before the box (the prior run ended in
+            // whitespace) is rendered as an inter-word space, so `joins_prev` is
+            // set only when there was no such space (CSS2 §9.1). `preserve_spacing`
+            // stays false so the wrapper applies the normal leading-space rule.
             styled_words.push(StyledWord {
                 text: String::new(),
                 run: run.clone(),
-                preserve_spacing: true,
-                joins_prev: false,
+                preserve_spacing: false,
+                joins_prev: !prev_run_ends_ws,
             });
-            // An atomic box is not whitespace; the next run abuts it directly.
+            // The box itself is not whitespace; a following run supplies its own
+            // leading space (re-attached during collection) when the source had
+            // collapsible whitespace after the box.
             prev_run_ends_ws = false;
             continue;
         }
@@ -651,13 +657,44 @@ pub(crate) fn wrap_text_runs(
         // box to its height. It wraps to a fresh line if it overflows.
         if let Some(inline) = template.inline_box.as_deref() {
             let box_w = inline.outer_width();
-            if current_width > 0.0 && current_width + box_w > line_max_width(lines.len()) {
+            // A collapsible space in the source before the box (`!joins_prev`)
+            // renders as an inter-word space, exactly like a space before a word —
+            // but only when the preceding run did not already emit a trailing space
+            // (a `preserve_spacing` run, e.g. " text ", keeps its own trailing
+            // space, so adding another here would double the gap).
+            let prev_emitted_ws = current_runs
+                .last()
+                .and_then(|r: &TextRun| r.text.chars().last())
+                .is_some_and(char::is_whitespace);
+            let lead_space = if current_width > 0.0 && !joins_prev && !prev_emitted_ws {
+                estimate_word_width(
+                    " ",
+                    template.font_size,
+                    &template.font_family,
+                    template.bold,
+                    template.italic,
+                    fonts,
+                )
+            } else {
+                0.0
+            };
+            if current_width > 0.0
+                && current_width + lead_space + box_w > line_max_width(lines.len())
+            {
                 lines.push(TextLine {
                     runs: std::mem::take(&mut current_runs),
                     height: line_height,
                 });
                 current_width = 0.0;
                 line_height = run_line_height(&template);
+            } else if lead_space > 0.0 {
+                // Emit the inter-word space as a run so the box advances past it.
+                current_runs.push(TextRun {
+                    text: " ".to_string(),
+                    inline_box: None,
+                    ..template.clone()
+                });
+                current_width += lead_space;
             }
             current_width += box_w;
             // CSS2 §10.8: the line box must be tall enough to contain every
@@ -1275,9 +1312,19 @@ fn collect_text_runs_inner(
                     let mut collapsed = collapse_whitespace(text);
                     let starts_ws = text.chars().next().is_some_and(char::is_whitespace);
                     let ends_ws = text.chars().last().is_some_and(char::is_whitespace);
-                    let prev_has_trailing_content = runs
+                    // An atomic inline box (`display: inline-block`) carries empty
+                    // text but is still inline content: a collapsible space after it
+                    // must be preserved (CSS2 §9.1 / css-text-3 §4.1), e.g.
+                    // `Ag <span class=ib></span> text` keeps the space before
+                    // "text". So treat a preceding inline box as trailing content,
+                    // and (since a box never ends in whitespace) re-attach the space.
+                    let prev_is_inline_box = runs
                         .last()
-                        .is_some_and(|r: &TextRun| !r.text.is_empty() && r.text != "\n");
+                        .is_some_and(|r: &TextRun| r.inline_box.is_some());
+                    let prev_has_trailing_content = prev_is_inline_box
+                        || runs
+                            .last()
+                            .is_some_and(|r: &TextRun| !r.text.is_empty() && r.text != "\n");
                     if starts_ws && prev_has_trailing_content {
                         let prev_ends_ws = runs
                             .last()
