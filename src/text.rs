@@ -266,7 +266,7 @@ mod tests {
         resolve_custom_font, shape_text_run, shape_text_with_font,
     };
     use crate::layout::engine::TextRun;
-    use crate::style::computed::FontFamily;
+    use crate::style::computed::{FontFamily, VerticalAlign};
     use std::collections::HashMap;
 
     #[test]
@@ -451,6 +451,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
@@ -475,6 +476,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }

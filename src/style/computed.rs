@@ -1345,6 +1345,11 @@ pub struct ComputedStyle {
     pub white_space: WhiteSpace,
     pub letter_spacing: f32,
     pub word_spacing: f32,
+    /// CSS `tab-size` (css-text-3 §6.3): the number of space advances between
+    /// consecutive tab stops. A unitless `<number>` is stored directly; a
+    /// `<length>` is converted to an equivalent count by the renderer via the
+    /// space advance. Defaults to 8 (the initial value).
+    pub tab_size: f32,
     pub vertical_align: VerticalAlign,
     pub background_gradient: Option<LinearGradient>,
     pub background_radial_gradient: Option<RadialGradient>,
@@ -1595,6 +1600,7 @@ impl Default for ComputedStyle {
             white_space: WhiteSpace::Normal,
             letter_spacing: 0.0,
             word_spacing: 0.0,
+            tab_size: 8.0,
             vertical_align: VerticalAlign::Baseline,
             background_gradient: None,
             background_radial_gradient: None,
@@ -2239,6 +2245,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "visibility" => style.visibility = default.visibility,
         "letter-spacing" => style.letter_spacing = default.letter_spacing,
         "word-spacing" => style.word_spacing = default.word_spacing,
+        "tab-size" => style.tab_size = default.tab_size,
         "background-color" => style.background_color = default.background_color,
         "margin-top" => {
             style.margin.top = default.margin.top;
@@ -2410,6 +2417,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "visibility" => style.visibility = parent.visibility,
         "letter-spacing" => style.letter_spacing = parent.letter_spacing,
         "word-spacing" => style.word_spacing = parent.word_spacing,
+        "tab-size" => style.tab_size = parent.tab_size,
         "background-color" => style.background_color = parent.background_color,
         "margin-top" => {
             style.margin.top = parent.margin.top;
@@ -4014,6 +4022,21 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Letter-spacing
     if let Some(CssValue::Length(v)) = get_non_special(map, "letter-spacing") {
         style.letter_spacing = *v;
+    }
+
+    // Tab-size (css-text-3 §6.3). A unitless `<number>` is a count of space
+    // advances; a `<length>` is the tab-stop distance directly (stored as a
+    // negative sentinel so the renderer can tell counts from absolute lengths).
+    // `-moz-tab-size` is accepted as a legacy alias. The initial value is 8.
+    for prop in ["tab-size", "-moz-tab-size"] {
+        if let Some(CssValue::Number(v)) = get_non_special(map, prop) {
+            style.tab_size = v.max(0.0);
+        } else if let Some(CssValue::Length(v)) = get_non_special(map, prop) {
+            // Encode an absolute length as a negative value; the renderer maps a
+            // negative `tab_size` to `-tab_size` points (independent of the
+            // space advance).
+            style.tab_size = -(v.abs());
+        }
     }
 
     // Word-spacing

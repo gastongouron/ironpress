@@ -127,7 +127,7 @@ pub(crate) fn has_rtl_chars(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::style::computed::FontFamily;
+    use crate::style::computed::{FontFamily, VerticalAlign};
 
     fn make_run(text: &str) -> TextRun {
         TextRun {
@@ -147,6 +147,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         }
     }
 

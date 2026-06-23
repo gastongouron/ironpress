@@ -7935,6 +7935,12 @@ fn render_run_text(
 ) -> f32 {
     let (r, g, b) = run.color;
 
+    // css2 §10.8.1: `vertical-align: super`/`sub` paint a text run with its
+    // baseline raised/lowered by a fraction of its own font size. This only
+    // moves the painted glyphs vertically; the horizontal advance (the returned
+    // width) is unchanged, so callers position the next run normally.
+    let text_y = text_y + run_vertical_align_shift(run);
+
     // For runs with mixed scripts (e.g. "Chinese: 你好世界"), split into
     // segments and render each with the appropriate font: primary font for
     // characters it covers, fallback font for the rest.
@@ -8247,19 +8253,35 @@ fn render_line_text(
         // then consecutive Tf/rg/Tj operators.  The viewer advances the
         // text cursor after each Tj.
         content.push_str("BT\n");
+        // The text cursor tracks the *current* baseline so a per-run
+        // sub/super shift can be applied (and undone) with a relative `Td`,
+        // leaving the next run on the normal baseline.
+        let mut cur_baseline = y;
         let mut first = true;
         for run in &non_empty {
             let (r, g, b) = run.color;
             let font_name = resolve_font_name(run, None, None);
             content.push_str(&format!("{r} {g} {b} rg\n"));
             content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
+            // css2 §10.8: `vertical-align: super`/`sub` raise/lower a text run
+            // off the line baseline by a fraction of its own font size.
+            let target_baseline = y + run_vertical_align_shift(run);
             if first {
                 content.push_str(&format!(
                     "{} {} Td\n",
                     format_pdf_number(start_x),
-                    format_pdf_number(y),
+                    format_pdf_number(target_baseline),
                 ));
+                cur_baseline = target_baseline;
                 first = false;
+            } else if (target_baseline - cur_baseline).abs() > f32::EPSILON {
+                // Relative move from the previous run's baseline; the cursor's
+                // x has already advanced by the previous Tj, so dx = 0.
+                content.push_str(&format!(
+                    "0 {} Td\n",
+                    format_pdf_number(target_baseline - cur_baseline),
+                ));
+                cur_baseline = target_baseline;
             }
             let encoded = encode_pdf_text(&run.text);
             content.push_str(&format!("({encoded}) Tj\n"));
@@ -8289,6 +8311,23 @@ fn render_line_text(
     }
 }
 
+/// Baseline shift (PDF points, up positive) for a text run's `vertical-align`.
+///
+/// css2 §10.8.1: `super`/`sub` move a text run's baseline up/down by a fraction
+/// of the run's own font size; all other values leave it on the line baseline.
+/// Atomic inline boxes are aligned elsewhere (they carry their own geometry), so
+/// this only affects pure-text runs.
+fn run_vertical_align_shift(run: &TextRun) -> f32 {
+    if run.inline_box.is_some() {
+        return 0.0;
+    }
+    match run.vertical_align {
+        VerticalAlign::Super => run.font_size * SUPER_SHIFT_RATIO,
+        VerticalAlign::Sub => -run.font_size * SUB_SHIFT_RATIO,
+        _ => 0.0,
+    }
+}
+
 #[derive(Clone, Copy)]
 struct LineBoxMetrics {
     ascender: f32,
@@ -8314,9 +8353,13 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 run.italic,
                 custom_fonts,
             );
+            // A `vertical-align: super`/`sub` text run is painted with its
+            // baseline shifted up/down (css2 §10.8.1), so the line box must grow
+            // to contain the raised top / lowered bottom of its glyphs.
+            let shift = run_vertical_align_shift(run);
             (
-                max_ascender.max(ascender_ratio * run.font_size),
-                max_descender.max(descender_ratio * run.font_size),
+                max_ascender.max(ascender_ratio * run.font_size + shift),
+                max_descender.max(descender_ratio * run.font_size - shift),
             )
         });
     // A baseline-aligned inline box contributes `baseline_ascent` above the line
@@ -8439,6 +8482,9 @@ fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
                 && prev.background_color == run.background_color
                 && prev.padding == run.padding
                 && prev.border_radius == run.border_radius
+                // A sub/super run is painted on a shifted baseline; never merge
+                // it with a baseline-aligned neighbour (css2 §10.8).
+                && prev.vertical_align == run.vertical_align
                 // Don't merge across an RTL <-> LTR boundary: the bidi pass
                 // split these into separate runs in visual order, and merging
                 // would give the shaper a mixed-script buffer whose guessed
@@ -11376,6 +11422,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         }
     }
 
@@ -13053,6 +13100,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -13071,6 +13119,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let cell = TableCell {
             lines: vec![
@@ -13166,6 +13215,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -13186,6 +13236,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -13206,6 +13257,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -14642,6 +14694,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -14708,6 +14761,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -14726,6 +14780,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -15681,6 +15736,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let run_visible = TextRun {
             text: "Visible".to_string(),
@@ -15806,6 +15862,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -15901,6 +15958,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let mut border = LayoutBorder::default();
         border.top = LayoutBorderSide {
@@ -16027,6 +16085,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
 
         // Test right-align
@@ -16134,6 +16193,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let strike_run = TextRun {
             text: "Strike".to_string(),
@@ -16152,6 +16212,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16234,6 +16295,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16308,6 +16370,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
 
         let cell = crate::layout::engine::TableCell {

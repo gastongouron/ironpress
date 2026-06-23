@@ -145,6 +145,18 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
         HtmlTag::Small => {
             style.set("font-size", CssValue::Length(10.0));
         }
+        // Chrome UA stylesheet: `sub`/`sup` shift the baseline and shrink the
+        // font. `font-size: smaller` resolves to ~0.83em within the medium
+        // range; expressed here as a `Number` em-multiplier (resolved against
+        // the inherited size, like the heading defaults above).
+        HtmlTag::Sub => {
+            style.set("vertical-align", CssValue::Keyword("sub".into()));
+            style.set("font-size", CssValue::Number(0.83));
+        }
+        HtmlTag::Sup => {
+            style.set("vertical-align", CssValue::Keyword("super".into()));
+            style.set("font-size", CssValue::Number(0.83));
+        }
         HtmlTag::Mark => {
             style.set("background-color", CssValue::Color(Color::rgb(255, 255, 0)));
         }

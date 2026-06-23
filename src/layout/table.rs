@@ -14,8 +14,8 @@ use super::engine::{
 };
 use super::paginate::{estimate_element_height, table_row_content_width};
 use super::text::{
-    TextWrapOptions, collapse_whitespace, estimate_word_width, resolve_style_font_family,
-    resolved_line_height_factor, wrap_text_runs,
+    TextWrapOptions, collapse_whitespace, estimate_word_width, expand_pre_tabs,
+    resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
 };
 
 /// A table cell ready for rendering.
@@ -1860,7 +1860,7 @@ fn collect_table_cell_content_inner(
         match node {
             DomNode::Text(text) => {
                 let processed = if preserve_ws {
-                    text.clone()
+                    expand_pre_tabs(text, parent_style, fonts)
                 } else {
                     collapse_whitespace(text)
                 };
@@ -1919,6 +1919,7 @@ fn collect_table_cell_content_inner(
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: parent_style.vertical_align,
                         },
                     );
                 }
@@ -2099,6 +2100,7 @@ fn push_line_break_run(
             line_height_factor: resolved_line_height_factor(style, fonts),
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         },
     );
 }

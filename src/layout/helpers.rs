@@ -1133,6 +1133,7 @@ pub(crate) fn build_pseudo_block(
                 line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
                 inline_box: None,
                 disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
             },
             &mut runs,
             fonts,
@@ -1369,6 +1370,7 @@ pub(crate) fn build_pseudo_inline_run(
             line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
             inline_box: Some(Box::new(inline)),
             disable_ligatures: false,
+            vertical_align: pseudo_style.vertical_align,
         };
     }
 
@@ -1395,6 +1397,7 @@ pub(crate) fn build_pseudo_inline_run(
             line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
             inline_box: Some(Box::new(inline)),
             disable_ligatures: false,
+            vertical_align: pseudo_style.vertical_align,
         };
     }
 
@@ -1415,6 +1418,7 @@ pub(crate) fn build_pseudo_inline_run(
         line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
         inline_box: None,
         disable_ligatures: false,
+        vertical_align: pseudo_style.vertical_align,
     }
 }
 
@@ -1451,6 +1455,7 @@ fn build_pseudo_inline_box(
             line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         wrap_text_runs(
             vec![run],

@@ -576,6 +576,18 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return val.trim().parse::<f32>().ok().map(CssValue::Number);
     }
 
+    // tab-size (css-text-3 §6.3): a bare `<number>` is a count of space
+    // advances (kept as Number); a value with a unit is a `<length>`.
+    if property == "tab-size" || property == "-moz-tab-size" {
+        let has_unit = val
+            .trim()
+            .ends_with(|c: char| c.is_ascii_alphabetic() || c == '%');
+        if has_unit {
+            return parse_length(val);
+        }
+        return val.trim().parse::<f32>().ok().map(CssValue::Number);
+    }
+
     parse_length(val)
 }
 

@@ -5,8 +5,8 @@ use crate::parser::ttf::TtfFont;
 // without a separate import.
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
-    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, Position, WhiteSpace,
-    compute_style_with_context,
+    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, Position, VerticalAlign,
+    WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -106,6 +106,99 @@ pub(crate) fn collapse_whitespace_pre_line(text: &str) -> String {
         result.pop();
     }
     result
+}
+
+// ---------------------------------------------------------------------------
+// expand_tabs
+// ---------------------------------------------------------------------------
+
+/// Expand `U+0009` TAB characters in preserved (`white-space: pre`/`pre-wrap`/
+/// `break-spaces`) text to runs of spaces that advance to the next tab stop
+/// (css-text-3 §6.3).
+///
+/// Tab stops are spaced `tab_size` apart, measured from the start of each line
+/// (reset after every `\n`). `tab_size` is the resolved stop distance in points
+/// (e.g. `tab-size: N` × the space advance, or an absolute `<length>`).
+/// `space_advance` is the width of one space glyph; preceding content width is
+/// accumulated from the actual glyph advances so the alignment is correct for
+/// both monospace and proportional fonts. Each tab is replaced by the (>=1)
+/// number of spaces whose total advance lands on (or just past) the next stop —
+/// exact for monospace and a close approximation otherwise. Returns the input
+/// unchanged when it contains no tab.
+fn expand_tabs(
+    text: &str,
+    tab_size: f32,
+    space_advance: f32,
+    char_advance: impl Fn(char) -> f32,
+) -> String {
+    if !text.contains('\t') || tab_size <= 0.0 || space_advance <= 0.0 {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    // Horizontal position since the start of the current line, in points.
+    let mut x = 0.0f32;
+    for ch in text.chars() {
+        match ch {
+            '\n' => {
+                out.push('\n');
+                x = 0.0;
+            }
+            '\t' => {
+                // Distance to the next tab stop (a strictly positive advance:
+                // a tab sitting exactly on a stop still moves to the next one).
+                let next_stop = ((x / tab_size).floor() + 1.0) * tab_size;
+                let needed = (next_stop - x).max(space_advance);
+                // Round to the nearest whole number of spaces (>= 1).
+                let count = (needed / space_advance).round().max(1.0) as usize;
+                for _ in 0..count {
+                    out.push(' ');
+                }
+                x += count as f32 * space_advance;
+            }
+            other => {
+                out.push(other);
+                x += char_advance(other);
+            }
+        }
+    }
+    out
+}
+
+/// Expand TABs in a preserved-whitespace text node using a style's resolved
+/// `tab-size` and the space advance of its font (css-text-3 §6.3). No-op when
+/// the text has no tab. Used by the `pre`/`pre-wrap`/`break-spaces` text paths.
+pub(crate) fn expand_pre_tabs(
+    text: &str,
+    style: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+) -> String {
+    if !text.contains('\t') {
+        return text.to_string();
+    }
+    let bold = style.font_weight == FontWeight::Bold;
+    let italic = style.font_style == FontStyle::Italic;
+    let family = resolve_style_font_family(style, fonts);
+    let space_advance = estimate_word_width(" ", style.font_size, &family, bold, italic, fonts);
+    if space_advance <= 0.0 {
+        return text.to_string();
+    }
+    // `tab_size >= 0` is a count of space advances; a negative value encodes an
+    // absolute length in points (see `apply_style_map`).
+    let tab_distance = if style.tab_size >= 0.0 {
+        style.tab_size * space_advance
+    } else {
+        -style.tab_size
+    };
+    expand_tabs(text, tab_distance, space_advance, |c| {
+        estimate_word_width(
+            &c.to_string(),
+            style.font_size,
+            &family,
+            bold,
+            italic,
+            fonts,
+        )
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +427,19 @@ pub(crate) fn wrap_text_runs(
         } else {
             run.line_height_factor.max(0.0)
         };
-        run.font_size * factor
+        let base = run.font_size * factor;
+        // A `vertical-align: super`/`sub` run is painted on a baseline shifted
+        // off the line baseline (css2 §10.8); the line box grows to keep the
+        // raised/lowered glyphs inside it. The symmetric half-leading absorbs
+        // the shift on the appropriate side, so the line's `line-height` is
+        // grown by a fixed fraction of the run's em for either direction — this
+        // approximates Chrome's line-box expansion for a small shifted run.
+        const SHIFTED_LINE_GROWTH: f32 = 0.6;
+        let growth = match run.vertical_align {
+            VerticalAlign::Super | VerticalAlign::Sub => run.font_size * SHIFTED_LINE_GROWTH,
+            _ => 0.0,
+        };
+        base + growth
     };
     // Start the line box height from the first run's line-height contribution.
     let mut line_height = runs
@@ -729,6 +834,7 @@ pub(crate) fn wrap_text_runs(
                     text: " ".to_string(),
                     inline_box: None,
                     disable_ligatures: false,
+                    vertical_align: VerticalAlign::Baseline,
                     ..template.clone()
                 });
                 current_width += lead_space;
@@ -938,6 +1044,7 @@ pub(crate) fn wrap_text_runs(
                     line_height_factor: prev_run.line_height_factor,
                     inline_box: None,
                     disable_ligatures: false,
+                    vertical_align: prev_run.vertical_align,
                 });
                 word
             } else {
@@ -1418,8 +1525,9 @@ fn collect_text_runs_inner(
         match node {
             DomNode::Text(text) => {
                 let processed = if preserve_ws {
-                    // In pre/pre-wrap: preserve newlines as \n runs for line breaking
-                    text.clone()
+                    // In pre/pre-wrap: preserve newlines as \n runs for line breaking,
+                    // and expand tabs to the next tab stop (css-text-3 §6.3).
+                    expand_pre_tabs(text, parent_style, fonts)
                 } else if pre_line {
                     collapse_whitespace_pre_line(text)
                 } else {
@@ -1517,6 +1625,7 @@ fn collect_text_runs_inner(
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: parent_style.vertical_align,
                         },
                         parent_style.font_variant_caps,
                         parent_style.ligatures_enabled,
@@ -1545,6 +1654,7 @@ fn collect_text_runs_inner(
                             line_height_factor: resolved_line_height_factor(parent_style, fonts),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: VerticalAlign::Baseline,
                         });
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
@@ -1622,6 +1732,7 @@ fn collect_text_runs_inner(
                                     line_height_factor,
                                     inline_box: Some(Box::new(boxed)),
                                     disable_ligatures: false,
+                                    vertical_align: VerticalAlign::Baseline,
                                 });
                             }
                             continue;
@@ -1710,7 +1821,7 @@ impl<'a> FlexTextRunCollector<'a> {
             match node {
                 DomNode::Text(text) => {
                     let processed = if preserve_ws {
-                        text.clone()
+                        expand_pre_tabs(text, parent_style, self.fonts)
                     } else if pre_line {
                         collapse_whitespace_pre_line(text)
                     } else {
@@ -1765,6 +1876,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 ),
                                 inline_box: None,
                                 disable_ligatures: false,
+                                vertical_align: parent_style.vertical_align,
                             },
                             parent_style.font_variant_caps,
                             parent_style.ligatures_enabled,
@@ -1835,6 +1947,7 @@ impl<'a> FlexTextRunCollector<'a> {
                             ),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: VerticalAlign::Baseline,
                         });
                         continue;
                     }
@@ -1876,6 +1989,7 @@ impl<'a> FlexTextRunCollector<'a> {
                             ),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: VerticalAlign::Baseline,
                         });
                     }
                 }
@@ -1906,6 +2020,7 @@ mod indent_tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         }
     }
 

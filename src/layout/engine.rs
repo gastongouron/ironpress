@@ -282,6 +282,13 @@ pub struct TextRun {
     /// (`font-feature-settings: "liga" 0`; css-fonts-3 §6.4). Defaults to
     /// `false`, so ordinary text still ligates.
     pub disable_ligatures: bool,
+    /// CSS `vertical-align` for this text run (css2 §10.8). Only `Sub`/`Super`
+    /// move a pure-text run: the glyphs are painted with their baseline shifted
+    /// down/up by a fraction of the run's font size, and the line box grows to
+    /// contain the shift. Other values (`Baseline`/top/middle/bottom) leave a
+    /// text run on the line baseline. Atomic inline boxes carry their own
+    /// alignment in `inline_box.vertical_align` instead.
+    pub vertical_align: VerticalAlign,
 }
 
 /// An atomic inline-level box laid out inside a line of text, produced for
@@ -1128,6 +1135,7 @@ fn flatten_nodes(
                             ),
                             inline_box: None,
                             disable_ligatures: false,
+                            vertical_align: parent_style.vertical_align,
                         },
                         &mut text_runs,
                         env.fonts,
@@ -1416,6 +1424,7 @@ pub(crate) fn flatten_element(
                 line_height_factor: resolved_line_height_factor(&style, env.fonts),
                 inline_box: None,
                 disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
             }],
             height: style.font_size * resolved_line_height_factor(&style, env.fonts),
             x_offset: 0.0,
@@ -1593,6 +1602,7 @@ pub(crate) fn flatten_element(
                     line_height_factor: resolved_line_height_factor(&style, env.fonts),
                     inline_box: None,
                     disable_ligatures: false,
+                    vertical_align: VerticalAlign::Baseline,
                 },
                 &mut runs,
                 env.fonts,
@@ -1764,6 +1774,7 @@ pub(crate) fn flatten_element(
                 line_height_factor: resolved_line_height_factor(&style, env.fonts),
                 inline_box: None,
                 disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
             },
             &mut runs,
             env.fonts,
@@ -2073,6 +2084,7 @@ pub(crate) fn flatten_element(
                         line_height_factor: resolved_line_height_factor(ps, env.fonts),
                         inline_box: None,
                         disable_ligatures: false,
+                        vertical_align: VerticalAlign::Baseline,
                     },
                     &mut runs,
                     env.fonts,
@@ -2110,14 +2122,18 @@ pub(crate) fn flatten_element(
                 None => format_list_marker(style.list_style_type, 0),
             }
         };
-        let list_indent = if style.list_style_position == ListStylePosition::Inside {
-            0.0
-        } else {
-            match list_ctx {
-                Some(ListContext::Unordered { indent }) => *indent,
-                Some(ListContext::Ordered { indent, .. }) => *indent,
-                None => 0.0,
-            }
+        // The <li> content is indented by the list's accumulated start padding
+        // (the <ol>/<ul> `padding-left`, carried in the ListContext) for BOTH
+        // `inside` and `outside` (css-lists-3 §6): `list-style-position` only
+        // controls where the MARKER sits relative to that content edge, not the
+        // list's own indentation. `outside` makes the marker hang LEFT into the
+        // padding band (negative text-indent via `marker_hang` below); `inside`
+        // keeps the marker inline as the first box, so the text simply flows
+        // after it at the same content edge.
+        let list_indent = match list_ctx {
+            Some(ListContext::Unordered { indent }) => *indent,
+            Some(ListContext::Ordered { indent, .. }) => *indent,
+            None => 0.0,
         };
         // For `list-style-position: outside` (the default) the marker must HANG
         // to the left of the li content edge, sitting inside the ul's padding
@@ -2151,6 +2167,7 @@ pub(crate) fn flatten_element(
                 line_height_factor: resolved_line_height_factor(&style, env.fonts),
                 inline_box: Some(Box::new(inline)),
                 disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
             });
             let _ = outer;
         } else if has_marker {
@@ -2195,6 +2212,7 @@ pub(crate) fn flatten_element(
                     line_height_factor: resolved_line_height_factor(marker_style, env.fonts),
                     inline_box: None,
                     disable_ligatures: false,
+                    vertical_align: VerticalAlign::Baseline,
                 },
                 &mut runs,
                 env.fonts,
@@ -6063,6 +6081,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -6110,6 +6129,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let lines = wrap_text_runs(
             vec![run],
@@ -6144,6 +6164,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let lines = wrap_text_runs(
             vec![run],

@@ -1032,6 +1032,7 @@ mod tests {
             line_height_factor: f32::NAN,
             inline_box: None,
             disable_ligatures: false,
+            vertical_align: VerticalAlign::Baseline,
         };
         let line = TextLine {
             runs: vec![run],
