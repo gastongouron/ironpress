@@ -125,6 +125,35 @@ fn resolve_vh_val() {
 }
 
 #[test]
+fn resolve_vmin_val() {
+    // css-values-4 §6.1.2.2: vmin = 1% of the SMALLER viewport axis (here width).
+    let val = CssValue::Vmin(100.0);
+    let r = resolve_length_value(&val, 400.0, 12.0, 595.28, 841.89, &HashMap::new()).unwrap();
+    assert!((r - 595.28).abs() < 0.01);
+}
+
+#[test]
+fn resolve_vmax_val() {
+    // css-values-4 §6.1.2.2: vmax = 1% of the LARGER viewport axis (here height).
+    let val = CssValue::Vmax(100.0);
+    let r = resolve_length_value(&val, 400.0, 12.0, 595.28, 841.89, &HashMap::new()).unwrap();
+    assert!((r - 841.89).abs() < 0.01);
+}
+
+#[test]
+fn resolve_vmin_vmax_in_calc() {
+    // calc() must also resolve vmin/vmax tokens.
+    let val = CssValue::Calc(vec![
+        CalcToken::Vmin(50.0),
+        CalcToken::Op(CalcOp::Add),
+        CalcToken::Vmax(10.0),
+    ]);
+    let r = resolve_length_value(&val, 400.0, 12.0, 595.28, 841.89, &HashMap::new()).unwrap();
+    // 50% of 595.28 (smaller) + 10% of 841.89 (larger) = 297.64 + 84.189
+    assert!((r - (297.64 + 84.189)).abs() < 0.05);
+}
+
+#[test]
 fn resolve_clamp_preferred_clamped_to_max() {
     // clamp(120px, 50%, 240px) against a 600px (450pt) basis: 50% of 450 = 225,
     // clamped to max 180pt (240px) -> 180pt.

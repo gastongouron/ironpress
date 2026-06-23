@@ -3642,7 +3642,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         // length context now (they don't depend on the element's own box). A
         // PERCENTAGE never reaches here — it is handled above as a layout-time
         // hint so it can resolve per-axis against the element's own box.
-        Some(other @ (CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_))) => {
+        Some(
+            other @ (CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Vmin(_)
+            | CssValue::Vmax(_)),
+        ) => {
             if let Some(v) = crate::style::resolve::try_resolve_to_length_in_context(
                 other,
                 &style.custom_properties,
@@ -4064,6 +4070,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 | CssValue::Rem(_)
                 | CssValue::Vw(_)
                 | CssValue::Vh(_)
+                | CssValue::Vmin(_)
+                | CssValue::Vmax(_)
                 | CssValue::Calc(_)
                 | CssValue::Clamp(_, _, _)
                 | CssValue::Var(_, _) => {
@@ -4130,7 +4138,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                     height_length_context,
                 );
             }
-            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Vmin(_)
+            | CssValue::Vmax(_)
+            | CssValue::Var(_, _) => {
                 style.percentage_sizing.height = None;
                 style.height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -4155,7 +4168,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                     height_length_context,
                 );
             }
-            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Vmin(_)
+            | CssValue::Vmax(_)
+            | CssValue::Var(_, _) => {
                 style.percentage_sizing.max_height = None;
                 style.max_height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -4180,7 +4198,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                     height_length_context,
                 );
             }
-            CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
+            CssValue::Rem(_)
+            | CssValue::Vw(_)
+            | CssValue::Vh(_)
+            | CssValue::Vmin(_)
+            | CssValue::Vmax(_)
+            | CssValue::Var(_, _) => {
                 style.percentage_sizing.min_height = None;
                 style.min_height = crate::style::resolve::try_resolve_to_length_in_context(
                     val,
@@ -4236,7 +4259,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                         setter(style, resolved);
                     }
                 }
-                CssValue::Rem(_) | CssValue::Vw(_) | CssValue::Vh(_) | CssValue::Var(_, _) => {
+                CssValue::Rem(_)
+                | CssValue::Vw(_)
+                | CssValue::Vh(_)
+                | CssValue::Vmin(_)
+                | CssValue::Vmax(_)
+                | CssValue::Var(_, _) => {
                     match prop_name {
                         "top" => style.percentage_insets.top = None,
                         "bottom" => style.percentage_insets.bottom = None,

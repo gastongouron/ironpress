@@ -94,6 +94,8 @@ pub fn resolve_calc(
             CalcToken::Rem(v) => values.push(*v * root_font_size),
             CalcToken::Vw(v) => values.push(page_width * v / 100.0),
             CalcToken::Vh(v) => values.push(page_height * v / 100.0),
+            CalcToken::Vmin(v) => values.push(page_width.min(page_height) * v / 100.0),
+            CalcToken::Vmax(v) => values.push(page_width.max(page_height) * v / 100.0),
             CalcToken::Op(op) => ops.push(*op),
         }
     }
@@ -155,6 +157,8 @@ pub fn resolve_length_value_in_context(
         CssValue::Rem(v) => Some(*v * ctx.root_font_size),
         CssValue::Vw(v) => Some(ctx.page_width * v / 100.0),
         CssValue::Vh(v) => Some(ctx.page_height * v / 100.0),
+        CssValue::Vmin(v) => Some(ctx.page_width.min(ctx.page_height) * v / 100.0),
+        CssValue::Vmax(v) => Some(ctx.page_width.max(ctx.page_height) * v / 100.0),
         CssValue::Calc(tokens) => Some(resolve_calc(
             tokens,
             ctx.parent_width,

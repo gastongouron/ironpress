@@ -74,6 +74,10 @@ pub enum CalcToken {
     Vw(f32),
     /// Value in vh units.
     Vh(f32),
+    /// Value in vmin units (1% of the smaller viewport axis).
+    Vmin(f32),
+    /// Value in vmax units (1% of the larger viewport axis).
+    Vmax(f32),
     /// An operator.
     Op(CalcOp),
 }
@@ -93,6 +97,10 @@ pub enum CssValue {
     Vw(f32),
     /// Viewport-height percentage.
     Vh(f32),
+    /// Percentage of the smaller viewport axis (css-values-4 §6.1.2.2).
+    Vmin(f32),
+    /// Percentage of the larger viewport axis (css-values-4 §6.1.2.2).
+    Vmax(f32),
     /// A calc() expression as a list of tokens.
     Calc(Vec<CalcToken>),
     /// A clamp(min, preferred, max) expression. Each operand is itself a

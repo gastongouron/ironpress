@@ -47,6 +47,16 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
         return number.parse::<f32>().ok().map(CssValue::Vh);
     }
 
+    // vmin/vmax (css-values-4 §6.1.2.2): checked before the bare `vh`/`vw`
+    // suffixes can't match these (they end in "vmin"/"vmax").
+    if let Some(number) = val.strip_suffix("vmin") {
+        return number.parse::<f32>().ok().map(CssValue::Vmin);
+    }
+
+    if let Some(number) = val.strip_suffix("vmax") {
+        return number.parse::<f32>().ok().map(CssValue::Vmax);
+    }
+
     if let Some(number) = val.strip_suffix('%') {
         return number.parse::<f32>().ok().map(CssValue::Percentage);
     }
@@ -238,6 +248,8 @@ pub(crate) fn tokenize_calc(expr: &str) -> Option<Vec<CalcToken>> {
             CssValue::Rem(value) => tokens.push(CalcToken::Rem(value)),
             CssValue::Vw(value) => tokens.push(CalcToken::Vw(value)),
             CssValue::Vh(value) => tokens.push(CalcToken::Vh(value)),
+            CssValue::Vmin(value) => tokens.push(CalcToken::Vmin(value)),
+            CssValue::Vmax(value) => tokens.push(CalcToken::Vmax(value)),
             _ => return None,
         }
         expects_value = false;

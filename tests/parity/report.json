@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 79.25,
+    "score_pct": 79.33,
     "pass": 439,
-    "partial": 92,
-    "fail": 81,
+    "partial": 93,
+    "fail": 80,
     "unknown": 1,
     "total": 613,
     "scored_ratio_pct": 99.84
@@ -122198,11 +122198,11 @@
     },
     {
       "category": "units-values",
-      "score_pct": 94.0,
+      "score_pct": 96.0,
       "counts": {
         "pass": 23,
-        "partial": 1,
-        "fail": 1,
+        "partial": 2,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -125537,11 +125537,11 @@
         },
         {
           "feature": "viewport-units",
-          "score_pct": 50.0,
+          "score_pct": 75.0,
           "counts": {
             "pass": 1,
-            "partial": 0,
-            "fail": 1,
+            "partial": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -125552,8 +125552,8 @@
               "subfeature": "vmin-vmax",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 40.012,
+              "status": "PARTIAL",
+              "diff_pct": 0.0,
               "weight": 1.0,
               "description": "Aspirational: 40vmin/10vmin and 30vmax/8vmax boxes against the page viewport; ironpress resolves only vw/vh, so vmin/vmax are unsupported (css-values-4 §6.1.2.2).",
               "note": "",
@@ -125567,26 +125567,24 @@
               "attribution": "REAL",
               "html_sha256": "6e3571a8a32864832823f24e6787989e8c85ea4cce0d6ba23ef3147255fd848e",
               "diagnosis": {
-                "primary_class": "Missing",
-                "secondary": [
-                  "Extra"
-                ],
-                "headline": "feature not rendered — candidate blank where Chrome paints",
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
-                    -443.2,
+                    0.32,
                     0.0,
-                    152.64
+                    0.64
                   ],
-                  "missing_area_pct": 99.78997368427028,
-                  "extra_area_pct": 59.87012987012987,
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    181,
-                    110,
-                    -5
+                    0,
+                    0,
+                    0
                   ],
-                  "delta_e": 42.10650120660764,
+                  "delta_e": 0.0,
                   "recovered_alpha": null,
                   "residual_shift_css": [
                     0.0,
@@ -125594,100 +125592,41 @@
                   ],
                   "colorspace": null
                 },
-                "regions": [
-                  {
-                    "class": "Missing",
-                    "bbox_css": [
-                      0.0,
-                      0.0,
-                      295.68,
-                      152.64
-                    ],
-                    "area_pct": 39.88670325490409,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      181,
-                      110,
-                      -5
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "feature not rendered — candidate blank where Chrome paints"
-                  },
-                  {
-                    "class": "Extra",
-                    "bbox_css": [
-                      296.64,
-                      0.0,
-                      738.88,
-                      0.0
-                    ],
-                    "area_pct": 0.12525131771993697,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      0.0
-                    ],
-                    "selector": null,
-                    "headline": "extra paint where Chrome is blank (0.1%)"
-                  }
-                ],
+                "regions": [],
                 "residual_shift_css": [
                   0.0,
                   0.0
                 ],
-                "confidence": 0.9947759640021367
+                "confidence": 1.0
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 443.20css shift 0.00css",
-                  "magnitude": 443.2
+                  "headline": "raster geometry: edge 0.64css shift 0.00css",
+                  "magnitude": 0.64
                 },
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 0.21% interiorΔE 0.00",
-                  "magnitude": 0.20936791261322843
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Presence",
-                  "headline": "raster presence: missing 99.79% extra 59.87%",
-                  "magnitude": 99.78997368427028
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "PdfGeometry",
-                  "status": "FAIL",
+                  "status": "PARTIAL",
                   "concern": "Geometry",
-                  "headline": "pdf-geom: gross page offset 26.700pt (> 3pt) — content displaced; worst fill#0 unmatched (nearest 27.750pt)",
-                  "magnitude": 27.75
+                  "headline": "pdf-geom: worst fill#1 h Δ0.498pt (offset 1.050pt cancelled)",
+                  "magnitude": 0.4979969999999412
                 }
               ],
               "disagreements": []
