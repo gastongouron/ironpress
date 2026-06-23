@@ -2396,6 +2396,55 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                     // Render each flex cell at its computed x-offset
                     let text_area_top = row_y - border.top.width - padding_top;
+
+                    // Baseline cross-axis alignment (CSS Flexbox §8.3). Items
+                    // with effective `align: baseline` are positioned so their
+                    // first text baselines coincide. Each item's baseline is the
+                    // distance from its border-box top to its first line's
+                    // baseline (`border-top + padding-top + ascent + half
+                    // leading`); the line's shared baseline is the maximum such
+                    // distance among its baseline items. We precompute, per flex
+                    // line (keyed by `y_offset`), that maximum so each cell can
+                    // shift down by `max_baseline - own_baseline`.
+                    let cell_first_baseline =
+                        |cell: &crate::layout::engine::FlexCell| -> Option<f32> {
+                            let first = cell
+                                .lines
+                                .iter()
+                                .find(|l| l.runs.iter().any(|r| !r.text.is_empty()))?;
+                            let m = line_box_metrics(first, custom_fonts);
+                            Some(
+                                cell.border.top.width
+                                    + cell.padding_top
+                                    + m.half_leading
+                                    + m.ascender,
+                            )
+                        };
+                    let is_baseline_cell = |cell: &crate::layout::engine::FlexCell| -> bool {
+                        matches!(
+                            match cell.align_self {
+                                AlignSelf::Auto => *align_items,
+                                AlignSelf::FlexStart => AlignItems::FlexStart,
+                                AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                                AlignSelf::Center => AlignItems::Center,
+                                AlignSelf::Baseline => AlignItems::Baseline,
+                                AlignSelf::Stretch => AlignItems::Stretch,
+                            },
+                            AlignItems::Baseline
+                        )
+                    };
+                    // Max first-baseline distance among baseline items sharing a
+                    // flex line (lines are distinguished by their cross offset).
+                    let line_max_baseline = |y_offset: f32| -> Option<f32> {
+                        cells
+                            .iter()
+                            .filter(|c| (c.y_offset - y_offset).abs() < 0.01 && is_baseline_cell(c))
+                            .filter_map(cell_first_baseline)
+                            .fold(None, |acc: Option<f32>, b| {
+                                Some(acc.map_or(b, |a| a.max(b)))
+                            })
+                    };
+
                     for cell in cells {
                         let cell_x = flex_left + padding_left + cell.x_offset;
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
@@ -2431,12 +2480,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 (cell.natural_height, cell_y_origin)
                             }
                             AlignItems::Stretch => (line_cross, cell_y_origin),
-                            // Baseline alignment without per-cell ascent metrics is
-                            // approximated as cross-start (top-anchored); the first
-                            // text line of each cell then begins at the line top.
-                            AlignItems::FlexStart | AlignItems::Baseline => {
-                                (cell.natural_height, cell_y_origin)
+                            // `align: baseline` (CSS Flexbox §8.3): shift the
+                            // item down so its first text baseline meets the
+                            // line's shared baseline (the max first-baseline
+                            // distance among the line's baseline items). An item
+                            // with no text baseline falls back to cross-start.
+                            AlignItems::Baseline => {
+                                let shift = match (
+                                    cell_first_baseline(cell),
+                                    line_max_baseline(cell.y_offset),
+                                ) {
+                                    (Some(own), Some(max)) => (max - own).max(0.0),
+                                    _ => 0.0,
+                                };
+                                (cell.natural_height, cell_y_origin + shift)
                             }
+                            AlignItems::FlexStart => (cell.natural_height, cell_y_origin),
                             AlignItems::FlexEnd => {
                                 let h = cell.natural_height;
                                 (h, cell_y_origin + line_cross - h)
@@ -5298,8 +5357,19 @@ fn render_container_children(
                     }
                 }
 
-                // Draw child borders
+                // Draw child borders. CSS borders paint INSIDE the border box, so
+                // each side's stroke centerline sits half its width in from the
+                // box edge (the stroke's outer edge then meets the box edge).
+                // Without this inset the centerlines straddled the edges, so two
+                // vertically-adjacent boxes (e.g. flex-direction:column items)
+                // painted their shared-edge borders on the *same* line — halving
+                // the visible gap. This mirrors the top-level TextBlock arm and
+                // the flex-cell border paint.
                 if border.has_any() {
+                    let half_t = border.top.width / 2.0;
+                    let half_b = border.bottom.width / 2.0;
+                    let half_l = border.left.width / 2.0;
+                    let half_r = border.right.width / 2.0;
                     let bx1 = render_x;
                     let bx2 = render_x + render_w;
                     let by1 = render_y;
@@ -5313,8 +5383,9 @@ fn render_container_children(
                             border.top.alpha,
                         );
                         content.push_str(&format!(
-                            "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx2} {by1} l S\n",
-                            border.top.width
+                            "{r} {g} {b} RG\n{} w\n{bx1} {y} m {bx2} {y} l S\n",
+                            border.top.width,
+                            y = by1 - half_t
                         ));
                         end_border_alpha(content, a);
                     }
@@ -5327,8 +5398,9 @@ fn render_container_children(
                             border.bottom.alpha,
                         );
                         content.push_str(&format!(
-                            "{r} {g} {b} RG\n{} w\n{bx1} {by2} m {bx2} {by2} l S\n",
-                            border.bottom.width
+                            "{r} {g} {b} RG\n{} w\n{bx1} {y} m {bx2} {y} l S\n",
+                            border.bottom.width,
+                            y = by2 + half_b
                         ));
                         end_border_alpha(content, a);
                     }
@@ -5341,8 +5413,9 @@ fn render_container_children(
                             border.left.alpha,
                         );
                         content.push_str(&format!(
-                            "{r} {g} {b} RG\n{} w\n{bx1} {by1} m {bx1} {by2} l S\n",
-                            border.left.width
+                            "{r} {g} {b} RG\n{} w\n{x} {by1} m {x} {by2} l S\n",
+                            border.left.width,
+                            x = bx1 + half_l
                         ));
                         end_border_alpha(content, a);
                     }
@@ -5355,8 +5428,9 @@ fn render_container_children(
                             border.right.alpha,
                         );
                         content.push_str(&format!(
-                            "{r} {g} {b} RG\n{} w\n{bx2} {by1} m {bx2} {by2} l S\n",
-                            border.right.width
+                            "{r} {g} {b} RG\n{} w\n{x} {by1} m {x} {by2} l S\n",
+                            border.right.width,
+                            x = bx2 - half_r
                         ));
                         end_border_alpha(content, a);
                     }
@@ -6524,6 +6598,43 @@ fn render_container_children(
                 // ignored justify-content/gap entirely.
                 let cell_base_x = x + flex_pl + border.left.width;
                 let content_y = y - flex_pt - border.top.width;
+
+                // Baseline cross-axis alignment (CSS Flexbox §8.3); mirrors the
+                // top-level FlexRow arm. Each baseline item's first-baseline
+                // distance from its border-box top is `border-top + padding-top +
+                // ascent + half leading`; the line's shared baseline is the max
+                // such distance, so each cell shifts down by `max - own`.
+                let cell_first_baseline = |cell: &crate::layout::engine::FlexCell| -> Option<f32> {
+                    let first = cell
+                        .lines
+                        .iter()
+                        .find(|l| l.runs.iter().any(|r| !r.text.is_empty()))?;
+                    let m = line_box_metrics(first, custom_fonts);
+                    Some(cell.border.top.width + cell.padding_top + m.half_leading + m.ascender)
+                };
+                let is_baseline_cell = |cell: &crate::layout::engine::FlexCell| -> bool {
+                    matches!(
+                        match cell.align_self {
+                            AlignSelf::Auto => *align_items,
+                            AlignSelf::FlexStart => AlignItems::FlexStart,
+                            AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                            AlignSelf::Center => AlignItems::Center,
+                            AlignSelf::Baseline => AlignItems::Baseline,
+                            AlignSelf::Stretch => AlignItems::Stretch,
+                        },
+                        AlignItems::Baseline
+                    )
+                };
+                let line_max_baseline = |y_offset: f32| -> Option<f32> {
+                    cells
+                        .iter()
+                        .filter(|c| (c.y_offset - y_offset).abs() < 0.01 && is_baseline_cell(c))
+                        .filter_map(cell_first_baseline)
+                        .fold(None, |acc: Option<f32>, b| {
+                            Some(acc.map_or(b, |a| a.max(b)))
+                        })
+                };
+
                 for cell in cells {
                     let cell_w = cell.width;
                     let cell_x = cell_base_x + cell.x_offset;
@@ -6554,11 +6665,18 @@ fn render_container_children(
                             (cell.natural_height, cell.y_offset)
                         }
                         AlignItems::Stretch => (line_cross, cell.y_offset),
-                        // Baseline is approximated as cross-start (see top-level
-                        // FlexRow arm) without per-cell ascent metrics.
-                        AlignItems::FlexStart | AlignItems::Baseline => {
-                            (cell.natural_height, cell.y_offset)
+                        // `align: baseline` (CSS Flexbox §8.3): shift the item so
+                        // its first text baseline meets the line's shared baseline.
+                        AlignItems::Baseline => {
+                            let shift =
+                                match (cell_first_baseline(cell), line_max_baseline(cell.y_offset))
+                                {
+                                    (Some(own), Some(max)) => (max - own).max(0.0),
+                                    _ => 0.0,
+                                };
+                            (cell.natural_height, cell.y_offset + shift)
                         }
+                        AlignItems::FlexStart => (cell.natural_height, cell.y_offset),
                         AlignItems::FlexEnd => (
                             cell.natural_height,
                             cell.y_offset + line_cross - cell.natural_height,
