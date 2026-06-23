@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 150px;
+    margin: 20px;
+    padding: 6px;
+    border: 2px solid #1a1a1a;
+    background: #e7eff0;
+    font-family: monospace;
+    font-size: 16px;
+    color: #103a3f;
+    white-space: break-spaces;
+  }
+</style>
+</head>
+<body>
+  <!-- break-spaces preserves spaces and newlines like pre-wrap but also
+       allows wrapping after a preserved space (css-text-3 §4.1.1). -->
+  <div class="box">alpha    beta gamma delta epsilon</div>
+</body>
+</html>

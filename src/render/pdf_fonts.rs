@@ -216,6 +216,14 @@ fn collect_font_usage_from_run(
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<String, FontUsage>,
 ) {
+    // An atomic inline box (display: inline-block) carries its own pre-wrapped
+    // inner text lines. Those glyphs must be registered for subsetting too, or
+    // the box renders with missing glyphs. The run's own `text` is empty.
+    if let Some(inline) = run.inline_box.as_deref() {
+        collect_font_usage_from_lines(&inline.lines, custom_fonts, usage);
+        return;
+    }
+
     // Standard PDF font runs with non-WinAnsi text → collect under fallback font
     if !matches!(&run.font_family, FontFamily::Custom(_)) {
         if let Some((shaped_run, fallback_key, _)) =

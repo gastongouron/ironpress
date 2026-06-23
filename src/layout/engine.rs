@@ -299,6 +299,14 @@ pub struct InlineBox {
     pub padding_left: f32,
     /// CSS `vertical-align` of the inline-block relative to the line baseline.
     pub vertical_align: VerticalAlign,
+    /// Distance from the box's TOP border edge down to the baseline used to
+    /// align the box on its line (CSS2 §10.8.1). For an inline-block with
+    /// in-flow line content this is the baseline of its LAST line box (offset by
+    /// border-top + padding-top + the preceding lines); for a box with no
+    /// in-flow line content (or `overflow != visible`) it is the box height, so
+    /// the bottom margin edge sits on the line baseline. `None` means "no
+    /// content baseline" → fall back to the bottom-edge rule.
+    pub baseline_ascent: Option<f32>,
     /// Pre-wrapped inner text lines (empty for content-less boxes).
     pub lines: Vec<TextLine>,
     /// Replaced-element image painted to fill the content box, for a pseudo-

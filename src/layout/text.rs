@@ -383,6 +383,58 @@ pub(crate) fn wrap_text_runs(
             continue;
         }
 
+        // `white-space: pre-wrap` preserved-space token. Under pre-wrap a run of
+        // spaces is preserved verbatim but is also a soft-wrap opportunity
+        // (css-text-3 §4.1.1): when the spaces fall at the end of a line they
+        // "hang" — they sit on the current line and are NOT carried to the start
+        // of the next line. So a space token that would overflow does not move
+        // the box right; instead the line is flushed *after* the spaces and the
+        // following word begins the next line. A space token at the very start of
+        // a line (current_width == 0) is preserved as a genuine leading space
+        // only when it did not arise from a soft wrap — which here means it was
+        // the literal first token of the segment (handled by emitting it).
+        if options.pre_wrap
+            && preserve_spacing
+            && template.inline_box.is_none()
+            && !word.is_empty()
+            && word.chars().all(|c| c == ' ' || c == '\t')
+        {
+            let sp_width = estimate_word_width(
+                &word,
+                template.font_size,
+                &template.font_family,
+                template.bold,
+                template.italic,
+                fonts,
+            );
+            if current_width > 0.0 && current_width + sp_width > line_max_width(lines.len()) + 0.01
+            {
+                // The spaces hang past the line edge: keep them on the current
+                // line, then break. The next token starts a fresh line with no
+                // carried-over leading space.
+                line_height = line_height.max(run_line_height(&template));
+                current_runs.push(TextRun {
+                    text: word,
+                    ..template
+                });
+                lines.push(TextLine {
+                    runs: std::mem::take(&mut current_runs),
+                    height: line_height,
+                });
+                current_width = 0.0;
+                line_height = options.default_font_size * line_height_factor;
+                continue;
+            }
+            // Otherwise the spaces fit on the line: emit them verbatim.
+            current_width += sp_width;
+            line_height = line_height.max(run_line_height(&template));
+            current_runs.push(TextRun {
+                text: word,
+                ..template
+            });
+            continue;
+        }
+
         // Atomic inline box: advance by its margin-box width and grow the line
         // box to its height. It wraps to a fresh line if it overflows.
         if let Some(inline) = template.inline_box.as_deref() {
@@ -396,15 +448,23 @@ pub(crate) fn wrap_text_runs(
                 line_height = run_line_height(&template);
             }
             current_width += box_w;
-            // A baseline-aligned box sits above the baseline, so the line must
-            // also leave room for the text descender beneath it. Approximate the
-            // descender as a fraction of the run's font size.
+            // A baseline-aligned box contributes `baseline_ascent` above the
+            // line baseline and `height - baseline_ascent` below it. The line box
+            // must contain both that ascent (plus the surrounding text's own
+            // ascent does too) and the box's descent beneath the baseline. When
+            // the box has no content baseline its whole height sits above the
+            // baseline, so leave room for the text descender beneath it.
             let box_extent = match inline.vertical_align {
                 crate::style::computed::VerticalAlign::Baseline
                 | crate::style::computed::VerticalAlign::Sub
-                | crate::style::computed::VerticalAlign::Super => {
-                    inline.height + template.font_size * 0.22
-                }
+                | crate::style::computed::VerticalAlign::Super => match inline.baseline_ascent {
+                    Some(ascent) => {
+                        // ascent above baseline + max(box descent, text descent)
+                        let box_descent = (inline.height - ascent).max(0.0);
+                        ascent + box_descent.max(template.font_size * 0.22)
+                    }
+                    None => inline.height + template.font_size * 0.22,
+                },
                 _ => inline.height,
             };
             line_height = line_height.max(box_extent);
@@ -848,6 +908,31 @@ fn build_inline_box(
     let total_h =
         content_h + style.padding.top + style.padding.bottom + style.border.vertical_width();
 
+    // CSS2 §10.8.1: the baseline of an `inline-block` is the baseline of its
+    // LAST in-flow line box, expressed here as the distance from the box's top
+    // border edge down to that baseline. When the box establishes its own
+    // formatting context with non-visible overflow, or has no in-flow line box,
+    // the baseline is the bottom margin edge (handled at paint time when this is
+    // `None`).
+    let baseline_ascent = if style.overflow.clips() || lines.is_empty() {
+        None
+    } else {
+        // Height of every line above the last, then the last line's ascent above
+        // its own baseline (half-leading + ascender), matching how the renderer
+        // lays the inner lines out from the content-box top downward.
+        let prior_lines_h: f32 = lines[..lines.len() - 1].iter().map(|l| l.height).sum();
+        let last = &lines[lines.len() - 1];
+        let (mut ascender, mut descender) = (0.0f32, 0.0f32);
+        for run in last.runs.iter().filter(|r| r.inline_box.is_none()) {
+            let (asc, desc) =
+                crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, fonts);
+            ascender = ascender.max(asc * run.font_size);
+            descender = descender.max(desc * run.font_size);
+        }
+        let half_leading = (last.height - (ascender + descender)) / 2.0;
+        Some(style.border.top.width + style.padding.top + prior_lines_h + half_leading + ascender)
+    };
+
     Some(InlineBox {
         width: total_w,
         height: total_h,
@@ -859,6 +944,7 @@ fn build_inline_box(
         padding_top: style.padding.top,
         padding_left: style.padding.left,
         vertical_align: style.vertical_align,
+        baseline_ascent,
         lines,
         image: None,
     })

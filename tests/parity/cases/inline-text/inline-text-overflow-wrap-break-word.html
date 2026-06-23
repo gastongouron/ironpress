@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    margin: 20px;
+    padding: 8px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 18px;
+    color: #1a1a1a;
+    overflow-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+  <!-- overflow-wrap:break-word breaks an otherwise-unbreakable long word so it
+       fits the box (css-text-3 §5.4). -->
+  <div class="box">Supercalifragilisticexpialidocious word</div>
+</body>
+</html>

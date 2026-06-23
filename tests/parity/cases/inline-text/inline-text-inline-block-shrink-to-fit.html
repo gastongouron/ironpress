@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .line {
+    margin: 20px;
+    padding: 8px;
+    width: 360px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 18px;
+    color: #1a1a1a;
+  }
+  /* An inline-block with no explicit width uses shrink-to-fit: the box
+     hugs its content width (CSS2 §10.3.9). */
+  .ib {
+    display: inline-block;
+    background: #f2e2c8;
+    border: 2px solid #8a5a14;
+    padding: 4px 10px;
+    color: #4f3614;
+  }
+</style>
+</head>
+<body>
+  <div class="line">A <span class="ib">tag</span> B <span class="ib">longer label</span> C</div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    margin: 20px;
+    padding: 8px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 18px;
+    color: #1a1a1a;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+  <!-- word-break:break-all allows a break between any two characters so each
+       line is filled to the box edge (css-text-3 §5.1). -->
+  <div class="box">abcdefghijklmnopqrstuvwxyz0123456789</div>
+</body>
+</html>

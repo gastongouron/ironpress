@@ -1200,7 +1200,12 @@ pub(crate) fn layout_block_element(
             .with_pre_wrap(matches!(
                 style.white_space,
                 WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
-            )),
+            ))
+            // text-indent shortens the FIRST formatted line, so the wrapper must
+            // reserve that space before breaking — otherwise the first line packs
+            // full-width text that then overflows once shifted at paint time
+            // (css-text-3 §8).
+            .with_text_indent(style.text_indent),
             env.fonts,
         );
 

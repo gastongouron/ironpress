@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .line {
+    margin: 20px;
+    padding: 8px;
+    width: 300px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 22px;
+    color: #1a1a1a;
+  }
+  /* vertical-align:sub lowers the box below the baseline (CSS2 §10.8.1). */
+  .box {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background: #2a7a2a;
+    border: 2px solid #145214;
+    vertical-align: sub;
+  }
+</style>
+</head>
+<body>
+  <div class="line">Ax<span class="box"></span>yQ</div>
+</body>
+</html>

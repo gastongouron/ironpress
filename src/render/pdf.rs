@@ -1253,12 +1253,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         };
 
                         // Set letter spacing (CSS letter-spacing)
-                        if *letter_spacing > 0.0 {
+                        // CSS letter-spacing accepts negative values (css-text-3
+                        // §8.2): tightening glyphs, not just widening them. Emit
+                        // the Tc operator whenever it is non-zero.
+                        if *letter_spacing != 0.0 {
                             content.push_str(&format!("{letter_spacing} Tc\n"));
                         }
 
-                        // Set word spacing (justify + CSS word-spacing)
-                        if total_ws > 0.0 {
+                        // Set word spacing (justify + CSS word-spacing). Like
+                        // letter-spacing, word-spacing may be negative.
+                        if total_ws != 0.0 {
                             content.push_str(&format!("{total_ws} Tw\n"));
                         }
 
@@ -1367,9 +1371,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 ));
                             }
 
-                            // Draw overline
+                            // Draw overline at the top of the text's em box
+                            // (css-text-decor-3 §2.2): just above the ascent, not
+                            // a full em above the baseline (which lands outside the
+                            // line box and renders as if absent).
                             if run.overline {
-                                let oy = text_y + run.font_size;
+                                let (ascender_ratio, _) = crate::fonts::font_metrics_ratios(
+                                    &run.font_family,
+                                    run.bold,
+                                    run.italic,
+                                    custom_fonts,
+                                );
+                                let oy = text_y + ascender_ratio * run.font_size;
                                 let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
                                     "{r} {g} {b} RG\n{thickness} w\n{bg_x} {oy} m {x2} {oy} l\nS\n",
@@ -1400,12 +1413,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         );
 
                         // Reset letter spacing after line
-                        if *letter_spacing > 0.0 {
+                        if *letter_spacing != 0.0 {
                             content.push_str("0 Tc\n");
                         }
 
                         // Reset word spacing after line
-                        if total_ws > 0.0 {
+                        if total_ws != 0.0 {
                             content.push_str("0 Tw\n");
                         }
 
@@ -2645,9 +2658,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     ));
                                 }
 
-                                // Draw overline
+                                // Draw overline at the top of the em box (just
+                                // above the ascent), matching the TextBlock path.
                                 if run.overline {
-                                    let oy = text_y + run.font_size;
+                                    let (ascender_ratio, _) = crate::fonts::font_metrics_ratios(
+                                        &run.font_family,
+                                        run.bold,
+                                        run.italic,
+                                        custom_fonts,
+                                    );
+                                    let oy = text_y + ascender_ratio * run.font_size;
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
                                         "{r} {g} {b} RG\n{thickness} w\n{x} {oy} m {x2} {oy} l\nS\n",
@@ -7114,15 +7134,28 @@ fn render_inline_box(
     page_images: &mut Vec<ImageRef>,
 ) {
     let h = inline.height;
-    // Bottom edge of the box (PDF, y-up) for each vertical-align mode.
+    // The box's own baseline as a distance from its TOP edge: for an
+    // inline-block with in-flow line content this is its last line box's
+    // baseline (CSS2 §10.8.1); with no content baseline the box's bottom margin
+    // edge is its baseline, so the ascent equals the full height.
+    let box_ascent = inline.baseline_ascent.unwrap_or(h);
+    // Bottom edge of the box (PDF, y-up) for each vertical-align mode. The box
+    // baseline sits at `box_top - box_ascent = box_bottom + h - box_ascent`;
+    // aligning it to a target line baseline gives
+    // `box_bottom = target_baseline - h + box_ascent`.
+    let align_baseline = |target: f32| target - h + box_ascent;
     let box_bottom = match inline.vertical_align {
         VerticalAlign::Top => line_top_y - h,
         VerticalAlign::Bottom => line_bottom_y,
         // Middle: box centre aligns roughly to the parent's mid-x-height, i.e.
         // a quarter-em above the baseline.
         VerticalAlign::Middle => baseline_y + line_font_size * 0.25 - h / 2.0,
-        // Baseline/sub/super: the box's bottom margin edge sits on the baseline.
-        _ => baseline_y,
+        // Sub/super shift the box's baseline below/above the line baseline by a
+        // fraction of the parent font size (css-inline-3; CSS2 §10.8.1).
+        VerticalAlign::Sub => align_baseline(baseline_y - line_font_size * 0.2),
+        VerticalAlign::Super => align_baseline(baseline_y + line_font_size * 0.3),
+        // Baseline: align the box's baseline to the line baseline.
+        VerticalAlign::Baseline => align_baseline(baseline_y),
     };
 
     // Background fill.
@@ -7314,11 +7347,14 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
             )
         },
     );
-    // A baseline-aligned inline box sits entirely above the baseline, so it
-    // raises the line's ascent (and thus pushes the baseline down) when it is
-    // taller than the surrounding text. Top/middle/bottom boxes don't move the
-    // baseline; they only widen the line box, which `line.height` already
+    // A baseline-aligned inline box contributes `baseline_ascent` above the line
+    // baseline and `height - baseline_ascent` below it (CSS2 §10.8.1), so it
+    // raises both the line's ascent and descent when it extends past the
+    // surrounding text. A box without a content baseline sits entirely above the
+    // baseline (its bottom edge rests on it). Top/middle/bottom boxes don't move
+    // the baseline; they only widen the line box, which `line.height` already
     // reflects from the wrap pass.
+    let mut descender = descender;
     for run in &line.runs {
         if let Some(inline) = run.inline_box.as_deref()
             && matches!(
@@ -7326,7 +7362,24 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 VerticalAlign::Baseline | VerticalAlign::Sub | VerticalAlign::Super
             )
         {
-            ascender = ascender.max(inline.height);
+            // Box ascent above its own baseline and descent below it.
+            let box_ascent = inline.baseline_ascent.unwrap_or(inline.height);
+            let box_descent = (inline.height - box_ascent).max(0.0);
+            // Sub/super shift the box's baseline relative to the line baseline,
+            // moving its extents by a fraction of the run font size.
+            let (above, below) = match inline.vertical_align {
+                VerticalAlign::Sub => (
+                    box_ascent - run.font_size * 0.2,
+                    box_descent + run.font_size * 0.2,
+                ),
+                VerticalAlign::Super => (
+                    box_ascent + run.font_size * 0.3,
+                    box_descent - run.font_size * 0.3,
+                ),
+                _ => (box_ascent, box_descent),
+            };
+            ascender = ascender.max(above.max(0.0));
+            descender = descender.max(below.max(0.0));
         }
     }
     let half_leading = (line.height - (ascender + descender)) / 2.0;
@@ -7407,6 +7460,7 @@ fn merge_runs(runs: &[TextRun]) -> Vec<TextRun> {
                 && prev.italic == run.italic
                 && prev.underline == run.underline
                 && prev.line_through == run.line_through
+                && prev.overline == run.overline
                 && prev.color == run.color
                 && prev.link_url == run.link_url
                 && prev.font_family == run.font_family

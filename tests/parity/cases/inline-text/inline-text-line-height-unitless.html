@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 240px;
+    margin: 20px;
+    padding: 8px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 18px;
+    color: #1a1a1a;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+  <!-- A unitless line-height of 1 packs lines as tightly as the font allows
+       (CSS2 §10.8.1: the used value is the number times the element font size). -->
+  <div class="box">First wrapped line of text. Second wrapped line of text. Third line.</div>
+</body>
+</html>

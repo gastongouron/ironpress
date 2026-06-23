@@ -1142,6 +1142,7 @@ fn build_pseudo_inline_box(
         padding_top: pseudo_style.padding.top,
         padding_left: pseudo_style.padding.left,
         vertical_align: pseudo_style.vertical_align,
+        baseline_ascent: None,
         lines,
         image: None,
     }
@@ -1179,6 +1180,7 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
         padding_top: 0.0,
         padding_left: 0.0,
         vertical_align: pseudo_style.vertical_align,
+        baseline_ascent: None,
         lines: Vec::new(),
         image: Some(image),
     })

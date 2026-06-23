@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .line {
+    margin: 20px;
+    padding: 8px;
+    width: 360px;
+    border: 2px solid #1a1a1a;
+    background: #f2f2f2;
+    font-family: sans-serif;
+    font-size: 18px;
+    color: #1a1a1a;
+  }
+  /* Several inline-blocks flow left-to-right on the same line, separated by
+     explicit margins, all sharing the text baseline. */
+  .chip {
+    display: inline-block;
+    width: 40px;
+    height: 26px;
+    margin-right: 12px;
+    vertical-align: baseline;
+  }
+  .a { background: #d8e4f2; border: 2px solid #2a4a8a; }
+  .b { background: #f2d8e4; border: 2px solid #8a2a4a; }
+  .c { background: #d8f2e4; border: 2px solid #2a8a4a; }
+</style>
+</head>
+<body>
+  <div class="line"><span class="chip a"></span><span class="chip b"></span><span class="chip c"></span></div>
+</body>
+</html>
