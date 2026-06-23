@@ -914,6 +914,7 @@ mod tests {
             padding_right: 0.0,
             padding_top: 0.0,
             padding_bottom: 0.0,
+            positioned_depth: 0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
@@ -948,6 +949,7 @@ mod tests {
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
             align_items: crate::style::computed::AlignItems::Stretch,
+            positioned_depth: 0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();

@@ -546,6 +546,20 @@ pub(crate) fn paginate(
             ),
         };
 
+        // A flex container (emitted as a FlexRow) that establishes a containing
+        // block for absolute children records its padding-box top under its
+        // `positioned_depth`, so abs children emitted after it anchor correctly.
+        // (`top: 0` of such a child is the padding-box edge.) The padding-box top
+        // is the FlexRow's flowed border-box top plus its top border.
+        let flex_cb_depth = match &element {
+            LayoutElement::FlexRow {
+                positioned_depth,
+                border,
+                ..
+            } if *positioned_depth > 0 => Some((*positioned_depth, border.top.width)),
+            _ => None,
+        };
+
         // Handle clear: move y below active floats on the specified side
         match elem_clear {
             Clear::Left | Clear::Both => {
@@ -842,6 +856,12 @@ pub(crate) fn paginate(
             && (elem_position == Position::Relative || elem_position == Position::Absolute)
         {
             positioned_y_by_depth.insert(elem_positioned_depth, effective_y);
+        }
+        // A flex container records its PADDING-box top (border-box top + top
+        // border) under its own depth so absolute children — whose `top`/resolved
+        // `bottom` offsets are measured from the padding box — anchor correctly.
+        if let Some((depth, border_top)) = flex_cb_depth {
+            positioned_y_by_depth.insert(depth, effective_y + border_top);
         }
 
         current_elements.push((effective_y, element));

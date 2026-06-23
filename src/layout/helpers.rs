@@ -1146,6 +1146,8 @@ fn build_pseudo_inline_box(
         baseline_ascent: None,
         lines,
         image: None,
+        rel_offset_x: 0.0,
+        rel_offset_y: 0.0,
     }
 }
 
@@ -1184,6 +1186,8 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
         baseline_ascent: None,
         lines: Vec::new(),
         image: Some(image),
+        rel_offset_x: 0.0,
+        rel_offset_y: 0.0,
     })
 }
 

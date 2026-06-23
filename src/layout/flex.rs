@@ -84,8 +84,12 @@ pub(crate) fn layout_flex_container(
         style.border_radius
     };
 
-    // Collect child elements and lay each one out into a temporary buffer
-    let child_elements: Vec<&ElementNode> = el
+    // Collect child elements and lay each one out into a temporary buffer.
+    // Per CSS Flexbox §4.1, an absolutely-positioned child of a flex container
+    // does NOT participate in flex layout (it is taken out of flow). We collect
+    // such children separately and emit them as positioned boxes anchored to the
+    // flex container's padding box, while the in-flow children become flex items.
+    let all_child_elements: Vec<&ElementNode> = el
         .children
         .iter()
         .filter_map(|c| {
@@ -96,8 +100,151 @@ pub(crate) fn layout_flex_container(
             }
         })
         .collect();
+    let total_child_count = all_child_elements.len();
+    // Identify which children are absolutely/fixed positioned (out of flow). We
+    // compute each child's position against the container style here; full styles
+    // for in-flow items are recomputed in the item loop below.
+    let child_is_abs: Vec<bool> = all_child_elements
+        .iter()
+        .enumerate()
+        .map(|(idx, child_el)| {
+            let classes = child_el.class_list();
+            let selector_ctx = SelectorContext {
+                ancestors: ancestors.to_vec(),
+                child_index: idx,
+                sibling_count: total_child_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            };
+            let cs = compute_style_with_context(
+                child_el.tag,
+                child_el.style_attr(),
+                style,
+                env.rules,
+                child_el.tag_name(),
+                &classes,
+                child_el.id(),
+                &child_el.attributes,
+                &selector_ctx,
+            );
+            cs.position == Position::Absolute
+        })
+        .collect();
+    let has_abs_children = child_is_abs.iter().any(|&b| b);
+    // In-flow flex items (abs children excluded).
+    let child_elements: Vec<&ElementNode> = all_child_elements
+        .iter()
+        .zip(child_is_abs.iter())
+        .filter(|(_, is_abs)| !**is_abs)
+        .map(|(e, _)| *e)
+        .collect();
 
     let child_count = child_elements.len();
+
+    // Lay out absolutely-positioned children (out of flow) against this flex
+    // container's padding box. The container establishes a containing block when
+    // it is positioned or transformed; otherwise the abs child resolves against
+    // an ancestor and we leave its CB unstamped (forwarded by the renderer).
+    let establishes_cb = crate::layout::helpers::establishes_containing_block(style);
+    let abs_cb_depth = if establishes_cb { positioned_depth } else { 0 };
+    let mut abs_output: Vec<LayoutElement> = Vec::new();
+    if has_abs_children {
+        // Containing block = the flex container's PADDING box (CSS abs CB). Its
+        // height (for `bottom` resolution) is the padding-box height: content
+        // height + vertical padding. Unknown auto heights resolve to 0.
+        let content_h = style
+            .height
+            .map(|h| {
+                if style.box_sizing == BoxSizing::BorderBox {
+                    (h - style.border.vertical_width() - style.padding.top - style.padding.bottom)
+                        .max(0.0)
+                } else {
+                    h
+                }
+            })
+            .unwrap_or(0.0);
+        let cb_padding_box_height = content_h + style.padding.top + style.padding.bottom;
+        let cb_padding_box_width = inner_width.max(0.0) + style.padding.left + style.padding.right;
+        let cb = ContainingBlock {
+            // PADDING-box of the flex container (the CSS containing block for abs
+            // children): `top/left/right/bottom` and percentages resolve against
+            // it. x = padding-box left relative to the page content-left =
+            // container margin/centering + border (NOT padding); the renderer
+            // anchors abs children at this x and adds their resolved left offset.
+            x: h_offset + style.border.left.width,
+            width: cb_padding_box_width,
+            height: cb_padding_box_height,
+            depth: abs_cb_depth,
+        };
+        for (idx, child_el) in all_child_elements.iter().enumerate() {
+            if !child_is_abs[idx] {
+                continue;
+            }
+            let mut child_ancestors = ancestors.to_vec();
+            child_ancestors.push(AncestorInfo {
+                element: child_el,
+                child_index: idx,
+                sibling_count: total_child_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            });
+            let child_ctx = ctx
+                .with_parent_and_basis(
+                    inner_width.max(0.0),
+                    inner_width.max(0.0),
+                    Some(content_h.max(1.0)),
+                    style.font_size,
+                )
+                .with_containing_block(Some(cb));
+            let mut buf: Vec<LayoutElement> = Vec::new();
+            flatten_element(
+                child_el,
+                style,
+                &child_ctx,
+                &mut buf,
+                None,
+                &child_ancestors,
+                positioned_depth,
+                idx,
+                total_child_count,
+                &[],
+                &[],
+                env,
+            );
+            crate::layout::helpers::patch_absolute_children_containing_block(&mut buf, cb);
+            // The flex container is emitted at the top level (a sibling of its
+            // FlexRow), so its abs children render through the top-level path,
+            // which positions an abs box at `page_content_left + offset_left`
+            // (Containers) / `page_content_left + cb.x + offset_left` (TextBlocks).
+            // To anchor to the flex container's padding box regardless of element
+            // type, bake the padding-box left (`cb.x`) into each child's
+            // `offset_left` and zero the stamped `cb.x` so both paths agree.
+            for el in &mut buf {
+                match el {
+                    LayoutElement::Container {
+                        offset_left,
+                        containing_block,
+                        ..
+                    }
+                    | LayoutElement::TextBlock {
+                        offset_left,
+                        containing_block,
+                        ..
+                    } => {
+                        *offset_left += cb.x;
+                        if let Some(c) = containing_block {
+                            c.x = 0.0;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            abs_output.extend(buf);
+        }
+    }
+
     if child_count == 0 {
         let before_abs = before_style.is_some_and(|pseudo| {
             pseudo_is_block_like(pseudo) && pseudo.position == Position::Absolute
@@ -228,6 +375,7 @@ pub(crate) fn layout_flex_container(
                 );
             }
         }
+        output.append(&mut abs_output);
         return;
     }
 
@@ -752,6 +900,7 @@ pub(crate) fn layout_flex_container(
     }
 
     if items.is_empty() {
+        output.append(&mut abs_output);
         return;
     }
 
@@ -1581,6 +1730,8 @@ pub(crate) fn layout_flex_container(
                         box_shadow: tb_bs,
                         border,
                         block_height: tb_bh,
+                        transform: tb_transform,
+                        transform_origin: tb_transform_origin,
                         ..
                     }) = item.elements.first()
                     {
@@ -1621,8 +1772,8 @@ pub(crate) fn layout_flex_container(
                             background_position: *tb_bg_pos,
                             background_repeat: *tb_bg_repeat,
                             background_origin: *tb_bg_origin,
-                            transform: None,
-                            transform_origin: crate::style::computed::TransformOrigin::default(),
+                            transform: *tb_transform,
+                            transform_origin: *tb_transform_origin,
                             box_shadow: tb_bs.clone(),
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
@@ -2187,8 +2338,14 @@ pub(crate) fn layout_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             align_items: align,
+            positioned_depth: abs_cb_depth,
         });
     }
+
+    // Emit out-of-flow absolute children after the in-flow flex content so they
+    // paint above it (CSS painting order) and anchor to the container's padding
+    // box via the containing block stamped above.
+    output.append(&mut abs_output);
 
     // Emit trailing margin (include bottom padding when bg spacer shifted y back)
     let trailing = if emitted_column_bg {

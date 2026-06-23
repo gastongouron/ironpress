@@ -1,12 +1,12 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    ComputedStyle, FontWeight, GridAlign, GridLine, GridTrack, TextAlign, VerticalAlign,
-    Visibility, compute_style_with_context,
+    BoxSizing, ComputedStyle, FontWeight, GridAlign, GridLine, GridTrack, Position, TextAlign,
+    VerticalAlign, Visibility, compute_style_with_context,
 };
 
-use super::context::{LayoutContext, LayoutEnv};
-use super::engine::{BackgroundFields, LayoutBorder, LayoutElement};
+use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
+use super::engine::{BackgroundFields, LayoutBorder, LayoutElement, flatten_element};
 use super::table::{GridInset, TableCell};
 use super::text::{
     FlexTextRunCollector, TextWrapOptions, resolved_line_height_factor, wrap_text_runs,
@@ -291,6 +291,50 @@ fn layout_grid_item_children(
         following_siblings: Vec::new(),
         is_empty: false,
     });
+
+    // A grid item that is itself a flex or grid container must arrange its OWN
+    // children via that formatting context, not flow them as independent blocks.
+    // Lay it out through the matching container path against the item's content
+    // box (`content_width`), so e.g. a `display:flex` cell distributes its boxes
+    // along the main axis instead of stacking them block-by-block.
+    if matches!(item_style.display, Display::Flex | Display::Grid) {
+        // Give the inner container exactly the item's content-box width so flex
+        // main-axis distribution / grid track sizing resolve correctly.
+        let mut inner_style = item_style.clone();
+        // The padding/border/background of the grid item are painted by the cell
+        // itself; the inner formatting context should not re-apply them or it
+        // would double-inset. Use a zero-margin/border/padding clone sized to the
+        // content box.
+        inner_style.margin = Default::default();
+        inner_style.padding = Default::default();
+        inner_style.border = Default::default();
+        inner_style.background_color = None;
+        inner_style.width = Some(content_width);
+        if item_style.display == Display::Flex {
+            crate::layout::flex::layout_flex_container(
+                item_el,
+                &inner_style,
+                &child_ctx,
+                &mut out,
+                &child_ancestors,
+                None,
+                None,
+                0,
+                env,
+            );
+        } else {
+            layout_grid_container(
+                item_el,
+                &inner_style,
+                &child_ctx,
+                &mut out,
+                &child_ancestors,
+                0,
+                env,
+            );
+        }
+        return out;
+    }
 
     let element_children: Vec<&ElementNode> = item_el
         .children
@@ -812,6 +856,7 @@ pub(crate) fn layout_grid_container(
     ctx: &LayoutContext,
     output: &mut Vec<LayoutElement>,
     ancestors: &[AncestorInfo],
+    positioned_depth: usize,
     env: &mut LayoutEnv,
 ) {
     let available_width = ctx.available_width();
@@ -860,7 +905,7 @@ pub(crate) fn layout_grid_container(
 
     // Collect element children (skip text nodes) so we can measure intrinsic
     // widths per column before resolving track sizes.
-    let element_children: Vec<&ElementNode> = el
+    let all_element_children: Vec<&ElementNode> = el
         .children
         .iter()
         .filter_map(|child| {
@@ -884,8 +929,8 @@ pub(crate) fn layout_grid_container(
         is_empty: false,
     });
 
-    let child_count = element_children.len();
-    let child_styles: Vec<ComputedStyle> = element_children
+    let total_child_count = all_element_children.len();
+    let all_child_styles: Vec<ComputedStyle> = all_element_children
         .iter()
         .enumerate()
         .map(|(idx, child_el)| {
@@ -893,7 +938,7 @@ pub(crate) fn layout_grid_container(
             let selector_ctx = SelectorContext {
                 ancestors: child_ancestors.clone(),
                 child_index: idx,
-                sibling_count: child_count,
+                sibling_count: total_child_count,
                 preceding_siblings: Vec::new(),
                 following_siblings: Vec::new(),
                 is_empty: false,
@@ -910,6 +955,23 @@ pub(crate) fn layout_grid_container(
                 &selector_ctx,
             )
         })
+        .collect();
+
+    // Per CSS Grid §9.1, an absolutely-positioned child of a grid container is
+    // NOT a grid item; it is taken out of flow and laid out against the grid
+    // container's padding box. Separate such children out so they don't consume
+    // grid tracks, then emit them as positioned boxes inside the wrapping
+    // Container (which establishes the containing block).
+    let abs_child_indices: Vec<usize> = (0..total_child_count)
+        .filter(|&i| all_child_styles[i].position == Position::Absolute)
+        .collect();
+    let element_children: Vec<&ElementNode> = (0..total_child_count)
+        .filter(|i| all_child_styles[*i].position != Position::Absolute)
+        .map(|i| all_element_children[i])
+        .collect();
+    let child_styles: Vec<ComputedStyle> = (0..total_child_count)
+        .filter(|i| all_child_styles[*i].position != Position::Absolute)
+        .map(|i| all_child_styles[i].clone())
         .collect();
 
     // ---- Item placement (CSS Grid §8) -----------------------------------
@@ -983,6 +1045,45 @@ pub(crate) fn layout_grid_container(
             let r = p.row;
             if r < row_heights.len() && item_h > row_heights[r] {
                 row_heights[r] = item_h;
+            }
+        }
+    }
+
+    // Default grid `align-content: normal` resolves to `stretch`: when the grid
+    // container has a definite content height larger than the natural row sizes,
+    // the surplus is distributed equally among the rows whose track size is NOT a
+    // fixed length (auto / implicit / `1fr` tracks). Fixed-length rows keep their
+    // size (their surplus, if any, stays as free space — `align-content: start`).
+    // Without this, empty cells in a fixed-height container collapse to 0 and
+    // vanish, whereas Chrome stretches the single auto row to fill the box.
+    if let Some(h) = style.height {
+        let content_box_target = if style.box_sizing == BoxSizing::BorderBox {
+            (h - (style.border.top.width + style.border.bottom.width)
+                - style.padding.top
+                - style.padding.bottom)
+                .max(0.0)
+        } else {
+            h
+        };
+        let natural: f32 =
+            row_heights.iter().sum::<f32>() + row_gap * num_rows.saturating_sub(1) as f32;
+        let surplus = content_box_target - natural;
+        if surplus > 0.0 {
+            // Stretchable rows: those not pinned by a fixed-length template track.
+            let stretchable: Vec<usize> = (0..num_rows)
+                .filter(|&r| {
+                    style
+                        .grid_template_rows
+                        .get(r)
+                        .and_then(grid_track_fixed_height)
+                        .is_none()
+                })
+                .collect();
+            if !stretchable.is_empty() {
+                let share = surplus / stretchable.len() as f32;
+                for &r in &stretchable {
+                    row_heights[r] += share;
+                }
             }
         }
     }
@@ -1163,6 +1264,7 @@ pub(crate) fn layout_grid_container(
             padding_right: 0.0,
             padding_top: 0.0,
             padding_bottom: 0.0,
+            positioned_depth: 0,
         });
     }
     let _ = col_x;
@@ -1183,6 +1285,74 @@ pub(crate) fn layout_grid_container(
         repeat: background_repeat,
         origin: background_origin,
     } = BackgroundFields::from_style(style);
+
+    // Lay out absolutely-positioned children (out of flow) against the grid
+    // container's padding box. The wrapping Container establishes the containing
+    // block (recording its padding-box origin under `positioned_depth`), so abs
+    // children stamped with this CB anchor correctly via the renderer.
+    let establishes_cb = crate::layout::helpers::establishes_containing_block(style);
+    let grid_positioned_depth = if establishes_cb { positioned_depth } else { 0 };
+    if !abs_child_indices.is_empty() {
+        // Content-box height of the grid container for `bottom` resolution.
+        let cb_content_height = style
+            .height
+            .map(|h| {
+                if style.box_sizing == BoxSizing::BorderBox {
+                    (h - border_v - style.padding.top - style.padding.bottom).max(0.0)
+                } else {
+                    h
+                }
+            })
+            .unwrap_or(content_height);
+        let cb = ContainingBlock {
+            // Padding-box left, relative to the wrapping Container's content
+            // origin. The Container seeds abs_origins at its border-box inner
+            // corner (border edge), so an abs child anchored to the padding box
+            // offsets by the container's padding only (border already folded in).
+            x: style.padding.left,
+            width: inner_width.max(0.0),
+            height: cb_content_height,
+            depth: grid_positioned_depth,
+        };
+        for &idx in &abs_child_indices {
+            let child_el = all_element_children[idx];
+            let mut abs_ancestors = child_ancestors.clone();
+            abs_ancestors.push(AncestorInfo {
+                element: child_el,
+                child_index: idx,
+                sibling_count: total_child_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            });
+            let child_ctx = ctx
+                .with_parent_and_basis(
+                    inner_width.max(0.0),
+                    inner_width.max(0.0),
+                    Some(cb_content_height.max(1.0)),
+                    style.font_size,
+                )
+                .with_containing_block(Some(cb));
+            let mut buf: Vec<LayoutElement> = Vec::new();
+            flatten_element(
+                child_el,
+                style,
+                &child_ctx,
+                &mut buf,
+                None,
+                &abs_ancestors,
+                positioned_depth,
+                idx,
+                total_child_count,
+                &[],
+                &[],
+                env,
+            );
+            crate::layout::helpers::patch_absolute_children_containing_block(&mut buf, cb);
+            grid_children.extend(buf);
+        }
+    }
+
     output.push(LayoutElement::Container {
         children: grid_children,
         background_color: bg,
@@ -1227,7 +1397,7 @@ pub(crate) fn layout_grid_container(
         outline_width: style.outline_width,
         outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
         z_index: style.z_index,
-        positioned_depth: 0,
+        positioned_depth: grid_positioned_depth,
         containing_block: None,
     });
 }

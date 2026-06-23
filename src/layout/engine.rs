@@ -313,6 +313,11 @@ pub struct InlineBox {
     /// element with `content: url(...)` (css-content-3 §1). When set, the box is
     /// a replaced inline image rather than a text/decorative box.
     pub image: Option<RasterImageAsset>,
+    /// CSS `position: relative` paint offset (x right, y down) in points. The box
+    /// keeps its in-flow inline slot (advance/line metrics unchanged) but its
+    /// painted box and inner content shift by this offset (CSS2 §9.4.3).
+    pub rel_offset_x: f32,
+    pub rel_offset_y: f32,
 }
 
 impl InlineBox {
@@ -457,6 +462,12 @@ pub enum LayoutElement {
         padding_right: f32,
         padding_top: f32,
         padding_bottom: f32,
+        /// Containing-block depth this grid container establishes for its
+        /// absolutely-positioned children (0 = none). Set only on the FIRST grid
+        /// row of a positioned grid container; pagination records the row's top y
+        /// (the container's padding-box top) under this depth so abs children
+        /// anchor to the grid container's padding box.
+        positioned_depth: usize,
     },
     /// An embedded image.
     Image {
@@ -533,6 +544,11 @@ pub enum LayoutElement {
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
         align_items: AlignItems,
+        /// Containing-block depth this flex container establishes for its
+        /// absolutely-positioned children (0 = not a containing block). When
+        /// nonzero, pagination records the container's top y under this depth so
+        /// abs children anchor to the flex container's padding box.
+        positioned_depth: usize,
     },
     /// A progress bar or meter element.
     ProgressBar {
@@ -2444,7 +2460,15 @@ fn route_element(
 
     // Grid container handling
     if style.display == Display::Grid {
-        layout_grid_container(el, style, &layout_ctx, output, child_ancestors, env);
+        layout_grid_container(
+            el,
+            style,
+            &layout_ctx,
+            output,
+            child_ancestors,
+            positioned_depth,
+            env,
+        );
 
         if style.page_break_after {
             output.push(LayoutElement::PageBreak);

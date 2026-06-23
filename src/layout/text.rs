@@ -5,7 +5,7 @@ use crate::parser::ttf::TtfFont;
 // without a separate import.
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
-    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, WhiteSpace,
+    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, Position, WhiteSpace,
     compute_style_with_context,
 };
 use std::collections::HashMap;
@@ -947,6 +947,18 @@ fn build_inline_box(
         baseline_ascent,
         lines,
         image: None,
+        // CSS `position: relative` shifts the painted box without changing its
+        // in-flow inline slot. `left`/`top` win over `right`/`bottom`.
+        rel_offset_x: if style.position == Position::Relative {
+            style.left.or(style.right.map(|r| -r)).unwrap_or(0.0)
+        } else {
+            0.0
+        },
+        rel_offset_y: if style.position == Position::Relative {
+            style.top.or(style.bottom.map(|b| -b)).unwrap_or(0.0)
+        } else {
+            0.0
+        },
     })
 }
 

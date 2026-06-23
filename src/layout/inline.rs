@@ -266,6 +266,36 @@ pub(crate) fn layout_inline_block_group(
             .map(|c: crate::types::Color| c.to_f32_rgba());
         let bg_fields = BackgroundFields::from_style(&child_style);
 
+        // CSS `position: relative` shifts an inline-block's painted box (and its
+        // content) without changing its in-flow inline slot (CSS2 §9.4.3). With
+        // no explicit `transform`, model the shift as a `translate()` (the
+        // renderer applies a cell transform pivot-invariantly for a pure
+        // translate). `left`/`top` win over `right`/`bottom`.
+        let rel_transform = if child_style.position == crate::style::computed::Position::Relative
+            && child_style.transform.is_none()
+        {
+            let tx = child_style
+                .left
+                .or(child_style.right.map(|r| -r))
+                .unwrap_or(0.0);
+            let ty = child_style
+                .top
+                .or(child_style.bottom.map(|b| -b))
+                .unwrap_or(0.0);
+            if tx != 0.0 || ty != 0.0 {
+                Some(Transform::Translate {
+                    tx,
+                    ty,
+                    tx_pct: false,
+                    ty_pct: false,
+                })
+            } else {
+                None
+            }
+        } else {
+            child_style.transform
+        };
+
         items.push(InlineBlockItem {
             width: total_w,
             height: total_h,
@@ -277,7 +307,7 @@ pub(crate) fn layout_inline_block_group(
             padding_left: child_style.padding.left,
             border: LayoutBorder::from_computed(&child_style.border),
             border_radius: child_style.border_radius,
-            transform: child_style.transform,
+            transform: rel_transform,
             transform_origin: child_style.transform_origin,
             background_gradient: bg_fields.gradient,
             background_radial_gradient: bg_fields.radial_gradient,
@@ -381,6 +411,7 @@ pub(crate) fn layout_inline_block_group(
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
             align_items: crate::style::computed::AlignItems::Stretch,
+            positioned_depth: 0,
         });
     }
 }

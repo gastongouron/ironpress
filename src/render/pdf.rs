@@ -2442,14 +2442,19 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
                         };
 
-                        // Apply cell transform if set (rotate, scale, translate)
+                        // Apply cell transform if set (rotate, scale, translate).
+                        // The transform pivots about the cell's actual rendered
+                        // border box (`cell_render_h` at `cell_y_shift`), NOT the
+                        // flex line cross size — an item aligned (e.g. center) in a
+                        // taller line must rotate about its own box center, not the
+                        // line's, or the rotated box drifts vertically.
                         let cell_needs_transform = cell.transform.is_some();
                         if let Some(t) = &cell.transform {
-                            let (ox, oy) = cell.transform_origin.resolve(cell.width, line_cross);
+                            let (ox, oy) = cell.transform_origin.resolve(cell.width, cell_render_h);
                             let cx = cell_x + ox;
-                            let cy = text_area_top - cell_y_origin - oy;
+                            let cy = text_area_top - cell_y_shift - oy;
                             content.push_str("q\n");
-                            push_transform_cm(&mut content, t, cx, cy, cell.width, line_cross);
+                            push_transform_cm(&mut content, t, cx, cy, cell.width, cell_render_h);
                         }
 
                         // Draw per-cell box-shadow (e.g. inline-block items
@@ -6496,6 +6501,18 @@ fn render_container_children(
                     };
                     let cell_top = content_y - cell_y_shift;
                     let cell_bottom = cell_top - cell_h;
+                    // Apply per-cell transform (e.g. `transform: rotate()`, or a
+                    // `position: relative` translate on an inline-block) about the
+                    // cell's own border box. Mirrors the top-level FlexRow arm; the
+                    // nested arm previously dropped cell transforms entirely.
+                    let cell_needs_transform = cell.transform.is_some();
+                    if let Some(t) = &cell.transform {
+                        let (ox, oy) = cell.transform_origin.resolve(cell_w, cell_h);
+                        let cx = cell_x + ox;
+                        let cy = cell_bottom + oy;
+                        content.push_str("q\n");
+                        push_transform_cm(content, t, cx, cy, cell_w, cell_h);
+                    }
                     // Draw cell background
                     if let Some((cr, cg, cb, ca)) = cell.background_color {
                         let needs_alpha = ca < 1.0;
@@ -6678,6 +6695,10 @@ fn render_container_children(
                             0.0,
                             &mut abs_origins,
                         );
+                    }
+                    // Close the per-cell transform scope.
+                    if cell_needs_transform {
+                        content.push_str("Q\n");
                     }
                 }
                 cursor_y -= row_h + flex_mb;
@@ -7363,6 +7384,12 @@ fn render_inline_box(
         // Baseline: align the box's baseline to the line baseline.
         VerticalAlign::Baseline => align_baseline(baseline_y),
     };
+
+    // CSS `position: relative` shifts the painted box (and its inner content)
+    // without changing its in-flow slot: x right, y down (PDF y is up, so the
+    // downward shift subtracts from y).
+    let box_x = box_x + inline.rel_offset_x;
+    let box_bottom = box_bottom - inline.rel_offset_y;
 
     // Background fill.
     if let Some((r, g, b, a)) = inline.background_color {

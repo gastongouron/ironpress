@@ -63,18 +63,18 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 7.31 | inline-text | white-space | pre | inline-text-white-space-pre | fill recolour ΔRGB(-213,-205,-214) (ΔE 82.0) |
 | FAIL | REAL | ColorValue | 16.92 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | fill recolour ΔRGB(-104,-88,-86) (ΔE 80.7) |
 | FAIL | REAL | ColorValue | 12.42 | inline-text | word-break | break-all | inline-text-word-break-break-all | fill recolour ΔRGB(-216,-216,-216) (ΔE 84.8) |
-| FAIL | REAL | ColorValue | 34.32 | interactions | containing-block | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-absolute-x-flexbox-container | fill recolour ΔRGB(+46,-84,-90) (ΔE 38.3) |
+| FAIL | REAL | ColorValue | 12.13 | interactions | containing-block | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-absolute-x-flexbox-container | fill recolour ΔRGB(+46,+187,+193) (ΔE 50.4) |
 | FAIL | REAL | ColorValue | 4.96 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap | fill recolour ΔRGB(+166,+104,+147) (ΔE 41.8) |
 | FAIL | REAL | ColorValue | 4.35 | interactions | flexbox-x-grid | (interaction: flexbox×grid) GENUINE: both bases PASS, interaction FAILs | flexbox-x-grid-nested | fill recolour ΔRGB(+61,-54,-16) (ΔE 47.0) |
 | FAIL | REAL | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) GENUINE: both bases PASS, interaction FAILs | grid-x-background-gradient | fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
-| FAIL | REAL | Extra | 24.85 | interactions | grid-x-flexbox | (interaction: grid×flexbox) GENUINE: both bases PASS, interaction FAILs | grid-x-flexbox-nested | extra paint where Chrome is blank (7.0%) |
+| FAIL | REAL | Extra | 22.97 | interactions | grid-x-flexbox | (interaction: grid×flexbox) GENUINE: both bases PASS, interaction FAILs | grid-x-flexbox-nested | extra paint where Chrome is blank (7.0%) |
 | FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 19.01 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (20.7% missing) |
-| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 28.20 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: content clipped/truncated (12.6% missing) |
-| FAIL | REAL | ColorValue | 18.28 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-flexbox | fill recolour ΔRGB(+67,-11,-20) (ΔE 20.6) |
-| FAIL | REAL | ColorValue | 73.89 | interactions | positioning-x-grid | (interaction: positioning×grid) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-grid | fill recolour ΔRGB(+15,-17,+75) (ΔE 24.0) |
+| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | ColorValue | 4.95 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
+| FAIL | REAL | ColorValue | 4.10 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-flexbox | fill recolour ΔRGB(+151,+116,+88) (ΔE 41.0) |
+| FAIL | REAL | ColorValue | 7.65 | interactions | positioning-x-grid | (interaction: positioning×grid) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-grid | fill recolour ΔRGB(-16,+36,-21) (ΔE 48.8) |
 | FAIL | CONFOUNDED: table (`tables-basic-grid`) | ColorValue | 13.44 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `tables-basic-grid` already FAILs | tables-x-flexbox-nested | via tables-basic-grid: fill recolour ΔRGB(-25,+18,+22) (ΔE 44.3) |
 | FAIL | CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`) | Missing | 22.56 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `tables-thead-tbody-tfoot` already FAILs | tables-x-typography-bold | via tables-thead-tbody-tfoot: content clipped/truncated (24.7% missing) |
-| FAIL | REAL | ColorValue | 6.93 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) GENUINE: both bases PASS, interaction FAILs | transforms-rotate-x-flexbox-item | fill recolour ΔRGB(-4,+6,+12) (ΔE 34.4) |
+| FAIL | REAL | ColorValue | 4.51 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) GENUINE: both bases PASS, interaction FAILs | transforms-rotate-x-flexbox-item | fill recolour ΔRGB(-6,-13,-13) (ΔE 43.9) |
 | FAIL | REAL | ColorValue | 9.00 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-72) (ΔE 75.8) |
 | FAIL | REAL | ColorValue | 12.05 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+12,+13,+13) (ΔE 84.6) |
 | FAIL | REAL | Extra | 26.21 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
@@ -741,7 +741,7 @@ None — every fixture's HTML matches `refs.lock`.
 ### interactions — 40.91%
 - **containing-block** — 50.00%
   - PASS 0.59% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
-  - FAIL 34.32% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
+  - FAIL 12.13% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 0.00%
   - FAIL 4.96% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 0.00%
@@ -753,7 +753,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **grid-x-background-gradient** — 0.00%
   - FAIL 68.71% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
 - **grid-x-flexbox** — 0.00%
-  - FAIL 24.85% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
+  - FAIL 22.97% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
 - **inline-block-x-vertical-align** — 0.00%
   - FAIL 19.01% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 50.00%
@@ -765,17 +765,17 @@ None — every fixture's HTML matches `refs.lock`.
 - **position** — 66.67%
   - PASS 0.25% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
   - PASS 0.83% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
-  - FAIL 28.20% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
+  - FAIL 4.95% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
 - **positioning-x-flexbox** — 0.00%
-  - FAIL 18.28% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
+  - FAIL 4.10% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
 - **positioning-x-grid** — 0.00%
-  - FAIL 73.89% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
+  - FAIL 7.65% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
   - FAIL 13.44% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
 - **tables-x-typography** — 0.00%
   - FAIL 22.56% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
 - **transforms-x-flexbox** — 0.00%
-  - FAIL 6.93% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
+  - FAIL 4.51% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
 - **z-index** — 100.00%
   - PASS 1.28% z-index=with-gradient — `interactions-positioning-z-index-x-backgrounds-gradient` — Interaction: z-index stacking where the upper positioned box carries a linear-gradient background over a lower solid box.
 - **z-index-x-transforms** — 100.00%
