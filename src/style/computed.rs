@@ -469,6 +469,9 @@ pub enum Overflow {
     #[default]
     Visible,
     Hidden,
+    /// `overflow: scroll` — a scroll container that, in print, always reserves a
+    /// scrollbar gutter and paints a (non-interactive) scrollbar on the axis.
+    Scroll,
     Auto,
 }
 
@@ -528,16 +531,15 @@ pub(crate) fn coerce_overflow_axes(x: RawOverflow, y: RawOverflow) -> (Overflow,
                 }
             }
             RawOverflow::Clip => {
-                if is_scrolling(other) {
-                    Overflow::Hidden
-                } else {
-                    // `clip` clips to the box (no scroll container); modelled as
-                    // Hidden for the single-field clip path.
-                    Overflow::Hidden
-                }
+                // `clip` clips to the box (no scroll container); modelled as
+                // Hidden whether or not the other axis scrolls.
+                Overflow::Hidden
             }
             RawOverflow::Auto => Overflow::Auto,
-            RawOverflow::Hidden | RawOverflow::Scroll => Overflow::Hidden,
+            RawOverflow::Hidden => Overflow::Hidden,
+            // `scroll` is preserved so the print scrollbar painter can reserve a
+            // gutter and draw a (non-interactive) scrollbar on this axis.
+            RawOverflow::Scroll => Overflow::Scroll,
         }
     };
     (coerce(x, y), coerce(y, x))
@@ -1224,6 +1226,13 @@ pub struct ComputedStyle {
     pub flex_basis_pct: Option<f32>,
     pub gap: f32,
     pub overflow: Overflow,
+    /// Per-axis computed overflow (after the CSS Overflow 3 inter-axis coercion).
+    /// The collapsed `overflow` above is kept for the many clip-only consumers;
+    /// these two carry the axis detail the scrollbar painter needs (which axis
+    /// shows a scrollbar, and whether it is `scroll` = always vs `auto` = only
+    /// when content overflows).
+    pub overflow_x: Overflow,
+    pub overflow_y: Overflow,
     pub visibility: Visibility,
     pub transform: Option<Transform>,
     /// CSS `transform-origin` pivot (defaults to the box centre).
@@ -1515,6 +1524,8 @@ impl Default for ComputedStyle {
             flex_basis_pct: None,
             gap: 0.0,
             overflow: Overflow::Visible,
+            overflow_x: Overflow::Visible,
+            overflow_y: Overflow::Visible,
             visibility: Visibility::Visible,
             transform: None,
             transform_origin: TransformOrigin::default(),
@@ -1745,6 +1756,8 @@ pub fn compute_style_with_context(
     style.flex_basis_pct = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
+    style.overflow_x = Overflow::Visible;
+    style.overflow_y = Overflow::Visible;
     style.visibility = Visibility::Visible;
     style.transform = None;
     style.clip_path = None;
@@ -2041,6 +2054,8 @@ pub fn compute_pseudo_element_style(
     style.flex_basis_pct = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
+    style.overflow_x = Overflow::Visible;
+    style.overflow_y = Overflow::Visible;
     style.transform = None;
     style.clip_path = None;
     style.mask_image = None;
@@ -2277,7 +2292,11 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.left = default.left;
             style.percentage_insets.left = default.percentage_insets.left;
         }
-        "overflow" => style.overflow = default.overflow,
+        "overflow" => {
+            style.overflow = default.overflow;
+            style.overflow_x = default.overflow_x;
+            style.overflow_y = default.overflow_y;
+        }
         "transform" => style.transform = default.transform,
         "box-shadow" => style.box_shadow = default.box_shadow.clone(),
         "flex-direction" => style.flex_direction = default.flex_direction,
@@ -2444,7 +2463,11 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.left = parent.left;
             style.percentage_insets.left = parent.percentage_insets.left;
         }
-        "overflow" => style.overflow = parent.overflow,
+        "overflow" => {
+            style.overflow = parent.overflow;
+            style.overflow_x = parent.overflow_x;
+            style.overflow_y = parent.overflow_y;
+        }
         "transform" => style.transform = parent.transform,
         "box-shadow" => style.box_shadow = parent.box_shadow.clone(),
         "flex-direction" => style.flex_direction = parent.flex_direction,
@@ -3644,10 +3667,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             overflow_x.unwrap_or(RawOverflow::Visible),
             overflow_y.unwrap_or(RawOverflow::Visible),
         );
+        style.overflow_x = cx;
+        style.overflow_y = cy;
         // Collapse the two coerced axes into the single `overflow` field used by
-        // layout/paint. `auto` is preserved only when BOTH axes are `auto`
-        // (no clip until content overflows); any non-visible axis after
-        // coercion clips, which we model as `Hidden`.
+        // the clip-only consumers. `auto` is preserved only when BOTH axes are
+        // `auto` (no clip until content overflows); any clipping axis collapses
+        // to `Hidden`. (The per-axis fields above retain the `scroll`/`auto`
+        // detail the scrollbar painter needs.)
         style.overflow = match (cx, cy) {
             (Overflow::Visible, Overflow::Visible) => Overflow::Visible,
             (Overflow::Auto, Overflow::Auto) => Overflow::Auto,

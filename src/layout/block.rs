@@ -1955,6 +1955,8 @@ pub(crate) fn layout_block_element(
             offset_top: wrapper_top,
             offset_left: wrapper_left + auto_offset_left,
             overflow: style.overflow,
+            overflow_x: style.overflow_x,
+            overflow_y: style.overflow_y,
             transform: style.transform,
             transform_origin: style.transform_origin,
             clip_path: style.clip_path.clone(),

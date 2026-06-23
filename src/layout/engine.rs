@@ -617,6 +617,11 @@ pub enum LayoutElement {
         offset_top: f32,
         offset_left: f32,
         overflow: Overflow,
+        /// Per-axis computed overflow (after CSS Overflow 3 coercion). Used by
+        /// the print scrollbar painter to decide which axis reserves a gutter /
+        /// paints a scrollbar (`scroll` always, `auto` when content overflows).
+        overflow_x: Overflow,
+        overflow_y: Overflow,
         transform: Option<Transform>,
         transform_origin: TransformOrigin,
         clip_path: Option<crate::style::computed::ClipPath>,

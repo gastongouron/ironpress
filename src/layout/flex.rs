@@ -2289,6 +2289,8 @@ pub(crate) fn layout_flex_container(
                                     + style.padding.left
                                     + style.border.left.width,
                                 overflow: Overflow::Visible,
+                                overflow_x: Overflow::Visible,
+                                overflow_y: Overflow::Visible,
                                 transform: None,
                                 transform_origin: crate::style::computed::TransformOrigin::default(
                                 ),

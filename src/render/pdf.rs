@@ -17,7 +17,8 @@ use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
     BackgroundSize, BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily,
-    LinearGradient, Position, RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
+    LinearGradient, Overflow, Position, RadialExtent, RadialGradient, RadialShape, TextAlign,
+    VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -220,6 +221,166 @@ fn overflow_clip_path(
     // Trailing space (no newline) so the caller's `W n\n` yields `... re W n\n`
     // on a single line (matching the established clip-path output convention).
     format!("{px} {py} {pw} {ph} re ")
+}
+
+/// Default UA scrollbar thickness, in PDF points (Chrome's classic scrollbar is
+/// 15 CSS px wide; 1 px = 0.75 pt).
+const SCROLLBAR_THICKNESS_PT: f32 = 15.0 * 0.75;
+
+/// Paint a non-interactive UA scrollbar matching Chrome's print rendering for a
+/// scroll container (`overflow: scroll`, or `auto` with overflow). The padding
+/// box is `(px, py)` bottom-left, size `pw`×`ph` (PDF bottom-up coords).
+/// `has_v`/`has_h` say which axes show a scrollbar (the gutter is reserved on
+/// each). `over_v`/`over_h` are the overflow ratios (content / viewport) on each
+/// axis, used to size the thumb (≥ 1 means it overflows). The track is light
+/// gray, the thumb medium gray with rounded ends, and each end carries an arrow
+/// button — same as Chrome's printed `overflow:scroll` boxes.
+///
+/// Caller must have ALREADY clipped content to the reduced (gutter-inset)
+/// padding box; this only paints the scrollbar chrome on top, inside the gutter.
+#[allow(clippy::too_many_arguments)]
+fn paint_scrollbars(
+    content: &mut String,
+    px: f32,
+    py: f32,
+    pw: f32,
+    ph: f32,
+    has_v: bool,
+    has_h: bool,
+    over_v: f32,
+    over_h: f32,
+) {
+    let t = SCROLLBAR_THICKNESS_PT;
+    if (!has_v && !has_h) || pw <= t || ph <= t {
+        return;
+    }
+    // Track / thumb / arrow colors sampled from Chrome's printed scrollbar.
+    let track = "0.9882 0.9882 0.9882"; // ~ (252,252,252)
+    let thumb = "0.5451 0.5451 0.5451"; // ~ (139,139,139)
+    let v_gutter = if has_v { t } else { 0.0 };
+    let h_gutter = if has_h { t } else { 0.0 };
+
+    // When both scrollbars are present, fill the bottom-right corner square (the
+    // gutter intersection that neither track covers) with the track color — same
+    // as Chrome, which paints a plain corner there rather than leaving content.
+    if has_v && has_h {
+        content.push_str(&format!(
+            "{track} rg\n{} {} {t} {t} re\nf\n",
+            px + pw - t,
+            py,
+        ));
+    }
+
+    // Vertical scrollbar occupies the right gutter, full padding-box height
+    // (minus the horizontal gutter at the bottom if present).
+    if has_v {
+        let bar_x = px + pw - t;
+        let bar_bottom = py + h_gutter;
+        let bar_h = ph - h_gutter;
+        // Track.
+        content.push_str(&format!(
+            "{track} rg\n{bar_x} {bar_bottom} {t} {bar_h} re\nf\n"
+        ));
+        // Arrow buttons (square, at top and bottom of the track).
+        let btn = t.min(bar_h / 2.0);
+        // Up arrow at the top, down arrow at the bottom.
+        let top_btn_cy = bar_bottom + bar_h - btn / 2.0;
+        let bot_btn_cy = bar_bottom + btn / 2.0;
+        let cx = bar_x + t / 2.0;
+        let a = btn * 0.28; // arrow half-extent
+        content.push_str(&format!("{thumb} rg\n"));
+        // Up triangle.
+        content.push_str(&format!(
+            "{} {} m {} {} l {} {} l f\n",
+            cx,
+            top_btn_cy + a,
+            cx - a,
+            top_btn_cy - a,
+            cx + a,
+            top_btn_cy - a
+        ));
+        // Down triangle.
+        content.push_str(&format!(
+            "{} {} m {} {} l {} {} l f\n",
+            cx,
+            bot_btn_cy - a,
+            cx - a,
+            bot_btn_cy + a,
+            cx + a,
+            bot_btn_cy + a
+        ));
+        // Thumb between the buttons, sized by the overflow ratio, anchored to the
+        // top (scroll position 0, matching an un-scrolled printed container).
+        let track_inner = (bar_h - 2.0 * btn).max(0.0);
+        if track_inner > 0.0 {
+            let frac = (1.0 / over_v.max(1.0)).clamp(0.12, 1.0);
+            let thumb_h = (track_inner * frac).max(t * 0.5);
+            let thumb_top = bar_bottom + bar_h - btn;
+            let thumb_bottom = (thumb_top - thumb_h).max(bar_bottom + btn);
+            let inset = t * 0.18;
+            let r = (t / 2.0 - inset).max(0.0);
+            content.push_str(&rounded_rect_path(
+                bar_x + inset,
+                thumb_bottom,
+                (t - 2.0 * inset).max(0.0),
+                (thumb_top - thumb_bottom).max(0.0),
+                r,
+            ));
+            content.push_str("f\n");
+        }
+    }
+
+    // Horizontal scrollbar occupies the bottom gutter, full padding-box width
+    // (minus the vertical gutter on the right if present).
+    if has_h {
+        let bar_x = px;
+        let bar_y = py;
+        let bar_w = pw - v_gutter;
+        content.push_str(&format!("{track} rg\n{bar_x} {bar_y} {bar_w} {t} re\nf\n"));
+        let btn = t.min(bar_w / 2.0);
+        let left_btn_cx = bar_x + btn / 2.0;
+        let right_btn_cx = bar_x + bar_w - btn / 2.0;
+        let cy = bar_y + t / 2.0;
+        let a = btn * 0.28;
+        content.push_str(&format!("{thumb} rg\n"));
+        // Left triangle.
+        content.push_str(&format!(
+            "{} {} m {} {} l {} {} l f\n",
+            left_btn_cx - a,
+            cy,
+            left_btn_cx + a,
+            cy + a,
+            left_btn_cx + a,
+            cy - a
+        ));
+        // Right triangle.
+        content.push_str(&format!(
+            "{} {} m {} {} l {} {} l f\n",
+            right_btn_cx + a,
+            cy,
+            right_btn_cx - a,
+            cy + a,
+            right_btn_cx - a,
+            cy - a
+        ));
+        let track_inner = (bar_w - 2.0 * btn).max(0.0);
+        if track_inner > 0.0 {
+            let frac = (1.0 / over_h.max(1.0)).clamp(0.12, 1.0);
+            let thumb_w = (track_inner * frac).max(t * 0.5);
+            let thumb_left = bar_x + btn;
+            let thumb_right = (thumb_left + thumb_w).min(bar_x + bar_w - btn);
+            let inset = t * 0.18;
+            let r = (t / 2.0 - inset).max(0.0);
+            content.push_str(&rounded_rect_path(
+                thumb_left,
+                bar_y + inset,
+                (thumb_right - thumb_left).max(0.0),
+                (t - 2.0 * inset).max(0.0),
+                r,
+            ));
+            content.push_str("f\n");
+        }
+    }
 }
 
 /// Whether a uniform border needs the special shared painter rather than the
@@ -3560,6 +3721,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     offset_top: _,
                     offset_left: c_offset_left,
                     overflow: c_overflow,
+                    overflow_x: c_overflow_x,
+                    overflow_y: c_overflow_y,
                     transform: c_transform,
                     transform_origin: c_transform_origin,
                     clip_path: c_clip_path,
@@ -4120,6 +4283,42 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
                     } // end `if c_visible_self` — container self-decoration
 
+                    // Print scrollbars (css-overflow-3): a `scroll` axis always
+                    // reserves a gutter + paints a non-interactive scrollbar; an
+                    // `auto` axis does so only when its content overflows. The
+                    // content clip is inset by the gutter on each scrolling axis.
+                    let c_pad_box_w = (container_w - border.horizontal_width()).max(0.0);
+                    let c_pad_box_h = (total_h - border.vertical_width()).max(0.0);
+                    let c_avail_w = (c_pad_box_w - *c_pl - *c_pr).max(0.0);
+                    let c_avail_h = (c_pad_box_h - *c_pt - *c_pb).max(0.0);
+                    let (c_over_w, c_over_h) = children_overflow_extent(children);
+                    let c_ratio_h = if c_avail_w > 0.0 {
+                        c_over_w / c_avail_w
+                    } else {
+                        0.0
+                    };
+                    let c_ratio_v = if c_avail_h > 0.0 {
+                        c_over_h / c_avail_h
+                    } else {
+                        0.0
+                    };
+                    let c_scroll_ok = *c_border_radius <= 0.0 && !radii_any(*c_border_radii);
+                    let c_has_v = c_scroll_ok
+                        && match c_overflow_y {
+                            Overflow::Scroll => true,
+                            Overflow::Auto => c_ratio_v > 1.001,
+                            _ => false,
+                        };
+                    let c_has_h = c_scroll_ok
+                        && match c_overflow_x {
+                            Overflow::Scroll => true,
+                            Overflow::Auto => c_ratio_h > 1.001,
+                            _ => false,
+                        };
+                    let c_sb = SCROLLBAR_THICKNESS_PT;
+                    let c_v_gutter = if c_has_v { c_sb } else { 0.0 };
+                    let c_h_gutter = if c_has_h { c_sb } else { 0.0 };
+
                     // Apply clip if overflow clips. Per CSS, `overflow` clips to
                     // the *padding box* — the border is painted outside the clip
                     // region and stays visible — and follows the rounded inner
@@ -4127,18 +4326,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let needs_clip = c_overflow.clips();
                     if needs_clip {
                         content.push_str("q\n");
-                        content.push_str(&overflow_clip_path(
-                            container_x,
-                            container_y_top - total_h,
-                            container_w,
-                            total_h,
-                            border.left.width,
-                            border.right.width,
-                            border.top.width,
-                            border.bottom.width,
-                            *c_border_radius,
-                        ));
-                        content.push_str("W n\n");
+                        if c_has_v || c_has_h {
+                            let cx = container_x + border.left.width;
+                            let cy = (container_y_top - total_h) + border.bottom.width + c_h_gutter;
+                            let cw = c_pad_box_w - c_v_gutter;
+                            let ch = c_pad_box_h - c_h_gutter;
+                            content.push_str(&format!("{cx} {cy} {cw} {ch} re W n\n"));
+                        } else {
+                            content.push_str(&overflow_clip_path(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                border.left.width,
+                                border.right.width,
+                                border.top.width,
+                                border.bottom.width,
+                                *c_border_radius,
+                            ));
+                            content.push_str("W n\n");
+                        }
                     }
 
                     // Render children recursively
@@ -4186,6 +4393,23 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Restore clip
                     if needs_clip {
                         content.push_str("Q\n");
+                    }
+                    // Paint print scrollbar chrome in the reserved gutter, after
+                    // the (gutter-inset) content clip is closed.
+                    if c_has_v || c_has_h {
+                        let pbx = container_x + border.left.width;
+                        let pby = (container_y_top - total_h) + border.bottom.width;
+                        paint_scrollbars(
+                            &mut content,
+                            pbx,
+                            pby,
+                            c_pad_box_w,
+                            c_pad_box_h,
+                            c_has_v,
+                            c_has_h,
+                            c_ratio_v.max(1.0),
+                            c_ratio_h.max(1.0),
+                        );
                     }
                     // Close the mask group (opened inside the clip-path q..Q).
                     if c_mask_open {
@@ -4950,6 +5174,30 @@ fn collapse_role(element: &LayoutElement) -> CollapseRole {
 /// `estimate_element_height` sums each child's full top+bottom margins; this
 /// subtracts the collapse "savings" between consecutive in-flow siblings so a
 /// container's painted height matches the collapsed flow.
+/// Best-effort border-box width of a direct child, for deciding whether a scroll
+/// container's content overflows horizontally. Returns `None` when the width is
+/// not explicitly known (auto-width children shrink to fit and don't overflow).
+fn child_explicit_width(element: &LayoutElement) -> Option<f32> {
+    match element {
+        LayoutElement::Container { block_width, .. }
+        | LayoutElement::TextBlock { block_width, .. } => *block_width,
+        LayoutElement::Image { width, .. } => Some(*width),
+        _ => None,
+    }
+}
+
+/// The content overflow extent of a scroll container's children, as `(width,
+/// height)` border-box points. Width is the widest direct child (explicit widths
+/// only); height is the collapsed flow height. Used to size scrollbar thumbs and
+/// to decide whether an `overflow: auto` axis actually overflows.
+fn children_overflow_extent(children: &[LayoutElement]) -> (f32, f32) {
+    let w = children
+        .iter()
+        .filter_map(child_explicit_width)
+        .fold(0.0f32, f32::max);
+    (w, collapsed_children_height(children))
+}
+
 fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
     // When any direct child floats, the auto content height excludes the floats
     // (they don't stretch the box) but includes any `clear` gap. Delegate to the
@@ -5745,6 +5993,8 @@ fn render_container_children(
                 float: nk_float,
                 clear: nk_clear,
                 overflow,
+                overflow_x: nk_overflow_x,
+                overflow_y: nk_overflow_y,
                 position: nk_position,
                 offset_top: nk_offset_top,
                 offset_left: nk_offset_left,
@@ -6148,8 +6398,15 @@ fn render_container_children(
                             && border.top.style == border.bottom.style
                             && border.top.style == border.left.style;
                         if border_uniform
-                            && border_needs_special_paint(border.top.style, *cont_radii)
+                            && (border_needs_special_paint(border.top.style, *cont_radii)
+                                || radii_any(*cont_radii))
                         {
+                            // Uniform border with any corner radius (or a non-solid
+                            // style) takes the shared painter so the stroke follows
+                            // the rounded corners. Without this a plain solid rounded
+                            // border fell through to the four straight per-side
+                            // strokes below, leaving a square frame around a rounded
+                            // (clipped) fill — see overflow-hidden-border-radius.
                             paint_uniform_border(
                                 content,
                                 nk_x,
@@ -6288,24 +6545,76 @@ fn render_container_children(
                         }
                     } // end `if *nk_visible` — nested container self-decoration
 
+                    // Decide print scrollbars (css-overflow-3): a `scroll` axis
+                    // always reserves a gutter and paints a (non-interactive)
+                    // scrollbar; an `auto` axis does so only when its content
+                    // overflows. Chrome renders these in print, insetting the
+                    // content clip by the gutter on each scrolling axis.
+                    let pad_box_w = (nk_w - border.horizontal_width()).max(0.0);
+                    let pad_box_h = (nk_total_h - border.vertical_width()).max(0.0);
+                    let content_avail_w = (pad_box_w - *padding_left - *padding_right).max(0.0);
+                    let content_avail_h = (pad_box_h - *padding_top - *padding_bottom).max(0.0);
+                    let (over_w, over_h) = children_overflow_extent(nested_kids);
+                    let over_ratio_h = if content_avail_w > 0.0 {
+                        over_w / content_avail_w
+                    } else {
+                        0.0
+                    };
+                    let over_ratio_v = if content_avail_h > 0.0 {
+                        over_h / content_avail_h
+                    } else {
+                        0.0
+                    };
+                    // No rounded scrollbars: a rounded box clips its scrollbar
+                    // chrome away, so only paint on square scroll containers.
+                    let scroll_ok = *cont_br <= 0.0 && !radii_any(*cont_radii);
+                    let has_v = scroll_ok
+                        && match nk_overflow_y {
+                            Overflow::Scroll => true,
+                            Overflow::Auto => over_ratio_v > 1.001,
+                            _ => false,
+                        };
+                    let has_h = scroll_ok
+                        && match nk_overflow_x {
+                            Overflow::Scroll => true,
+                            Overflow::Auto => over_ratio_h > 1.001,
+                            _ => false,
+                        };
+                    let sb = SCROLLBAR_THICKNESS_PT;
+                    let v_gutter = if has_v { sb } else { 0.0 };
+                    let h_gutter = if has_h { sb } else { 0.0 };
+
                     // Clip if overflow clips (hidden/clip/scroll/auto). CSS clips
                     // at the PADDING box (border box inset by the border widths)
                     // and follows the rounded corners when border-radius is set.
+                    // Scroll containers inset the clip by the reserved gutter so
+                    // content does not paint under the scrollbar.
                     let clip = overflow.clips();
                     if clip {
                         content.push_str("q\n");
-                        content.push_str(&overflow_clip_path(
-                            nk_x,
-                            nk_top_y - nk_total_h,
-                            nk_w,
-                            nk_total_h,
-                            border.left.width,
-                            border.right.width,
-                            border.top.width,
-                            border.bottom.width,
-                            *cont_br,
-                        ));
-                        content.push_str("W n\n");
+                        if has_v || has_h {
+                            // Rectangular clip inset by the per-side border and the
+                            // reserved gutter (right gutter for vertical, bottom for
+                            // horizontal — matching the LTR/top-anchored UA layout).
+                            let cx = nk_x + border.left.width;
+                            let cy = (nk_top_y - nk_total_h) + border.bottom.width + h_gutter;
+                            let cw = pad_box_w - v_gutter;
+                            let ch = pad_box_h - h_gutter;
+                            content.push_str(&format!("{cx} {cy} {cw} {ch} re W n\n"));
+                        } else {
+                            content.push_str(&overflow_clip_path(
+                                nk_x,
+                                nk_top_y - nk_total_h,
+                                nk_w,
+                                nk_total_h,
+                                border.left.width,
+                                border.right.width,
+                                border.top.width,
+                                border.bottom.width,
+                                *cont_br,
+                            ));
+                            content.push_str("W n\n");
+                        }
                     }
 
                     // Recurse into nested children
@@ -6347,6 +6656,25 @@ fn render_container_children(
 
                     if clip {
                         content.push_str("Q\n");
+                    }
+
+                    // Paint the print scrollbar chrome in the reserved gutter,
+                    // AFTER the content clip is closed (the gutter lies outside
+                    // the inset content clip) but inside the box decoration group.
+                    if has_v || has_h {
+                        let pbx = nk_x + border.left.width;
+                        let pby = (nk_top_y - nk_total_h) + border.bottom.width;
+                        paint_scrollbars(
+                            content,
+                            pbx,
+                            pby,
+                            pad_box_w,
+                            pad_box_h,
+                            has_v,
+                            has_h,
+                            over_ratio_v.max(1.0),
+                            over_ratio_h.max(1.0),
+                        );
                     }
                     // Close the mask group (opened inside the clip-path q..Q).
                     if nk_mask_open {

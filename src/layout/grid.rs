@@ -1380,6 +1380,8 @@ pub(crate) fn layout_grid_container(
         offset_top: 0.0,
         offset_left: h_offset,
         overflow: style.overflow,
+        overflow_x: style.overflow_x,
+        overflow_y: style.overflow_y,
         transform: style.transform,
         transform_origin: style.transform_origin,
         clip_path: style.clip_path.clone(),
