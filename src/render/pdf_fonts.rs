@@ -380,8 +380,8 @@ mod tests {
     use crate::layout::engine::{FlexCell, LayoutBorder, TableCell, TextLine, TextRun};
     use crate::parser::ttf::{FontVerticalMetrics, TtfFont};
     use crate::style::computed::{
-        BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse,
-        Clear, Float, FontFamily, Position, TextAlign, VerticalAlign,
+        BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+        BorderCollapse, Clear, Float, FontFamily, Position, TextAlign, VerticalAlign,
     };
 
     // ── Test helpers ─────────────────────────────────────────────────────────
@@ -472,6 +472,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             transform: None,
             transform_origin: crate::style::computed::TransformOrigin::default(),
             box_shadow: Vec::new(),
@@ -530,6 +531,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -950,6 +952,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             align_items: crate::style::computed::AlignItems::Stretch,
             positioned_depth: 0,
         };

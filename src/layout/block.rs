@@ -2,9 +2,9 @@ use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing, Clear,
-    ComputedStyle, Display, Float, Position, TextAlign, TextOverflow, VerticalAlign, Visibility,
-    WhiteSpace, compute_style_with_context,
+    BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BoxSizing, Clear, ComputedStyle, Display, Float, Position, TextAlign, TextOverflow,
+    VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -512,6 +512,7 @@ pub(crate) fn layout_block_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
             lines,
@@ -561,6 +562,7 @@ pub(crate) fn layout_block_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: style.z_index,
             repeat_on_each_page: false,
             positioned_depth,
@@ -749,6 +751,7 @@ pub(crate) fn layout_block_element(
                     position: bg_pos,
                     repeat: bg_repeat,
                     origin: bg_origin,
+                    clip: bg_clip,
                 } = BackgroundFields::from_style(style);
                 // Wrapper height will be patched after children are processed.
                 let wrapper_h = effective_height.map_or(0.0, |h| {
@@ -814,6 +817,7 @@ pub(crate) fn layout_block_element(
                     background_position: bg_pos,
                     background_repeat: bg_repeat,
                     background_origin: bg_origin,
+                    background_clip: bg_clip,
                     z_index: style.z_index,
                     repeat_on_each_page: false,
                     positioned_depth,
@@ -875,6 +879,7 @@ pub(crate) fn layout_block_element(
                         background_position: BackgroundPosition::default(),
                         background_repeat: BackgroundRepeat::Repeat,
                         background_origin: BackgroundOrigin::Padding,
+                        background_clip: BackgroundClip::Border,
                         z_index: 0,
                         repeat_on_each_page: false,
                         positioned_depth: 0,
@@ -1067,6 +1072,7 @@ pub(crate) fn layout_block_element(
                         background_position: BackgroundPosition::default(),
                         background_repeat: BackgroundRepeat::Repeat,
                         background_origin: BackgroundOrigin::Padding,
+                        background_clip: BackgroundClip::Border,
                         z_index: 0,
                         repeat_on_each_page: false,
                         positioned_depth: 0,
@@ -1310,6 +1316,7 @@ pub(crate) fn layout_block_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(style);
         let text_height: f32 = lines.iter().map(|l| l.height).sum();
         let total_h = resolve_padding_box_height(
@@ -1470,6 +1477,7 @@ pub(crate) fn layout_block_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: style.z_index,
             repeat_on_each_page: false,
             positioned_depth,
@@ -1891,6 +1899,7 @@ pub(crate) fn layout_block_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(style);
         // Resolve containing block and offsets for absolute elements.
         // Pass the border-box height (`container_h` is the padding box) so a
@@ -1961,6 +1970,7 @@ pub(crate) fn layout_block_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             outline_width: style.outline_width,
             outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
             z_index: style.z_index,

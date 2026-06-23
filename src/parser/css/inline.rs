@@ -146,6 +146,7 @@ fn clear_background_shorthand_keys(map: &mut StyleMap) {
         "background-repeat",
         "background-position",
         "background-origin",
+        "background-clip",
     ] {
         map.remove(key);
     }
@@ -352,6 +353,11 @@ fn apply_background_shorthand_defaults(map: &mut StyleMap, is_important: bool) {
         CssValue::Keyword("padding-box".to_string()),
         is_important,
     );
+    map.set_with_importance(
+        "background-clip",
+        CssValue::Keyword("border-box".to_string()),
+        is_important,
+    );
 }
 
 fn ensure_background_shorthand_defaults(
@@ -380,6 +386,7 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool)
     let mut found_image = false;
     let mut found_repeat = false;
     let mut found_origin = false;
+    let mut found_clip = false;
     let mut found_size = false;
     let mut found_color = false;
     let mut position_parts = Vec::new();
@@ -407,10 +414,25 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool)
             }
         }
 
-        if !found_origin && origin_keywords.contains(&lower.as_str()) {
+        // In the `background` shorthand the box value sets `background-origin`
+        // then `background-clip` (css-backgrounds-3 §3.10). The first box token
+        // is the origin AND the clip; a second box token overrides the clip.
+        if origin_keywords.contains(&lower.as_str()) && (!found_origin || !found_clip) {
             ensure_background_shorthand_defaults(map, &mut defaults_applied, is_important);
-            map.set_with_importance("background-origin", CssValue::Keyword(lower), is_important);
-            found_origin = true;
+            if !found_origin {
+                map.set_with_importance(
+                    "background-origin",
+                    CssValue::Keyword(lower.clone()),
+                    is_important,
+                );
+                found_origin = true;
+                // A lone box value also sets the clip; `found_clip` stays false
+                // so a later box token can still override it below.
+                map.set_with_importance("background-clip", CssValue::Keyword(lower), is_important);
+            } else {
+                map.set_with_importance("background-clip", CssValue::Keyword(lower), is_important);
+                found_clip = true;
+            }
             index += 1;
             continue;
         }

@@ -216,6 +216,7 @@ pub(super) struct NestedTextBlock<'a> {
     pub(super) background_position: BackgroundPosition,
     pub(super) background_repeat: BackgroundRepeat,
     pub(super) background_origin: BackgroundOrigin,
+    pub(super) background_clip: BackgroundClip,
     pub(super) background_blur_canvas_box: Option<SvgViewportBox>,
     pub(super) border_radius: f32,
     /// CSS `text-indent` applied to the first line only. List items use a
@@ -479,6 +480,28 @@ pub(super) fn render_nested_text_block(
     );
     let block_bottom = frame.top_y - total_height;
 
+    // The box `background-clip` confines the painted fill to. In this nested
+    // model `frame.origin_x` × `render_width` is the box the border centerline
+    // runs along; padding-box stops the fill at the inner border edge and
+    // content-box additionally insets by the padding (css-backgrounds-3 §3.4).
+    let nested_background_clip_rect = |block: &NestedTextBlock<'_>, frame: &NestedLayoutFrame| {
+        background_clip_rect(
+            block.background_clip,
+            frame.origin_x,
+            block_bottom,
+            render_width,
+            total_height,
+            block.border.left.width,
+            block.border.right.width,
+            block.border.top.width,
+            block.border.bottom.width,
+            block.padding_left,
+            block.padding_right,
+            block.padding_top,
+            block.padding_bottom,
+        )
+    };
+
     if let Some((r, g, b, a)) = block.background_color {
         let needs_bg_alpha = a < 1.0;
         if needs_bg_alpha {
@@ -488,7 +511,21 @@ pub(super) fn render_nested_text_block(
             content.push_str(&format!("/{gs_name} gs\n"));
         }
         content.push_str(&format!("{r} {g} {b} rg\n"));
-        if block.border_radius > 0.0 {
+        let (n_clip_x, n_clip_y, n_clip_w, n_clip_h) = nested_background_clip_rect(&block, &frame);
+        let nested_needs_clip = block.background_clip != BackgroundClip::Border;
+        if nested_needs_clip {
+            push_background_clip(
+                content,
+                n_clip_x,
+                n_clip_y,
+                n_clip_w,
+                n_clip_h,
+                block.border_radius,
+            );
+            content.push_str(&format!("{n_clip_x} {n_clip_y} {n_clip_w} {n_clip_h} re\n"));
+            content.push_str("f\n");
+            content.push_str("Q\n");
+        } else if block.border_radius > 0.0 {
             content.push_str(&rounded_rect_path(
                 frame.origin_x,
                 block_bottom,
@@ -496,6 +533,7 @@ pub(super) fn render_nested_text_block(
                 total_height,
                 block.border_radius,
             ));
+            content.push_str("f\n");
         } else {
             content.push_str(&format!(
                 "{x} {y} {w} {h} re\n",
@@ -504,8 +542,8 @@ pub(super) fn render_nested_text_block(
                 w = render_width,
                 h = total_height,
             ));
+            content.push_str("f\n");
         }
-        content.push_str("f\n");
         if needs_bg_alpha {
             content.push_str("/GSDefault gs\n");
         }
@@ -537,12 +575,19 @@ pub(super) fn render_nested_text_block(
             Some(ctx.page_ext_gstates),
             BackgroundPaintContext::new(
                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                SvgViewportBox::new(
-                    frame.origin_x - block.border.left.width,
-                    block_bottom - block.border.bottom.width,
-                    render_width + block.border.left.width + block.border.right.width,
-                    total_height + block.border.top.width + block.border.bottom.width,
-                ),
+                if block.background_clip == BackgroundClip::Border {
+                    // Default: clip to the (outward-expanded) border box, as
+                    // before — keeps existing raster-background behaviour stable.
+                    SvgViewportBox::new(
+                        frame.origin_x - block.border.left.width,
+                        block_bottom - block.border.bottom.width,
+                        render_width + block.border.left.width + block.border.right.width,
+                        total_height + block.border.top.width + block.border.bottom.width,
+                    )
+                } else {
+                    let (cx, cy, cw, ch) = nested_background_clip_rect(&block, &frame);
+                    SvgViewportBox::new(cx, cy, cw, ch)
+                },
                 block.border_radius,
                 block.background_blur_radius,
                 block.background_size,
@@ -846,6 +891,7 @@ pub(super) fn render_nested_layout_elements(
                 background_position,
                 background_repeat,
                 background_origin,
+                background_clip,
                 text_indent,
                 ..
             } => {
@@ -869,6 +915,7 @@ pub(super) fn render_nested_layout_elements(
                         background_position: *background_position,
                         background_repeat: *background_repeat,
                         background_origin: *background_origin,
+                        background_clip: *background_clip,
                         background_blur_canvas_box: planned_element.blur_canvas_box,
                         border_radius: *border_radius,
                         text_indent: *text_indent,
@@ -901,6 +948,7 @@ pub(super) fn render_nested_layout_elements(
                 background_position,
                 background_repeat,
                 background_origin,
+                background_clip,
                 ..
             } => {
                 let render_width = block_width
@@ -942,6 +990,7 @@ pub(super) fn render_nested_layout_elements(
                             background_position: *background_position,
                             background_repeat: *background_repeat,
                             background_origin: *background_origin,
+                            background_clip: *background_clip,
                             background_blur_canvas_box: planned_element.blur_canvas_box,
                             border_radius: *border_radius,
                             text_indent: 0.0,

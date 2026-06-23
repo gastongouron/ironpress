@@ -2,9 +2,9 @@ use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    ComputedStyle, ConicGradient, Display, LinearGradient, RadialGradient, TextAlign, Transform,
-    compute_style_with_context,
+    BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BoxSizing, ComputedStyle, ConicGradient, Display, LinearGradient, RadialGradient, TextAlign,
+    Transform, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -128,6 +128,7 @@ pub(crate) fn layout_inline_block_group(
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        background_clip: BackgroundClip,
         text_align: TextAlign,
         margin_left: f32,
         margin_right: f32,
@@ -318,6 +319,7 @@ pub(crate) fn layout_inline_block_group(
             background_position: bg_fields.position,
             background_repeat: bg_fields.repeat,
             background_origin: bg_fields.origin,
+            background_clip: bg_fields.clip,
             text_align: child_style.text_align,
             margin_left: child_style.margin.left,
             margin_right: child_style.margin.right,
@@ -370,6 +372,7 @@ pub(crate) fn layout_inline_block_group(
             background_position: item.background_position,
             background_repeat: item.background_repeat,
             background_origin: item.background_origin,
+            background_clip: item.background_clip,
             transform: item.transform,
             transform_origin: item.transform_origin,
             box_shadow: item.box_shadow.clone(),
@@ -410,6 +413,7 @@ pub(crate) fn layout_inline_block_group(
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             align_items: crate::style::computed::AlignItems::Stretch,
             positioned_depth: 0,
         });

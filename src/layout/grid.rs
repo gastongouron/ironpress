@@ -1284,6 +1284,7 @@ pub(crate) fn layout_grid_container(
         position: background_position,
         repeat: background_repeat,
         origin: background_origin,
+        clip: background_clip,
     } = BackgroundFields::from_style(style);
 
     // Lay out absolutely-positioned children (out of flow) against the grid
@@ -1394,6 +1395,7 @@ pub(crate) fn layout_grid_container(
         background_position,
         background_repeat,
         background_origin,
+        background_clip,
         outline_width: style.outline_width,
         outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
         z_index: style.z_index,

@@ -2,8 +2,8 @@ use crate::parser::css::{CssRule, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
-    ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight,
+    BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
+    BoxSizing, ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight,
     IntrinsicWidthKeyword, LinearGradient, ListStyleType, Position, RadialGradient, VerticalAlign,
     Visibility, compute_style_with_context,
 };
@@ -1121,6 +1121,7 @@ pub(crate) fn build_pseudo_block(
         position: background_position,
         repeat: background_repeat,
         origin: background_origin,
+        clip: background_clip,
     } = BackgroundFields::from_style(pseudo_style);
 
     let explicit_width = if pseudo_style.position == Position::Absolute
@@ -1261,6 +1262,7 @@ pub(crate) fn build_pseudo_block(
         background_position,
         background_repeat,
         background_origin,
+        background_clip,
         z_index: pseudo_style.z_index,
         repeat_on_each_page: false,
         positioned_depth: if pseudo_style.position == Position::Relative
@@ -1542,6 +1544,7 @@ pub(crate) struct BackgroundFields {
     pub(crate) position: BackgroundPosition,
     pub(crate) repeat: BackgroundRepeat,
     pub(crate) origin: BackgroundOrigin,
+    pub(crate) clip: BackgroundClip,
 }
 
 impl BackgroundFields {
@@ -1556,6 +1559,7 @@ impl BackgroundFields {
             position: style.background_position,
             repeat: style.background_repeat,
             origin: style.background_origin,
+            clip: style.background_clip,
         }
     }
 
@@ -1570,6 +1574,7 @@ impl BackgroundFields {
             position: BackgroundPosition::default(),
             repeat: BackgroundRepeat::Repeat,
             origin: BackgroundOrigin::Padding,
+            clip: BackgroundClip::Border,
         }
     }
 }

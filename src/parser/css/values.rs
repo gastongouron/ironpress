@@ -472,6 +472,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "background-repeat"
             | "background-position"
             | "background-origin"
+            | "background-clip"
             | "background-image"
             | "white-space"
             | "overflow-wrap"

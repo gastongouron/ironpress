@@ -340,6 +340,7 @@ pub(crate) fn layout_multicol_container(
         position: background_position,
         repeat: background_repeat,
         origin: background_origin,
+        clip: background_clip,
     } = BackgroundFields::from_style(style);
 
     output.push(LayoutElement::Container {
@@ -383,6 +384,7 @@ pub(crate) fn layout_multicol_container(
         background_position,
         background_repeat,
         background_origin,
+        background_clip,
         outline_width: style.outline_width,
         outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
         z_index: style.z_index,
@@ -613,6 +615,7 @@ fn empty_abs_container(
         background_position: crate::style::computed::BackgroundPosition::default(),
         background_repeat: crate::style::computed::BackgroundRepeat::Repeat,
         background_origin: crate::style::computed::BackgroundOrigin::Padding,
+        background_clip: crate::style::computed::BackgroundClip::Border,
         outline_width: 0.0,
         outline_color: None,
         z_index: 0,

@@ -927,6 +927,15 @@ pub enum BackgroundOrigin {
     Border,
     Content,
 }
+/// CSS background-clip property: the box the background painting area is clipped
+/// to (css-backgrounds-3 §3.4). Default is `border-box`.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundClip {
+    #[default]
+    Border,
+    Padding,
+    Content,
+}
 /// CSS background-size property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BackgroundSize {
@@ -1323,6 +1332,7 @@ pub struct ComputedStyle {
     pub background_repeat: BackgroundRepeat,
     pub background_position: BackgroundPosition,
     pub background_origin: BackgroundOrigin,
+    pub background_clip: BackgroundClip,
     /// CSS z-index (0 = auto).
     pub z_index: i32,
     /// CSS custom properties inherited from ancestors.
@@ -1565,6 +1575,7 @@ impl Default for ComputedStyle {
             background_repeat: BackgroundRepeat::Repeat,
             background_position: BackgroundPosition::default(),
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
@@ -1606,6 +1617,7 @@ impl ComputedStyle {
         self.background_repeat = BackgroundRepeat::Repeat;
         self.background_position = BackgroundPosition::default();
         self.background_origin = BackgroundOrigin::Padding;
+        self.background_clip = BackgroundClip::Border;
     }
 
     fn inherit_background_image(&mut self, source: &ComputedStyle) {
@@ -1623,6 +1635,7 @@ impl ComputedStyle {
         self.background_repeat = source.background_repeat;
         self.background_position = source.background_position;
         self.background_origin = source.background_origin;
+        self.background_clip = source.background_clip;
     }
 }
 
@@ -1785,6 +1798,7 @@ pub fn compute_style_with_context(
     style.background_repeat = BackgroundRepeat::Repeat;
     style.background_position = BackgroundPosition::default();
     style.background_origin = BackgroundOrigin::Padding;
+    style.background_clip = BackgroundClip::Border;
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
@@ -2291,6 +2305,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-repeat" => style.background_repeat = default.background_repeat,
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
+        "background-clip" => style.background_clip = default.background_clip,
         "background-image" | "background-svg" => style.clear_background_images(),
         "aspect-ratio" => style.aspect_ratio = default.aspect_ratio,
         "object-fit" => style.object_fit = default.object_fit,
@@ -2457,6 +2472,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-repeat" => style.background_repeat = parent.background_repeat,
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
+        "background-clip" => style.background_clip = parent.background_clip,
         "background-image" | "background-svg" => style.inherit_background_image(parent),
         "background-gradient" => style.background_gradient = parent.background_gradient.clone(),
         "background-radial-gradient" => {
@@ -4015,6 +4031,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "border-box" => BackgroundOrigin::Border,
             "content-box" => BackgroundOrigin::Content,
             _ => BackgroundOrigin::Padding,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-clip") {
+        style.background_clip = match k.as_str() {
+            "padding-box" => BackgroundClip::Padding,
+            "content-box" => BackgroundClip::Content,
+            // `text` and any unknown value fall back to the initial `border-box`.
+            _ => BackgroundClip::Border,
         };
     }
 
@@ -11505,6 +11529,56 @@ mod tests {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("background-size: contain"), &parent);
         assert_eq!(s.background_size, BackgroundSize::Contain);
+    }
+
+    #[test]
+    fn background_clip_default_is_border_box() {
+        let s = ComputedStyle::default();
+        assert_eq!(s.background_clip, BackgroundClip::Border);
+    }
+
+    #[test]
+    fn background_clip_padding_box_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-clip: padding-box"), &parent);
+        assert_eq!(s.background_clip, BackgroundClip::Padding);
+    }
+
+    #[test]
+    fn background_clip_content_box_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-clip: content-box"), &parent);
+        assert_eq!(s.background_clip, BackgroundClip::Content);
+    }
+
+    #[test]
+    fn background_clip_border_box_parsed() {
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background-clip: border-box"), &parent);
+        assert_eq!(s.background_clip, BackgroundClip::Border);
+    }
+
+    #[test]
+    fn background_shorthand_single_box_sets_origin_and_clip() {
+        // A lone box keyword in the `background` shorthand sets BOTH
+        // background-origin and background-clip (css-backgrounds-3 §3.10).
+        let parent = ComputedStyle::default();
+        let s = compute_style(HtmlTag::Div, Some("background: red content-box"), &parent);
+        assert_eq!(s.background_origin, BackgroundOrigin::Content);
+        assert_eq!(s.background_clip, BackgroundClip::Content);
+    }
+
+    #[test]
+    fn background_shorthand_two_boxes_set_origin_then_clip() {
+        // First box = origin, second box = clip.
+        let parent = ComputedStyle::default();
+        let s = compute_style(
+            HtmlTag::Div,
+            Some("background: red padding-box content-box"),
+            &parent,
+        );
+        assert_eq!(s.background_origin, BackgroundOrigin::Padding);
+        assert_eq!(s.background_clip, BackgroundClip::Content);
     }
 
     #[test]

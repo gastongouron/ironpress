@@ -15,9 +15,9 @@ use crate::render::shading::{
 };
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
-    AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily, LinearGradient, Position,
-    RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
+    AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
+    BackgroundSize, BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily,
+    LinearGradient, Position, RadialExtent, RadialGradient, RadialShape, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -36,6 +36,59 @@ use layout_elements::{
     render_cell_text, render_nested_layout_elements, render_nested_text_block,
     table_row_total_height,
 };
+
+/// The box a background's paint is clipped to (css-backgrounds-3 §3.4). Given a
+/// BORDER box (`bx`,`by` = bottom-left in PDF coords, `bw`×`bh`) and the
+/// per-side border + padding widths, returns the rect for `background-clip`:
+/// `border-box` is the whole box, `padding-box` insets by the border, and
+/// `content-box` insets by border + padding. Negative extents are clamped to 0.
+#[allow(clippy::too_many_arguments)]
+fn background_clip_rect(
+    clip: BackgroundClip,
+    bx: f32,
+    by: f32,
+    bw: f32,
+    bh: f32,
+    border_left: f32,
+    border_right: f32,
+    border_top: f32,
+    border_bottom: f32,
+    padding_left: f32,
+    padding_right: f32,
+    padding_top: f32,
+    padding_bottom: f32,
+) -> (f32, f32, f32, f32) {
+    let (inset_left, inset_right, inset_top, inset_bottom) = match clip {
+        BackgroundClip::Border => (0.0, 0.0, 0.0, 0.0),
+        BackgroundClip::Padding => (border_left, border_right, border_top, border_bottom),
+        BackgroundClip::Content => (
+            border_left + padding_left,
+            border_right + padding_right,
+            border_top + padding_top,
+            border_bottom + padding_bottom,
+        ),
+    };
+    (
+        bx + inset_left,
+        by + inset_bottom,
+        (bw - inset_left - inset_right).max(0.0),
+        (bh - inset_top - inset_bottom).max(0.0),
+    )
+}
+
+/// Emit a clip path (`q` + path + `W n`) for a background-clip box. Uses a
+/// rounded-rect path when `border_radius` is set, otherwise a plain rectangle.
+/// The caller is responsible for the matching `Q`. Returns `true` if a clip was
+/// pushed (always, but kept for symmetry with conditional callers).
+fn push_background_clip(content: &mut String, x: f32, y: f32, w: f32, h: f32, border_radius: f32) {
+    content.push_str("q\n");
+    if border_radius > 0.0 {
+        content.push_str(&rounded_rect_path(x, y, w, h, border_radius));
+        content.push_str("W n\n");
+    } else {
+        content.push_str(&format!("{x} {y} {w} {h} re W n\n"));
+    }
+}
 
 /// Returns the PDF dash-pattern operator string for a given border style.
 /// Width-scaled dash/dot setup for a border side. Returns the PDF operators to
@@ -792,6 +845,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_position,
                     background_repeat,
                     background_origin,
+                    background_clip,
                     border_radius,
                     border_radii: tb_radii,
                     border_radii_y: tb_radii_y,
@@ -920,6 +974,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &mut bg_alpha_counter,
                     );
 
+                    // `block_x` / `block_bottom` / `render_width` / `border_box_h`
+                    // describe the BORDER box (border paints inward). Derive the
+                    // box `background-clip` confines the painted fill to.
+                    let tb_bl = border.left.width;
+                    let tb_br = border.right.width;
+                    let tb_bt = border.top.width;
+                    let tb_bb = border.bottom.width;
+                    let (tb_clip_x, tb_clip_y, tb_clip_w, tb_clip_h) = background_clip_rect(
+                        *background_clip,
+                        block_x,
+                        block_bottom,
+                        render_width,
+                        border_box_h,
+                        tb_bl,
+                        tb_br,
+                        tb_bt,
+                        tb_bb,
+                        *padding_left,
+                        *padding_right,
+                        *padding_top,
+                        *padding_bottom,
+                    );
+                    let tb_needs_clip = *background_clip != BackgroundClip::Border;
+                    let tb_gradient_clip = *border_radius > 0.0 || tb_needs_clip;
+
                     // Draw background if specified
                     if let Some((r, g, b, a)) = background_color {
                         let bg_y = block_bottom;
@@ -931,25 +1010,41 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             content.push_str(&format!("/{gs_name} gs\n"));
                         }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
-                        if let Some(path) = rounded_box_path(
-                            block_x,
-                            bg_y,
-                            render_width,
-                            border_box_h,
-                            *tb_radii,
-                            *tb_radii_y,
-                        ) {
-                            content.push_str(&path);
-                        } else {
+                        if tb_needs_clip {
+                            push_background_clip(
+                                &mut content,
+                                tb_clip_x,
+                                tb_clip_y,
+                                tb_clip_w,
+                                tb_clip_h,
+                                *border_radius,
+                            );
                             content.push_str(&format!(
-                                "{x} {y} {w} {h} re\n",
-                                x = block_x,
-                                y = bg_y,
-                                w = render_width,
-                                h = border_box_h,
+                                "{tb_clip_x} {tb_clip_y} {tb_clip_w} {tb_clip_h} re\n"
                             ));
+                            content.push_str("f\n");
+                            content.push_str("Q\n");
+                        } else {
+                            if let Some(path) = rounded_box_path(
+                                block_x,
+                                bg_y,
+                                render_width,
+                                border_box_h,
+                                *tb_radii,
+                                *tb_radii_y,
+                            ) {
+                                content.push_str(&path);
+                            } else {
+                                content.push_str(&format!(
+                                    "{x} {y} {w} {h} re\n",
+                                    x = block_x,
+                                    y = bg_y,
+                                    w = render_width,
+                                    h = border_box_h,
+                                ));
+                            }
+                            content.push_str("f\n");
                         }
-                        content.push_str("f\n");
                         if needs_bg_alpha {
                             // Reset to element opacity or full opacity
                             if needs_opacity {
@@ -964,17 +1059,16 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Draw linear gradient if specified
                     if let Some(gradient) = background_gradient {
                         let bg_y = block_bottom;
-                        // Clip to rounded rect if border-radius is set
-                        if *border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                block_x,
-                                bg_y,
-                                render_width,
-                                border_box_h,
+                        // Clip to the background-clip box (rounded if needed).
+                        if tb_gradient_clip {
+                            push_background_clip(
+                                &mut content,
+                                tb_clip_x,
+                                tb_clip_y,
+                                tb_clip_w,
+                                tb_clip_h,
                                 *border_radius,
-                            ));
-                            content.push_str("W n\n");
+                            );
                         }
                         render_linear_gradient(
                             &mut content,
@@ -986,7 +1080,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_shadings,
                             &mut shading_counter,
                         );
-                        if *border_radius > 0.0 {
+                        if tb_gradient_clip {
                             content.push_str("Q\n");
                         }
                     }
@@ -994,16 +1088,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Draw radial gradient if specified
                     if let Some(gradient) = background_radial_gradient {
                         let bg_y = block_bottom;
-                        if *border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                block_x,
-                                bg_y,
-                                render_width,
-                                border_box_h,
+                        if tb_gradient_clip {
+                            push_background_clip(
+                                &mut content,
+                                tb_clip_x,
+                                tb_clip_y,
+                                tb_clip_w,
+                                tb_clip_h,
                                 *border_radius,
-                            ));
-                            content.push_str("W n\n");
+                            );
                         }
                         render_radial_gradient(
                             &mut content,
@@ -1015,7 +1108,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut page_shadings,
                             &mut shading_counter,
                         );
-                        if *border_radius > 0.0 {
+                        if tb_gradient_clip {
                             content.push_str("Q\n");
                         }
                     }
@@ -1023,16 +1116,15 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // Draw conic gradient if specified
                     if let Some(gradient) = background_conic_gradient {
                         let bg_y = block_bottom;
-                        if *border_radius > 0.0 {
-                            content.push_str("q\n");
-                            content.push_str(&rounded_rect_path(
-                                block_x,
-                                bg_y,
-                                render_width,
-                                border_box_h,
+                        if tb_gradient_clip {
+                            push_background_clip(
+                                &mut content,
+                                tb_clip_x,
+                                tb_clip_y,
+                                tb_clip_w,
+                                tb_clip_h,
                                 *border_radius,
-                            ));
-                            content.push_str("W n\n");
+                            );
                         }
                         render_conic_gradient(
                             &mut content,
@@ -1042,7 +1134,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             render_width,
                             border_box_h,
                         );
-                        if *border_radius > 0.0 {
+                        if tb_gradient_clip {
                             content.push_str("Q\n");
                         }
                     }
@@ -1105,12 +1197,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             Some(&mut page_ext_gstates),
                             BackgroundPaintContext::new(
                                 SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                SvgViewportBox::new(
-                                    border_box_x,
-                                    border_box_y,
-                                    border_box_w,
-                                    border_box_h,
-                                ),
+                                SvgViewportBox::new(tb_clip_x, tb_clip_y, tb_clip_w, tb_clip_h),
                                 *border_radius,
                                 *background_blur_radius,
                                 *background_size,
@@ -3487,6 +3574,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     background_position: c_bg_position,
                     background_repeat: c_bg_repeat,
                     background_origin: c_bg_origin,
+                    background_clip: c_bg_clip,
                     background_blur_radius: c_bg_blur,
                     z_index: _,
                     positioned_depth: c_positioned_depth,
@@ -3602,6 +3690,35 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &mut bg_alpha_counter,
                         );
 
+                        // `container_x` / `container_y_top` describe the BORDER
+                        // box (the border paints inward). Derive the per-side
+                        // border / padding insets so background-origin (paint
+                        // positioning area) and background-clip (paint visible
+                        // area) can be applied per css-backgrounds-3.
+                        let c_bg_y = container_y_top - total_h;
+                        let c_bl = border.left.width;
+                        let c_br = border.right.width;
+                        let c_bt = border.top.width;
+                        let c_bb = border.bottom.width;
+                        // The box `background-clip` confines the painted fill to.
+                        let (c_clip_x, c_clip_y, c_clip_w, c_clip_h) = background_clip_rect(
+                            *c_bg_clip,
+                            container_x,
+                            c_bg_y,
+                            container_w,
+                            total_h,
+                            c_bl,
+                            c_br,
+                            c_bt,
+                            c_bb,
+                            *c_pl,
+                            *c_pr,
+                            *c_pt,
+                            *c_pb,
+                        );
+                        let c_clip_radius = *c_border_radius;
+                        let c_needs_clip = *c_bg_clip != BackgroundClip::Border;
+
                         // Draw background
                         if let Some((r, g, b, a)) = background_color {
                             let needs_alpha = *a < 1.0;
@@ -3611,44 +3728,65 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 content.push_str(&format!("/{gs_name} gs\n"));
                             }
                             content.push_str(&format!("{r} {g} {b} rg\n"));
-                            let c_bg_y = container_y_top - total_h;
-                            if let Some(path) = rounded_box_path(
-                                container_x,
-                                c_bg_y,
-                                container_w,
-                                total_h,
-                                *c_border_radii,
-                                *c_border_radii_y,
-                            ) {
-                                content.push_str(&path);
-                            } else {
+                            if c_needs_clip {
+                                // Clip the fill to the clip box; a non-uniform
+                                // rounded fill cannot also be clipped, so fall
+                                // back to a rectangular clip-box fill.
+                                push_background_clip(
+                                    &mut content,
+                                    c_clip_x,
+                                    c_clip_y,
+                                    c_clip_w,
+                                    c_clip_h,
+                                    c_clip_radius,
+                                );
                                 content.push_str(&format!(
-                                    "{x} {y} {w} {h} re\n",
-                                    x = container_x,
-                                    y = c_bg_y,
-                                    w = container_w,
-                                    h = total_h,
+                                    "{c_clip_x} {c_clip_y} {c_clip_w} {c_clip_h} re\n"
                                 ));
+                                content.push_str("f\n");
+                                content.push_str("Q\n");
+                            } else {
+                                if let Some(path) = rounded_box_path(
+                                    container_x,
+                                    c_bg_y,
+                                    container_w,
+                                    total_h,
+                                    *c_border_radii,
+                                    *c_border_radii_y,
+                                ) {
+                                    content.push_str(&path);
+                                } else {
+                                    content.push_str(&format!(
+                                        "{x} {y} {w} {h} re\n",
+                                        x = container_x,
+                                        y = c_bg_y,
+                                        w = container_w,
+                                        h = total_h,
+                                    ));
+                                }
+                                content.push_str("f\n");
                             }
-                            content.push_str("f\n");
                             if needs_alpha {
                                 content.push_str("/GSDefault gs\n");
                             }
                         }
 
+                        // Gradients paint over the background-clip box. The
+                        // gradient ramp itself is anchored to the (border) box;
+                        // clipping just confines where it shows.
+                        let bg_y = c_bg_y;
+                        let gradient_clip = *c_border_radius > 0.0 || c_needs_clip;
                         // Draw container linear gradient
                         if let Some(gradient) = c_bg_gradient {
-                            let bg_y = container_y_top - total_h;
-                            if *c_border_radius > 0.0 {
-                                content.push_str("q\n");
-                                content.push_str(&rounded_rect_path(
-                                    container_x,
-                                    bg_y,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radius,
-                                ));
-                                content.push_str("W n\n");
+                            if gradient_clip {
+                                push_background_clip(
+                                    &mut content,
+                                    c_clip_x,
+                                    c_clip_y,
+                                    c_clip_w,
+                                    c_clip_h,
+                                    c_clip_radius,
+                                );
                             }
                             render_linear_gradient(
                                 &mut content,
@@ -3660,24 +3798,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut page_shadings,
                                 &mut shading_counter,
                             );
-                            if *c_border_radius > 0.0 {
+                            if gradient_clip {
                                 content.push_str("Q\n");
                             }
                         }
 
                         // Draw container radial gradient
                         if let Some(gradient) = c_bg_radial {
-                            let bg_y = container_y_top - total_h;
-                            if *c_border_radius > 0.0 {
-                                content.push_str("q\n");
-                                content.push_str(&rounded_rect_path(
-                                    container_x,
-                                    bg_y,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radius,
-                                ));
-                                content.push_str("W n\n");
+                            if gradient_clip {
+                                push_background_clip(
+                                    &mut content,
+                                    c_clip_x,
+                                    c_clip_y,
+                                    c_clip_w,
+                                    c_clip_h,
+                                    c_clip_radius,
+                                );
                             }
                             render_radial_gradient(
                                 &mut content,
@@ -3689,24 +3825,22 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 &mut page_shadings,
                                 &mut shading_counter,
                             );
-                            if *c_border_radius > 0.0 {
+                            if gradient_clip {
                                 content.push_str("Q\n");
                             }
                         }
 
                         // Draw container conic gradient
                         if let Some(gradient) = c_bg_conic {
-                            let bg_y = container_y_top - total_h;
-                            if *c_border_radius > 0.0 {
-                                content.push_str("q\n");
-                                content.push_str(&rounded_rect_path(
-                                    container_x,
-                                    bg_y,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radius,
-                                ));
-                                content.push_str("W n\n");
+                            if gradient_clip {
+                                push_background_clip(
+                                    &mut content,
+                                    c_clip_x,
+                                    c_clip_y,
+                                    c_clip_w,
+                                    c_clip_h,
+                                    c_clip_radius,
+                                );
                             }
                             render_conic_gradient(
                                 &mut content,
@@ -3716,31 +3850,33 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 container_w,
                                 total_h,
                             );
-                            if *c_border_radius > 0.0 {
+                            if gradient_clip {
                                 content.push_str("Q\n");
                             }
                         }
 
-                        // Draw SVG background image if specified
+                        // Draw SVG / raster background image if specified.
+                        // `background-origin` sets the positioning area; the
+                        // reference box is derived from the BORDER box by
+                        // insetting the border (padding box) and border+padding
+                        // (content box).
                         if let Some(svg_tree) = c_bg_svg {
-                            let bg_y = container_y_top - total_h;
-                            // Adjust reference box based on background-origin
                             let (ref_x, ref_y, ref_w, ref_h) = match c_bg_origin {
-                                BackgroundOrigin::Border => (
-                                    container_x - border.left.width,
-                                    bg_y - border.bottom.width,
-                                    container_w + border.left.width + border.right.width,
-                                    total_h + border.top.width + border.bottom.width,
-                                ),
-                                BackgroundOrigin::Content => (
-                                    container_x + c_pl,
-                                    bg_y + c_pb,
-                                    (container_w - c_pl - c_pr).max(0.0),
-                                    (total_h - c_pt - c_pb).max(0.0),
-                                ),
-                                BackgroundOrigin::Padding => {
+                                BackgroundOrigin::Border => {
                                     (container_x, bg_y, container_w, total_h)
                                 }
+                                BackgroundOrigin::Padding => (
+                                    container_x + c_bl,
+                                    bg_y + c_bb,
+                                    (container_w - c_bl - c_br).max(0.0),
+                                    (total_h - c_bt - c_bb).max(0.0),
+                                ),
+                                BackgroundOrigin::Content => (
+                                    container_x + c_bl + *c_pl,
+                                    bg_y + c_bb + *c_pb,
+                                    (container_w - c_bl - c_br - *c_pl - *c_pr).max(0.0),
+                                    (total_h - c_bt - c_bb - *c_pt - *c_pb).max(0.0),
+                                ),
                             };
                             render_svg_background(
                                 &mut content,
@@ -3752,12 +3888,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 Some(&mut page_ext_gstates),
                                 BackgroundPaintContext::new(
                                     SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                    SvgViewportBox::new(
-                                        container_x - border.left.width,
-                                        bg_y - border.bottom.width,
-                                        container_w + border.left.width + border.right.width,
-                                        total_h + border.top.width + border.bottom.width,
-                                    ),
+                                    SvgViewportBox::new(c_clip_x, c_clip_y, c_clip_w, c_clip_h),
                                     *c_border_radius,
                                     *c_bg_blur,
                                     *c_bg_size,
@@ -8586,6 +8717,25 @@ fn render_svg_background(
         return;
     }
 
+    // When `background-size` fixes BOTH dimensions explicitly, the image is
+    // scaled to exactly that box, ignoring its intrinsic aspect ratio
+    // (css-backgrounds-3 §3.9). `cover`/`contain` already derive an
+    // aspect-correct target box, so the source's `preserveAspectRatio` (which
+    // would re-fit it) must be neutralised; only `auto` keeps the ratio.
+    let stretch_to_box = matches!(
+        paint.size,
+        BackgroundSize::Cover
+            | BackgroundSize::Contain
+            | BackgroundSize::Explicit {
+                height: Some(_),
+                ..
+            }
+    );
+    let placement_par = if stretch_to_box {
+        crate::parser::svg::SvgPreserveAspectRatio::None
+    } else {
+        tree.preserve_aspect_ratio
+    };
     let placement = crate::render::svg_geometry::compute_svg_placement(
         tree,
         crate::render::svg_geometry::SvgPlacementRequest::from_rect(
@@ -8593,7 +8743,7 @@ fn render_svg_background(
             0.0,
             scaled_w,
             scaled_h,
-            tree.preserve_aspect_ratio,
+            placement_par,
         ),
     );
     let Some(placement) = placement else {
@@ -10768,6 +10918,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -12950,9 +13101,12 @@ mod tests {
             content.contains("0 0 100 25 re W n"),
             "Expected SVG tile viewport to resolve against the 200pt by 100pt positioning area"
         );
+        // Both background-size values are explicit (50% 25%), so the image is
+        // scaled to exactly that box, ignoring its intrinsic 1:1 ratio
+        // (css-backgrounds-3 §3.9): the 1x1 SVG stretches to the full 100x25 tile.
         assert!(
-            content.contains("25 0 0 25 37.5 0 cm"),
-            "Expected root preserveAspectRatio to fit the 1:1 SVG into the 100pt by 25pt tile"
+            content.contains("100 0 0 25 0 0 cm"),
+            "Expected explicit two-value background-size to stretch the SVG to the 100pt by 25pt tile"
         );
     }
 
@@ -13311,6 +13465,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -13352,6 +13507,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -14520,6 +14676,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 8.0, // Triggers rounded rect path
                 text_indent: 0.0,
@@ -14610,6 +14767,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -14691,6 +14849,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -14796,6 +14955,7 @@ mod tests {
                 background_repeat: BackgroundRepeat::NoRepeat,
                 // Border origin expands ref box by border widths
                 background_origin: BackgroundOrigin::Border,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -14880,6 +15040,7 @@ mod tests {
                 background_repeat: BackgroundRepeat::NoRepeat,
                 // Content origin shrinks ref box by padding
                 background_origin: BackgroundOrigin::Content,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,
@@ -14938,6 +15099,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 background_blur_canvas_box: None,
                 border_radius: 0.0,
                 text_indent: 0.0,

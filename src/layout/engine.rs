@@ -2,11 +2,11 @@ use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    AlignItems, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, ConicGradient, Display, Float,
-    FontFamily, FontStyle, FontWeight, LinearGradient, ListStylePosition, ListStyleType, Overflow,
-    Position, RadialGradient, TextAlign, Transform, TransformOrigin, VerticalAlign, Visibility,
-    compute_pseudo_element_style, compute_style_with_context,
+    AlignItems, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
+    BackgroundSize, BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, ConicGradient,
+    Display, Float, FontFamily, FontStyle, FontWeight, LinearGradient, ListStylePosition,
+    ListStyleType, Overflow, Position, RadialGradient, TextAlign, Transform, TransformOrigin,
+    VerticalAlign, Visibility, compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -224,6 +224,7 @@ pub struct FlexCell {
     pub background_position: BackgroundPosition,
     pub background_repeat: BackgroundRepeat,
     pub background_origin: BackgroundOrigin,
+    pub background_clip: BackgroundClip,
     pub transform: Option<Transform>,
     /// CSS `transform-origin` pivot for this cell's transform.
     pub transform_origin: TransformOrigin,
@@ -432,6 +433,7 @@ pub enum LayoutElement {
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        background_clip: BackgroundClip,
         z_index: i32,
         repeat_on_each_page: bool,
         positioned_depth: usize,
@@ -543,6 +545,7 @@ pub enum LayoutElement {
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        background_clip: BackgroundClip,
         align_items: AlignItems,
         /// Containing-block depth this flex container establishes for its
         /// absolutely-positioned children (0 = not a containing block). When
@@ -631,6 +634,7 @@ pub enum LayoutElement {
         background_position: BackgroundPosition,
         background_repeat: BackgroundRepeat,
         background_origin: BackgroundOrigin,
+        background_clip: BackgroundClip,
         /// CSS `outline` width in points (0 = no outline). Painted just outside
         /// the border box; does not affect layout.
         outline_width: f32,
@@ -713,6 +717,7 @@ impl LayoutElement {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -908,6 +913,7 @@ pub fn layout_with_rules_and_fonts(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(&parent_style);
         let bp_left = parent_style.padding.left;
         let bp_right = parent_style.padding.right;
@@ -961,6 +967,7 @@ pub fn layout_with_rules_and_fonts(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: -1,
             repeat_on_each_page: true,
             positioned_depth: 0,
@@ -1166,6 +1173,7 @@ fn flatten_nodes(
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::Padding,
+                            background_clip: BackgroundClip::Border,
                             z_index: 0,
                             repeat_on_each_page: false,
                             positioned_depth: 0,
@@ -1369,6 +1377,7 @@ pub(crate) fn flatten_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::none();
         let line = TextLine {
             runs: vec![TextRun {
@@ -1438,6 +1447,7 @@ pub(crate) fn flatten_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -1593,6 +1603,7 @@ pub(crate) fn flatten_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(&style);
 
         output.push(LayoutElement::TextBlock {
@@ -1643,6 +1654,7 @@ pub(crate) fn flatten_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: style.z_index,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -1708,6 +1720,7 @@ pub(crate) fn flatten_element(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(&style);
 
         let mut runs = Vec::new();
@@ -1800,6 +1813,7 @@ pub(crate) fn flatten_element(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: style.z_index,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -2222,6 +2236,7 @@ pub(crate) fn flatten_element(
                 position: background_position,
                 repeat: background_repeat,
                 origin: background_origin,
+                clip: background_clip,
             } = BackgroundFields::from_style(&style);
             output.push(LayoutElement::TextBlock {
                 lines,
@@ -2274,6 +2289,7 @@ pub(crate) fn flatten_element(
                 background_position,
                 background_repeat,
                 background_origin,
+                background_clip,
                 z_index: style.z_index,
                 repeat_on_each_page: false,
                 positioned_depth: 0,
@@ -5230,6 +5246,7 @@ mod tests {
                 background_position: BackgroundPosition::default(),
                 background_repeat: BackgroundRepeat::Repeat,
                 background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
                 z_index,
                 repeat_on_each_page,
                 positioned_depth: 0,
@@ -5366,6 +5383,7 @@ mod tests {
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index,
             repeat_on_each_page,
             positioned_depth: 0,
@@ -10168,6 +10186,7 @@ line 3</pre>
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,

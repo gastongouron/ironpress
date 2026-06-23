@@ -1,9 +1,9 @@
 use crate::parser::css::{AncestorInfo, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    AlignContent, AlignItems, AlignSelf, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
-    BackgroundSize, BoxSizing, Clear, ComputedStyle, Display, FlexDirection, FlexWrap, Float,
-    JustifyContent, Overflow, Position, TextAlign, VerticalAlign, Visibility,
+    AlignContent, AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition,
+    BackgroundRepeat, BackgroundSize, BoxSizing, Clear, ComputedStyle, Display, FlexDirection,
+    FlexWrap, Float, JustifyContent, Overflow, Position, TextAlign, VerticalAlign, Visibility,
     compute_style_with_context,
 };
 
@@ -290,6 +290,7 @@ pub(crate) fn layout_flex_container(
                 position: background_position,
                 repeat: background_repeat,
                 origin: background_origin,
+                clip: background_clip,
             } = BackgroundFields::from_style(style);
             output.push(LayoutElement::TextBlock {
                 lines: Vec::new(),
@@ -343,6 +344,7 @@ pub(crate) fn layout_flex_container(
                 background_position,
                 background_repeat,
                 background_origin,
+                background_clip,
                 z_index: style.z_index,
                 repeat_on_each_page: false,
                 positioned_depth,
@@ -791,6 +793,7 @@ pub(crate) fn layout_flex_container(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(&child_style);
         let elem = LayoutElement::TextBlock {
             lines,
@@ -847,6 +850,7 @@ pub(crate) fn layout_flex_container(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: child_style.z_index,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -1247,6 +1251,7 @@ pub(crate) fn layout_flex_container(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
@@ -1300,6 +1305,7 @@ pub(crate) fn layout_flex_container(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -1317,6 +1323,7 @@ pub(crate) fn layout_flex_container(
             position: background_position,
             repeat: background_repeat,
             origin: background_origin,
+            clip: background_clip,
         } = BackgroundFields::none();
         output.push(LayoutElement::TextBlock {
             lines: Vec::new(),
@@ -1366,6 +1373,7 @@ pub(crate) fn layout_flex_container(
             background_position,
             background_repeat,
             background_origin,
+            background_clip,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
@@ -1627,6 +1635,7 @@ pub(crate) fn layout_flex_container(
                                 background_position: BackgroundPosition::default(),
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
+                                background_clip: BackgroundClip::Border,
                                 transform: None,
                                 transform_origin: crate::style::computed::TransformOrigin::default(
                                 ),
@@ -1697,6 +1706,7 @@ pub(crate) fn layout_flex_container(
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::Padding,
+                            background_clip: BackgroundClip::Border,
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
                             box_shadow: Vec::new(),
@@ -1727,6 +1737,7 @@ pub(crate) fn layout_flex_container(
                         background_position: tb_bg_pos,
                         background_repeat: tb_bg_repeat,
                         background_origin: tb_bg_origin,
+                        background_clip: tb_bg_clip,
                         box_shadow: tb_bs,
                         border,
                         block_height: tb_bh,
@@ -1772,6 +1783,7 @@ pub(crate) fn layout_flex_container(
                             background_position: *tb_bg_pos,
                             background_repeat: *tb_bg_repeat,
                             background_origin: *tb_bg_origin,
+                            background_clip: *tb_bg_clip,
                             transform: *tb_transform,
                             transform_origin: *tb_transform_origin,
                             box_shadow: tb_bs.clone(),
@@ -1809,6 +1821,7 @@ pub(crate) fn layout_flex_container(
                             background_position: BackgroundPosition::default(),
                             background_repeat: BackgroundRepeat::Repeat,
                             background_origin: BackgroundOrigin::Padding,
+                            background_clip: BackgroundClip::Border,
                             transform: None,
                             transform_origin: crate::style::computed::TransformOrigin::default(),
                             box_shadow: Vec::new(),
@@ -2108,6 +2121,7 @@ pub(crate) fn layout_flex_container(
                             background_position: tb_bg_pos,
                             background_repeat: tb_bg_repeat,
                             background_origin: tb_bg_origin,
+                            background_clip: tb_bg_clip,
                             ..
                         } = elem
                         {
@@ -2211,6 +2225,7 @@ pub(crate) fn layout_flex_container(
                                 background_position: *tb_bg_pos,
                                 background_repeat: *tb_bg_repeat,
                                 background_origin: *tb_bg_origin,
+                                background_clip: *tb_bg_clip,
                                 z_index: 0,
                                 repeat_on_each_page: false,
                                 positioned_depth: 0,
@@ -2290,6 +2305,7 @@ pub(crate) fn layout_flex_container(
                                 background_position: BackgroundPosition::default(),
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
+                                background_clip: BackgroundClip::Border,
                                 outline_width: 0.0,
                                 outline_color: None,
                                 z_index: 0,
@@ -2337,6 +2353,7 @@ pub(crate) fn layout_flex_container(
             background_position: style.background_position,
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
+            background_clip: style.background_clip,
             align_items: align,
             positioned_depth: abs_cb_depth,
         });
@@ -2402,6 +2419,7 @@ pub(crate) fn layout_flex_container(
             background_position: BackgroundPosition::default(),
             background_repeat: BackgroundRepeat::Repeat,
             background_origin: BackgroundOrigin::Padding,
+            background_clip: BackgroundClip::Border,
             z_index: 0,
             repeat_on_each_page: false,
             positioned_depth: 0,
