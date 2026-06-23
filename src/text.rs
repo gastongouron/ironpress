@@ -279,6 +279,7 @@ mod tests {
             glyph_widths: Vec::new(),
             num_h_metrics: 0,
             flags: 0,
+            is_bold: false,
             data: std::sync::Arc::new(Vec::new()),
         }
     }

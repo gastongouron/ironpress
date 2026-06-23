@@ -158,6 +158,33 @@ pub(crate) fn find_font<'a>(
     })
 }
 
+/// Returns `true` when a *bold* face is requested for `family` but no genuine
+/// bold variant is loaded (so [`find_font`] resolves to the regular weight).
+///
+/// In that case the renderer synthesises bold by stroking the glyph outlines —
+/// matching browsers, which apply algorithmic (faux) bold when a family lacks a
+/// real bold face (CSS Fonts 4 §2.3 "synthetic bold"). Returns `false` when the
+/// run is not bold, when a real bold face exists, or when no face is found.
+pub(crate) fn needs_faux_bold(
+    fonts: &HashMap<String, TtfFont>,
+    family: &str,
+    bold: bool,
+    italic: bool,
+) -> bool {
+    if !bold {
+        return false;
+    }
+    // The face a bold request actually resolves to. A font *query* (e.g. system
+    // fontdb) often substitutes the regular weight for a missing bold and even
+    // registers it under the `__bold` key, so key presence alone is not enough —
+    // check the resolved face's true weight. Synthesise bold only when a face is
+    // found AND it is not itself bold.
+    match find_font(fonts, family, true, italic) {
+        Some((_, font)) => !font.is_bold,
+        None => false,
+    }
+}
+
 pub(crate) fn resolve_font_family(
     stack: &FontStack,
     fonts: &HashMap<String, TtfFont>,
@@ -754,6 +781,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 0,
+            is_bold: false,
             data: std::sync::Arc::new(vec![]),
         }
     }

@@ -427,6 +427,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "counter-increment"
             | "list-style-type"
             | "list-style-position"
+            | "list-style-image"
             | "list-style"
             | "overflow"
             | "overflow-x"

@@ -4,8 +4,8 @@ use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing,
     ComputedStyle, ConicGradient, ContentItem, Display, FontStyle, FontWeight,
-    IntrinsicWidthKeyword, LinearGradient, ListStyleType, Position, RadialGradient, Visibility,
-    compute_style_with_context,
+    IntrinsicWidthKeyword, LinearGradient, ListStyleType, Position, RadialGradient, VerticalAlign,
+    Visibility, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -941,6 +941,11 @@ fn apply_text_transform(text: &str, transform: crate::style::computed::TextTrans
 pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
     runs.iter()
         .map(|run| {
+            // Atomic inline boxes (e.g. an image list marker) carry no text but
+            // occupy their outer width of inline advance.
+            if let Some(inline) = run.inline_box.as_deref() {
+                return inline.outer_width();
+            }
             estimate_word_width(
                 &run.text,
                 run.font_size,
@@ -1481,6 +1486,38 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
         padding_top: 0.0,
         padding_left: 0.0,
         vertical_align: pseudo_style.vertical_align,
+        baseline_ascent: None,
+        lines: Vec::new(),
+        image: Some(image),
+        rel_offset_x: 0.0,
+        rel_offset_y: 0.0,
+    })
+}
+
+/// Decode a `list-style-image` value (a CSS `url(...)`, possibly a data-URI)
+/// into an atomic image `InlineBox` to use as a list marker (css-lists-3 §3.1).
+///
+/// The marker is sized at the image's intrinsic pixel size (CSS px == intrinsic
+/// px at 1x), with a small right margin so the following text does not touch it.
+/// Returns `None` when the URL is absent or cannot be decoded, so the caller can
+/// fall back to the `list-style-type` glyph marker.
+pub(crate) fn build_list_image_marker(value: &str, gap: f32) -> Option<InlineBox> {
+    let url = crate::parser::css::extract_url_path(value).unwrap_or_else(|| value.to_string());
+    let (raw, _mime) = crate::layout::images::load_src_bytes(&url)?;
+    let image = crate::layout::images::load_image_bytes(raw)?;
+    let width = image.source_width.max(1) as f32;
+    let height = image.source_height.max(1) as f32;
+    Some(InlineBox {
+        width,
+        height,
+        margin_left: 0.0,
+        margin_right: gap,
+        background_color: None,
+        border: LayoutBorder::default(),
+        border_radius: 0.0,
+        padding_top: 0.0,
+        padding_left: 0.0,
+        vertical_align: VerticalAlign::Baseline,
         baseline_ascent: None,
         lines: Vec::new(),
         image: Some(image),

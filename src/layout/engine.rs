@@ -1974,6 +1974,13 @@ pub(crate) fn flatten_element(
                 child_el_idx += 1;
             }
         }
+        // Pop counters this list pushed via `counter-reset` (e.g. a nested
+        // `<ol counter-reset: sec>` opens its own counter scope). Without this,
+        // the inner level leaks and a following sibling item is numbered against
+        // the stale nested counter (css-lists-3 §4.2 / CSS2 §12.4: the scope ends
+        // with the element). This branch `return`s before `route_element`'s own
+        // `pop_resets`, so it must undo the push applied in `flatten_element`.
+        env.counter_state.pop_resets(&style.counter_reset);
         return;
     }
 
@@ -2035,9 +2042,21 @@ pub(crate) fn flatten_element(
             }
         }
 
+        // A `list-style-image` (e.g. data-URI PNG) replaces the type glyph as the
+        // marker when it decodes (css-lists-3 §3.1). It is suppressed by a custom
+        // `::before`, just like the glyph marker. The small trailing gap mirrors
+        // the glyph marker's space so text does not abut the image.
+        let image_marker = if has_custom_before {
+            None
+        } else {
+            style.list_style_image.as_deref().and_then(|v| {
+                crate::layout::helpers::build_list_image_marker(v, style.font_size * 0.3)
+            })
+        };
+
         // Add list marker using list-style-type from computed style
-        // (only if no custom ::before content)
-        let marker = if has_custom_before {
+        // (only if no custom ::before content and no decodable list-style-image)
+        let marker = if has_custom_before || image_marker.is_some() {
             String::new()
         } else {
             match list_ctx {
@@ -2070,9 +2089,32 @@ pub(crate) fn flatten_element(
         // text-indent, so the marker lands in the padding and the following text
         // lands at the content edge. For `inside`, the marker stays inline and
         // pushes the text (no hang).
-        let has_marker = !marker.is_empty();
+        let has_marker = !marker.is_empty() || image_marker.is_some();
         let marker_run_start = runs.len();
-        if has_marker {
+        if let Some(inline) = image_marker {
+            // The image marker is an atomic inline box (empty text + advance), so
+            // it occupies the marker slot the same way the glyph marker would and
+            // participates in the `outside` hang via `marker_hang` below.
+            let outer = inline.outer_width();
+            runs.push(TextRun {
+                text: String::new(),
+                font_size: style.font_size,
+                bold: false,
+                italic: false,
+                underline: false,
+                line_through: false,
+                overline: false,
+                color: style.color.to_f32_rgb(),
+                link_url: None,
+                font_family: resolve_style_font_family(&style, env.fonts),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+                line_height_factor: resolved_line_height_factor(&style, env.fonts),
+                inline_box: Some(Box::new(inline)),
+            });
+            let _ = outer;
+        } else if has_marker {
             // The `::marker` pseudo-element can recolour/restyle the marker box
             // (CSS limits it to color/font/content). Resolve it relative to the
             // <li>; absent any `::marker` rule, `marker_style` falls back to the
@@ -2161,7 +2203,13 @@ pub(crate) fn flatten_element(
                     resolved_line_height_factor(&style, env.fonts),
                     style.overflow_wrap,
                 )
-                .with_rtl(style.direction_rtl),
+                .with_rtl(style.direction_rtl)
+                // An `outside` marker hangs into the negative text-indent band, so
+                // it must NOT consume the first line's text capacity. Mirror the
+                // rendered `text_indent` (which includes `-marker_hang`) here so
+                // wrapping reclaims exactly the marker's width for the first line
+                // (css-lists-3 §6: outside markers sit outside the principal box).
+                .with_text_indent(style.text_indent - marker_hang),
                 env.fonts,
             );
             let BackgroundFields {
@@ -2288,6 +2336,10 @@ pub(crate) fn flatten_element(
                 child_el_idx += 1;
             }
         }
+        // Mirror `route_element`'s counter cleanup: this Li branch `return`s
+        // early, so pop any counters it pushed via `counter-reset` to keep the
+        // counter scope bounded to the element (CSS2 §12.4.1).
+        env.counter_state.pop_resets(&style.counter_reset);
         return;
     }
 
@@ -11091,6 +11143,7 @@ mod _removed {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 0,
+            is_bold: false,
             data: vec![],
         }
     }

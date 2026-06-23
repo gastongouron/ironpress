@@ -5412,8 +5412,33 @@ fn render_container_children(
                         TextAlign::Center => content_x + (content_w - line_width).max(0.0) / 2.0,
                         _ => content_x + first_line_indent,
                     };
+                    let line_top_y = text_y + metrics.ascender + metrics.half_leading;
+                    let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
                     let mut lx = text_x;
                     for run in &merged {
+                        // Atomic inline box (e.g. a `list-style-image` marker):
+                        // paint the box/image and advance by its outer width;
+                        // `render_run_text` would shape its empty text and draw
+                        // nothing, dropping the marker entirely.
+                        if let Some(inline) = run.inline_box.as_deref() {
+                            render_inline_box(
+                                content,
+                                inline,
+                                lx + inline.margin_left,
+                                text_y,
+                                line_top_y,
+                                line_bottom_y,
+                                run.font_size,
+                                custom_fonts,
+                                prepared_custom_fonts,
+                                page_ext_gstates,
+                                bg_alpha_counter,
+                                pdf_writer,
+                                page_images,
+                            );
+                            lx += inline.outer_width();
+                            continue;
+                        }
                         let rw = render_run_text(
                             content,
                             run,
@@ -7303,6 +7328,23 @@ fn render_run_text(
     content.push_str("BT\n");
     content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
 
+    // Synthetic (faux) bold for custom-font runs that have no genuine bold face:
+    // stroke each glyph outline (text render mode 2 = fill+stroke) with a thin
+    // line so the stems thicken, mirroring browser algorithmic bold (CSS Fonts 4
+    // §2.3). The stroke colour matches the fill so the glyph stays one colour.
+    let faux_bold = matches!(run.font_family, FontFamily::Custom(_))
+        && crate::system_fonts::needs_faux_bold(
+            custom_fonts,
+            run.font_family.name(),
+            run.bold,
+            run.italic,
+        );
+    if faux_bold {
+        content.push_str(&format!("{r} {g} {b} RG\n"));
+        content.push_str(&format!("{} w\n", format_pdf_number(run.font_size * 0.028)));
+        content.push_str("2 Tr\n");
+    }
+
     if let (Some((resolved_name, font)), Some(shaped)) = (custom_font, shaped.as_ref()) {
         let prepared_font = prepared_custom_fonts.get(resolved_name);
         let render = ShapedTextRender::new(
@@ -7326,6 +7368,12 @@ fn render_run_text(
             format_pdf_number(text_y),
         ));
         content.push_str(&format!("({encoded}) Tj\n"));
+    }
+
+    // Restore the default fill-only render mode so the faux-bold stroke does not
+    // leak into subsequent runs (Tr is a persistent text-state parameter).
+    if faux_bold {
+        content.push_str("0 Tr\n");
     }
 
     content.push_str("ET\n");
@@ -13878,6 +13926,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
         };
         let mut fonts = HashMap::new();
@@ -13940,6 +13989,7 @@ mod tests {
             glyph_widths: (0..=96).map(|_| 500).collect(),
             num_h_metrics: 96,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![0u8; 64]),
         };
         let mut fonts = HashMap::new();
@@ -13980,6 +14030,7 @@ mod tests {
             glyph_widths: vec![0, 500, 500],
             num_h_metrics: 3,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(Vec::new()),
         };
         let shaped = crate::text::ShapedRun {

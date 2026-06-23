@@ -68,6 +68,11 @@ pub struct TtfFont {
     pub num_h_metrics: u16,
     /// Font flags for the PDF FontDescriptor.
     pub flags: u32,
+    /// Whether this face is itself a bold weight (OS/2 `usWeightClass` >= 600,
+    /// or the `head.macStyle` bold bit). Lets the renderer tell a genuine bold
+    /// face from a regular face that a font query merely *substituted* for a
+    /// missing bold, so it can synthesise (faux) bold only when truly needed.
+    pub is_bold: bool,
     /// Raw TTF data for embedding. Wrapped in Arc so cloning a TtfFont
     /// (e.g. from the bundled font cache) is O(1) instead of copying ~400KB.
     pub data: std::sync::Arc<Vec<u8>>,
@@ -284,6 +289,15 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
     // Compute flags: bit 5 (Nonsymbolic) = 32 for Latin text
     let flags = 32u32;
 
+    // Detect a genuine bold weight: OS/2 usWeightClass (offset +4) >= 600, or
+    // the head.macStyle bold bit (bit 0 of the u16 at head +44).
+    let os2_bold = tables.get(b"OS/2").is_some_and(|os2| {
+        let off = os2.offset as usize;
+        data.len() >= off + 6 && read_u16(&data, off + 4) >= 600
+    });
+    let mac_style_bold = data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x1) != 0;
+    let is_bold = os2_bold || mac_style_bold;
+
     Ok(TtfFont {
         font_name,
         units_per_em,
@@ -294,6 +308,7 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         glyph_widths,
         num_h_metrics,
         flags,
+        is_bold,
         data: std::sync::Arc::new(data),
     })
 }
@@ -868,6 +883,7 @@ mod tests {
             glyph_widths: vec![500, 700],
             num_h_metrics: 2,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 700); // last width
@@ -886,6 +902,7 @@ mod tests {
             glyph_widths: vec![],
             num_h_metrics: 0,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width(65), 0);
@@ -1608,6 +1625,7 @@ mod tests {
             glyph_widths: vec![u16::MAX], // 65535 — would overflow u32 with * 1000
             num_h_metrics: 1,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![]),
         };
         // Should not panic; 65535 * 1000 / 1000 = 65535
@@ -1631,6 +1649,7 @@ mod tests {
             glyph_widths: vec![500],
             num_h_metrics: 1,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(vec![]),
         };
         assert_eq!(font.char_width_scaled(65, 12.0), 0.0);

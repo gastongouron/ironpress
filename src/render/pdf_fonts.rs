@@ -397,6 +397,7 @@ mod tests {
             glyph_widths: vec![0, 500, 600],
             num_h_metrics: 3,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
         }
     }
@@ -412,6 +413,7 @@ mod tests {
             glyph_widths: widths,
             num_h_metrics: 3,
             flags: 32,
+            is_bold: false,
             data: std::sync::Arc::new(Vec::new()),
         }
     }

@@ -1329,6 +1329,10 @@ pub struct ComputedStyle {
     pub custom_properties: HashMap<String, String>,
     pub list_style_type: ListStyleType,
     pub list_style_position: ListStylePosition,
+    /// CSS `list-style-image` source (`url(...)`), if any. When set and
+    /// decodable, it replaces the `list-style-type` marker glyph (css-lists-3
+    /// §3.1). `None` means "use the list-style-type marker".
+    pub list_style_image: Option<String>,
     pub content: Vec<ContentItem>,
     pub counter_reset: Vec<(String, i32)>,
     pub counter_increment: Vec<(String, i32)>,
@@ -1565,6 +1569,7 @@ impl Default for ComputedStyle {
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
             list_style_position: ListStylePosition::Outside,
+            list_style_image: None,
             content: Vec::new(),
             quotes: None,
             counter_reset: Vec::new(),
@@ -2149,6 +2154,7 @@ fn is_inherited_property(property: &str) -> bool {
             | "caption-side"
             | "list-style-type"
             | "list-style-position"
+            | "list-style-image"
     )
 }
 
@@ -2292,6 +2298,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background" => style.reset_background(),
         "list-style-type" => style.list_style_type = default.list_style_type,
         "list-style-position" => style.list_style_position = default.list_style_position,
+        "list-style-image" => style.list_style_image = default.list_style_image.clone(),
         "content" => style.content = default.content,
         "counter-reset" => style.counter_reset = default.counter_reset,
         "counter-increment" => style.counter_increment = default.counter_increment,
@@ -2464,6 +2471,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background" => style.inherit_background(parent),
         "list-style-type" => style.list_style_type = parent.list_style_type,
         "list-style-position" => style.list_style_position = parent.list_style_position,
+        "list-style-image" => style.list_style_image = parent.list_style_image.clone(),
         "content" => style.content = parent.content.clone(),
         "counter-reset" => style.counter_reset = parent.counter_reset.clone(),
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
@@ -4433,9 +4441,29 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => ListStylePosition::Outside,
         };
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "list-style-image") {
+        let trimmed = k.trim();
+        style.list_style_image = if trimmed.eq_ignore_ascii_case("none") {
+            None
+        } else if crate::parser::css::extract_url_path(trimmed).is_some() {
+            Some(trimmed.to_string())
+        } else {
+            style.list_style_image.clone()
+        };
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "list-style") {
+        // The shorthand resets all three longhands; an omitted component takes
+        // its initial value (css-lists-3 §6.1). A `url(...)` token sets
+        // list-style-image; `none` clears both type and image.
+        if let Some(url) = crate::parser::css::extract_url_path(k.trim()) {
+            let _ = url;
+            style.list_style_image = Some(k.trim().to_string());
+        }
         let lower = k.to_ascii_lowercase();
         for part in lower.split_whitespace() {
+            if part.starts_with("url(") {
+                continue;
+            }
             match part {
                 "inside" => style.list_style_position = ListStylePosition::Inside,
                 "outside" => style.list_style_position = ListStylePosition::Outside,
