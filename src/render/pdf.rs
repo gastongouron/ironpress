@@ -103,10 +103,13 @@ fn push_background_clip(content: &mut String, x: f32, y: f32, w: f32, h: f32, bo
 fn dash_pattern_for_style(style: BorderStyle, width: f32) -> String {
     let w = width.max(0.1);
     match style {
-        // Dashes ~3x the width long with an equal gap (Chrome uses ~3:3).
+        // Chrome paints dashed strokes with dashes ~2x the line width and gaps
+        // ~1x the width (measured period ≈ 3x width, ink:gap ≈ 2:1), not the 3:3
+        // (period 6x) of a naive equal pattern.
         BorderStyle::Dashed => {
-            let d = (w * 3.0).max(1.0);
-            format!("[{d} {d}] 0 d\n")
+            let dash = (w * 2.0).max(1.0);
+            let gap = w.max(1.0);
+            format!("[{dash} {gap}] 0 d\n")
         }
         // Round dots: a zero-length dash under a round cap paints a filled dot of
         // diameter = line width; spacing = 2x width gives width-on / width-off.
