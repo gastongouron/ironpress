@@ -138,6 +138,21 @@ fn exact_font_variant_key(family: &str, bold: bool, italic: bool) -> String {
     }
 }
 
+/// Returns `true` when the map holds a face for `family` matching the *exact*
+/// requested weight/style — without [`find_font`]'s fallback to the regular
+/// variant. Used so a generic-name registration (e.g. `add_font("serif", …)`)
+/// that supplies only a regular face does not shadow a genuine bold/italic face
+/// from the bundled fallback.
+fn has_exact_variant(
+    fonts: &HashMap<String, TtfFont>,
+    family: &str,
+    bold: bool,
+    italic: bool,
+) -> bool {
+    fonts.contains_key(&font_variant_key(family, bold, italic))
+        || fonts.contains_key(&exact_font_variant_key(family, bold, italic))
+}
+
 pub(crate) fn find_font<'a>(
     fonts: &'a HashMap<String, TtfFont>,
     family: &str,
@@ -197,6 +212,16 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::Custom(name.clone());
             }
             FontFamily::TimesRoman => {
+                // A font explicitly registered under the generic CSS name `serif`
+                // (e.g. via `add_font("serif", …)`) takes precedence over the
+                // engine's bundled fallback, so the caller's chosen face — and
+                // its `line-height: normal` metrics — are honoured. Only honour it
+                // when the *requested* weight/style is actually present under that
+                // name, so a regular-only generic registration does not shadow a
+                // genuine bold/italic face from the bundled fallback.
+                if has_exact_variant(fonts, "serif", bold, italic) {
+                    return FontFamily::Custom("serif".to_string());
+                }
                 // Prefer system Times New Roman (exact Chromium match),
                 // fall back to bundled Liberation Serif.
                 if find_font(fonts, "Times New Roman", bold, italic).is_some() {
@@ -208,6 +233,9 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::TimesRoman;
             }
             FontFamily::Helvetica => {
+                if has_exact_variant(fonts, "sans-serif", bold, italic) {
+                    return FontFamily::Custom("sans-serif".to_string());
+                }
                 if find_font(fonts, "Arial", bold, italic).is_some() {
                     return FontFamily::Custom("Arial".to_string());
                 }
@@ -217,6 +245,9 @@ pub(crate) fn resolve_font_family(
                 return FontFamily::Helvetica;
             }
             FontFamily::Courier => {
+                if has_exact_variant(fonts, "monospace", bold, italic) {
+                    return FontFamily::Custom("monospace".to_string());
+                }
                 if find_font(fonts, "Courier New", bold, italic).is_some() {
                     return FontFamily::Custom("Courier New".to_string());
                 }
@@ -896,6 +927,40 @@ mod tests {
         let stack = parse_font_stack("Roboto, serif");
         let result = resolve_font_family(&stack, &fonts, false, false);
         assert_eq!(result, FontFamily::TimesRoman);
+    }
+
+    #[test]
+    fn resolve_generic_prefers_font_registered_under_generic_name() {
+        // A face explicitly registered under the generic CSS family name
+        // (as `add_font("monospace", …)` does) wins over the bundled fallback,
+        // so the caller's chosen outlines and `line-height: normal` metrics win.
+        for (css, key) in [
+            ("monospace", "monospace"),
+            ("sans-serif", "sans-serif"),
+            ("serif", "serif"),
+        ] {
+            let mut fonts = HashMap::new();
+            fonts.insert(key.to_string(), stub_font(key));
+            let result = resolve_font_family(&parse_font_stack(css), &fonts, false, false);
+            assert_eq!(result, FontFamily::Custom(key.to_string()), "css={css}");
+        }
+    }
+
+    #[test]
+    fn resolve_generic_regular_only_does_not_shadow_real_bold() {
+        // A regular-only generic registration must NOT shadow a genuine bold
+        // face available under another key: the bold request falls through.
+        let mut fonts = HashMap::new();
+        fonts.insert("sans-serif".to_string(), stub_font("Generic Sans"));
+        let mut bold = stub_font("Liberation Sans Bold");
+        bold.is_bold = true;
+        fonts.insert("liberation sans__bold".to_string(), bold);
+        // Regular -> the registered generic face.
+        let reg = resolve_font_family(&parse_font_stack("sans-serif"), &fonts, false, false);
+        assert_eq!(reg, FontFamily::Custom("sans-serif".to_string()));
+        // Bold -> the real bold face, not the regular-only generic.
+        let b = resolve_font_family(&parse_font_stack("sans-serif"), &fonts, true, false);
+        assert_eq!(b, FontFamily::Custom("Liberation Sans".to_string()));
     }
 
     #[test]
