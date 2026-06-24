@@ -191,8 +191,13 @@ pub(crate) fn load_image_from_element(
         });
     }
 
-    // Fall back to raster image using the same bytes.
-    let image = load_raster_image_bytes(raw, style.blur_radius, &style.color_filters)?;
+    // Fall back to raster image using the same bytes. `filter: blur()` /
+    // `drop-shadow()` need the decoded pixels (with the correct device sigma and
+    // transparent feather padding), so those are deferred to the filter raster
+    // path below; only the non-blur color filters are baked in here.
+    let wants_filter_raster = style.blur_radius > 0.0 || style.drop_shadow.is_some();
+    let raw_for_filter = wants_filter_raster.then(|| raw.clone());
+    let image = load_raster_image_bytes(raw, 0.0, &style.color_filters)?;
 
     // Determine dimensions: CSS width/height take precedence over the HTML
     // width/height attributes (matching the SVG path and the CSS cascade).
@@ -232,6 +237,27 @@ pub(crate) fn load_image_from_element(
         style.max_height,
     );
 
+    // CSS `filter: blur()` / `drop-shadow()`: rasterize the (color-filtered)
+    // pixels into a padded, blurred bitmap so the effect feathers outside the
+    // content box. The displayed content box is `width`/`height` (a replaced
+    // box has no border by default in these cases); the bitmap carries the
+    // extra `blur_overflow` on every side.
+    let content_w =
+        (width - LayoutBorder::from_computed(&style.border).horizontal_width()).max(0.0);
+    let content_h = (height - LayoutBorder::from_computed(&style.border).vertical_width()).max(0.0);
+    let (image, blur_overflow) = match raw_for_filter {
+        Some(bytes) => build_filter_raster(
+            &bytes,
+            content_w,
+            content_h,
+            &style.color_filters,
+            style.blur_radius,
+            style.drop_shadow,
+        )
+        .unwrap_or((image, 0.0)),
+        None => (image, 0.0),
+    };
+
     Some(LayoutElement::Image {
         image,
         width,
@@ -243,7 +269,74 @@ pub(crate) fn load_image_from_element(
         object_position: style.object_position,
         background_color: style.background_color.map(|c| c.to_f32_rgba()),
         border: LayoutBorder::from_computed(&style.border),
+        blur_overflow,
     })
+}
+
+/// Decode `raw`, apply the non-blur color filters, then produce the blurred /
+/// drop-shadow raster for `filter: blur()` / `drop-shadow()`. Returns the
+/// embeddable asset plus the overflow (points per side) it adds beyond the
+/// content box, or `None` if decoding fails (caller keeps the sharp image).
+fn build_filter_raster(
+    raw: &[u8],
+    content_w_pt: f32,
+    content_h_pt: f32,
+    color_filters: &[ColorFilterOp],
+    blur_radius_pt: f32,
+    drop_shadow: Option<crate::style::computed::DropShadow>,
+) -> Option<(RasterImageAsset, f32)> {
+    let rgba = decode_image_for_blur(raw)?.to_rgba8();
+    if let Some(ds) = drop_shadow {
+        // drop-shadow operates on the (color-filtered) source.
+        let mut src = rgba;
+        if !color_filters.is_empty() {
+            apply_color_filters_rgba(&mut src, color_filters);
+        }
+        return crate::render::blur::drop_shadow_image(
+            &src,
+            content_w_pt,
+            content_h_pt,
+            ds.dx,
+            ds.dy,
+            ds.blur,
+            ds.color,
+        )
+        .map(|b| (b.asset, b.overflow_pt));
+    }
+    if blur_radius_pt > 0.0 {
+        // The fixtures order blur first (`blur(...) brightness(...)`), and the
+        // CSS filter pipeline applies functions in order, so blur the source
+        // and then apply the color filters to the *blurred* pixels (including
+        // the feathered edge) before encoding.
+        let (mut buf, overflow) = crate::render::blur::blur_image_buffer(
+            &rgba,
+            content_w_pt,
+            content_h_pt,
+            blur_radius_pt,
+        )?;
+        if !color_filters.is_empty() {
+            apply_color_filters_rgba(&mut buf, color_filters);
+        }
+        return crate::render::blur::raster_from_buffer(buf, overflow)
+            .map(|b| (b.asset, b.overflow_pt));
+    }
+    None
+}
+
+/// Apply CSS `filter` color functions to an RGBA image in place, preserving the
+/// alpha channel (the RGB-only variant lives alongside the legacy in-place blur
+/// path). Mirrors `apply_color_filters` for the RGBA filter raster path.
+fn apply_color_filters_rgba(img: &mut image::RgbaImage, ops: &[ColorFilterOp]) {
+    let mut rgb = image::RgbImage::new(img.width(), img.height());
+    for (dst, src) in rgb.pixels_mut().zip(img.pixels()) {
+        *dst = image::Rgb([src[0], src[1], src[2]]);
+    }
+    apply_color_filters(&mut rgb, ops);
+    for (src, dst) in rgb.pixels().zip(img.pixels_mut()) {
+        dst[0] = src[0];
+        dst[1] = src[1];
+        dst[2] = src[2];
+    }
 }
 
 /// Decode a PNG the lightweight parser cannot pass through (e.g. indexed/palette
@@ -418,6 +511,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             object_position,
             background_color,
             border,
+            blur_overflow,
         } => LayoutElement::Image {
             image,
             width,
@@ -429,6 +523,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             object_position,
             background_color,
             border,
+            blur_overflow,
         },
         LayoutElement::Svg {
             tree,

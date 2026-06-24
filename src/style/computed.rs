@@ -1414,6 +1414,9 @@ pub struct ComputedStyle {
     /// applied in order to a replaced image's pixels. `blur(...)` stays in
     /// `blur_radius`; this holds the non-blur ops.
     pub color_filters: Vec<ColorFilterOp>,
+    /// CSS `filter: drop-shadow(dx dy blur color)`. `None` when no drop-shadow is
+    /// present. Offsets/blur are in points; color is straight-alpha RGBA.
+    pub drop_shadow: Option<DropShadow>,
     /// CSS `object-fit` for replaced elements (how the content fits its box).
     pub object_fit: ObjectFit,
     /// CSS `object-position` as horizontal/vertical fractions of the free space
@@ -1476,6 +1479,17 @@ impl Default for ObjectPosition {
             y: ObjectPositionComponent::Fraction(0.5),
         }
     }
+}
+
+/// CSS `filter: drop-shadow(<offset-x> <offset-y> <blur>? <color>?)`
+/// (css-filter-effects-1 §4.4). Offsets and blur radius are in points; `color`
+/// is straight-alpha RGBA in 0..1.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DropShadow {
+    pub dx: f32,
+    pub dy: f32,
+    pub blur: f32,
+    pub color: (f32, f32, f32, f32),
 }
 
 /// A single CSS `filter` color function. Amounts are resolved fractions
@@ -1640,6 +1654,7 @@ impl Default for ComputedStyle {
             row_gap: 0.0,
             blur_radius: 0.0,
             color_filters: Vec::new(),
+            drop_shadow: None,
             object_fit: ObjectFit::default(),
             object_position: ObjectPosition::default(),
         }
@@ -1853,6 +1868,7 @@ pub fn compute_style_with_context(
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
     style.color_filters.clear();
+    style.drop_shadow = None;
     // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
@@ -2143,6 +2159,7 @@ pub fn compute_pseudo_element_style(
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
     style.color_filters.clear();
+    style.drop_shadow = None;
     // Default display for pseudo-elements is inline
     style.display = Display::Inline;
 
@@ -2392,6 +2409,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "filter" => {
             style.blur_radius = default.blur_radius;
             style.color_filters = default.color_filters.clone();
+            style.drop_shadow = default.drop_shadow;
         }
         _ => {}
     }
@@ -2558,6 +2576,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "filter" => {
             style.blur_radius = parent.blur_radius;
             style.color_filters = parent.color_filters.clone();
+            style.drop_shadow = parent.drop_shadow;
         }
         _ => {}
     }
@@ -3265,11 +3284,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // after `style.opacity` is finalized to combine multiplicatively.
     let mut filter_opacity = 1.0_f32;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
-        let (blur, ops, opacity) = parse_filter(k);
+        let (blur, ops, opacity, drop_shadow) = parse_filter(k);
         if let Some(radius) = blur {
             style.blur_radius = radius;
         }
         style.color_filters = ops;
+        style.drop_shadow = drop_shadow;
         filter_opacity = opacity;
     }
 
@@ -5044,19 +5064,21 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
 }
 
 /// Parse a full CSS `filter` value into (blur_radius, ordered color ops,
-/// opacity multiplier). Recognizes blur/grayscale/sepia/invert/brightness/
-/// contrast/saturate/hue-rotate/opacity; unknown functions (e.g. drop-shadow)
-/// are ignored. `none` clears. The opacity multiplier is the product of all
-/// `opacity()` functions (1.0 when none are present) and is intended to be
-/// folded into the element's final `style.opacity`.
-fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32) {
+/// opacity multiplier, drop-shadow). Recognizes blur/grayscale/sepia/invert/
+/// brightness/contrast/saturate/hue-rotate/opacity/drop-shadow; unknown
+/// functions (e.g. `url(...)`) are ignored. `none` clears. The opacity
+/// multiplier is the product of all `opacity()` functions (1.0 when none are
+/// present) and is intended to be folded into the element's final
+/// `style.opacity`.
+fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32, Option<DropShadow>) {
     let raw = val.trim();
     if raw.is_empty() || raw.eq_ignore_ascii_case("none") {
-        return (Some(0.0), Vec::new(), 1.0);
+        return (Some(0.0), Vec::new(), 1.0, None);
     }
     let mut blur = None;
     let mut ops = Vec::new();
     let mut opacity = 1.0_f32;
+    let mut drop_shadow = None;
     let mut rest = raw;
     while let Some(open) = rest.find('(') {
         let name = rest[..open].trim().to_ascii_lowercase();
@@ -5106,11 +5128,44 @@ fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32) {
             "opacity" => {
                 opacity *= parse_filter_amount(arg, 1.0).clamp(0.0, 1.0);
             }
+            "drop-shadow" => {
+                if let Some(ds) = parse_drop_shadow(arg) {
+                    drop_shadow = Some(ds);
+                }
+            }
             _ => {}
         }
         rest = &rest[open + 1 + close_rel + 1..];
     }
-    (blur, ops, opacity)
+    (blur, ops, opacity, drop_shadow)
+}
+
+/// Parse the inner argument of `drop-shadow(<offset-x> <offset-y> <blur>?
+/// <color>?)` (css-filter-effects-1 §4.4). Lengths become points; the color
+/// defaults to the element's `currentColor` (approximated as opaque black here,
+/// matching the common case). Returns `None` when the two required offsets are
+/// missing.
+fn parse_drop_shadow(arg: &str) -> Option<DropShadow> {
+    let mut lengths: Vec<f32> = Vec::new();
+    let mut color: Option<(f32, f32, f32, f32)> = None;
+    for tok in arg.split_whitespace() {
+        if let Some(CssValue::Length(l)) = crate::parser::css::parse_length(tok) {
+            lengths.push(l);
+        } else if let Some(CssValue::Color(c)) = crate::parser::css::parse_color(tok) {
+            color = Some(c.to_f32_rgba());
+        } else if tok == "0" {
+            lengths.push(0.0);
+        }
+    }
+    if lengths.len() < 2 {
+        return None;
+    }
+    Some(DropShadow {
+        dx: lengths[0],
+        dy: lengths[1],
+        blur: lengths.get(2).copied().unwrap_or(0.0).max(0.0),
+        color: color.unwrap_or((0.0, 0.0, 0.0, 1.0)),
+    })
 }
 
 /// Parse a filter amount: `100%` -> 1.0, `1.5` -> 1.5, empty -> `default`.
@@ -13403,14 +13458,14 @@ mod tests {
         // bare function defaults to amount 1.0
         assert_eq!(parse_filter("sepia()").1, vec![ColorFilterOp::Sepia(1.0)]);
         // chained: blur goes to the blur slot, color ops preserve order
-        let (blur, ops, _opacity) = parse_filter("grayscale(1) blur(2px) contrast(2)");
+        let (blur, ops, _opacity, _ds) = parse_filter("grayscale(1) blur(2px) contrast(2)");
         assert!(blur.is_some_and(|r| r > 0.0));
         assert_eq!(
             ops,
             vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]
         );
         // none clears everything
-        assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0));
+        assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0, None));
     }
 
     #[test]

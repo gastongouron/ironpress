@@ -509,6 +509,12 @@ pub enum LayoutElement {
         /// `width`/`height` already include the border, so the image content is
         /// inset by the border widths and the frame is stroked on the perimeter.
         border: LayoutBorder,
+        /// CSS `filter: blur()`/`drop-shadow()` overflow: when `> 0` the embedded
+        /// bitmap already contains the blurred/feathered result padded on every
+        /// side by this many points, and the renderer draws it expanded beyond
+        /// the content box (the filter does not affect layout flow). Zero means
+        /// no filter raster (the normal sharp image path).
+        blur_overflow: f32,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },

@@ -493,6 +493,49 @@ pub(super) fn render_nested_text_block(
     );
     let block_bottom = frame.top_y - total_height;
 
+    // CSS `filter: blur()` on a solid box (css-filter-effects-1 §4.1): rasterize
+    // the box's painted output (bg fill + border), gaussian-blur it, and embed it
+    // overflowing the border box. Restricted to a plain solid box (no SVG/raster
+    // bg, no text, no clip, square corners) so the vector paint path below is
+    // byte-unchanged for everything else. `background_blur_radius` carries the
+    // element's `style.blur_radius` here.
+    if block.background_blur_radius > 0.0
+        && block.lines.is_empty()
+        && block.background_svg.is_none()
+        && !block.clips
+        && block.border_radius == 0.0
+        && let Some(blurred) = crate::render::blur::blur_box(
+            render_width,
+            total_height,
+            block.background_color,
+            &block.border,
+            block.background_blur_radius,
+        )
+    {
+        let img_obj_id = ctx.pdf_writer.add_image_object(
+            &blurred.asset.data,
+            blurred.asset.source_width,
+            blurred.asset.source_height,
+            blurred.asset.format,
+            blurred.asset.png_metadata.as_ref(),
+        );
+        let img_name = format!("Im{img_obj_id}");
+        let ov = blurred.overflow_pt;
+        content.push_str(&format!(
+            "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+            w = render_width + 2.0 * ov,
+            h = total_height + 2.0 * ov,
+            ix = frame.origin_x - ov,
+            iy = block_bottom - ov,
+            name = img_name,
+        ));
+        ctx.page_images.push(ImageRef {
+            name: img_name,
+            obj_id: img_obj_id,
+        });
+        return;
+    }
+
     // The box `background-clip` confines the painted fill to. In this nested
     // model `frame.origin_x` × `render_width` is the box the border centerline
     // runs along; padding-box stops the fill at the inner border edge and

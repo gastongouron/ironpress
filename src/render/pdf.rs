@@ -1142,6 +1142,54 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         &mut bg_alpha_counter,
                     );
 
+                    // CSS `filter: blur()` on a solid box (css-filter-effects-1
+                    // §4.1): the box's painted output (background fill + border)
+                    // is gaussian-blurred and feathers outside the border box.
+                    // ironpress paints boxes as vector content, so for a plain
+                    // solid box (no gradient/SVG bg, no text, no transform/opacity
+                    // wrapper, square corners) rasterize bg+border, blur it, and
+                    // embed it in place of the sharp vector paint.
+                    if *background_blur_radius > 0.0
+                        && !needs_transform
+                        && !needs_opacity
+                        && lines.is_empty()
+                        && background_gradient.is_none()
+                        && background_radial_gradient.is_none()
+                        && background_conic_gradient.is_none()
+                        && background_svg.is_none()
+                        && *border_radius == 0.0
+                        && let Some(blurred) = crate::render::blur::blur_box(
+                            render_width,
+                            border_box_h,
+                            *background_color,
+                            border,
+                            *background_blur_radius,
+                        )
+                    {
+                        let img_obj_id = pdf_writer.add_image_object(
+                            &blurred.asset.data,
+                            blurred.asset.source_width,
+                            blurred.asset.source_height,
+                            blurred.asset.format,
+                            blurred.asset.png_metadata.as_ref(),
+                        );
+                        let img_name = format!("Im{img_obj_id}");
+                        let ov = blurred.overflow_pt;
+                        content.push_str(&format!(
+                            "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                            w = render_width + 2.0 * ov,
+                            h = border_box_h + 2.0 * ov,
+                            ix = block_x - ov,
+                            iy = block_bottom - ov,
+                            name = img_name,
+                        ));
+                        page_images.push(ImageRef {
+                            name: img_name,
+                            obj_id: img_obj_id,
+                        });
+                        continue;
+                    }
+
                     // `block_x` / `block_bottom` / `render_width` / `border_box_h`
                     // describe the BORDER box (border paints inward). Derive the
                     // box `background-clip` confines the painted fill to.
@@ -4457,6 +4505,45 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     object_position,
                     background_color,
                     border,
+                    blur_overflow,
+                    ..
+                } if *blur_overflow > 0.0 => {
+                    // CSS `filter: blur()`/`drop-shadow()`: the embedded bitmap is
+                    // the blurred result padded by `blur_overflow` on each side,
+                    // drawn overflowing the content box (filter ignores layout).
+                    let _ = (object_fit, object_position, background_color, border);
+                    let img_x = margin.left;
+                    let img_y = page_size.height - margin.top - y_pos - height;
+                    let img_obj_id = pdf_writer.add_image_object(
+                        &image.data,
+                        image.source_width,
+                        image.source_height,
+                        image.format,
+                        image.png_metadata.as_ref(),
+                    );
+                    let img_name = format!("Im{img_obj_id}");
+                    let ov = *blur_overflow;
+                    content.push_str(&format!(
+                        "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                        w = width + 2.0 * ov,
+                        h = height + 2.0 * ov,
+                        ix = img_x - ov,
+                        iy = img_y - ov,
+                        name = img_name,
+                    ));
+                    page_images.push(ImageRef {
+                        name: img_name,
+                        obj_id: img_obj_id,
+                    });
+                }
+                LayoutElement::Image {
+                    image,
+                    width,
+                    height,
+                    object_fit,
+                    object_position,
+                    background_color,
+                    border,
                     ..
                 } => {
                     let img_x = margin.left;
@@ -5451,6 +5538,8 @@ fn render_container_children(
                 background_gradient: tb_bg_gradient,
                 background_radial_gradient: tb_bg_radial,
                 background_conic_gradient: tb_bg_conic,
+                background_svg: tb_bg_svg,
+                background_blur_radius: tb_bg_blur,
                 text_align,
                 float: tb_float,
                 clear: tb_clear,
@@ -5630,6 +5719,60 @@ fn render_container_children(
                     _ => x + offset_left,
                 };
                 let render_y = y - offset_top;
+
+                // CSS `filter: blur()` on a nested solid box (css-filter-effects-1
+                // §4.1): rasterize the bg fill + border, gaussian-blur it, and
+                // embed it overflowing the border box. Restricted to a plain solid
+                // box (no gradient/SVG bg, no text, no clip, square corners) so the
+                // vector paint path is byte-unchanged for everything else.
+                if *tb_bg_blur > 0.0
+                    && lines.is_empty()
+                    && tb_bg_gradient.is_none()
+                    && tb_bg_radial.is_none()
+                    && tb_bg_conic.is_none()
+                    && tb_bg_svg.is_none()
+                    && tb_clip_rect.is_none()
+                    && *tb_border_radius == 0.0
+                    && let Some(blurred) = crate::render::blur::blur_box(
+                        render_w,
+                        child_h,
+                        *background_color,
+                        border,
+                        *tb_bg_blur,
+                    )
+                {
+                    let img_obj_id = pdf_writer.add_image_object(
+                        &blurred.asset.data,
+                        blurred.asset.source_width,
+                        blurred.asset.source_height,
+                        blurred.asset.format,
+                        blurred.asset.png_metadata.as_ref(),
+                    );
+                    let img_name = format!("Im{img_obj_id}");
+                    let ov = blurred.overflow_pt;
+                    content.push_str(&format!(
+                        "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                        w = render_w + 2.0 * ov,
+                        h = child_h + 2.0 * ov,
+                        ix = render_x - ov,
+                        iy = render_y - child_h - ov,
+                        name = img_name,
+                    ));
+                    page_images.push(ImageRef {
+                        name: img_name,
+                        obj_id: img_obj_id,
+                    });
+                    // Advance the flow cursor exactly as the normal block path
+                    // below (the filter does not change layout).
+                    if is_float {
+                        prev_margin_bottom = 0.0;
+                    } else {
+                        cursor_y -= child_h + *margin_bottom;
+                        y = cursor_y;
+                        prev_margin_bottom = *margin_bottom;
+                    }
+                    continue;
+                }
 
                 // Draw child background
                 if let Some((r, g, b, a)) = background_color {
@@ -6133,6 +6276,68 @@ fn render_container_children(
                 // box to the child height, e.g. an `overflow:visible` box grew to
                 // its oversized child instead of letting the child spill out.)
                 let nk_total_h = nk_block_height.unwrap_or(nk_content_h);
+
+                // CSS `filter: blur()` on a solid box (css-filter-effects-1 §4.1):
+                // rasterize this empty container's bg fill + border, gaussian-blur
+                // it, and embed it overflowing the border box. Restricted to a
+                // plain solid box (no children, no gradient/SVG bg, no
+                // transform/opacity/clip/mask wrapper, square corners) so the
+                // vector paint path is byte-unchanged for everything else.
+                if *nk_visible
+                    && *nk_bg_blur > 0.0
+                    && nested_kids.is_empty()
+                    && background_gradient.is_none()
+                    && background_radial_gradient.is_none()
+                    && background_conic_gradient.is_none()
+                    && nk_bg_svg.is_none()
+                    && nk_transform.is_none()
+                    && nk_clip_path.is_none()
+                    && nk_mask_image.is_none()
+                    && *nk_opacity >= 1.0
+                    && *nk_mix_blend == crate::style::computed::BlendMode::Normal
+                    && *cont_br == 0.0
+                    && cont_radii.iter().all(|r| *r == 0.0)
+                    && *nk_outline_width == 0.0
+                    && let Some(blurred) = crate::render::blur::blur_box(
+                        nk_w,
+                        nk_total_h,
+                        *background_color,
+                        border,
+                        *nk_bg_blur,
+                    )
+                {
+                    let img_obj_id = pdf_writer.add_image_object(
+                        &blurred.asset.data,
+                        blurred.asset.source_width,
+                        blurred.asset.source_height,
+                        blurred.asset.format,
+                        blurred.asset.png_metadata.as_ref(),
+                    );
+                    let img_name = format!("Im{img_obj_id}");
+                    let ov = blurred.overflow_pt;
+                    content.push_str(&format!(
+                        "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                        w = nk_w + 2.0 * ov,
+                        h = nk_total_h + 2.0 * ov,
+                        ix = nk_x - ov,
+                        iy = nk_top_y - nk_total_h - ov,
+                        name = img_name,
+                    ));
+                    page_images.push(ImageRef {
+                        name: img_name,
+                        obj_id: img_obj_id,
+                    });
+                    // Advance the flow cursor exactly as the normal container path
+                    // (the filter does not change layout).
+                    if nk_is_float {
+                        prev_margin_bottom = 0.0;
+                    } else if !nk_is_abs {
+                        cursor_y -= nk_total_h + margin_bottom;
+                        y = cursor_y;
+                        prev_margin_bottom = *margin_bottom;
+                    }
+                    continue;
+                }
 
                 // `visibility: hidden` keeps the box's space (cursor still
                 // advances below). Per CSS2 §11.2 it suppresses only THIS box's own
@@ -6743,12 +6948,43 @@ fn render_container_children(
                 object_position,
                 background_color,
                 border,
+                blur_overflow,
                 ..
             } => {
                 cursor_y -= collapsed_margin_top_extra(*img_mt, prev_margin_bottom);
                 y = cursor_y;
                 let box_top = y;
                 let box_bottom = y - img_h;
+                // CSS `filter: blur()`/`drop-shadow()`: the embedded bitmap is the
+                // blurred/feathered result, padded by `blur_overflow` on each side
+                // so it overflows the content box without affecting flow.
+                if *blur_overflow > 0.0 {
+                    let img_obj_id = pdf_writer.add_image_object(
+                        &image.data,
+                        image.source_width,
+                        image.source_height,
+                        image.format,
+                        image.png_metadata.as_ref(),
+                    );
+                    let img_name = format!("Im{img_obj_id}");
+                    let ov = *blur_overflow;
+                    content.push_str(&format!(
+                        "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                        w = img_w + 2.0 * ov,
+                        h = img_h + 2.0 * ov,
+                        ix = x - ov,
+                        iy = box_bottom - ov,
+                        name = img_name,
+                    ));
+                    page_images.push(ImageRef {
+                        name: img_name,
+                        obj_id: img_obj_id,
+                    });
+                    cursor_y -= img_h;
+                    y = cursor_y;
+                    prev_margin_bottom = 0.0;
+                    continue;
+                }
                 // Paint the image-box background first; with object-fit it may
                 // remain visible where the image content does not cover the box.
                 if let Some((br, bg, bb, ba)) = background_color
