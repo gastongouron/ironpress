@@ -905,6 +905,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
@@ -991,6 +992,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let mut cell = empty_table_cell();
         cell.nested_rows = vec![nested];
@@ -1003,6 +1005,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();

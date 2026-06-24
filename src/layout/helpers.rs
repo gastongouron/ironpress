@@ -1571,16 +1571,22 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
 /// Decode a `list-style-image` value (a CSS `url(...)`, possibly a data-URI)
 /// into an atomic image `InlineBox` to use as a list marker (css-lists-3 §3.1).
 ///
-/// The marker is sized at the image's intrinsic pixel size (CSS px == intrinsic
-/// px at 1x), with a small right margin so the following text does not touch it.
+/// The marker is sized at the image's intrinsic CSS-pixel size (CSS px ==
+/// intrinsic px at 1x), converted to PDF points (1px = 0.75pt) like every other
+/// raster, with a small right margin so the following text does not touch it.
 /// Returns `None` when the URL is absent or cannot be decoded, so the caller can
 /// fall back to the `list-style-type` glyph marker.
 pub(crate) fn build_list_image_marker(value: &str, gap: f32) -> Option<InlineBox> {
     let url = crate::parser::css::extract_url_path(value).unwrap_or_else(|| value.to_string());
     let (raw, _mime) = crate::layout::images::load_src_bytes(&url)?;
     let image = crate::layout::images::load_image_bytes(raw)?;
-    let width = image.source_width.max(1) as f32;
-    let height = image.source_height.max(1) as f32;
+    // The InlineBox dimensions are in PDF points; the image's intrinsic size is
+    // in CSS px, so convert px -> pt (1px = 0.75pt) exactly as `load_image_bytes`
+    // consumers do for ordinary <img>. Without this the marker paints at its raw
+    // pixel count as points (16px -> 16pt instead of 12pt), ~1.33x too large.
+    const PX_TO_PT: f32 = 0.75;
+    let width = image.source_width.max(1) as f32 * PX_TO_PT;
+    let height = image.source_height.max(1) as f32 * PX_TO_PT;
     Some(InlineBox {
         width,
         height,

@@ -444,28 +444,54 @@ fn paint_uniform_border(
         // Chrome far better than dashing one continuous rectangle perimeter,
         // which drifts out of phase and skips corners.
         let half = bw / 2.0;
-        let inner_w = (w - bw).max(0.0);
-        let inner_h = (h - bw).max(0.0);
-        // Side centerline endpoints (corner to corner), insetting by half-width.
-        let left = x + half;
-        let right = x + w - half;
-        let top = y + h - half;
-        let bottom = y + half;
         let dotted = side.style == crate::style::computed::BorderStyle::Dotted;
-        // Horizontal sides span inner_w corner-to-corner; vertical span inner_h.
-        let (h_arr, h_phase) = corner_dash_array(inner_w, bw, dotted);
-        let (v_arr, v_phase) = corner_dash_array(inner_h, bw, dotted);
+        // The cross-axis position of each side's centerline is always mid-border
+        // (inset by half the width).
+        let mid_left = x + half;
+        let mid_right = x + w - half;
+        let mid_top = y + h - half;
+        let mid_bottom = y + half;
+        // Along its own axis, dashes are laid over the FULL border-box edge
+        // length (corner to corner at the OUTER edges), matching Chrome — which
+        // spaces an integer number of dashes over the whole side, so the gap (and
+        // phase) come from `w`/`h`, not the inner `w-bw`. The full-length centerline
+        // with butt caps covers the corner columns, and the perpendicular sides
+        // overlap there to fill the corner (same coverage as Chrome's miter).
+        // Dots instead keep the inner (corner-inset) span so a dot sits centered on
+        // each corner, matching Chrome's dotted corners.
+        let (h_len, v_len, axis_start_h, axis_end_h, axis_start_v, axis_end_v) = if dotted {
+            (
+                (w - bw).max(0.0),
+                (h - bw).max(0.0),
+                mid_left,
+                mid_right,
+                y + h - half,
+                y + half,
+            )
+        } else {
+            (w, h, x, x + w, y + h, y)
+        };
+        let (h_arr, h_phase) = corner_dash_array(h_len, bw, dotted);
+        let (v_arr, v_phase) = corner_dash_array(v_len, bw, dotted);
         let cap = if dotted { "1 J\n" } else { "0 J\n" };
         content.push_str(cap);
         content.push_str(&format!("{bw} w\n"));
         // Top and bottom (horizontal).
         content.push_str(&format!("[{h_arr}] {h_phase} d\n"));
-        content.push_str(&format!("{left} {top} m {right} {top} l S\n"));
-        content.push_str(&format!("{left} {bottom} m {right} {bottom} l S\n"));
+        content.push_str(&format!(
+            "{axis_start_h} {mid_top} m {axis_end_h} {mid_top} l S\n"
+        ));
+        content.push_str(&format!(
+            "{axis_start_h} {mid_bottom} m {axis_end_h} {mid_bottom} l S\n"
+        ));
         // Left and right (vertical).
         content.push_str(&format!("[{v_arr}] {v_phase} d\n"));
-        content.push_str(&format!("{left} {top} m {left} {bottom} l S\n"));
-        content.push_str(&format!("{right} {top} m {right} {bottom} l S\n"));
+        content.push_str(&format!(
+            "{mid_left} {axis_start_v} m {mid_left} {axis_end_v} l S\n"
+        ));
+        content.push_str(&format!(
+            "{mid_right} {axis_start_v} m {mid_right} {axis_end_v} l S\n"
+        ));
         content.push_str("[] 0 d\n0 J\n");
     } else {
         content.push_str(&dash_pattern_for_style(side.style, bw));
@@ -501,27 +527,33 @@ fn corner_dash_array(len: f32, bw: f32, dotted: bool) -> (String, f32) {
         ((bw * 2.0).max(1.0), bw.max(1.0))
     };
     let period = on + gap;
-    // We want a dash/dot centered at each corner. Treat the side as having an
-    // on-segment centered at 0 and at `len`. The number of periods across the
-    // side is round(len / period), at least 1. Adjust the period so it divides
-    // `len` exactly into `n` whole periods (keeping corners symmetric).
-    let n = (len / period).round().max(1.0);
-    let adj_period = len / n;
-    // Keep the on/gap ratio of the nominal pattern.
-    let on_ratio = on / period;
-    let adj_on = (adj_period * on_ratio).max(if dotted { 0.0 } else { 1.0 });
-    let adj_gap = (adj_period - adj_on).max(0.1);
-    // Phase: shift back by half an on-segment so the first on-segment straddles
-    // the start corner (its center sits at the corner). For dotted (zero-length
-    // on under a round cap) the dot is the cap, so center it at the corner by
-    // phasing back half a period of the cap — i.e. start at the corner.
-    let phase = if dotted { 0.0 } else { adj_on / 2.0 };
     if dotted {
-        // Zero-length dash under round cap = a dot of diameter `bw`.
-        (format!("0 {adj_period}"), phase)
-    } else {
-        (format!("{adj_on} {adj_gap}"), phase)
+        // Dots: a dot centered at each corner. Treat the side as `n` whole
+        // periods so a dot lands on 0 and on `len`; phase 0 starts the (round-
+        // cap) dot at the corner. Only the spacing flexes.
+        let n = (len / period).round().max(1.0);
+        let adj_period = len / n;
+        // Zero-length dash under a round cap paints a dot of diameter `bw`.
+        return (format!("0 {adj_period}"), 0.0);
     }
+    // Dashes: Chrome draws a FULL dash flush to each corner (not a half-dash
+    // straddling it) and keeps the dash length fixed at its nominal `2*bw`,
+    // absorbing the corner-fitting adjustment into the GAP only. Measured: a 6px
+    // border draws 12px (=2*width) dashes at both corners with a slightly
+    // stretched gap — NOT a uniformly scaled-down 2:1 period, and NOT truncated
+    // corner dashes. So lay out `n` dashes of length `on` separated by `n-1`
+    // flexed gaps, with the run starting (phase 0) and ending on a dash.
+    //   len = n*on + (n-1)*gap  =>  pick n so the flexed gap stays near nominal.
+    let n = (((len + gap) / period).round()).max(1.0);
+    let adj_on = on.min(len);
+    let adj_gap = if n > 1.0 {
+        ((len - n * adj_on) / (n - 1.0)).max(0.1)
+    } else {
+        // Single dash: pad the period so the lone dash sits flush at the start
+        // corner with the remaining length as trailing gap (no second dash).
+        (len - adj_on).max(0.1)
+    };
+    (format!("{adj_on} {adj_gap}"), 0.0)
 }
 
 /// Whether a (rectangular, radius-free) border should use the filled-trapezoid
@@ -1953,6 +1985,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     col_widths,
                     border_collapse,
                     border_spacing,
+                    offset_left: table_offset_left,
                     ..
                 } => {
                     let spacing = if *border_collapse == BorderCollapse::Collapse {
@@ -1966,6 +1999,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // box edge — matching Chrome (see `collapse_paint_offset`).
                     let (collapse_dx, collapse_dy) = collapse_paint_offset(cells, *border_collapse);
                     let row_y = page_size.height - margin.top - y_pos - collapse_dy;
+                    // The table's own horizontal start margin shifts the whole row
+                    // right from the page content edge (the background/border box
+                    // carries the same offset via its `offset_left`).
+                    let table_origin_x = margin.left + *table_offset_left;
 
                     // Compute row height (max cell height, excluding rowspan > 1 cells)
                     let row_height = compute_row_height(cells);
@@ -1986,7 +2023,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             col_pos,
                             cell.colspan,
                             spacing,
-                            margin.left + collapse_dx,
+                            table_origin_x + collapse_dx,
                         );
 
                         // For cells with rowspan > 1, compute the total height
@@ -2158,7 +2195,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 NestedLayoutFrame::new(
                                     cell_x,
                                     row_y,
-                                    margin.left,
+                                    table_origin_x,
                                     page_size.height - margin.top,
                                     cell_w,
                                 ),
@@ -16082,6 +16119,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -16178,6 +16216,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -16300,6 +16339,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();

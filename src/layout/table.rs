@@ -1456,6 +1456,10 @@ pub(crate) fn flatten_table(
                 border_collapse: style.border_collapse,
                 border_spacing: style.border_spacing,
                 is_header,
+                // The table's own horizontal start margin shifts every cell (and
+                // the table box) right from the containing block's content edge,
+                // mirroring how `margin_top` shifts it down.
+                offset_left: style.margin.left.max(0.0),
             });
         }
     }
@@ -1572,7 +1576,9 @@ pub(crate) fn flatten_table(
             clear: Default::default(),
             position: Default::default(),
             offset_top: 0.0,
-            offset_left: 0.0,
+            // Shift the table's background/border box right by its own start
+            // margin so it aligns with the cells (which carry the same offset).
+            offset_left: style.margin.left.max(0.0),
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,

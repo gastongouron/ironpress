@@ -473,6 +473,14 @@ pub enum LayoutElement {
         /// Row belongs to a `<thead>`; pagination re-emits it on every page
         /// the parent table spans (mirroring Chrome's behavior).
         is_header: bool,
+        /// The table's own horizontal start margin (`margin-left`, or the
+        /// auto-centering inset), in points. Cells and the table box are shifted
+        /// right by this from the containing block's content edge. 0.0 for tables
+        /// flush to that edge. (The table's vertical margins are carried by the
+        /// row/background `margin_top`/`margin_bottom`; this is the horizontal
+        /// analogue, previously dropped — a `table { margin: 30px }` rendered at
+        /// the page margin only.)
+        offset_left: f32,
     },
     /// A grid row with cells of varying widths.
     GridRow {
