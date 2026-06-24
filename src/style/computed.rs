@@ -759,6 +759,23 @@ pub enum VerticalAlign {
     Bottom,
 }
 
+/// CSS `writing-mode` property (css-writing-modes-4 §3.1). Inherited; initial
+/// is `horizontal-tb`. Only the two horizontally/vertically-flowing modes the
+/// engine renders are modelled: the default top-to-bottom horizontal mode and
+/// `vertical-rl` (vertical text, columns laid right-to-left). Latin glyphs in
+/// `vertical-rl` are set sideways (rotated 90° clockwise) per the default
+/// `text-orientation: mixed`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WritingMode {
+    /// `horizontal-tb` — the default: inline progresses left-to-right, block
+    /// progresses top-to-bottom.
+    #[default]
+    HorizontalTb,
+    /// `vertical-rl` — inline progresses top-to-bottom, block (columns)
+    /// progresses right-to-left.
+    VerticalRl,
+}
+
 /// A color stop in a gradient.
 #[derive(Debug, Clone, Copy)]
 pub struct GradientStop {
@@ -1183,6 +1200,10 @@ pub struct ComputedStyle {
     pub text_align: TextAlign,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
     pub direction_rtl: bool,
+    /// CSS `writing-mode` (css-writing-modes-4 §3.1). Inherited; initial
+    /// `horizontal-tb`. Inherited automatically via the `parent.clone()` model
+    /// in `compute_style_with_context` (never reset in the non-inherited block).
+    pub writing_mode: WritingMode,
     /// CSS `unicode-bidi: bidi-override` (or `isolate-override`). When set, the
     /// element's inline content is reordered strictly in sequence according to
     /// `direction`, overriding the characters' intrinsic bidi classes
@@ -1539,6 +1560,7 @@ impl Default for ComputedStyle {
             padding: EdgeSizes::default(),
             text_align: TextAlign::Left,
             direction_rtl: false,
+            writing_mode: WritingMode::HorizontalTb,
             bidi_override: false,
             text_decoration_underline: false,
             text_decoration_line_through: false,
@@ -4032,6 +4054,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             }
             _ => {}
         }
+    }
+
+    // CSS `writing-mode` property (css-writing-modes-4 §3.1). Inherited (so it
+    // is never reset in the non-inherited block above; it rides the
+    // `parent.clone()` inheritance). Only `vertical-rl` changes behaviour; every
+    // other keyword (including the unsupported `vertical-lr`/`sideways-*`) falls
+    // back to the default horizontal mode.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "writing-mode") {
+        style.writing_mode = match k.as_str() {
+            "vertical-rl" => WritingMode::VerticalRl,
+            _ => WritingMode::HorizontalTb,
+        };
     }
 
     // CSS `unicode-bidi` property. Not inherited. `bidi-override` (and the
@@ -7775,6 +7809,25 @@ mod tests {
         assert!((style.column_rule.width - 2.25).abs() < 0.01);
         assert_eq!(style.column_rule.style, BorderStyle::Solid);
         assert!(style.column_rule.color.is_some());
+    }
+
+    #[test]
+    fn writing_mode_vertical_rl_parses_and_inherits() {
+        let parent = ComputedStyle::default();
+        assert_eq!(parent.writing_mode, WritingMode::HorizontalTb);
+
+        let vrl = compute_style(HtmlTag::Div, Some("writing-mode: vertical-rl"), &parent);
+        assert_eq!(vrl.writing_mode, WritingMode::VerticalRl);
+
+        // Inherited: a child with no writing-mode of its own keeps the parent's.
+        let child = compute_style(HtmlTag::Span, None, &vrl);
+        assert_eq!(child.writing_mode, WritingMode::VerticalRl);
+
+        // Unsupported keywords fall back to the default horizontal mode.
+        let lr = compute_style(HtmlTag::Div, Some("writing-mode: vertical-lr"), &parent);
+        assert_eq!(lr.writing_mode, WritingMode::HorizontalTb);
+        let htb = compute_style(HtmlTag::Div, Some("writing-mode: horizontal-tb"), &vrl);
+        assert_eq!(htb.writing_mode, WritingMode::HorizontalTb);
     }
 
     #[test]

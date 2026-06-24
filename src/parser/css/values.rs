@@ -481,6 +481,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "font-variant-caps"
             | "font-feature-settings"
             | "direction"
+            | "writing-mode"
             | "object-fit"
             | "object-position"
             | "vertical-align"

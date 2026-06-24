@@ -1278,6 +1278,7 @@ pub(crate) fn build_pseudo_block(
         margin_top: pseudo_style.margin.top,
         margin_bottom: pseudo_style.margin.bottom,
         text_align: pseudo_style.text_align,
+        writing_mode: crate::style::computed::WritingMode::HorizontalTb,
         background_color: bg,
         padding_top: pseudo_style.padding.top,
         padding_bottom: pseudo_style.padding.bottom,

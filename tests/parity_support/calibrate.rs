@@ -100,7 +100,7 @@ pub(crate) fn assert_calibration(
         let fixture = parity_dir.join(&entry.file);
         let html = std::fs::read_to_string(&fixture)
             .map_err(|e| format!("calibration: cannot read probe {}: {e}", entry.id))?;
-        let pdf = render_pdf(&html, entry.sanitize, fonts)
+        let pdf = render_pdf(&html, entry.sanitize, fonts, fixture.parent())
             .map_err(|e| format!("calibration: render probe {} failed: {e}", entry.id))?;
         check_pdf_valid(&pdf)
             .map_err(|e| format!("calibration: probe {} PDF invalid: {e}", entry.id))?;

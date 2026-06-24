@@ -520,6 +520,7 @@ pub(crate) fn layout_block_element(
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
             text_align: style.text_align,
+            writing_mode: style.writing_mode,
             background_color: bg,
             padding_top: style.padding.top,
             padding_bottom: style.padding.bottom,
@@ -770,6 +771,7 @@ pub(crate) fn layout_block_element(
                     margin_top: style.margin.top,
                     margin_bottom: 0.0,
                     text_align: style.text_align,
+                    writing_mode: crate::style::computed::WritingMode::HorizontalTb,
                     background_color: bg,
                     padding_top: 0.0,
                     padding_bottom: 0.0,
@@ -836,6 +838,7 @@ pub(crate) fn layout_block_element(
                         margin_top: -pullback,
                         margin_bottom: 0.0,
                         text_align: TextAlign::Left,
+                        writing_mode: crate::style::computed::WritingMode::HorizontalTb,
                         background_color: None,
                         padding_top: 0.0,
                         padding_bottom: 0.0,
@@ -1029,6 +1032,7 @@ pub(crate) fn layout_block_element(
                         margin_top: bottom_space,
                         margin_bottom: 0.0,
                         text_align: TextAlign::Left,
+                        writing_mode: crate::style::computed::WritingMode::HorizontalTb,
                         background_color: None,
                         padding_top: 0.0,
                         padding_bottom: 0.0,
@@ -1379,6 +1383,7 @@ pub(crate) fn layout_block_element(
                 style.margin.bottom
             },
             text_align: style.text_align,
+            writing_mode: style.writing_mode,
             background_color: if has_block_kids_for_wrapper { None } else { bg },
             padding_top: if has_block_kids_for_wrapper {
                 0.0

@@ -496,6 +496,7 @@ mod tests {
             margin_top: 0.0,
             margin_bottom: 0.0,
             text_align: TextAlign::Left,
+            writing_mode: crate::style::computed::WritingMode::HorizontalTb,
             background_color: None,
             padding_top: 0.0,
             padding_bottom: 0.0,

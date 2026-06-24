@@ -1057,6 +1057,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     text_indent,
                     heading_level,
                     clip_children_count,
+                    writing_mode,
                     ..
                 } => {
                     // Skip rendering if visibility: hidden (but space is preserved)
@@ -1718,6 +1719,42 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     let padding_box_x = block_x + border_left;
                     let padding_box_w = (render_width - border_left - border_right).max(0.0);
 
+                    // CSS `writing-mode: vertical-rl` (css-writing-modes-4 §3.1).
+                    // The box geometry stays physical/axis-aligned (already laid
+                    // out above); only the inline text is set vertically. With the
+                    // default `text-orientation: mixed`, Latin runs are rotated 90°
+                    // clockwise (set sideways) and flow top-to-bottom in the first
+                    // (right-most) column.
+                    //
+                    // We lay the run out horizontally as usual, then apply a single
+                    // `cm` that rotates 90° clockwise (PDF `[0 -1 1 0]`, which maps
+                    // local +x→PDF −y "down" and local +y→PDF +x "right") and
+                    // translates so the horizontal text's content-top-left anchors
+                    // at the content box and the column hugs the right edge. The
+                    // wrapper is scoped to the glyph-drawing loop only, so the
+                    // background/border/outline (painted earlier) stay upright.
+                    let vertical = matches!(
+                        writing_mode,
+                        crate::style::computed::WritingMode::VerticalRl
+                    );
+                    if vertical {
+                        // Content-box edges in PDF (y-up) coordinates. `text_y`
+                        // currently sits at the content-area top (block_y − top
+                        // border − top padding) before any line advance.
+                        let content_top = text_y;
+                        let content_right = padding_box_x + padding_box_w - padding_right;
+                        let content_left = padding_box_x + padding_left;
+                        // matrix maps (gx, gy) → (gy + e, −gx + f):
+                        //   glyph top (gy = content_top) → X = content_right (column
+                        //     hugs the right edge), and
+                        //   text start (gx = content_left) → Y = content_top (text
+                        //     begins at the top of the column, flowing downward).
+                        let e = content_right - content_top;
+                        let f = content_top + content_left;
+                        content.push_str("q\n");
+                        content.push_str(&format!("0 -1 1 0 {e} {f} cm\n"));
+                    }
+
                     let line_count = lines.len();
                     for (line_idx, line) in lines.iter().enumerate() {
                         let metrics = line_box_metrics(line, custom_fonts);
@@ -1958,6 +1995,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         text_y -= metrics.descender + metrics.half_leading;
+                    }
+
+                    // Close the `vertical-rl` rotation wrapper opened before the
+                    // line loop (scoped to glyph drawing only).
+                    if vertical {
+                        content.push_str("Q\n");
                     }
 
                     // Reset opacity if it was changed
@@ -11840,6 +11883,7 @@ mod tests {
             margin_top: 0.0,
             margin_bottom: 0.0,
             text_align: TextAlign::Left,
+            writing_mode: crate::style::computed::WritingMode::HorizontalTb,
             background_color: None,
             padding_top: 0.0,
             padding_bottom: 0.0,

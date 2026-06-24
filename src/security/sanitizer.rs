@@ -128,13 +128,23 @@ fn remove_dangerous_urls(css: &str) -> String {
     while let Some(pos) = remaining.to_ascii_lowercase().find("url(") {
         result.push_str(&remaining[..pos]);
         let after = &remaining[pos + 4..];
-        // Check if it's a data: URI or a same-document fragment reference
-        // `url(#id)` (both safe) versus an external resource (remove). A
-        // fragment reference names an in-document element (e.g. an SVG
-        // `<filter>` for `filter: url(#id)`, css-filter-effects-1 §3); it cannot
-        // load external content or exfiltrate data, so it is preserved.
+        // Decide whether this `url()` is safe to KEEP. Safe references:
+        //   * `data:` URIs (inline, no network),
+        //   * same-document fragment references `url(#id)` (e.g. an SVG
+        //     `<filter>` for `filter: url(#id)`, css-filter-effects-1 §3), and
+        //   * LOCAL relative resource paths (e.g. an `@font-face`
+        //     `src: url('../fonts/F.ttf')`). These resolve against the
+        //     caller-controlled base directory and cannot fetch from the network
+        //     or exfiltrate data, so removing them would silently break
+        //     legitimate local fonts/assets.
+        // Removed (dangerous) references are external/network resources —
+        // `http:`/`https:`, protocol-relative `//host/...`, and `file:`/other
+        // explicit schemes — which a tracking pixel could use to phone home.
         let trimmed = after.trim_start().trim_start_matches(['\'', '"']);
-        if trimmed.starts_with("data:") || trimmed.starts_with('#') {
+        if trimmed.starts_with("data:")
+            || trimmed.starts_with('#')
+            || is_local_relative_url(trimmed)
+        {
             result.push_str("url(");
             remaining = after;
         } else {
@@ -148,6 +158,43 @@ fn remove_dangerous_urls(css: &str) -> String {
     }
     result.push_str(remaining);
     result
+}
+
+/// Returns `true` when a `url(...)` body (already stripped of leading quotes and
+/// whitespace) is a LOCAL, RELATIVE resource path that is safe to keep through
+/// sanitization — i.e. it cannot trigger a network fetch.
+///
+/// Rejects (as non-local): any explicit URL scheme such as `http:`/`https:`/
+/// `file:`/`ftp:` (a `scheme:` prefix before any `/`), protocol-relative
+/// `//host/...`, and OS-absolute paths (`/etc/...`). Everything else — a bare
+/// relative path like `../fonts/F.ttf` or `fonts/F.ttf` — is treated as local.
+fn is_local_relative_url(s: &str) -> bool {
+    let s = s.trim();
+    if s.is_empty() {
+        return false;
+    }
+    // Protocol-relative `//host/...` is a network reference.
+    if s.starts_with("//") {
+        return false;
+    }
+    // OS-absolute path.
+    if s.starts_with('/') {
+        return false;
+    }
+    // Explicit scheme `name:` appearing before the first path separator
+    // (e.g. `http:`, `https:`, `file:`, `data:` is handled by the caller).
+    if let Some(colon) = s.find(':') {
+        let before = &s[..colon];
+        let is_scheme = !before.is_empty()
+            && before
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+            && !before.contains('/');
+        if is_scheme {
+            return false;
+        }
+    }
+    true
 }
 
 fn remove_event_handlers(html: &str) -> String {
@@ -486,6 +533,42 @@ mod tests {
         assert!(sanitize_html(quoted).unwrap().contains("url(\"#sat\")"));
         let external = r#"<style>.b { background: url(http://evil.com/x.png); }</style>"#;
         assert!(!sanitize_html(external).unwrap().contains("url(http"));
+    }
+
+    #[test]
+    fn local_relative_font_face_url_preserved() {
+        // A relative `@font-face` `src: url('../fonts/F.ttf')` is a LOCAL resource
+        // (resolved against the caller-controlled base dir) and must survive
+        // sanitization so the font can load — while remote/absolute references
+        // are still stripped.
+        let css = r#"<style>@font-face { font-family: F; src: url('../fonts/F.ttf'); }</style>"#;
+        assert!(
+            sanitize_html(css)
+                .unwrap()
+                .contains("url('../fonts/F.ttf')")
+        );
+
+        let bare = r#"<style>@font-face { font-family: F; src: url(fonts/F.ttf); }</style>"#;
+        assert!(sanitize_html(bare).unwrap().contains("url(fonts/F.ttf)"));
+
+        // Remote, protocol-relative, and absolute paths remain dangerous.
+        let remote = r#"<style>@font-face { src: url(https://evil.com/F.ttf); }</style>"#;
+        assert!(!sanitize_html(remote).unwrap().contains("url(http"));
+        let proto_rel = r#"<style>@font-face { src: url(//evil.com/F.ttf); }</style>"#;
+        assert!(!sanitize_html(proto_rel).unwrap().contains("url(//"));
+    }
+
+    #[test]
+    fn is_local_relative_url_classification() {
+        assert!(is_local_relative_url("../fonts/F.ttf"));
+        assert!(is_local_relative_url("fonts/F.ttf"));
+        assert!(is_local_relative_url("F.ttf"));
+        assert!(!is_local_relative_url("http://x/F.ttf"));
+        assert!(!is_local_relative_url("https://x/F.ttf"));
+        assert!(!is_local_relative_url("//x/F.ttf"));
+        assert!(!is_local_relative_url("/etc/passwd"));
+        assert!(!is_local_relative_url("file:///etc/passwd"));
+        assert!(!is_local_relative_url(""));
     }
 
     #[test]

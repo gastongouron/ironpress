@@ -493,11 +493,22 @@ impl HtmlConverter {
             let ttf_data = if is_remote {
                 fetch_remote_bytes(&ff_rule.src_path)
             } else if let Some(ref base) = self.base_path {
-                let font_path = base.join(&ff_rule.src_path);
-                if !parser::css::is_path_within(&font_path, base) {
-                    continue;
+                // Resolve the (relative) `src: url(...)` against the document
+                // base directory, exactly as a browser resolves a font URL
+                // against the stylesheet location. A relative URL may legitimately
+                // climb out of the immediate directory (e.g. `../fonts/F.ttf`), so
+                // we do NOT subtree-jail it the way `@import` is jailed; instead we
+                // reject ABSOLUTE `src` paths (which untrusted CSS could otherwise
+                // point at arbitrary files) and rely on the readable-file +
+                // `parse_ttf` validation below to discard anything that is not a
+                // genuine font. The base directory itself is caller-controlled, so
+                // resolving relative URLs against it is the trusted-input contract.
+                let src = std::path::Path::new(&ff_rule.src_path);
+                if src.is_absolute() {
+                    None
+                } else {
+                    std::fs::read(base.join(src)).ok()
                 }
-                std::fs::read(&font_path).ok()
             } else {
                 None
             };

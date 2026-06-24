@@ -354,8 +354,10 @@ fn process_entry(
         r
     };
 
-    // In-process render at Chrome-matching geometry.
-    let pdf = match render_pdf(&html, entry.sanitize, fonts) {
+    // In-process render at Chrome-matching geometry. The fixture's own directory
+    // is the base for resolving relative resource URLs (e.g. `@font-face` `src`).
+    let base_path = fixture.parent();
+    let pdf = match render_pdf(&html, entry.sanitize, fonts, base_path) {
         Ok(p) => p,
         Err(e) => return with_sha(fixture_fail(entry, 100.0, format!("render error: {e}"))),
     };

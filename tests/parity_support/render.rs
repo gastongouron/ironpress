@@ -19,12 +19,22 @@ pub(crate) fn render_pdf(
     html: &str,
     sanitize: bool,
     fonts: &[(&'static str, Vec<u8>)],
+    base_path: Option<&std::path::Path>,
 ) -> Result<Vec<u8>, String> {
     use ironpress::{HtmlConverter, Margin, PageSize};
     let mut conv = HtmlConverter::new()
         .page_size(PageSize::LETTER)
         .margin(Margin::uniform(28.8))
         .sanitize(sanitize);
+
+    // Resolve a fixture's relative resource URLs (e.g. `@font-face { src:
+    // url('../../fonts/ParitySerif.ttf') }`) against the fixture's own directory,
+    // exactly as the reference rasterizer did when it loaded that font from disk.
+    // This is a determinism fix — it gives ironpress the SAME font input the
+    // ref-gen had — not a comparator/threshold change.
+    if let Some(base) = base_path {
+        conv = conv.base_path(base);
+    }
 
     // Register the bundled deterministic Parity faces (DejaVu Sans/Serif/Mono
     // renamed) so in-process rendering uses the SAME outlines Chrome uses via
