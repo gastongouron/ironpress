@@ -112,6 +112,20 @@ impl TtfFont {
         self.glyph_width(glyph_id)
     }
 
+    /// The actual glyph bounding-box top (`yMax`) for `ch`, as a fraction of the
+    /// em. Used to seat a floated `::first-letter` drop cap so its visual cap top
+    /// aligns with the surrounding line's text top (css-pseudo-4 §2.2): the font
+    /// ascender overshoots the glyph (it reserves accent space), so aligning by
+    /// ascender would push the drop cap too low. Returns `None` when the glyph has
+    /// no outline/bounds (e.g. whitespace) so the caller can fall back.
+    pub fn glyph_top_ratio(&self, ch: char) -> Option<f32> {
+        if self.units_per_em == 0 {
+            return None;
+        }
+        let y_max = measure_glyph_y_max(&self.data, ch)?;
+        Some(f32::from(y_max) / f32::from(self.units_per_em))
+    }
+
     /// x-height as a fraction of the em (css-values-4 §6.1.1 `ex`). Falls back
     /// to the CSS-recommended 0.5em when the metric could not be determined.
     pub fn x_height_ratio(&self) -> f32 {

@@ -1944,6 +1944,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             custom_fonts,
                             &prepared_custom_fonts,
                             total_ws,
+                            line_text_top(line, custom_fonts),
                         );
 
                         // Reset letter spacing after line
@@ -6142,11 +6143,19 @@ fn render_container_children(
                                 content.push_str("/GSDefault gs\n");
                             }
                         }
+                        // A floated `::first-letter` drop cap is lowered so its
+                        // glyph top sits on the line's text top (css-pseudo-4 §2.2).
+                        let run_y = text_y
+                            + drop_cap_baseline_shift(
+                                run,
+                                line_text_top(line, custom_fonts),
+                                custom_fonts,
+                            );
                         let rw = render_run_text(
                             content,
                             run,
                             lx,
-                            text_y,
+                            run_y,
                             custom_fonts,
                             prepared_custom_fonts,
                             0.0,
@@ -8517,11 +8526,13 @@ fn render_inline_box(
             custom_fonts,
             prepared_custom_fonts,
             0.0,
+            line_text_top(line, custom_fonts),
         );
         inner_y -= metrics.descender + metrics.half_leading;
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_line_text(
     content: &mut String,
     runs: &[TextRun],
@@ -8530,6 +8541,9 @@ fn render_line_text(
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
+    // Line box ascent above the baseline, used to seat a drop-cap glyph's top on
+    // the line's text top. The drop cap is excluded from this value.
+    line_ascender: f32,
 ) {
     // Keep text runs plus any atomic inline boxes (empty text but real advance).
     let non_empty: Vec<&TextRun> = runs
@@ -8570,8 +8584,12 @@ fn render_line_text(
             content.push_str(&format!("{r} {g} {b} rg\n"));
             content.push_str(&format!("/{font_name} {} Tf\n", run.font_size));
             // css2 §10.8: `vertical-align: super`/`sub` raise/lower a text run
-            // off the line baseline by a fraction of its own font size.
-            let target_baseline = y + run_vertical_align_shift(run);
+            // off the line baseline by a fraction of its own font size. A floated
+            // `::first-letter` drop cap is additionally lowered so its glyph top
+            // sits on the line's text top (css-pseudo-4 §2.2).
+            let target_baseline = y
+                + run_vertical_align_shift(run)
+                + drop_cap_baseline_shift(run, line_ascender, custom_fonts);
             if first {
                 content.push_str(&format!(
                     "{} {} Td\n",
@@ -8603,11 +8621,14 @@ fn render_line_text(
                 x += inline.outer_width();
                 continue;
             }
+            // A floated `::first-letter` drop cap is lowered so its glyph top
+            // sits on the line's text top (css-pseudo-4 §2.2).
+            let run_y = y + drop_cap_baseline_shift(run, line_ascender, custom_fonts);
             let run_width = render_run_text(
                 content,
                 run,
                 x,
-                y,
+                run_y,
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
@@ -8634,6 +8655,65 @@ fn run_vertical_align_shift(run: &TextRun) -> f32 {
     }
 }
 
+/// True when a run is a floated `::first-letter` drop cap (css-pseudo-4 §2.2 +
+/// css2 §9.5). The drop cap is the only text run whose line-height factor was
+/// deliberately capped below the surrounding line (`apply_first_letter_style`
+/// sets it to `block_line_height / cap_font_size`, well under 1) so the enlarged
+/// glyph overflows its line box instead of inflating it.
+fn is_drop_cap_run(run: &TextRun) -> bool {
+    run.inline_box.is_none() && run.line_height_factor.is_finite() && run.line_height_factor < 0.9
+}
+
+/// The visual top of a run's glyphs above the baseline, in points. Prefers the
+/// actual glyph bounding-box top (`yMax`) of the run's first letter so accent
+/// space reserved by the font ascender is excluded; falls back to the ascender
+/// metric when the glyph has no measurable outline.
+fn run_glyph_top(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+    let ch = run.text.chars().find(|c| !c.is_whitespace());
+    if let (Some(ch), FontFamily::Custom(name)) = (ch, &run.font_family)
+        && let Some((_, ttf)) =
+            crate::system_fonts::find_font(custom_fonts, name, run.bold, run.italic)
+        && let Some(ratio) = ttf.glyph_top_ratio(ch)
+    {
+        return ratio * run.font_size;
+    }
+    let (ascender_ratio, _) =
+        crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, custom_fonts);
+    ascender_ratio * run.font_size
+}
+
+/// Extra baseline offset (PDF up-positive) for a drop-cap run so its glyph TOP
+/// aligns with the TOP of the surrounding first line's text, then drops downward
+/// across the spanned lines — matching how browsers position a floated
+/// `::first-letter` (css-pseudo-4 §2.2). Painted at the line baseline a cap-sized
+/// glyph would overflow far ABOVE the box; lowering it so its glyph top meets the
+/// line's text top seats it correctly. `line_text_top` is the surrounding line's
+/// glyph top above the baseline (the drop cap is excluded from it).
+fn drop_cap_baseline_shift(
+    run: &TextRun,
+    line_text_top: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    if !is_drop_cap_run(run) {
+        return 0.0;
+    }
+    let cap_top = run_glyph_top(run, custom_fonts);
+    // Negative => move the glyph DOWN (PDF y grows up). Never raise it above the
+    // line top (clamp at 0) so a small/normal-sized first-letter is unaffected.
+    (line_text_top - cap_top).min(0.0)
+}
+
+/// The surrounding (non-drop-cap) text's glyph top above the baseline for a line,
+/// in points — the reference the drop-cap glyph top is seated against. Zero when
+/// the line carries no ordinary text runs.
+fn line_text_top(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+    line.runs
+        .iter()
+        .filter(|r| r.inline_box.is_none() && !is_drop_cap_run(r) && !r.text.trim().is_empty())
+        .map(|r| run_glyph_top(r, custom_fonts))
+        .fold(0.0f32, f32::max)
+}
+
 #[derive(Clone, Copy)]
 struct LineBoxMetrics {
     ascender: f32,
@@ -8642,7 +8722,7 @@ struct LineBoxMetrics {
 }
 
 fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> LineBoxMetrics {
-    let (mut ascender, descender) = line
+    let (ascender, descender) = line
         .runs
         .iter()
         .filter(|r| r.inline_box.is_none())
@@ -8668,14 +8748,28 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 max_descender.max(descender_ratio * run.font_size - shift),
             )
         });
+    // The block's strut establishes the line box BEFORE inline-level boxes are
+    // aligned (CSS2 §10.8): the requested `line.height` is split into the text's
+    // ascent/descent plus symmetric half-leading. The baseline therefore sits at
+    // `strut_above = text_ascent + half_leading` below the line-box top. When the
+    // line-height already exceeds the text's content extent, that leading is real
+    // space ABOVE/BELOW the baseline that an inline box may occupy WITHOUT growing
+    // the line box or moving the baseline. We fold the half-leading into the
+    // returned ascent/descent (and report `half_leading = 0`) so downstream
+    // `ascender + half_leading` / `descender + half_leading` sums are unchanged
+    // for pure text, while a baseline box only pushes the baseline when it pokes
+    // past the strut's leading-padded edges (matching Chrome).
+    let strut_half_leading = (line.height - (ascender + descender)) / 2.0;
+    let mut above = ascender + strut_half_leading;
+    let mut below = descender + strut_half_leading;
+
     // A baseline-aligned inline box contributes `baseline_ascent` above the line
-    // baseline and `height - baseline_ascent` below it (CSS2 §10.8.1), so it
-    // raises both the line's ascent and descent when it extends past the
-    // surrounding text. A box without a content baseline sits entirely above the
-    // baseline (its bottom edge rests on it). Top/middle/bottom boxes don't move
-    // the baseline; they only widen the line box, which `line.height` already
-    // reflects from the wrap pass.
-    let mut descender = descender;
+    // baseline and `height - baseline_ascent` below it (CSS2 §10.8.1). It raises
+    // the line's ascent/descent ONLY when it extends past the strut's edges; a box
+    // that fits inside the existing leading leaves the baseline put. A box without
+    // a content baseline sits entirely above the baseline (its bottom edge rests
+    // on it). Top/middle/bottom boxes don't move the baseline; they only widen the
+    // line box, which `line.height` already reflects from the wrap pass.
     for run in &line.runs {
         if let Some(inline) = run.inline_box.as_deref()
             && matches!(
@@ -8688,7 +8782,7 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
             let box_descent = (inline.height - box_ascent).max(0.0);
             // Sub/super shift the box's baseline relative to the line baseline,
             // moving its extents by a fraction of the run font size.
-            let (above, below) = match inline.vertical_align {
+            let (box_above, box_below) = match inline.vertical_align {
                 VerticalAlign::Sub => (
                     box_ascent - run.font_size * SUB_SHIFT_RATIO,
                     box_descent + run.font_size * SUB_SHIFT_RATIO,
@@ -8699,16 +8793,15 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 ),
                 _ => (box_ascent, box_descent),
             };
-            ascender = ascender.max(above.max(0.0));
-            descender = descender.max(below.max(0.0));
+            above = above.max(box_above.max(0.0));
+            below = below.max(box_below.max(0.0));
         }
     }
-    let half_leading = (line.height - (ascender + descender)) / 2.0;
 
     LineBoxMetrics {
-        ascender,
-        descender,
-        half_leading,
+        ascender: above,
+        descender: below,
+        half_leading: 0.0,
     }
 }
 
