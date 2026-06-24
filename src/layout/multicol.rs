@@ -17,9 +17,16 @@
 //! - `column-span: all` — a child spans every column as a full-width band that
 //!   breaks the balanced flow (content before/after balances independently).
 //! - `column-fill`: `balance` (default, equal column heights) and `auto`
-//!   (sequential fill to the container height, last column short).
-//! - `break-inside: avoid` is honored implicitly: each top-level child is an
-//!   atomic unit that is never split across a column boundary.
+//!   (sequential fill to the container height, last column short). Under
+//!   `auto` with a definite height, a simple block box that crosses a column
+//!   boundary is *fragmented* (css-break-3 + css-multicol-1): the part that
+//!   fits stays at the bottom of column N and the remainder continues at the
+//!   top of N+1, with `box-decoration-break: slice` borders at the cut.
+//! - Margins adjoining a column fragmentation break are truncated (css-break-3
+//!   §4.2): the trailing `margin-bottom` of the last box in every column except
+//!   the last (in document order) is dropped from the column's used height.
+//! - In the `balance` path each top-level child is an atomic unit that is never
+//!   split across a column boundary (so `break-inside: avoid` is honored).
 
 use crate::parser::css::AncestorInfo;
 use crate::parser::dom::{DomNode, ElementNode};
@@ -36,8 +43,47 @@ struct MultiColItem {
     elements: Vec<LayoutElement>,
     /// Outer (margin-box) height used for balancing.
     height: f32,
+    /// The item's trailing `margin-bottom` (the last in-flow element's bottom
+    /// margin). Truncated at a column-fragment break per css-break-3 §4.2.
+    margin_bottom: f32,
     /// `column-span: all` — render as a full-width band, not inside a column.
     span_all: bool,
+}
+
+/// The trailing `margin-bottom` of a laid-out item: the bottom margin of its
+/// last in-flow (non-absolute) layout element, which is what adjoins a column
+/// fragmentation break. Returns 0.0 for elements that carry no bottom margin.
+fn element_trailing_margin_bottom(elements: &[LayoutElement]) -> f32 {
+    for el in elements.iter().rev() {
+        match el {
+            LayoutElement::TextBlock {
+                margin_bottom,
+                position,
+                ..
+            }
+            | LayoutElement::Container {
+                margin_bottom,
+                position,
+                ..
+            } => {
+                if *position == Position::Absolute {
+                    continue;
+                }
+                return *margin_bottom;
+            }
+            LayoutElement::Image { margin_bottom, .. }
+            | LayoutElement::Svg { margin_bottom, .. }
+            | LayoutElement::HorizontalRule { margin_bottom, .. }
+            | LayoutElement::ProgressBar { margin_bottom, .. }
+            | LayoutElement::MathBlock { margin_bottom, .. }
+            | LayoutElement::TableRow { margin_bottom, .. }
+            | LayoutElement::GridRow { margin_bottom, .. }
+            | LayoutElement::FlexRow { margin_bottom, .. } => return *margin_bottom,
+            // No bottom margin to truncate (e.g. PageBreak); skip it.
+            _ => continue,
+        }
+    }
+    0.0
 }
 
 /// Lay out a multi-column container, replacing the previous grid-emulation path.
@@ -155,9 +201,11 @@ pub(crate) fn layout_multicol_container(
             env,
         );
         let height: f32 = buf.iter().map(estimate_element_height).sum();
+        let margin_bottom = element_trailing_margin_bottom(&buf);
         items.push(MultiColItem {
             elements: buf,
             height,
+            margin_bottom,
             span_all,
         });
 
@@ -233,39 +281,102 @@ pub(crate) fn layout_multicol_container(
         }
         let run = &mut items[run_start..i];
 
-        let heights: Vec<f32> = run.iter().map(|it| it.height).collect();
         // `column-fill: auto` with a definite height fills each column to the
-        // content-box height in turn (last column short); otherwise balance.
-        let buckets = match (style.column_fill_auto, explicit_border_box_h) {
-            (true, Some(bh)) => {
-                let fill_h =
-                    (bh - style.padding.top - style.padding.bottom - style.border.vertical_width())
-                        .max(0.0);
-                fill_columns(&heights, num_cols, fill_h)
-            }
-            _ => balance_columns(&heights, num_cols),
+        // content-box height in turn, *fragmenting* a block that crosses a column
+        // boundary (the part that fits stays in column N, the rest continues at
+        // the top of N+1). Only used when every item in the run is a simple,
+        // slice-able block box; otherwise (or for `balance`) fall back to the
+        // atomic bucket distribution.
+        let fill_h_auto = match (style.column_fill_auto, explicit_border_box_h) {
+            (true, Some(bh)) => Some(
+                (bh - style.padding.top - style.padding.bottom - style.border.vertical_width())
+                    .max(0.0),
+            ),
+            _ => None,
         };
+        let use_fragmentation = fill_h_auto.is_some()
+            && num_cols > 1
+            && run.iter().all(item_is_splittable)
+            && !run.is_empty();
 
         let mut run_max_h = 0.0f32;
-        for (c, bucket) in buckets.iter().enumerate() {
-            if bucket.is_empty() {
-                continue;
+        if let (true, Some(fill_h)) = (use_fragmentation, fill_h_auto) {
+            // ---- Fragmenting fill path (column-fill: auto) -----------------
+            let run_indices: Vec<usize> = (0..run.len()).collect();
+            let (frag_cols, used) = fragment_columns_auto(run, &run_indices, num_cols, fill_h);
+            for (c, frags) in frag_cols.iter().enumerate() {
+                if frags.is_empty() {
+                    continue;
+                }
+                run_max_h = run_max_h.max(used[c]);
+                let col_x = pad_left + c as f32 * (col_width + gap);
+                let mut col_kids: Vec<LayoutElement> = Vec::new();
+                for f in frags {
+                    col_kids.push(make_fragment_box(
+                        &run[f.item].elements[0],
+                        0.0,
+                        f.y,
+                        col_width,
+                        f.height,
+                        f.is_first,
+                        f.is_last,
+                    ));
+                }
+                column_children.push(make_column_container(
+                    col_kids,
+                    col_x - bl,
+                    cursor_y - bt,
+                    col_width,
+                    used[c],
+                ));
             }
-            let col_x = pad_left + c as f32 * (col_width + gap);
-            let mut col_kids: Vec<LayoutElement> = Vec::new();
-            let mut col_height = 0.0f32;
-            for &idx in bucket {
-                col_height += run[idx].height;
-                col_kids.append(&mut run[idx].elements);
+        } else {
+            // ---- Atomic bucket path (balance, or non-slice-able auto) ------
+            let heights: Vec<f32> = run.iter().map(|it| it.height).collect();
+            let buckets = match fill_h_auto {
+                Some(fill_h) => fill_columns(&heights, num_cols, fill_h),
+                None => balance_columns(&heights, num_cols),
+            };
+
+            // The last non-empty column in document order is the natural end of
+            // the run's content: its trailing margin is NOT adjoining a
+            // fragmentation break and is kept. Every earlier column ends at a
+            // column break, so the bottom margin of its last item is truncated
+            // (css-break-3 §4.2). This shortens those columns' used height, which
+            // is what the container's auto height (`run_max_h`) is measured
+            // against — matching Chrome.
+            let last_nonempty_col = buckets
+                .iter()
+                .rposition(|b| !b.is_empty())
+                .unwrap_or(usize::MAX);
+
+            for (c, bucket) in buckets.iter().enumerate() {
+                if bucket.is_empty() {
+                    continue;
+                }
+                let col_x = pad_left + c as f32 * (col_width + gap);
+                let mut col_kids: Vec<LayoutElement> = Vec::new();
+                let mut col_height = 0.0f32;
+                for &idx in bucket {
+                    col_height += run[idx].height;
+                    col_kids.append(&mut run[idx].elements);
+                }
+                // Used column height for sizing: drop the trailing margin at a break.
+                let used_col_height = if c != last_nonempty_col {
+                    let last_idx = *bucket.last().unwrap();
+                    (col_height - run[last_idx].margin_bottom).max(0.0)
+                } else {
+                    col_height
+                };
+                run_max_h = run_max_h.max(used_col_height);
+                column_children.push(make_column_container(
+                    col_kids,
+                    col_x - bl,
+                    cursor_y - bt,
+                    col_width,
+                    col_height,
+                ));
             }
-            run_max_h = run_max_h.max(col_height);
-            column_children.push(make_column_container(
-                col_kids,
-                col_x - bl,
-                cursor_y - bt,
-                col_width,
-                col_height,
-            ));
         }
 
         // Record one rule span per gap for this run; the final height is decided
@@ -463,14 +574,13 @@ fn balance_columns(heights: &[f32], num_cols: usize) -> Vec<Vec<usize>> {
     buckets
 }
 
-/// Assign items to columns for `column-fill: auto`: fill each column with items
-/// (in document order) up to `fill_h`, then move to the next column. The last
-/// column is left short. Items are atomic (never split across a column boundary):
-/// a block whose addition would overflow the current non-empty column instead
-/// starts the next one. (Chrome fragments the crossing block across the boundary;
-/// modelling that whole-block split is out of scope, so the atomic packing keeps
-/// every block intact within one column.) Overflow past the last column piles
-/// into it.
+/// Atomic `column-fill: auto` fallback (used when a run contains a non-slice-able
+/// item, e.g. an image or table): fill each column with whole items in document
+/// order up to `fill_h`, then move to the next column; the last column is left
+/// short. A block whose addition would overflow the current non-empty column
+/// instead starts the next one (never split). The slice-able common case is
+/// handled by [`fragment_columns_auto`], which fragments the crossing block.
+/// Overflow past the last column piles into it.
 fn fill_columns(heights: &[f32], num_cols: usize, fill_h: f32) -> Vec<Vec<usize>> {
     let n = heights.len();
     if num_cols <= 1 || n == 0 || fill_h <= 0.0 {
@@ -488,6 +598,121 @@ fn fill_columns(heights: &[f32], num_cols: usize, fill_h: f32) -> Vec<Vec<usize>
         col_h += h;
     }
     buckets
+}
+
+/// One placed fragment of an item inside a column for `column-fill: auto`.
+struct AutoFragment {
+    /// Index into the run of the source item this fragment belongs to.
+    item: usize,
+    /// Border-box top of the fragment, relative to the column content top (px).
+    y: f32,
+    /// Border-box height of this fragment (px).
+    height: f32,
+    /// This fragment contains the item's top edge (first slice → keep top border).
+    is_first: bool,
+    /// This fragment contains the item's bottom edge (last slice → keep bottom
+    /// border + the item's trailing margin extends below it within the column).
+    is_last: bool,
+}
+
+/// Distribute items across `num_cols` for `column-fill: auto`, *fragmenting* a
+/// block that crosses a column boundary (css-break-3 + css-multicol-1): the part
+/// that fits stays at the bottom of column N, the remainder continues at the top
+/// of column N+1. Each column is filled to `fill_h` before the next is started.
+///
+/// A box's content height is its border-box height (`item.height - margin`); the
+/// trailing margin follows the box and is *truncated* if it would cross the
+/// column bottom (a margin adjoining a fragmentation break is dropped). Splitting
+/// follows `box-decoration-break: slice`: the top slice keeps the top border, the
+/// bottom slice keeps the bottom border, and the cut edge gets neither.
+///
+/// Returns one `Vec<AutoFragment>` per column (in document order) plus the used
+/// content height of each column (the bottom of its last fragment, including a
+/// kept trailing margin).
+fn fragment_columns_auto(
+    items: &[MultiColItem],
+    indices: &[usize],
+    num_cols: usize,
+    fill_h: f32,
+) -> (Vec<Vec<AutoFragment>>, Vec<f32>) {
+    let mut cols: Vec<Vec<AutoFragment>> = (0..num_cols).map(|_| Vec::new()).collect();
+    let mut used: Vec<f32> = vec![0.0; num_cols];
+    if num_cols == 0 || fill_h <= 0.0 {
+        // Degenerate: pile everything into column 0 unfragmented.
+        let mut y = 0.0f32;
+        for &idx in indices {
+            let h = (items[idx].height - items[idx].margin_bottom).max(0.0);
+            cols[0].push(AutoFragment {
+                item: idx,
+                y,
+                height: h,
+                is_first: true,
+                is_last: true,
+            });
+            y += items[idx].height;
+        }
+        used[0] = y;
+        return (cols, used);
+    }
+
+    let mut col = 0usize;
+    let mut y = 0.0f32; // border-box fill cursor within the current column
+    for &idx in indices {
+        let margin = items[idx].margin_bottom.max(0.0);
+        let box_h = (items[idx].height - margin).max(0.0);
+        let mut remaining = box_h;
+        let mut first_slice = true;
+        // Place the box, splitting across columns as needed.
+        loop {
+            let space = fill_h - y;
+            // Start a new column when the current one is full and this is not the
+            // last column (the last column absorbs any overflow).
+            if space <= 0.01 && col + 1 < num_cols {
+                col += 1;
+                y = 0.0;
+                continue;
+            }
+            let space = fill_h - y;
+            let last_col = col + 1 >= num_cols;
+            let take = if last_col {
+                remaining
+            } else {
+                remaining.min(space.max(0.0))
+            };
+            let is_last_slice = (remaining - take).abs() <= 0.01 || last_col;
+            cols[col].push(AutoFragment {
+                item: idx,
+                y,
+                height: take,
+                is_first: first_slice,
+                is_last: is_last_slice,
+            });
+            y += take;
+            used[col] = used[col].max(y);
+            remaining -= take;
+            first_slice = false;
+            if remaining <= 0.01 || last_col {
+                break;
+            }
+            // Box continues in the next column.
+            col += 1;
+            y = 0.0;
+        }
+        // Trailing margin follows the box: kept if it fits in the column, else
+        // truncated at the fragmentation break (do not carry it to the next col).
+        if margin > 0.0 {
+            if y + margin <= fill_h + 0.01 || col + 1 >= num_cols {
+                y += margin;
+                used[col] = used[col].max(y);
+            } else {
+                // Margin adjoins the column break → truncated; next item starts a
+                // fresh column at the top.
+                col += 1;
+                y = 0.0;
+            }
+        }
+    }
+    (cols, used)
 }
 
 /// Resolve the used number of columns and per-column width from the
@@ -524,6 +749,110 @@ fn make_column_container(
     height: f32,
 ) -> LayoutElement {
     empty_abs_container(kids, off_left, off_top, width, height, None)
+}
+
+/// Whether an item is a single block box (one Container or TextBlock) that the
+/// `column-fill: auto` fragmenter can geometrically slice across a column break.
+/// Anything else (multiple flattened elements, images, tables, …) is treated as
+/// atomic and never split.
+fn item_is_splittable(item: &MultiColItem) -> bool {
+    item.elements.len() == 1
+        && matches!(
+            item.elements[0],
+            LayoutElement::Container { .. } | LayoutElement::TextBlock { .. }
+        )
+}
+
+/// Build one positioned fragment box for a `column-fill: auto` slice of an item.
+///
+/// Clones the item's single block element, repositions it as an absolute box at
+/// `off_top` (column-content-relative), forces its border-box height to the slice
+/// height, and applies `box-decoration-break: slice` borders: the first slice
+/// keeps the top border, the last slice keeps the bottom border, and any cut edge
+/// drops its border. The slice is clipped to its own box so inner content does
+/// not spill past the cut.
+fn make_fragment_box(
+    src: &LayoutElement,
+    off_left: f32,
+    off_top: f32,
+    width: f32,
+    height: f32,
+    is_first: bool,
+    is_last: bool,
+) -> LayoutElement {
+    let mut el = src.clone();
+    match &mut el {
+        LayoutElement::Container {
+            border,
+            block_width,
+            block_height,
+            margin_top,
+            margin_bottom,
+            position,
+            offset_top,
+            offset_left,
+            overflow,
+            overflow_x,
+            overflow_y,
+            padding_top,
+            padding_bottom,
+            ..
+        } => {
+            if !is_first {
+                border.top = crate::layout::engine::LayoutBorderSide::default();
+                *padding_top = 0.0;
+            }
+            if !is_last {
+                border.bottom = crate::layout::engine::LayoutBorderSide::default();
+                *padding_bottom = 0.0;
+            }
+            *block_width = Some(width);
+            *block_height = Some(height);
+            *margin_top = 0.0;
+            *margin_bottom = 0.0;
+            *position = Position::Absolute;
+            *offset_top = off_top;
+            *offset_left = off_left;
+            // Clip the slice to its box so any inner content respects the cut.
+            *overflow = crate::style::computed::Overflow::Hidden;
+            *overflow_x = crate::style::computed::Overflow::Hidden;
+            *overflow_y = crate::style::computed::Overflow::Hidden;
+        }
+        LayoutElement::TextBlock {
+            border,
+            block_width,
+            block_height,
+            margin_top,
+            margin_bottom,
+            position,
+            offset_top,
+            offset_left,
+            padding_top,
+            padding_bottom,
+            clip_rect,
+            ..
+        } => {
+            if !is_first {
+                border.top = crate::layout::engine::LayoutBorderSide::default();
+                *padding_top = 0.0;
+            }
+            if !is_last {
+                border.bottom = crate::layout::engine::LayoutBorderSide::default();
+                *padding_bottom = 0.0;
+            }
+            *block_width = Some(width);
+            *block_height = Some(height);
+            *margin_top = 0.0;
+            *margin_bottom = 0.0;
+            *position = Position::Absolute;
+            *offset_top = off_top;
+            *offset_left = off_left;
+            // Clip the slice to its box so any text outside the cut is hidden.
+            *clip_rect = Some((off_left, off_top, width, height));
+        }
+        _ => {}
+    }
+    el
 }
 
 /// Build a full-width band (for `column-span: all`) at the current cursor.
