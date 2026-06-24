@@ -1,4 +1,5 @@
 use crate::parser::css::CssRule;
+use crate::parser::dom::ElementNode;
 use crate::parser::ttf::TtfFont;
 use std::collections::HashMap;
 
@@ -12,6 +13,10 @@ pub(crate) struct LayoutEnv<'a> {
     pub rules: &'a [CssRule],
     pub fonts: &'a HashMap<String, TtfFont>,
     pub counter_state: &'a mut CounterState,
+    /// Document-wide `id -> element` map used to resolve `filter: url(#id)`
+    /// (css-filter-effects-1 §3) to the inline SVG `<filter>` element. Built
+    /// once over the whole DOM before the traversal begins.
+    pub filter_defs: &'a HashMap<String, ElementNode>,
 }
 
 /// Containing block information for `position: absolute` elements.

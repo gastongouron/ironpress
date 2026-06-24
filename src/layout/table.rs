@@ -590,6 +590,7 @@ pub(crate) fn flatten_table(
 ) {
     let rules = env.rules;
     let fonts = env.fonts;
+    let filter_defs = env.filter_defs;
     let counter_state = &mut *env.counter_state;
     let inner_width = resolve_table_inner_width(style, available_width);
 
@@ -945,6 +946,7 @@ pub(crate) fn flatten_table(
                             None,
                             rules,
                             fonts,
+                            filter_defs,
                             false,
                             recurse_descendants,
                             recurse_descendants,
@@ -1356,6 +1358,7 @@ pub(crate) fn flatten_table(
                 None,
                 rules,
                 fonts,
+                filter_defs,
                 false,
                 recurse_descendants,
                 recurse_descendants,
@@ -1661,6 +1664,7 @@ pub(crate) fn flatten_table(
             None,
             rules,
             fonts,
+            filter_defs,
             false,
             false,
             true,
@@ -1848,6 +1852,7 @@ fn collect_table_cell_content_inner(
     link_url: Option<&str>,
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
+    filter_defs: &HashMap<String, ElementNode>,
     inline_parent: bool,
     recurse_blocks: bool,
     suppress_direct_text_padding: bool,
@@ -1994,6 +1999,7 @@ fn collect_table_cell_content_inner(
                         rules,
                         fonts,
                         counter_state,
+                        filter_defs,
                     };
                     flatten_table(
                         el,
@@ -2036,6 +2042,7 @@ fn collect_table_cell_content_inner(
                         rules,
                         fonts,
                         counter_state,
+                        filter_defs,
                     };
                     flatten_element(
                         el,
@@ -2064,6 +2071,7 @@ fn collect_table_cell_content_inner(
                             url,
                             rules,
                             fonts,
+                            filter_defs,
                             collects_as_inline_text(el.tag),
                             recurse_blocks,
                             false,

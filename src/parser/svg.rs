@@ -960,6 +960,158 @@ fn parse_svg_reference_id(raw: &str) -> Option<String> {
     parse_svg_paint_server_reference(trimmed)
 }
 
+/// Resolve a CSS `filter: url(#id)` reference (css-filter-effects-1 §3) against
+/// an SVG `<filter>` `ElementNode`, reading its `feColorMatrix` primitives and
+/// mapping each to the equivalent [`ColorFilterOp`] so the existing color-math
+/// (src/layout/images.rs `apply_one_filter`) can apply it.
+///
+/// Supported primitives (SVG filter-effects §15.9 feColorMatrix):
+/// - `type="saturate"`  → `Saturate(values)`   (default amount 1)
+/// - `type="matrix"`    → decoded to the closest [`ColorFilterOp`] when the
+///   20-value matrix is a recognizable luminance/identity form; otherwise the
+///   raw matrix is applied verbatim via [`ColorFilterOp`] is not possible, so it
+///   is skipped.
+/// - `type="luminanceToAlpha"` is skipped (alpha-only; no RGB color change).
+///
+/// Returns `(ordered color ops, use_linear_rgb)`. `use_linear_rgb` reflects the
+/// `color-interpolation-filters` property (SVG filter-effects §13.5), whose
+/// initial value is `linearRGB` — so SVG `<filter>` color math runs in linear
+/// light by default (unlike CSS `filter` *functions*, which operate in sRGB).
+/// An explicit `color-interpolation-filters="sRGB"` on the `<filter>` (or a
+/// primitive) switches it off. The ops list is empty when the element is not a
+/// `<filter>` or contains no understood primitive.
+pub fn filter_element_color_ops(
+    filter_el: &ElementNode,
+) -> (Vec<crate::style::computed::ColorFilterOp>, bool) {
+    use crate::style::computed::ColorFilterOp;
+    let mut ops = Vec::new();
+    if !filter_el.raw_tag_name.eq_ignore_ascii_case("filter") {
+        return (ops, true);
+    }
+    // Default linearRGB; honor `color-interpolation-filters` on the <filter>
+    // (presentation attribute or inline style). A per-primitive override is read
+    // below too; the most specific wins for the primitive that supplies the op.
+    let filter_space_srgb = color_interpolation_filters_is_srgb(filter_el);
+    let mut use_linear_rgb = !filter_space_srgb;
+    for child in &filter_el.children {
+        let DomNode::Element(el) = child else {
+            continue;
+        };
+        if !el.raw_tag_name.eq_ignore_ascii_case("feColorMatrix") {
+            continue;
+        }
+        // A primitive may override the filter's color space; an explicit sRGB on
+        // any contributing primitive disables linearRGB for the whole recolor
+        // (we apply ops as a single composite, so the box uses one space).
+        if color_interpolation_filters_is_srgb(el) {
+            use_linear_rgb = false;
+        }
+        let kind = el
+            .attributes
+            .get("type")
+            .map(|s| s.trim().to_ascii_lowercase())
+            .unwrap_or_else(|| "matrix".to_string());
+        let values = el.attributes.get("values").map(|s| s.as_str());
+        match kind.as_str() {
+            // saturate: a single value (default 1). saturate(0) == grayscale(1).
+            "saturate" => {
+                let amount = values
+                    .and_then(|v| v.split_whitespace().next())
+                    .and_then(|t| t.parse::<f32>().ok())
+                    .unwrap_or(1.0)
+                    .max(0.0);
+                ops.push(ColorFilterOp::Saturate(amount));
+            }
+            // hueRotate: a single value in degrees (default 0).
+            "huerotate" => {
+                let deg = values
+                    .and_then(|v| v.split_whitespace().next())
+                    .and_then(|t| t.parse::<f32>().ok())
+                    .unwrap_or(0.0);
+                ops.push(ColorFilterOp::HueRotate(deg));
+            }
+            // matrix: 20 values. Recognize the common saturate/grayscale form
+            // so we can route it through the existing ColorFilterOp math.
+            "matrix" => {
+                if let Some(v) = values
+                    && let Some(op) = color_matrix_to_op(v)
+                {
+                    ops.push(op);
+                }
+            }
+            // luminanceToAlpha touches alpha only; no RGB recolor to apply.
+            _ => {}
+        }
+    }
+    (ops, use_linear_rgb)
+}
+
+/// True when `color-interpolation-filters` resolves to `sRGB` on this element
+/// (presentation attribute or inline `style`). Absent/`auto`/`linearRGB` →
+/// `false` (linearRGB is the initial value, SVG filter-effects §13.5).
+fn color_interpolation_filters_is_srgb(el: &ElementNode) -> bool {
+    if let Some(v) = el.attributes.get("color-interpolation-filters")
+        && v.trim().eq_ignore_ascii_case("srgb")
+    {
+        return true;
+    }
+    if let Some(style) = el.attributes.get("style") {
+        for decl in split_style_declarations(style) {
+            if let Some((prop, val)) = decl.split_once(':')
+                && prop
+                    .trim()
+                    .eq_ignore_ascii_case("color-interpolation-filters")
+                && val.trim().eq_ignore_ascii_case("srgb")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Decode a 20-value SVG `feColorMatrix type="matrix"` (filter-effects §15.9)
+/// into a [`ColorFilterOp`] when it matches a recognizable luminance-blend form
+/// (identity, grayscale, or saturate). Returns `None` for matrices that cannot
+/// be expressed as one of the existing ops (e.g. arbitrary channel mixes).
+fn color_matrix_to_op(values: &str) -> Option<crate::style::computed::ColorFilterOp> {
+    use crate::style::computed::ColorFilterOp;
+    let m: Vec<f32> = values
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|s| !s.is_empty())
+        .filter_map(|t| t.parse::<f32>().ok())
+        .collect();
+    if m.len() != 20 {
+        return None;
+    }
+    // The saturate(s) matrix (filter-effects §15.9) has the form:
+    //   row R: 0.213+0.787s  0.715-0.715s  0.072-0.072s  0 0
+    //   row G: 0.213-0.213s  0.715+0.285s  0.072-0.072s  0 0
+    //   row B: 0.213-0.213s  0.715-0.715s  0.072+0.928s  0 0
+    // Recover s from m[0] = 0.213 + 0.787 s and verify the rest is consistent.
+    let s = (m[0] - 0.213) / 0.787;
+    let approx = |a: f32, b: f32| (a - b).abs() < 1e-3;
+    let saturate_ok = approx(m[0], 0.213 + 0.787 * s)
+        && approx(m[1], 0.715 - 0.715 * s)
+        && approx(m[2], 0.072 - 0.072 * s)
+        && approx(m[5], 0.213 - 0.213 * s)
+        && approx(m[6], 0.715 + 0.285 * s)
+        && approx(m[7], 0.072 - 0.072 * s)
+        && approx(m[10], 0.213 - 0.213 * s)
+        && approx(m[11], 0.715 - 0.715 * s)
+        && approx(m[12], 0.072 + 0.928 * s)
+        // alpha row is pass-through and offsets are zero
+        && approx(m[18], 1.0)
+        && approx(m[4], 0.0)
+        && approx(m[9], 0.0)
+        && approx(m[14], 0.0)
+        && approx(m[19], 0.0);
+    if saturate_ok {
+        return Some(ColorFilterOp::Saturate(s.max(0.0)));
+    }
+    None
+}
+
 fn svg_translate_from_use(el: &ElementNode) -> Option<SvgTransform> {
     let x = attr_f32(el, "x");
     let y = attr_f32(el, "y");
@@ -2374,6 +2526,58 @@ mod tests {
             attributes,
             children: children.into_iter().map(DomNode::Element).collect(),
         }
+    }
+
+    // ── filter: url(#id) -> feColorMatrix -> ColorFilterOp ─────────────
+
+    fn filter_with(child: ElementNode) -> ElementNode {
+        let mut f = make_el("filter", vec![("id", "f")]);
+        f.children = vec![DomNode::Element(child)];
+        f
+    }
+
+    #[test]
+    fn fecolormatrix_saturate_maps_to_op_and_defaults_to_linear_rgb() {
+        use crate::style::computed::ColorFilterOp;
+        let f = filter_with(make_el(
+            "feColorMatrix",
+            vec![("type", "saturate"), ("values", "0")],
+        ));
+        let (ops, linear) = filter_element_color_ops(&f);
+        assert_eq!(ops, vec![ColorFilterOp::Saturate(0.0)]);
+        // SVG <filter> default color space is linearRGB.
+        assert!(linear);
+    }
+
+    #[test]
+    fn fecolormatrix_srgb_color_space_override() {
+        let mut prim = make_el("feColorMatrix", vec![("type", "saturate"), ("values", "0")]);
+        prim.attributes
+            .insert("color-interpolation-filters".into(), "sRGB".into());
+        let (_, linear) = filter_element_color_ops(&filter_with(prim));
+        assert!(!linear);
+    }
+
+    #[test]
+    fn fecolormatrix_matrix_form_decodes_to_saturate() {
+        use crate::style::computed::ColorFilterOp;
+        // The 20-value saturate(0) matrix == grayscale luminance blend.
+        let m = "0.213 0.715 0.072 0 0 \
+                 0.213 0.715 0.072 0 0 \
+                 0.213 0.715 0.072 0 0 \
+                 0 0 0 1 0";
+        let f = filter_with(make_el(
+            "feColorMatrix",
+            vec![("type", "matrix"), ("values", m)],
+        ));
+        let (ops, _) = filter_element_color_ops(&f);
+        assert!(matches!(ops.as_slice(), [ColorFilterOp::Saturate(s)] if s.abs() < 1e-3));
+    }
+
+    #[test]
+    fn non_filter_element_yields_no_ops() {
+        let (ops, _) = filter_element_color_ops(&make_el("g", vec![]));
+        assert!(ops.is_empty());
     }
 
     // ── parse_length edge cases ────────────────────────────────────────

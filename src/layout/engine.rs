@@ -896,6 +896,20 @@ pub fn layout_with_rules(
     layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new())
 }
 
+/// Walk the DOM and record every element bearing an `id` attribute into
+/// `defs` (first occurrence wins, matching HTML's "first id" resolution). Used
+/// to resolve `filter: url(#id)` references to inline SVG `<filter>` elements.
+fn collect_id_defs(nodes: &[DomNode], defs: &mut HashMap<String, ElementNode>) {
+    for node in nodes {
+        if let DomNode::Element(el) = node {
+            if let Some(id) = el.attributes.get("id") {
+                defs.entry(id.clone()).or_insert_with(|| el.clone());
+            }
+            collect_id_defs(&el.children, defs);
+        }
+    }
+}
+
 /// Lay out the DOM nodes into pages with stylesheet rules and custom fonts.
 pub fn layout_with_rules_and_fonts(
     nodes: &[DomNode],
@@ -1037,10 +1051,16 @@ pub fn layout_with_rules_and_fonts(
         percent_height_cb: None,
         root_font_size: parent_style.root_font_size,
     };
+    // Build a document-wide `id -> element` map so `filter: url(#id)`
+    // (css-filter-effects-1 §3) can resolve to its inline SVG `<filter>`
+    // element regardless of where in the tree it lives.
+    let mut filter_defs: HashMap<String, ElementNode> = HashMap::new();
+    collect_id_defs(nodes, &mut filter_defs);
     let mut env = LayoutEnv {
         rules,
         fonts: custom_fonts,
         counter_state: &mut counter_state,
+        filter_defs: &filter_defs,
     };
     flatten_nodes(
         nodes,
@@ -1367,6 +1387,29 @@ pub(crate) fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+
+    // Resolve `filter: url(#id)` (css-filter-effects-1 §3): look up the inline
+    // SVG `<filter>` element by id and translate its `feColorMatrix` primitives
+    // into `ColorFilterOp`s, then recolor this box's self-painted surfaces
+    // (background + border) through the same color math the image path uses.
+    // The fixture's `feColorMatrix type="saturate" values="0"` desaturates the
+    // green box to its luminance gray, matching Chrome.
+    // `linear_rgb` selects the color space for recoloring the box's paint: SVG
+    // `<filter>`s default to linearRGB (color-interpolation-filters), while CSS
+    // `filter` color *functions* operate in sRGB.
+    let mut filter_linear_rgb = false;
+    if let Some(id) = style.filter_url_id.clone()
+        && let Some(filter_el) = env.filter_defs.get(&id)
+    {
+        let (ops, use_linear_rgb) = crate::parser::svg::filter_element_color_ops(filter_el);
+        if !ops.is_empty() {
+            filter_linear_rgb = use_linear_rgb;
+        }
+        style.color_filters.extend(ops);
+    }
+    if !style.color_filters.is_empty() {
+        apply_color_filters_to_box(&mut style, filter_linear_rgb);
+    }
 
     // Apply CSS counter operations for this element.
     env.counter_state.apply_resets(&style.counter_reset);

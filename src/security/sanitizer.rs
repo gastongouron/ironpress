@@ -128,9 +128,13 @@ fn remove_dangerous_urls(css: &str) -> String {
     while let Some(pos) = remaining.to_ascii_lowercase().find("url(") {
         result.push_str(&remaining[..pos]);
         let after = &remaining[pos + 4..];
-        // Check if it's a data: URI (safe) or external (remove)
+        // Check if it's a data: URI or a same-document fragment reference
+        // `url(#id)` (both safe) versus an external resource (remove). A
+        // fragment reference names an in-document element (e.g. an SVG
+        // `<filter>` for `filter: url(#id)`, css-filter-effects-1 §3); it cannot
+        // load external content or exfiltrate data, so it is preserved.
         let trimmed = after.trim_start().trim_start_matches(['\'', '"']);
-        if trimmed.starts_with("data:") {
+        if trimmed.starts_with("data:") || trimmed.starts_with('#') {
             result.push_str("url(");
             remaining = after;
         } else {
@@ -469,6 +473,19 @@ mod tests {
         let css = r#"<style>body { background: url(data:image/png;base64,abc) }</style>"#;
         let result = sanitize_html(css).unwrap();
         assert!(result.contains("url(data:"));
+    }
+
+    #[test]
+    fn fragment_url_reference_preserved() {
+        // Same-document fragment references `url(#id)` are safe and preserved so
+        // `filter: url(#id)` (css-filter-effects-1 §3) can resolve to an inline
+        // SVG <filter>. Quoted and external forms still behave as before.
+        let css = r#"<style>.b { filter: url(#sat); }</style>"#;
+        assert!(sanitize_html(css).unwrap().contains("url(#sat)"));
+        let quoted = r##"<style>.b { filter: url("#sat"); }</style>"##;
+        assert!(sanitize_html(quoted).unwrap().contains("url(\"#sat\")"));
+        let external = r#"<style>.b { background: url(http://evil.com/x.png); }</style>"#;
+        assert!(!sanitize_html(external).unwrap().contains("url(http"));
     }
 
     #[test]

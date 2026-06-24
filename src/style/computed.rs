@@ -1422,6 +1422,11 @@ pub struct ComputedStyle {
     /// applied in order to a replaced image's pixels. `blur(...)` stays in
     /// `blur_radius`; this holds the non-blur ops.
     pub color_filters: Vec<ColorFilterOp>,
+    /// CSS `filter: url(#id)` reference id (css-filter-effects-1 §3), recording
+    /// the fragment that names an SVG `<filter>` element. Resolved during layout
+    /// (where the DOM is available) into `color_filters` by reading the filter's
+    /// `feColorMatrix` primitives. `None` when no `url()` filter is referenced.
+    pub filter_url_id: Option<String>,
     /// CSS `filter: drop-shadow(dx dy blur color)`. `None` when no drop-shadow is
     /// present. Offsets/blur are in points; color is straight-alpha RGBA.
     pub drop_shadow: Option<DropShadow>,
@@ -1664,6 +1669,7 @@ impl Default for ComputedStyle {
             row_gap: 0.0,
             blur_radius: 0.0,
             color_filters: Vec::new(),
+            filter_url_id: None,
             drop_shadow: None,
             object_fit: ObjectFit::default(),
             object_position: ObjectPosition::default(),
@@ -1880,6 +1886,7 @@ pub fn compute_style_with_context(
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
     style.color_filters.clear();
+    style.filter_url_id = None;
     style.drop_shadow = None;
     // custom_properties inherit from parent (already cloned)
 
@@ -2178,6 +2185,7 @@ pub fn compute_pseudo_element_style(
     style.row_gap = 0.0;
     style.blur_radius = 0.0;
     style.color_filters.clear();
+    style.filter_url_id = None;
     style.drop_shadow = None;
     // Default display for pseudo-elements is inline
     style.display = Display::Inline;
@@ -2428,6 +2436,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "filter" => {
             style.blur_radius = default.blur_radius;
             style.color_filters = default.color_filters.clone();
+            style.filter_url_id = default.filter_url_id.clone();
             style.drop_shadow = default.drop_shadow;
         }
         _ => {}
@@ -2595,6 +2604,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "filter" => {
             style.blur_radius = parent.blur_radius;
             style.color_filters = parent.color_filters.clone();
+            style.filter_url_id = parent.filter_url_id.clone();
             style.drop_shadow = parent.drop_shadow;
         }
         _ => {}
@@ -3303,11 +3313,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // after `style.opacity` is finalized to combine multiplicatively.
     let mut filter_opacity = 1.0_f32;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "filter") {
-        let (blur, ops, opacity, drop_shadow) = parse_filter(k);
+        let (blur, ops, opacity, drop_shadow, url_id) = parse_filter(k);
         if let Some(radius) = blur {
             style.blur_radius = radius;
         }
         style.color_filters = ops;
+        style.filter_url_id = url_id;
         style.drop_shadow = drop_shadow;
         filter_opacity = opacity;
     }
@@ -5105,21 +5116,31 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
 }
 
 /// Parse a full CSS `filter` value into (blur_radius, ordered color ops,
-/// opacity multiplier, drop-shadow). Recognizes blur/grayscale/sepia/invert/
-/// brightness/contrast/saturate/hue-rotate/opacity/drop-shadow; unknown
-/// functions (e.g. `url(...)`) are ignored. `none` clears. The opacity
-/// multiplier is the product of all `opacity()` functions (1.0 when none are
-/// present) and is intended to be folded into the element's final
-/// `style.opacity`.
-fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32, Option<DropShadow>) {
+/// opacity multiplier, drop-shadow, url-reference id). Recognizes
+/// blur/grayscale/sepia/invert/brightness/contrast/saturate/hue-rotate/
+/// opacity/drop-shadow and `url(#id)` (css-filter-effects-1 §3); other unknown
+/// functions are ignored. `none` clears. The opacity multiplier is the product
+/// of all `opacity()` functions (1.0 when none are present) and is intended to
+/// be folded into the element's final `style.opacity`. The url id (if any) is
+/// resolved later, during layout, where the DOM `<filter>` is reachable.
+fn parse_filter(
+    val: &str,
+) -> (
+    Option<f32>,
+    Vec<ColorFilterOp>,
+    f32,
+    Option<DropShadow>,
+    Option<String>,
+) {
     let raw = val.trim();
     if raw.is_empty() || raw.eq_ignore_ascii_case("none") {
-        return (Some(0.0), Vec::new(), 1.0, None);
+        return (Some(0.0), Vec::new(), 1.0, None, None);
     }
     let mut blur = None;
     let mut ops = Vec::new();
     let mut opacity = 1.0_f32;
     let mut drop_shadow = None;
+    let mut url_id = None;
     let mut rest = raw;
     while let Some(open) = rest.find('(') {
         let name = rest[..open].trim().to_ascii_lowercase();
@@ -5174,11 +5195,21 @@ fn parse_filter(val: &str) -> (Option<f32>, Vec<ColorFilterOp>, f32, Option<Drop
                     drop_shadow = Some(ds);
                 }
             }
+            "url" => {
+                // `filter: url(#id)` references an SVG <filter> element by its
+                // fragment id (css-filter-effects-1 §3). Strip optional quotes
+                // and the leading '#'; the referenced filter is resolved during
+                // layout, where the DOM is available.
+                let inner = arg.trim().trim_matches(|c| c == '\'' || c == '"');
+                if let Some(id) = inner.strip_prefix('#') {
+                    url_id = Some(id.to_string());
+                }
+            }
             _ => {}
         }
         rest = &rest[open + 1 + close_rel + 1..];
     }
-    (blur, ops, opacity, drop_shadow)
+    (blur, ops, opacity, drop_shadow, url_id)
 }
 
 /// Parse the inner argument of `drop-shadow(<offset-x> <offset-y> <blur>?
@@ -13602,14 +13633,37 @@ mod tests {
         // bare function defaults to amount 1.0
         assert_eq!(parse_filter("sepia()").1, vec![ColorFilterOp::Sepia(1.0)]);
         // chained: blur goes to the blur slot, color ops preserve order
-        let (blur, ops, _opacity, _ds) = parse_filter("grayscale(1) blur(2px) contrast(2)");
+        let (blur, ops, _opacity, _ds, _url) = parse_filter("grayscale(1) blur(2px) contrast(2)");
         assert!(blur.is_some_and(|r| r > 0.0));
         assert_eq!(
             ops,
             vec![ColorFilterOp::Grayscale(1.0), ColorFilterOp::Contrast(2.0)]
         );
         // none clears everything
-        assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0, None));
+        assert_eq!(parse_filter("none"), (Some(0.0), vec![], 1.0, None, None));
+    }
+
+    #[test]
+    fn filter_url_captures_reference_id() {
+        // `filter: url(#id)` records the fragment id for later DOM resolution
+        // (css-filter-effects-1 §3); it produces no inline color ops/blur.
+        let (blur, ops, opacity, ds, url) = parse_filter("url(#sat)");
+        assert_eq!(url.as_deref(), Some("sat"));
+        assert!(ops.is_empty());
+        assert!(blur.is_none());
+        assert_eq!(opacity, 1.0);
+        assert!(ds.is_none());
+        // Quoted form and a trailing color function still capture the id.
+        let (_, ops2, _, _, url2) = parse_filter("url('#q') grayscale(1)");
+        assert_eq!(url2.as_deref(), Some("q"));
+        assert_eq!(ops2, vec![ColorFilterOp::Grayscale(1.0)]);
+        // A computed style with `filter: url(#id)` exposes the id.
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("filter: url(#sat)"),
+            &ComputedStyle::default(),
+        );
+        assert_eq!(style.filter_url_id.as_deref(), Some("sat"));
     }
 
     #[test]

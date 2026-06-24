@@ -1000,6 +1000,93 @@ fn apply_one_filter(op: &ColorFilterOp, r: f32, g: f32, b: f32) -> (f32, f32, f3
     }
 }
 
+/// sRGB transfer function (IEC 61966-2-1): encoded 0..1 -> linear-light 0..1.
+fn srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Inverse sRGB transfer function: linear-light 0..1 -> encoded 0..1.
+fn linear_to_srgb(c: f32) -> f32 {
+    if c <= 0.0031308 {
+        12.92 * c
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+/// Apply an ordered list of CSS/SVG color-filter ops to a single solid color,
+/// reusing the same per-pixel math (`apply_one_filter`) the image path uses.
+/// `color` is straight-alpha RGBA in 0..1 (as produced by `Color::to_f32_rgba`);
+/// the alpha channel is preserved unchanged (feColorMatrix saturate/grayscale/
+/// hue-rotate touch RGB only). When `linear_rgb` is true the math runs in
+/// linear-light (SVG `color-interpolation-filters: linearRGB`, the default for
+/// `<filter>` referenced by `filter: url(#id)`); otherwise it runs in sRGB
+/// (CSS `filter` *functions*). This lets `filter: url(#id)` recolor a solid
+/// box's background/border the same way it recolors an image's pixels.
+pub(crate) fn apply_color_filters_to_color(
+    color: (f32, f32, f32, f32),
+    ops: &[ColorFilterOp],
+    linear_rgb: bool,
+) -> (f32, f32, f32, f32) {
+    let (mut cr, mut cg, mut cb, a) = color;
+    if linear_rgb {
+        cr = srgb_to_linear(cr);
+        cg = srgb_to_linear(cg);
+        cb = srgb_to_linear(cb);
+    }
+    let (mut r, mut g, mut b) = (cr * 255.0, cg * 255.0, cb * 255.0);
+    for op in ops {
+        let (nr, ng, nb) = apply_one_filter(op, r, g, b);
+        r = nr.clamp(0.0, 255.0);
+        g = ng.clamp(0.0, 255.0);
+        b = nb.clamp(0.0, 255.0);
+    }
+    let (mut or, mut og, mut ob) = (r / 255.0, g / 255.0, b / 255.0);
+    if linear_rgb {
+        or = linear_to_srgb(or);
+        og = linear_to_srgb(og);
+        ob = linear_to_srgb(ob);
+    }
+    (or, og, ob, a)
+}
+
+/// Recolor an element's self-painted surfaces (background-color and each border
+/// side color) in place through its resolved `color_filters`. Used for solid
+/// boxes carrying a CSS `filter` (color function or resolved `url(#id)`): a
+/// `<filter>`'s color-matrix recolors the box the same way it recolors an
+/// image's pixels (css-filter-effects-1 §2; SVG filter-effects feColorMatrix).
+/// Replaced-image pixels are filtered separately on the image path, so this only
+/// affects the box's own paint and never double-applies.
+pub(crate) fn apply_color_filters_to_box(style: &mut ComputedStyle, linear_rgb: bool) {
+    let ops = &style.color_filters;
+    let recolor = |c: crate::types::Color| -> crate::types::Color {
+        let (r, g, b, a) = apply_color_filters_to_color(c.to_f32_rgba(), ops, linear_rgb);
+        crate::types::Color {
+            r: (r * 255.0).round().clamp(0.0, 255.0) as u8,
+            g: (g * 255.0).round().clamp(0.0, 255.0) as u8,
+            b: (b * 255.0).round().clamp(0.0, 255.0) as u8,
+            a: (a * 255.0).round().clamp(0.0, 255.0) as u8,
+        }
+    };
+    if let Some(bg) = style.background_color {
+        style.background_color = Some(recolor(bg));
+    }
+    for side in [
+        &mut style.border.top,
+        &mut style.border.right,
+        &mut style.border.bottom,
+        &mut style.border.left,
+    ] {
+        if let Some(c) = side.color {
+            side.color = Some(recolor(c));
+        }
+    }
+}
+
 pub(crate) fn blur_image_bytes(raw: &[u8], blur_radius: f32) -> Option<RasterImageAsset> {
     let decoded = decode_image_for_blur(raw)?;
     let blurred = image::imageops::blur(&decoded, blur_radius);
