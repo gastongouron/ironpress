@@ -1134,6 +1134,7 @@ pub(crate) fn build_pseudo_block(
                 inline_box: None,
                 disable_ligatures: false,
                 vertical_align: VerticalAlign::Baseline,
+                text_shadow: pseudo_style.text_shadow.clone(),
             },
             &mut runs,
             fonts,
@@ -1146,7 +1147,8 @@ pub(crate) fn build_pseudo_block(
                 resolved_line_height_factor(pseudo_style, fonts),
                 pseudo_style.overflow_wrap,
             )
-            .with_rtl(pseudo_style.direction_rtl),
+            .with_rtl(pseudo_style.direction_rtl)
+            .with_bidi_override(pseudo_style.bidi_override),
             fonts,
         );
     }
@@ -1371,6 +1373,7 @@ pub(crate) fn build_pseudo_inline_run(
             inline_box: Some(Box::new(inline)),
             disable_ligatures: false,
             vertical_align: pseudo_style.vertical_align,
+            text_shadow: pseudo_style.text_shadow.clone(),
         };
     }
 
@@ -1398,6 +1401,7 @@ pub(crate) fn build_pseudo_inline_run(
             inline_box: Some(Box::new(inline)),
             disable_ligatures: false,
             vertical_align: pseudo_style.vertical_align,
+            text_shadow: pseudo_style.text_shadow.clone(),
         };
     }
 
@@ -1419,6 +1423,7 @@ pub(crate) fn build_pseudo_inline_run(
         inline_box: None,
         disable_ligatures: false,
         vertical_align: pseudo_style.vertical_align,
+        text_shadow: pseudo_style.text_shadow.clone(),
     }
 }
 
@@ -1456,6 +1461,7 @@ fn build_pseudo_inline_box(
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: pseudo_style.text_shadow.clone(),
         };
         wrap_text_runs(
             vec![run],

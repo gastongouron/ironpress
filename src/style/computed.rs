@@ -1183,6 +1183,11 @@ pub struct ComputedStyle {
     pub text_align: TextAlign,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
     pub direction_rtl: bool,
+    /// CSS `unicode-bidi: bidi-override` (or `isolate-override`). When set, the
+    /// element's inline content is reordered strictly in sequence according to
+    /// `direction`, overriding the characters' intrinsic bidi classes
+    /// (css-writing-modes-4 §2.4). Not inherited; initial is `normal` (false).
+    pub bidi_override: bool,
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
     pub text_decoration_overline: bool,
@@ -1223,6 +1228,9 @@ pub struct ComputedStyle {
     /// back-to-front: the FIRST listed shadow is painted LAST (on top). Empty
     /// when no shadow is set.
     pub box_shadow: Vec<BoxShadow>,
+    /// CSS `text-shadow` (css-text-decor-3 §3): a list of shadows painted behind
+    /// the element's text. Inherited. Reuses `BoxShadow` (spread/inset unused).
+    pub text_shadow: Vec<BoxShadow>,
     pub flex_direction: FlexDirection,
     pub justify_content: JustifyContent,
     pub align_items: AlignItems,
@@ -1526,6 +1534,7 @@ impl Default for ComputedStyle {
             padding: EdgeSizes::default(),
             text_align: TextAlign::Left,
             direction_rtl: false,
+            bidi_override: false,
             text_decoration_underline: false,
             text_decoration_line_through: false,
             text_decoration_overline: false,
@@ -1556,6 +1565,7 @@ impl Default for ComputedStyle {
             left: None,
             percentage_insets: PercentageInsets::default(),
             box_shadow: Vec::new(),
+            text_shadow: Vec::new(),
             flex_direction: FlexDirection::Row,
             justify_content: JustifyContent::FlexStart,
             align_items: AlignItems::Stretch,
@@ -1783,6 +1793,8 @@ pub fn compute_style_with_context(
     style.margin_left_auto = false;
     style.margin_right_auto = false;
     style.opacity = 1.0;
+    // `unicode-bidi` is not inherited; initial is `normal`.
+    style.bidi_override = false;
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
@@ -2019,6 +2031,11 @@ fn resolve_current_color(style: &mut ComputedStyle) {
             shadow.color = resolved;
         }
     }
+    for shadow in style.text_shadow.iter_mut() {
+        if is_sentinel(&shadow.color) {
+            shadow.color = resolved;
+        }
+    }
 }
 
 /// Compute the style for a `::before` or `::after` pseudo-element.
@@ -2082,6 +2099,8 @@ pub fn compute_pseudo_element_style(
     style.margin_left_auto = false;
     style.margin_right_auto = false;
     style.opacity = 1.0;
+    // `unicode-bidi` is not inherited; initial is `normal`.
+    style.bidi_override = false;
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
@@ -3626,6 +3645,20 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
+    // CSS `text-shadow` (css-text-decor-3 §3). Like box-shadow but with no
+    // `spread`/`inset` and the optional color may appear before or after the
+    // offsets. `none` clears any inherited value.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-shadow") {
+        if k.trim() == "none" {
+            style.text_shadow = Vec::new();
+        } else {
+            let shadows = parse_text_shadow(k);
+            if !shadows.is_empty() {
+                style.text_shadow = shadows;
+            }
+        }
+    }
+
     // Multi-column layout
     if let Some(val) = get_non_special(map, "column-count") {
         match val {
@@ -3988,6 +4021,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             }
             _ => {}
         }
+    }
+
+    // CSS `unicode-bidi` property. Not inherited. `bidi-override` (and the
+    // isolating `isolate-override`) force the box's inline content to be
+    // reordered strictly in sequence according to `direction`, overriding the
+    // characters' intrinsic bidi classes (css-writing-modes-4 §2.4).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "unicode-bidi") {
+        style.bidi_override = matches!(k.as_str(), "bidi-override" | "isolate-override");
     }
 
     // Text-transform
@@ -5517,6 +5558,77 @@ fn parse_single_box_shadow(val: &str) -> Option<BoxShadow> {
         spread,
         color,
         inset,
+    })
+}
+
+/// Parse a `text-shadow` value into a list of shadows (css-text-decor-3 §3).
+/// Syntax: `none | [ <color>? && <length>{2,3} ]#`. Unlike `box-shadow` there
+/// is no spread or `inset`, and the optional color may precede or follow the
+/// offsets. Reuses `BoxShadow` storage with `spread = 0` and `inset = false`.
+fn parse_text_shadow(val: &str) -> Vec<BoxShadow> {
+    let val = val.trim();
+    if val.is_empty() || val == "none" {
+        return Vec::new();
+    }
+    split_top_level_comma(val)
+        .iter()
+        .filter_map(|s| parse_single_text_shadow(s))
+        .collect()
+}
+
+/// Parse one `text-shadow` list entry: 2 or 3 lengths plus an optional color
+/// that may appear before or after the lengths.
+fn parse_single_text_shadow(val: &str) -> Option<BoxShadow> {
+    let val = val.trim();
+    if val.is_empty() {
+        return None;
+    }
+
+    // Tokenize: spaces delimit tokens, but rgba(...) / rgb(...) / hsl(...) are
+    // each a single token (same rule as box-shadow).
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for ch in val.chars() {
+        if ch == ' ' && !current.contains('(') {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+        } else if ch == ')' {
+            current.push(ch);
+            tokens.push(std::mem::take(&mut current));
+        } else {
+            current.push(ch);
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    // Separate the (at most one) color token from the length tokens. The color
+    // may be at either end; lengths parse numerically, colors do not.
+    let mut lengths: Vec<f32> = Vec::new();
+    let mut color: Option<Color> = None;
+    for t in &tokens {
+        if let Some(len) = parse_shadow_length(t) {
+            lengths.push(len);
+        } else if color.is_none() {
+            color = parse_border_color(t);
+        }
+    }
+
+    if lengths.len() < 2 {
+        return None;
+    }
+
+    Some(BoxShadow {
+        offset_x: lengths[0],
+        offset_y: lengths[1],
+        blur: lengths.get(2).copied().unwrap_or(0.0),
+        spread: 0.0,
+        // An omitted color defaults to the element's `color`, resolved later via
+        // the CURRENT_COLOR_SENTINEL in resolve_current_color.
+        color: color.unwrap_or(CURRENT_COLOR_SENTINEL),
+        inset: false,
     })
 }
 
@@ -11008,6 +11120,38 @@ mod tests {
         let result = parse_shadow_length("5");
         assert!(result.is_some());
         assert!((result.unwrap() - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_text_shadow_offset_color() {
+        // `text-shadow: 6px 6px 0 #ff6f00` (offset + zero blur + color).
+        let shadows = parse_text_shadow("6px 6px 0 #ff6f00");
+        assert_eq!(shadows.len(), 1);
+        let s = &shadows[0];
+        assert!((s.offset_x - 4.5).abs() < 0.1); // 6px * 0.75
+        assert!((s.offset_y - 4.5).abs() < 0.1);
+        assert!((s.blur - 0.0).abs() < 0.1);
+        assert_eq!(s.spread, 0.0);
+        assert!(!s.inset);
+        assert_eq!(s.color.r, 0xff);
+        assert_eq!(s.color.g, 0x6f);
+        assert_eq!(s.color.b, 0x00);
+    }
+
+    #[test]
+    fn parse_text_shadow_color_first() {
+        // text-shadow allows the color before the offsets.
+        let shadows = parse_text_shadow("red 2px 2px");
+        assert_eq!(shadows.len(), 1);
+        assert_eq!(shadows[0].color.r, 255);
+        assert!((shadows[0].offset_x - 1.5).abs() < 0.1);
+    }
+
+    #[test]
+    fn parse_text_shadow_none_and_list() {
+        assert!(parse_text_shadow("none").is_empty());
+        let shadows = parse_text_shadow("1px 1px black, 2px 2px red");
+        assert_eq!(shadows.len(), 2);
     }
 
     // --- parse_transform edge cases (lines 1207, 1233-1235, 1239, 1250) ---

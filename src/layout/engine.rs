@@ -289,6 +289,11 @@ pub struct TextRun {
     /// text run on the line baseline. Atomic inline boxes carry their own
     /// alignment in `inline_box.vertical_align` instead.
     pub vertical_align: VerticalAlign,
+    /// CSS `text-shadow` (css-text-decor-3 §3): a list of shadows painted behind
+    /// the glyphs, back-to-front, before the text fill. Each entry reuses the
+    /// `BoxShadow` shape (offset_x, offset_y, blur, color); `spread`/`inset` are
+    /// unused for text shadows. Empty for the common no-shadow case.
+    pub text_shadow: Vec<crate::style::computed::BoxShadow>,
 }
 
 /// An atomic inline-level box laid out inside a line of text, produced for
@@ -1142,6 +1147,7 @@ fn flatten_nodes(
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: parent_style.vertical_align,
+                            text_shadow: parent_style.text_shadow.clone(),
                         },
                         &mut text_runs,
                         env.fonts,
@@ -1154,7 +1160,8 @@ fn flatten_nodes(
                             resolved_line_height_factor(parent_style, env.fonts),
                             parent_style.overflow_wrap,
                         )
-                        .with_rtl(parent_style.direction_rtl),
+                        .with_rtl(parent_style.direction_rtl)
+                        .with_bidi_override(parent_style.bidi_override),
                         env.fonts,
                     );
                     if !lines.is_empty() {
@@ -1431,6 +1438,7 @@ pub(crate) fn flatten_element(
                 inline_box: None,
                 disable_ligatures: false,
                 vertical_align: VerticalAlign::Baseline,
+                text_shadow: style.text_shadow.clone(),
             }],
             height: style.font_size * resolved_line_height_factor(&style, env.fonts),
             x_offset: 0.0,
@@ -1609,6 +1617,7 @@ pub(crate) fn flatten_element(
                     inline_box: None,
                     disable_ligatures: false,
                     vertical_align: VerticalAlign::Baseline,
+                    text_shadow: style.text_shadow.clone(),
                 },
                 &mut runs,
                 env.fonts,
@@ -1622,7 +1631,8 @@ pub(crate) fn flatten_element(
                     resolved_line_height_factor(&style, env.fonts),
                     style.overflow_wrap,
                 )
-                .with_rtl(style.direction_rtl),
+                .with_rtl(style.direction_rtl)
+                .with_bidi_override(style.bidi_override),
                 env.fonts,
             );
         }
@@ -1781,6 +1791,7 @@ pub(crate) fn flatten_element(
                 inline_box: None,
                 disable_ligatures: false,
                 vertical_align: VerticalAlign::Baseline,
+                text_shadow: style.text_shadow.clone(),
             },
             &mut runs,
             env.fonts,
@@ -1793,7 +1804,8 @@ pub(crate) fn flatten_element(
                 resolved_line_height_factor(&style, env.fonts),
                 style.overflow_wrap,
             )
-            .with_rtl(style.direction_rtl),
+            .with_rtl(style.direction_rtl)
+            .with_bidi_override(style.bidi_override),
             env.fonts,
         );
 
@@ -2091,6 +2103,7 @@ pub(crate) fn flatten_element(
                         inline_box: None,
                         disable_ligatures: false,
                         vertical_align: VerticalAlign::Baseline,
+                        text_shadow: ps.text_shadow.clone(),
                     },
                     &mut runs,
                     env.fonts,
@@ -2174,6 +2187,7 @@ pub(crate) fn flatten_element(
                 inline_box: Some(Box::new(inline)),
                 disable_ligatures: false,
                 vertical_align: VerticalAlign::Baseline,
+                text_shadow: style.text_shadow.clone(),
             });
             let _ = outer;
         } else if has_marker {
@@ -2219,6 +2233,7 @@ pub(crate) fn flatten_element(
                     inline_box: None,
                     disable_ligatures: false,
                     vertical_align: VerticalAlign::Baseline,
+                    text_shadow: marker_style.text_shadow.clone(),
                 },
                 &mut runs,
                 env.fonts,
@@ -2268,6 +2283,7 @@ pub(crate) fn flatten_element(
                     style.overflow_wrap,
                 )
                 .with_rtl(style.direction_rtl)
+                .with_bidi_override(style.bidi_override)
                 // An `outside` marker hangs into the negative text-indent band, so
                 // it must NOT consume the first line's text capacity. Mirror the
                 // rendered `text_indent` (which includes `-marker_hang`) here so
@@ -6088,6 +6104,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         // At 12pt, each char ~6pt. "Hi" = 12pt.
         // "Supercalifragilisticexpialidocious" = 34*6 = 204pt.
@@ -6136,6 +6153,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let lines = wrap_text_runs(
             vec![run],
@@ -6171,6 +6189,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let lines = wrap_text_runs(
             vec![run],

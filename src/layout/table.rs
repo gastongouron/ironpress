@@ -1371,7 +1371,8 @@ pub(crate) fn flatten_table(
                     resolved_line_height_factor(&cell_style, fonts),
                     cell_style.overflow_wrap,
                 )
-                .with_rtl(cell_style.direction_rtl),
+                .with_rtl(cell_style.direction_rtl)
+                .with_bidi_override(cell_style.bidi_override),
                 fonts,
             );
 
@@ -1669,7 +1670,8 @@ pub(crate) fn flatten_table(
                 resolved_line_height_factor(&caption_style, fonts),
                 caption_style.overflow_wrap,
             )
-            .with_rtl(caption_style.direction_rtl),
+            .with_rtl(caption_style.direction_rtl)
+            .with_bidi_override(caption_style.bidi_override),
             fonts,
         );
         let caption_border = LayoutBorder::from_computed(&caption_style.border);
@@ -1920,6 +1922,7 @@ fn collect_table_cell_content_inner(
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: parent_style.vertical_align,
+                            text_shadow: parent_style.text_shadow.clone(),
                         },
                     );
                 }
@@ -2101,6 +2104,7 @@ fn push_line_break_run(
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: style.text_shadow.clone(),
         },
     );
 }

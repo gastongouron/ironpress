@@ -8177,6 +8177,39 @@ fn render_run_text(
     // width) is unchanged, so callers position the next run normally.
     let text_y = text_y + run_vertical_align_shift(run);
 
+    // CSS `text-shadow` (css-text-decor-3 §3): paint the glyphs again behind the
+    // real text, once per shadow (back-to-front: the last listed shadow is
+    // drawn first / furthest back). Each shadow is offset by (offset_x right,
+    // offset_y down) in the shadow's colour. PDF Y grows upward, so a positive
+    // CSS offset-y subtracts from `text_y`. Blur is approximated as a sharp
+    // offset (sufficient for the deterministic zero-blur case); decorations and
+    // nested shadows are cleared on the shadow run to avoid double-painting.
+    if !run.text_shadow.is_empty() {
+        for shadow in run.text_shadow.iter().rev() {
+            let (sr, sg, sb, _alpha) = shadow.color.to_f32_rgba();
+            let mut shadow_run = run.clone();
+            shadow_run.color = (sr, sg, sb);
+            shadow_run.text_shadow = Vec::new();
+            shadow_run.underline = false;
+            shadow_run.line_through = false;
+            shadow_run.overline = false;
+            shadow_run.background_color = None;
+            shadow_run.link_url = None;
+            // `text_y` already includes the vertical-align shift; neutralise it
+            // on the recursive call so the shift is not applied twice.
+            shadow_run.vertical_align = VerticalAlign::Baseline;
+            render_run_text(
+                content,
+                &shadow_run,
+                x + shadow.offset_x,
+                text_y - shadow.offset_y,
+                custom_fonts,
+                prepared_custom_fonts,
+                word_spacing,
+            );
+        }
+    }
+
     // For runs with mixed scripts (e.g. "Chinese: 你好世界"), split into
     // segments and render each with the appropriate font: primary font for
     // characters it covers, fallback font for the rest.
@@ -11659,6 +11692,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         }
     }
 
@@ -13337,6 +13371,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let non_empty_run = TextRun {
             text: "Hello".to_string(),
@@ -13356,6 +13391,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let cell = TableCell {
             lines: vec![
@@ -13452,6 +13488,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         assert_eq!(font_name_for_run(&run_bi), "Helvetica-BoldOblique");
 
@@ -13473,6 +13510,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         assert_eq!(font_name_for_run(&run_b), "Helvetica-Bold");
 
@@ -13494,6 +13532,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         assert_eq!(font_name_for_run(&run_i), "Helvetica-Oblique");
     }
@@ -14931,6 +14970,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -14998,6 +15038,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let run_b = TextRun {
             text: "World".to_string(),
@@ -15017,6 +15058,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let merged = merge_runs(&[run_a.clone(), run_b.clone()]);
         // Different border_radius should prevent merging
@@ -15973,6 +16015,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let run_visible = TextRun {
             text: "Visible".to_string(),
@@ -16099,6 +16142,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let cell = TableCell {
             lines: vec![TextLine {
@@ -16195,6 +16239,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let mut border = LayoutBorder::default();
         border.top = LayoutBorderSide {
@@ -16322,6 +16367,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
 
         // Test right-align
@@ -16430,6 +16476,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let strike_run = TextRun {
             text: "Strike".to_string(),
@@ -16449,6 +16496,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16532,6 +16580,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
 
         let cell = crate::layout::engine::TableCell {
@@ -16607,6 +16656,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
 
         let cell = crate::layout::engine::TableCell {

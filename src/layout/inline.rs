@@ -217,7 +217,8 @@ pub(crate) fn layout_inline_block_group(
                     resolved_line_height_factor(&child_style, fonts),
                     child_style.overflow_wrap,
                 )
-                .with_rtl(child_style.direction_rtl),
+                .with_rtl(child_style.direction_rtl)
+                .with_bidi_override(child_style.bidi_override),
                 fonts,
             )
         } else {

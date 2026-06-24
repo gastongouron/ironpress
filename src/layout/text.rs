@@ -237,6 +237,10 @@ pub(crate) struct TextWrapOptions {
     /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
     /// when the containing block has `direction: rtl` (or `dir="rtl"`).
     pub(crate) paragraph_rtl: bool,
+    /// `unicode-bidi: bidi-override`: lay the inline content out strictly in
+    /// sequence according to `direction`, overriding intrinsic bidi classes
+    /// (css-writing-modes-4 §2.4).
+    pub(crate) bidi_override: bool,
     /// `white-space: pre-wrap`: preserve spaces/newlines but still allow soft
     /// wrapping at space boundaries. Distinguishes pre-wrap (wraps) from `pre`
     /// (which the caller renders with an unbounded width so it never wraps).
@@ -276,6 +280,7 @@ impl TextWrapOptions {
             line_height_factor,
             overflow_wrap,
             paragraph_rtl: false,
+            bidi_override: false,
             pre_wrap: false,
             break_spaces: false,
             text_indent: 0.0,
@@ -294,6 +299,12 @@ impl TextWrapOptions {
 
     pub(crate) const fn with_rtl(mut self, rtl: bool) -> Self {
         self.paragraph_rtl = rtl;
+        self
+    }
+
+    /// Set `unicode-bidi: bidi-override` for the inline content.
+    pub(crate) const fn with_bidi_override(mut self, bidi_override: bool) -> Self {
+        self.bidi_override = bidi_override;
         self
     }
 
@@ -452,11 +463,13 @@ pub(crate) fn wrap_text_runs(
     // contains RTL characters. This reorders runs into visual order so
     // RTL/LTR segments display correctly in the left-to-right PDF context.
     let full_text: String = runs.iter().map(|r| r.text.as_str()).collect();
-    let runs = if options.paragraph_rtl || crate::bidi::has_rtl_chars(&full_text) {
-        crate::bidi::reorder_runs_bidi(&runs, options.paragraph_rtl)
-    } else {
-        runs
-    };
+    let runs =
+        if options.bidi_override || options.paragraph_rtl || crate::bidi::has_rtl_chars(&full_text)
+        {
+            crate::bidi::reorder_runs_bidi(&runs, options.paragraph_rtl, options.bidi_override)
+        } else {
+            runs
+        };
 
     // Concatenate all text then re-split by words, preserving run styles.
     // For text containing \n (white-space: pre), split on newlines first,
@@ -1045,6 +1058,7 @@ pub(crate) fn wrap_text_runs(
                     inline_box: None,
                     disable_ligatures: false,
                     vertical_align: prev_run.vertical_align,
+                    text_shadow: prev_run.text_shadow.clone(),
                 });
                 word
             } else {
@@ -1382,7 +1396,8 @@ fn build_inline_box(
                 resolved_line_height_factor(style, fonts),
                 style.overflow_wrap,
             )
-            .with_rtl(style.direction_rtl),
+            .with_rtl(style.direction_rtl)
+            .with_bidi_override(style.bidi_override),
             fonts,
         )
     };
@@ -1626,6 +1641,7 @@ fn collect_text_runs_inner(
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: parent_style.vertical_align,
+                            text_shadow: parent_style.text_shadow.clone(),
                         },
                         parent_style.font_variant_caps,
                         parent_style.ligatures_enabled,
@@ -1655,6 +1671,7 @@ fn collect_text_runs_inner(
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: VerticalAlign::Baseline,
+                            text_shadow: Vec::new(),
                         });
                     } else if el.attributes.contains_key("data-math") {
                         // Skip math elements — they are rendered as MathBlock
@@ -1733,6 +1750,7 @@ fn collect_text_runs_inner(
                                     inline_box: Some(Box::new(boxed)),
                                     disable_ligatures: false,
                                     vertical_align: VerticalAlign::Baseline,
+                                    text_shadow: Vec::new(),
                                 });
                             }
                             continue;
@@ -1877,6 +1895,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 inline_box: None,
                                 disable_ligatures: false,
                                 vertical_align: parent_style.vertical_align,
+                                text_shadow: parent_style.text_shadow.clone(),
                             },
                             parent_style.font_variant_caps,
                             parent_style.ligatures_enabled,
@@ -1948,6 +1967,7 @@ impl<'a> FlexTextRunCollector<'a> {
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: VerticalAlign::Baseline,
+                            text_shadow: Vec::new(),
                         });
                         continue;
                     }
@@ -1990,6 +2010,7 @@ impl<'a> FlexTextRunCollector<'a> {
                             inline_box: None,
                             disable_ligatures: false,
                             vertical_align: VerticalAlign::Baseline,
+                            text_shadow: Vec::new(),
                         });
                     }
                 }
@@ -2021,6 +2042,7 @@ mod indent_tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         }
     }
 

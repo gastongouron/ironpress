@@ -1198,7 +1198,8 @@ pub(crate) fn layout_grid_container(
                     resolved_line_height_factor(cs, env.fonts),
                     cs.overflow_wrap,
                 )
-                .with_rtl(cs.direction_rtl),
+                .with_rtl(cs.direction_rtl)
+                .with_bidi_override(cs.bidi_override),
                 env.fonts,
             );
 

@@ -457,6 +457,8 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "mask-composite"
             | "mask-type"
             | "box-shadow"
+            | "text-shadow"
+            | "unicode-bidi"
             | "outline"
             | "box-sizing"
             | "text-overflow"

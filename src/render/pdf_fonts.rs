@@ -1033,6 +1033,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         let line = TextLine {
             runs: vec![run],

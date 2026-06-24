@@ -755,7 +755,8 @@ pub(crate) fn layout_flex_container(
                     resolved_line_height_factor(&child_style, env.fonts),
                     child_style.overflow_wrap,
                 )
-                .with_rtl(child_style.direction_rtl),
+                .with_rtl(child_style.direction_rtl)
+                .with_bidi_override(child_style.bidi_override),
                 env.fonts,
             )
         } else {

@@ -452,6 +452,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
@@ -477,6 +478,7 @@ mod tests {
             inline_box: None,
             disable_ligatures: false,
             vertical_align: VerticalAlign::Baseline,
+            text_shadow: Vec::new(),
         };
         assert!(shape_text_run(&run, &fonts).is_none());
     }
