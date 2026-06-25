@@ -22,8 +22,9 @@ use super::table::flatten_table;
 #[cfg(test)]
 use super::text::OverflowWrap;
 use super::text::{
-    TextWrapOptions, collapse_whitespace, collect_text_runs, push_text_run_with_fallback,
-    resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
+    TextWrapOptions, collapse_whitespace, collect_text_runs, estimate_word_width,
+    push_text_run_with_fallback, resolve_style_font_family, resolved_line_height_factor,
+    wrap_text_runs,
 };
 #[cfg(test)]
 use crate::style::computed::ContentItem;
@@ -2287,18 +2288,54 @@ pub(crate) fn flatten_element(
             let marker_style = marker_pseudo.as_ref().unwrap_or(&style);
             // `::marker { content: … }` replaces the default marker symbol with
             // author-supplied content (which may itself reference counters).
+            let marker_overridden = matches!(
+                marker_pseudo.as_ref(),
+                Some(ps) if !ps.content.is_empty()
+            );
             let marker_text = match marker_pseudo.as_ref() {
                 Some(ps) if !ps.content.is_empty() => {
                     resolve_content(&ps.content, &el.attributes, env.counter_state)
                 }
                 _ => marker,
             };
-            push_text_run_with_fallback(
-                TextRun {
-                    text: marker_text,
+            // Default `disc`/`square` bullets are GEOMETRIC shapes in Chrome, not
+            // font glyphs (whose ink box is oversized and mis-seated). Render them
+            // as a filled inline-box sized from the font, sizing its trailing gap
+            // so the total marker advance equals the glyph advance it replaces —
+            // keeping the list text at the same horizontal position. `circle`
+            // (which already matches as a glyph) and author `::marker { content }`
+            // overrides keep the textual path.
+            let geometric_bullet = if marker_overridden {
+                None
+            } else {
+                let symbol_advance = estimate_word_width(
+                    &marker_text,
+                    marker_style.font_size,
+                    &resolve_style_font_family(marker_style, env.fonts),
+                    marker_style.font_weight == FontWeight::Bold,
+                    marker_style.font_style == FontStyle::Italic,
+                    env.fonts,
+                );
+                build_list_bullet_marker(
+                    marker_style.list_style_type,
+                    marker_style.font_size,
+                    marker_style.color.to_f32_rgb(),
+                    symbol_advance,
+                )
+                .map(|mut b| {
+                    // Preserve the glyph marker's total advance: the bullet shape
+                    // sits near the left of the slot, the remainder becomes the
+                    // trailing gap so the list text keeps its position.
+                    b.margin_right = (symbol_advance - b.margin_left - b.width).max(0.0);
+                    b
+                })
+            };
+            if let Some(bullet) = geometric_bullet {
+                runs.push(TextRun {
+                    text: String::new(),
                     font_size: marker_style.font_size,
-                    bold: marker_style.font_weight == FontWeight::Bold,
-                    italic: marker_style.font_style == FontStyle::Italic,
+                    bold: false,
+                    italic: false,
                     underline: false,
                     line_through: false,
                     overline: false,
@@ -2310,14 +2347,38 @@ pub(crate) fn flatten_element(
                     padding: (0.0, 0.0),
                     border_radius: 0.0,
                     line_height_factor: resolved_line_height_factor(marker_style, env.fonts),
-                    inline_box: None,
+                    inline_box: Some(Box::new(bullet)),
                     disable_ligatures: false,
                     vertical_align: VerticalAlign::Baseline,
                     text_shadow: marker_style.text_shadow.clone(),
-                },
-                &mut runs,
-                env.fonts,
-            );
+                });
+            } else {
+                push_text_run_with_fallback(
+                    TextRun {
+                        text: marker_text,
+                        font_size: marker_style.font_size,
+                        bold: marker_style.font_weight == FontWeight::Bold,
+                        italic: marker_style.font_style == FontStyle::Italic,
+                        underline: false,
+                        line_through: false,
+                        overline: false,
+                        decoration_color: None,
+                        color: marker_style.color.to_f32_rgb(),
+                        link_url: None,
+                        font_family: resolve_style_font_family(marker_style, env.fonts),
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
+                        line_height_factor: resolved_line_height_factor(marker_style, env.fonts),
+                        inline_box: None,
+                        disable_ligatures: false,
+                        vertical_align: VerticalAlign::Baseline,
+                        text_shadow: marker_style.text_shadow.clone(),
+                    },
+                    &mut runs,
+                    env.fonts,
+                );
+            }
         }
         let marker_hang = if has_marker && style.list_style_position == ListStylePosition::Outside {
             measure_runs_width(&runs[marker_run_start..], env.fonts)

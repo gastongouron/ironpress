@@ -694,10 +694,29 @@ fn paint_column_rule_line(
         content.push_str(&format!("{x_right} {top_y} m {x_right} {bottom_y} l S\n"));
     } else {
         let cx = x + w / 2.0;
-        content.push_str(&dash_pattern_for_style(side.style, w));
+        // Match the box-border dashed/dotted painter (`corner_dash_array`):
+        // snap the dash/dot period so a full dash (or a centered dot) lands
+        // flush at BOTH ends of the rule, with phase 0. A fixed `[2w w]`
+        // period instead drifts out of phase relative to Chrome and skips the
+        // end snapping. Dashes stroke the FULL rule length with butt caps; dots
+        // stroke the inner span (inset half a width at each end) with round
+        // caps so a dot sits centered on each end.
+        let dotted = side.style == BorderStyle::Dotted;
+        let (arr, phase, cap, seg_top, seg_bottom) = if dotted {
+            let half = w / 2.0;
+            let seg_top = top_y - half;
+            let seg_bottom = bottom_y + half;
+            let (arr, phase) = corner_dash_array((h - w).max(0.0), w, true);
+            (arr, phase, "1 J\n", seg_top, seg_bottom)
+        } else {
+            let (arr, phase) = corner_dash_array(h, w, false);
+            (arr, phase, "0 J\n", top_y, bottom_y)
+        };
+        content.push_str(cap);
         content.push_str(&format!("{w} w\n"));
-        content.push_str(&format!("{cx} {top_y} m {cx} {bottom_y} l S\n"));
-        content.push_str(reset_dash_pattern(side.style));
+        content.push_str(&format!("[{arr}] {phase} d\n"));
+        content.push_str(&format!("{cx} {seg_top} m {cx} {seg_bottom} l S\n"));
+        content.push_str("[] 0 d\n0 J\n");
     }
     end_border_alpha(content, a);
 }
@@ -2510,6 +2529,12 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                     // page content-left plus the container's own resolved
                     // horizontal margin / auto-centering (see `FlexRow.offset_left`).
                     let flex_left = margin.left + *flex_offset_left;
+                    // Inline-axis origin of the flex *content* box: in-flow cells
+                    // begin inside the container's left border (CSS box model — a
+                    // cell's `x_offset` is measured from the content box, so the
+                    // border-left width must be added, mirroring the cross-axis
+                    // `text_area_top` which already subtracts `border.top.width`).
+                    let cells_left = flex_left + border.left.width;
 
                     // Draw box shadow with blur
                     render_box_shadows(
@@ -2922,7 +2947,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         .chain(cells.iter().filter(|c| c.is_positioned))
                         .collect();
                     for cell in paint_order {
-                        let cell_x = flex_left + padding_left + cell.x_offset;
+                        let cell_x = cells_left + padding_left + cell.x_offset;
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
                         // For single-line rows `line_cross_size == row_height`.
                         // For multi-line wrap, each cell's line_cross_size is its
@@ -3001,7 +3026,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // with `box-shadow`). We draw it before the background
                         // so the shadow sits behind the cell.
                         {
-                            let cell_bg_x = flex_left + padding_left + cell.x_offset;
+                            let cell_bg_x = cells_left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
                             render_box_shadows(
                                 &mut content,
@@ -3020,7 +3045,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell background
                         if let Some((r, g, b, a)) = cell.background_color {
-                            let bg_x = flex_left + padding_left + cell.x_offset;
+                            let bg_x = cells_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let needs_fcell_bg_alpha = a < 1.0;
                             if needs_fcell_bg_alpha {
@@ -3053,7 +3078,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw inset box-shadow (after cell background, before borders).
                         {
-                            let cell_bg_x = flex_left + padding_left + cell.x_offset;
+                            let cell_bg_x = cells_left + padding_left + cell.x_offset;
                             let cell_bg_y = text_area_top - cell_y_shift - cell_render_h;
                             render_box_shadows_inset(
                                 &mut content,
@@ -3163,7 +3188,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell linear gradient
                         if let Some(gradient) = &cell.background_gradient {
-                            let bg_x = flex_left + padding_left + cell.x_offset;
+                            let bg_x = cells_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -3193,7 +3218,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell radial gradient
                         if let Some(gradient) = &cell.background_radial_gradient {
-                            let bg_x = flex_left + padding_left + cell.x_offset;
+                            let bg_x = cells_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -3223,7 +3248,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
 
                         // Draw cell conic gradient
                         if let Some(gradient) = &cell.background_conic_gradient {
-                            let bg_x = flex_left + padding_left + cell.x_offset;
+                            let bg_x = cells_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             if cell.border_radius > 0.0 {
                                 content.push_str("q\n");
@@ -3250,7 +3275,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         }
 
                         if let Some(svg_tree) = &cell.background_svg {
-                            let bg_x = flex_left + padding_left + cell.x_offset;
+                            let bg_x = cells_left + padding_left + cell.x_offset;
                             let bg_y = text_area_top - cell_y_shift - cell_render_h;
                             let (ref_x, ref_y, ref_w, ref_h) = match cell.background_origin {
                                 BackgroundOrigin::Content => (
@@ -6270,16 +6295,25 @@ fn render_container_children(
                     // lands at the content edge.
                     let first_line_indent = if tb_first_line { *tb_text_indent } else { 0.0 };
                     tb_first_line = false;
-                    // Horizontal padding insets the text from the border-box edge.
-                    // `render_x`/`render_w` are the border box; the content box is
-                    // `render_x + padding_left` wide by
-                    // `render_w - padding_left - padding_right`. For left/justify the
-                    // text starts at the content-box left; for right/center it is
-                    // aligned within the content box. (Previously this branch used the
-                    // raw `render_x`, so a nested block's left padding — e.g. a list's
-                    // `ul` padding-left carried onto each `li` — was dropped.)
-                    let content_x = render_x + padding_left;
-                    let content_w = (render_w - padding_left - padding_right).max(0.0);
+                    // Horizontal insets from the border-box edge. `render_x`/`render_w`
+                    // are the BORDER box, so the content box starts after the left
+                    // border + left padding and is narrowed by both horizontal borders
+                    // and paddings — mirroring the primary text path
+                    // (`padding_box_x = block_x + border_left`,
+                    // content = `padding_box_x + padding_left`) and the vertical inset
+                    // in this same arm (`render_y - border.top.width - padding_top`).
+                    // For left/justify the text starts at the content-box left; for
+                    // right/center it is aligned within the content box. (Previously
+                    // this branch used `render_x + padding_left`, dropping the left
+                    // border so text in bordered clip/nested boxes sat `border-left`
+                    // px too far left.)
+                    let content_x = render_x + border.left.width + padding_left;
+                    let content_w = (render_w
+                        - border.left.width
+                        - border.right.width
+                        - padding_left
+                        - padding_right)
+                        .max(0.0);
                     // Drop-cap float exclusion: shift the line right so its text
                     // wraps beside the floated `::first-letter` (css2 §9.5).
                     let line_inset = line.x_offset;
@@ -7846,8 +7880,21 @@ fn render_container_children(
                             }
                         } // else (non-rounded cell border)
                     }
-                    // Draw cell text
-                    let mut text_y = cell_top;
+                    // Draw cell text. Seat it relative to the cell's *content
+                    // box*, not its border box: the content origin is the
+                    // border-box top-left (`cell_top`, `cell_x`) inset by the
+                    // cell's top/left border and padding. This mirrors the
+                    // `cell_first_baseline` model above (`border-top + padding-top
+                    // + ...`) and the top-level FlexRow arm; without the inset the
+                    // text sat at the border-box top-left, painting it too high
+                    // and too far left.
+                    let content_left = cell_x + cell.border.left.width + cell.padding_left;
+                    let content_w = (cell_w
+                        - cell.border.horizontal_width()
+                        - cell.padding_left
+                        - cell.padding_right)
+                        .max(0.0);
+                    let mut text_y = cell_top - cell.border.top.width - cell.padding_top;
                     for line in &cell.lines {
                         let metrics = line_box_metrics(line, custom_fonts);
                         text_y -= metrics.half_leading + metrics.ascender;
@@ -7857,9 +7904,11 @@ fn render_container_children(
                             .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
                             .sum();
                         let text_x = match cell.text_align {
-                            TextAlign::Right => cell_x + (cell_w - line_width).max(0.0),
-                            TextAlign::Center => cell_x + (cell_w - line_width).max(0.0) / 2.0,
-                            _ => cell_x,
+                            TextAlign::Right => content_left + (content_w - line_width).max(0.0),
+                            TextAlign::Center => {
+                                content_left + (content_w - line_width).max(0.0) / 2.0
+                            }
+                            _ => content_left,
                         };
                         let mut lx = text_x;
                         for run in &merged {

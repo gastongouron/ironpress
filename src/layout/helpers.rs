@@ -593,6 +593,67 @@ pub(crate) fn format_list_marker(list_style_type: ListStyleType, index: usize) -
         ListStyleType::None => String::new(),
     }
 }
+/// Build a GEOMETRIC bullet marker (`disc`/`square`) as an atomic inline box,
+/// matching Chrome's `LayoutListMarker` which paints these markers as filled
+/// shapes sized from the font, NOT as font glyphs. A glyph (U+2022 / U+25AA)
+/// renders at the font's own — usually oversized — advance/ink box, so it lands
+/// at the wrong size and vertical position versus Chrome's geometric square/disc.
+///
+/// `font_size` is in the same units layout uses for `TextRun::font_size` (CSS
+/// px); the returned box is sized as a fraction of it. `gap` is the trailing
+/// space between the bullet and the list text, supplied by the caller so the
+/// total marker advance (and thus the `outside` hang) matches the glyph marker
+/// it replaces, keeping the list text at the same horizontal position.
+///
+/// Returns `None` for non-geometric types (decimal/alpha/roman/circle/none) so
+/// the caller falls back to the textual marker path for those.
+pub(crate) fn build_list_bullet_marker(
+    list_style_type: ListStyleType,
+    font_size: f32,
+    color: (f32, f32, f32),
+    gap: f32,
+) -> Option<InlineBox> {
+    // Chrome sizes the disc/square marker glyph box from the font. Measured
+    // against Chrome reference rasters: a filled square is ~0.32em on a side and
+    // a filled disc ~0.36em in diameter, both vertically centred near the text
+    // x-height midline. The small box does not exceed the text strut, so it does
+    // not disturb the line-box height.
+    let (size, border_radius) = match list_style_type {
+        ListStyleType::Square => (font_size * 0.32, 0.0),
+        // A filled disc is a circle: a square box with a radius of half its side.
+        ListStyleType::Disc => {
+            let d = font_size * 0.36;
+            (d, d / 2.0)
+        }
+        _ => return None,
+    };
+    // Chrome centres the bullet ~0.349em above the text baseline (measured from
+    // its reference rasters) and insets it slightly from the marker slot's left
+    // edge by the symbol glyph's left side bearing (~0.085em). Express the
+    // vertical placement through `baseline_ascent` with `vertical-align: baseline`
+    // so the box bottom lands at `baseline + center_above - size/2` without
+    // touching the shared `vertical-align: middle` geometry used elsewhere.
+    let center_above = font_size * 0.349;
+    let margin_left = font_size * 0.085;
+    Some(InlineBox {
+        width: size,
+        height: size,
+        margin_left,
+        margin_right: (gap - margin_left).max(0.0),
+        background_color: Some((color.0, color.1, color.2, 1.0)),
+        border: LayoutBorder::default(),
+        border_radius,
+        padding_top: 0.0,
+        padding_left: 0.0,
+        vertical_align: VerticalAlign::Baseline,
+        baseline_ascent: Some(center_above + size / 2.0),
+        lines: Vec::new(),
+        image: None,
+        rel_offset_x: 0.0,
+        rel_offset_y: 0.0,
+    })
+}
+
 pub(crate) fn to_alpha_lower(n: usize) -> String {
     if n == 0 {
         return "a".to_string();

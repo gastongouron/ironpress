@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 95.76%  (PASS 565 · PARTIAL 44 · FAIL 4 · UNKNOWN 0 · total 613)
+Overall: 96.33%  (PASS 572 · PARTIAL 37 · FAIL 4 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -35,14 +35,14 @@ None — every fixture's HTML matches `refs.lock`.
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Missing | 17.32 | color-opacity | color-format | text-glyph-fill | color-text-glyph | via probe-text-baseline: content clipped/truncated (19.8% missing) |
-| FAIL | REAL | ColorValue | 13.39 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
+| FAIL | REAL | ColorValue | 10.46 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 16 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+10) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 13 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+7) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
@@ -55,16 +55,16 @@ None — every fixture's HTML matches `refs.lock`.
 | color-opacity | 93.75% | 30 | 0 | 2 | 0 |
 | effects | 94.12% | 15 | 2 | 0 | 0 |
 | filters | 85.71% | 10 | 4 | 0 | 0 |
-| flexbox | 97.87% | 45 | 2 | 0 | 0 |
+| flexbox | 100.00% | 47 | 0 | 0 | 0 |
 | fonts-advanced | 100.00% | 12 | 0 | 0 | 0 |
 | generated-content | 97.83% | 22 | 1 | 0 | 0 |
 | grid | 97.92% | 23 | 1 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
 | inline-text | 94.87% | 35 | 4 | 0 | 0 |
-| interactions | 90.91% | 19 | 2 | 1 | 0 |
-| lists-counters | 92.11% | 16 | 3 | 0 | 0 |
-| multicol | 97.37% | 18 | 1 | 0 | 0 |
-| overflow-clipping | 90.91% | 9 | 2 | 0 | 0 |
+| interactions | 93.18% | 20 | 1 | 1 | 0 |
+| lists-counters | 97.37% | 18 | 1 | 0 | 0 |
+| multicol | 100.00% | 19 | 0 | 0 | 0 |
+| overflow-clipping | 95.45% | 10 | 1 | 0 | 0 |
 | paged-media | 88.89% | 7 | 2 | 0 | 0 |
 | positioning | 100.00% | 16 | 0 | 0 | 0 |
 | probes | 91.67% | 5 | 1 | 0 | 0 |
@@ -437,7 +437,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **filter: url()** — 100.00%
   - PASS 0.23% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
-### flexbox — 97.87%
+### flexbox — 100.00%
 - **align-content** — 100.00%
   - PASS 0.00% align-content=center — `flexbox-align-content-center` — align-content:center centers the wrapped flex lines on the cross axis.
   - PASS 0.00% align-content=flex-end — `flexbox-align-content-flex-end` — align-content:flex-end packs the wrapped flex lines to the cross-end edge.
@@ -446,14 +446,14 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.08% align-content=space-between — `flexbox-align-content-space-between` — align-content:space-between pins the first and last lines to the edges with equal gaps between.
   - PASS 0.64% align-content=space-evenly — `flexbox-align-content-space-evenly` — align-content:space-evenly distributes equal space between lines and at both cross edges.
   - PASS 0.00% align-content=stretch — `flexbox-align-content-stretch` — align-content:stretch grows the wrapped flex lines to fill the extra cross-axis space.
-- **align-items** — 90.00%
-  - PARTIAL 2.28% align-items=baseline — `flexbox-align-items-baseline` — align-items:baseline aligns the first text baselines of differently-sized items.
+- **align-items** — 100.00%
+  - PASS 0.94% align-items=baseline — `flexbox-align-items-baseline` — align-items:baseline aligns the first text baselines of differently-sized items.
   - PASS 0.20% align-items=center — `flexbox-align-items-center` — align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.
   - PASS 0.13% align-items=flex-end — `flexbox-align-items-flex-end` — align-items:flex-end anchors differently-tall items to the cross-end (bottom) edge.
   - PASS 0.18% align-items=flex-start — `flexbox-align-items-flex-start` — align-items:flex-start anchors differently-tall items to the cross-start (top) edge.
   - PASS 0.31% align-items=stretch — `flexbox-align-items-stretch` — align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.
-- **align-self** — 83.33%
-  - PARTIAL 2.29% align-self=baseline — `flexbox-align-self-baseline` — align-self:baseline opts a single item into baseline alignment within the line.
+- **align-self** — 100.00%
+  - PASS 1.21% align-self=baseline — `flexbox-align-self-baseline` — align-self:baseline opts a single item into baseline alignment within the line.
   - PASS 0.11% align-self=center — `flexbox-align-self-center` — align-self overrides container align-items per item (flex-start container, one centered, one flex-end).
   - PASS 0.12% align-self=flex-end — `flexbox-align-self-flex-end` — align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.
 - **display** — 100.00%
@@ -685,14 +685,14 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 4.55% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 90.91%
+### interactions — 93.18%
 - **containing-block** — 100.00%
   - PASS 0.10% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - PASS 0.20% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 100.00%
-  - PASS 4.97% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
+  - PASS 0.65% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 100.00%
-  - PASS 3.79% flexbox-x-grid=grid-in-flex-item — `flexbox-x-grid-nested` — A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.
+  - PASS 0.39% flexbox-x-grid=grid-in-flex-item — `flexbox-x-grid-nested` — A grid container (2x2 cells) nested inside a flex item; the flex layout sizes the item and the grid lays out its cells within it.
 - **float** — 100.00%
   - PASS 0.60% float=with-margin-collapse — `interactions-positioning-float-x-margin-collapse` — Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.
 - **float-x-margin-collapse** — 100.00%
@@ -713,22 +713,22 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
   - PASS 0.22% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
   - PASS 0.18% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
-- **positioning-x-flexbox** — 50.00%
-  - PARTIAL 3.63% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
+- **positioning-x-flexbox** — 100.00%
+  - PASS 0.33% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
 - **positioning-x-grid** — 100.00%
   - PASS 0.81% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
-  - FAIL 13.39% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
+  - FAIL 10.46% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
 - **tables-x-typography** — 100.00%
   - PASS 1.24% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
 - **transforms-x-flexbox** — 100.00%
-  - PASS 4.42% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
+  - PASS 0.41% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
 - **z-index** — 100.00%
   - PASS 0.67% z-index=with-gradient — `interactions-positioning-z-index-x-backgrounds-gradient` — Interaction: z-index stacking where the upper positioned box carries a linear-gradient background over a lower solid box.
 - **z-index-x-transforms** — 100.00%
   - PASS 0.36% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 92.11%
+### lists-counters — 97.37%
 - **counters** — 83.33%
   - PASS 1.19% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
   - PASS 2.37% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
@@ -740,22 +740,22 @@ None — every fixture's HTML matches `refs.lock`.
 - **list-style-position** — 100.00%
   - PASS 4.19% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
   - PASS 4.68% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
-- **list-style-type** — 90.91%
+- **list-style-type** — 100.00%
   - PASS 2.67% list-style-type=circle — `list-style-type-circle` — Unordered list rendering hollow circle markers on three short text items.
   - PASS 2.68% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
   - PASS 3.12% list-style-type=decimal-leading-zero — `list-style-type-decimal-leading-zero` — Ordered list rendering 01./02./03. zero-padded decimal markers on three items.
-  - PARTIAL 2.85% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
+  - PASS 2.83% list-style-type=disc — `list-style-type-disc` — Unordered list rendering filled disc markers on three short text items.
   - PASS 3.16% list-style-type=lower-alpha — `list-style-type-lower-alpha` — Ordered list rendering a./b./c. lower-alpha markers on three short text items.
   - PASS 2.76% list-style-type=lower-roman — `list-style-type-lower-roman` — Ordered list rendering i./ii./iii. lower-roman markers on three short text items.
   - PASS 3.15% list-style-type=none — `list-style-type-none` — Unordered list with markers suppressed via list-style-type:none.
-  - PARTIAL 3.45% list-style-type=square — `list-style-type-square` — Unordered list rendering filled square markers on three short text items.
+  - PASS 2.97% list-style-type=square — `list-style-type-square` — Unordered list rendering filled square markers on three short text items.
   - PASS 3.22% list-style-type=upper-alpha — `list-style-type-upper-alpha` — Ordered list rendering A./B./C. upper-alpha markers on three short text items.
   - PASS 2.71% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
   - PASS 2.78% list-style-type=ol-start — `ol-start-attribute` — Ordered list whose markers begin at 5 via the <ol start> attribute (5./6./7.).
 - **marker-pseudo** — 100.00%
   - PASS 4.48% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
-### multicol — 97.37%
+### multicol — 100.00%
 - **break-inside** — 100.00%
   - PASS 0.45% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns; each atomic card stays whole within a column.
 - **column-count** — 100.00%
@@ -771,8 +771,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **column-rule** — 100.00%
   - PASS 0.67% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap, spanning the full content-box height.
   - PASS 0.47% column-rule=longhands — `multicol-column-rule-longhands` — column-rule-width/style/color set as separate longhands (thick solid blue).
-- **column-rule-style** — 83.33%
-  - PARTIAL 0.87% column-rule-style=dashed — `multicol-column-rule-dashed` — Three-column container with a 6px dashed column-rule painted in each gap.
+- **column-rule-style** — 100.00%
+  - PASS 0.63% column-rule-style=dashed — `multicol-column-rule-dashed` — Three-column container with a 6px dashed column-rule painted in each gap.
   - PASS 0.60% column-rule-style=double — `multicol-column-rule-double` — Three-column container with a 9px double column-rule (two thin parallel lines) in each gap.
   - PASS 0.33% column-rule-style=none — `multicol-column-rule-none` — column-rule-style: none draws no rule and consumes no space; the gap matches a plain column-gap.
 - **column-span** — 100.00%
@@ -785,15 +785,15 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once.
   - PASS 0.44% columns=width-only — `multicol-columns-width-only` — columns: 140px shorthand with only a column-width; the used column count is derived from the inline size.
 
-### overflow-clipping — 90.91%
-- **overflow** — 90.91%
+### overflow-clipping — 95.45%
+- **overflow** — 95.45%
   - PASS 0.00% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
   - PASS 0.05% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PASS 0.00% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PASS 0.00% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - PASS 0.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PASS 0.13% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
-  - PARTIAL 14.54% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
+  - PASS 0.00% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - PASS 0.00% overflow=padding-box-clip-edge — `overflow-padding-box-clip` — overflow:hidden on a padded box clips its oversized child at the PADDING box: the child fills the padding box out to the inner border edge and is cut there, leaving the border fully visible and the top/left padding band showing.
   - PARTIAL 1.29% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - PASS 0.00% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
@@ -888,7 +888,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.13% combinator=descendant — `selectors-cascade-descendant-combinator` — The descendant combinator (space) matches every .box inside #parent at any depth; a .box outside #parent stays gray.
   - PASS 0.16% combinator=general-sibling — `selectors-cascade-general-sibling` — The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.
 - **pseudo-class** — 100.00%
-  - PASS 0.43% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
+  - PASS 0.29% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
   - PASS 0.16% pseudo-class=first-child-last-child — `selectors-cascade-first-last-child` — :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.
   - PASS 0.16% pseudo-class=first-of-type — `selectors-cascade-first-of-type` — p:first-of-type colors the first <p> green even though a <div> precedes it.
   - PASS 0.16% pseudo-class=has — `selectors-cascade-has-relational` — :has(+ .flag) colors a box that is immediately followed by a .flag sibling green.

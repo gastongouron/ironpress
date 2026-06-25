@@ -1520,11 +1520,49 @@ pub(crate) fn layout_flex_container(
                         && (items[i].width - items[i].base_width).abs() > 1.0
                     {
                         let final_w = items[i].width;
-                        let child_el = child_elements[items[i].child_idx];
+                        let child_idx = items[i].child_idx;
+                        let child_el = child_elements[child_idx];
                         let has_block_kids = child_el.children.iter().any(|c| {
                             matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
                         });
                         if has_block_kids {
+                            // `final_w` is the item's resolved BORDER-box main size.
+                            // `flatten_element` derives the child's block (border-box)
+                            // width by adding the child's own horizontal border to the
+                            // available width it is handed. Passing the border-box
+                            // width verbatim therefore double-counted the child's
+                            // border: a bordered auto-width child (e.g. a nested grid
+                            // host) rendered `final_w + its border` wide, overflowing
+                            // the flex item. Subtract the child's own horizontal
+                            // border so its border-box lands exactly on `final_w`.
+                            let relayout_classes = child_el.class_list();
+                            let relayout_selector_ctx = SelectorContext {
+                                ancestors: ancestors.to_vec(),
+                                child_index: child_idx,
+                                sibling_count: child_count,
+                                preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
+                            };
+                            let relayout_child_style = compute_style_with_context(
+                                child_el.tag,
+                                child_el.style_attr(),
+                                &parent_for_children,
+                                env.rules,
+                                child_el.tag_name(),
+                                &relayout_classes,
+                                child_el.id(),
+                                &child_el.attributes,
+                                &relayout_selector_ctx,
+                            );
+                            // Only auto-width children fill the available width (and
+                            // thus need the border-deduction); an explicit width
+                            // resolves the child's box itself, so leave `final_w`.
+                            let relayout_avail = if relayout_child_style.width.is_some() {
+                                final_w
+                            } else {
+                                (final_w - relayout_child_style.border.horizontal_width()).max(0.0)
+                            };
                             let mut relayout_buf = Vec::new();
                             let mut relayout_ancestors = ancestors.to_vec();
                             relayout_ancestors.push(AncestorInfo {
@@ -1537,7 +1575,7 @@ pub(crate) fn layout_flex_container(
                             });
                             let relayout_ctx = ctx
                                 .with_parent_and_basis(
-                                    final_w,
+                                    relayout_avail,
                                     width_for_percentages,
                                     Some(10000.0),
                                     style.font_size,
