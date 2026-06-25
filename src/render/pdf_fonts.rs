@@ -1027,6 +1027,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             link_url: None,
             font_family: FontFamily::Helvetica,

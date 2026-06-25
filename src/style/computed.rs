@@ -1212,6 +1212,10 @@ pub struct ComputedStyle {
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
     pub text_decoration_overline: bool,
+    /// CSS `text-decoration-color` (css-text-decor-3 §2.2): the colour of the
+    /// underline/line-through/overline, independent of the text `color`. `None`
+    /// means `currentColor` (fall back to the run's text colour). Not inherited.
+    pub text_decoration_color: Option<Color>,
     pub line_height: f32,
     pub page_break_before: bool,
     pub page_break_after: bool,
@@ -1565,6 +1569,7 @@ impl Default for ComputedStyle {
             text_decoration_underline: false,
             text_decoration_line_through: false,
             text_decoration_overline: false,
+            text_decoration_color: None,
             line_height: f32::NAN,
             page_break_before: false,
             page_break_after: false,
@@ -2961,6 +2966,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.text_decoration_underline = k == "underline";
         style.text_decoration_line_through = k == "line-through";
         style.text_decoration_overline = k == "overline";
+    }
+
+    // `text-decoration-color` longhand (css-text-decor-3 §2.2): an explicit line
+    // colour distinct from the text `color`. Resolved like any colour value.
+    if let Some(CssValue::Color(c)) = get_non_special(map, "text-decoration-color") {
+        style.text_decoration_color = Some(*c);
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-height") {

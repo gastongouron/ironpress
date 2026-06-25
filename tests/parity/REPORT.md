@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 90.03%  (PASS 509 · PARTIAL 84 · FAIL 19 · UNKNOWN 1 · total 613)
+Overall: 90.11%  (PASS 510 · PARTIAL 83 · FAIL 19 · UNKNOWN 1 · total 613)
 Scored coverage: 99.84% (612 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -71,7 +71,7 @@ None — every fixture's HTML matches `refs.lock`.
 | generated-content | 84.78% | 16 | 7 | 0 | 0 |
 | grid | 97.92% | 23 | 1 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
-| inline-text | 82.05% | 27 | 10 | 2 | 0 |
+| inline-text | 83.33% | 28 | 9 | 2 | 0 |
 | interactions | 70.45% | 15 | 1 | 6 | 0 |
 | lists-counters | 86.84% | 15 | 3 | 1 | 0 |
 | multicol | 81.58% | 12 | 7 | 0 | 0 |
@@ -144,7 +144,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.00 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
 | unsupported | PASS | 0.16 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
-| partial | PARTIAL | 10.54 | inline-text | text-decoration-color | inline-text-text-decoration-color | text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported. |
+| partial | PARTIAL | 9.69 | inline-text | text-decoration-color | inline-text-text-decoration-color | text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported. |
 | partial | PASS | 1.97 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
 | unsupported | PARTIAL | 3.10 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
 | unsupported | PASS | 5.53 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
@@ -641,7 +641,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.71% object-position=length-values — `img-object-position-length` — object-position:10px 20px offsets a contained 2:1 image by absolute lengths from the box top-left.
   - PASS 0.46% object-position=percentage-values — `img-object-position-percent` — object-position:25% 75% positions a contained 2:1 image within the free space of a 160x160 box.
 
-### inline-text — 82.05%
+### inline-text — 83.33%
 - **inline-block** — 75.00%
   - PASS 2.30% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
   - PASS 3.64% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
@@ -661,12 +661,12 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 6.00% text-align=justify — `inline-text-text-align-justify` — text-align:justify stretches inter-word spacing on wrapped non-last lines to both edges.
   - PASS 8.01% text-align=justify-multiline — `inline-text-text-align-justify-multiline` — text-align:justify stretches inter-word spacing so non-last lines reach both edges (css-text-3 §7.3).
   - PARTIAL 5.72% text-align=right — `inline-text-text-align-right` — text-align:right pushes a short line to the right edge of the box content area.
-- **text-decoration** — 66.67%
-  - PARTIAL 4.62% text-decoration=line-through — `inline-text-text-decoration-line-through` — text-decoration-line:line-through strikes a line through the text (css-text-decor-3 §2.1).
-  - PARTIAL 7.22% text-decoration=overline — `inline-text-text-decoration-overline` — text-decoration-line:overline draws a line above the text (css-text-decor-3 §2.1).
-  - PASS 7.16% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
+- **text-decoration** — 83.33%
+  - PASS 4.56% text-decoration=line-through — `inline-text-text-decoration-line-through` — text-decoration-line:line-through strikes a line through the text (css-text-decor-3 §2.1).
+  - PARTIAL 7.17% text-decoration=overline — `inline-text-text-decoration-overline` — text-decoration-line:overline draws a line above the text (css-text-decor-3 §2.1).
+  - PASS 6.28% text-decoration=underline — `inline-text-text-decoration-underline` — text-decoration:underline with a colored 2px line under an inline span.
 - **text-decoration-color** — 50.00%
-  - PARTIAL 10.54% text-decoration-color=distinct — `inline-text-text-decoration-color` — text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported.
+  - PARTIAL 9.69% text-decoration-color=distinct — `inline-text-text-decoration-color` — text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported.
 - **text-indent** — 100.00%
   - PASS 6.69% text-indent=length — `inline-text-text-indent-length` — text-indent:<length> indents only the first formatted line (css-text-3 §8).
 - **text-transform** — 100.00%

@@ -1872,8 +1872,11 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             if run.text.is_empty() {
                                 continue;
                             }
-                            let (r, g, b) = run.color;
+                            // text-decoration-color (falls back to currentColor).
+                            let (dr, dg, db) = run.decoration_color.unwrap_or(run.color);
                             let run_width = estimate_run_width_with_fonts(run, custom_fonts);
+                            // Inset decorations past leading/trailing whitespace.
+                            let (deco_lead, deco_trail) = decoration_ws_insets(run, custom_fonts);
 
                             // Draw background rectangle for inline spans
                             if let Some((br, bg, bb, ba)) = run.background_color {
@@ -1927,8 +1930,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let uy = text_y - desc * 0.6;
                                 let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{thickness} w\n{bg_x} {uy} m {x2} {uy} l\nS\n",
-                                    x2 = bg_x + run_width,
+                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {uy} m {x2} {uy} l\nS\n",
+                                    dx0 = bg_x + deco_lead,
+                                    x2 = bg_x + run_width - deco_trail,
                                 ));
                             }
 
@@ -1937,8 +1941,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let sy = text_y + run.font_size * 0.3;
                                 let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{thickness} w\n{bg_x} {sy} m {x2} {sy} l\nS\n",
-                                    x2 = bg_x + run_width,
+                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {sy} m {x2} {sy} l\nS\n",
+                                    dx0 = bg_x + deco_lead,
+                                    x2 = bg_x + run_width - deco_trail,
                                 ));
                             }
 
@@ -1956,8 +1961,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 let oy = text_y + ascender_ratio * run.font_size;
                                 let thickness = (run.font_size * 0.07).max(0.5);
                                 content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{thickness} w\n{bg_x} {oy} m {x2} {oy} l\nS\n",
-                                    x2 = bg_x + run_width,
+                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {oy} m {x2} {oy} l\nS\n",
+                                    dx0 = bg_x + deco_lead,
+                                    x2 = bg_x + run_width - deco_trail,
                                 ));
                             }
 
@@ -3250,8 +3256,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 if run.text.is_empty() {
                                     continue;
                                 }
-                                let (r, g, b) = run.color;
+                                let (dr, dg, db) = run.decoration_color.unwrap_or(run.color);
                                 let rw = estimate_run_width_with_fonts(run, custom_fonts);
+                                let (deco_lead, deco_trail) =
+                                    decoration_ws_insets(run, custom_fonts);
 
                                 // Draw background rectangle for inline spans
                                 if let Some((br, bgc, bb, ba)) = run.background_color {
@@ -3307,8 +3315,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let uy = text_y - desc * 0.6;
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
-                                        "{r} {g} {b} RG\n{thickness} w\n{x} {uy} m {x2} {uy} l\nS\n",
-                                        x2 = x + rw,
+                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {uy} m {x2} {uy} l\nS\n",
+                                        dx0 = x + deco_lead,
+                                        x2 = x + rw - deco_trail,
                                     ));
                                 }
 
@@ -3317,8 +3326,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let sy = text_y + run.font_size * 0.3;
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
-                                        "{r} {g} {b} RG\n{thickness} w\n{x} {sy} m {x2} {sy} l\nS\n",
-                                        x2 = x + rw,
+                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {sy} m {x2} {sy} l\nS\n",
+                                        dx0 = x + deco_lead,
+                                        x2 = x + rw - deco_trail,
                                     ));
                                 }
 
@@ -3334,8 +3344,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     let oy = text_y + ascender_ratio * run.font_size;
                                     let thickness = (run.font_size * 0.07).max(0.5);
                                     content.push_str(&format!(
-                                        "{r} {g} {b} RG\n{thickness} w\n{x} {oy} m {x2} {oy} l\nS\n",
-                                        x2 = x + rw,
+                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {oy} m {x2} {oy} l\nS\n",
+                                        dx0 = x + deco_lead,
+                                        x2 = x + rw - deco_trail,
                                     ));
                                 }
 
@@ -4965,6 +4976,44 @@ fn resolve_font_name(
 }
 
 /// Estimate run width using TTF metrics for custom fonts, falling back to fixed estimation.
+/// Width of a run's leading and trailing whitespace, used to inset
+/// text-decoration lines. A decorated inline span often absorbs the inter-word
+/// space that precedes/follows it (the collapsing whitespace is merged into the
+/// span's run), but CSS only decorates the span's own text — the bordering space
+/// belongs to the parent. Insetting the underline/line-through/overline by these
+/// widths keeps the decoration under the glyphs (matching Chrome) while leaving
+/// internal spaces covered. Clamped so the two insets never exceed the run width.
+fn decoration_ws_insets(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> (f32, f32) {
+    if run.inline_box.is_some() {
+        return (0.0, 0.0);
+    }
+    let lead: String = run.text.chars().take_while(|c| c.is_whitespace()).collect();
+    let trail: String = run
+        .text
+        .chars()
+        .rev()
+        .take_while(|c| c.is_whitespace())
+        .collect();
+    if lead.is_empty() && trail.is_empty() {
+        return (0.0, 0.0);
+    }
+    let measure = |s: &str| {
+        if s.is_empty() {
+            0.0
+        } else {
+            crate::layout::text::estimate_word_width(
+                s,
+                run.font_size,
+                &run.font_family,
+                run.bold,
+                run.italic,
+                custom_fonts,
+            )
+        }
+    };
+    (measure(&lead), measure(&trail))
+}
+
 fn estimate_run_width_with_fonts(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
     if let Some(inline) = run.inline_box.as_deref() {
         return inline.outer_width();
@@ -11889,6 +11938,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -13569,6 +13619,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -13589,6 +13640,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -13686,6 +13738,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -13708,6 +13761,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -13730,6 +13784,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Custom("MyFont".to_string()),
             link_url: None,
@@ -15168,6 +15223,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -15236,6 +15292,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -15256,6 +15313,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16213,6 +16271,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16341,6 +16400,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16439,6 +16499,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16568,6 +16629,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16677,6 +16739,7 @@ mod tests {
             underline: true,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16697,6 +16760,7 @@ mod tests {
             underline: false,
             line_through: true,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16781,6 +16845,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (1.0, 1.0, 1.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
@@ -16857,6 +16922,7 @@ mod tests {
             underline: false,
             line_through: false,
             overline: false,
+            decoration_color: None,
             color: (0.0, 0.0, 0.0),
             font_family: FontFamily::Helvetica,
             link_url: None,
