@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 95.11%  (PASS 561 · PARTIAL 44 · FAIL 8 · UNKNOWN 0 · total 613)
+Overall: 95.27%  (PASS 562 · PARTIAL 44 · FAIL 7 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -35,7 +35,6 @@ None — every fixture's HTML matches `refs.lock`.
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Missing | 17.32 | color-opacity | color-format | text-glyph-fill | color-text-glyph | via probe-text-baseline: content clipped/truncated (19.8% missing) |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 9.64 | inline-text | inline-block | shrink-to-fit | inline-text-inline-block-shrink-to-fit | via probe-text-baseline: fill recolour ΔRGB(+0,+16,+42) (ΔE 28.4) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 2.73 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | via probe-text-baseline: fill recolour ΔRGB(-11,-11,-6) (ΔE 47.4) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 4.52 | interactions | position | (interaction: positioning×inline-text) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-relative-x-inline-block | via probe-text-baseline: fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
 | FAIL | REAL | ColorValue | 13.39 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
@@ -45,7 +44,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 20 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-inline-block-shrink-to-fit, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline …(+14) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 19 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+13) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
@@ -63,7 +62,7 @@ None — every fixture's HTML matches `refs.lock`.
 | generated-content | 97.83% | 22 | 1 | 0 | 0 |
 | grid | 97.92% | 23 | 1 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
-| inline-text | 89.74% | 33 | 4 | 2 | 0 |
+| inline-text | 92.31% | 34 | 4 | 1 | 0 |
 | interactions | 86.36% | 18 | 2 | 2 | 0 |
 | lists-counters | 92.11% | 16 | 3 | 0 | 0 |
 | multicol | 97.37% | 18 | 1 | 0 | 0 |
@@ -633,11 +632,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.20% object-position=length-values — `img-object-position-length` — object-position:10px 20px offsets a contained 2:1 image by absolute lengths from the box top-left.
   - PASS 0.07% object-position=percentage-values — `img-object-position-percent` — object-position:25% 75% positions a contained 2:1 image within the free space of a 160x160 box.
 
-### inline-text — 89.74%
-- **inline-block** — 62.50%
+### inline-text — 92.31%
+- **inline-block** — 87.50%
   - PASS 1.02% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
   - PASS 2.11% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
-  - FAIL 9.64% inline-block=shrink-to-fit — `inline-text-inline-block-shrink-to-fit` — Inline-blocks with no explicit width use shrink-to-fit sizing, hugging their content (CSS2 §10.3.9).
+  - PASS 0.33% inline-block=shrink-to-fit — `inline-text-inline-block-shrink-to-fit` — Inline-blocks with no explicit width use shrink-to-fit sizing, hugging their content (CSS2 §10.3.9).
   - PARTIAL 4.89% inline-block=multiple — `inline-text-multiple-inline-blocks` — Several inline-blocks flow left-to-right on one line, separated by inter-element whitespace.
 - **letter-spacing** — 100.00%
   - PASS 0.00% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.

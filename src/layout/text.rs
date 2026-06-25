@@ -1439,14 +1439,13 @@ fn build_inline_box(
             child_w
         }
     } else {
+        // Shrink-to-fit width must use the REAL bundled-font advances per line
+        // (the former str_width is Helvetica AFM and mis-sizes a ParitySans run,
+        // giving the auto-width box the wrong width). measure_runs_width measures
+        // each run with its actual font (and inline-box outer widths).
         lines
             .iter()
-            .map(|l| {
-                l.runs
-                    .iter()
-                    .map(|r| crate::fonts::str_width(&r.text, r.font_size, &r.font_family, r.bold))
-                    .sum::<f32>()
-            })
+            .map(|l| crate::layout::helpers::measure_runs_width(&l.runs, fonts))
             .fold(0.0f32, f32::max)
     };
     let total_w =

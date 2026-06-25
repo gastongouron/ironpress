@@ -229,17 +229,11 @@ pub(crate) fn layout_inline_block_group(
         let content_w = if has_explicit_width {
             child_w
         } else {
-            // Shrink-to-fit: use the widest line
+            // Shrink-to-fit: widest line, measured with the REAL bundled-font
+            // advances (str_width is Helvetica AFM and mis-sizes a ParitySans run).
             lines
                 .iter()
-                .map(|l| {
-                    l.runs
-                        .iter()
-                        .map(|r| {
-                            crate::fonts::str_width(&r.text, r.font_size, &r.font_family, r.bold)
-                        })
-                        .sum::<f32>()
-                })
+                .map(|l| crate::layout::helpers::measure_runs_width(&l.runs, fonts))
                 .fold(0.0f32, f32::max)
         };
         let total_w = if child_style.box_sizing == BoxSizing::BorderBox && has_explicit_width {
