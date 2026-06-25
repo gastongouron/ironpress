@@ -562,7 +562,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **pseudo-element** — 70.00%
   - PARTIAL 0.99% pseudo-element=after-on-replaced-img — `generated-content-after-replaced` — ::after on a replaced <img> generates no box; only the image renders.
   - PASS 2.78% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
-  - PARTIAL 7.32% pseudo-element=before-display-block — `generated-content-before-block` — ::before with display:block renders a full-width colored header band above the body text.
+  - PARTIAL 5.58% pseudo-element=before-display-block — `generated-content-before-block` — ::before with display:block renders a full-width colored header band above the body text.
   - PARTIAL 3.06% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
   - PASS 2.87% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
 - **quotes** — 100.00%

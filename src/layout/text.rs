@@ -380,6 +380,44 @@ fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<Styl
     }
 }
 
+/// Push a whitespace-delimited word, splitting it at internal hyphen-minus break
+/// opportunities. UAX #14 allows a line break *after* a U+002D hyphen that sits
+/// between two letters (e.g. "pseudo-element" → "pseudo-", "element"), which is
+/// how Chrome wraps hyphenated words. The hyphen stays with the preceding
+/// segment; later segments `join` the prior one (no inter-word space) so they
+/// render contiguously yet may begin a new line. Restricting to letter-flanked
+/// hyphens avoids breaking number ranges, dates, or signs ("12-34", "-5").
+fn push_word_with_hyphen_breaks(word: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
+    let chars: Vec<char> = word.chars().collect();
+    let mut seg = String::new();
+    let mut first = true;
+    for (i, &c) in chars.iter().enumerate() {
+        seg.push(c);
+        let can_break = c == '-'
+            && i > 0
+            && i + 1 < chars.len()
+            && chars[i - 1].is_alphabetic()
+            && chars[i + 1].is_alphabetic();
+        if can_break {
+            out.push(StyledWord {
+                text: std::mem::take(&mut seg),
+                run: template.clone(),
+                preserve_spacing: false,
+                joins_prev: !first,
+            });
+            first = false;
+        }
+    }
+    if !seg.is_empty() {
+        out.push(StyledWord {
+            text: seg,
+            run: template.clone(),
+            preserve_spacing: false,
+            joins_prev: !first,
+        });
+    }
+}
+
 // ---------------------------------------------------------------------------
 // split_word_to_fit
 // ---------------------------------------------------------------------------
@@ -561,12 +599,7 @@ pub(crate) fn wrap_text_runs(
                     }
                 } else {
                     for word in segment.split_whitespace() {
-                        styled_words.push(StyledWord {
-                            text: word.to_string(),
-                            run: run.clone(),
-                            preserve_spacing: false,
-                            joins_prev: false,
-                        });
+                        push_word_with_hyphen_breaks(word, run, &mut styled_words);
                     }
                 }
             }
@@ -583,12 +616,7 @@ pub(crate) fn wrap_text_runs(
             }
         } else {
             for word in run.text.split_whitespace() {
-                styled_words.push(StyledWord {
-                    text: word.to_string(),
-                    run: run.clone(),
-                    preserve_spacing: false,
-                    joins_prev: false,
-                });
+                push_word_with_hyphen_breaks(word, run, &mut styled_words);
             }
         }
 
