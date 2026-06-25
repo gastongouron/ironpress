@@ -4,6 +4,10 @@ pub(super) struct TextRenderContext<'a> {
     custom_fonts: &'a HashMap<String, TtfFont>,
     prepared_custom_fonts: &'a PreparedCustomFonts,
     annotations: &'a mut Vec<LinkAnnotation>,
+    // Threaded so `render_cell_text` can embed blurred `text-shadow` image
+    // XObjects (it rasterizes + blurs the shadow glyphs, like the page path).
+    pdf_writer: &'a mut PdfWriter,
+    page_images: &'a mut Vec<ImageRef>,
 }
 
 impl<'a> TextRenderContext<'a> {
@@ -11,18 +15,20 @@ impl<'a> TextRenderContext<'a> {
         custom_fonts: &'a HashMap<String, TtfFont>,
         prepared_custom_fonts: &'a PreparedCustomFonts,
         annotations: &'a mut Vec<LinkAnnotation>,
+        pdf_writer: &'a mut PdfWriter,
+        page_images: &'a mut Vec<ImageRef>,
     ) -> Self {
         Self {
             custom_fonts,
             prepared_custom_fonts,
             annotations,
+            pdf_writer,
+            page_images,
         }
     }
 }
 
 pub(super) struct PageRenderContext<'a> {
-    pdf_writer: &'a mut PdfWriter,
-    page_images: &'a mut Vec<ImageRef>,
     shadings: &'a mut Vec<ShadingEntry>,
     shading_counter: &'a mut usize,
     pub(super) page_ext_gstates: &'a mut Vec<(String, f32)>,
@@ -44,13 +50,17 @@ impl<'a> PageRenderContext<'a> {
         annotations: &'a mut Vec<LinkAnnotation>,
     ) -> Self {
         Self {
-            pdf_writer,
-            page_images,
             shadings,
             shading_counter,
             page_ext_gstates,
             bg_alpha_counter,
-            text: TextRenderContext::new(custom_fonts, prepared_custom_fonts, annotations),
+            text: TextRenderContext::new(
+                custom_fonts,
+                prepared_custom_fonts,
+                annotations,
+                pdf_writer,
+                page_images,
+            ),
         }
     }
 }
@@ -410,6 +420,8 @@ pub(super) fn render_cell_text(
                 ctx.custom_fonts,
                 ctx.prepared_custom_fonts,
                 0.0,
+                ctx.pdf_writer,
+                ctx.page_images,
             );
 
             if run.underline {
@@ -512,7 +524,7 @@ pub(super) fn render_nested_text_block(
             block.background_blur_radius,
         )
     {
-        let img_obj_id = ctx.pdf_writer.add_image_object(
+        let img_obj_id = ctx.text.pdf_writer.add_image_object(
             &blurred.asset.data,
             blurred.asset.source_width,
             blurred.asset.source_height,
@@ -529,7 +541,7 @@ pub(super) fn render_nested_text_block(
             iy = block_bottom - ov,
             name = img_name,
         ));
-        ctx.page_images.push(ImageRef {
+        ctx.text.page_images.push(ImageRef {
             name: img_name,
             obj_id: img_obj_id,
         });
@@ -624,8 +636,8 @@ pub(super) fn render_nested_text_block(
         render_svg_background(
             content,
             svg_tree,
-            ctx.pdf_writer,
-            ctx.page_images,
+            ctx.text.pdf_writer,
+            ctx.text.page_images,
             ctx.shadings,
             ctx.shading_counter,
             Some(ctx.page_ext_gstates),

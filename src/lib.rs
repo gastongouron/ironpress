@@ -2122,16 +2122,18 @@ body { background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy
     #[test]
     fn pdf_inline_block_box_shadow_renders() {
         // Regression: box-shadow on `display: inline-block` items (rendered via
-        // FlexCells) was dropped because FlexCell didn't carry the shadow. The
-        // blurred shadow path emits per-layer ExtGState entries with low alpha.
+        // FlexCells) was dropped because FlexCell didn't carry the shadow. A
+        // blurred shadow is now embedded as a gaussian-blurred image XObject
+        // (drawn with `Do`), so the regression check is that the shadow renders
+        // at all rather than being dropped.
         let html = "<div><div style=\"display:inline-block;width:80pt;height:40pt;\
             background:white;box-shadow:4pt 4pt 8pt rgba(0,0,0,0.3)\">A</div></div>";
         let pdf = html_to_pdf(html).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        // The shadow renderer registers its alpha layers under `GSbs<n>`.
+        // The blurred shadow is embedded as an image XObject and drawn with `Do`.
         assert!(
-            content.contains("GSbs"),
-            "expected inline-block box-shadow to emit blurred shadow ExtGState (GSbs...)"
+            content.contains("Do\n"),
+            "expected inline-block box-shadow to embed a blurred shadow image XObject"
         );
     }
 

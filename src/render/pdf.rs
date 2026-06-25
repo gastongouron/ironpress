@@ -1173,6 +1173,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         *border_radius,
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
+                        &mut pdf_writer,
+                        &mut page_images,
                     );
 
                     // CSS `filter: blur()` on a solid box (css-filter-effects-1
@@ -1988,6 +1990,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             &prepared_custom_fonts,
                             total_ws,
                             line_text_top(line, custom_fonts),
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
 
                         // Reset letter spacing after line
@@ -2465,6 +2469,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         *border_radius,
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
+                        &mut pdf_writer,
+                        &mut page_images,
                     );
 
                     // Draw container background
@@ -2943,6 +2949,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 cell.border_radius,
                                 &mut page_ext_gstates,
                                 &mut bg_alpha_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                         }
 
@@ -3301,6 +3309,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     custom_fonts,
                                     &prepared_custom_fonts,
                                     0.0,
+                                    &mut pdf_writer,
+                                    &mut page_images,
                                 );
 
                                 // Draw underline (font-size-relative)
@@ -3486,6 +3496,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     custom_fonts,
                                                     &prepared_custom_fonts,
                                                     0.0,
+                                                    &mut pdf_writer,
+                                                    &mut page_images,
                                                 );
                                                 lx += rw;
                                             }
@@ -3530,6 +3542,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                         custom_fonts,
                                                         &prepared_custom_fonts,
                                                         0.0,
+                                                        &mut pdf_writer,
+                                                        &mut page_images,
                                                     );
                                                     lx += rw;
                                                 }
@@ -4014,6 +4028,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             *c_border_radius,
                             &mut page_ext_gstates,
                             &mut bg_alpha_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
 
                         // `container_x` / `container_y_top` describe the BORDER
@@ -5808,6 +5824,8 @@ fn render_container_children(
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
+                                pdf_writer,
+                                page_images,
                             );
                             lx += rw;
                         }
@@ -6285,6 +6303,8 @@ fn render_container_children(
                             custom_fonts,
                             prepared_custom_fonts,
                             0.0,
+                            pdf_writer,
+                            page_images,
                         );
                         lx += rw;
                     }
@@ -6590,6 +6610,8 @@ fn render_container_children(
                             *cont_br,
                             page_ext_gstates,
                             bg_alpha_counter,
+                            pdf_writer,
+                            page_images,
                         );
 
                         // Draw background with proper alpha support
@@ -7759,6 +7781,8 @@ fn render_container_children(
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
+                                pdf_writer,
+                                page_images,
                             );
                             lx += rw;
                         }
@@ -8046,6 +8070,8 @@ fn render_nested_table_rows(
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
+                                pdf_writer,
+                                page_images,
                             );
                             lx += rw;
                         }
@@ -8262,6 +8288,8 @@ fn render_nested_table_rows(
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
+                                pdf_writer,
+                                page_images,
                             );
                             lx += rw;
                         }
@@ -8332,6 +8360,86 @@ fn render_nested_table_rows(
     }
 }
 
+/// Paint a blurred `text-shadow` for `run` as an image XObject. Rasterizes the
+/// run's glyph outlines into an alpha mask, gaussian-blurs + tints it (σ =
+/// blur/2), and embeds it positioned so the mask's text origin lands at the
+/// shadow's PDF origin `(origin_x_pt, baseline_y_pt)`. Returns `true` on
+/// success; `false` (e.g. non-shapeable font, empty run) so the caller paints a
+/// sharp vector copy instead.
+#[allow(clippy::too_many_arguments)]
+fn render_text_shadow_blur(
+    content: &mut String,
+    run: &TextRun,
+    origin_x_pt: f32,
+    baseline_y_pt: f32,
+    blur_pt: f32,
+    color: (f32, f32, f32, f32),
+    custom_fonts: &HashMap<String, TtfFont>,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) -> bool {
+    let (_, font) =
+        match crate::text::resolve_custom_font(&run.font_family, run.bold, run.italic, custom_fonts)
+        {
+            Some(f) => f,
+            None => return false,
+        };
+    let shaped = match crate::text::shape_text_run(run, custom_fonts) {
+        Some(s) if !s.glyphs.is_empty() => s,
+        _ => return false,
+    };
+    let raster = match crate::render::blur::rasterize_run_alpha(
+        &font.data,
+        font.units_per_em,
+        run.font_size,
+        &shaped.glyphs,
+    ) {
+        Some(r) => r,
+        None => return false,
+    };
+    let (mask_w, mask_h) = (raster.mask.width(), raster.mask.height());
+    let (blurred, pad) =
+        match crate::render::blur::blur_shadow_alpha_mask(&raster.mask, blur_pt, color) {
+            Some(b) => b,
+            None => return false,
+        };
+
+    let px_per_pt = crate::render::blur::px_per_pt();
+    let buf_w_px = (mask_w + 2 * pad) as f32;
+    let buf_h_px = (mask_h + 2 * pad) as f32;
+    let w_pt = buf_w_px / px_per_pt;
+    let h_pt = buf_h_px / px_per_pt;
+
+    // Text origin inside the blurred buffer (device px from top-left).
+    let bx = raster.origin_x_px + pad as f32;
+    let by = raster.baseline_y_px + pad as f32;
+
+    // Place the buffer so its text-origin pixel lands at the shadow PDF origin.
+    let ix = origin_x_pt - bx / px_per_pt;
+    let iy = baseline_y_pt - h_pt + by / px_per_pt;
+
+    let img_obj_id = pdf_writer.add_image_object(
+        &blurred.asset.data,
+        blurred.asset.source_width,
+        blurred.asset.source_height,
+        blurred.asset.format,
+        blurred.asset.png_metadata.as_ref(),
+    );
+    let img_name = format!("Im{img_obj_id}");
+    content.push_str(&format!(
+        "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+        w = w_pt,
+        h = h_pt,
+        name = img_name,
+    ));
+    page_images.push(ImageRef {
+        name: img_name,
+        obj_id: img_obj_id,
+    });
+    true
+}
+
+#[allow(clippy::too_many_arguments)]
 fn render_run_text(
     content: &mut String,
     run: &TextRun,
@@ -8340,6 +8448,8 @@ fn render_run_text(
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) -> f32 {
     let (r, g, b) = run.color;
 
@@ -8353,12 +8463,34 @@ fn render_run_text(
     // real text, once per shadow (back-to-front: the last listed shadow is
     // drawn first / furthest back). Each shadow is offset by (offset_x right,
     // offset_y down) in the shadow's colour. PDF Y grows upward, so a positive
-    // CSS offset-y subtracts from `text_y`. Blur is approximated as a sharp
-    // offset (sufficient for the deterministic zero-blur case); decorations and
-    // nested shadows are cleared on the shadow run to avoid double-painting.
+    // CSS offset-y subtracts from `text_y`.
+    //
+    // When `blur > 0`, the shadow is a true gaussian (σ = blur/2): rasterize the
+    // run's glyph outlines into an alpha mask, blur+tint it (reusing
+    // `render::blur`), and embed as an image XObject — matching Chrome's soft
+    // halo. When `blur == 0` (or rasterization is unavailable), paint a sharp
+    // offset vector copy. Decorations and nested shadows are cleared on the
+    // shadow run to avoid double-painting.
     if !run.text_shadow.is_empty() {
         for shadow in run.text_shadow.iter().rev() {
-            let (sr, sg, sb, _alpha) = shadow.color.to_f32_rgba();
+            let (sr, sg, sb, alpha) = shadow.color.to_f32_rgba();
+            // Try the blurred raster path first when the shadow has blur and the
+            // run is a shapeable custom font (outlines available).
+            if shadow.blur > 0.0 {
+                if render_text_shadow_blur(
+                    content,
+                    run,
+                    x + shadow.offset_x,
+                    text_y - shadow.offset_y,
+                    shadow.blur,
+                    (sr, sg, sb, alpha),
+                    custom_fonts,
+                    pdf_writer,
+                    page_images,
+                ) {
+                    continue;
+                }
+            }
             let mut shadow_run = run.clone();
             shadow_run.color = (sr, sg, sb);
             shadow_run.text_shadow = Vec::new();
@@ -8378,6 +8510,8 @@ fn render_run_text(
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
+                pdf_writer,
+                page_images,
             );
         }
     }
@@ -8428,6 +8562,8 @@ fn render_run_text(
                     custom_fonts,
                     prepared_custom_fonts,
                     word_spacing,
+                    pdf_writer,
+                    page_images,
                 );
                 cur_x += w;
                 total_width += w;
@@ -8653,11 +8789,14 @@ fn render_inline_box(
             prepared_custom_fonts,
             0.0,
             line_text_top(line, custom_fonts),
+            pdf_writer,
+            page_images,
         );
         inner_y -= metrics.descender + metrics.half_leading;
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn render_line_text(
     content: &mut String,
@@ -8670,6 +8809,8 @@ fn render_line_text(
     // Line box ascent above the baseline, used to seat a drop-cap glyph's top on
     // the line's text top. The drop cap is excluded from this value.
     line_ascender: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     // Keep text runs plus any atomic inline boxes (empty text but real advance).
     let non_empty: Vec<&TextRun> = runs
@@ -8758,6 +8899,8 @@ fn render_line_text(
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
+                pdf_writer,
+                page_images,
             );
             x += run_width;
         }
@@ -9938,6 +10081,8 @@ fn render_box_shadows(
     border_radius: f32,
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     for shadow in shadows.iter().rev() {
         render_box_shadow(
@@ -9950,6 +10095,8 @@ fn render_box_shadows(
             border_radius,
             page_ext_gstates,
             gs_counter,
+            pdf_writer,
+            page_images,
         );
     }
 }
@@ -9985,11 +10132,14 @@ fn render_box_shadows_inset(
     }
 }
 
-/// Render a box-shadow with optional Gaussian blur approximation.
+/// Render a box-shadow with optional Gaussian blur.
 ///
-/// When `blur > 0`, draws multiple concentric semi-transparent layers that
-/// expand outward from the shadow box, creating a smooth falloff. When
-/// `blur == 0`, draws a single solid shadow rectangle.
+/// When `blur > 0.5`, rasterizes the (rounded) shadow rect into a transparent
+/// buffer at device scale, applies a true gaussian (σ = blur/2, per
+/// css-backgrounds-3 §7.1.1) reusing `render::blur`, and embeds the result as a
+/// PDF image XObject positioned so the feather extends beyond the shadow rect —
+/// matching Chrome's smooth penumbra. When `blur <= 0.5`, draws a single solid
+/// shadow rectangle (byte-identical to the previous vector path).
 #[allow(clippy::too_many_arguments)]
 fn render_box_shadow(
     content: &mut String,
@@ -10001,6 +10151,8 @@ fn render_box_shadow(
     border_radius: f32,
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     let (sr, sg, sb, base_alpha) = shadow.color.to_f32_rgba();
     let blur = shadow.blur;
@@ -10047,39 +10199,64 @@ fn render_box_shadow(
         return;
     }
 
-    // Multi-layer blur approximation: draw concentric rects from outside
-    // (most transparent) to inside (most opaque), simulating Gaussian falloff.
-    content.push_str(&format!("{sr} {sg} {sb} rg\n"));
-    for i in (0..layers).rev() {
-        let t = (i as f32 + 1.0) / layers as f32;
-        // Gaussian-like falloff: use exp(-k*t^2) to produce smooth shadow.
-        let gaussian = (-3.0 * t * t).exp();
-        let alpha = (base_alpha * gaussian * ALPHA_NORMALIZER).min(base_alpha);
+    // True gaussian blur: rasterize the (rounded) shadow rect, gaussian-blur it
+    // (σ = blur/2), and embed as an image XObject. The shadow's corner radius
+    // tracks the box radius grown by spread (the spread expands the radius too).
+    let shadow_radius = if border_radius > 0.0 {
+        (border_radius + spread).max(0.0)
+    } else {
+        0.0
+    };
+    let _ = layers;
+    let _ = ALPHA_NORMALIZER;
+    if let Some(blurred) = crate::render::blur::blur_shadow_rect(
+        sw,
+        sh,
+        shadow_radius,
+        blur,
+        (sr, sg, sb, base_alpha),
+    ) {
+        let img_obj_id = pdf_writer.add_image_object(
+            &blurred.asset.data,
+            blurred.asset.source_width,
+            blurred.asset.source_height,
+            blurred.asset.format,
+            blurred.asset.png_metadata.as_ref(),
+        );
+        let img_name = format!("Im{img_obj_id}");
+        let ov = blurred.overflow_pt;
+        content.push_str(&format!(
+            "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+            w = sw + 2.0 * ov,
+            h = sh + 2.0 * ov,
+            ix = sx - ov,
+            iy = sy - ov,
+            name = img_name,
+        ));
+        page_images.push(ImageRef {
+            name: img_name,
+            obj_id: img_obj_id,
+        });
+        return;
+    }
 
-        let expand = blur * t;
+    // Fallback (raster unavailable): solid shadow at base alpha.
+    if base_alpha < 1.0 {
         let gs_name = format!("GSbs{}", *gs_counter);
         *gs_counter += 1;
-        page_ext_gstates.push((gs_name.clone(), alpha));
+        page_ext_gstates.push((gs_name.clone(), base_alpha));
         content.push_str(&format!("/{gs_name} gs\n"));
-
-        let rx = sx - expand;
-        let ry = sy - expand;
-        let rw = sw + expand * 2.0;
-        let rh = sh + expand * 2.0;
-        let r = if border_radius > 0.0 {
-            border_radius + expand
-        } else {
-            expand.min(blur * 0.3)
-        };
-
-        if r > 0.5 {
-            content.push_str(&rounded_rect_path(rx, ry, rw, rh, r));
-            content.push_str("\nf\n");
-        } else {
-            content.push_str(&format!("{rx} {ry} {rw} {rh} re\nf\n"));
-        }
     }
-    content.push_str("/GSDefault gs\n");
+    content.push_str(&format!("{sr} {sg} {sb} rg\n"));
+    if border_radius > 0.0 {
+        content.push_str(&rounded_rect_path(sx, sy, sw, sh, border_radius));
+        content.push_str("\nf\n");
+    } else {
+        content.push_str(&format!("{sx} {sy} {sw} {sh} re\nf\n"));
+    }
+    if base_alpha < 1.0 {
+        content.push_str("/GSDefault gs\n");
+    }
 }
 
 /// Render an inset box-shadow: shadow appears inside the box edges, fading
@@ -13690,7 +13867,15 @@ mod tests {
         let fonts = HashMap::new();
         let mut annotations = Vec::new();
         let prepared_fonts = PreparedCustomFonts::new();
-        let mut text_context = TextRenderContext::new(&fonts, &prepared_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut text_context = TextRenderContext::new(
+            &fonts,
+            &prepared_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
         render_cell_text(
             &mut content,
             &cell,
@@ -15266,7 +15451,15 @@ mod tests {
         let fonts = HashMap::new();
         let mut annotations = Vec::new();
         let prepared_fonts = PreparedCustomFonts::new();
-        let mut text_context = TextRenderContext::new(&fonts, &prepared_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut text_context = TextRenderContext::new(
+            &fonts,
+            &prepared_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
         render_cell_text(
             &mut content,
             &cell,
@@ -15473,6 +15666,8 @@ mod tests {
 
         let mut content = String::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
+        let mut pdf_writer = PdfWriter::new();
+        let mut page_images = Vec::new();
         render_run_text(
             &mut content,
             &run,
@@ -15481,6 +15676,8 @@ mod tests {
             &fonts,
             &prepared_custom_fonts,
             0.0,
+            &mut pdf_writer,
+            &mut page_images,
         );
 
         assert!(content.contains("/Helvetica 12 Tf\n"));
@@ -16618,8 +16815,15 @@ mod tests {
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
         let mut annotations = Vec::new();
-        let mut ctx =
-            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut ctx = TextRenderContext::new(
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
 
         let run = TextRun {
             text: "Aligned".to_string(),
@@ -16728,8 +16932,15 @@ mod tests {
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
         let mut annotations = Vec::new();
-        let mut ctx =
-            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut ctx = TextRenderContext::new(
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
 
         let underline_run = TextRun {
             text: "Under".to_string(),
@@ -16834,8 +17045,15 @@ mod tests {
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
         let mut annotations = Vec::new();
-        let mut ctx =
-            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut ctx = TextRenderContext::new(
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
 
         let run = TextRun {
             text: "Badge".to_string(),
@@ -16911,8 +17129,15 @@ mod tests {
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
         let mut annotations = Vec::new();
-        let mut ctx =
-            TextRenderContext::new(&custom_fonts, &prepared_custom_fonts, &mut annotations);
+        let mut ts_pdf_writer = PdfWriter::new();
+        let mut ts_page_images = Vec::new();
+        let mut ctx = TextRenderContext::new(
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut annotations,
+            &mut ts_pdf_writer,
+            &mut ts_page_images,
+        );
 
         let run = TextRun {
             text: "Tag".to_string(),
@@ -17473,10 +17698,12 @@ mod tests {
         let pages = layout(&nodes, PageSize::A4, Margin::default());
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
-        // Blur shadow draws multiple layers with ExtGState for alpha
+        // A blurred box-shadow is now rendered as a gaussian-blurred image
+        // XObject (a soft penumbra), embedded and drawn with `Do`, rather than
+        // the previous concentric-layer alpha approximation.
         assert!(
-            content.contains("gs\n"),
-            "Blurred box shadow should use graphics state for alpha layers"
+            content.contains("Do\n"),
+            "Blurred box shadow should embed a blurred image XObject"
         );
     }
 

@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 90.11%  (PASS 510 · PARTIAL 83 · FAIL 19 · UNKNOWN 1 · total 613)
+Overall: 90.28%  (PASS 510 · PARTIAL 85 · FAIL 17 · UNKNOWN 1 · total 613)
 Scored coverage: 99.84% (612 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -64,7 +64,7 @@ None — every fixture's HTML matches `refs.lock`.
 | block-box-model | 98.84% | 42 | 1 | 0 | 0 |
 | clip-mask | 75.00% | 7 | 7 | 0 | 0 |
 | color-opacity | 96.88% | 31 | 0 | 1 | 0 |
-| effects | 73.53% | 11 | 3 | 3 | 0 |
+| effects | 79.41% | 11 | 5 | 1 | 0 |
 | filters | 78.57% | 8 | 6 | 0 | 0 |
 | flexbox | 93.62% | 42 | 4 | 1 | 0 |
 | fonts-advanced | 100.00% | 12 | 0 | 0 | 0 |
@@ -106,13 +106,13 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PARTIAL | 1.57 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
 | unsupported | FAIL | 7.79 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | FAIL | 0.34 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
-| partial | FAIL | 2.63 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
+| partial | PARTIAL | 0.19 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PASS | 0.36 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
 | partial | PASS | 0.28 | effects | box-shadow | box-shadow-multiple | Two stacked hard box-shadows in different directions and colors. |
 | partial | PASS | 0.28 | effects | box-shadow | box-shadow-spread | Zero-offset zero-blur positive-spread box-shadow forming a hard symmetric halo. |
 | unsupported | PARTIAL | 0.63 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
 | unsupported | PASS | 0.78 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
-| unsupported | FAIL | 3.27 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
+| unsupported | PARTIAL | 0.40 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
 | unsupported | PARTIAL | 0.95 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
 | partial | PARTIAL | 0.41 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
 | partial | PARTIAL | 1.97 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
@@ -397,11 +397,11 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 7.79% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
-### effects — 73.53%
+### effects — 79.41%
 - **background-blend-mode** — 0.00%
   - FAIL 0.34% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
-- **box-shadow** — 87.50%
-  - FAIL 2.63% box-shadow=blur — `box-shadow-blur` — Offset box-shadow with a soft blur radius on a non-white stage.
+- **box-shadow** — 91.67%
+  - PARTIAL 0.19% box-shadow=blur — `box-shadow-blur` — Offset box-shadow with a soft blur radius on a non-white stage.
   - PARTIAL 0.35% box-shadow=border-radius — `box-shadow-border-radius` — Box-shadow on a border-radius element must adopt the same rounded corners.
   - PASS 0.25% box-shadow=colored — `box-shadow-color` — Hard offset box-shadow in a saturated color distinct from the box fill.
   - PASS 0.29% box-shadow=currentcolor — `box-shadow-currentcolor` — Box-shadow with the color omitted, so it paints in the element's currentColor.
@@ -416,8 +416,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **mix-blend-mode** — 75.00%
   - PARTIAL 0.63% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
   - PASS 0.78% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
-- **text-shadow** — 25.00%
-  - FAIL 3.27% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
+- **text-shadow** — 50.00%
+  - PARTIAL 0.40% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
   - PARTIAL 0.95% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
 
 ### filters — 78.57%

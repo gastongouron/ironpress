@@ -88,6 +88,292 @@ fn rgba_to_png_alpha_asset(img: image::RgbaImage) -> Option<RasterImageAsset> {
     })
 }
 
+/// Rasterize a (rounded) `box-shadow` rectangle into a transparent, padded RGBA
+/// buffer, gaussian-blur it, and return the embeddable asset plus the overflow
+/// it adds beyond each edge of the shadow rect.
+///
+/// `width_pt`/`height_pt` are the shadow rect size in points (border box grown
+/// by `spread`). `radius_pt` is the corner radius (0 for square). `blur_pt` is
+/// the CSS `box-shadow` blur radius in points; css-backgrounds-3 §7.1.1 defines
+/// the blur as a gaussian whose standard deviation is *half* the blur radius
+/// (`sigma = blur / 2`). `color` is straight-alpha sRGB. The returned overflow
+/// is the per-side padding in points: the buffer feathers symmetrically beyond
+/// the shadow rect, so the caller positions the image at the shadow rect minus
+/// `overflow_pt` on each side. Returns `None` when nothing would paint.
+pub(crate) fn blur_shadow_rect(
+    width_pt: f32,
+    height_pt: f32,
+    radius_pt: f32,
+    blur_pt: f32,
+    color: (f32, f32, f32, f32),
+) -> Option<BlurredRaster> {
+    let (_, _, _, a) = color;
+    if width_pt <= 0.0 || height_pt <= 0.0 || a <= 0.0 {
+        return None;
+    }
+
+    use resvg::tiny_skia;
+
+    // css-backgrounds-3: blur radius is 2σ, so σ = blur/2. Map to buffer pixels.
+    let sigma = (blur_pt / PT_PER_PX) * DEVICE_SCALE / 2.0;
+    let pad = pad_pixels(sigma);
+    let box_w = (width_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
+    let box_h = (height_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
+    let buf_w = box_w + 2 * pad;
+    let buf_h = box_h + 2 * pad;
+
+    let mut pixmap = tiny_skia::Pixmap::new(buf_w, buf_h)?;
+    let ox = pad as f32;
+    let oy = pad as f32;
+
+    let (r, g, b, _) = color;
+    let mut paint = tiny_skia::Paint::default();
+    paint.set_color(color8(r, g, b, a));
+    paint.anti_alias = true;
+
+    let radius_px = (radius_pt / PT_PER_PX * DEVICE_SCALE)
+        .min(box_w as f32 / 2.0)
+        .min(box_h as f32 / 2.0);
+    if radius_px > 0.5 {
+        let mut pb = tiny_skia::PathBuilder::new();
+        let rr = radius_px;
+        let (x0, y0) = (ox, oy);
+        let (x1, y1) = (ox + box_w as f32, oy + box_h as f32);
+        // Rounded rect via 4 quadratic-ish corners (use cubic-free arcs through
+        // line + quad approximations is unnecessary; tiny-skia has no arc API,
+        // so approximate corners with quad beziers — visually exact after blur).
+        pb.move_to(x0 + rr, y0);
+        pb.line_to(x1 - rr, y0);
+        pb.quad_to(x1, y0, x1, y0 + rr);
+        pb.line_to(x1, y1 - rr);
+        pb.quad_to(x1, y1, x1 - rr, y1);
+        pb.line_to(x0 + rr, y1);
+        pb.quad_to(x0, y1, x0, y1 - rr);
+        pb.line_to(x0, y0 + rr);
+        pb.quad_to(x0, y0, x0 + rr, y0);
+        pb.close();
+        if let Some(path) = pb.finish() {
+            pixmap.fill_path(
+                &path,
+                &paint,
+                tiny_skia::FillRule::Winding,
+                tiny_skia::Transform::identity(),
+                None,
+            );
+        }
+    } else if let Some(rect) = tiny_skia::Rect::from_xywh(ox, oy, box_w as f32, box_h as f32) {
+        pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+    }
+
+    let rgba = pixmap_to_rgba(&pixmap, buf_w, buf_h);
+    let rgba = if sigma > 0.0 {
+        blur_premultiplied(&rgba, sigma)
+    } else {
+        rgba
+    };
+
+    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let asset = rgba_to_png_alpha_asset(rgba)?;
+    Some(BlurredRaster { asset, overflow_pt })
+}
+
+/// Gaussian-blur a pre-rasterized straight-alpha coverage mask (e.g. shadow
+/// glyphs), tinting with `color`, and return the embeddable asset plus the
+/// per-side overflow in points.
+///
+/// `mask` is an RGBA buffer at `DEVICE_SCALE` whose **alpha** is the shadow
+/// coverage (RGB ignored). `mask_origin_pt` is where the mask's top-left maps in
+/// the unpadded device-pixel space; callers only need `overflow_pt` to know how
+/// much the buffer grew. `blur_pt` is the CSS `text-shadow` blur radius in
+/// points; like box-shadow, `sigma = blur / 2`. The mask is padded so the blur
+/// feathers without clipping. Returns `None` when the mask is empty.
+pub(crate) fn blur_shadow_alpha_mask(
+    mask: &image::GrayImage,
+    blur_pt: f32,
+    color: (f32, f32, f32, f32),
+) -> Option<(BlurredRaster, u32)> {
+    let (mw, mh) = (mask.width(), mask.height());
+    let (cr, cg, cb, ca) = color;
+    if mw == 0 || mh == 0 || ca <= 0.0 {
+        return None;
+    }
+
+    let sigma = (blur_pt / PT_PER_PX) * DEVICE_SCALE / 2.0;
+    let pad = pad_pixels(sigma);
+    let buf_w = mw + 2 * pad;
+    let buf_h = mh + 2 * pad;
+
+    let (r8, g8, b8) = (
+        (cr.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (cg.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (cb.clamp(0.0, 1.0) * 255.0).round() as u8,
+    );
+    let mut tinted = image::RgbaImage::new(buf_w, buf_h);
+    let mut any = false;
+    for y in 0..mh {
+        for x in 0..mw {
+            let cov = mask.get_pixel(x, y)[0];
+            if cov == 0 {
+                continue;
+            }
+            any = true;
+            let out_a = (cov as f32 * ca).round().clamp(0.0, 255.0) as u8;
+            tinted.put_pixel(x + pad, y + pad, image::Rgba([r8, g8, b8, out_a]));
+        }
+    }
+    if !any {
+        return None;
+    }
+    let blurred = if sigma > 0.0 {
+        blur_premultiplied(&tinted, sigma)
+    } else {
+        tinted
+    };
+
+    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let asset = rgba_to_png_alpha_asset(blurred)?;
+    Some((BlurredRaster { asset, overflow_pt }, pad))
+}
+
+/// A rasterized text run's alpha coverage plus where the text origin (baseline,
+/// left edge) sits inside the mask, in device pixels from the mask's top-left.
+pub(crate) struct GlyphRaster {
+    pub mask: image::GrayImage,
+    /// Device px from the mask's left edge to the text origin x.
+    pub origin_x_px: f32,
+    /// Device px from the mask's TOP edge down to the baseline.
+    pub baseline_y_px: f32,
+}
+
+/// Rasterize a run's shaped glyph outlines into an 8-bit alpha coverage mask at
+/// `DEVICE_SCALE`, for use as a `text-shadow` blur source. `font_data` is the
+/// raw TTF/OTF bytes; `units_per_em` is the font's em scale; `font_size_pt` is
+/// the run's font size in points; `glyphs` is the shaped run. Returns the mask
+/// plus the text-origin position inside it, or `None` when the font can't be
+/// parsed or nothing is drawn (so the caller falls back to a sharp copy).
+pub(crate) fn rasterize_run_alpha(
+    font_data: &[u8],
+    units_per_em: u16,
+    font_size_pt: f32,
+    glyphs: &[crate::text::ShapedGlyph],
+) -> Option<GlyphRaster> {
+    use resvg::tiny_skia;
+
+    if units_per_em == 0 || font_size_pt <= 0.0 || glyphs.is_empty() {
+        return None;
+    }
+    let face = rustybuzz::ttf_parser::Face::parse(font_data, 0).ok()?;
+
+    // Glyph font units -> device pixels: (units/upem) * font_size_pt(px-equiv)
+    // * DEVICE_SCALE. font_size is in points; CSS px = pt / PT_PER_PX.
+    let upem = units_per_em as f32;
+    let px_per_unit = (font_size_pt / PT_PER_PX) * DEVICE_SCALE / upem;
+    // Advances/offsets from shaping are already in points; -> device px.
+    let pt_to_px = DEVICE_SCALE / PT_PER_PX;
+
+    // Build one path for all glyphs, placed along the baseline. The path is in a
+    // coordinate frame where the text origin (baseline, x=0) is at (0,0) and +y
+    // is DOWN (device pixel convention). ttf outlines are +y UP, so negate y.
+    struct Builder<'a> {
+        pb: &'a mut tiny_skia::PathBuilder,
+        pen_x: f32,
+        baseline_y: f32,
+        scale: f32,
+    }
+    impl rustybuzz::ttf_parser::OutlineBuilder for Builder<'_> {
+        fn move_to(&mut self, x: f32, y: f32) {
+            self.pb
+                .move_to(self.pen_x + x * self.scale, self.baseline_y - y * self.scale);
+        }
+        fn line_to(&mut self, x: f32, y: f32) {
+            self.pb
+                .line_to(self.pen_x + x * self.scale, self.baseline_y - y * self.scale);
+        }
+        fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+            self.pb.quad_to(
+                self.pen_x + x1 * self.scale,
+                self.baseline_y - y1 * self.scale,
+                self.pen_x + x * self.scale,
+                self.baseline_y - y * self.scale,
+            );
+        }
+        fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+            self.pb.cubic_to(
+                self.pen_x + x1 * self.scale,
+                self.baseline_y - y1 * self.scale,
+                self.pen_x + x2 * self.scale,
+                self.baseline_y - y2 * self.scale,
+                self.pen_x + x * self.scale,
+                self.baseline_y - y * self.scale,
+            );
+        }
+        fn close(&mut self) {
+            self.pb.close();
+        }
+    }
+
+    // Provisional baseline at y=0; we measure bounds then re-anchor.
+    let mut pb = tiny_skia::PathBuilder::new();
+    let mut pen_x = 0.0f32;
+    for g in glyphs {
+        let gid = rustybuzz::ttf_parser::GlyphId(g.glyph_id);
+        let mut b = Builder {
+            pb: &mut pb,
+            pen_x: pen_x + g.x_offset * pt_to_px,
+            baseline_y: -g.y_offset * pt_to_px,
+            scale: px_per_unit,
+        };
+        let _ = face.outline_glyph(gid, &mut b);
+        pen_x += g.x_advance * pt_to_px;
+    }
+    let path = pb.finish()?;
+    let bounds = path.bounds();
+
+    // Margin so the outline anti-aliasing isn't clipped at the buffer edge.
+    let margin = 2.0f32;
+    let min_x = bounds.left() - margin;
+    let min_y = bounds.top() - margin;
+    let buf_w = (bounds.right() - bounds.left() + 2.0 * margin).ceil().max(1.0) as u32;
+    let buf_h = (bounds.bottom() - bounds.top() + 2.0 * margin)
+        .ceil()
+        .max(1.0) as u32;
+
+    let mut pixmap = tiny_skia::Pixmap::new(buf_w, buf_h)?;
+    // Translate so the path's min corner lands at (margin, margin).
+    let transform = tiny_skia::Transform::from_translate(-min_x, -min_y);
+    let mut paint = tiny_skia::Paint::default();
+    paint.set_color(tiny_skia::Color::WHITE);
+    paint.anti_alias = true;
+    pixmap.fill_path(
+        &path,
+        &paint,
+        tiny_skia::FillRule::Winding,
+        transform,
+        None,
+    );
+
+    // Convert to a grayscale alpha mask.
+    let mut mask = image::GrayImage::new(buf_w, buf_h);
+    for (i, px) in pixmap.pixels().iter().enumerate() {
+        let a = px.alpha();
+        let x = (i as u32) % buf_w;
+        let y = (i as u32) / buf_w;
+        mask.put_pixel(x, y, image::Luma([a]));
+    }
+
+    // The text origin (x=0, baseline y=0) maps to (-min_x, -min_y) in the mask.
+    Some(GlyphRaster {
+        mask,
+        origin_x_px: -min_x,
+        baseline_y_px: -min_y,
+    })
+}
+
+/// Device pixels per point, for callers converting blur overflow / positions.
+pub(crate) fn px_per_pt() -> f32 {
+    DEVICE_SCALE / PT_PER_PX
+}
+
 /// Rasterize a solid-fill box (background colour + border) into a transparent,
 /// padded RGBA buffer, gaussian-blur it, and return the embeddable asset plus
 /// the overflow it adds outside the border box.
