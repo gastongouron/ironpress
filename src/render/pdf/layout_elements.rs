@@ -468,8 +468,9 @@ fn table_cell_content_top(cell: &TableCell, row_y: f32, row_height: f32) -> f32 
     let content_height = table_cell_intrinsic_content_height(cell);
     let offset = match cell.vertical_align {
         VerticalAlign::Middle => ((row_height - content_height) / 2.0).max(0.0),
-        VerticalAlign::Bottom => (row_height - content_height).max(0.0),
+        VerticalAlign::Bottom | VerticalAlign::TextBottom => (row_height - content_height).max(0.0),
         VerticalAlign::Top
+        | VerticalAlign::TextTop
         | VerticalAlign::Baseline
         | VerticalAlign::Super
         | VerticalAlign::Sub => 0.0,

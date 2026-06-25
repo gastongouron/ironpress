@@ -487,6 +487,7 @@ mod tests {
             nested_elements: Vec::new(),
             y_offset: 0.0,
             line_cross_size: 0.0,
+            is_positioned: false,
         }
     }
 

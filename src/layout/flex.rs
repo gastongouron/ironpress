@@ -1648,6 +1648,7 @@ pub(crate) fn layout_flex_container(
                                 nested_elements: item.elements.clone(),
                                 y_offset: 0.0,
                                 line_cross_size: 0.0,
+                                is_positioned: false,
                             });
                             x += item.width + gap;
                             continue;
@@ -1719,6 +1720,7 @@ pub(crate) fn layout_flex_container(
                             nested_elements: Vec::new(),
                             y_offset: 0.0,
                             line_cross_size: 0.0,
+                            is_positioned: false,
                         });
                         x += item.width + gap;
                         continue;
@@ -1799,6 +1801,7 @@ pub(crate) fn layout_flex_container(
                             align_self: item.align_self,
                             y_offset: 0.0,
                             line_cross_size: 0.0,
+                            is_positioned: false,
                         });
                     } else {
                         // Single non-TextBlock element (e.g. Container): store
@@ -1834,6 +1837,7 @@ pub(crate) fn layout_flex_container(
                             nested_elements: item.elements.clone(),
                             y_offset: 0.0,
                             line_cross_size: 0.0,
+                            is_positioned: false,
                         });
                     }
 

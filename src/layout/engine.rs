@@ -242,6 +242,13 @@ pub struct FlexCell {
     /// FlexRow carrying cells from multiple wrapped lines still aligns each
     /// item against its own line rather than the entire row.
     pub line_cross_size: f32,
+    /// Whether this cell is CSS-positioned (`position: relative`/`absolute`).
+    /// CSS 2.1 §9.9.1 painting order: positioned items paint *after* all
+    /// non-positioned in-flow siblings within the same stacking context, so a
+    /// relatively-offset inline-block must not be painted under a later in-flow
+    /// sibling it overlaps. The FlexRow render pass keeps stable source order
+    /// but paints non-positioned cells first, then positioned cells.
+    pub is_positioned: bool,
 }
 
 /// A styled text run (a piece of text with uniform style).
@@ -1171,7 +1178,9 @@ fn flatten_nodes(
                             underline: parent_style.text_decoration_underline,
                             line_through: parent_style.text_decoration_line_through,
                             overline: parent_style.text_decoration_overline,
-                            decoration_color: parent_style.text_decoration_color.map(|c| c.to_f32_rgb()),
+                            decoration_color: parent_style
+                                .text_decoration_color
+                                .map(|c| c.to_f32_rgb()),
                             color: parent_style.color.to_f32_rgb(),
                             link_url: None,
                             font_family: resolve_style_font_family(parent_style, env.fonts),

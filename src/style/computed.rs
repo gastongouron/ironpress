@@ -755,8 +755,17 @@ pub enum VerticalAlign {
     Super,
     Sub,
     Top,
+    /// `text-top`: align the box top to the top of the PARENT's text content
+    /// (font) area — the parent baseline plus the parent's font ascent — which
+    /// is lower than the line-box top when the line box is taller than the
+    /// parent's font box (css2 §10.8.1).
+    TextTop,
     Middle,
     Bottom,
+    /// `text-bottom`: align the box bottom to the bottom of the parent's text
+    /// content (font) area — the parent baseline minus the parent's font
+    /// descent (css2 §10.8.1).
+    TextBottom,
 }
 
 /// CSS `writing-mode` property (css-writing-modes-4 §3.1). Inherited; initial
@@ -4166,12 +4175,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.vertical_align = match k.as_str() {
             "super" => VerticalAlign::Super,
             "sub" => VerticalAlign::Sub,
-            // `text-top` aligns to the top of the parent's content (font) box;
-            // approximate with the line-box top, which matches closely for the
-            // single-line inline-block boxes we support.
-            "top" | "text-top" => VerticalAlign::Top,
+            "top" => VerticalAlign::Top,
+            // `text-top`/`text-bottom` align to the parent's text content (font)
+            // area edges, which sit inside the line box when the line is taller
+            // than the parent font box (css2 §10.8.1).
+            "text-top" => VerticalAlign::TextTop,
             "middle" => VerticalAlign::Middle,
-            "bottom" | "text-bottom" => VerticalAlign::Bottom,
+            "bottom" => VerticalAlign::Bottom,
+            "text-bottom" => VerticalAlign::TextBottom,
             _ => VerticalAlign::Baseline,
         };
     }

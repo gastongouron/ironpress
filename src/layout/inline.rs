@@ -133,6 +133,7 @@ pub(crate) fn layout_inline_block_group(
         margin_left: f32,
         margin_right: f32,
         box_shadow: Vec<crate::style::computed::BoxShadow>,
+        is_positioned: bool,
     }
 
     let mut items: Vec<InlineBlockItem> = Vec::new();
@@ -319,6 +320,15 @@ pub(crate) fn layout_inline_block_group(
             margin_left: child_style.margin.left,
             margin_right: child_style.margin.right,
             box_shadow: child_style.box_shadow.clone(),
+            // CSS 2.1 §9.9.1: a positioned inline-block (relative/absolute) is
+            // painted after all non-positioned in-flow siblings in the same
+            // stacking context, so it must not be hidden under a later in-flow
+            // sibling it overlaps once `top`/`left` shift it.
+            is_positioned: matches!(
+                child_style.position,
+                crate::style::computed::Position::Relative
+                    | crate::style::computed::Position::Absolute
+            ),
         });
     }
 
@@ -407,6 +417,7 @@ pub(crate) fn layout_inline_block_group(
             nested_elements: Vec::new(),
             y_offset: 0.0,
             line_cross_size: 0.0,
+            is_positioned: item.is_positioned,
         });
         x += item.width + item.margin_right;
         max_item_height = max_item_height.max(item.height);

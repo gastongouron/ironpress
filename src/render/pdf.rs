@@ -1848,13 +1848,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         // annotations at estimated positions (visual-only).
                         let line_top_y = text_y + metrics.ascender + metrics.half_leading;
                         let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
+                        // Parent text content-area edges for `text-top`/`text-bottom`
+                        // (parent glyph ascent/descent, no half-leading). Fall back to
+                        // the line-box edges when the line carries no parent text.
+                        let (text_ascent, text_descent) =
+                            line_text_content_extents(line, custom_fonts);
+                        let line_text_top_y = if text_ascent > 0.0 {
+                            text_y + text_ascent
+                        } else {
+                            line_top_y
+                        };
+                        let line_text_bottom_y = if text_descent > 0.0 {
+                            text_y - text_descent
+                        } else {
+                            line_bottom_y
+                        };
                         let mut bg_x = text_x;
                         // Relatively-positioned inline boxes paint in the positioned
                         // layer — above in-flow siblings on the line, in source order
                         // (CSS 2.1 §9.9.1 painting order). Defer them so a later
                         // in-flow inline-block can't paint over an earlier offset one.
-                        let mut deferred_inline: Vec<(&crate::layout::engine::InlineBox, f32, f32)> =
-                            Vec::new();
+                        let mut deferred_inline: Vec<(
+                            &crate::layout::engine::InlineBox,
+                            f32,
+                            f32,
+                        )> = Vec::new();
                         for run in &merged {
                             // Atomic inline box (display: inline-block): paint the
                             // box and its inner content, then advance the cursor.
@@ -1870,6 +1888,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         text_y,
                                         line_top_y,
                                         line_bottom_y,
+                                        line_text_top_y,
+                                        line_text_bottom_y,
                                         run.font_size,
                                         custom_fonts,
                                         &prepared_custom_fonts,
@@ -2000,6 +2020,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 text_y,
                                 line_top_y,
                                 line_bottom_y,
+                                line_text_top_y,
+                                line_text_bottom_y,
                                 fs,
                                 custom_fonts,
                                 &prepared_custom_fonts,
@@ -2888,7 +2910,18 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             })
                     };
 
-                    for cell in cells {
+                    // CSS 2.1 §9.9.1 painting order: within a stacking context,
+                    // positioned items (position:relative/absolute) paint after
+                    // all non-positioned in-flow content. Iterate non-positioned
+                    // cells first, then positioned cells — preserving source
+                    // order within each group — so a relatively-offset
+                    // inline-block is not hidden under a later in-flow sibling.
+                    let paint_order: Vec<&crate::layout::engine::FlexCell> = cells
+                        .iter()
+                        .filter(|c| !c.is_positioned)
+                        .chain(cells.iter().filter(|c| c.is_positioned))
+                        .collect();
+                    for cell in paint_order {
                         let cell_x = flex_left + padding_left + cell.x_offset;
                         let cell_inner_w = cell.width - cell.padding_left - cell.padding_right;
                         // For single-line rows `line_cross_size == row_height`.
@@ -6257,6 +6290,18 @@ fn render_container_children(
                     };
                     let line_top_y = text_y + metrics.ascender + metrics.half_leading;
                     let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
+                    // Parent text content-area edges for `text-top`/`text-bottom`.
+                    let (text_ascent, text_descent) = line_text_content_extents(line, custom_fonts);
+                    let line_text_top_y = if text_ascent > 0.0 {
+                        text_y + text_ascent
+                    } else {
+                        line_top_y
+                    };
+                    let line_text_bottom_y = if text_descent > 0.0 {
+                        text_y - text_descent
+                    } else {
+                        line_bottom_y
+                    };
                     let mut lx = text_x;
                     for run in &merged {
                         // Atomic inline box (e.g. a `list-style-image` marker):
@@ -6271,6 +6316,8 @@ fn render_container_children(
                                 text_y,
                                 line_top_y,
                                 line_bottom_y,
+                                line_text_top_y,
+                                line_text_bottom_y,
                                 run.font_size,
                                 custom_fonts,
                                 prepared_custom_fonts,
@@ -7596,7 +7643,16 @@ fn render_container_children(
                         })
                 };
 
-                for cell in cells {
+                // CSS 2.1 §9.9.1 painting order (mirrors the top-level FlexRow
+                // arm): non-positioned in-flow cells paint first, then
+                // positioned (relative/absolute) cells, source order preserved
+                // within each group.
+                let paint_order: Vec<&crate::layout::engine::FlexCell> = cells
+                    .iter()
+                    .filter(|c| !c.is_positioned)
+                    .chain(cells.iter().filter(|c| c.is_positioned))
+                    .collect();
+                for cell in paint_order {
                     let cell_w = cell.width;
                     let cell_x = cell_base_x + cell.x_offset;
                     // Cross-axis (vertical) placement per align-items/align-self,
@@ -8412,12 +8468,15 @@ fn render_text_shadow_blur(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) -> bool {
-    let (_, font) =
-        match crate::text::resolve_custom_font(&run.font_family, run.bold, run.italic, custom_fonts)
-        {
-            Some(f) => f,
-            None => return false,
-        };
+    let (_, font) = match crate::text::resolve_custom_font(
+        &run.font_family,
+        run.bold,
+        run.italic,
+        custom_fonts,
+    ) {
+        Some(f) => f,
+        None => return false,
+    };
     let shaped = match crate::text::shape_text_run(run, custom_fonts) {
         Some(s) if !s.glyphs.is_empty() => s,
         _ => return false,
@@ -8700,6 +8759,8 @@ fn render_inline_box(
     baseline_y: f32,
     line_top_y: f32,
     line_bottom_y: f32,
+    line_text_top_y: f32,
+    line_text_bottom_y: f32,
     line_font_size: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
@@ -8722,6 +8783,13 @@ fn render_inline_box(
     let box_bottom = match inline.vertical_align {
         VerticalAlign::Top => line_top_y - h,
         VerticalAlign::Bottom => line_bottom_y,
+        // text-top: box top aligns to the parent's text content-area top
+        // (parent baseline + parent ascent), which is below the line-box top by
+        // the strut's half-leading (css2 §10.8.1).
+        VerticalAlign::TextTop => line_text_top_y - h,
+        // text-bottom: box bottom aligns to the parent's text content-area
+        // bottom (parent baseline - parent descent).
+        VerticalAlign::TextBottom => line_text_bottom_y,
         // Middle: box centre aligns roughly to the parent's mid-x-height, i.e.
         // a quarter-em above the baseline.
         VerticalAlign::Middle => baseline_y + line_font_size * 0.25 - h / 2.0,
@@ -9106,6 +9174,35 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
         descender: below,
         half_leading: 0.0,
     }
+}
+
+/// Raw font ascent/descent of the PARENT's text content area on a line, i.e. the
+/// extent of the parent's actual glyphs above/below the baseline WITHOUT the
+/// strut's half-leading. `vertical-align: text-top`/`text-bottom` align an inline
+/// box to these edges (css2 §10.8.1), which lie inside the line box when the line
+/// is taller than the parent font box. Inline boxes themselves are excluded; if
+/// the line carries no text, both are zero and callers fall back to the line-box
+/// edge.
+fn line_text_content_extents(
+    line: &TextLine,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> (f32, f32) {
+    line.runs
+        .iter()
+        .filter(|r| r.inline_box.is_none())
+        .filter(|r| !(r.line_height_factor.is_finite() && r.line_height_factor < 0.9))
+        .fold((0.0f32, 0.0f32), |(max_ascent, max_descent), run| {
+            let (ascender_ratio, descender_ratio) = crate::fonts::font_metrics_ratios(
+                &run.font_family,
+                run.bold,
+                run.italic,
+                custom_fonts,
+            );
+            (
+                max_ascent.max(ascender_ratio * run.font_size),
+                max_descent.max(descender_ratio * run.font_size),
+            )
+        })
 }
 
 /// Estimate line width using TTF metrics for custom fonts.
@@ -10243,13 +10340,9 @@ fn render_box_shadow(
     };
     let _ = layers;
     let _ = ALPHA_NORMALIZER;
-    if let Some(blurred) = crate::render::blur::blur_shadow_rect(
-        sw,
-        sh,
-        shadow_radius,
-        blur,
-        (sr, sg, sb, base_alpha),
-    ) {
+    if let Some(blurred) =
+        crate::render::blur::blur_shadow_rect(sw, sh, shadow_radius, blur, (sr, sg, sb, base_alpha))
+    {
         let img_obj_id = pdf_writer.add_image_object(
             &blurred.asset.data,
             blurred.asset.source_width,

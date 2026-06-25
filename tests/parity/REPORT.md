@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 95.27%  (PASS 562 · PARTIAL 44 · FAIL 7 · UNKNOWN 0 · total 613)
+Overall: 95.76%  (PASS 565 · PARTIAL 44 · FAIL 4 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -35,8 +35,6 @@ None — every fixture's HTML matches `refs.lock`.
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Missing | 17.32 | color-opacity | color-format | text-glyph-fill | color-text-glyph | via probe-text-baseline: content clipped/truncated (19.8% missing) |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 2.73 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | via probe-text-baseline: fill recolour ΔRGB(-11,-11,-6) (ΔE 47.4) |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 4.52 | interactions | position | (interaction: positioning×inline-text) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-relative-x-inline-block | via probe-text-baseline: fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
 | FAIL | REAL | ColorValue | 13.39 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
 
 ## Fix these first
@@ -44,7 +42,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 19 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+13) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 16 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+10) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
@@ -62,8 +60,8 @@ None — every fixture's HTML matches `refs.lock`.
 | generated-content | 97.83% | 22 | 1 | 0 | 0 |
 | grid | 97.92% | 23 | 1 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
-| inline-text | 92.31% | 34 | 4 | 1 | 0 |
-| interactions | 86.36% | 18 | 2 | 2 | 0 |
+| inline-text | 94.87% | 35 | 4 | 0 | 0 |
+| interactions | 90.91% | 19 | 2 | 1 | 0 |
 | lists-counters | 92.11% | 16 | 3 | 0 | 0 |
 | multicol | 97.37% | 18 | 1 | 0 | 0 |
 | overflow-clipping | 90.91% | 9 | 2 | 0 | 0 |
@@ -71,7 +69,7 @@ None — every fixture's HTML matches `refs.lock`.
 | positioning | 100.00% | 16 | 0 | 0 | 0 |
 | probes | 91.67% | 5 | 1 | 0 | 0 |
 | selectors-cascade | 100.00% | 46 | 0 | 0 | 0 |
-| tables | 94.44% | 25 | 1 | 1 | 0 |
+| tables | 98.15% | 26 | 1 | 0 | 0 |
 | text-advanced | 97.50% | 19 | 1 | 0 | 0 |
 | transforms | 100.00% | 30 | 0 | 0 | 0 |
 | typography | 90.63% | 13 | 3 | 0 | 0 |
@@ -157,7 +155,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.16 | selectors-cascade | pseudo-class | selectors-cascade-first-last-child | :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray. |
 | partial | PASS | 0.16 | selectors-cascade | pseudo-class | selectors-cascade-not-negation | :not(.skip) colors every .box except the one carrying .skip; the skipped box stays gray. |
 | partial | PASS | 0.00 | selectors-cascade | pseudo-class | selectors-cascade-root-element | :root paints the page background green behind a centered white bordered panel; if :root is unmatched the page stays white. |
-| partial | FAIL | 13.19 | tables | table-layout | tables-layout-auto-overflow | table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width). |
+| partial | PASS | 3.47 | tables | table-layout | tables-layout-auto-overflow | table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width). |
 | unsupported | PASS | 0.82 | text-advanced | direction | text-advanced-direction-rtl | direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress. |
 | unsupported | PARTIAL | 3.92 | text-advanced | hyphens | text-advanced-hyphens-auto | hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress. |
 | unsupported | PASS | 0.99 | text-advanced | tab-size | text-advanced-tab-size | tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress. |
@@ -632,7 +630,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.20% object-position=length-values — `img-object-position-length` — object-position:10px 20px offsets a contained 2:1 image by absolute lengths from the box top-left.
   - PASS 0.07% object-position=percentage-values — `img-object-position-percent` — object-position:25% 75% positions a contained 2:1 image within the free space of a 160x160 box.
 
-### inline-text — 92.31%
+### inline-text — 94.87%
 - **inline-block** — 87.50%
   - PASS 1.02% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
   - PASS 2.11% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
@@ -664,13 +662,13 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 2.47% text-transform=capitalize — `inline-text-text-transform-capitalize` — text-transform:capitalize upper-cases the first letter of each word (css-text-3 §2.1).
   - PASS 2.17% text-transform=lowercase — `inline-text-text-transform-lowercase` — text-transform:lowercase maps each glyph to lower case (css-text-3 §2.1).
   - PASS 2.55% text-transform=uppercase — `inline-text-text-transform-uppercase` — text-transform:uppercase maps each glyph to upper case (css-text-3 §2.1).
-- **vertical-align** — 64.29%
+- **vertical-align** — 78.57%
   - PARTIAL 4.02% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
   - PASS 1.07% vertical-align=bottom — `inline-text-vertical-align-bottom` — Inline-block box vertical-align:bottom aligned to the bottom of the line box (CSS2 §10.8.1).
   - PARTIAL 2.89% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
   - PASS 0.84% vertical-align=sub — `inline-text-vertical-align-sub` — Inline-block box vertical-align:sub lowered below the text baseline (CSS2 §10.8.1).
   - PARTIAL 5.72% vertical-align=super — `inline-text-vertical-align-super` — Inline-block box vertical-align:super raised above the text baseline (CSS2 §10.8.1).
-  - FAIL 2.73% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
+  - PASS 0.90% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
   - PASS 0.59% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
 - **white-space** — 100.00%
   - PASS 4.68% white-space=break-spaces — `inline-text-white-space-break-spaces` — white-space:break-spaces preserves spaces/newlines and soft-wraps after preserved spaces (css-text-3 §4.1.1).
@@ -687,7 +685,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 4.55% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 86.36%
+### interactions — 90.91%
 - **containing-block** — 100.00%
   - PASS 0.10% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - PASS 0.20% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -711,10 +709,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PARTIAL 4.28% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 100.00%
   - PASS 0.50% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
-- **position** — 66.67%
+- **position** — 100.00%
   - PASS 0.00% position=absolute-rotated — `interactions-positioning-absolute-x-transforms-rotate` — Interaction: an absolutely positioned box that is also rotated; position resolves first, then transform rotates about its center.
   - PASS 0.22% position=fixed-translated — `interactions-positioning-fixed-x-transforms-translate` — Interaction: a fixed-position box that is then translated by a transform; position resolves against the page box, then translate shifts it.
-  - FAIL 4.52% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
+  - PASS 0.18% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
 - **positioning-x-flexbox** — 50.00%
   - PARTIAL 3.63% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
 - **positioning-x-grid** — 100.00%
@@ -915,7 +913,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.16% type-selector=type — `selectors-cascade-type-selector` — A type selector p.box colors only <p> boxes green; <div> boxes stay gray.
   - PASS 0.16% type-selector=universal — `selectors-cascade-universal-selector` — The universal selector * as the discriminating rule paints every child box green.
 
-### tables — 94.44%
+### tables — 98.15%
 - **border-collapse** — 100.00%
   - PASS 0.94% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
   - PASS 0.96% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
@@ -942,9 +940,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.31% spanning=colspan-rowspan-combined — `tables-colspan-rowspan` — A single cell with both colspan=2 and rowspan=2 occupies a 2x2 block; surrounding cells flow around it.
 - **table** — 100.00%
   - PASS 0.26% table=basic-grid — `tables-basic-grid` — 2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.
-- **table-layout** — 75.00%
+- **table-layout** — 100.00%
   - PASS 0.31% table-layout=auto — `tables-layout-auto` — table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).
-  - FAIL 13.19% table-layout=auto-content-exceeds-width — `tables-layout-auto-overflow` — table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).
+  - PASS 3.47% table-layout=auto-content-exceeds-width — `tables-layout-auto-overflow` — table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).
   - PASS 0.09% table-layout=fixed — `tables-layout-fixed` — table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.
   - PASS 0.50% table-layout=fixed-remainder-distribution — `tables-layout-fixed-remainder` — table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -> 60/120/180).
 - **table-sections** — 100.00%

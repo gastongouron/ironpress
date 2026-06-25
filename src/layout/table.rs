@@ -1033,10 +1033,24 @@ pub(crate) fn flatten_table(
                                 .unwrap_or(0.0);
                         // Content-box → border-box: the column track must hold the
                         // content plus the cell's horizontal padding AND border
-                        // (borders paint inside the cell box).
+                        // (borders paint inside the cell box). Under
+                        // `border-collapse: collapse` adjacent borders merge onto a
+                        // shared grid line and each cell owns only HALF of a
+                        // collapsed border, so the track contribution scales the
+                        // border by the same half factor used by the paint inset
+                        // (see `border_inset_factor` below); `separate` keeps the
+                        // full border. Without this the track is sized for the full
+                        // border but painted center-to-center on the grid line,
+                        // making each collapsed column ~half-a-border too wide.
+                        let track_border_factor =
+                            if style.border_collapse == BorderCollapse::Collapse {
+                                0.5
+                            } else {
+                                1.0
+                            };
                         let cell_padding_x = cell_style.padding.left
                             + cell_style.padding.right
-                            + cell_style.border.horizontal_width();
+                            + cell_style.border.horizontal_width() * track_border_factor;
                         let total_preferred = (content_width.max(nested_width) + cell_padding_x)
                             .max(explicit_cell_width);
                         // Min-content includes padding and is floored by an explicit
@@ -1925,7 +1939,9 @@ fn collect_table_cell_content_inner(
                             underline: parent_style.text_decoration_underline,
                             line_through: parent_style.text_decoration_line_through,
                             overline: parent_style.text_decoration_overline,
-                            decoration_color: parent_style.text_decoration_color.map(|c| c.to_f32_rgb()),
+                            decoration_color: parent_style
+                                .text_decoration_color
+                                .map(|c| c.to_f32_rgb()),
                             color: parent_style.color.to_f32_rgb(),
                             link_url: link_url.map(String::from),
                             font_family: resolve_style_font_family(parent_style, fonts),
