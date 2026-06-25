@@ -5072,12 +5072,28 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
         // page box, scale the whole content stream down around the top-left corner
         // so it just fits (PDF y-up: scaling by `s` about the top edge `H` needs
         // the translate `H(1-s)`).
-        let shrink = page_shrink_to_fit_scale(page, page_size, margin);
-        if shrink < 0.9995 {
-            let s = format_pdf_number(shrink);
-            let ty = format_pdf_number(page_size.height * (1.0 - shrink));
-            content = format!("q {s} 0 0 {s} 0 {ty} cm\n{content}Q\n");
-        }
+        //
+        // The scale is composed with Chrome's print-CTM net factor (below). Chrome's
+        // `--print-to-pdf` does NOT emit content at the exact 0.75 pt/CSS-px: its
+        // page CTM is a two-step `0.23999999 0 0 -0.23999999 cm` then the device
+        // `3.125`, whose product is 0.74999996875 — 0.23999999 is Chrome's float
+        // serialization of 0.24 (= 72/300). ironpress bakes content at the EXACT
+        // 0.75, so its axis-aligned rectangles land on poppler/Splash's crisp no-AA
+        // `re` fast path, whereas Chrome's perturbed coordinates get anti-aliased —
+        // leaving crisp-vs-AA seams at every box/border edge (the dominant residual
+        // parity-diff class). Re-applying Chrome's measured net scale as a near-
+        // identity CTM nudges ironpress off the fast path so poppler anti-aliases
+        // identically. Must be f64: 0.74999996875 is within half a ULP of 0.75 in
+        // f32 and would collapse to a no-op. `format_pdf_number` is likewise f32, so
+        // the scale is formatted at full f64 precision here.
+        const CHROME_PRINT_CTM_NET: f64 = 0.74999996875;
+        const PT_PER_CSS_PX: f64 = 0.75;
+        let chrome_match = CHROME_PRINT_CTM_NET / PT_PER_CSS_PX; // ≈0.99999995833
+        let shrink = page_shrink_to_fit_scale(page, page_size, margin) as f64;
+        let s_eff = shrink * chrome_match;
+        let s = format!("{s_eff:.11}");
+        let ty = format!("{:.8}", f64::from(page_size.height) * (1.0 - s_eff));
+        content = format!("q {s} 0 0 {s} 0 {ty} cm\n{content}Q\n");
 
         pdf_writer.add_page(
             page_size.width,
