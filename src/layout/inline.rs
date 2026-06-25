@@ -353,9 +353,15 @@ pub(crate) fn layout_inline_block_group(
         parent_style.font_style == crate::style::computed::FontStyle::Italic,
         fonts,
     );
-    let strut_total = (strut_asc + strut_desc).max(f32::EPSILON);
-    let strut_above = strut_lh * strut_asc / strut_total;
-    let strut_below = strut_lh * strut_desc / strut_total;
+    // CSS2 §10.8.1: split `line-height` into the font's ascent/descent plus
+    // SYMMETRIC half-leading — NOT proportional to the ascent:descent ratio. The
+    // two agree only at `line-height: normal` (zero leading); for a larger
+    // line-height the proportional form under-reserves the below-baseline strut
+    // by ~half the leading, lifting the line-box bottom.
+    let content = (strut_asc + strut_desc) * parent_style.font_size;
+    let half_leading = ((strut_lh - content) / 2.0).max(0.0);
+    let strut_above = strut_asc * parent_style.font_size + half_leading;
+    let strut_below = strut_desc * parent_style.font_size + half_leading;
 
     // Position items horizontally, wrapping to new rows when they exceed available width
     let mut rows: Vec<(Vec<FlexCell>, f32)> = Vec::new(); // (cells, row_height)

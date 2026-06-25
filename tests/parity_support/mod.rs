@@ -551,10 +551,21 @@ fn process_entry(
         }
     }
 
+    // STRICT MODE: a PARTIAL verdict means the render is WRONG (a real diff above
+    // the PASS gates, not a forgiven sub-pixel match), so collapse it to FAIL at
+    // the fixture level. The comparator/combiner still computes the PARTIAL band
+    // internally (its goldens depend on it) — only the per-fixture parity verdict
+    // is hardened, so the gate demands every fixture be a genuine PASS.
+    let fixture_status = if combined.status == report::Status::Partial {
+        report::Status::Fail
+    } else {
+        combined.status
+    };
+
     // ADDITIVE: attach the V2 diagnosis (spec §2). The attribution prefix
     // (`via {dep}: …` for confounded fixtures) is applied later in `run()` by
     // `compute_attribution`, once every fixture's status is known.
-    let mut result = report::fixture_base(entry, combined.status, diff_pct, String::new());
+    let mut result = report::fixture_base(entry, fixture_status, diff_pct, String::new());
     result.diagnosis = Some(outcome.diagnosis);
     result.sub_verdicts = subs;
     result.disagreements = combined.disagreements;

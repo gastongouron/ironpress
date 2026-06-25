@@ -1951,6 +1951,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                         line_text_top_y,
                                         line_text_bottom_y,
                                         run.font_size,
+                                        line_primary_x_height_ratio(&merged, custom_fonts),
                                         custom_fonts,
                                         &prepared_custom_fonts,
                                         &mut page_ext_gstates,
@@ -2083,6 +2084,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 line_text_top_y,
                                 line_text_bottom_y,
                                 fs,
+                                line_primary_x_height_ratio(&merged, custom_fonts),
                                 custom_fonts,
                                 &prepared_custom_fonts,
                                 &mut page_ext_gstates,
@@ -6434,6 +6436,7 @@ fn render_container_children(
                                 line_text_top_y,
                                 line_text_bottom_y,
                                 run.font_size,
+                                line_primary_x_height_ratio(&merged, custom_fonts),
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 page_ext_gstates,
@@ -8905,6 +8908,38 @@ fn render_run_text(
 pub(crate) const SUPER_SHIFT_RATIO: f32 = 0.38;
 pub(crate) const SUB_SHIFT_RATIO: f32 = 0.23;
 
+/// The x-height (as a fraction of em) of the parent text a `vertical-align:
+/// middle` box aligns its centre against (CSS2 §10.8.1: centre at
+/// `baseline + x-height/2`). Read from the largest baseline-aligned text run's
+/// font; falls back to 0.5em when the line carries no measurable custom-font
+/// text.
+fn line_primary_x_height_ratio(
+    runs: &[TextRun],
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    let pick = runs
+        .iter()
+        .filter(|r| {
+            r.inline_box.is_none()
+                && matches!(r.vertical_align, VerticalAlign::Baseline)
+                && !r.text.trim().is_empty()
+        })
+        .max_by(|a, b| {
+            a.font_size
+                .partial_cmp(&b.font_size)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .or_else(|| runs.iter().find(|r| r.inline_box.is_none()));
+    if let Some(run) = pick
+        && let FontFamily::Custom(name) = &run.font_family
+        && let Some((_, ttf)) =
+            crate::system_fonts::find_font(custom_fonts, name, run.bold, run.italic)
+    {
+        return ttf.x_height_ratio();
+    }
+    0.5
+}
+
 /// Paint an atomic inline box (`display: inline-block`) inside a line of text.
 ///
 /// `box_x` is the left edge of the box in PDF coordinates; `baseline_y` is the
@@ -8922,6 +8957,7 @@ fn render_inline_box(
     line_text_top_y: f32,
     line_text_bottom_y: f32,
     line_font_size: f32,
+    parent_x_height_ratio: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
     page_ext_gstates: &mut Vec<(String, f32)>,
@@ -8952,7 +8988,12 @@ fn render_inline_box(
         VerticalAlign::TextBottom => line_text_bottom_y,
         // Middle: box centre aligns roughly to the parent's mid-x-height, i.e.
         // a quarter-em above the baseline.
-        VerticalAlign::Middle => baseline_y + line_font_size * 0.25 - h / 2.0,
+        // Middle: align the box centre to the parent's mid-x-height (CSS2
+        // §10.8.1: baseline + x-height/2), read from the parent font — not a flat
+        // 0.25em (which assumes x-height == 0.5em).
+        VerticalAlign::Middle => {
+            baseline_y + line_font_size * parent_x_height_ratio * 0.5 - h / 2.0
+        }
         // Sub/super shift the box's baseline below/above the line baseline by a
         // fraction of the parent font size (css-inline-3; CSS2 §10.8.1). The
         // fractions match Chromium's measured subscript/superscript offsets.
@@ -9366,18 +9407,25 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
     // a content baseline sits entirely above the baseline (its bottom edge rests
     // on it). Top/middle/bottom boxes don't move the baseline; they only widen the
     // line box, which `line.height` already reflects from the wrap pass.
+    // x-height of the parent text (pt), for a `vertical-align: middle` box whose
+    // centre sits at `baseline + x-height/2`.
+    let line_x_height = line_primary_x_height_ratio(&line.runs, custom_fonts) * parent_font_size;
     for run in &line.runs {
         if let Some(inline) = run.inline_box.as_deref()
             && matches!(
                 inline.vertical_align,
-                VerticalAlign::Baseline | VerticalAlign::Sub | VerticalAlign::Super
+                VerticalAlign::Baseline
+                    | VerticalAlign::Sub
+                    | VerticalAlign::Super
+                    | VerticalAlign::Middle
             )
         {
             // Box ascent above its own baseline and descent below it.
             let box_ascent = inline.baseline_ascent.unwrap_or(inline.height);
             let box_descent = (inline.height - box_ascent).max(0.0);
             // Sub/super shift the box's baseline relative to the line baseline,
-            // moving its extents by a fraction of the run font size.
+            // moving its extents by a fraction of the run font size; middle centres
+            // the box on `baseline + x-height/2`.
             let (box_above, box_below) = match inline.vertical_align {
                 VerticalAlign::Sub => (
                     box_ascent - parent_font_size * SUB_SHIFT_RATIO,
@@ -9386,6 +9434,10 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 VerticalAlign::Super => (
                     box_ascent + parent_font_size * SUPER_SHIFT_RATIO,
                     box_descent - parent_font_size * SUPER_SHIFT_RATIO,
+                ),
+                VerticalAlign::Middle => (
+                    inline.height / 2.0 + line_x_height / 2.0,
+                    inline.height / 2.0 - line_x_height / 2.0,
                 ),
                 _ => (box_ascent, box_descent),
             };

@@ -953,22 +953,22 @@ pub(crate) fn wrap_text_runs(
                     let box_above = (box_ascent + shift).max(0.0);
                     let box_below = (box_descent - shift).max(0.0);
                     // The surrounding text's own extents above and below the line
-                    // baseline. Split the text's line-height (`run_line_height`,
-                    // which already folds in any explicit `line-height` leading)
-                    // about the baseline in proportion to the font's ascent and
-                    // descent, so `text_above + text_below == run_line_height`
-                    // exactly for pure text — only a box that reaches PAST the
-                    // text on one side then grows the line on that side.
+                    // baseline (CSS2 §10.8.1): font ascent/descent plus SYMMETRIC
+                    // half-leading — NOT a split proportional to ascent:descent.
+                    // The two agree only at zero leading; for a larger line-height
+                    // the proportional form misplaces the baseline, so a baseline-
+                    // aligned box's overhang is measured against the wrong edge.
                     let (asc_ratio, desc_ratio) = crate::fonts::font_metrics_ratios(
                         &template.font_family,
                         template.bold,
                         template.italic,
                         fonts,
                     );
-                    let total_ratio = (asc_ratio + desc_ratio).max(f32::EPSILON);
                     let lh = run_line_height(&template);
-                    let text_above = lh * asc_ratio / total_ratio;
-                    let text_below = lh * desc_ratio / total_ratio;
+                    let content = (asc_ratio + desc_ratio) * template.font_size;
+                    let half_leading = ((lh - content) / 2.0).max(0.0);
+                    let text_above = asc_ratio * template.font_size + half_leading;
+                    let text_below = desc_ratio * template.font_size + half_leading;
                     box_above.max(text_above) + box_below.max(text_below)
                 }
                 _ => inline.height,
