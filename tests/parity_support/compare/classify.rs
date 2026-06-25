@@ -9,7 +9,7 @@
 
 use image::RgbaImage;
 
-use super::super::config::{COLOR_DE_PASS, EDGE_JITTER_PX, t_aa, t_match};
+use super::super::config::{AA_RAMP_RADIUS_PX, COLOR_DE_PASS, EDGE_JITTER_PX, t_aa, t_match};
 use super::super::geom::Mask;
 use super::color::{ciede2000, srgb_to_lab};
 use super::color_delta;
@@ -197,17 +197,21 @@ pub(crate) fn classify_pixels(
                 }
             } else if ink_c
                 && ink_r
-                && color_present_near(cand, r, x, y, EDGE_JITTER_PX, tm)
-                && color_present_near(reference, c, x, y, EDGE_JITTER_PX, tm)
+                && color_present_near(cand, r, x, y, AA_RAMP_RADIUS_PX, tm)
+                && color_present_near(reference, c, x, y, AA_RAMP_RADIUS_PX, tm)
             {
                 // 5. GeomShift — an offset edge/AA-ramp: both ink, differing, but
-                // each side's tone reappears within EDGE_JITTER_PX in the other image
-                // (mutual match). This forgives cross-rasterizer glyph-edge AA whose
-                // intermediate tones land a px or two apart (the #1 text false-FAIL),
-                // WITHOUT laundering a solid recolour: a uniform recolour has NO
-                // matching tone nearby (the bidirectional match fails in solid
-                // regions), so it falls through to ColorErr below. A solid recolour
-                // whose YIQ delta is small is already caught as ColorErr above.
+                // each side's tone reappears within `AA_RAMP_RADIUS_PX` in the other
+                // image (mutual match). This forgives cross-rasterizer/sub-pixel
+                // glyph-edge AA whose intermediate tones land a few px apart (the #1
+                // text false-FAIL — displaced glyph ramps on multi-line blocks reach
+                // ~7px), WITHOUT laundering a solid recolour: a uniform recolour has
+                // NO matching tone nearby (the bidirectional SAME-COLOUR match fails
+                // in solid regions), so it falls through to ColorErr below; and a
+                // consistent shift/size change is still caught by the bbox-extent
+                // gate (`G_EDGE_CSS`). Wider here than the Missing/Extra branches
+                // (which keep `EDGE_JITTER_PX`) precisely because this branch's
+                // bidirectional same-colour test cannot absorb absent content.
                 PixelClass::GeomShift
             } else {
                 // 6. ColorErr — aligned recolour / wrong-value / colour-space.

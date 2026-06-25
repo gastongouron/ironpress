@@ -69,6 +69,22 @@ pub(crate) const SHIFT_SEARCH_PX: i32 = 16;
 /// bidirectional same-ink test that cannot mask a whole-element shift — that is the
 /// bbox-extent gate's job.)
 pub(crate) const EDGE_JITTER_PX: i32 = 2;
+/// Wider radius (device px) for the BOTH-INK AA-ramp forgiveness ONLY (classify
+/// branch 5, `GeomShift`): a pixel where BOTH images have ink but at different
+/// tones is forgiven when each side's tone reappears within this radius in the
+/// other image (a displaced anti-aliased edge ramp). Cross-engine text places the
+/// SAME glyph outlines (same font, same poppler rasterizer) at sub-pixel-different
+/// positions, so a glyph edge's AA ramp can land several device px apart on a
+/// multi-line block (measured up to ~7px on `inline-text-word-break-break-all`);
+/// the 2px `EDGE_JITTER_PX` was too small, mislabelling these displaced ramps as a
+/// hard "fill recolour" (ΔE ~85, black-vs-white) — confusing cross-engine AA with
+/// a real colour error. This radius applies ONLY to branch 5 — NOT to the
+/// Missing/Extra branches (3/4), which keep the tight `EDGE_JITTER_PX` so a
+/// genuinely absent feature is never laundered. It cannot mask a solid recolour
+/// (the bidirectional SAME-COLOUR test fails in a uniformly-recoloured region) nor
+/// a consistent shift/size change (caught independently by the bbox-extent gate
+/// `G_EDGE_CSS`). ~6 device px ≈ 1.9 CSS px.
+pub(crate) const AA_RAMP_RADIUS_PX: i32 = 6;
 
 /// V2 per-pixel match threshold (pixelmatch `threshold`, 0..1), tighter than the
 /// removed legacy 0.12. Used by the V2 path's `t_match()`.
