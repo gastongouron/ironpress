@@ -32,11 +32,16 @@ pub(crate) const PM_MAX_DELTA: f64 = 35215.0;
 
 /// Device px per CSS px @ 300 DPI (96 CSS px/in -> 300/96 = 3.125).
 pub(crate) const CSS_PX: f64 = 3.125;
-/// Fixed page-origin correction (device px): ironpress content sits +4,+4 vs the
-/// Chrome reference because Chrome's `--print-to-pdf` rounds the printable margin.
-/// We shift the candidate by `-GLOBAL_OFFSET` once, uniformly, and audit it — we
-/// do NOT search per-fixture (that masked real layout bugs). See spec §0.1/§1.3.
-pub(crate) const GLOBAL_OFFSET: (i32, i32) = (4, 4);
+/// Fixed page-origin correction (device px). Every fixture now declares
+/// `@page { size: <content>; margin: 0 }` (sized to what it tests — no white-space
+/// skew), so content sits at the page ORIGIN in BOTH engines and there is no
+/// margin for Chrome's `--print-to-pdf` to round: the measured cand-vs-ref offset
+/// is (0,0). (Historically this was (4,4) from the 28.8pt printable-margin
+/// rounding under the old uniform-LETTER fixtures.) We still shift the candidate
+/// by `-GLOBAL_OFFSET` (now a no-op) and AUDIT it on the rigid probes — a nonzero
+/// drift means a real margin/origin regression and aborts the run. We do NOT
+/// search per-fixture (that masked real layout bugs). See spec §0.1/§1.3.
+pub(crate) const GLOBAL_OFFSET: (i32, i32) = (0, 0);
 /// Allowed raw-probe deviation from `GLOBAL_OFFSET` during calibration audit.
 pub(crate) const PROBE_JITTER_PX: i32 = 1;
 /// Post-calibration sub-pixel rounding band: a residual displacement within this

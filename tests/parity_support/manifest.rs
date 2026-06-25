@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::report::RefMismatch;
-use super::util::strip_comments;
 
 // ---------------------------------------------------------------------------
 // Manifest schema
@@ -146,18 +145,11 @@ pub(crate) fn load_manifests(
                     fixture.display()
                 ));
             }
-            // Geometry desync guard: reject @page declarations. Strip CSS/HTML
-            // comments first so the word "@page" appearing inside an explanatory
-            // comment does not trip the guard (only real at-rules count).
-            if let Ok(html) = std::fs::read_to_string(&fixture) {
-                if strip_comments(&html).to_ascii_lowercase().contains("@page") {
-                    return Err(format!(
-                        "entry '{}': fixture declares @page (geometry desync risk): {}",
-                        e.id,
-                        fixture.display()
-                    ));
-                }
-            }
+            // Per-fixture `@page { size: <content>; margin: 0 }` is now the design:
+            // each fixture sizes the page to what it tests (no white-space skew) and
+            // BOTH engines honor it (Chrome via --print-to-pdf, ironpress via the
+            // @page-rule override), so there is no geometry desync. The former guard
+            // that REJECTED @page is therefore obsolete and was removed.
             if let Some(prev) = seen_ids.insert(e.id.clone(), f.clone()) {
                 return Err(format!(
                     "duplicate fixture id '{}' (in {} and {})",

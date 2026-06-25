@@ -244,7 +244,7 @@
     "feature": "box-shadow",
     "subfeature": "hard-offset",
     "description": "Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.",
-    "file": "cases/backgrounds-borders/box-shadow-offset.html",
+    "file": "cases/backgrounds-borders/border-box-shadow-offset.html",
     "kind": "feature",
     "expected_support": "implemented",
     "depends_on": [

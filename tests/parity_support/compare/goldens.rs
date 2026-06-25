@@ -129,24 +129,35 @@ fn golden_identical() {
 }
 
 #[test]
-fn golden_origin_offset_4px() {
-    // Reference at the page origin; candidate sits +4,+4 (the page-origin offset).
-    // Calibration must cancel it exactly -> PASS, residual ~0.
+fn golden_origin_offset_zero() {
+    // Every fixture now declares `@page { margin: 0 }`, so content sits at the page
+    // ORIGIN in BOTH engines: the page-origin offset is GLOBAL_OFFSET=(0,0) and
+    // `calibrate()` is the identity. An IDENTICAL candidate therefore PASSes with a
+    // ~0 residual. (Historically this offset was (4,4) from Chrome's 28.8pt print-
+    // margin rounding under uniform-LETTER fixtures; a 4px displacement is now a
+    // GENUINE shift — see `golden_real_shift_5px`.)
     let reference = box_frame();
-    let cand_raw = translate(&reference, 4, 4);
-    let cand = calibrate(&cand_raw); // the fixed (-4,-4) correction
+    let cand = calibrate(&reference); // identity under GLOBAL_OFFSET=(0,0)
     let o = run(&cand, &reference);
-    dump("origin_offset_4px", &o);
-    assert_eq!(o.status, Status::Pass, "calibrated 4px offset must PASS");
-    assert!(
-        o.tally.edge_max_css < 1e-9,
-        "residual edge must be ~0, got {}",
-        o.tally.edge_max_css
+    dump("origin_offset_zero", &o);
+    assert_eq!(
+        o.status,
+        Status::Pass,
+        "0px (origin-aligned) offset must PASS"
     );
     assert!(
-        o.tally.shift_max_css < 1e-9,
-        "residual shift must be ~0, got {}",
+        o.tally.edge_max_css < 1e-9 && o.tally.shift_max_css < 1e-9,
+        "residual edge/shift must be ~0, got edge {} shift {}",
+        o.tally.edge_max_css,
         o.tally.shift_max_css
+    );
+
+    // A 4px displacement is no longer absorbed by calibration -> NOT PASS.
+    let off4 = run(&calibrate(&translate(&reference, 4, 4)), &reference);
+    assert_ne!(
+        off4.status,
+        Status::Pass,
+        "a 4px shift must NOT pass under (0,0) calibration"
     );
 }
 
@@ -510,31 +521,29 @@ fn golden_miter_vs_square_corner() {
 
 #[test]
 fn golden_calibration_drift() {
-    // assert_calibration's pure offset check: a probe whose RAW offset is (8,8)
-    // (double the expected page-origin (4,4)) is drift -> Err (the live run would
-    // abort). Tested on synthetic bboxes (no rendering).
-    //
-    // A correct probe: the CANDIDATE (ironpress) sits +4,+4 PAST the reference
-    // (cand - ref == GLOBAL_OFFSET), mirroring real geometry (ironpress 120px
-    // margin vs Chrome ~116px). Candidate box at (10,10)-(110,110); ref at -4,-4.
+    // assert_calibration's pure offset check under the @page{margin:0} geometry:
+    // content is origin-aligned in both engines, so the expected page-origin offset
+    // is GLOBAL_OFFSET=(0,0). A probe whose RAW cand-vs-ref offset is (0,0)±1 passes;
+    // any larger offset is a real margin/origin regression -> Err (the live run
+    // aborts). Tested on synthetic bboxes (no rendering).
     let cand_bb = (10u32, 10u32, 110u32, 110u32);
-    let good_ref = (6u32, 6u32, 106u32, 106u32); // cand - ref = +4,+4 pure translation
+    let good_ref = (10u32, 10u32, 110u32, 110u32); // cand - ref = (0,0)
     assert!(
         check_probe_offset(cand_bb, good_ref).is_ok(),
-        "a clean (4,4) probe offset must pass calibration"
+        "a clean (0,0) probe offset must pass calibration"
     );
 
-    // Drifted probe: cand - ref == +8,+8 -> outside (4,4)±1 -> Err.
-    let drift_ref = (2u32, 2u32, 102u32, 102u32);
+    // Drifted probe: cand - ref == +4,+4 -> outside (0,0)±1 -> Err.
+    let drift_ref = (6u32, 6u32, 106u32, 106u32);
     let res = check_probe_offset(cand_bb, drift_ref);
     assert!(
         res.is_err(),
-        "a (8,8) raw offset must be reported as drift, got {res:?}"
+        "a (4,4) raw offset must be reported as drift now, got {res:?}"
     );
 
     // A scale (not a pure translation) -> Err even if TL is in band.
-    // cand - ref: TL +4, BR +14 -> non-uniform.
-    let scaled_ref = (6u32, 6u32, 96u32, 96u32);
+    // cand - ref: TL (0,0), BR +10 -> non-uniform.
+    let scaled_ref = (10u32, 10u32, 100u32, 100u32);
     assert!(
         check_probe_offset(cand_bb, scaled_ref).is_err(),
         "a non-uniform (scale) offset must be reported as drift"

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box-shadow hard offset</title>
+<style>
+  @page { size: 313px 165px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  /* Padding so the offset shadow stays on-page. */
+  .frame { padding: 30px; }
+  .box {
+    width: 160px;
+    height: 100px;
+    background-color: #1976d2;
+    /* zero blur -> deterministic hard-edged shadow that both engines agree on */
+    box-shadow: 16px 16px 0 0 #424242;
+  }
+</style>
+</head>
+<body>
+  <div class="frame"><div class="box"></div></div>
+</body>
+</html>

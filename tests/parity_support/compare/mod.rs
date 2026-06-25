@@ -156,20 +156,41 @@ pub(crate) fn compare_v2(
     reference: &RgbaImage,
     entry: &ManifestEntry,
 ) -> V2Outcome {
-    // Dimension guard (review #9): the whole pipeline assumes the candidate and
-    // reference share pixel dimensions (the bbox deltas, union crop, and per-pixel
-    // classify all compare like-for-like at the same page position). Cross-rasterizer
-    // pages are normally identical-dim, but a width/height rounding difference would
-    // SILENTLY corrupt the bbox deltas (a false-FAIL or false-PASS in either
-    // direction). Mirror legacy `diff_images`' guard: surface a loud UNKNOWN instead
-    // of scoring garbage, so the mismatch is visible rather than absorbed.
-    if cand.dimensions() != reference.dimensions() {
+    // Dimension reconciliation. Every fixture now sizes `@page` to its content
+    // with margin:0, so content is anchored at the page ORIGIN (top-left) IDENTICALLY
+    // in both engines. Chrome's `--print-to-pdf`, however, rounds the `@page` CSS
+    // size UP to a slightly larger pt page (~0.5pt), so its raster can be a few px
+    // taller/wider than ironpress's — the surplus is purely bottom/right WHITE page
+    // margin, never content. Normalize both frames to the common MIN dimensions
+    // (anchored at (0,0)) so the like-for-like pipeline (bbox deltas, union crop,
+    // per-pixel classify) sees equal dims while only the white page-rounding band is
+    // trimmed — no content is discarded (it lives at the origin-anchored top-left).
+    //
+    // A LARGE mismatch is NOT page rounding — it means ironpress computed a different
+    // @page size (a real layout/parse bug) — so keep the loud UNKNOWN beyond a small
+    // tolerance rather than silently absorbing a genuine page-size defect.
+    const DIM_ROUND_TOL: u32 = 8; // device px; Chrome @page pt-rounding is <= ~3px
+    let (cw, ch) = cand.dimensions();
+    let (rw, rh) = reference.dimensions();
+    if cw.abs_diff(rw) > DIM_ROUND_TOL || ch.abs_diff(rh) > DIM_ROUND_TOL {
         return unknown_outcome(format!(
-            "dimension mismatch: cand {:?} != ref {:?} (cross-rasterizer page-size drift) — refusing to score",
+            "dimension mismatch: cand {:?} != ref {:?} beyond page-rounding tolerance \
+             ({DIM_ROUND_TOL}px) — ironpress @page size differs from Chrome; refusing to score",
             cand.dimensions(),
             reference.dimensions()
         ));
     }
+    let cand_norm;
+    let ref_norm;
+    let (cand, reference): (&RgbaImage, &RgbaImage) = if (cw, ch) != (rw, rh) {
+        let w = cw.min(rw);
+        let h = ch.min(rh);
+        cand_norm = crop_rect(cand, (0, 0, w - 1, h - 1));
+        ref_norm = crop_rect(reference, (0, 0, w - 1, h - 1));
+        (&cand_norm, &ref_norm)
+    } else {
+        (cand, reference)
+    };
 
     let cand_bb = content_bbox(cand);
     let ref_bb = content_bbox(reference);

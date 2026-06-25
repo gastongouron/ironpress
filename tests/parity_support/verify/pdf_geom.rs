@@ -334,9 +334,57 @@ struct PathState {
 
 /// Extract candidate geometry from PDF bytes. `None` if the content stream is
 /// filtered/unfindable (degrade to raster fallback, never guess).
+/// Parse the page height (pt) from the first `/MediaBox [x0 y0 x1 y1]`. Per-fixture
+/// `@page` sizing means the page is NO LONGER a fixed LETTER 792pt — the y-flip must
+/// use the candidate's actual page height. Defaults to `PAGE_H_PT` when absent or
+/// unparseable (golden hand-written streams + any legacy LETTER PDF are unchanged).
+fn parse_media_box_height(pdf: &[u8]) -> f64 {
+    let Some(pos) = find(pdf, b"/MediaBox") else {
+        return PAGE_H_PT;
+    };
+    let rest = &pdf[pos..];
+    let Some(lb) = find(rest, b"[") else {
+        return PAGE_H_PT;
+    };
+    let Some(rb) = find(&rest[lb..], b"]") else {
+        return PAGE_H_PT;
+    };
+    let inner = &rest[lb + 1..lb + rb];
+    let nums: Vec<f64> = inner
+        .split(|&b| b" \r\n\t".contains(&b))
+        .filter(|s| !s.is_empty())
+        .filter_map(parse_num)
+        .collect();
+    if nums.len() == 4 {
+        (nums[3] - nums[1]).abs()
+    } else {
+        PAGE_H_PT
+    }
+}
+
 pub(crate) fn extract_geometry(pdf: &[u8]) -> Option<PdfGeometry> {
     let body = find_content_stream(pdf)?;
-    Some(extract_from_body(body))
+    let mut geo = extract_from_body(body);
+    // `extract_from_body` flips PDF (bottom-left) y to top-left using the nominal
+    // `PAGE_H_PT`. Correct to the candidate's ACTUAL page height: the flip is linear
+    // (`y_tl = page_h - y_bl`), so a uniform y shift of `(page_h - PAGE_H_PT)` on
+    // every top-left y is exact. (No-op when the page is LETTER 792 — delta 0.)
+    let delta = parse_media_box_height(pdf) - PAGE_H_PT;
+    if delta != 0.0 {
+        for f in &mut geo.fills {
+            f.rect_pt[1] += delta;
+        }
+        for b in &mut geo.borders {
+            b.rect_pt[1] += delta;
+        }
+        for c in &mut geo.clips {
+            c.rect_pt[1] += delta;
+        }
+        for t in &mut geo.text_runs {
+            t.origin_pt[1] += delta;
+        }
+    }
+    Some(geo)
 }
 
 /// Tokenize + interpret an already-located content-stream body. Split out so the
