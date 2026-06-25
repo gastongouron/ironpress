@@ -6217,8 +6217,11 @@ fn render_container_children(
                     content.push_str("W n\n");
                 }
 
-                // Draw child text
-                let mut text_y = render_y - padding_top;
+                // Draw child text. Inset from the border-box top by BOTH the top
+                // border width and the top padding (matching the primary text path
+                // at the top of this fn); omitting the border placed the first
+                // baseline `border-top` px too high inside bordered clip boxes.
+                let mut text_y = render_y - border.top.width - padding_top;
                 let mut tb_first_line = true;
                 for line in lines {
                     let metrics = line_box_metrics(line, custom_fonts);

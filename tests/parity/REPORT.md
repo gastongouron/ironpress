@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 94.70%  (PASS 559 · PARTIAL 43 · FAIL 11 · UNKNOWN 0 · total 613)
+Overall: 95.11%  (PASS 561 · PARTIAL 44 · FAIL 8 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -37,20 +37,16 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Missing | 17.32 | color-opacity | color-format | text-glyph-fill | color-text-glyph | via probe-text-baseline: content clipped/truncated (19.8% missing) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 9.64 | inline-text | inline-block | shrink-to-fit | inline-text-inline-block-shrink-to-fit | via probe-text-baseline: fill recolour ΔRGB(+0,+16,+42) (ΔE 28.4) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 2.73 | inline-text | vertical-align | text-top | inline-text-vertical-align-text-top | via probe-text-baseline: fill recolour ΔRGB(-11,-11,-6) (ΔE 47.4) |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Extra | 37.88 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via probe-text-baseline: extra paint where Chrome is blank (82.8%) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | ColorValue | 4.52 | interactions | position | (interaction: positioning×inline-text) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-relative-x-inline-block | via probe-text-baseline: fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
 | FAIL | REAL | ColorValue | 13.39 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | GeometryShift | 15.98 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | via probe-text-baseline: content shifted (0.6,-0.0)px beyond page-origin calibration |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Extra | 79.16 | tables | empty-cells | whitespace-and-empty | tables-empty-cells-whitespace | via probe-text-baseline: extra paint where Chrome is blank (64.4%) |
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 22 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-block-x-vertical-align, inline-text-inline-block-shrink-to-fit, inline-text-multiple-inline-blocks …(+16) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 20 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-inline-block-shrink-to-fit, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline …(+14) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
-| 3 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -68,15 +64,15 @@ None — every fixture's HTML matches `refs.lock`.
 | grid | 97.92% | 23 | 1 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
 | inline-text | 89.74% | 33 | 4 | 2 | 0 |
-| interactions | 81.82% | 17 | 2 | 3 | 0 |
+| interactions | 86.36% | 18 | 2 | 2 | 0 |
 | lists-counters | 92.11% | 16 | 3 | 0 | 0 |
 | multicol | 97.37% | 18 | 1 | 0 | 0 |
-| overflow-clipping | 86.36% | 9 | 1 | 1 | 0 |
+| overflow-clipping | 90.91% | 9 | 2 | 0 | 0 |
 | paged-media | 88.89% | 7 | 2 | 0 | 0 |
 | positioning | 100.00% | 16 | 0 | 0 | 0 |
 | probes | 91.67% | 5 | 1 | 0 | 0 |
 | selectors-cascade | 100.00% | 46 | 0 | 0 | 0 |
-| tables | 90.74% | 24 | 1 | 2 | 0 |
+| tables | 94.44% | 25 | 1 | 1 | 0 |
 | text-advanced | 97.50% | 19 | 1 | 0 | 0 |
 | transforms | 100.00% | 30 | 0 | 0 | 0 |
 | typography | 90.63% | 13 | 3 | 0 | 0 |
@@ -692,7 +688,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 4.55% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 81.82%
+### interactions — 86.36%
 - **containing-block** — 100.00%
   - PASS 0.10% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - PASS 0.20% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -708,8 +704,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.84% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
 - **grid-x-flexbox** — 100.00%
   - PASS 0.37% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
-- **inline-block-x-vertical-align** — 0.00%
-  - FAIL 37.88% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
+- **inline-block-x-vertical-align** — 100.00%
+  - PASS 0.81% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 100.00%
   - PASS 0.78% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
 - **overflow-hidden-x-border-radius** — 50.00%
@@ -792,15 +788,15 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once.
   - PASS 0.44% columns=width-only — `multicol-columns-width-only` — columns: 140px shorthand with only a column-width; the used column count is derived from the inline size.
 
-### overflow-clipping — 86.36%
-- **overflow** — 86.36%
+### overflow-clipping — 90.91%
+- **overflow** — 90.91%
   - PASS 0.00% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
   - PASS 0.05% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PASS 0.00% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PASS 0.00% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - PASS 0.00% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PASS 0.13% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
-  - FAIL 15.98% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
+  - PARTIAL 14.54% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - PASS 0.00% overflow=padding-box-clip-edge — `overflow-padding-box-clip` — overflow:hidden on a padded box clips its oversized child at the PADDING box: the child fills the padding box out to the inner border edge and is cut there, leaving the border fully visible and the top/left padding band showing.
   - PARTIAL 1.29% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - PASS 0.00% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
@@ -895,7 +891,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.13% combinator=descendant — `selectors-cascade-descendant-combinator` — The descendant combinator (space) matches every .box inside #parent at any depth; a .box outside #parent stays gray.
   - PASS 0.16% combinator=general-sibling — `selectors-cascade-general-sibling` — The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.
 - **pseudo-class** — 100.00%
-  - PASS 0.41% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
+  - PASS 0.43% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
   - PASS 0.16% pseudo-class=first-child-last-child — `selectors-cascade-first-last-child` — :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.
   - PASS 0.16% pseudo-class=first-of-type — `selectors-cascade-first-of-type` — p:first-of-type colors the first <p> green even though a <div> precedes it.
   - PASS 0.16% pseudo-class=has — `selectors-cascade-has-relational` — :has(+ .flag) colors a box that is immediately followed by a .flag sibling green.
@@ -920,7 +916,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.16% type-selector=type — `selectors-cascade-type-selector` — A type selector p.box colors only <p> boxes green; <div> boxes stay gray.
   - PASS 0.16% type-selector=universal — `selectors-cascade-universal-selector` — The universal selector * as the discriminating rule paints every child box green.
 
-### tables — 90.74%
+### tables — 94.44%
 - **border-collapse** — 100.00%
   - PASS 0.94% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
   - PASS 0.96% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
@@ -937,9 +933,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.34% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
 - **column-width** — 100.00%
   - PASS 0.30% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
-- **empty-cells** — 50.00%
+- **empty-cells** — 100.00%
   - PASS 0.00% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
-  - FAIL 79.16% empty-cells=whitespace-and-empty — `tables-empty-cells-whitespace` — empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.
+  - PASS 0.23% empty-cells=whitespace-and-empty — `tables-empty-cells-whitespace` — empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.
 - **rowspan** — 100.00%
   - PASS 0.11% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
   - PASS 0.01% rowspan=stagger-shift — `tables-rowspan-stagger` — A rowspan=2 first-column cell shifts later rows' cells into the remaining columns.
