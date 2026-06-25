@@ -4281,6 +4281,40 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 ));
                                 content.push_str("S\n");
                                 end_border_alpha(&mut content, a);
+                            } else if c_uniform
+                                && border.top.style == BorderStyle::Solid
+                                && border.top.alpha < 1.0
+                                && border.top.alpha == border.right.alpha
+                                && border.top.alpha == border.bottom.alpha
+                                && border.top.alpha == border.left.alpha
+                            {
+                                // Uniform TRANSLUCENT solid flat border: stroke it as a
+                                // SINGLE rectangle so each corner composites once. The
+                                // per-side stroke path below lays each side corner-to-
+                                // corner, so adjacent strokes overlap at every corner;
+                                // for a translucent border that applies the alpha twice
+                                // (darker corners — a real Chrome mismatch). Opaque
+                                // borders are unaffected and keep the per-side path
+                                // (byte-stable). Coords match the per-side path's border
+                                // box (container_x / container_y_top), inset by bw/2.
+                                let bw = border.top.width;
+                                let (r, g, b) = border.top.color;
+                                let a = begin_border_alpha(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    &mut bg_alpha_counter,
+                                    border.top.alpha,
+                                );
+                                content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
+                                content.push_str(&format!(
+                                    "{x} {y} {w} {h} re\n",
+                                    x = container_x + bw / 2.0,
+                                    y = (container_y_top - total_h) + bw / 2.0,
+                                    w = (container_w - bw).max(0.0),
+                                    h = (total_h - bw).max(0.0),
+                                ));
+                                content.push_str("S\n");
+                                end_border_alpha(&mut content, a);
                             } else if !radii_any(*c_border_radii)
                                 && *c_border_radius <= 0.0
                                 && border_needs_miter_fill(border)

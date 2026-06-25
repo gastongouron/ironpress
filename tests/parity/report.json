@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 89.87,
-    "pass": 508,
+    "score_pct": 90.03,
+    "pass": 509,
     "partial": 84,
-    "fail": 20,
+    "fail": 19,
     "unknown": 1,
     "total": 613,
     "scored_ratio_pct": 99.84
@@ -5497,21 +5497,21 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 94.23,
+      "score_pct": 98.08,
       "counts": {
-        "pass": 24,
+        "pass": 25,
         "partial": 1,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
         {
           "feature": "background-clip",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -5522,8 +5522,8 @@
               "subfeature": "padding-box",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
-              "diff_pct": 2.9467,
+              "status": "PASS",
+              "diff_pct": 0.28,
               "weight": 1.0,
               "description": "background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.",
               "note": "",
@@ -5534,12 +5534,12 @@
                 "probe-border-box"
               ],
               "expected_support": "unsupported",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "d617203300d3c967a5c042db3be0de0c9f218310e0332abfb89505cbf6a04f0c",
               "diagnosis": {
-                "primary_class": "ColorValue",
+                "primary_class": "GeometryShift",
                 "secondary": [],
-                "headline": "fill recolour ΔRGB(-50,-47,-46) (ΔE 14.8)",
+                "headline": "content shifted ~0.0px beyond page-origin calibration",
                 "magnitude": {
                   "edge_delta_css": [
                     0.0,
@@ -5550,28 +5550,28 @@
                   "missing_area_pct": 0.0,
                   "extra_area_pct": 0.0,
                   "modal_drgb": [
-                    -50,
-                    -47,
-                    -46
+                    -89,
+                    -52,
+                    -56
                   ],
-                  "delta_e": 14.792877795917427,
-                  "recovered_alpha": 0.61,
+                  "delta_e": 21.086500064426154,
+                  "recovered_alpha": null,
                   "residual_shift_css": [
-                    0.05333333333333333,
-                    -0.37333333333333335
+                    0.0,
+                    0.0
                   ],
                   "colorspace": null
                 },
                 "regions": [
                   {
-                    "class": "ColorValue",
+                    "class": "GeometryShift",
                     "bbox_css": [
-                      0.0,
-                      0.0,
-                      239.68,
+                      16.0,
+                      15.68,
+                      223.68,
                       143.68
                     ],
-                    "area_pct": 1.6133333333333333,
+                    "area_pct": 0.28,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -5579,98 +5579,40 @@
                       0.0
                     ],
                     "modal_drgb": [
-                      -50,
-                      -47,
-                      -46
+                      -89,
+                      -52,
+                      -56
                     ],
-                    "delta_e": 14.792877795917427,
-                    "recovered_alpha": 0.61,
-                    "shift_css": [
-                      0.002926829268292683,
-                      0.31853658536585366
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-50,-47,-46) (ΔE 14.8)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      0.0,
-                      144.0,
-                      15.68,
-                      159.68
-                    ],
-                    "area_pct": 0.6666666666666666,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -50,
-                      -47,
-                      -46
-                    ],
-                    "delta_e": 14.792877795917427,
-                    "recovered_alpha": 0.61,
-                    "shift_css": [
-                      0.05333333333333333,
-                      -0.37333333333333335
-                    ],
-                    "selector": null,
-                    "headline": "fill recolour ΔRGB(-50,-47,-46) (ΔE 14.8)"
-                  },
-                  {
-                    "class": "ColorValue",
-                    "bbox_css": [
-                      224.0,
-                      144.0,
-                      239.68,
-                      159.68
-                    ],
-                    "area_pct": 0.6666666666666666,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0
-                    ],
-                    "modal_drgb": [
-                      -50,
-                      -47,
-                      -46
-                    ],
-                    "delta_e": 14.792877795917427,
-                    "recovered_alpha": 0.61,
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
                     "shift_css": [
                       0.0,
-                      0.0
+                      0.32
                     ],
                     "selector": null,
-                    "headline": "fill recolour ΔRGB(-50,-47,-46) (ΔE 14.8)"
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
                   }
                 ],
                 "residual_shift_css": [
-                  0.05333333333333333,
-                  -0.37333333333333335
+                  0.0,
+                  0.0
                 ],
-                "confidence": 0.9400904977375566
+                "confidence": 0.6180952380952381
               },
               "sub_verdicts": [
                 {
                   "verifier": "RasterDiff",
                   "status": "PASS",
                   "concern": "Geometry",
-                  "headline": "raster geometry: edge 0.00css shift 0.38css",
-                  "magnitude": 0.3771236166328254
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "FAIL",
+                  "status": "PASS",
                   "concern": "Appearance",
-                  "headline": "raster appearance: color 2.77% interiorΔE 14.79",
-                  "magnitude": 2.7701333333333333
+                  "headline": "raster appearance: color 0.11% interiorΔE 0.00",
+                  "magnitude": 0.10693333333333334
                 },
                 {
                   "verifier": "RasterDiff",
@@ -126137,6 +126079,7 @@
   ],
   "ref_mismatches": [],
   "suspect_unsupported_pass": [
+    "background-clip-padding-box",
     "clip-path-circle",
     "clip-path-ellipse",
     "clip-path-inset",

@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 79.25%  (PASS 439 · PARTIAL 92 · FAIL 81 · UNKNOWN 1 · total 613)
+Overall: 90.03%  (PASS 509 · PARTIAL 84 · FAIL 19 · UNKNOWN 1 · total 613)
 Scored coverage: 99.84% (612 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -22,7 +22,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**34 suspect(s):** `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-stretch-condensed`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `mix-blend-mode-screen`, `multiple-backgrounds-layered`, `overflow-clip`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-text-overflow-string`, `text-advanced-word-break-break-all`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`
+**45 suspect(s):** `background-clip-padding-box`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-url-svg`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-size-ex`, `fonts-advanced-font-stretch-condensed`, `fonts-advanced-font-variant-small-caps`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `list-style-image-data-uri`, `mix-blend-mode-screen`, `multiple-backgrounds-layered`, `overflow-clip`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-named-page`, `paged-orphans-widows`, `paged-page-break-inside-avoid-table`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-tab-size`, `text-advanced-text-overflow-string`, `text-advanced-unicode-bidi-override`, `text-advanced-word-break-break-all`, `text-advanced-writing-mode-vertical-rl`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -35,118 +35,76 @@ None — every fixture's HTML matches `refs.lock`.
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
 | FAIL | REAL | ColorValue | 9.51 | backgrounds-borders | border-radius | uniform | border-radius-uniform | fill recolour ΔRGB(+57,+0,+8) (ΔE 9.2) |
-| FAIL | REAL | GeometrySize | 0.57 | backgrounds-borders | border-radius | x-linear-gradient | border-radius-x-linear-gradient | box −0.3px on left edge (size/box-model mismatch) |
-| FAIL | REAL | Missing | 6.52 | backgrounds-borders | border-style | dashed | border-style-dashed | content clipped/truncated (28.3% missing) |
-| FAIL | REAL | ColorValue | 0.02 | backgrounds-borders | conic-gradient | center | background-conic-gradient | fill recolour ΔRGB(+1,+5,+7) (ΔE 3.2) |
-| FAIL | REAL | ColorValue | 8.97 | backgrounds-gradients | background-origin | content-box | background-origin-content-box | fill recolour ΔRGB(-9,+71,-24) (ΔE 45.0) |
-| FAIL | REAL | ColorValue | 8.40 | backgrounds-gradients | background-size | explicit-length | background-size-length | fill recolour ΔRGB(+190,+114,+194) (ΔE 45.0) |
-| FAIL | REAL | Missing | 0.38 | clip-mask | -webkit-mask-image | prefixed-alias | mask-webkit-alias | content clipped/truncated (0.3% missing) |
-| FAIL | REAL | ColorValue | 0.37 | clip-mask | mask-image: linear-gradient() | alpha-fade | mask-image-linear-gradient | fill recolour ΔRGB(-41,-25,-40) (ΔE 4.3) |
-| FAIL | REAL | ColorValue | 0.41 | clip-mask | mask-mode: luminance | gradient-source | mask-mode-luminance | fill recolour ΔRGB(-70,-66,-36) (ΔE 5.5) |
-| FAIL | REAL | ColorValue | 15.95 | flexbox | align-items | baseline | flexbox-align-items-baseline | fill recolour ΔRGB(+18,-8,+12) (ΔE 44.2) |
-| FAIL | REAL | ColorValue | 14.29 | flexbox | align-self | baseline | flexbox-align-self-baseline | fill recolour ΔRGB(+23,+15,+24) (ΔE 43.7) |
-| FAIL | REAL | ColorValue | 5.30 | generated-content | content-attr | attr-missing-empty | generated-content-attr-missing | fill recolour ΔRGB(+4,+5,+1) (ΔE 76.7) |
-| FAIL | REAL | Extra | 20.36 | generated-content | content-url | before-image | generated-content-content-url-image | extra paint where Chrome is blank (11.4%) |
-| FAIL | REAL | Extra | 32.47 | generated-content | content-url | before-image-sized | generated-content-content-url-sized | extra paint where Chrome is blank (21.5%) |
-| FAIL | REAL | ColorValue | 8.87 | generated-content | first-letter | color-background | generated-content-first-letter-color | fill recolour ΔRGB(+41,+37,+38) (ΔE 64.2) |
-| FAIL | REAL | Extra | 29.77 | generated-content | first-letter | drop-cap | generated-content-first-letter-dropcap | extra paint where Chrome is blank (15.6%) |
-| FAIL | REAL | ColorValue | 16.97 | generated-content | first-line | background-color | generated-content-first-line-background | fill recolour ΔRGB(-31,+16,+119) (ΔE 26.3) |
-| FAIL | REAL | Extra | 38.39 | generated-content | pseudo-element | before-display-block | generated-content-before-block | extra paint where Chrome is blank (56.4%) |
-| FAIL | REAL | ColorValue | 5.98 | inline-text | inline-block | baseline-alignment | inline-text-inline-block-baseline | fill recolour ΔRGB(+26,+14,+0) (ΔE 57.0) |
-| FAIL | REAL | ColorValue | 7.69 | inline-text | inline-block | baseline-multiline | inline-text-inline-block-baseline-multiline | fill recolour ΔRGB(-12,-12,+0) (ΔE 34.3) |
-| FAIL | REAL | ColorValue | 14.50 | inline-text | inline-block | shrink-to-fit | inline-text-inline-block-shrink-to-fit | fill recolour ΔRGB(+0,+16,+12) (ΔE 29.7) |
-| FAIL | REAL | Missing | 14.53 | inline-text | inline-block | multiple | inline-text-multiple-inline-blocks | content clipped/truncated (9.4% missing) |
+| FAIL | REAL | ColorValue | 3.46 | flexbox | align-self | baseline | flexbox-align-self-baseline | fill recolour ΔRGB(+18,-8,+24) (ΔE 62.1) |
 | FAIL | REAL | ColorValue | 10.99 | inline-text | overflow-wrap | break-word | inline-text-overflow-wrap-break-word | fill recolour ΔRGB(-216,-216,-216) (ΔE 84.8) |
-| FAIL | REAL | ColorValue | 14.16 | inline-text | vertical-align | sub | inline-text-vertical-align-sub | fill recolour ΔRGB(+216,+216,+216) (ΔE 80.6) |
-| FAIL | REAL | Missing | 23.76 | inline-text | vertical-align | super | inline-text-vertical-align-super | content clipped/truncated (15.4% missing) |
-| FAIL | REAL | ColorValue | 19.45 | inline-text | white-space | break-spaces | inline-text-white-space-break-spaces | fill recolour ΔRGB(-92,-77,-75) (ΔE 73.6) |
-| FAIL | REAL | ColorValue | 7.31 | inline-text | white-space | pre | inline-text-white-space-pre | fill recolour ΔRGB(-213,-205,-214) (ΔE 82.0) |
-| FAIL | REAL | ColorValue | 16.92 | inline-text | white-space | pre-wrap | inline-text-white-space-pre-wrap | fill recolour ΔRGB(-104,-88,-86) (ΔE 80.7) |
 | FAIL | REAL | ColorValue | 12.42 | inline-text | word-break | break-all | inline-text-word-break-break-all | fill recolour ΔRGB(-216,-216,-216) (ΔE 84.8) |
-| FAIL | REAL | ColorValue | 12.13 | interactions | containing-block | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-absolute-x-flexbox-container | fill recolour ΔRGB(+46,+187,+193) (ΔE 50.4) |
 | FAIL | REAL | ColorValue | 4.96 | interactions | flex-wrap-x-gap | row-and-column-gap-on-wrap | flexbox-wrap-x-gap | fill recolour ΔRGB(+166,+104,+147) (ΔE 41.8) |
 | FAIL | REAL | ColorValue | 4.35 | interactions | flexbox-x-grid | (interaction: flexbox×grid) GENUINE: both bases PASS, interaction FAILs | flexbox-x-grid-nested | fill recolour ΔRGB(+61,-54,-16) (ΔE 47.0) |
-| FAIL | REAL | ColorValue | 68.71 | interactions | grid-x-background-gradient | (interaction: grid×backgrounds-borders) GENUINE: both bases PASS, interaction FAILs | grid-x-background-gradient | fill recolour ΔRGB(+102,+148,+129) (ΔE 43.2) |
-| FAIL | REAL | Extra | 22.97 | interactions | grid-x-flexbox | (interaction: grid×flexbox) GENUINE: both bases PASS, interaction FAILs | grid-x-flexbox-nested | extra paint where Chrome is blank (7.0%) |
-| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | Missing | 19.01 | interactions | inline-block-x-vertical-align | baseline-vs-middle-beside-text | inline-block-x-vertical-align | via inline-text-inline-block-baseline: content clipped/truncated (20.7% missing) |
-| FAIL | CONFOUNDED: inline-block (`inline-text-inline-block-baseline`) | ColorValue | 4.95 | interactions | position | (interaction: positioning×inline-text) DERIVATIVE: base `inline-text-inline-block-baseline` already FAILs | interactions-positioning-relative-x-inline-block | via inline-text-inline-block-baseline: fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
+| FAIL | REAL | ColorValue | 4.95 | interactions | position | (interaction: positioning×inline-text) GENUINE: both bases PASS, interaction FAILs | interactions-positioning-relative-x-inline-block | fill recolour ΔRGB(-153,+117,+53) (ΔE 68.1) |
 | FAIL | REAL | ColorValue | 4.10 | interactions | positioning-x-flexbox | (interaction: positioning×flexbox) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-flexbox | fill recolour ΔRGB(+151,+116,+88) (ΔE 41.0) |
-| FAIL | REAL | ColorValue | 7.65 | interactions | positioning-x-grid | (interaction: positioning×grid) GENUINE: both bases PASS, interaction FAILs | positioning-absolute-x-grid | fill recolour ΔRGB(-16,+36,-21) (ΔE 48.8) |
-| FAIL | CONFOUNDED: table (`tables-basic-grid`) | ColorValue | 13.44 | interactions | tables-x-flexbox | (interaction: tables×flexbox) DERIVATIVE: base `tables-basic-grid` already FAILs | tables-x-flexbox-nested | via tables-basic-grid: fill recolour ΔRGB(-25,+18,+22) (ΔE 44.3) |
-| FAIL | CONFOUNDED: table-sections (`tables-thead-tbody-tfoot`) | Missing | 22.56 | interactions | tables-x-typography | (interaction: tables×typography) DERIVATIVE: base `tables-thead-tbody-tfoot` already FAILs | tables-x-typography-bold | via tables-thead-tbody-tfoot: content clipped/truncated (24.7% missing) |
+| FAIL | REAL | ColorValue | 13.44 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 44.3) |
 | FAIL | REAL | ColorValue | 4.51 | interactions | transforms-x-flexbox | (interaction: transforms×flexbox) GENUINE: both bases PASS, interaction FAILs | transforms-rotate-x-flexbox-item | fill recolour ΔRGB(-6,-13,-13) (ΔE 43.9) |
-| FAIL | REAL | ColorValue | 9.00 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-94,-93,-72) (ΔE 75.8) |
-| FAIL | REAL | ColorValue | 12.05 | lists-counters | list-style-position | inside | list-style-position-inside | fill recolour ΔRGB(+12,+13,+13) (ΔE 84.6) |
-| FAIL | REAL | Extra | 26.21 | lists-counters | list-style-position | outside | list-style-position-outside | extra paint where Chrome is blank (19.7%) |
-| FAIL | REAL | ColorValue | 11.85 | multicol | column-fill | auto | multicol-column-fill-auto | fill recolour ΔRGB(-23,+90,+79) (ΔE 38.5) |
-| FAIL | REAL | GeometryShift | 2.22 | multicol | column-rule-style | dashed | multicol-column-rule-dashed | content shifted (0.1,-0.6)px beyond page-origin calibration |
-| FAIL | REAL | ColorValue | 23.91 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(+190,+171,+150) (ΔE 71.3) |
-| FAIL | REAL | Missing | 13.58 | tables | border-collapse | collapse | tables-border-collapse | content clipped/truncated (1.6% missing) |
-| FAIL | REAL | ColorValue | 16.54 | tables | cell-padding | padding-20px | tables-cell-padding | fill recolour ΔRGB(-4,-7,-16) (ΔE 31.8) |
-| FAIL | REAL | ColorValue | 7.89 | tables | vertical-align | top-middle-bottom | tables-cell-vertical-align | fill recolour ΔRGB(+35,+59,+41) (ΔE 43.7) |
-| FAIL | REAL | Missing | 13.21 | typography | vertical-align | sub | typography-vertical-align-sub | content clipped/truncated (7.0% missing) |
-| FAIL | REAL | Missing | 14.42 | typography | vertical-align | sup | typography-vertical-align-sup | content clipped/truncated (8.3% missing) |
+| FAIL | REAL | ColorValue | 9.43 | lists-counters | counters | reset-increment-content | counter-reset-increment | fill recolour ΔRGB(-134,-133,-99) (ΔE 74.7) |
+| FAIL | REAL | ColorValue | 16.01 | overflow-clipping | overflow | hidden-clips-text | overflow-hidden-text-clip | fill recolour ΔRGB(-10,-10,-9) (ΔE 77.0) |
+| FAIL | REAL | ColorValue | 8.23 | typography | vertical-align | sub | typography-vertical-align-sub | fill recolour ΔRGB(+202,+240,+248) (ΔE 88.9) |
+| FAIL | REAL | ColorValue | 6.15 | typography | vertical-align | sup | typography-vertical-align-sup | fill recolour ΔRGB(+255,+229,+217) (ΔE 84.3) |
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `border-radius-uniform` | border-radius | FAIL | 2 | box-model-overflow-hidden-x-border-radius, interactions-positioning-overflow-hidden-x-border-radius |
-| 2 | `inline-text-inline-block-baseline` | inline-block | FAIL | 2 | inline-block-x-vertical-align, interactions-positioning-relative-x-inline-block |
-| 3 | `inline-text-vertical-align-baseline` | vertical-align | PARTIAL | 1 | inline-block-x-vertical-align |
-| 4 | `tables-basic-grid` | table | PARTIAL | 1 | tables-x-flexbox-nested |
-| 5 | `tables-thead-tbody-tfoot` | table-sections | PARTIAL | 1 | tables-x-typography-bold |
+| 1 | `border-radius-uniform` | border-radius | FAIL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 75.00% | 19 | 7 | 4 | 1 |
-| backgrounds-gradients | 86.54% | 22 | 1 | 3 | 0 |
-| block-box-model | 93.02% | 40 | 0 | 3 | 0 |
-| clip-mask | 60.71% | 7 | 3 | 4 | 0 |
+| backgrounds-borders | 86.67% | 23 | 6 | 1 | 1 |
+| backgrounds-gradients | 98.08% | 25 | 1 | 0 | 0 |
+| block-box-model | 98.84% | 42 | 1 | 0 | 0 |
+| clip-mask | 75.00% | 7 | 7 | 0 | 0 |
 | color-opacity | 96.88% | 31 | 0 | 1 | 0 |
-| effects | 70.59% | 11 | 2 | 4 | 0 |
-| filters | 53.57% | 7 | 1 | 6 | 0 |
-| flexbox | 88.30% | 38 | 7 | 2 | 0 |
-| fonts-advanced | 70.83% | 8 | 1 | 3 | 0 |
-| generated-content | 56.52% | 10 | 6 | 7 | 0 |
+| effects | 73.53% | 11 | 3 | 3 | 0 |
+| filters | 78.57% | 8 | 6 | 0 | 0 |
+| flexbox | 93.62% | 42 | 4 | 1 | 0 |
+| fonts-advanced | 100.00% | 12 | 0 | 0 | 0 |
+| generated-content | 84.78% | 16 | 7 | 0 | 0 |
 | grid | 97.92% | 23 | 1 | 0 | 0 |
-| images-replaced | 92.00% | 21 | 4 | 0 | 0 |
-| inline-text | 53.85% | 14 | 14 | 11 | 0 |
-| interactions | 40.91% | 8 | 2 | 12 | 0 |
-| lists-counters | 71.05% | 12 | 3 | 4 | 0 |
-| multicol | 68.42% | 10 | 6 | 3 | 0 |
-| overflow-clipping | 68.18% | 7 | 1 | 3 | 0 |
-| paged-media | 72.22% | 6 | 1 | 2 | 0 |
+| images-replaced | 96.00% | 23 | 2 | 0 | 0 |
+| inline-text | 82.05% | 27 | 10 | 2 | 0 |
+| interactions | 70.45% | 15 | 1 | 6 | 0 |
+| lists-counters | 86.84% | 15 | 3 | 1 | 0 |
+| multicol | 81.58% | 12 | 7 | 0 | 0 |
+| overflow-clipping | 81.82% | 8 | 2 | 1 | 0 |
+| paged-media | 94.44% | 8 | 1 | 0 | 0 |
 | positioning | 96.88% | 15 | 1 | 0 | 0 |
 | probes | 100.00% | 6 | 0 | 0 | 0 |
-| selectors-cascade | 91.30% | 38 | 8 | 0 | 0 |
-| tables | 51.85% | 5 | 18 | 4 | 0 |
-| text-advanced | 82.50% | 15 | 3 | 2 | 0 |
+| selectors-cascade | 92.39% | 39 | 7 | 0 | 0 |
+| tables | 75.93% | 15 | 11 | 1 | 0 |
+| text-advanced | 97.50% | 19 | 1 | 0 | 0 |
 | transforms | 100.00% | 30 | 0 | 0 | 0 |
-| typography | 84.38% | 13 | 1 | 2 | 0 |
-| units-values | 94.00% | 23 | 1 | 1 | 0 |
+| typography | 87.50% | 14 | 0 | 2 | 0 |
+| units-values | 96.00% | 23 | 2 | 0 | 0 |
 
 ## Known gaps (expected_support != implemented)
 > Fixtures targeting features ironpress is NOT expected to fully support. These are tracked for breadth, not counted as regressions.
 
 | expected | status | diff% | category | feature | id | description |
 |----------|--------|------:|----------|---------|----|-------------|
-| unsupported | FAIL | 30.60 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
+| unsupported | PASS | 0.28 | backgrounds-gradients | background-clip | background-clip-padding-box | background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture. |
 | unsupported | PASS | 0.33 | backgrounds-gradients | multiple-backgrounds | multiple-backgrounds-layered | Two comma-separated background layers (a raster over a linear-gradient) with per-layer position/size; multiple backgrounds are not implemented, so this is an aspirational known-gap fixture. |
 | partial | PASS | 0.00 | backgrounds-gradients | radial-gradient | radial-gradient-ellipse-corner | Elliptical radial-gradient positioned at the top-left corner; ironpress only paints centered circles so shape/position are not honored. |
 | partial | PASS | 0.29 | backgrounds-gradients | radial-gradient | radial-gradient-sized-px | Radial-gradient with an explicit 60px circle radius over a solid base; ironpress ignores explicit size/extent so the radius will not match Chrome. |
-| partial | FAIL | 9.60 | block-box-model | display | block-inline-block-baseline | inline-block chips align to the text baseline; vertical-align:top lifts one to the line top (CSS2 10.8). |
-| partial | FAIL | 28.51 | block-box-model | margin | block-margin-collapse-prevented-flex | Flex items do not collapse margins; the gap is the sum (70px), not the collapsed max (CSS2 8.3.1 + flexbox 6). |
-| partial | FAIL | 62.56 | block-box-model | width | block-width-fit-content | width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing). |
+| partial | PARTIAL | 4.01 | block-box-model | display | block-inline-block-baseline | inline-block chips align to the text baseline; vertical-align:top lifts one to the line top (CSS2 10.8). |
+| partial | PASS | 0.30 | block-box-model | margin | block-margin-collapse-prevented-flex | Flex items do not collapse margins; the gap is the sum (70px), not the collapsed max (CSS2 8.3.1 + flexbox 6). |
+| partial | PASS | 0.08 | block-box-model | width | block-width-fit-content | width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing). |
 | unsupported | PASS | 0.45 | clip-mask | clip-path: circle() | clip-path-circle | clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.47 | clip-mask | clip-path: ellipse() | clip-path-ellipse | clip-path: ellipse() clips a solid rectangle to a centered ellipse with distinct x/y radii. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.53 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
 | unsupported | PASS | 0.66 | clip-mask | clip-path: inset() | clip-path-inset-round | clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.40 | clip-mask | clip-path: polygon() | clip-path-polygon | clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported. |
-| unsupported | FAIL | 49.18 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
-| unsupported | FAIL | 11.79 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
+| unsupported | PARTIAL | 1.57 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
+| unsupported | FAIL | 7.79 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | FAIL | 0.34 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | FAIL | 2.63 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
 | partial | PASS | 0.36 | effects | box-shadow | box-shadow-inset | Inset hard box-shadow drawing an inner band on two sides of the box. |
@@ -155,30 +113,30 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PARTIAL | 0.63 | effects | mix-blend-mode | mix-blend-mode-multiply | Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented). |
 | unsupported | PASS | 0.78 | effects | mix-blend-mode | mix-blend-mode-screen | Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented). |
 | unsupported | FAIL | 3.27 | effects | text-shadow | text-shadow-blur | Short heading with a blurred text-shadow glow (aspirational; not implemented). |
-| unsupported | FAIL | 2.60 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
-| partial | FAIL | 36.14 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
-| partial | FAIL | 52.43 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
-| partial | FAIL | 47.80 | filters | filter: blur() | filter-on-box-blur | filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path. |
+| unsupported | PARTIAL | 0.95 | effects | text-shadow | text-shadow-offset | Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented). |
+| partial | PARTIAL | 0.41 | filters | filter: blur() | filter-blur-box | filter: blur() applied to a box with a solid background-color fill. |
+| partial | PARTIAL | 1.97 | filters | filter: blur() | filter-blur-img | filter: blur() applied to an <img> raster; blur of image rasters is the implemented path. |
+| partial | PARTIAL | 6.90 | filters | filter: blur() | filter-on-box-blur | filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path. |
 | unsupported | PASS | 1.09 | filters | filter: brightness() | filter-brightness | filter: brightness(1.6) lightening a four-quadrant color image. |
-| unsupported | FAIL | 39.61 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
+| unsupported | PARTIAL | 4.54 | filters | filter: chained | filter-chained | Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported. |
 | unsupported | PASS | 1.18 | filters | filter: contrast() | filter-contrast | filter: contrast(2) increasing contrast of a four-quadrant color image. |
-| unsupported | FAIL | 11.86 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
+| unsupported | PARTIAL | 0.99 | filters | filter: drop-shadow() | filter-drop-shadow | filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box. |
 | unsupported | PASS | 0.99 | filters | filter: grayscale() | filter-grayscale | filter: grayscale(1) fully desaturating a four-quadrant color image. |
 | unsupported | PASS | 0.99 | filters | filter: hue-rotate() | filter-hue-rotate | filter: hue-rotate(120deg) rotating the hue of a four-quadrant color image. |
 | unsupported | PASS | 0.79 | filters | filter: invert() | filter-invert | filter: invert(1) inverting the colors of a four-quadrant color image. |
 | unsupported | PASS | 0.77 | filters | filter: opacity() | filter-opacity-fn | filter: opacity(0.5) compositing a red box over a grey backdrop; distinct from the opacity property. |
 | unsupported | PASS | 1.18 | filters | filter: saturate() | filter-saturate | filter: saturate(3) boosting saturation of a four-quadrant color image. |
 | unsupported | PARTIAL | 0.99 | filters | filter: sepia() | filter-sepia | filter: sepia(1) applying a sepia tone to a four-quadrant color image. |
-| unsupported | FAIL | 99.61 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
-| partial | FAIL | 8.58 | fonts-advanced | font-face | fonts-advanced-font-face-custom-src | An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism. |
-| unsupported | PARTIAL | 5.14 | fonts-advanced | font-feature-settings | fonts-advanced-font-feature-settings-ligatures | Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied). |
+| unsupported | PASS | 0.77 | filters | filter: url() | filter-url-svg | filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational). |
+| partial | PASS | 3.79 | fonts-advanced | font-face | fonts-advanced-font-face-custom-src | An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism. |
+| unsupported | PASS | 3.29 | fonts-advanced | font-feature-settings | fonts-advanced-font-feature-settings-ligatures | Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied). |
 | unsupported | PASS | 2.76 | fonts-advanced | font-size | fonts-advanced-font-size-ch | font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing). |
-| unsupported | FAIL | 19.40 | fonts-advanced | font-size | fonts-advanced-font-size-ex | font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing). |
+| unsupported | PASS | 4.89 | fonts-advanced | font-size | fonts-advanced-font-size-ex | font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing). |
 | unsupported | PASS | 4.07 | fonts-advanced | font-stretch | fonts-advanced-font-stretch-condensed | Text with font-stretch: condensed selecting a narrower face/width (aspirational; font-stretch is not parsed or matched). |
-| unsupported | FAIL | 10.25 | fonts-advanced | font-variant | fonts-advanced-font-variant-small-caps | Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support). |
+| unsupported | PASS | 4.06 | fonts-advanced | font-variant | fonts-advanced-font-variant-small-caps | Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support). |
 | unsupported | PASS | 0.33 | images-replaced | aspect-ratio | img-aspect-ratio-box | A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height. |
 | partial | PARTIAL | 0.58 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
-| partial | PARTIAL | 0.28 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
+| partial | PASS | 0.28 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
 | partial | PASS | 0.27 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
 | partial | PARTIAL | 3.50 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
 | unsupported | PASS | 0.06 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
@@ -187,38 +145,38 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.16 | images-replaced | object-fit | img-object-fit-none | object-fit:none draws the image at its intrinsic pixel size centred within the 160x160 box. |
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
 | partial | PARTIAL | 10.54 | inline-text | text-decoration-color | inline-text-text-decoration-color | text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported. |
-| partial | PASS | 1.96 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
-| unsupported | PARTIAL | 3.72 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
-| unsupported | FAIL | 6.93 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
-| partial | FAIL | 12.76 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
+| partial | PASS | 1.97 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
+| unsupported | PARTIAL | 3.10 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
+| unsupported | PASS | 5.53 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
+| partial | PASS | 6.87 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 1.10 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
 | unsupported | PASS | 0.19 | overflow-clipping | overflow | overflow-clip | overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword). |
 | partial | PASS | 0.09 | overflow-clipping | overflow | overflow-hidden-grid-item | A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected. |
-| partial | FAIL | 19.69 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
-| unsupported | FAIL | 9.56 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
+| partial | PARTIAL | 1.72 | overflow-clipping | overflow | overflow-scroll-print-clip | overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance. |
+| unsupported | PARTIAL | 1.21 | overflow-clipping | overflow | overflow-x-y-separate | overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only. |
 | unsupported | PASS | 0.12 | paged-media | break-before | paged-break-before-page-modern | Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine. |
 | unsupported | PASS | 0.85 | paged-media | break-inside | paged-break-inside-avoid | Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap. |
 | unsupported | PASS | 0.00 | paged-media | named-page | paged-named-page | The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap. |
-| unsupported | FAIL | 36.11 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
+| unsupported | PASS | 2.15 | paged-media | orphans-widows | paged-orphans-widows | orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap. |
 | partial | PASS | 0.14 | paged-media | page-break-before | paged-page-break-before-avoid-noop | page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap. |
-| unsupported | FAIL | 29.53 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
+| unsupported | PASS | 0.51 | paged-media | page-break-inside | paged-page-break-inside-avoid-table | page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table. |
 | unsupported | PARTIAL | 2.07 | paged-media | page-counter | paged-page-counter-content | content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap. |
 | unsupported | PASS | 0.45 | selectors-cascade | at-rule | selectors-cascade-supports-rule | @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap. |
 | partial | PASS | 1.15 | selectors-cascade | attribute-selector | selectors-cascade-attribute-equals | [data-pick="yes"] colors only the box whose attribute equals the value; boxes with a different value or no attribute stay gray. |
 | partial | PASS | 1.15 | selectors-cascade | pseudo-class | selectors-cascade-first-last-child | :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray. |
 | partial | PASS | 1.15 | selectors-cascade | pseudo-class | selectors-cascade-not-negation | :not(.skip) colors every .box except the one carrying .skip; the skipped box stays gray. |
 | partial | PARTIAL | 0.23 | selectors-cascade | pseudo-class | selectors-cascade-root-element | :root paints the page background green behind a centered white bordered panel; if :root is unmatched the page stays white. |
-| partial | FAIL | 70.76 | tables | table-layout | tables-layout-auto-overflow | table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width). |
+| partial | FAIL | 15.05 | tables | table-layout | tables-layout-auto-overflow | table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width). |
 | unsupported | PASS | 4.83 | text-advanced | direction | text-advanced-direction-rtl | direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress. |
 | unsupported | PARTIAL | 6.32 | text-advanced | hyphens | text-advanced-hyphens-auto | hyphens:auto inserts soft hyphens at language-aware break points; aspirational, no CSS hyphens support in ironpress. |
-| unsupported | PARTIAL | 2.50 | text-advanced | tab-size | text-advanced-tab-size | tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress. |
+| unsupported | PASS | 1.24 | text-advanced | tab-size | text-advanced-tab-size | tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress. |
 | partial | PASS | 6.05 | text-advanced | text-overflow | text-advanced-text-overflow-clip | text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis. |
 | partial | PASS | 4.66 | text-advanced | text-overflow | text-advanced-text-overflow-ellipsis | text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped. |
 | unsupported | PASS | 5.20 | text-advanced | text-overflow | text-advanced-text-overflow-string | text-overflow:">" truncates overflowing text with a custom string instead of an ellipsis; aspirational, ironpress does not yet parse the <string> form (css-ui-4 §6.2). |
-| unsupported | PARTIAL | 5.02 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
-| partial | FAIL | 36.32 | text-advanced | white-space | text-advanced-white-space-break-spaces | white-space:break-spaces preserves spaces and forced segment breaks while still soft-wrapping; preserved trailing spaces occupy width at the line end and cannot hang (css-text-3 §3). |
+| unsupported | PASS | 2.66 | text-advanced | unicode-bidi | text-advanced-unicode-bidi-override | unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress. |
+| partial | PASS | 3.42 | text-advanced | white-space | text-advanced-white-space-break-spaces | white-space:break-spaces preserves spaces and forced segment breaks while still soft-wrapping; preserved trailing spaces occupy width at the line end and cannot hang (css-text-3 §3). |
 | unsupported | PASS | 5.00 | text-advanced | word-break | text-advanced-word-break-break-all | word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress. |
-| unsupported | FAIL | 3.75 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
+| unsupported | PASS | 1.45 | text-advanced | writing-mode | text-advanced-writing-mode-vertical-rl | writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress. |
 | unsupported | PASS | 0.21 | transforms | transform | transforms-compound-rotate-translate | Chained transform functions translate(...) rotate(...) compose left-to-right in the box coordinate space. Aspirational: parse_transform returns a single Transform, so chaining is unsupported. |
 | unsupported | PASS | 0.27 | transforms | transform | transforms-matrix | transform: matrix(a,b,c,d,e,f) applies a 2D affine matrix combining scale, shear, and translate in one function. Aspirational: matrix() is not parsed by ironpress. |
 | unsupported | PASS | 0.38 | transforms | transform | transforms-skew | transform: skew() shears the box along X and Y about its center, turning the rectangle into a parallelogram. Aspirational: skew is absent from the ironpress Transform enum and parser. |
@@ -228,11 +186,11 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.35 | transforms | transform-origin | transforms-origin-top-left | transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin. |
 | partial | PASS | 0.97 | units-values | length-units | units-length-cm | Box sized in centimetres (5cm x 3cm ~= 189x113px) verifying absolute metric cm unit resolution. |
 | partial | PASS | 0.76 | units-values | length-units | units-length-in | Box sized in inches (2.5in x 1.25in = 240x120px) verifying absolute inch unit resolution (1in=96px). |
-| unsupported | FAIL | 40.01 | units-values | viewport-units | units-viewport-vmin-vmax | Aspirational: 40vmin/10vmin and 30vmax/8vmax boxes against the page viewport; ironpress resolves only vw/vh, so vmin/vmax are unsupported (css-values-4 §6.1.2.2). |
+| unsupported | PARTIAL | 0.00 | units-values | viewport-units | units-viewport-vmin-vmax | Aspirational: 40vmin/10vmin and 30vmax/8vmax boxes against the page viewport; ironpress resolves only vw/vh, so vmin/vmax are unsupported (css-values-4 §6.1.2.2). |
 | partial | PASS | 0.30 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 75.00%
+### backgrounds-borders — 86.67%
 - **background-color** — 100.00%
   - PASS 0.53% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
@@ -243,28 +201,28 @@ None — every fixture's HTML matches `refs.lock`.
 - **border-color** — 75.00%
   - PASS 0.00% border-color=currentcolor — `border-color-currentcolor` — border-color currentColor resolves to the element color.
   - PARTIAL 0.83% border-color=transparent-side — `border-color-transparent` — border-color transparent on one side, solid on the rest.
-- **border-radius** — 68.18%
+- **border-radius** — 90.91%
   - PASS 0.45% border-radius=50pct-circle — `border-radius-circle` — Square box turned into a filled circle via border-radius 50%.
   - PASS 0.67% border-radius=overlap-clamping — `border-radius-clamped` — border-radius larger than half the box is clamped/normalized to fit.
   - PASS 0.71% border-radius=corner-longhands — `border-radius-corner-longhands` — Per-corner border-radius longhands (top-left + bottom-right rounded, others square).
   - PASS 0.48% border-radius=50pct-nonsquare — `border-radius-ellipse-nonsquare` — border-radius 50% on a non-square box (elliptical corners).
-  - PARTIAL 0.59% border-radius=elliptical-slash — `border-radius-elliptical` — Elliptical border-radius via the Rx / Ry slash syntax.
-  - PARTIAL 0.63% border-radius=four-value-shorthand — `border-radius-four-values` — border-radius 1-4 value shorthand assigning a distinct radius to each corner.
+  - PASS 0.59% border-radius=elliptical-slash — `border-radius-elliptical` — Elliptical border-radius via the Rx / Ry slash syntax.
+  - PASS 0.63% border-radius=four-value-shorthand — `border-radius-four-values` — border-radius 1-4 value shorthand assigning a distinct radius to each corner.
   - PASS 0.66% border-radius=per-corner — `border-radius-per-corner` — Filled box with two rounded corners and two square corners.
-  - PARTIAL 0.50% border-radius=percentage — `border-radius-percentage` — border-radius given as a non-50% percentage of the box.
+  - PASS 0.50% border-radius=percentage — `border-radius-percentage` — border-radius given as a non-50% percentage of the box.
   - PASS 0.64% border-radius=two-value-shorthand — `border-radius-two-values` — border-radius two-value shorthand (TL/BR vs TR/BL diagonal radii).
   - FAIL 9.51% border-radius=uniform — `border-radius-uniform` — Filled box with a uniform 24px border-radius and a solid border.
-  - FAIL 0.57% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
-- **border-style** — 62.50%
-  - FAIL 6.52% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
+  - PASS 0.57% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
+- **border-style** — 75.00%
+  - PARTIAL 1.10% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
   - PARTIAL 1.10% border-style=dotted — `border-style-dotted` — Box with a 6px dotted border.
   - PASS 0.00% border-style=double — `border-style-double` — Box with a 10px double border (two solid rules separated by a gap).
   - PASS 0.00% border-style=none-no-paint — `border-style-none` — border-style none paints no border while reserving the declared width via longhands.
 - **box-shadow** — 100.00%
   - UNKNOWN 0.00% box-shadow=hard-offset — `border-box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.
   - PASS 0.62% box-shadow=x-border — `border-x-box-shadow` — Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).
-- **conic-gradient** — 0.00%
-  - FAIL 0.02% conic-gradient=center — `background-conic-gradient` — Centered multi-stop conic-gradient background.
+- **conic-gradient** — 50.00%
+  - PARTIAL 0.02% conic-gradient=center — `background-conic-gradient` — Centered multi-stop conic-gradient background.
 - **linear-gradient** — 100.00%
   - PASS 0.27% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
   - PASS 0.00% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
@@ -275,17 +233,17 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
   - PASS 0.00% radial-gradient=ellipse-farthest-corner — `background-radial-gradient-ellipse` — Elliptical radial-gradient sized to the farthest corner.
 
-### backgrounds-gradients — 86.54%
-- **background-clip** — 0.00%
-  - FAIL 30.60% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
-- **background-origin** — 0.00%
-  - FAIL 8.97% background-origin=content-box — `background-origin-content-box` — background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.
+### backgrounds-gradients — 98.08%
+- **background-clip** — 100.00%
+  - PASS 0.28% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
+- **background-origin** — 100.00%
+  - PASS 0.69% background-origin=content-box — `background-origin-content-box` — background-origin: content-box anchors the raster inside the padding box of a bordered, padded element.
 - **background-position** — 100.00%
   - PASS 0.18% background-position=bottom-right-keyword — `background-position-keyword` — A no-repeat raster placed at the 'bottom right' keyword position inside a sized box.
-- **background-size** — 66.67%
+- **background-size** — 100.00%
   - PASS 0.53% background-size=contain — `background-size-contain` — background-size: contain scales the raster to fit within the box, left-aligned, leaving base color visible.
   - PASS 0.53% background-size=cover — `background-size-cover` — background-size: cover scales the raster to fill the box, cropping overflow, centered.
-  - FAIL 8.40% background-size=explicit-length — `background-size-length` — background-size with an explicit 120px x 80px length, no-repeat, top-left.
+  - PASS 0.30% background-size=explicit-length — `background-size-length` — background-size with an explicit 120px x 80px length, no-repeat, top-left.
 - **conic-gradient** — 87.50%
   - PASS 0.12% conic-gradient=at-position — `conic-gradient-at-position` — Four-quadrant conic-gradient with its center anchored at 30%/30%.
   - PASS 0.28% conic-gradient=four-quadrant-sweep — `conic-gradient-basic` — Four-quadrant conic-gradient sweep, rendered via a sector fan clipped to the box.
@@ -314,7 +272,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **repeating-radial-gradient** — 100.00%
   - PASS 1.66% repeating-radial-gradient=rings — `repeating-radial-gradient` — Repeating-radial-gradient producing concentric rings (10% period circle).
 
-### block-box-model — 93.02%
+### block-box-model — 98.84%
 - **border-width** — 100.00%
   - PASS 1.16% border-width=per-side — `block-border-width-thick` — Box with asymmetric per-side solid border widths (6/14/22/30px) verifying each edge thickness independently.
 - **box-sizing** — 100.00%
@@ -322,16 +280,16 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.59% box-sizing=border-box-auto-width — `block-box-sizing-border-box-auto-width` — box-sizing:border-box with width:auto fills the CB; padding+border drawn inside the 300px box (css-sizing-3).
   - PASS 0.00% box-sizing=content-box — `block-box-sizing-content-box` — box-sizing:content-box expands rendered width to 264px (200 + padding + border) for the same declared width.
   - PASS 0.00% box-sizing=padding-exceeds-width — `block-box-sizing-padding-exceeds` — border-box where padding exceeds declared width: content floors to 0, border box grows to padding sum (css-sizing-3 5.1).
-- **display** — 75.00%
+- **display** — 87.50%
   - PASS 0.82% display=block — `block-display-block-stacking` — Inline spans forced to display:block stack vertically full-width, each on its own line.
   - PASS 0.34% display=inline-block — `block-display-inline-block-row` — Three display:inline-block chips laid out in a row (whitespace collapsed via font-size:0) verifying inline flow of block boxes.
-  - FAIL 9.60% display=inline-block-baseline — `block-inline-block-baseline` — inline-block chips align to the text baseline; vertical-align:top lifts one to the line top (CSS2 10.8).
+  - PARTIAL 4.01% display=inline-block-baseline — `block-inline-block-baseline` — inline-block chips align to the text baseline; vertical-align:top lifts one to the line top (CSS2 10.8).
   - PASS 0.00% display=inline-block-wrap — `block-inline-block-wrap` — inline-block chips wrap to the next line when the row overflows the container width (css-display-3).
 - **height** — 100.00%
   - PASS 0.21% height=auto-from-children — `block-height-auto-from-children` — height:auto grows to contain in-flow children (60+90=150px) (CSS2 10.6.3).
   - PASS 0.00% height=percent-auto-parent — `block-height-percent-auto-parent` — Percentage height with an auto-height parent behaves as auto (falls back to content height) (CSS2 10.5).
   - PASS 0.16% height=percent-definite-parent — `block-height-percent-definite-parent` — Percentage height resolves to 50% of the parent's definite 200px content height = 100px (CSS2 10.5).
-- **margin** — 94.12%
+- **margin** — 100.00%
   - PASS 0.39% margin=auto-centering — `block-margin-auto-centering` — Fixed-width block with margin-left/right:auto horizontally centered inside a wider track.
   - PASS 0.00% margin=auto-no-width — `block-margin-auto-no-width` — margin:0 auto with width:auto does not center: auto margins compute to 0 and width fills the CB (CSS2 10.3.3).
   - PASS 0.00% margin=auto-single-side — `block-margin-auto-single-side` — margin-left:auto on a fixed-width block absorbs all free space, pushing the box to the right edge (CSS2 10.3.3).
@@ -342,7 +300,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% margin=collapse-parent-first-child — `block-margin-collapse-parent-first-child` — Parent + first in-flow child top margins collapse through (CSS2 8.3.1); child margin-top protrudes above the parent.
   - PASS 0.00% margin=collapse-parent-last-child — `block-margin-collapse-parent-last-child` — Parent (auto height) + last in-flow child bottom margins collapse through (CSS2 8.3.1); following sibling sits at the larger margin.
   - PASS 0.09% margin=collapse-prevented-bfc-sibling — `block-margin-collapse-prevented-bfc-sibling` — A BFC wrapper does not collapse its child's margin with margins outside it (CSS2 8.3.1).
-  - FAIL 28.51% margin=collapse-prevented-flex — `block-margin-collapse-prevented-flex` — Flex items do not collapse margins; the gap is the sum (70px), not the collapsed max (CSS2 8.3.1 + flexbox 6).
+  - PASS 0.30% margin=collapse-prevented-flex — `block-margin-collapse-prevented-flex` — Flex items do not collapse margins; the gap is the sum (70px), not the collapsed max (CSS2 8.3.1 + flexbox 6).
   - PASS 0.00% margin=collapse-prevented-height — `block-margin-collapse-prevented-height` — Parent explicit height prevents parent/last-child bottom margin collapse-through (CSS2 8.3.1).
   - PASS 0.09% margin=collapse-prevented-bfc — `block-margin-collapse-prevented-overflow` — overflow:hidden establishes a BFC, preventing parent/child margin collapse (CSS2 8.3.1).
   - PASS 0.23% margin=collapse-prevented-padding — `block-margin-collapse-prevented-padding` — Parent padding-top prevents parent/first-child margin collapse; child margin offsets it inside the parent (CSS2 8.3.1).
@@ -365,16 +323,16 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.09% padding=uniform — `block-padding-all-sides` — content-box container with 30px padding on all sides framing an inner box; verifies padding insets content equally.
   - PASS 0.15% padding=asymmetric — `block-padding-asymmetric` — Per-side asymmetric padding (10/50/30/70) insets content distinctly on each edge (css-box-3).
   - PASS 0.32% padding=percent — `block-padding-percent` — Percentage padding resolves against containing-block WIDTH on every side incl. vertical (CSS2 8.4).
-- **width** — 66.67%
+- **width** — 100.00%
   - PASS 0.65% width=auto — `block-width-auto-fills-parent` — Block child with width:auto expands to fill the parent's content box (parent width minus padding).
-  - FAIL 62.56% width=fit-content — `block-width-fit-content` — width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing).
+  - PASS 0.08% width=fit-content — `block-width-fit-content` — width:fit-content shrinks to wrap content rather than filling the parent (css-sizing-3 intrinsic sizing).
   - PASS 0.16% width=percent — `block-width-percent` — Child with width:50% resolves to half (200px) of the 400px parent content box.
 - **width-height** — 100.00%
   - PASS 0.76% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
-### clip-mask — 60.71%
-- **-webkit-mask-image** — 0.00%
-  - FAIL 0.38% -webkit-mask-image=prefixed-alias — `mask-webkit-alias` — -webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.
+### clip-mask — 75.00%
+- **-webkit-mask-image** — 50.00%
+  - PARTIAL 0.38% -webkit-mask-image=prefixed-alias — `mask-webkit-alias` — -webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.
 - **clip-path: circle()** — 100.00%
   - PASS 0.45% clip-path: circle()=centered — `clip-path-circle` — clip-path: circle() clips a solid square to a centered circular disc. CSS clip-path on boxes is unsupported.
 - **clip-path: ellipse()** — 100.00%
@@ -386,19 +344,19 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.40% clip-path: polygon()=diamond — `clip-path-polygon` — clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported.
 - **mask-image: conic-gradient()** — 50.00%
   - PARTIAL 1.11% mask-image: conic-gradient()=alpha-sweep — `mask-image-conic-gradient` — mask-image: conic-gradient() masks a solid fill to an opaque half-turn wedge fading to transparent. CSS mask is unsupported.
-- **mask-image: linear-gradient()** — 50.00%
+- **mask-image: linear-gradient()** — 75.00%
   - PASS 0.22% mask-image: linear-gradient()=diagonal-angle — `mask-image-linear-diagonal` — mask-image: linear-gradient(135deg) fades a solid fill diagonally from opaque (top-left) to transparent (bottom-right) via the alpha channel. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
-  - FAIL 0.37% mask-image: linear-gradient()=alpha-fade — `mask-image-linear-gradient` — mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
+  - PARTIAL 0.37% mask-image: linear-gradient()=alpha-fade — `mask-image-linear-gradient` — mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
 - **mask-image: none** — 100.00%
   - PASS 0.00% mask-image: none=initial-value — `mask-image-none` — mask-image: none leaves a solid box fully opaque (initial value). CSS mask is unsupported.
 - **mask-image: radial-gradient()** — 50.00%
   - PARTIAL 0.08% mask-image: radial-gradient()=alpha-disc — `mask-image-radial-gradient` — mask-image: radial-gradient() leaves a solid disc fading to transparent at the edges. CSS mask is unsupported.
 - **mask-image: repeating-linear-gradient()** — 50.00%
   - PARTIAL 2.87% mask-image: repeating-linear-gradient()=striped-alpha — `mask-image-repeating-linear` — mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.
-- **mask-image: url()** — 0.00%
-  - FAIL 49.18% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
-- **mask-mode: luminance** — 0.00%
-  - FAIL 0.41% mask-mode: luminance=gradient-source — `mask-mode-luminance` — mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.
+- **mask-image: url()** — 50.00%
+  - PARTIAL 1.57% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
+- **mask-mode: luminance** — 50.00%
+  - PARTIAL 0.41% mask-mode: luminance=gradient-source — `mask-mode-luminance` — mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.
 
 ### color-opacity — 96.88%
 - **color-format** — 100.00%
@@ -436,10 +394,10 @@ None — every fixture's HTML matches `refs.lock`.
 - **opacity** — 100.00%
   - PASS 0.53% opacity=half — `opacity-half` — Box with opacity 0.5 composited over a solid background box.
 - **visibility** — 50.00%
-  - FAIL 11.79% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
+  - FAIL 7.79% visibility=collapse-table-row — `visibility-collapse-row` — visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported).
   - PASS 0.00% visibility=hidden-reserves-space — `visibility-hidden` — visibility:hidden hides the first block but reserves its space, so the second block stays offset below.
 
-### effects — 70.59%
+### effects — 73.53%
 - **background-blend-mode** — 0.00%
   - FAIL 0.34% background-blend-mode=multiply — `background-blend-mode-multiply` — A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented).
 - **box-shadow** — 87.50%
@@ -458,23 +416,23 @@ None — every fixture's HTML matches `refs.lock`.
 - **mix-blend-mode** — 75.00%
   - PARTIAL 0.63% mix-blend-mode=multiply — `mix-blend-mode-multiply` — Two overlapping solid boxes whose overlap should darken via mix-blend-mode multiply (aspirational; not implemented).
   - PASS 0.78% mix-blend-mode=screen — `mix-blend-mode-screen` — Two overlapping solid boxes on a dark stage whose overlap should lighten via mix-blend-mode screen (aspirational; not implemented).
-- **text-shadow** — 0.00%
+- **text-shadow** — 25.00%
   - FAIL 3.27% text-shadow=blur — `text-shadow-blur` — Short heading with a blurred text-shadow glow (aspirational; not implemented).
-  - FAIL 2.60% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
+  - PARTIAL 0.95% text-shadow=hard-offset — `text-shadow-offset` — Short heading with a hard-edged (zero-blur) offset text-shadow (aspirational; not implemented).
 
-### filters — 53.57%
-- **filter: blur()** — 0.00%
-  - FAIL 36.14% filter: blur()=on-box-background — `filter-blur-box` — filter: blur() applied to a box with a solid background-color fill.
-  - FAIL 52.43% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
-  - FAIL 47.80% filter: blur()=on-box-vs-img — `filter-on-box-blur` — filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path.
+### filters — 78.57%
+- **filter: blur()** — 50.00%
+  - PARTIAL 0.41% filter: blur()=on-box-background — `filter-blur-box` — filter: blur() applied to a box with a solid background-color fill.
+  - PARTIAL 1.97% filter: blur()=on-img-raster — `filter-blur-img` — filter: blur() applied to an <img> raster; blur of image rasters is the implemented path.
+  - PARTIAL 6.90% filter: blur()=on-box-vs-img — `filter-on-box-blur` — filter: blur() on a bordered solid box: should soften both fill and border edge, contrasting with the img-raster blur path.
 - **filter: brightness()** — 100.00%
   - PASS 1.09% filter: brightness()=1.6 — `filter-brightness` — filter: brightness(1.6) lightening a four-quadrant color image.
-- **filter: chained** — 0.00%
-  - FAIL 39.61% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
+- **filter: chained** — 50.00%
+  - PARTIAL 4.54% filter: chained=blur-plus-brightness — `filter-chained` — Chained filter functions blur(4px) brightness(1.5); parser matches only a single blur() so the chain is unsupported.
 - **filter: contrast()** — 100.00%
   - PASS 1.18% filter: contrast()=2 — `filter-contrast` — filter: contrast(2) increasing contrast of a four-quadrant color image.
-- **filter: drop-shadow()** — 0.00%
-  - FAIL 11.86% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
+- **filter: drop-shadow()** — 50.00%
+  - PARTIAL 0.99% filter: drop-shadow()=alpha-diamond-hard — `filter-drop-shadow` — filter: drop-shadow() casting a hard offset shadow that traces a non-rectangular (diamond) image alpha, not its bounding box.
 - **filter: grayscale()** — 100.00%
   - PASS 0.99% filter: grayscale()=1 — `filter-grayscale` — filter: grayscale(1) fully desaturating a four-quadrant color image.
 - **filter: hue-rotate()** — 100.00%
@@ -487,10 +445,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.18% filter: saturate()=3 — `filter-saturate` — filter: saturate(3) boosting saturation of a four-quadrant color image.
 - **filter: sepia()** — 50.00%
   - PARTIAL 0.99% filter: sepia()=1 — `filter-sepia` — filter: sepia(1) applying a sepia tone to a four-quadrant color image.
-- **filter: url()** — 0.00%
-  - FAIL 99.61% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
+- **filter: url()** — 100.00%
+  - PASS 0.77% filter: url()=svg-fecolormatrix — `filter-url-svg` — filter: url(#id) referencing an inline SVG feColorMatrix saturate filter (aspirational).
 
-### flexbox — 88.30%
+### flexbox — 93.62%
 - **align-content** — 100.00%
   - PASS 0.60% align-content=center — `flexbox-align-content-center` — align-content:center centers the wrapped flex lines on the cross axis.
   - PASS 0.60% align-content=flex-end — `flexbox-align-content-flex-end` — align-content:flex-end packs the wrapped flex lines to the cross-end edge.
@@ -499,14 +457,14 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.69% align-content=space-between — `flexbox-align-content-space-between` — align-content:space-between pins the first and last lines to the edges with equal gaps between.
   - PASS 1.08% align-content=space-evenly — `flexbox-align-content-space-evenly` — align-content:space-evenly distributes equal space between lines and at both cross edges.
   - PASS 0.60% align-content=stretch — `flexbox-align-content-stretch` — align-content:stretch grows the wrapped flex lines to fill the extra cross-axis space.
-- **align-items** — 80.00%
-  - FAIL 15.95% align-items=baseline — `flexbox-align-items-baseline` — align-items:baseline aligns the first text baselines of differently-sized items.
+- **align-items** — 90.00%
+  - PARTIAL 2.33% align-items=baseline — `flexbox-align-items-baseline` — align-items:baseline aligns the first text baselines of differently-sized items.
   - PASS 0.71% align-items=center — `flexbox-align-items-center` — align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.
   - PASS 0.60% align-items=flex-end — `flexbox-align-items-flex-end` — align-items:flex-end anchors differently-tall items to the cross-end (bottom) edge.
   - PASS 0.55% align-items=flex-start — `flexbox-align-items-flex-start` — align-items:flex-start anchors differently-tall items to the cross-start (top) edge.
   - PASS 0.89% align-items=stretch — `flexbox-align-items-stretch` — align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.
 - **align-self** — 66.67%
-  - FAIL 14.29% align-self=baseline — `flexbox-align-self-baseline` — align-self:baseline opts a single item into baseline alignment within the line.
+  - FAIL 3.46% align-self=baseline — `flexbox-align-self-baseline` — align-self:baseline opts a single item into baseline alignment within the line.
   - PASS 0.71% align-self=center — `flexbox-align-self-center` — align-self overrides container align-items per item (flex-start container, one centered, one flex-end).
   - PASS 0.65% align-self=flex-end — `flexbox-align-self-flex-end` — align-self overrides container align-items per item: one box flex-end, one centered, one flex-start.
 - **display** — 100.00%
@@ -518,9 +476,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.04% flex-basis=auto — `flexbox-flex-basis-auto` — flex-basis:auto resolves to each item's declared width with no grow/shrink.
   - PASS 1.04% flex-basis=percentage — `flexbox-flex-basis-percentage` — flex-basis percentages resolve against the container inner main size (25/50/25%).
   - PARTIAL 1.22% flex-basis=zero — `flexbox-flex-basis-zero` — flex-basis:0 with equal grow makes every item the same size regardless of content.
-- **flex-direction** — 66.67%
-  - PARTIAL 6.50% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
-  - PARTIAL 6.25% flex-direction=column-reverse — `flexbox-flex-direction-column-reverse` — flex-direction:column-reverse stacks items bottom-to-top in reverse source order.
+- **flex-direction** — 100.00%
+  - PASS 1.00% flex-direction=column — `flexbox-flex-direction-column` — flex-direction:column stacks items top-to-bottom along the vertical main axis.
+  - PASS 0.94% flex-direction=column-reverse — `flexbox-flex-direction-column-reverse` — flex-direction:column-reverse stacks items bottom-to-top in reverse source order.
   - PASS 0.93% flex-direction=row-reverse — `flexbox-flex-direction-row-reverse` — flex-direction:row-reverse reverses the main axis so items pack from the right edge in reverse source order.
 - **flex-flow** — 100.00%
   - PASS 1.05% flex-flow=row-wrap — `flexbox-flex-flow` — flex-flow shorthand sets flex-direction and flex-wrap together (row wrap).
@@ -547,40 +505,40 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.10% justify-content=space-evenly — `flexbox-justify-content-space-evenly` — justify-content:space-evenly distributes equal space between items and at both edges.
 - **max-width** — 100.00%
   - PASS 0.99% max-width=clamp — `flexbox-max-width-clamp` — max-width caps a growing flex item and redistributes the leftover free space to the other item.
-- **min-height** — 50.00%
-  - PARTIAL 6.97% min-height=column-floor — `flexbox-min-height-column` — min-height floors how far a column-direction item may shrink on the main (vertical) axis.
+- **min-height** — 100.00%
+  - PASS 0.95% min-height=column-floor — `flexbox-min-height-column` — min-height floors how far a column-direction item may shrink on the main (vertical) axis.
 - **min-width** — 100.00%
   - PASS 0.94% min-width=shrink-floor — `flexbox-min-width-constraint` — min-width floors how far a flex item may shrink, forcing the other item to absorb the rest of the overflow.
-- **nested-flex** — 50.00%
-  - PARTIAL 6.87% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
+- **nested-flex** — 100.00%
+  - PASS 1.08% nested-flex=row-of-columns — `flexbox-nested-flex` — A row flex container holds two growing column flex containers, each space-between stacking two boxes.
 - **order** — 100.00%
   - PASS 0.79% order=reorder — `flexbox-order` — order reorders source boxes (3,1,2) into visual order blue,green,red on the main axis.
   - PASS 0.92% order=negative — `flexbox-order-negative` — A negative order value moves an item before the order:0 items; equal orders keep source order.
 
-### fonts-advanced — 70.83%
-- **font-face** — 0.00%
-  - FAIL 8.58% font-face=custom-src — `fonts-advanced-font-face-custom-src` — An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism.
-- **font-feature-settings** — 50.00%
-  - PARTIAL 5.14% font-feature-settings=ligatures-off — `fonts-advanced-font-feature-settings-ligatures` — Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied).
-- **font-size** — 80.00%
+### fonts-advanced — 100.00%
+- **font-face** — 100.00%
+  - PASS 3.79% font-face=custom-src — `fonts-advanced-font-face-custom-src` — An @font-face rule registering a second custom family ('ParityCustom') from the bundled ParitySerif TTF via src: url(), exercising the @font-face declaration and family-matching mechanism.
+- **font-feature-settings** — 100.00%
+  - PASS 3.29% font-feature-settings=ligatures-off — `fonts-advanced-font-feature-settings-ligatures` — Text with font-feature-settings: "liga" 0 to disable standard ligatures (aspirational; no CSS font-feature control, default shaping always applied).
+- **font-size** — 100.00%
   - PASS 2.76% font-size=ch — `fonts-advanced-font-size-ch` — font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).
   - PASS 2.59% font-size=em — `fonts-advanced-font-size-em` — font-size: 2em resolved against the parent region's 16px font-size for a 32px effective size.
-  - FAIL 19.40% font-size=ex — `fonts-advanced-font-size-ex` — font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).
+  - PASS 4.89% font-size=ex — `fonts-advanced-font-size-ex` — font-size: 4ex sized relative to the font's x-height (aspirational; the ex unit is not confirmed in length parsing).
   - PASS 3.04% font-size=percent — `fonts-advanced-font-size-percent` — font-size: 150% resolved against the parent region's 20px font-size for a 30px effective size.
   - PASS 2.82% font-size=rem — `fonts-advanced-font-size-rem` — font-size: 2rem resolved against the root 16px font-size (32px), independent of the local 10px font-size.
 - **font-stretch** — 100.00%
   - PASS 4.07% font-stretch=condensed — `fonts-advanced-font-stretch-condensed` — Text with font-stretch: condensed selecting a narrower face/width (aspirational; font-stretch is not parsed or matched).
-- **font-variant** — 0.00%
-  - FAIL 10.25% font-variant=small-caps — `fonts-advanced-font-variant-small-caps` — Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support).
+- **font-variant** — 100.00%
+  - PASS 4.06% font-variant=small-caps — `fonts-advanced-font-variant-small-caps` — Mixed-case text rendered with font-variant: small-caps so lowercase letters become small uppercase forms (aspirational; no font-variant support).
 - **text-transform** — 100.00%
   - PASS 4.20% text-transform=capitalize — `fonts-advanced-text-transform-capitalize` — Lowercase words rendered with text-transform: capitalize so the first letter of each word is uppercased.
   - PASS 3.81% text-transform=lowercase — `fonts-advanced-text-transform-lowercase` — Uppercase source text rendered with text-transform: lowercase so every glyph is lowercased before shaping.
   - PASS 3.73% text-transform=uppercase — `fonts-advanced-text-transform-uppercase` — Lowercase source text rendered with text-transform: uppercase so every glyph is uppercased before shaping.
 
-### generated-content — 56.52%
-- **content-attr** — 50.00%
+### generated-content — 84.78%
+- **content-attr** — 100.00%
   - PASS 4.03% content-attr=before-attr — `generated-content-attr` — content: attr(data-prefix) pulls the value of an HTML data attribute into ::before generated text.
-  - FAIL 5.30% content-attr=attr-missing-empty — `generated-content-attr-missing` — attr() of a missing attribute resolves to the empty string, leaving only the literal brackets.
+  - PASS 2.53% content-attr=attr-missing-empty — `generated-content-attr-missing` — attr() of a missing attribute resolves to the empty string, leaving only the literal brackets.
 - **content-counter** — 100.00%
   - PASS 2.04% content-counter=counter-reset-increment — `generated-content-counter` — counter-reset plus counter-increment with content: counter(step) numbers three stacked items via ::before.
   - PASS 1.87% content-counter=counter-style-upper-roman — `generated-content-counter-roman` — content: counter(step, upper-roman) renders item numbers as I, II, III, IV.
@@ -591,26 +549,26 @@ None — every fixture's HTML matches `refs.lock`.
 - **content-suppression** — 100.00%
   - PASS 2.06% content-suppression=content-none — `generated-content-content-none` — content: none on ::before suppresses the pseudo-element so only the original element text renders.
   - PASS 2.06% content-suppression=content-normal — `generated-content-content-normal` — content: normal on ::before computes to none and suppresses the pseudo-element.
-- **content-url** — 0.00%
-  - FAIL 20.36% content-url=before-image — `generated-content-content-url-image` — content: url(data:png) on ::before places a small decoded raster image before the element text.
-  - FAIL 32.47% content-url=before-image-sized — `generated-content-content-url-sized` — content: url(data:png) with explicit width/height scales the ::before replaced image.
-- **first-letter** — 16.67%
-  - FAIL 8.87% first-letter=color-background — `generated-content-first-letter-color` — ::first-letter recolors the initial letter white on an orange background at the same size.
-  - FAIL 29.77% first-letter=drop-cap — `generated-content-first-letter-dropcap` — ::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it.
-  - PARTIAL 8.27% first-letter=text-transform-uppercase — `generated-content-first-letter-transform` — ::first-letter text-transform:uppercase uppercases just the initial letter.
-- **first-line** — 25.00%
-  - PARTIAL 8.52% first-line=color-weight — `generated-content-first-line` — ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.
-  - FAIL 16.97% first-line=background-color — `generated-content-first-line-background` — ::first-line paints a highlight background behind the first wrapped line only.
-- **pseudo-element** — 60.00%
+- **content-url** — 100.00%
+  - PASS 1.93% content-url=before-image — `generated-content-content-url-image` — content: url(data:png) on ::before places a small decoded raster image before the element text.
+  - PASS 1.93% content-url=before-image-sized — `generated-content-content-url-sized` — content: url(data:png) with explicit width/height scales the ::before replaced image.
+- **first-letter** — 66.67%
+  - PARTIAL 6.18% first-letter=color-background — `generated-content-first-letter-color` — ::first-letter recolors the initial letter white on an orange background at the same size.
+  - PARTIAL 7.38% first-letter=drop-cap — `generated-content-first-letter-dropcap` — ::first-letter floats and enlarges the initial letter of a paragraph into a drop cap with text wrapping beside it.
+  - PASS 6.69% first-letter=text-transform-uppercase — `generated-content-first-letter-transform` — ::first-letter text-transform:uppercase uppercases just the initial letter.
+- **first-line** — 50.00%
+  - PARTIAL 8.83% first-line=color-weight — `generated-content-first-line` — ::first-line restyles only the first wrapped line of a paragraph to red bold while later lines stay normal.
+  - PARTIAL 8.96% first-line=background-color — `generated-content-first-line-background` — ::first-line paints a highlight background behind the first wrapped line only.
+- **pseudo-element** — 70.00%
   - PARTIAL 0.99% pseudo-element=after-on-replaced-img — `generated-content-after-replaced` — ::after on a replaced <img> generates no box; only the image renders.
   - PASS 2.78% pseudo-element=after-content-string — `generated-content-after-string` — ::after appends a literal string after the element text inside a filled, bordered box.
-  - FAIL 38.39% pseudo-element=before-display-block — `generated-content-before-block` — ::before with display:block renders a full-width colored header band above the body text.
-  - PARTIAL 4.58% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
+  - PARTIAL 7.32% pseudo-element=before-display-block — `generated-content-before-block` — ::before with display:block renders a full-width colored header band above the body text.
+  - PARTIAL 3.06% pseudo-element=before-empty-decorative-box — `generated-content-before-decorative-box` — content: "" with display:inline-block renders an empty ::before as a filled, bordered marker box before the text.
   - PASS 2.87% pseudo-element=before-content-string — `generated-content-before-string` — ::before inserts a literal red string in front of the element text inside a filled, bordered box.
-- **quotes** — 66.67%
+- **quotes** — 100.00%
   - PASS 3.94% quotes=nested-two-levels — `generated-content-nested-quotes` — Two quote pairs nest: open-quote/open-quote/close-quote/close-quote use the first then second declared pair.
-  - PARTIAL 3.71% quotes=no-open-no-close-quote — `generated-content-no-quote-keywords` — no-open-quote emits no glyph while close-quote still renders the declared closing quote.
-  - PARTIAL 5.32% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
+  - PASS 3.27% quotes=no-open-no-close-quote — `generated-content-no-quote-keywords` — no-open-quote emits no glyph while close-quote still renders the declared closing quote.
+  - PASS 3.04% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
 ### grid — 97.92%
 - **align-items** — 100.00%
@@ -651,7 +609,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **place-items** — 100.00%
   - PASS 0.00% place-items=center — `grid-place-items-center` — place-items: center centers smaller cells both horizontally and vertically inside larger tracks.
 
-### images-replaced — 92.00%
+### images-replaced — 96.00%
 - **aspect-ratio** — 100.00%
   - PASS 0.33% aspect-ratio=fixed-width-derived-height — `img-aspect-ratio-box` — A box with width:200px and aspect-ratio:2/1, expected to derive a 100px height.
 - **img** — 94.44%
@@ -664,10 +622,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.25% img=explicit-width-height-stretch — `img-width-height-stretch` — A 1:1 intrinsic PNG given explicit width:200px and height:100px, stretching it non-uniformly.
   - PASS 0.25% img=width-auto-height-aspect — `img-width-scaled` — A 2:1 intrinsic PNG with width:180px and height:auto, preserving aspect ratio at 180x90.
   - PARTIAL 0.58% img=svg-data-uri-source — `svg-as-img` — An SVG document referenced as the src of an img via a data: URI, drawn at 160x120.
-- **inline-svg** — 62.50%
-  - PARTIAL 0.28% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
+- **inline-svg** — 87.50%
+  - PASS 0.28% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
   - PASS 0.27% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
-  - PARTIAL 0.30% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
+  - PASS 0.30% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
   - PARTIAL 3.50% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
 - **object-fit** — 100.00%
   - PASS 0.06% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
@@ -683,15 +641,15 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.71% object-position=length-values — `img-object-position-length` — object-position:10px 20px offsets a contained 2:1 image by absolute lengths from the box top-left.
   - PASS 0.46% object-position=percentage-values — `img-object-position-percent` — object-position:25% 75% positions a contained 2:1 image within the free space of a 160x160 box.
 
-### inline-text — 53.85%
-- **inline-block** — 0.00%
-  - FAIL 5.98% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
-  - FAIL 7.69% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
-  - FAIL 14.50% inline-block=shrink-to-fit — `inline-text-inline-block-shrink-to-fit` — Inline-blocks with no explicit width use shrink-to-fit sizing, hugging their content (CSS2 §10.3.9).
-  - FAIL 14.53% inline-block=multiple — `inline-text-multiple-inline-blocks` — Several inline-blocks flow left-to-right on one line, separated by inter-element whitespace.
-- **letter-spacing** — 50.00%
-  - PARTIAL 9.11% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.
-  - PARTIAL 8.89% letter-spacing=negative — `inline-text-letter-spacing-negative` — Negative letter-spacing tightens the gap between glyphs (css-text-3 §8.2).
+### inline-text — 82.05%
+- **inline-block** — 75.00%
+  - PASS 2.30% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
+  - PASS 3.64% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
+  - PARTIAL 5.97% inline-block=shrink-to-fit — `inline-text-inline-block-shrink-to-fit` — Inline-blocks with no explicit width use shrink-to-fit sizing, hugging their content (CSS2 §10.3.9).
+  - PARTIAL 4.52% inline-block=multiple — `inline-text-multiple-inline-blocks` — Several inline-blocks flow left-to-right on one line, separated by inter-element whitespace.
+- **letter-spacing** — 100.00%
+  - PASS 3.80% letter-spacing=positive — `inline-text-letter-spacing` — letter-spacing:8px on monospace text widens advance between every glyph.
+  - PASS 3.30% letter-spacing=negative — `inline-text-letter-spacing-negative` — Negative letter-spacing tightens the gap between glyphs (css-text-3 §8.2).
 - **line-height** — 100.00%
   - PASS 6.57% line-height=length — `inline-text-line-height-length` — line-height:<length> sets a fixed line-box height (CSS2 §10.8).
   - PASS 4.94% line-height=numeric — `inline-text-line-height-numeric` — Three filled paragraphs with line-height:2; verifies inter-line spacing and line-box height.
@@ -715,33 +673,33 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 6.39% text-transform=capitalize — `inline-text-text-transform-capitalize` — text-transform:capitalize upper-cases the first letter of each word (css-text-3 §2.1).
   - PASS 5.72% text-transform=lowercase — `inline-text-text-transform-lowercase` — text-transform:lowercase maps each glyph to lower case (css-text-3 §2.1).
   - PASS 6.64% text-transform=uppercase — `inline-text-text-transform-uppercase` — text-transform:uppercase maps each glyph to upper case (css-text-3 §2.1).
-- **vertical-align** — 35.71%
-  - PARTIAL 4.34% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
-  - PARTIAL 2.88% vertical-align=bottom — `inline-text-vertical-align-bottom` — Inline-block box vertical-align:bottom aligned to the bottom of the line box (CSS2 §10.8.1).
-  - PARTIAL 4.50% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
-  - FAIL 14.16% vertical-align=sub — `inline-text-vertical-align-sub` — Inline-block box vertical-align:sub lowered below the text baseline (CSS2 §10.8.1).
-  - FAIL 23.76% vertical-align=super — `inline-text-vertical-align-super` — Inline-block box vertical-align:super raised above the text baseline (CSS2 §10.8.1).
-  - PARTIAL 4.10% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
-  - PARTIAL 2.79% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
-- **white-space** — 50.00%
-  - FAIL 19.45% white-space=break-spaces — `inline-text-white-space-break-spaces` — white-space:break-spaces preserves spaces/newlines and soft-wraps after preserved spaces (css-text-3 §4.1.1).
+- **vertical-align** — 78.57%
+  - PARTIAL 4.53% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
+  - PASS 2.32% vertical-align=bottom — `inline-text-vertical-align-bottom` — Inline-block box vertical-align:bottom aligned to the bottom of the line box (CSS2 §10.8.1).
+  - PARTIAL 4.08% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
+  - PARTIAL 4.69% vertical-align=sub — `inline-text-vertical-align-sub` — Inline-block box vertical-align:sub lowered below the text baseline (CSS2 §10.8.1).
+  - PASS 2.55% vertical-align=super — `inline-text-vertical-align-super` — Inline-block box vertical-align:super raised above the text baseline (CSS2 §10.8.1).
+  - PASS 2.72% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
+  - PASS 1.91% vertical-align=top — `inline-text-vertical-align-top` — Inline-block box vertical-align:top aligned to the top of the line box.
+- **white-space** — 100.00%
+  - PASS 7.01% white-space=break-spaces — `inline-text-white-space-break-spaces` — white-space:break-spaces preserves spaces/newlines and soft-wraps after preserved spaces (css-text-3 §4.1.1).
   - PASS 7.89% white-space=normal — `inline-text-white-space-normal` — white-space:normal collapses runs of spaces/newlines to a single space and soft-wraps (css-text-3 §4.1.1).
   - PASS 8.39% white-space=nowrap — `inline-text-white-space-nowrap` — white-space:nowrap forces a single line, clipped by overflow:hidden in a narrow box.
-  - FAIL 7.31% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
+  - PASS 2.76% white-space=pre — `inline-text-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text.
   - PASS 5.03% white-space=pre-line — `inline-text-white-space-pre-line` — white-space:pre-line collapses spaces but preserves newlines as forced breaks (css-text-3 §4.1.1).
-  - FAIL 16.92% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
+  - PASS 5.70% white-space=pre-wrap — `inline-text-white-space-pre-wrap` — white-space:pre-wrap preserves spaces while still wrapping at the box edge.
 - **word-break** — 0.00%
   - FAIL 12.42% word-break=break-all — `inline-text-word-break-break-all` — word-break:break-all allows a break between any two characters, filling each line (css-text-3 §5.1).
-- **word-spacing** — 50.00%
-  - PARTIAL 6.58% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
-  - PARTIAL 10.52% word-spacing=negative — `inline-text-word-spacing-negative` — Negative word-spacing narrows the gap at spaces between words (css-text-3 §8.1).
+- **word-spacing** — 100.00%
+  - PASS 3.91% word-spacing=positive — `inline-text-word-spacing` — word-spacing:20px widens the gap at space characters between words on a single line.
+  - PASS 3.51% word-spacing=negative — `inline-text-word-spacing-negative` — Negative word-spacing narrows the gap at spaces between words (css-text-3 §8.1).
 - **wrapping** — 100.00%
-  - PASS 5.05% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
+  - PASS 6.44% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 40.91%
-- **containing-block** — 50.00%
+### interactions — 70.45%
+- **containing-block** — 100.00%
   - PASS 0.59% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
-  - FAIL 12.13% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
+  - PASS 0.53% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
 - **flex-wrap-x-gap** — 0.00%
   - FAIL 4.96% flex-wrap-x-gap=row-and-column-gap-on-wrap — `flexbox-wrap-x-gap` — flex-wrap pushes the fifth item to a new row; gap must apply both between items in a row and between the wrapped rows, with no gap on outer edges.
 - **flexbox-x-grid** — 0.00%
@@ -750,14 +708,14 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.62% float=with-margin-collapse — `interactions-positioning-float-x-margin-collapse` — Interaction: a left float beside in-flow blocks whose adjacent vertical margins collapse.
 - **float-x-margin-collapse** — 100.00%
   - PASS 1.44% float-x-margin-collapse=float-beside-collapsing-blocks — `interactions-float-x-margin-collapse` — A left-floated box beside two stacked blocks whose adjacent vertical margins collapse to the larger value rather than summing.
-- **grid-x-background-gradient** — 0.00%
-  - FAIL 68.71% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
-- **grid-x-flexbox** — 0.00%
-  - FAIL 22.97% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
-- **inline-block-x-vertical-align** — 0.00%
-  - FAIL 19.01% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
-- **overflow** — 50.00%
-  - PARTIAL 3.70% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
+- **grid-x-background-gradient** — 100.00%
+  - PASS 1.30% grid-x-background-gradient=gradient-fill-in-cells — `grid-x-background-gradient` — Each cell of a 2x2 grid is filled with a horizontal linear gradient; grid sizing places the cells while the gradient paints across each cell box.
+- **grid-x-flexbox** — 100.00%
+  - PASS 1.07% grid-x-flexbox=flex-in-grid-cell — `grid-x-flexbox-nested` — A flex container (space-between row) nested inside the first grid cell; grid places the cells and the flex distributes three boxes inside one of them.
+- **inline-block-x-vertical-align** — 100.00%
+  - PASS 2.58% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
+- **overflow** — 100.00%
+  - PASS 1.43% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
 - **overflow-hidden-x-border-radius** — 50.00%
   - PARTIAL 4.31% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 100.00%
@@ -768,12 +726,12 @@ None — every fixture's HTML matches `refs.lock`.
   - FAIL 4.95% position=relative-on-inline-block — `interactions-positioning-relative-x-inline-block` — Interaction: position:relative offset applied to a middle inline-block; its in-flow inline slot is preserved.
 - **positioning-x-flexbox** — 0.00%
   - FAIL 4.10% positioning-x-flexbox=absolute-child-in-flex — `positioning-absolute-x-flexbox` — An absolutely-positioned child pinned to a corner of a relatively-positioned flex container, taken out of flow while the flex items lay out normally.
-- **positioning-x-grid** — 0.00%
-  - FAIL 7.65% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
+- **positioning-x-grid** — 100.00%
+  - PASS 1.68% positioning-x-grid=absolute-child-in-grid — `positioning-absolute-x-grid` — An absolutely-positioned child offset from a corner of a relatively-positioned grid container, removed from grid placement while the cells lay out.
 - **tables-x-flexbox** — 0.00%
   - FAIL 13.44% tables-x-flexbox=table-in-flex-item — `tables-x-flexbox-nested` — A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.
-- **tables-x-typography** — 0.00%
-  - FAIL 22.56% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
+- **tables-x-typography** — 100.00%
+  - PASS 1.13% tables-x-typography=bold-header-cells — `tables-x-typography-bold` — A bordered table whose thead cells use bold typography; table cell layout coexists with the heavier glyph weight in the header row.
 - **transforms-x-flexbox** — 0.00%
   - FAIL 4.51% transforms-x-flexbox=rotate-on-flex-item — `transforms-rotate-x-flexbox-item` — A rotate transform on the middle flex item is purely visual and must not change flex layout; the third item keeps its untransformed slot.
 - **z-index** — 100.00%
@@ -781,18 +739,18 @@ None — every fixture's HTML matches `refs.lock`.
 - **z-index-x-transforms** — 100.00%
   - PASS 0.93% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 71.05%
+### lists-counters — 86.84%
 - **counters** — 50.00%
-  - PASS 1.96% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
-  - FAIL 9.00% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
-  - PARTIAL 3.72% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
+  - PASS 1.97% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
+  - FAIL 9.43% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
+  - PARTIAL 3.10% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
 - **list-style** — 100.00%
   - PASS 5.06% list-style=shorthand-type-position — `list-style-shorthand` — list-style shorthand setting lower-alpha type and inside position in one declaration.
-- **list-style-image** — 0.00%
-  - FAIL 6.93% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
-- **list-style-position** — 0.00%
-  - FAIL 12.05% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
-  - FAIL 26.21% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
+- **list-style-image** — 100.00%
+  - PASS 5.53% list-style-image=data-uri-png — `list-style-image-data-uri` — Unordered list using a data-URI PNG as the marker image (list-style-image:url()).
+- **list-style-position** — 100.00%
+  - PASS 5.62% list-style-position=inside — `list-style-position-inside` — Ordered list with markers flowed inside the content box (list-style-position:inside).
+  - PASS 6.75% list-style-position=outside — `list-style-position-outside` — Ordered list with markers hung outside the content box (list-style-position:outside).
 - **list-style-type** — 90.91%
   - PASS 3.42% list-style-type=circle — `list-style-type-circle` — Unordered list rendering hollow circle markers on three short text items.
   - PASS 3.84% list-style-type=decimal — `list-style-type-decimal` — Ordered list rendering 1./2./3. decimal markers on three short text items.
@@ -806,17 +764,17 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 3.70% list-style-type=upper-roman — `list-style-type-upper-roman` — Ordered list rendering I./II./III. upper-roman markers on three short text items.
   - PASS 4.05% list-style-type=ol-start — `ol-start-attribute` — Ordered list whose markers begin at 5 via the <ol start> attribute (5./6./7.).
 - **marker-pseudo** — 100.00%
-  - PASS 6.10% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
+  - PASS 6.17% marker-pseudo=color — `marker-pseudo-color` — Ordered list whose markers are recolored and bolded via the ::marker pseudo-element.
 
-### multicol — 68.42%
+### multicol — 81.58%
 - **break-inside** — 100.00%
   - PASS 1.29% break-inside=avoid — `multicol-break-inside-avoid` — Six fixed-height cards with break-inside: avoid flowed across two columns; each atomic card stays whole within a column.
-- **column-count** — 66.67%
-  - FAIL 12.76% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
+- **column-count** — 100.00%
+  - PASS 6.87% column-count=text-flow — `multicol-column-count-text` — Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing.
   - PASS 1.10% column-count=three — `multicol-column-count-three` — Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks.
   - PASS 0.55% column-count=count-and-width — `multicol-count-and-width` — column-count: 2 with column-width: 100px; count caps the used columns (max), width is the minimum, so two columns are used.
-- **column-fill** — 25.00%
-  - FAIL 11.85% column-fill=auto — `multicol-column-fill-auto` — column-fill: auto with a definite height fills each column to the box height in turn, leaving the last column short.
+- **column-fill** — 75.00%
+  - PASS 1.42% column-fill=auto — `multicol-column-fill-auto` — column-fill: auto with a definite height fills each column to the box height in turn, leaving the last column short.
   - PARTIAL 2.29% column-fill=balance — `multicol-column-fill-balance` — column-fill: balance (explicit) distributes content into equal-height columns.
 - **column-gap** — 75.00%
   - PARTIAL 0.96% column-gap=px — `multicol-column-gap` — Three-column container with an explicit 40px column-gap separating the tracks; tests inter-column spacing.
@@ -824,8 +782,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **column-rule** — 50.00%
   - PARTIAL 1.08% column-rule=solid — `multicol-column-rule` — Three-column container with a 6px solid column-rule painted in each gap, spanning the full content-box height.
   - PARTIAL 1.09% column-rule=longhands — `multicol-column-rule-longhands` — column-rule-width/style/color set as separate longhands (thick solid blue).
-- **column-rule-style** — 50.00%
-  - FAIL 2.22% column-rule-style=dashed — `multicol-column-rule-dashed` — Three-column container with a 6px dashed column-rule painted in each gap.
+- **column-rule-style** — 66.67%
+  - PARTIAL 1.22% column-rule-style=dashed — `multicol-column-rule-dashed` — Three-column container with a 6px dashed column-rule painted in each gap.
   - PASS 1.01% column-rule-style=double — `multicol-column-rule-double` — Three-column container with a 9px double column-rule (two thin parallel lines) in each gap.
   - PARTIAL 0.74% column-rule-style=none — `multicol-column-rule-none` — column-rule-style: none draws no rule and consumes no space; the gap matches a plain column-gap.
 - **column-span** — 50.00%
@@ -838,35 +796,35 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.46% columns=shorthand — `multicol-columns-shorthand` — columns: 120px 3 shorthand setting both column-width and column-count at once.
   - PASS 1.20% columns=width-only — `multicol-columns-width-only` — columns: 140px shorthand with only a column-width; the used column count is derived from the inline size.
 
-### overflow-clipping — 68.18%
-- **overflow** — 68.18%
+### overflow-clipping — 81.82%
+- **overflow** — 81.82%
   - PASS 0.19% overflow=clip — `overflow-clip` — overflow:clip clips the oversized child to the clip box with no scroll container (modern clip keyword).
-  - PARTIAL 4.31% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
+  - PASS 1.39% overflow=hidden-with-border-radius — `overflow-hidden-border-radius` — overflow:hidden combined with border-radius clips the overflowing child to the rounded corners of the clip box.
   - PASS 0.44% overflow=hidden — `overflow-hidden-clip` — overflow:hidden clips an oversized in-flow child to the clip box; the child is cut off at the right and bottom edges.
   - PASS 0.21% overflow=hidden-on-flex-item — `overflow-hidden-flex-item` — A flex item with overflow:hidden clips its oversized inner block to the flex item box while the sibling item is unaffected.
   - PASS 0.09% overflow=hidden-on-grid-item — `overflow-hidden-grid-item` — A grid cell with overflow:hidden clips its oversized inner block to the cell box while the sibling cell is unaffected.
   - PASS 0.65% overflow=nested-clip-intersection — `overflow-hidden-nested` — Nested overflow:hidden boxes; the visible region is the intersection of the outer and inner clip rectangles, with the grandchild clipped by both.
-  - FAIL 23.91% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
+  - FAIL 16.01% overflow=hidden-clips-text — `overflow-hidden-text-clip` — overflow:hidden on a short fixed-height box clips overflowing text lines below the box edge (bundled ParitySans).
   - PASS 0.20% overflow=padding-box-clip-edge — `overflow-padding-box-clip` — overflow:hidden on a padded box clips its oversized child at the PADDING box: the child fills the padding box out to the inner border edge and is cut there, leaving the border fully visible and the top/left padding band showing.
-  - FAIL 19.69% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
+  - PARTIAL 1.72% overflow=scroll — `overflow-scroll-print-clip` — overflow:scroll produces no scrollbars in print; the oversized child is clipped to the box edges with no interactive scroll affordance.
   - PASS 0.00% overflow=visible — `overflow-visible-no-clip` — overflow:visible (explicit) does not clip; the oversized child paints beyond the parent box on the right and bottom.
-  - FAIL 9.56% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
+  - PARTIAL 1.21% overflow=overflow-x-overflow-y — `overflow-x-y-separate` — overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.
 
-### paged-media — 72.22%
+### paged-media — 94.44%
 - **break-before** — 100.00%
   - PASS 0.12% break-before=page-leading-noop — `paged-break-before-page-modern` — Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine.
 - **break-inside** — 100.00%
   - PASS 0.85% break-inside=avoid — `paged-break-inside-avoid` — Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap.
 - **named-page** — 100.00%
   - PASS 0.00% named-page=page-property — `paged-named-page` — The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap.
-- **orphans-widows** — 0.00%
-  - FAIL 36.11% orphans-widows=single-page-noop — `paged-orphans-widows` — orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap.
+- **orphans-widows** — 100.00%
+  - PASS 2.15% orphans-widows=single-page-noop — `paged-orphans-widows` — orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap.
 - **page-break-after** — 100.00%
   - PASS 0.36% page-break-after=always-trailing-noop — `paged-page-break-after-always-single` — page-break-after:always on the last in-flow block (nothing follows it) must not spill content onto a second page; the layout stays a single Letter page with both blocks stacked.
 - **page-break-before** — 100.00%
   - PASS 0.14% page-break-before=avoid-noop — `paged-page-break-before-avoid-noop` — page-break-before:avoid on content that already fits on one page is a no-op; both blocks remain stacked. Tracks the legacy avoid-value gap.
-- **page-break-inside** — 0.00%
-  - FAIL 29.53% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
+- **page-break-inside** — 100.00%
+  - PASS 0.51% page-break-inside=avoid-table — `paged-page-break-inside-avoid-table` — page-break-inside:avoid on a table that already fits keeps the whole table on one page. Tracks the legacy page-break-inside gap with a geometry-deterministic table.
 - **page-counter** — 50.00%
   - PARTIAL 2.07% page-counter=counter-page-in-content — `paged-page-counter-content` — content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.
 - **page-margin** — 100.00%
@@ -911,7 +869,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **image** — 100.00%
   - PASS 0.40% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
 
-### selectors-cascade — 91.30%
+### selectors-cascade — 92.39%
 - **at-rule** — 100.00%
   - PASS 0.45% at-rule=media-print — `selectors-cascade-media-print` — @media print { } applies in the print rendering context, turning the box green; ignoring print media queries leaves it gray.
   - PASS 0.45% at-rule=supports — `selectors-cascade-supports-rule` — @supports (display:block) { } gates a green override that a correct engine applies; engines without @supports parsing drop it and leave the box gray. Aspirational known-gap.
@@ -940,8 +898,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.81% combinator=child — `selectors-cascade-child-combinator` — The child combinator (>) matches only immediate children of #parent; a nested .box stays gray while direct-child boxes turn green.
   - PASS 0.81% combinator=descendant — `selectors-cascade-descendant-combinator` — The descendant combinator (space) matches every .box inside #parent at any depth; a .box outside #parent stays gray.
   - PASS 1.15% combinator=general-sibling — `selectors-cascade-general-sibling` — The general-sibling combinator (~) matches every later .box sibling of .marker, not just the next one; the marker stays gray.
-- **pseudo-class** — 91.18%
-  - PARTIAL 3.08% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
+- **pseudo-class** — 94.12%
+  - PASS 1.32% pseudo-class=empty — `selectors-cascade-empty` — :empty colors boxes with no children green; a box containing text stays gray.
   - PASS 1.15% pseudo-class=first-child-last-child — `selectors-cascade-first-last-child` — :first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.
   - PASS 1.15% pseudo-class=first-of-type — `selectors-cascade-first-of-type` — p:first-of-type colors the first <p> green even though a <div> precedes it.
   - PASS 1.15% pseudo-class=has — `selectors-cascade-has-relational` — :has(+ .flag) colors a box that is immediately followed by a .flag sibling green.
@@ -966,51 +924,51 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.15% type-selector=type — `selectors-cascade-type-selector` — A type selector p.box colors only <p> boxes green; <div> boxes stay gray.
   - PASS 1.15% type-selector=universal — `selectors-cascade-universal-selector` — The universal selector * as the discriminating rule paints every child box green.
 
-### tables — 51.85%
-- **border-collapse** — 50.00%
-  - FAIL 13.58% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
+### tables — 75.93%
+- **border-collapse** — 100.00%
+  - PASS 1.23% border-collapse=collapse — `tables-border-collapse` — border-collapse:collapse merges adjacent 4px cell borders into shared single edges.
   - PASS 1.53% border-collapse=separate — `tables-border-separate` — border-collapse:separate with zero spacing keeps each cell's 4px border doubled at shared edges.
 - **border-spacing** — 100.00%
   - PASS 1.67% border-spacing=uniform-12px — `tables-border-spacing` — border-collapse:separate with 12px border-spacing exposes the table background between cells.
   - PASS 0.98% border-spacing=two-value — `tables-border-spacing-two-value` — border-spacing:24px 6px applies distinct horizontal and vertical gaps between cells.
   - PASS 0.67% border-spacing=zero — `tables-border-spacing-zero` — border-spacing:0 in separate mode makes cells touch with their own (non-merged) borders.
 - **caption** — 50.00%
-  - PARTIAL 6.02% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
+  - PARTIAL 0.71% caption=caption-side-top — `tables-caption` — A top-side caption renders as a full-width banner above the table body.
   - PARTIAL 0.38% caption=caption-side-bottom — `tables-caption-side-bottom` — caption-side:bottom renders the caption banner below the table body instead of above.
-- **cell-padding** — 0.00%
-  - FAIL 16.54% cell-padding=padding-20px — `tables-cell-padding` — 20px cell padding insets a filled inner box from the cell border on all sides.
+- **cell-padding** — 50.00%
+  - PARTIAL 0.90% cell-padding=padding-20px — `tables-cell-padding` — 20px cell padding insets a filled inner box from the cell border on all sides.
 - **colspan** — 50.00%
-  - PARTIAL 7.42% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
+  - PARTIAL 0.89% colspan=colspan-2 — `tables-colspan` — A header cell with colspan=2 spans two fixed columns above a normal three-cell row.
 - **column-width** — 50.00%
-  - PARTIAL 7.49% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
+  - PARTIAL 0.93% column-width=percent — `tables-width-percent-columns` — Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.
 - **empty-cells** — 75.00%
   - PASS 0.36% empty-cells=hide — `tables-empty-cells-hide` — empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.
   - PARTIAL 0.53% empty-cells=whitespace-and-empty — `tables-empty-cells-whitespace` — empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.
-- **rowspan** — 50.00%
-  - PARTIAL 8.09% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
-  - PARTIAL 8.04% rowspan=stagger-shift — `tables-rowspan-stagger` — A rowspan=2 first-column cell shifts later rows' cells into the remaining columns.
+- **rowspan** — 100.00%
+  - PASS 0.76% rowspan=rowspan-2 — `tables-rowspan` — A first-column cell with rowspan=2 spans both rows while later columns stay single-row.
+  - PASS 0.75% rowspan=stagger-shift — `tables-rowspan-stagger` — A rowspan=2 first-column cell shifts later rows' cells into the remaining columns.
 - **spanning** — 50.00%
-  - PARTIAL 6.67% spanning=colspan-rowspan-combined — `tables-colspan-rowspan` — A single cell with both colspan=2 and rowspan=2 occupies a 2x2 block; surrounding cells flow around it.
-- **table** — 50.00%
-  - PARTIAL 8.03% table=basic-grid — `tables-basic-grid` — 2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.
-- **table-layout** — 37.50%
-  - PARTIAL 9.04% table-layout=auto — `tables-layout-auto` — table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).
-  - FAIL 70.76% table-layout=auto-content-exceeds-width — `tables-layout-auto-overflow` — table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).
-  - PARTIAL 6.92% table-layout=fixed — `tables-layout-fixed` — table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.
-  - PARTIAL 7.95% table-layout=fixed-remainder-distribution — `tables-layout-fixed-remainder` — table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -> 60/120/180).
-- **table-sections** — 50.00%
-  - PARTIAL 8.03% table-sections=thead-tbody-tfoot — `tables-thead-tbody-tfoot` — thead, tbody and tfoot row groups render in document order with distinct section backgrounds.
-- **text-align** — 50.00%
-  - PARTIAL 12.07% text-align=left-center-right — `tables-cell-text-align` — Short monospace text aligned left, center and right within three equal cells.
-- **th-cell** — 50.00%
-  - PARTIAL 5.13% th-cell=ua-center-bold — `tables-th-default` — th cells get the UA-stylesheet defaults text-align:center + font-weight:bold; td cells stay left/normal.
-  - PARTIAL 9.76% th-cell=header-default — `tables-th-header` — th header cells in the first row vs td data cells, with distinct fills and text.
-- **vertical-align** — 33.33%
-  - FAIL 7.89% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
-  - PARTIAL 8.27% vertical-align=baseline-uniform — `tables-vertical-align-baseline` — vertical-align:baseline aligns same-size cell text on a shared row baseline.
-  - PARTIAL 7.38% vertical-align=baseline-mixed-sizes — `tables-vertical-align-baseline-sizes` — vertical-align:baseline aligns cells with differing font sizes on one common baseline (taller cells shift shorter text down).
+  - PARTIAL 1.02% spanning=colspan-rowspan-combined — `tables-colspan-rowspan` — A single cell with both colspan=2 and rowspan=2 occupies a 2x2 block; surrounding cells flow around it.
+- **table** — 100.00%
+  - PASS 0.51% table=basic-grid — `tables-basic-grid` — 2x3 collapsed-border table of fixed 120x60px cells forming a basic grid.
+- **table-layout** — 62.50%
+  - PASS 0.89% table-layout=auto — `tables-layout-auto` — table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).
+  - FAIL 15.05% table-layout=auto-content-exceeds-width — `tables-layout-auto-overflow` — table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).
+  - PASS 0.18% table-layout=fixed — `tables-layout-fixed` — table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.
+  - PARTIAL 0.97% table-layout=fixed-remainder-distribution — `tables-layout-fixed-remainder` — table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -> 60/120/180).
+- **table-sections** — 100.00%
+  - PASS 0.76% table-sections=thead-tbody-tfoot — `tables-thead-tbody-tfoot` — thead, tbody and tfoot row groups render in document order with distinct section backgrounds.
+- **text-align** — 100.00%
+  - PASS 0.77% text-align=left-center-right — `tables-cell-text-align` — Short monospace text aligned left, center and right within three equal cells.
+- **th-cell** — 75.00%
+  - PARTIAL 0.52% th-cell=ua-center-bold — `tables-th-default` — th cells get the UA-stylesheet defaults text-align:center + font-weight:bold; td cells stay left/normal.
+  - PASS 1.25% th-cell=header-default — `tables-th-header` — th header cells in the first row vs td data cells, with distinct fills and text.
+- **vertical-align** — 66.67%
+  - PARTIAL 0.32% vertical-align=top-middle-bottom — `tables-cell-vertical-align` — A 24px marker box aligns to top, middle and bottom within tall 120px cells.
+  - PASS 0.56% vertical-align=baseline-uniform — `tables-vertical-align-baseline` — vertical-align:baseline aligns same-size cell text on a shared row baseline.
+  - PARTIAL 0.38% vertical-align=baseline-mixed-sizes — `tables-vertical-align-baseline-sizes` — vertical-align:baseline aligns cells with differing font sizes on one common baseline (taller cells shift shorter text down).
 
-### text-advanced — 82.50%
+### text-advanced — 97.50%
 - **direction** — 100.00%
   - PASS 4.58% direction=ltr — `text-advanced-direction-ltr` — direction:ltr is the explicit left-to-right baseline counterpart to direction:rtl; inline content flows left-to-right and left-aligns (css-writing-modes-4 §2.1).
   - PASS 4.83% direction=rtl — `text-advanced-direction-rtl` — direction:rtl right-aligns the inline content and reverses run order; aspirational, no RTL/bidi support in ironpress.
@@ -1019,18 +977,18 @@ None — every fixture's HTML matches `refs.lock`.
 - **overflow-wrap** — 100.00%
   - PASS 5.04% overflow-wrap=anywhere — `text-advanced-overflow-wrap-anywhere` — overflow-wrap:anywhere breaks an over-long word only as a last resort, keeping the preceding whole word alone on its line before breaking the long word at the box edge (css-text-3 §5.2).
   - PASS 5.04% overflow-wrap=break-word — `text-advanced-overflow-wrap-break-word` — overflow-wrap:break-word breaks an over-long word so it does not overflow the narrow fixed-width box.
-- **tab-size** — 50.00%
-  - PARTIAL 2.50% tab-size=eight — `text-advanced-tab-size` — tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.
+- **tab-size** — 100.00%
+  - PASS 1.24% tab-size=eight — `text-advanced-tab-size` — tab-size:8 with white-space:pre aligns tab stops at eight character widths; aspirational, no tab-size support in ironpress.
 - **text-indent** — 100.00%
   - PASS 4.54% text-indent=length — `text-advanced-text-indent` — text-indent:40px indents only the first line of a wrapped paragraph while later lines start at the content edge.
 - **text-overflow** — 100.00%
   - PASS 6.05% text-overflow=clip — `text-advanced-text-overflow-clip` — text-overflow:clip on an overflow:hidden nowrap fixed-width box hard-clips overflowing text with no ellipsis.
   - PASS 4.66% text-overflow=ellipsis — `text-advanced-text-overflow-ellipsis` — text-overflow:ellipsis on an overflow:hidden nowrap fixed-width box renders a trailing ellipsis where text is clipped.
   - PASS 5.20% text-overflow=string — `text-advanced-text-overflow-string` — text-overflow:">" truncates overflowing text with a custom string instead of an ellipsis; aspirational, ironpress does not yet parse the <string> form (css-ui-4 §6.2).
-- **unicode-bidi** — 50.00%
-  - PARTIAL 5.02% unicode-bidi=bidi-override — `text-advanced-unicode-bidi-override` — unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress.
-- **white-space** — 83.33%
-  - FAIL 36.32% white-space=break-spaces — `text-advanced-white-space-break-spaces` — white-space:break-spaces preserves spaces and forced segment breaks while still soft-wrapping; preserved trailing spaces occupy width at the line end and cannot hang (css-text-3 §3).
+- **unicode-bidi** — 100.00%
+  - PASS 2.66% unicode-bidi=bidi-override — `text-advanced-unicode-bidi-override` — unicode-bidi:bidi-override with direction:rtl forces visual right-to-left ordering of glyphs; aspirational, no bidi support in ironpress.
+- **white-space** — 100.00%
+  - PASS 3.42% white-space=break-spaces — `text-advanced-white-space-break-spaces` — white-space:break-spaces preserves spaces and forced segment breaks while still soft-wrapping; preserved trailing spaces occupy width at the line end and cannot hang (css-text-3 §3).
   - PASS 4.76% white-space=normal — `text-advanced-white-space-normal` — white-space:normal collapses runs of spaces and newlines into single soft-wrappable spaces.
   - PASS 4.49% white-space=nowrap — `text-advanced-white-space-nowrap` — white-space:nowrap forces a single line that is clipped by overflow:hidden in a narrow box.
   - PASS 0.62% white-space=pre — `text-advanced-white-space-pre` — white-space:pre preserves runs of spaces and explicit newlines in monospace text with no wrapping.
@@ -1039,8 +997,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **word-break** — 100.00%
   - PASS 5.00% word-break=break-all — `text-advanced-word-break-break-all` — word-break:break-all breaks the line at any glyph boundary; aspirational, not implemented in ironpress.
   - PASS 4.76% word-break=keep-all — `text-advanced-word-break-keep-all` — word-break:keep-all forbids breaking within words; for spaced Latin text it wraps only at the inter-word spaces (css-text-3 §5.1).
-- **writing-mode** — 0.00%
-  - FAIL 3.75% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
+- **writing-mode** — 100.00%
+  - PASS 1.45% writing-mode=vertical-rl — `text-advanced-writing-mode-vertical-rl` — writing-mode:vertical-rl lays out glyphs top-to-bottom in a right-to-left column; aspirational, no writing-mode support in ironpress.
 
 ### transforms — 100.00%
 - **transform** — 100.00%
@@ -1076,9 +1034,9 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.40% transform-origin=scale-pivot — `transforms-origin-scale-corner` — transform-origin affects the scale pivot: with top-left origin the box grows down/right while its top-left corner stays anchored.
   - PASS 0.35% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
 
-### typography — 84.38%
-- **font-family** — 83.33%
-  - PARTIAL 4.80% font-family=monospace — `typography-font-family-monospace` — Generic monospace family fallback at 28px with fixed-advance glyphs.
+### typography — 87.50%
+- **font-family** — 100.00%
+  - PASS 4.57% font-family=monospace — `typography-font-family-monospace` — Generic monospace family fallback at 28px with fixed-advance glyphs.
   - PASS 4.83% font-family=sans-serif — `typography-font-family-sans-serif` — Generic sans-serif family fallback at 28px.
   - PASS 3.76% font-family=serif — `typography-font-family-serif` — Generic serif family fallback at 28px.
 - **font-size** — 100.00%
@@ -1098,10 +1056,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 1.72% line-height=length — `typography-line-height-length` — Length line-height 36px across three stacked lines to verify fixed line-box height.
   - PASS 1.51% line-height=numeric — `typography-line-height-numeric` — Unitless line-height 2 across three stacked lines to verify line-box spacing.
 - **vertical-align** — 0.00%
-  - FAIL 13.21% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
-  - FAIL 14.42% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
+  - FAIL 8.23% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
+  - FAIL 6.15% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
-### units-values — 94.00%
+### units-values — 96.00%
 - **calc** — 87.50%
   - PASS 0.00% calc=division — `units-calc-division` — calc(50% / 1) x calc(100% / 2) against a 480x240px parent resolves to 240x120px; verifies division of a dimension by a unitless number (css-values-4 §10.9).
   - PARTIAL 1.08% calc=mixed-percent-px — `units-calc-mixed-percent` — calc(50% - 40px) and calc(100% - 60px) against a 400x160px parent resolve to a 160x100px child; verifies mixed percent/px subtraction.
@@ -1131,8 +1089,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.05% percentage=margin-cb-width — `units-percent-margin` — margin-left:25% and margin-top:25% (both 25% of the 400px parent width = 100px) offset a 200x60px child; verifies margin percentages resolve against containing-block WIDTH (css-values-4 §5.5).
   - PASS 0.00% percentage=padding-cb-width — `units-percent-padding` — padding:25% on a 200px-wide content-box child of a 400px parent paints a 400x200px box; verifies padding percentages resolve against containing-block WIDTH on both axes (css-values-4 §5.5).
   - PASS 0.51% percentage=width-height-resolution — `units-percent-width-height` — Child width:75% / height:50% of a 400x200px parent resolves to 300x100px; verifies percentage length resolution against the containing block.
-- **viewport-units** — 50.00%
-  - FAIL 40.01% viewport-units=vmin-vmax — `units-viewport-vmin-vmax` — Aspirational: 40vmin/10vmin and 30vmax/8vmax boxes against the page viewport; ironpress resolves only vw/vh, so vmin/vmax are unsupported (css-values-4 §6.1.2.2).
+- **viewport-units** — 75.00%
+  - PARTIAL 0.00% viewport-units=vmin-vmax — `units-viewport-vmin-vmax` — Aspirational: 40vmin/10vmin and 30vmax/8vmax boxes against the page viewport; ironpress resolves only vw/vh, so vmin/vmax are unsupported (css-values-4 §6.1.2.2).
   - PASS 0.30% viewport-units=vw-vh — `units-viewport-vw-vh` — Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial.
 
 ## Untested (UNKNOWN — no reference yet)
