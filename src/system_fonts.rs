@@ -200,6 +200,26 @@ pub(crate) fn needs_faux_bold(
     }
 }
 
+/// True when an `italic` request resolves to a face that is NOT genuinely
+/// italic — so the renderer must synthesise (faux) italic with an algorithmic
+/// shear (CSS Fonts 4 §2.4 `font-synthesis: style`). Mirrors `needs_faux_bold`:
+/// a font query often substitutes the upright face for a missing italic, so we
+/// check the resolved face's real style, not key presence.
+pub(crate) fn needs_faux_italic(
+    fonts: &HashMap<String, TtfFont>,
+    family: &str,
+    bold: bool,
+    italic: bool,
+) -> bool {
+    if !italic {
+        return false;
+    }
+    match find_font(fonts, family, bold, true) {
+        Some((_, font)) => !font.is_italic,
+        None => false,
+    }
+}
+
 pub(crate) fn resolve_font_family(
     stack: &FontStack,
     fonts: &HashMap<String, TtfFont>,
@@ -813,6 +833,7 @@ mod tests {
             num_h_metrics: 1,
             flags: 0,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![]),

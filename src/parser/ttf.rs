@@ -73,6 +73,11 @@ pub struct TtfFont {
     /// face from a regular face that a font query merely *substituted* for a
     /// missing bold, so it can synthesise (faux) bold only when truly needed.
     pub is_bold: bool,
+    /// Whether this face is itself italic/oblique (OS/2 `fsSelection` ITALIC bit
+    /// or `head.macStyle` italic bit). Lets the renderer synthesise (faux) italic
+    /// — an algorithmic shear — only when an italic request resolves to a face
+    /// that is not genuinely italic (CSS Fonts 4 §2.4 `font-synthesis: style`).
+    pub is_italic: bool,
     /// The font's x-height in font units (css-values-4 §6.1.1 `ex`). Sourced
     /// from `OS/2.sxHeight` (version >= 2) when present and positive, otherwise
     /// measured from the `'x'` glyph's bounding-box top — matching how Chrome
@@ -339,6 +344,15 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
     let mac_style_bold = data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x1) != 0;
     let is_bold = os2_bold || mac_style_bold;
 
+    // Detect a genuine italic/oblique face: OS/2 fsSelection (offset +62) ITALIC
+    // bit, or the head.macStyle italic bit (bit 1 of the u16 at head +44).
+    let os2_italic = tables.get(b"OS/2").is_some_and(|os2| {
+        let off = os2.offset as usize;
+        data.len() >= off + 64 && (read_u16(&data, off + 62) & 0x1) != 0
+    });
+    let mac_style_italic = data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x2) != 0;
+    let is_italic = os2_italic || mac_style_italic;
+
     // x-height for the CSS `ex` unit. Prefer OS/2.sxHeight (version >= 2,
     // offset +86 as a signed FWORD); when absent or non-positive, measure the
     // 'x' glyph's bounding-box top — this mirrors Chrome's `ex` resolution for
@@ -380,6 +394,7 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         num_h_metrics,
         flags,
         is_bold,
+        is_italic,
         x_height,
         zero_advance,
         data: std::sync::Arc::new(data),
@@ -968,6 +983,7 @@ mod tests {
             num_h_metrics: 2,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
@@ -989,6 +1005,7 @@ mod tests {
             num_h_metrics: 0,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
@@ -1714,6 +1731,7 @@ mod tests {
             num_h_metrics: 1,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
@@ -1740,6 +1758,7 @@ mod tests {
             num_h_metrics: 1,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![]),
@@ -1760,6 +1779,7 @@ mod tests {
             num_h_metrics: 0,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height,
             zero_advance,
             data: std::sync::Arc::new(vec![]),

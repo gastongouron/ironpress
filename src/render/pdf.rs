@@ -4436,12 +4436,19 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     border.top.alpha,
                                 );
                                 content.push_str(&format!("{r} {g} {b} RG\n{bw} w\n"));
+                                // The stroke pen is centered on the path, so inset the
+                                // path by half the border width (and shrink the radius
+                                // likewise) to keep the whole stroke INSIDE the
+                                // border-box — otherwise the outer half paints beyond
+                                // the box (and is clipped to a half-width border where
+                                // the box meets the page edge). Mirrors the non-rounded
+                                // uniform arm below.
                                 content.push_str(&rounded_rect_path(
-                                    container_x,
-                                    container_y_top - total_h,
-                                    container_w,
-                                    total_h,
-                                    *c_border_radius,
+                                    container_x + bw / 2.0,
+                                    (container_y_top - total_h) + bw / 2.0,
+                                    (container_w - bw).max(0.0),
+                                    (total_h - bw).max(0.0),
+                                    (*c_border_radius - bw / 2.0).max(0.0),
                                 ));
                                 content.push_str("S\n");
                                 end_border_alpha(&mut content, a);
@@ -5226,6 +5233,10 @@ struct ShapedTextRender<'a> {
     /// PDF `Tw` operator (it only applies to single-byte code 32), so this
     /// must be baked into the TJ array as a negative adjustment instead.
     word_spacing: f32,
+    /// Synthetic-italic shear (the text-matrix `c` term): a face with no genuine
+    /// italic gets an algorithmic oblique slant (CSS Fonts 4 `font-synthesis:
+    /// style`). 0 = upright. Matches Skia/Chrome's synthetic skew (0.25).
+    shear: f32,
 }
 
 impl<'a> ShapedTextRender<'a> {
@@ -5243,11 +5254,17 @@ impl<'a> ShapedTextRender<'a> {
             shaped,
             prepared_font,
             word_spacing: 0.0,
+            shear: 0.0,
         }
     }
 
     const fn with_word_spacing(mut self, word_spacing: f32) -> Self {
         self.word_spacing = word_spacing;
+        self
+    }
+
+    const fn with_shear(mut self, shear: f32) -> Self {
+        self.shear = shear;
         self
     }
 
@@ -5303,7 +5320,8 @@ fn append_positioned_shaped_text(content: &mut String, render: ShapedTextRender<
         let draw_y = render.origin.y + glyph.y_offset;
         let encoded = encode_pdf_hex_glyph(render.pdf_glyph_id(glyph.glyph_id));
         content.push_str(&format!(
-            "1 0 0 1 {} {} Tm\n",
+            "1 0 {} 1 {} {} Tm\n",
+            format_pdf_number(render.shear),
             format_pdf_number(draw_x),
             format_pdf_number(draw_y),
         ));
@@ -5319,7 +5337,8 @@ fn append_positioned_shaped_text(content: &mut String, render: ShapedTextRender<
 
 fn append_tj_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
     content.push_str(&format!(
-        "1 0 0 1 {} {} Tm\n",
+        "1 0 {} 1 {} {} Tm\n",
+        format_pdf_number(render.shear),
         format_pdf_number(render.origin.x),
         format_pdf_number(render.origin.y),
     ));
@@ -8820,6 +8839,21 @@ fn render_run_text(
         content.push_str("2 Tr\n");
     }
 
+    // Synthetic (faux) italic when an italic request resolved to an upright face
+    // (CSS Fonts 4 §2.4 `font-synthesis: style`): apply an algorithmic oblique
+    // shear in the text matrix, matching Skia/Chrome's synthetic skew of 0.25
+    // (= tan ~14deg). The shear pivots on the baseline (no x-shift at y=0) and
+    // does not change advances, so positioning is unaffected.
+    const FAUX_ITALIC_SHEAR: f32 = 0.25;
+    let faux_italic = matches!(run.font_family, FontFamily::Custom(_))
+        && crate::system_fonts::needs_faux_italic(
+            custom_fonts,
+            run.font_family.name(),
+            run.bold,
+            run.italic,
+        );
+    let shear = if faux_italic { FAUX_ITALIC_SHEAR } else { 0.0 };
+
     if let (Some((resolved_name, font)), Some(shaped)) = (custom_font, shaped.as_ref()) {
         let prepared_font = prepared_custom_fonts.get(resolved_name);
         let render = ShapedTextRender::new(
@@ -8829,7 +8863,8 @@ fn render_run_text(
             shaped,
             prepared_font,
         )
-        .with_word_spacing(word_spacing);
+        .with_word_spacing(word_spacing)
+        .with_shear(shear);
         if render.has_complex_offsets() {
             append_positioned_shaped_text(content, render);
         } else {
@@ -11612,8 +11647,22 @@ impl PdfWriter {
         if w <= 0.0 || h <= 0.0 {
             return None;
         }
-        // Rasterise at ~1 sample per CSS pixel (points / 0.75), capped so a very
-        // large box can't blow up the PDF. Coverage is one DeviceGray byte/pixel.
+        // VECTOR path for SVG masks (resolution-independent, like Chrome, which
+        // emits the mask as transparency-group bezier paths — NOT a fixed-DPI
+        // bitmap). Render the SVG as PDF vector ops into the luminosity group.
+        // Falls through to the raster path below for gradient masks, or any SVG
+        // that can't be vectorised self-contained (needs shading/image/font
+        // resources, or fails to parse).
+        if let crate::style::computed::MaskSource::Svg(bytes) = source {
+            if let Some(gs) = self.try_svg_vector_soft_mask(bytes, x, top_y, w, h) {
+                return Some(gs);
+            }
+        }
+        // Raster fallback for gradient masks (SVG masks take the vector path
+        // above). Sample at ~1 per CSS pixel: gradient coverage is smooth so it
+        // upscales without a hard edge, and the gradient's CSS-px geometry (center
+        // /radius) is computed in this same space, so the grid must stay 1:1 with
+        // CSS px. Capped so a very large box can't blow up the PDF.
         let px_w = ((w / 0.75).round() as u32).clamp(1, 1024);
         let px_h = ((h / 0.75).round() as u32).clamp(1, 1024);
         let coverage = match source {
@@ -11647,6 +11696,68 @@ impl PdfWriter {
         ));
         self.binary_objects.insert(form_id, group_bytes);
 
+        let gs_name = format!("GSmask{form_id}");
+        self.soft_mask_gstates.push((gs_name.clone(), form_id));
+        Some(gs_name)
+    }
+
+    /// Try to build a CSS `mask-image: url(svg)` soft mask as resolution-
+    /// independent VECTOR paths (matching Chrome), rendering the SVG into the
+    /// luminosity transparency group instead of a fixed-DPI coverage bitmap.
+    /// Returns `None` (so the caller falls back to raster) when the SVG can't be
+    /// parsed, has zero size, renders nothing, or needs gradient/image/font
+    /// resources the self-contained mask form can't carry.
+    fn try_svg_vector_soft_mask(
+        &mut self,
+        svg_bytes: &[u8],
+        x: f32,
+        top_y: f32,
+        w: f32,
+        h: f32,
+    ) -> Option<String> {
+        let svg_text = std::str::from_utf8(svg_bytes).ok()?;
+        let tree = crate::parser::svg::parse_svg_from_string(svg_text)?;
+        // The SVG user-coordinate extent (viewBox if present, else width/height).
+        let (sw, sh) = tree
+            .view_box
+            .map(|vb| (vb.width, vb.height))
+            .unwrap_or((tree.width, tree.height));
+        if !(sw > 0.0 && sh > 0.0) {
+            return None;
+        }
+        let mut svg_content = String::new();
+        let mut shadings = Vec::new();
+        let mut shading_counter = 0usize;
+        crate::render::svg_to_pdf::render_svg_tree_with_shadings(
+            &tree,
+            &mut svg_content,
+            &mut shadings,
+            &mut shading_counter,
+        );
+        // The mask form is self-contained (empty /Resources): bail to raster if
+        // the SVG produced gradient shadings (would need /Shading resources) or
+        // drew nothing.
+        if !shadings.is_empty() || svg_content.trim().is_empty() {
+            return None;
+        }
+        let bottom_y = top_y - h;
+        let x1 = x + w;
+        // Map the SVG user space (y-down, 0..sw × 0..sh) onto the box (PDF y-up):
+        // scale to the box and flip Y so SVG (0,0) lands at the box top-left.
+        let group = format!(
+            "q\n{a} 0 0 {d} {e} {f} cm\n{svg_content}Q\n",
+            a = format_pdf_number(w / sw),
+            d = format_pdf_number(-h / sh),
+            e = format_pdf_number(x),
+            f = format_pdf_number(top_y),
+        );
+        let group_bytes = group.into_bytes();
+        let form_id = self.next_id();
+        self.objects.push(format!(
+            "{form_id} 0 obj\n<< /Type /XObject /Subtype /Form /FormType 1 /BBox [{x} {bottom_y} {x1} {top_y}] /Group << /Type /Group /S /Transparency /CS /DeviceRGB >> /Resources << >> /Length {len} >>\nstream\n",
+            len = group_bytes.len(),
+        ));
+        self.binary_objects.insert(form_id, group_bytes);
         let gs_name = format!("GSmask{form_id}");
         self.soft_mask_gstates.push((gs_name.clone(), form_id));
         Some(gs_name)
@@ -15908,6 +16019,7 @@ mod tests {
             num_h_metrics: 96,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
@@ -15973,6 +16085,7 @@ mod tests {
             num_h_metrics: 96,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(vec![0u8; 64]),
@@ -16021,6 +16134,7 @@ mod tests {
             num_h_metrics: 3,
             flags: 32,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(Vec::new()),

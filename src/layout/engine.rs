@@ -2524,12 +2524,29 @@ pub(crate) fn flatten_element(
                     let child_ctx = layout_ctx
                         .with_parent(inner_width, Some(available_height), style.font_size)
                         .with_containing_block(None);
+                    // A nested list is a block child of THIS <li>, so its left
+                    // indentation is measured from the li's *content edge*, which
+                    // includes the li's own `padding-left` (css-lists-3 §6: the
+                    // sublist is a normal block inside the li's content box). The
+                    // inherited `list_ctx` carries only the parent list's indent
+                    // (the li's content edge sans its padding); add the li's
+                    // padding-left so the sublist — and its markers — start at the
+                    // li's content edge, not its border edge.
+                    let nested_list_ctx = list_ctx.map(|c| match *c {
+                        ListContext::Unordered { indent } => ListContext::Unordered {
+                            indent: indent + style.padding.left,
+                        },
+                        ListContext::Ordered { index, indent } => ListContext::Ordered {
+                            index,
+                            indent: indent + style.padding.left,
+                        },
+                    });
                     flatten_element(
                         child_el,
                         &style,
                         &child_ctx,
                         output,
-                        list_ctx,
+                        nested_list_ctx.as_ref(),
                         &child_ancestors,
                         positioned_depth,
                         child_el_idx,
@@ -11402,6 +11419,7 @@ mod _removed {
             num_h_metrics: 1,
             flags: 0,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: vec![],

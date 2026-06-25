@@ -257,7 +257,10 @@ fn grid_item_outer_height(
     .collect(&child_el.children, cs, None, (0.0, 0.0), ancestors);
     let line_h = cs.font_size * resolved_line_height_factor(cs, env.fonts);
     let text_h = if runs.is_empty() { 0.0 } else { line_h };
-    text_h + cs.padding.top + cs.padding.bottom
+    // Border-box auto height includes the border: an empty bordered item still
+    // reserves its border thickness. Without it, the implicit auto track sizes to
+    // 0 and a later border stroke emits a negative-height rect.
+    text_h + cs.padding.top + cs.padding.bottom + cs.border.top.width + cs.border.bottom.width
 }
 
 /// Lay out a grid item's block-level children into nested layout elements,

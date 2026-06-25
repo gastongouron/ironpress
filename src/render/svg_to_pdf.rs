@@ -94,7 +94,10 @@ pub fn render_svg_tree(tree: &SvgTree, out: &mut String) {
     render_svg_tree_with_resources(tree, out, &mut resources);
 }
 
-#[cfg(test)]
+/// Render an SVG tree to PDF vector operators, collecting any gradient shadings
+/// it emits. Used by the CSS `mask-image: url(svg)` soft-mask to draw the mask
+/// as resolution-independent vector paths (like Chrome) instead of a rasterized
+/// coverage bitmap. The caller sets up the position/flip transform.
 pub(crate) fn render_svg_tree_with_shadings(
     tree: &SvgTree,
     out: &mut String,

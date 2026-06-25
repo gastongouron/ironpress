@@ -311,6 +311,7 @@ mod tests {
             num_h_metrics: 0,
             flags: 0,
             is_bold: false,
+            is_italic: false,
             x_height: 0,
             zero_advance: 0,
             data: std::sync::Arc::new(Vec::new()),

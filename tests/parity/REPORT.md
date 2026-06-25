@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 96.66%  (PASS 575 · PARTIAL 35 · FAIL 3 · UNKNOWN 0 · total 613)
+Overall: 97.23%  (PASS 581 · PARTIAL 30 · FAIL 2 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -22,7 +22,7 @@ None.
 ## Suspect: unsupported-but-PASS (re-check tag or feature)
 > Fixtures tagged `expected_support == "unsupported"` that nonetheless PASSed. Either the feature IS implemented (fix the tag) or the fixture/ref is not exercising it. Surfaced, not gated.
 
-**50 suspect(s):** `background-blend-mode-multiply`, `background-clip-padding-box`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-url-svg`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-size-ex`, `fonts-advanced-font-stretch-condensed`, `fonts-advanced-font-variant-small-caps`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `list-style-image-data-uri`, `mix-blend-mode-screen`, `multiple-backgrounds-layered`, `overflow-clip`, `overflow-x-y-separate`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-orphans-widows`, `paged-page-break-inside-avoid-table`, `paged-page-counter-content`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-tab-size`, `text-advanced-text-overflow-string`, `text-advanced-unicode-bidi-override`, `text-advanced-word-break-break-all`, `text-advanced-writing-mode-vertical-rl`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-viewport-vmin-vmax`
+**52 suspect(s):** `background-blend-mode-multiply`, `background-clip-padding-box`, `clip-path-circle`, `clip-path-ellipse`, `clip-path-inset`, `clip-path-inset-round`, `clip-path-polygon`, `counters-nested`, `filter-brightness`, `filter-contrast`, `filter-grayscale`, `filter-hue-rotate`, `filter-invert`, `filter-opacity-fn`, `filter-saturate`, `filter-url-svg`, `fonts-advanced-font-feature-settings-ligatures`, `fonts-advanced-font-size-ch`, `fonts-advanced-font-size-ex`, `fonts-advanced-font-stretch-condensed`, `fonts-advanced-font-variant-small-caps`, `img-aspect-ratio-box`, `img-object-fit-contain`, `img-object-fit-cover`, `img-object-fit-fill`, `img-object-fit-none`, `img-object-position`, `list-style-image-data-uri`, `mask-image-url-svg`, `mix-blend-mode-screen`, `multiple-backgrounds-layered`, `overflow-clip`, `overflow-x-y-separate`, `paged-break-before-page-modern`, `paged-break-inside-avoid`, `paged-orphans-widows`, `paged-page-break-inside-avoid-table`, `paged-page-counter-content`, `selectors-cascade-supports-rule`, `text-advanced-direction-rtl`, `text-advanced-tab-size`, `text-advanced-text-overflow-string`, `text-advanced-unicode-bidi-override`, `text-advanced-word-break-break-all`, `text-advanced-writing-mode-vertical-rl`, `text-shadow-blur`, `text-shadow-offset`, `transforms-compound-rotate-translate`, `transforms-matrix`, `transforms-origin-top-left`, `transforms-skew`, `units-viewport-vmin-vmax`
 
 ## Stale references (regenerate)
 > A fixture whose HTML SHA-256 differs from `refs.lock` (or is absent from it): the committed reference PNG was generated from an older fixture and is STALE. Run `scripts/parity-gen-refs.sh` to regenerate refs + the lock. (Surfaced here; CI enforces the gate.)
@@ -41,27 +41,26 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 10 | counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle, inline-text-vertical-align-super …(+4) |
-| 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 8 | generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle, inline-text-vertical-align-super, svg-inline-text …(+2) |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 88.71% | 24 | 7 | 0 | 0 |
+| backgrounds-borders | 90.32% | 25 | 6 | 0 | 0 |
 | backgrounds-gradients | 100.00% | 26 | 0 | 0 | 0 |
 | block-box-model | 98.84% | 42 | 1 | 0 | 0 |
-| clip-mask | 78.57% | 9 | 4 | 1 | 0 |
+| clip-mask | 85.71% | 10 | 4 | 0 | 0 |
 | color-opacity | 96.88% | 31 | 0 | 1 | 0 |
 | effects | 94.12% | 15 | 2 | 0 | 0 |
 | filters | 85.71% | 10 | 4 | 0 | 0 |
 | flexbox | 100.00% | 47 | 0 | 0 | 0 |
 | fonts-advanced | 100.00% | 12 | 0 | 0 | 0 |
 | generated-content | 97.83% | 22 | 1 | 0 | 0 |
-| grid | 97.92% | 23 | 1 | 0 | 0 |
+| grid | 100.00% | 24 | 0 | 0 | 0 |
 | images-replaced | 96.00% | 23 | 2 | 0 | 0 |
 | inline-text | 94.87% | 35 | 4 | 0 | 0 |
-| interactions | 93.18% | 20 | 1 | 1 | 0 |
-| lists-counters | 97.37% | 18 | 1 | 0 | 0 |
+| interactions | 95.45% | 21 | 0 | 1 | 0 |
+| lists-counters | 100.00% | 19 | 0 | 0 | 0 |
 | multicol | 100.00% | 19 | 0 | 0 | 0 |
 | overflow-clipping | 95.45% | 10 | 1 | 0 | 0 |
 | paged-media | 88.89% | 7 | 2 | 0 | 0 |
@@ -71,7 +70,7 @@ None — every fixture's HTML matches `refs.lock`.
 | tables | 98.15% | 26 | 1 | 0 | 0 |
 | text-advanced | 97.50% | 19 | 1 | 0 | 0 |
 | transforms | 100.00% | 30 | 0 | 0 | 0 |
-| typography | 96.88% | 15 | 1 | 0 | 0 |
+| typography | 100.00% | 16 | 0 | 0 | 0 |
 | units-values | 100.00% | 25 | 0 | 0 | 0 |
 
 ## Known gaps (expected_support != implemented)
@@ -91,7 +90,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.53 | clip-mask | clip-path: inset() | clip-path-inset | clip-path: inset() clips a solid box down to an inner rectangle. CSS clip-path on boxes is unsupported (only inside SVG defs). |
 | unsupported | PASS | 0.49 | clip-mask | clip-path: inset() | clip-path-inset-round | clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported. |
 | unsupported | PASS | 0.48 | clip-mask | clip-path: polygon() | clip-path-polygon | clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported. |
-| unsupported | FAIL | 1.72 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
+| unsupported | PASS | 0.25 | clip-mask | mask-image: url() | mask-image-url-svg | mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported. |
 | unsupported | FAIL | 7.77 | color-opacity | visibility | visibility-collapse-row | visibility:collapse on a table row removes the row and collapses its height (aspirational; collapse on rows likely unsupported). |
 | unsupported | PASS | 0.09 | effects | background-blend-mode | background-blend-mode-multiply | A linear-gradient background blended against a solid background-color via background-blend-mode multiply (aspirational; not implemented). |
 | partial | PASS | 0.00 | effects | box-shadow | box-shadow-blur | Offset box-shadow with a soft blur radius on a non-white stage. |
@@ -134,7 +133,7 @@ None — every fixture's HTML matches `refs.lock`.
 | unsupported | PASS | 0.07 | images-replaced | object-position | img-object-position | object-position:bottom anchors a contained 2:1 image to the bottom edge of a 160x160 box. |
 | partial | PASS | 1.69 | inline-text | text-decoration-color | inline-text-text-decoration-color | text-decoration-color sets a line colour distinct from the text colour (css-text-decor-3 §2.2). Aspirational: not yet supported. |
 | partial | PASS | 1.19 | lists-counters | counters | counter-content-roman | content:counter(x, upper-roman) rendering counter values in an explicit counter style. |
-| unsupported | PARTIAL | 2.68 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
+| unsupported | PASS | 0.48 | lists-counters | counters | counters-nested | Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3. |
 | unsupported | PASS | 3.94 | lists-counters | list-style-image | list-style-image-data-uri | Unordered list using a data-URI PNG as the marker image (list-style-image:url()). |
 | partial | PASS | 5.27 | multicol | column-count | multicol-column-count-text | Four short ParitySans paragraphs balanced across a two-column container (column-count: 2); tests text fragmentation and column balancing. |
 | partial | PASS | 0.36 | multicol | column-count | multicol-column-count-three | Six fixed-height bordered blocks flowed into a three-column container (column-count: 3); tests column fragmentation into equal-width tracks. |
@@ -178,7 +177,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.86 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 88.71%
+### backgrounds-borders — 90.32%
 - **background-color** — 100.00%
   - PASS 0.53% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
@@ -189,7 +188,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **border-color** — 75.00%
   - PASS 0.00% border-color=currentcolor — `border-color-currentcolor` — border-color currentColor resolves to the element color.
   - PARTIAL 0.52% border-color=transparent-side — `border-color-transparent` — border-color transparent on one side, solid on the rest.
-- **border-radius** — 95.45%
+- **border-radius** — 100.00%
   - PASS 0.27% border-radius=50pct-circle — `border-radius-circle` — Square box turned into a filled circle via border-radius 50%.
   - PASS 0.26% border-radius=overlap-clamping — `border-radius-clamped` — border-radius larger than half the box is clamped/normalized to fit.
   - PASS 0.22% border-radius=corner-longhands — `border-radius-corner-longhands` — Per-corner border-radius longhands (top-left + bottom-right rounded, others square).
@@ -199,7 +198,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.03% border-radius=per-corner — `border-radius-per-corner` — Filled box with two rounded corners and two square corners.
   - PASS 0.06% border-radius=percentage — `border-radius-percentage` — border-radius given as a non-50% percentage of the box.
   - PASS 0.20% border-radius=two-value-shorthand — `border-radius-two-values` — border-radius two-value shorthand (TL/BR vs TR/BL diagonal radii).
-  - PARTIAL 7.52% border-radius=uniform — `border-radius-uniform` — Filled box with a uniform 24px border-radius and a solid border.
+  - PASS 0.94% border-radius=uniform — `border-radius-uniform` — Filled box with a uniform 24px border-radius and a solid border.
   - PASS 0.03% border-radius=x-linear-gradient — `border-radius-x-linear-gradient` — Combo: border-radius rounding must clip a linear-gradient background fill (same-category combination).
 - **border-style** — 75.00%
   - PARTIAL 0.54% border-style=dashed — `border-style-dashed` — Box with a 6px dashed border.
@@ -318,7 +317,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **width-height** — 100.00%
   - PASS 0.76% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
-### clip-mask — 78.57%
+### clip-mask — 85.71%
 - **-webkit-mask-image** — 100.00%
   - PASS 0.00% -webkit-mask-image=prefixed-alias — `mask-webkit-alias` — -webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.
 - **clip-path: circle()** — 100.00%
@@ -341,8 +340,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% mask-image: radial-gradient()=alpha-disc — `mask-image-radial-gradient` — mask-image: radial-gradient() leaves a solid disc fading to transparent at the edges. CSS mask is unsupported.
 - **mask-image: repeating-linear-gradient()** — 50.00%
   - PARTIAL 2.66% mask-image: repeating-linear-gradient()=striped-alpha — `mask-image-repeating-linear` — mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.
-- **mask-image: url()** — 0.00%
-  - FAIL 1.72% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
+- **mask-image: url()** — 100.00%
+  - PASS 0.25% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
 - **mask-mode: luminance** — 50.00%
   - PARTIAL 0.11% mask-mode: luminance=gradient-source — `mask-mode-luminance` — mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.
 
@@ -558,7 +557,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 3.19% quotes=no-open-no-close-quote — `generated-content-no-quote-keywords` — no-open-quote emits no glyph while close-quote still renders the declared closing quote.
   - PASS 2.93% quotes=open-close-quote — `generated-content-open-close-quote` — content: open-quote / close-quote on ::before and ::after wraps text in quotation marks from the quotes property.
 
-### grid — 97.92%
+### grid — 100.00%
 - **align-items** — 100.00%
   - PASS 0.08% align-items=start — `grid-align-items-start` — align-items: start aligns short cells to the block (top) start of each track.
 - **display** — 100.00%
@@ -583,8 +582,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.20% grid-template-areas=span-rows — `grid-area-span-rows` — grid-template-areas with a 'nav' area spanning two rows beside stacked main/foot regions.
   - PASS 0.00% grid-template-areas=basic — `grid-template-areas-basic` — grid-template-areas names a header spanning both columns over a side/main row; grid-area: <name> places each item into its region.
   - PASS 0.00% grid-template-areas=dot-empty — `grid-template-areas-dot` — grid-template-areas with dot (.) null cells: area 'a' spans the first two cells of row 1, area 'b' the last two of row 2, leaving diagonal empty cells.
-- **grid-template-columns** — 91.67%
-  - PARTIAL 0.90% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
+- **grid-template-columns** — 100.00%
+  - PASS 0.39% grid-template-columns=named-lines — `grid-named-lines-basic` — Named column lines [start] [mid] [end] referenced by grid-column to place overlapping cells.
   - PASS 0.15% grid-template-columns=auto — `grid-template-columns-auto` — Three columns sized 100px auto 100px so the auto track absorbs the leftover width.
   - PASS 0.25% grid-template-columns=fr-mix — `grid-template-columns-fr-mix` — Three columns sized 1fr 2fr 1fr so the middle track is twice the width of the side tracks.
   - PASS 0.18% grid-template-columns=minmax — `grid-template-columns-minmax` — Two flexible columns using minmax(80px,1fr) and minmax(120px,1fr) distributing remaining space.
@@ -684,7 +683,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **wrapping** — 100.00%
   - PASS 4.55% wrapping=normal — `inline-text-wrapping-normal` — Default soft wrapping of inline text across multiple lines inside a narrow fixed-width box.
 
-### interactions — 93.18%
+### interactions — 95.45%
 - **containing-block** — 100.00%
   - PASS 0.10% containing-block=padding-box — `interactions-positioning-absolute-x-box-model-padding` — Interaction: absolute child resolves top/left against the padding box of a padded positioned ancestor.
   - PASS 0.20% containing-block=absolute-in-flex — `interactions-positioning-absolute-x-flexbox-container` — Interaction: an absolutely positioned child of a flex container is out of flow and positions against the flex container's padding box while in-flow flex items are spaced by justify-content.
@@ -704,8 +703,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.81% inline-block-x-vertical-align=baseline-vs-middle-beside-text — `inline-block-x-vertical-align` — Two inline-block boxes on a text line, one aligned to the baseline and one to the middle of the line box, sitting next to short text.
 - **overflow** — 100.00%
   - PASS 0.78% overflow=hidden-with-border-radius — `interactions-positioning-overflow-hidden-x-border-radius` — Interaction: overflow:hidden combined with border-radius clips the overflowing child to the rounded corners.
-- **overflow-hidden-x-border-radius** — 50.00%
-  - PARTIAL 4.28% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
+- **overflow-hidden-x-border-radius** — 100.00%
+  - PASS 0.38% overflow-hidden-x-border-radius=rounded-clip-of-child — `box-model-overflow-hidden-x-border-radius` — A rounded container with overflow:hidden clips a square filled child to its rounded corners, cutting away the child's corners.
 - **percentage-height-x-nested-block** — 100.00%
   - PASS 0.50% percentage-height-x-nested-block=height-chain-resolution — `block-percentage-height-x-nested-containers` — A definite outer height propagates so a chain of percentage-height nested blocks each resolve against their parent (240 -> 120 -> 60).
 - **position** — 100.00%
@@ -727,11 +726,11 @@ None — every fixture's HTML matches `refs.lock`.
 - **z-index-x-transforms** — 100.00%
   - PASS 0.36% z-index-x-transforms=stacking-with-transformed-box — `positioning-zindex-x-transforms-rotate` — Three overlapping positioned boxes where a rotated, transformed high-z box must paint on top of the lower-z plain positioned boxes.
 
-### lists-counters — 97.37%
-- **counters** — 83.33%
+### lists-counters — 100.00%
+- **counters** — 100.00%
   - PASS 1.19% counters=counter-style-argument — `counter-content-roman` — content:counter(x, upper-roman) rendering counter values in an explicit counter style.
   - PASS 2.37% counters=reset-increment-content — `counter-reset-increment` — counter-reset and counter-increment feeding content:counter() in ::before across three rows.
-  - PARTIAL 2.68% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
+  - PASS 0.48% counters=counters-function-nested — `counters-nested` — Nested ordered lists numbered with content:counters(x, '.') producing 1, 2, 2.1, 2.2, 3.
 - **list-style** — 100.00%
   - PASS 3.59% list-style=shorthand-type-position — `list-style-shorthand` — list-style shorthand setting lower-alpha type and inside position in one declaration.
 - **list-style-image** — 100.00%
@@ -1022,7 +1021,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.42% transform-origin=scale-pivot — `transforms-origin-scale-corner` — transform-origin affects the scale pivot: with top-left origin the box grows down/right while its top-left corner stays anchored.
   - PASS 0.21% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
 
-### typography — 96.88%
+### typography — 100.00%
 - **font-family** — 100.00%
   - PASS 2.99% font-family=monospace — `typography-font-family-monospace` — Generic monospace family fallback at 28px with fixed-advance glyphs.
   - PASS 3.19% font-family=sans-serif — `typography-font-family-sans-serif` — Generic sans-serif family fallback at 28px.
@@ -1033,8 +1032,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.21% font-size=pt — `typography-font-size-pt` — Text rendered at an explicit 24pt font-size to verify pt-to-px conversion.
   - PASS 0.23% font-size=px — `typography-font-size-px` — Text rendered at an explicit 32px font-size in a bordered, filled region.
   - PASS 0.23% font-size=rem — `typography-font-size-rem` — font-size 2rem resolved against the root 16px font-size, not the local 10px.
-- **font-style** — 50.00%
-  - PARTIAL 7.56% font-style=italic — `typography-font-style-italic` — Italic serif text to verify slanted glyph selection and metrics.
+- **font-style** — 100.00%
+  - PASS 4.01% font-style=italic — `typography-font-style-italic` — Italic serif text to verify slanted glyph selection and metrics.
 - **font-weight** — 100.00%
   - PASS 3.99% font-weight=bold — `typography-font-weight-bold` — Bold-weight text so heavier glyph strokes show up as pixel differences.
   - PASS 3.75% font-weight=normal — `typography-font-weight-normal` — Normal-weight text as the regular-stroke counterpart to the bold fixture.
