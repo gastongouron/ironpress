@@ -3752,6 +3752,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     shading_counter: &mut shading_counter,
                                                     ext_gstates: Some(&mut page_ext_gstates),
                                                     image_sink: Some(&mut image_sink),
+                                                    custom_fonts: Some(custom_fonts),
+                                                    prepared_custom_fonts: Some(
+                                                        &prepared_custom_fonts,
+                                                    ),
                                                 };
                                             crate::render::svg_to_pdf::render_svg_tree_with_resources(
                                                 tree,
@@ -4886,6 +4890,8 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                 shading_counter: &mut shading_counter,
                                 ext_gstates: Some(&mut page_ext_gstates),
                                 image_sink: Some(&mut image_sink),
+                                custom_fonts: Some(custom_fonts),
+                                prepared_custom_fonts: Some(&prepared_custom_fonts),
                             };
                             crate::render::svg_to_pdf::render_svg_tree_with_resources(
                                 tree,
@@ -5137,7 +5143,7 @@ fn estimate_run_width_with_fonts(run: &TextRun, custom_fonts: &HashMap<String, T
     estimate_run_width(run)
 }
 
-fn encode_pdf_hex_glyph(glyph_id: u16) -> String {
+pub(crate) fn encode_pdf_hex_glyph(glyph_id: u16) -> String {
     format!("{glyph_id:04X}")
 }
 
@@ -7407,6 +7413,8 @@ fn render_container_children(
                             shading_counter: &mut *shading_counter,
                             ext_gstates: Some(page_ext_gstates),
                             image_sink: None,
+                            custom_fonts: Some(custom_fonts),
+                            prepared_custom_fonts: Some(prepared_custom_fonts),
                         };
                         crate::render::svg_to_pdf::render_svg_tree_with_resources(
                             tree, content, &mut res,
@@ -7419,6 +7427,8 @@ fn render_container_children(
                         shading_counter: &mut *shading_counter,
                         ext_gstates: Some(page_ext_gstates),
                         image_sink: None,
+                        custom_fonts: Some(custom_fonts),
+                        prepared_custom_fonts: Some(prepared_custom_fonts),
                     };
                     crate::render::svg_to_pdf::render_svg_tree_with_resources(
                         tree, content, &mut res,
@@ -9268,7 +9278,7 @@ fn estimate_line_width_with_fonts(line: &TextLine, custom_fonts: &HashMap<String
 }
 
 /// Sanitize a font name for use as a PDF name object (remove spaces, special chars).
-fn sanitize_pdf_name(name: &str) -> String {
+pub(crate) fn sanitize_pdf_name(name: &str) -> String {
     name.chars()
         .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
         .collect()
@@ -10207,6 +10217,11 @@ fn render_svg_background(
                         shading_counter,
                         ext_gstates: ext_gstates.as_deref_mut(),
                         image_sink: Some(&mut image_sink),
+                        // SVG used as a CSS background image: custom-font text in
+                        // background SVGs is out of scope here (no font context is
+                        // threaded this far), so fall back to standard fonts.
+                        custom_fonts: None,
+                        prepared_custom_fonts: None,
                     };
                     crate::render::svg_to_pdf::render_svg_tree_with_resources(
                         tree,

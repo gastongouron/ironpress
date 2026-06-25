@@ -127,7 +127,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PARTIAL | 0.27 | images-replaced | img | svg-as-img | An SVG document referenced as the src of an img via a data: URI, drawn at 160x120. |
 | partial | PASS | 0.10 | images-replaced | inline-svg | svg-inline-clip | Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc. |
 | partial | PASS | 0.13 | images-replaced | inline-svg | svg-inline-linear-gradient | Inline SVG rect filled with a horizontal linearGradient from blue to red. |
-| partial | PARTIAL | 2.91 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
+| partial | PARTIAL | 0.11 | images-replaced | inline-svg | svg-inline-text | Inline SVG text element rendered in ParitySans at 36px over a light fill. |
 | unsupported | PASS | 0.07 | images-replaced | object-fit | img-object-fit-contain | object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom. |
 | unsupported | PASS | 0.13 | images-replaced | object-fit | img-object-fit-cover | object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges. |
 | unsupported | PASS | 0.00 | images-replaced | object-fit | img-object-fit-fill | object-fit:fill stretches a 2:1 image to completely fill a 160x160 box, distorting its aspect. |
@@ -615,7 +615,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.10% inline-svg=clip-path-circle — `svg-inline-clip` — Inline SVG rect clipped to a circle via a clipPath def, leaving a red disc.
   - PASS 0.13% inline-svg=linear-gradient-fill — `svg-inline-linear-gradient` — Inline SVG rect filled with a horizontal linearGradient from blue to red.
   - PASS 0.19% inline-svg=rect-circle-path-viewbox — `svg-inline-shapes` — Inline SVG with a rect, circle and triangle path under a 0 0 100 100 viewBox scaled to 200x200.
-  - PARTIAL 2.91% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
+  - PARTIAL 0.11% inline-svg=text-element — `svg-inline-text` — Inline SVG text element rendered in ParitySans at 36px over a light fill.
 - **object-fit** — 100.00%
   - PASS 0.07% object-fit=contain — `img-object-fit-contain` — object-fit:contain letterboxes a 2:1 image inside a 160x160 box, leaving grey bands top and bottom.
   - PASS 0.13% object-fit=cover — `img-object-fit-cover` — object-fit:cover fills a 160x160 box with a 2:1 image, cropping its left and right edges.

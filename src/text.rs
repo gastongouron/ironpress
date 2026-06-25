@@ -61,6 +61,18 @@ pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) ->
     shape_text_with_font(&run.text, run.font_size, font, run.disable_ligatures)
 }
 
+/// Shape arbitrary text with an explicit `TtfFont` face.
+///
+/// Used by the SVG `<text>` renderer, which resolves its own face (via
+/// `find_font`) rather than going through a layout `TextRun`.
+pub(crate) fn shape_text_with_explicit_font(
+    text: &str,
+    font_size: f32,
+    font: &TtfFont,
+) -> Option<ShapedRun> {
+    shape_text_with_font(text, font_size, font, false)
+}
+
 /// Try to shape `run` with the Unicode fallback font.
 ///
 /// Returns `Some((shaped_run, font_key))` when the run uses a standard PDF font,

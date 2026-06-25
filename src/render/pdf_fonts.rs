@@ -195,6 +195,109 @@ fn collect_font_usage_from_element(
                 collect_font_usage_from_element(child, custom_fonts, usage);
             }
         }
+        LayoutElement::Svg { tree, .. } => {
+            collect_font_usage_from_svg(tree, custom_fonts, usage);
+        }
+        _ => {}
+    }
+}
+
+/// Collect glyph usage for SVG `<text>` rendered with a registered custom font.
+///
+/// The SVG text renderer shapes such text and emits embedded CID glyphs against
+/// the same subsetted font resource the body text uses. Those glyphs must be
+/// registered here so they survive subsetting (otherwise SVG-only glyphs would
+/// be dropped and render as `.notdef`).
+fn collect_font_usage_from_svg(
+    tree: &crate::parser::svg::SvgTree,
+    custom_fonts: &HashMap<String, TtfFont>,
+    usage: &mut BTreeMap<String, FontUsage>,
+) {
+    for node in &tree.children {
+        collect_font_usage_from_svg_node(
+            node,
+            &tree.text_ctx,
+            None,
+            None,
+            None,
+            custom_fonts,
+            usage,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_font_usage_from_svg_node(
+    node: &crate::parser::svg::SvgNode,
+    text_ctx: &crate::parser::svg::SvgTextContext,
+    inherited_family: Option<&str>,
+    inherited_bold: Option<bool>,
+    inherited_italic: Option<bool>,
+    custom_fonts: &HashMap<String, TtfFont>,
+    usage: &mut BTreeMap<String, FontUsage>,
+) {
+    use crate::parser::svg::SvgNode;
+    match node {
+        SvgNode::Group {
+            children, style, ..
+        } => {
+            let family = style.font_family.as_deref().or(inherited_family);
+            let bold = style.font_bold.or(inherited_bold);
+            let italic = style.font_italic.or(inherited_italic);
+            for child in children {
+                collect_font_usage_from_svg_node(
+                    child,
+                    text_ctx,
+                    family,
+                    bold,
+                    italic,
+                    custom_fonts,
+                    usage,
+                );
+            }
+        }
+        SvgNode::Text {
+            font_family,
+            font_bold,
+            font_italic,
+            content,
+            style,
+            ..
+        } => {
+            let family = font_family
+                .as_deref()
+                .or(style.font_family.as_deref())
+                .or(inherited_family)
+                .map(str::to_string)
+                .or_else(|| {
+                    let ctx = text_ctx.font_family.trim();
+                    (!ctx.is_empty()).then(|| ctx.to_string())
+                });
+            let Some(family) = family else {
+                return;
+            };
+            let bold = font_bold
+                .or(style.font_bold)
+                .or(inherited_bold)
+                .unwrap_or(text_ctx.font_bold);
+            let italic = font_italic
+                .or(style.font_italic)
+                .or(inherited_italic)
+                .unwrap_or(text_ctx.font_italic);
+            let Some((resolved_name, font)) =
+                crate::system_fonts::find_font(custom_fonts, &family, bold, italic)
+            else {
+                return;
+            };
+            // Glyph identity is size-independent for our shaping path, so shape
+            // at a nominal size purely to discover the used glyph ids.
+            let font_usage = usage.entry(resolved_name.to_string()).or_default();
+            if let Some(shaped) = crate::text::shape_text_with_explicit_font(content, 16.0, font) {
+                for glyph in shaped.glyphs {
+                    font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                }
+            }
+        }
         _ => {}
     }
 }

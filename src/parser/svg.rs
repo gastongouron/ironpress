@@ -1528,9 +1528,21 @@ fn resolve_svg_font_family(css_family: &str) -> String {
         "Times-Roman".to_string()
     } else if lower.contains("courier") || lower == "monospace" {
         "Courier".to_string()
-    } else {
-        // Default to Helvetica for sans-serif / Arial / Helvetica / anything else
+    } else if lower == "sans-serif"
+        || lower == "arial"
+        || lower == "helvetica"
+        || lower == "helvetica neue"
+        || lower == "system-ui"
+    {
+        // Known sans-serif generics / standard families map to the base-14
+        // Helvetica face.
         "Helvetica".to_string()
+    } else {
+        // Preserve any other (custom) family name verbatim so the renderer can
+        // match it against a registered bundled font via `find_font`. When no
+        // custom font is registered, the standard-font path maps unknown names
+        // to Helvetica anyway (see `crate::fonts::pdf_font_name`).
+        css_family.trim().to_string()
     }
 }
 

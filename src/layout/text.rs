@@ -1659,7 +1659,9 @@ fn collect_text_runs_inner(
                             underline: parent_style.text_decoration_underline,
                             line_through: parent_style.text_decoration_line_through,
                             overline: parent_style.text_decoration_overline,
-                            decoration_color: parent_style.text_decoration_color.map(|c| c.to_f32_rgb()),
+                            decoration_color: parent_style
+                                .text_decoration_color
+                                .map(|c| c.to_f32_rgb()),
                             color: parent_style.color.to_f32_rgb(),
                             link_url: link_url.map(String::from),
                             font_family: resolve_style_font_family(parent_style, fonts),
@@ -1911,7 +1913,9 @@ impl<'a> FlexTextRunCollector<'a> {
                                 underline: parent_style.text_decoration_underline,
                                 line_through: parent_style.text_decoration_line_through,
                                 overline: parent_style.text_decoration_overline,
-                                decoration_color: parent_style.text_decoration_color.map(|c| c.to_f32_rgb()),
+                                decoration_color: parent_style
+                                    .text_decoration_color
+                                    .map(|c| c.to_f32_rgb()),
                                 color: parent_style.color.to_f32_rgb(),
                                 link_url: link_url.map(String::from),
                                 font_family: resolve_style_font_family(parent_style, self.fonts),
