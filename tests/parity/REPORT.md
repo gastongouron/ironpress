@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 96.49%  (PASS 574 · PARTIAL 35 · FAIL 4 · UNKNOWN 0 · total 613)
+Overall: 96.66%  (PASS 575 · PARTIAL 35 · FAIL 3 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -34,7 +34,6 @@ None — every fixture's HTML matches `refs.lock`.
 
 | status | attribution | class | diff% | category | feature | subfeature | id | reason |
 |--------|-------------|-------|------:|----------|---------|-----------|----|--------|
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | Missing | 17.32 | color-opacity | color-format | text-glyph-fill | color-text-glyph | via probe-text-baseline: content clipped/truncated (19.8% missing) |
 | FAIL | REAL | ColorValue | 10.46 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
 
 ## Fix these first
@@ -42,7 +41,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 11 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+5) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 10 | counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle, inline-text-vertical-align-super …(+4) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
@@ -52,7 +51,7 @@ None — every fixture's HTML matches `refs.lock`.
 | backgrounds-gradients | 100.00% | 26 | 0 | 0 | 0 |
 | block-box-model | 98.84% | 42 | 1 | 0 | 0 |
 | clip-mask | 78.57% | 9 | 4 | 1 | 0 |
-| color-opacity | 93.75% | 30 | 0 | 2 | 0 |
+| color-opacity | 96.88% | 31 | 0 | 1 | 0 |
 | effects | 94.12% | 15 | 2 | 0 | 0 |
 | filters | 85.71% | 10 | 4 | 0 | 0 |
 | flexbox | 100.00% | 47 | 0 | 0 | 0 |
@@ -347,8 +346,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **mask-mode: luminance** — 50.00%
   - PARTIAL 0.11% mask-mode: luminance=gradient-source — `mask-mode-luminance` — mask-mode: luminance uses a white->black gradient's luminance as coverage so a solid fill fades from visible (white) to masked (black). CSS mask is unsupported.
 
-### color-opacity — 93.75%
-- **color-format** — 96.15%
+### color-opacity — 96.88%
+- **color-format** — 100.00%
   - PASS 0.53% color-format=alpha-percentage — `color-alpha-percentage` — Percentage alpha rgb(... / 50%) composited over a solid box; css-color-4 §15.
   - PASS 0.00% color-format=hex-3-digit — `color-hex-rgb` — Box filled with a 3-digit shorthand hex color (#0a6).
   - PASS 0.53% color-format=hex-4-digit — `color-hex-rgba` — Semi-transparent 4-digit hex (#f508) composited over a solid box; css-color-4 §5.2.
@@ -370,7 +369,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% color-format=rgb-none — `color-rgb-none` — Modern rgb() with the none keyword (resolves to 0); css-color-4 §4.3.
   - PASS 0.00% color-format=rgb-percentage — `color-rgb-percentage` — Box filled with rgb() percentage components rgb(80% 20% 10%); css-color-4 §11.
   - PASS 0.53% color-format=rgba-alpha — `color-rgba-alpha` — Semi-transparent rgba() box composited (source-over) over a solid background box; css-color-4 §12.
-  - FAIL 17.32% color-format=text-glyph-fill — `color-text-glyph` — The color property fills text glyphs in ParitySans with a solid color.
+  - PASS 0.42% color-format=text-glyph-fill — `color-text-glyph` — The color property fills text glyphs in ParitySans with a solid color.
   - PASS 0.00% color-format=opacity-clamp — `opacity-clamp` — opacity:1.5 clamps to 1.0 (fully opaque); computed opacity is in [0,1].
   - PASS 0.13% color-format=opacity-nested — `opacity-nested-group` — opacity on a group flattens then composites the whole at 0.5 (not per child).
   - PASS 0.00% color-format=opacity-zero — `opacity-zero` — opacity:0 fully transparent but layout space reserved; the next box flows below.

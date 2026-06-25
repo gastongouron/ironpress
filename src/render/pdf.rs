@@ -991,6 +991,47 @@ fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
 }
 
 /// Full render function with optional page decoration (headers/footers).
+/// Chrome's print engine scales a page down when its laid-out content overflows
+/// the `@page` box *horizontally* — a non-spec behavior (CSS Paged Media clips
+/// instead) but one Chromium's `--print-to-pdf` reproduces, so matching it keeps
+/// PDFs identical to Chrome's. Only the inline axis triggers it: vertical
+/// overflow paginates onto a new page rather than scaling. Returns 1.0 when the
+/// content fits within the page width.
+fn page_shrink_to_fit_scale(page: &Page, page_size: PageSize, margin: Margin) -> f32 {
+    let mut max_right = 0.0f32;
+    for (_y_pos, element) in &page.elements {
+        let (off_left, width) = match element {
+            LayoutElement::TextBlock {
+                offset_left,
+                block_width,
+                ..
+            }
+            | LayoutElement::Container {
+                offset_left,
+                block_width,
+                ..
+            } => (*offset_left, block_width.unwrap_or(0.0)),
+            LayoutElement::FlexRow {
+                offset_left,
+                container_width,
+                ..
+            } => (*offset_left, *container_width),
+            LayoutElement::TableRow { offset_left, .. } => {
+                (*offset_left, crate::layout::paginate::table_row_content_width(element))
+            }
+            LayoutElement::Image { width, .. } | LayoutElement::Svg { width, .. } => (0.0, *width),
+            _ => (0.0, 0.0),
+        };
+        max_right = max_right.max(margin.left + off_left + width);
+    }
+    // Only react to a meaningful overflow (avoid sub-pt rounding false-triggers).
+    if max_right > page_size.width + 0.5 {
+        (page_size.width / max_right).clamp(0.1, 1.0)
+    } else {
+        1.0
+    }
+}
+
 pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     pages: &[Page],
     page_size: PageSize,
@@ -5016,6 +5057,17 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                 content.push_str(&format!("({encoded}) Tj\n"));
                 content.push_str("ET\n");
             }
+        }
+
+        // Match Chrome's print shrink-to-fit: if the page's content overflows the
+        // page box, scale the whole content stream down around the top-left corner
+        // so it just fits (PDF y-up: scaling by `s` about the top edge `H` needs
+        // the translate `H(1-s)`).
+        let shrink = page_shrink_to_fit_scale(page, page_size, margin);
+        if shrink < 0.9995 {
+            let s = format_pdf_number(shrink);
+            let ty = format_pdf_number(page_size.height * (1.0 - shrink));
+            content = format!("q {s} 0 0 {s} 0 {ty} cm\n{content}Q\n");
         }
 
         pdf_writer.add_page(
