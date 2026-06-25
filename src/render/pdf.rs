@@ -1849,25 +1849,36 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                         let line_top_y = text_y + metrics.ascender + metrics.half_leading;
                         let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
                         let mut bg_x = text_x;
+                        // Relatively-positioned inline boxes paint in the positioned
+                        // layer — above in-flow siblings on the line, in source order
+                        // (CSS 2.1 §9.9.1 painting order). Defer them so a later
+                        // in-flow inline-block can't paint over an earlier offset one.
+                        let mut deferred_inline: Vec<(&crate::layout::engine::InlineBox, f32, f32)> =
+                            Vec::new();
                         for run in &merged {
                             // Atomic inline box (display: inline-block): paint the
                             // box and its inner content, then advance the cursor.
                             if let Some(inline) = run.inline_box.as_deref() {
-                                render_inline_box(
-                                    &mut content,
-                                    inline,
-                                    bg_x + inline.margin_left,
-                                    text_y,
-                                    line_top_y,
-                                    line_bottom_y,
-                                    run.font_size,
-                                    custom_fonts,
-                                    &prepared_custom_fonts,
-                                    &mut page_ext_gstates,
-                                    &mut bg_alpha_counter,
-                                    &mut pdf_writer,
-                                    &mut page_images,
-                                );
+                                let ibx = bg_x + inline.margin_left;
+                                if inline.rel_offset_x != 0.0 || inline.rel_offset_y != 0.0 {
+                                    deferred_inline.push((inline, ibx, run.font_size));
+                                } else {
+                                    render_inline_box(
+                                        &mut content,
+                                        inline,
+                                        ibx,
+                                        text_y,
+                                        line_top_y,
+                                        line_bottom_y,
+                                        run.font_size,
+                                        custom_fonts,
+                                        &prepared_custom_fonts,
+                                        &mut page_ext_gstates,
+                                        &mut bg_alpha_counter,
+                                        &mut pdf_writer,
+                                        &mut page_images,
+                                    );
+                                }
                                 bg_x += inline.outer_width();
                                 continue;
                             }
@@ -1977,6 +1988,26 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                             }
 
                             bg_x += run_width;
+                        }
+
+                        // Paint deferred relatively-positioned inline boxes on top
+                        // of the in-flow line content, preserving source order.
+                        for (inline, ibx, fs) in deferred_inline {
+                            render_inline_box(
+                                &mut content,
+                                inline,
+                                ibx,
+                                text_y,
+                                line_top_y,
+                                line_bottom_y,
+                                fs,
+                                custom_fonts,
+                                &prepared_custom_fonts,
+                                &mut page_ext_gstates,
+                                &mut bg_alpha_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
+                            );
                         }
 
                         // Phase 2: Render all text in a single BT/ET block
