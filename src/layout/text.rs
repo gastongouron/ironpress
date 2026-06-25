@@ -971,6 +971,36 @@ pub(crate) fn wrap_text_runs(
                     let text_below = desc_ratio * template.font_size + half_leading;
                     box_above.max(text_above) + box_below.max(text_below)
                 }
+                crate::style::computed::VerticalAlign::Middle => {
+                    // Middle centres the box on the parent's mid-x-height
+                    // (baseline + x-height/2), so it reaches `h/2 + x-height/2`
+                    // above the baseline and `h/2 - x-height/2` below — the line
+                    // box must reserve that, combined with the surrounding text's
+                    // own half-leading extents. (Mirrors render `line_box_metrics`.)
+                    let (asc_ratio, desc_ratio) = crate::fonts::font_metrics_ratios(
+                        &template.font_family,
+                        template.bold,
+                        template.italic,
+                        fonts,
+                    );
+                    let lh = run_line_height(&template);
+                    let content = (asc_ratio + desc_ratio) * template.font_size;
+                    let half_leading = ((lh - content) / 2.0).max(0.0);
+                    let text_above = asc_ratio * template.font_size + half_leading;
+                    let text_below = desc_ratio * template.font_size + half_leading;
+                    let xh_ratio =
+                        if let crate::style::computed::FontFamily::Custom(name) = &template.font_family
+                        {
+                            crate::system_fonts::find_font(fonts, name, template.bold, template.italic)
+                                .map_or(0.5, |(_, f)| f.x_height_ratio())
+                        } else {
+                            0.5
+                        };
+                    let xh = xh_ratio * shift_basis_fs;
+                    let box_above = inline.height / 2.0 + xh / 2.0;
+                    let box_below = (inline.height / 2.0 - xh / 2.0).max(0.0);
+                    box_above.max(text_above) + box_below.max(text_below)
+                }
                 _ => inline.height,
             };
             line_height = line_height.max(box_extent);

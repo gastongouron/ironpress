@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 95.43%  (PASS 585 · PARTIAL 0 · FAIL 28 · UNKNOWN 0 · total 613)
+Overall: 95.60%  (PASS 586 · PARTIAL 0 · FAIL 27 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -46,7 +46,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | GeometrySize | 0.11 | clip-mask | mask-mode: luminance | gradient-source | mask-mode-luminance | box +1.3px on right edge (size/box-model mismatch) |
 | FAIL | REAL | ColorValue | 0.15 | effects | box-shadow | colored | box-shadow-color | fill recolour ΔRGB(+0,+0,-8) (ΔE 3.0) |
 | FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | GeometryShift | 6.08 | generated-content | first-letter | drop-cap | generated-content-first-letter-dropcap | via probe-text-baseline: content shifted (0.0,0.5)px beyond page-origin calibration |
-| FAIL | CONFOUNDED: font-metrics (`probe-text-baseline`) | GeometryShift | 2.69 | inline-text | vertical-align | middle | inline-text-vertical-align-middle | via probe-text-baseline: content shifted (0.0,-0.6)px beyond page-origin calibration |
 | FAIL | REAL | ColorValue | 10.46 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | fill recolour ΔRGB(-25,+18,+22) (ΔE 14.1) |
 | FAIL | REAL | GeometryShift | 3.02 | paged-media | page-margin | via-body-margin | paged-body-margin-box | content shifted (-1.3,-1.3)px beyond page-origin calibration |
 | FAIL | REAL | Missing | 3.64 | probes | font-metrics | baseline | probe-text-baseline | content clipped/truncated (3.3% missing) |
@@ -57,7 +56,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | FAIL | 5 | generated-content-first-letter-dropcap, inline-text-vertical-align-middle, svg-inline-text, tables-vertical-align-baseline-sizes, text-advanced-hyphens-auto |
+| 1 | `probe-text-baseline` | font-metrics | FAIL | 4 | generated-content-first-letter-dropcap, svg-inline-text, tables-vertical-align-baseline-sizes, text-advanced-hyphens-auto |
 
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
@@ -74,7 +73,7 @@ None — every fixture's HTML matches `refs.lock`.
 | generated-content | 95.65% | 22 | 0 | 1 | 0 |
 | grid | 100.00% | 24 | 0 | 0 | 0 |
 | images-replaced | 92.00% | 23 | 0 | 2 | 0 |
-| inline-text | 97.44% | 38 | 0 | 1 | 0 |
+| inline-text | 100.00% | 39 | 0 | 0 | 0 |
 | interactions | 95.45% | 21 | 0 | 1 | 0 |
 | lists-counters | 100.00% | 19 | 0 | 0 | 0 |
 | multicol | 100.00% | 19 | 0 | 0 | 0 |
@@ -644,7 +643,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.20% object-position=length-values — `img-object-position-length` — object-position:10px 20px offsets a contained 2:1 image by absolute lengths from the box top-left.
   - PASS 0.07% object-position=percentage-values — `img-object-position-percent` — object-position:25% 75% positions a contained 2:1 image within the free space of a 160x160 box.
 
-### inline-text — 97.44%
+### inline-text — 100.00%
 - **inline-block** — 100.00%
   - PASS 2.79% inline-block=baseline-alignment — `inline-text-inline-block-baseline` — Inline-block with content aligns its last-line baseline to the surrounding text baseline.
   - PASS 2.11% inline-block=baseline-multiline — `inline-text-inline-block-baseline-multiline` — Multi-line inline-block aligns its LAST line's baseline to the surrounding text baseline (CSS2 §10.8.1).
@@ -676,10 +675,10 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 2.47% text-transform=capitalize — `inline-text-text-transform-capitalize` — text-transform:capitalize upper-cases the first letter of each word (css-text-3 §2.1).
   - PASS 2.17% text-transform=lowercase — `inline-text-text-transform-lowercase` — text-transform:lowercase maps each glyph to lower case (css-text-3 §2.1).
   - PASS 2.55% text-transform=uppercase — `inline-text-text-transform-uppercase` — text-transform:uppercase maps each glyph to upper case (css-text-3 §2.1).
-- **vertical-align** — 85.71%
+- **vertical-align** — 100.00%
   - PASS 0.57% vertical-align=baseline — `inline-text-vertical-align-baseline` — Inline-block box vertical-align:baseline sitting on the text baseline between glyphs.
   - PASS 1.07% vertical-align=bottom — `inline-text-vertical-align-bottom` — Inline-block box vertical-align:bottom aligned to the bottom of the line box (CSS2 §10.8.1).
-  - FAIL 2.69% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
+  - PASS 1.35% vertical-align=middle — `inline-text-vertical-align-middle` — Inline-block box vertical-align:middle centered on the line x-height.
   - PASS 0.84% vertical-align=sub — `inline-text-vertical-align-sub` — Inline-block box vertical-align:sub lowered below the text baseline (CSS2 §10.8.1).
   - PASS 0.51% vertical-align=super — `inline-text-vertical-align-super` — Inline-block box vertical-align:super raised above the text baseline (CSS2 §10.8.1).
   - PASS 0.90% vertical-align=text-top — `inline-text-vertical-align-text-top` — Inline-block box vertical-align:text-top aligned to the top of the parent text content.
