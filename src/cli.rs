@@ -29,6 +29,8 @@ pub struct CliOptions {
     pub help: bool,
     /// Print version and exit.
     pub version: bool,
+    /// Base directory for resolving relative `@import` / `@font-face` URLs.
+    pub base_path: Option<std::path::PathBuf>,
 }
 
 impl Default for CliOptions {
@@ -44,6 +46,7 @@ impl Default for CliOptions {
             positional: Vec::new(),
             help: false,
             version: false,
+            base_path: None,
         }
     }
 }
@@ -107,6 +110,11 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                 let val = args.get(i).ok_or("--sanitize requires a value")?;
                 opts.sanitize = val != "false" && val != "0";
             }
+            "--base-path" => {
+                i += 1;
+                let val = args.get(i).ok_or("--base-path requires a value")?;
+                opts.base_path = Some(std::path::PathBuf::from(val));
+            }
             "--stdin" => opts.from_stdin = true,
             arg if arg.starts_with('-') => {
                 return Err(format!("Unknown option: {arg}"));
@@ -137,6 +145,9 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
     if let Some(ref f) = opts.footer {
         converter = converter.footer(f.as_str());
     }
+    if let Some(ref bp) = opts.base_path {
+        converter = converter.base_path(bp);
+    }
 
     converter.convert(html)
 }
@@ -158,6 +169,9 @@ pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, Ironpres
     }
     if let Some(ref f) = opts.footer {
         converter = converter.footer(f.as_str());
+    }
+    if let Some(ref bp) = opts.base_path {
+        converter = converter.base_path(bp);
     }
 
     converter.convert_markdown(md)
@@ -182,6 +196,7 @@ OPTIONS:
     --header <TEXT>         Header text on each page
     --footer <TEXT>         Footer text ({page} and {pages} for numbering)
     --sanitize <BOOL>       Enable/disable HTML sanitization (default: true)
+    --base-path <DIR>       Base dir for relative @import / @font-face URLs
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version
     --help                  Print this help
