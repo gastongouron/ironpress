@@ -41,6 +41,43 @@ FONTS="$PARITY/fonts"
 TMP="$ROOT/target/parity-tmp"
 mkdir -p "$TMP"
 
+# --- Paged.js (spec-compliant paged-media reference layout) ------------------
+# Chrome's native --print-to-pdf does NOT implement CSS Paged Media: its
+# printable margin rounds to ~116px (vs the spec 120px@300dpi = 28.8pt, so
+# content sits a VARIABLE 1-5 device px off the ironpress render) and @page
+# margin boxes / named pages / fragmentation are unsupported. ironpress IS a spec
+# paged renderer, so the reference must be laid out by a spec engine. We render
+# the reference with pagedjs-cli (Paged.js + Puppeteer): it paginates per CSS
+# Paged Media and, crucially, WAITS for the layout to finish before printing
+# (the raw `chromium --print-to-pdf` + `--virtual-time-budget` path races the
+# async pagination under parallel cold starts and emits blank pages). The
+# page geometry is forced to ironpress's (Letter, 28.8pt margin). Set PAGEDJS=0
+# to fall back to Chrome's native print (the legacy ad-hoc model).
+PAGEDJS="${PAGEDJS:-0}"
+PAGE_CSS="$TMP/pagedjs-page.css"
+PAGEDJS_BIN=""
+if [ "$PAGEDJS" = "1" ]; then
+  printf '@page{size:Letter;margin:28.8pt;}\n' > "$PAGE_CSS"
+  # Resolve (or bootstrap) pagedjs-cli. Prefer an already-installed binary; else
+  # install it into target/pagedtool WITHOUT downloading a bundled Chromium
+  # (PUPPETEER_SKIP_DOWNLOAD=1) — we drive the system Chromium instead.
+  if command -v pagedjs-cli >/dev/null 2>&1; then
+    PAGEDJS_BIN="$(command -v pagedjs-cli)"
+  elif [ -x "$ROOT/target/pagedtool/node_modules/.bin/pagedjs-cli" ]; then
+    PAGEDJS_BIN="$ROOT/target/pagedtool/node_modules/.bin/pagedjs-cli"
+  elif command -v npm >/dev/null 2>&1; then
+    echo "parity-gen-refs: installing pagedjs-cli (system Chromium, no bundled download)..." >&2
+    if PUPPETEER_SKIP_DOWNLOAD=1 npm install --no-save --prefix "$ROOT/target/pagedtool" pagedjs-cli >/dev/null 2>&1 \
+       && [ -x "$ROOT/target/pagedtool/node_modules/.bin/pagedjs-cli" ]; then
+      PAGEDJS_BIN="$ROOT/target/pagedtool/node_modules/.bin/pagedjs-cli"
+    fi
+  fi
+  if [ -z "$PAGEDJS_BIN" ]; then
+    echo "parity-gen-refs: WARNING pagedjs-cli unavailable (need node+npm); falling back to native print." >&2
+    PAGEDJS=0
+  fi
+fi
+
 # --- deterministic fonts -----------------------------------------------------
 # Point fontconfig (and therefore Chrome) at the bundled Parity faces so the
 # reference rasters use the SAME outlines as the ironpress in-process render
@@ -76,6 +113,10 @@ if [ -z "$CHROMIUM" ]; then
   echo "  (fixtures without a reference stay UNKNOWN and never fail CI.)" >&2
   exit 0
 fi
+# Absolute path for Puppeteer (pagedjs-cli): puppeteer's executablePath must be a
+# real file, not a PATH name like "chromium-browser" (it errors "no executable
+# found"). The native --print-to-pdf path is happy with either.
+CHROMIUM_ABS="$(command -v "$CHROMIUM" 2>/dev/null || echo "$CHROMIUM")"
 
 if ! command -v pdftoppm >/dev/null 2>&1; then
   echo "parity-gen-refs: pdftoppm (poppler) not found; skipping." >&2
@@ -94,6 +135,10 @@ NCPU="$(nproc 2>/dev/null || echo 4)"
 JOBS=$((NCPU - 2))
 [ "$JOBS" -lt 1 ] && JOBS=1
 [ "$JOBS" -gt 8 ] && JOBS=8
+# pagedjs-cli launches a full Puppeteer-driven Chromium PER job (~250MB + cold
+# start), so cap concurrency lower than the lightweight --print-to-pdf path to
+# avoid memory pressure / launch races that yield blank pages.
+if [ "$PAGEDJS" = "1" ] && [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
 echo "parity-gen-refs: chromium='$CHROMIUM', dpi=$DPI, force=$FORCE, only='${ONLY_CATEGORY:-<all>}', jobs=$JOBS"
 
@@ -137,36 +182,51 @@ render_one() {
   # unique intermediate PDF path. Both are cleaned up on every exit path.
   udd="$(mktemp -d "$TMP/udd.XXXXXX")"
   pdf="$(mktemp "$TMP/ref.XXXXXX.pdf")"
-  trap 'rm -rf "$udd" "$pdf"' RETURN
+  local inj=""
+  trap 'rm -rf "$udd" "$pdf" "$inj"' RETURN
 
-  # Render PDF, with retries. Under concurrent snap-Chromium cold starts,
-  # --headless=new sporadically aborts because its separate GPU process loses a
-  # namespace race ("Failed to open /dev/null" / "GPU process launch failed:
-  # error_code=1002" -> FATAL "GPU process isn't usable. Goodbye." -> SIGABRT).
-  # The failure is transient and independent, so retry with a FRESH profile and a
-  # short backoff. Fall back to legacy --headless only as a last resort, so the
-  # vast majority of refs come from one consistent headless mode (new).
-  # Each attempt is bounded by `timeout` so a HUNG Chromium (snap renders
-  # sometimes hang rather than exit) can never wedge a worker slot forever; after
-  # every attempt we reap the whole Chromium process tree for this profile so no
-  # orphan survives to pressure later launches. Legacy --headless is the last
-  # resort so the vast majority of refs come from one consistent mode (new).
-  local ok="" attempt
-  for attempt in 1 2 3; do
-    rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
-    timeout -k 5s 60s "$CHROMIUM" --headless=new --disable-gpu --no-sandbox \
-         --disable-software-rasterizer --user-data-dir="$udd" \
-         --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1
-    pkill -9 -f "$udd" 2>/dev/null || true
-    if [ -s "$pdf" ]; then ok=1; break; fi
-    sleep 0.4
-  done
-  if [ -z "$ok" ]; then
-    rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
-    timeout -k 5s 60s "$CHROMIUM" --headless --disable-gpu --no-sandbox \
-      --disable-software-rasterizer --user-data-dir="$udd" \
-      --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1 || true
-    pkill -9 -f "$udd" 2>/dev/null || true
+  local ok=""
+  if [ "$PAGEDJS" = "1" ]; then
+    # Spec-compliant paged-media render via pagedjs-cli (Puppeteer driving the
+    # system Chromium). pagedjs-cli WAITS for Paged.js's `rendered` event before
+    # printing, so — unlike `chromium --print-to-pdf` + `--virtual-time-budget`,
+    # which races Paged.js's async pagination under parallel cold starts and
+    # silently emits BLANK pages — every page is fully laid out. `--style`
+    # forces the ironpress page geometry (Letter, 28.8pt margin) so the @page box
+    # matches `PageSize::LETTER` + `Margin::uniform(28.8)`. Retried a few times
+    # (Chromium cold starts are occasionally flaky).
+    local attempt
+    for attempt in 1 2 3; do
+      PUPPETEER_EXECUTABLE_PATH="$CHROMIUM_ABS" PUPPETEER_SKIP_DOWNLOAD=1 \
+        timeout -k 5s 120s "$PAGEDJS_BIN" -i "$html" -o "$pdf" \
+          --page-size Letter --style "$PAGE_CSS" \
+          --browserArgs "--no-sandbox,--disable-gpu,--disable-software-rasterizer" \
+          >/dev/null 2>&1 || true
+      if [ -s "$pdf" ]; then ok=1; break; fi
+      sleep 0.5
+    done
+  else
+    # Native Chrome --print-to-pdf (the legacy ad-hoc print model; PAGEDJS=0).
+    # Under concurrent snap-Chromium cold starts, --headless=new sporadically
+    # aborts on a GPU-process namespace race; retry with a FRESH profile and a
+    # short backoff, falling back to legacy --headless as a last resort.
+    local attempt
+    for attempt in 1 2 3; do
+      rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
+      timeout -k 5s 60s "$CHROMIUM" --headless=new --disable-gpu --no-sandbox \
+           --disable-software-rasterizer --user-data-dir="$udd" \
+           --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1
+      pkill -9 -f "$udd" 2>/dev/null || true
+      if [ -s "$pdf" ]; then ok=1; break; fi
+      sleep 0.4
+    done
+    if [ -z "$ok" ]; then
+      rm -rf "$udd"; udd="$(mktemp -d "$TMP/udd.XXXXXX")"
+      timeout -k 5s 60s "$CHROMIUM" --headless --disable-gpu --no-sandbox \
+        --disable-software-rasterizer --user-data-dir="$udd" \
+        --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" >/dev/null 2>&1 || true
+      pkill -9 -f "$udd" 2>/dev/null || true
+    fi
   fi
 
   if [ ! -s "$pdf" ]; then
@@ -192,9 +252,23 @@ render_one() {
   local tmp_prefix; tmp_prefix="$(mktemp -u "$TMP/png.XXXXXX")"
   if timeout 60s pdftoppm -r "$DPI" -png -f 1 -l 1 -singlefile "$pdf" "$tmp_prefix" 2>/dev/null \
      && [ -s "$tmp_prefix.png" ]; then
-    mv -f "$tmp_prefix.png" "$ref"
-    echo "  generated $category/$base.png" >&2
-    echo "G"
+    # Blank-page guard: a uniform (all-white) raster means the render produced no
+    # content — e.g. Paged.js printed before pagination finished. Reject it rather
+    # than overwrite a good reference with a blank. A completely uniform image has
+    # standard-deviation 0; real fixtures always carry some border/box/text ink.
+    local sd="1"
+    if command -v identify >/dev/null 2>&1; then
+      sd="$(identify -format '%[standard-deviation]' "$tmp_prefix.png" 2>/dev/null || echo 1)"
+    fi
+    if [ "${sd%%.*}" = "0" ] && [ "$sd" != "1" ]; then
+      rm -f "$tmp_prefix.png" 2>/dev/null || true
+      echo "  BLANK render (rejected, kept existing ref): $category/$base" >&2
+      echo "F"
+    else
+      mv -f "$tmp_prefix.png" "$ref"
+      echo "  generated $category/$base.png" >&2
+      echo "G"
+    fi
   else
     rm -f "$tmp_prefix.png" 2>/dev/null || true
     echo "  FAILED rasterize: $category/$base" >&2
@@ -204,7 +278,7 @@ render_one() {
 
 # Export everything the worker subshells need.
 export -f render_one
-export CHROMIUM CASES REFS TMP FORCE DPI
+export CHROMIUM CHROMIUM_ABS CASES REFS TMP FORCE DPI ROOT PAGEDJS PAGEDJS_BIN PAGE_CSS
 
 # --- dispatch concurrently ---------------------------------------------------
 # Collect the matching fixtures (NUL-delimited, sorted for stable selection),
