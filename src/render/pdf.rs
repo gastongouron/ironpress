@@ -3395,6 +3395,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                     run,
                                     x,
                                     text_y,
+                                    crate::layout::text::line_primary_font_size(&merged),
                                     custom_fonts,
                                     &prepared_custom_fonts,
                                     0.0,
@@ -3582,6 +3583,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     run,
                                                     lx,
                                                     ty,
+                                                    crate::layout::text::line_primary_font_size(&merged),
                                                     custom_fonts,
                                                     &prepared_custom_fonts,
                                                     0.0,
@@ -3628,6 +3630,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                         run,
                                                         lx,
                                                         ty,
+                                                        crate::layout::text::line_primary_font_size(&merged),
                                                         custom_fonts,
                                                         &prepared_custom_fonts,
                                                         0.0,
@@ -5916,6 +5919,7 @@ fn render_container_children(
                                 run,
                                 lx,
                                 text_y_abs,
+                                crate::layout::text::line_primary_font_size(&merged),
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
@@ -6421,6 +6425,7 @@ fn render_container_children(
                             run,
                             lx,
                             run_y,
+                            crate::layout::text::line_primary_font_size(&merged),
                             custom_fonts,
                             prepared_custom_fonts,
                             0.0,
@@ -7927,6 +7932,7 @@ fn render_container_children(
                                 run,
                                 lx,
                                 text_y,
+                                crate::layout::text::line_primary_font_size(&merged),
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
@@ -8216,6 +8222,7 @@ fn render_nested_table_rows(
                                 run,
                                 lx,
                                 text_y,
+                                crate::layout::text::line_primary_font_size(&merged),
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
@@ -8434,6 +8441,7 @@ fn render_nested_table_rows(
                                 run,
                                 lx,
                                 text_y,
+                                crate::layout::text::line_primary_font_size(&merged),
                                 custom_fonts,
                                 prepared_custom_fonts,
                                 0.0,
@@ -8597,6 +8605,7 @@ fn render_run_text(
     run: &TextRun,
     x: f32,
     text_y: f32,
+    parent_font_size: f32,
     custom_fonts: &HashMap<String, TtfFont>,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
@@ -8606,10 +8615,10 @@ fn render_run_text(
     let (r, g, b) = run.color;
 
     // css2 §10.8.1: `vertical-align: super`/`sub` paint a text run with its
-    // baseline raised/lowered by a fraction of its own font size. This only
-    // moves the painted glyphs vertically; the horizontal advance (the returned
-    // width) is unchanged, so callers position the next run normally.
-    let text_y = text_y + run_vertical_align_shift(run);
+    // baseline raised/lowered by a fraction of the parent (line) font size. This
+    // only moves the painted glyphs vertically; the horizontal advance (the
+    // returned width) is unchanged, so callers position the next run normally.
+    let text_y = text_y + run_vertical_align_shift(run, parent_font_size);
 
     // CSS `text-shadow` (css-text-decor-3 §3): paint the glyphs again behind the
     // real text, once per shadow (back-to-front: the last listed shadow is
@@ -8659,6 +8668,7 @@ fn render_run_text(
                 &shadow_run,
                 x + shadow.offset_x,
                 text_y - shadow.offset_y,
+                parent_font_size,
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
@@ -8678,6 +8688,9 @@ fn render_run_text(
         for (segment_text, use_fallback) in &segments {
             let mut sub_run = run.clone();
             sub_run.text = segment_text.clone();
+            // `text_y` already carries this run's vertical-align shift; clear it on
+            // the per-segment recursion so the shift is not applied a second time.
+            sub_run.vertical_align = VerticalAlign::Baseline;
             if *use_fallback {
                 if let Some((fallback_shaped, fallback_key, fallback_font)) =
                     crate::text::shape_with_unicode_fallback(&sub_run, custom_fonts)
@@ -8711,6 +8724,7 @@ fn render_run_text(
                     &sub_run,
                     cur_x,
                     text_y,
+                    parent_font_size,
                     custom_fonts,
                     prepared_custom_fonts,
                     word_spacing,
@@ -8982,6 +8996,10 @@ fn render_line_text(
         return;
     }
 
+    // A `vertical-align: super`/`sub` run is shifted by a fraction of the parent
+    // (surrounding) font size; resolve it once for the whole line.
+    let parent_font_size = crate::layout::text::line_primary_font_size(runs);
+
     // An inline box interrupts the glyph stream with a fixed advance, so the
     // cursor must be positioned explicitly — force the per-run (mixed) path.
     let has_inline_box = non_empty.iter().any(|r| r.inline_box.is_some());
@@ -9016,7 +9034,7 @@ fn render_line_text(
             // `::first-letter` drop cap is additionally lowered so its glyph top
             // sits on the line's text top (css-pseudo-4 §2.2).
             let target_baseline = y
-                + run_vertical_align_shift(run)
+                + run_vertical_align_shift(run, parent_font_size)
                 + drop_cap_baseline_shift(run, line_ascender, custom_fonts);
             if first {
                 content.push_str(&format!(
@@ -9057,6 +9075,7 @@ fn render_line_text(
                 run,
                 x,
                 run_y,
+                parent_font_size,
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
@@ -9071,16 +9090,18 @@ fn render_line_text(
 /// Baseline shift (PDF points, up positive) for a text run's `vertical-align`.
 ///
 /// css2 §10.8.1: `super`/`sub` move a text run's baseline up/down by a fraction
-/// of the run's own font size; all other values leave it on the line baseline.
-/// Atomic inline boxes are aligned elsewhere (they carry their own geometry), so
-/// this only affects pure-text runs.
-fn run_vertical_align_shift(run: &TextRun) -> f32 {
+/// of the PARENT (line) font size — not the shrunk superscript's own size — so a
+/// 40%- and a 100%-size superscript on one line are raised by the same amount
+/// (matching Chrome). All other values leave the run on the line baseline. Atomic
+/// inline boxes are aligned elsewhere (they carry their own geometry), so this
+/// only affects pure-text runs.
+fn run_vertical_align_shift(run: &TextRun, parent_font_size: f32) -> f32 {
     if run.inline_box.is_some() {
         return 0.0;
     }
     match run.vertical_align {
-        VerticalAlign::Super => run.font_size * SUPER_SHIFT_RATIO,
-        VerticalAlign::Sub => -run.font_size * SUB_SHIFT_RATIO,
+        VerticalAlign::Super => parent_font_size * SUPER_SHIFT_RATIO,
+        VerticalAlign::Sub => -parent_font_size * SUB_SHIFT_RATIO,
         _ => 0.0,
     }
 }
@@ -9151,7 +9172,58 @@ struct LineBoxMetrics {
     half_leading: f32,
 }
 
+/// Per-run asymmetric line-box extents (above/below the baseline, in points) for
+/// a line that contains a `vertical-align: super`/`sub` text run.
+///
+/// css2 §10.8.1: each inline text box contributes its half-leading-padded glyph
+/// box (ascent+half / descent+half about its own baseline); a super/sub run has
+/// that box shifted up/down by `parent_font_size * RATIO`. The line box is the
+/// union, so it grows only on the shifted side. `wrap_text_runs` sizes the line
+/// with the identical formula, so the painted baseline and the laid-out line
+/// height stay consistent.
+fn line_shifted_text_extents(
+    line: &TextLine,
+    parent_font_size: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+) -> (f32, f32) {
+    // Runs that left line-height unspecified fall back to the largest resolved
+    // factor on the line (the parent text's), excluding drop caps (< 0.9).
+    let rep_factor = line
+        .runs
+        .iter()
+        .filter(|r| {
+            r.inline_box.is_none() && r.line_height_factor.is_finite() && r.line_height_factor >= 0.9
+        })
+        .map(|r| r.line_height_factor)
+        .fold(0.0f32, f32::max);
+    let rep_factor = if rep_factor > 0.0 { rep_factor } else { 1.2 };
+    let mut above = 0.0f32;
+    let mut below = 0.0f32;
+    for run in line.runs.iter().filter(|r| r.inline_box.is_none()) {
+        // Drop caps overflow the line box and must not raise it (see above).
+        if run.line_height_factor.is_finite() && run.line_height_factor < 0.9 {
+            continue;
+        }
+        let (asc_r, desc_r) =
+            crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, custom_fonts);
+        let asc = asc_r * run.font_size;
+        let desc = desc_r * run.font_size;
+        let factor = if run.line_height_factor.is_finite() {
+            run.line_height_factor
+        } else {
+            rep_factor
+        };
+        let half = ((run.font_size * factor - (asc + desc)) / 2.0).max(0.0);
+        let shift = run_vertical_align_shift(run, parent_font_size);
+        above = above.max(asc + half + shift);
+        below = below.max(desc + half - shift);
+    }
+    (above, below)
+}
+
 fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> LineBoxMetrics {
+    // `super`/`sub` shifts are a fraction of the parent (surrounding) font size.
+    let parent_font_size = crate::layout::text::line_primary_font_size(&line.runs);
     let (ascender, descender) = line
         .runs
         .iter()
@@ -9169,13 +9241,9 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 run.italic,
                 custom_fonts,
             );
-            // A `vertical-align: super`/`sub` text run is painted with its
-            // baseline shifted up/down (css2 §10.8.1), so the line box must grow
-            // to contain the raised top / lowered bottom of its glyphs.
-            let shift = run_vertical_align_shift(run);
             (
-                max_ascender.max(ascender_ratio * run.font_size + shift),
-                max_descender.max(descender_ratio * run.font_size - shift),
+                max_ascender.max(ascender_ratio * run.font_size),
+                max_descender.max(descender_ratio * run.font_size),
             )
         });
     // The block's strut establishes the line box BEFORE inline-level boxes are
@@ -9190,8 +9258,19 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
     // for pure text, while a baseline box only pushes the baseline when it pokes
     // past the strut's leading-padded edges (matching Chrome).
     let strut_half_leading = (line.height - (ascender + descender)) / 2.0;
-    let mut above = ascender + strut_half_leading;
-    let mut below = descender + strut_half_leading;
+    // A `vertical-align: super`/`sub` text run shifts its half-leading-padded
+    // glyph box off the baseline (css2 §10.8.1); the line then grows ONLY on the
+    // shifted side. The symmetric strut split above cannot express that, so for
+    // such lines compute the per-run asymmetric extents instead — the same model
+    // `wrap_text_runs` used to size the line, keeping layout and paint consistent.
+    let has_text_shift = line.runs.iter().any(|r| {
+        r.inline_box.is_none() && matches!(r.vertical_align, VerticalAlign::Super | VerticalAlign::Sub)
+    });
+    let (mut above, mut below) = if has_text_shift {
+        line_shifted_text_extents(line, parent_font_size, custom_fonts)
+    } else {
+        (ascender + strut_half_leading, descender + strut_half_leading)
+    };
 
     // A baseline-aligned inline box contributes `baseline_ascent` above the line
     // baseline and `height - baseline_ascent` below it (CSS2 §10.8.1). It raises
@@ -9214,12 +9293,12 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
             // moving its extents by a fraction of the run font size.
             let (box_above, box_below) = match inline.vertical_align {
                 VerticalAlign::Sub => (
-                    box_ascent - run.font_size * SUB_SHIFT_RATIO,
-                    box_descent + run.font_size * SUB_SHIFT_RATIO,
+                    box_ascent - parent_font_size * SUB_SHIFT_RATIO,
+                    box_descent + parent_font_size * SUB_SHIFT_RATIO,
                 ),
                 VerticalAlign::Super => (
-                    box_ascent + run.font_size * SUPER_SHIFT_RATIO,
-                    box_descent - run.font_size * SUPER_SHIFT_RATIO,
+                    box_ascent + parent_font_size * SUPER_SHIFT_RATIO,
+                    box_descent - parent_font_size * SUPER_SHIFT_RATIO,
                 ),
                 _ => (box_ascent, box_descent),
             };
@@ -15864,6 +15943,7 @@ mod tests {
             &run,
             10.0,
             20.0,
+            run.font_size,
             &fonts,
             &prepared_custom_fonts,
             0.0,

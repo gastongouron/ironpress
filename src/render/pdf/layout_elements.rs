@@ -417,6 +417,7 @@ pub(super) fn render_cell_text(
                 run,
                 x,
                 text_y,
+                crate::layout::text::line_primary_font_size(&merged),
                 ctx.custom_fonts,
                 ctx.prepared_custom_fonts,
                 0.0,

@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 96.33%  (PASS 572 · PARTIAL 37 · FAIL 4 · UNKNOWN 0 · total 613)
+Overall: 96.49%  (PASS 574 · PARTIAL 35 · FAIL 4 · UNKNOWN 0 · total 613)
 Scored coverage: 100.00% (613 / 613 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 232 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -42,7 +42,7 @@ None — every fixture's HTML matches `refs.lock`.
 
 | rank | id | feature | status | confounds | dependents |
 |-----:|----|---------|--------|----------:|------------|
-| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 13 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+7) |
+| 1 | `probe-text-baseline` | font-metrics | PARTIAL | 11 | color-text-glyph, counters-nested, generated-content-first-letter-dropcap, inline-text-multiple-inline-blocks, inline-text-vertical-align-baseline, inline-text-vertical-align-middle …(+5) |
 | 2 | `border-radius-uniform` | border-radius | PARTIAL | 1 | box-model-overflow-hidden-x-border-radius |
 
 ## Coverage by Category
@@ -72,7 +72,7 @@ None — every fixture's HTML matches `refs.lock`.
 | tables | 98.15% | 26 | 1 | 0 | 0 |
 | text-advanced | 97.50% | 19 | 1 | 0 | 0 |
 | transforms | 100.00% | 30 | 0 | 0 | 0 |
-| typography | 90.63% | 13 | 3 | 0 | 0 |
+| typography | 96.88% | 15 | 1 | 0 | 0 |
 | units-values | 100.00% | 25 | 0 | 0 | 0 |
 
 ## Known gaps (expected_support != implemented)
@@ -1023,7 +1023,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.42% transform-origin=scale-pivot — `transforms-origin-scale-corner` — transform-origin affects the scale pivot: with top-left origin the box grows down/right while its top-left corner stays anchored.
   - PASS 0.21% transform-origin=top-left — `transforms-origin-top-left` — transform-origin: top left moves the rotation pivot from the box center to its top-left corner, changing where a rotate() lands. Aspirational: ironpress has no transform-origin parse and always pivots about the default origin.
 
-### typography — 90.63%
+### typography — 96.88%
 - **font-family** — 100.00%
   - PASS 2.99% font-family=monospace — `typography-font-family-monospace` — Generic monospace family fallback at 28px with fixed-advance glyphs.
   - PASS 3.19% font-family=sans-serif — `typography-font-family-sans-serif` — Generic sans-serif family fallback at 28px.
@@ -1044,9 +1044,9 @@ None — every fixture's HTML matches `refs.lock`.
 - **line-height** — 100.00%
   - PASS 0.96% line-height=length — `typography-line-height-length` — Length line-height 36px across three stacked lines to verify fixed line-box height.
   - PASS 1.07% line-height=numeric — `typography-line-height-numeric` — Unitless line-height 2 across three stacked lines to verify line-box spacing.
-- **vertical-align** — 50.00%
-  - PARTIAL 7.07% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
-  - PARTIAL 4.74% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
+- **vertical-align** — 100.00%
+  - PASS 0.61% vertical-align=sub — `typography-vertical-align-sub` — Subscript element (H2O) lowered below the baseline with reduced font-size.
+  - PASS 1.09% vertical-align=sup — `typography-vertical-align-sup` — Superscript element (x squared) raised above the baseline with reduced font-size.
 
 ### units-values — 100.00%
 - **calc** — 100.00%

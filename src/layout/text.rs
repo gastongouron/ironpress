@@ -45,6 +45,37 @@ pub(crate) fn resolved_line_height_factor(
     }
 }
 
+/// The parent (line) font size that a `vertical-align: super`/`sub` baseline
+/// shift is measured against.
+///
+/// css2 §10.8.1 raises/lowers the box "to the position appropriate for
+/// super/subscripts of the *parent's* box" — so the shift is a fraction of the
+/// PARENT element's font size, NOT the shrunk `<sup>`/`<sub>`'s own (usually
+/// `font-size: smaller`) size. Chrome confirms this: a 40%-size and a 100%-size
+/// superscript on the same line are raised by the *same* amount. We take the
+/// parent size as the largest baseline-aligned text run on the line (the
+/// surrounding ordinary text the shifted run sits within); when the line has no
+/// such text we fall back to the largest run present so a lone shifted run keeps
+/// its own size.
+pub(crate) fn line_primary_font_size(runs: &[crate::layout::engine::TextRun]) -> f32 {
+    let baseline_text = runs
+        .iter()
+        .filter(|r| {
+            r.inline_box.is_none()
+                && matches!(r.vertical_align, VerticalAlign::Baseline)
+                && !r.text.trim().is_empty()
+        })
+        .map(|r| r.font_size)
+        .fold(0.0f32, f32::max);
+    if baseline_text > 0.0 {
+        return baseline_text;
+    }
+    runs.iter()
+        .filter(|r| r.inline_box.is_none())
+        .map(|r| r.font_size)
+        .fold(0.0f32, f32::max)
+}
+
 // ---------------------------------------------------------------------------
 // collapse_whitespace
 // ---------------------------------------------------------------------------
@@ -467,6 +498,11 @@ pub(crate) fn wrap_text_runs(
     let mut lines: Vec<TextLine> = Vec::new();
     let mut current_runs: Vec<TextRun> = Vec::new();
     let mut current_width: f32 = 0.0;
+    // The baseline-shift of a `vertical-align: super`/`sub` run is a fraction of
+    // the PARENT font size (css2 §10.8.1), measured here once from the surrounding
+    // ordinary text so the line box grows by the correct amount regardless of the
+    // shifted run's own (shrunk) size.
+    let shift_basis_fs = line_primary_font_size(&runs);
     // The line box takes its height from the inline content it contains: each
     // run uses the line-height resolved from its *own* element's style, falling
     // back to the block-level factor when the run leaves it unspecified (NaN).
@@ -477,18 +513,27 @@ pub(crate) fn wrap_text_runs(
             run.line_height_factor.max(0.0)
         };
         let base = run.font_size * factor;
-        // A `vertical-align: super`/`sub` run is painted on a baseline shifted
-        // off the line baseline (css2 §10.8); the line box grows to keep the
-        // raised/lowered glyphs inside it. The symmetric half-leading absorbs
-        // the shift on the appropriate side, so the line's `line-height` is
-        // grown by a fixed fraction of the run's em for either direction — this
-        // approximates Chrome's line-box expansion for a small shifted run.
-        const SHIFTED_LINE_GROWTH: f32 = 0.6;
-        let growth = match run.vertical_align {
-            VerticalAlign::Super | VerticalAlign::Sub => run.font_size * SHIFTED_LINE_GROWTH,
-            _ => 0.0,
+        // A `vertical-align: super`/`sub` run is painted with its half-leading-
+        // padded glyph box shifted off the line baseline (css2 §10.8.1) by
+        // `shift_basis_fs * RATIO` of the PARENT font size. The line box must
+        // contain both that shifted box AND the surrounding parent text's own
+        // box, combined per side of the baseline — so it grows only on the
+        // shifted side (asymmetric), exactly as the renderer places the baseline
+        // (`line_box_metrics`). Other runs contribute only their own line-height.
+        let shift = match run.vertical_align {
+            VerticalAlign::Super => shift_basis_fs * crate::render::pdf::SUPER_SHIFT_RATIO,
+            VerticalAlign::Sub => -shift_basis_fs * crate::render::pdf::SUB_SHIFT_RATIO,
+            _ => return base,
         };
-        base + growth
+        let (asc_r, desc_r) =
+            crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, fonts);
+        let half = |fs: f32| ((fs * factor - (asc_r + desc_r) * fs) / 2.0).max(0.0);
+        let p = shift_basis_fs;
+        let above_parent = asc_r * p + half(p);
+        let below_parent = desc_r * p + half(p);
+        let above_run = asc_r * run.font_size + half(run.font_size) + shift;
+        let below_run = desc_r * run.font_size + half(run.font_size) - shift;
+        above_parent.max(above_run) + below_parent.max(below_run)
     };
     // Start the line box height from the first run's line-height contribution.
     let mut line_height = runs
@@ -898,10 +943,10 @@ pub(crate) fn wrap_text_runs(
                     let box_descent = (inline.height - box_ascent).max(0.0);
                     let shift = match inline.vertical_align {
                         crate::style::computed::VerticalAlign::Sub => {
-                            -template.font_size * crate::render::pdf::SUB_SHIFT_RATIO
+                            -shift_basis_fs * crate::render::pdf::SUB_SHIFT_RATIO
                         }
                         crate::style::computed::VerticalAlign::Super => {
-                            template.font_size * crate::render::pdf::SUPER_SHIFT_RATIO
+                            shift_basis_fs * crate::render::pdf::SUPER_SHIFT_RATIO
                         }
                         _ => 0.0,
                     };
