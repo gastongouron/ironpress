@@ -31,6 +31,8 @@ pub struct CliOptions {
     pub image_dpi: f32,
     /// Rasterization DPI for render-time blur/filter bitmaps.
     pub filter_dpi: f32,
+    /// Skip embedding raster images fully covered by a later opaque element.
+    pub occlusion_cull: bool,
     /// Read from stdin instead of a file.
     pub from_stdin: bool,
     /// Positional arguments (input, output).
@@ -59,6 +61,7 @@ impl Default for CliOptions {
             auto_resize_images: true,
             image_dpi: 300.0,
             filter_dpi: 150.0,
+            occlusion_cull: false,
             from_stdin: false,
             positional: Vec::new(),
             help: false,
@@ -161,6 +164,11 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                     .map_err(|_| format!("--filter-dpi requires a number, got: {val}"))?;
                 opts.filter_dpi = dpi.max(1.0);
             }
+            "--occlusion-cull" => {
+                i += 1;
+                let val = args.get(i).ok_or("--occlusion-cull requires a value")?;
+                opts.occlusion_cull = val != "false" && val != "0";
+            }
             "--base-path" => {
                 i += 1;
                 let val = args.get(i).ok_or("--base-path requires a value")?;
@@ -193,7 +201,8 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
         .jpeg_quality(opts.jpeg_quality)
         .auto_resize_images(opts.auto_resize_images)
         .image_dpi(opts.image_dpi)
-        .filter_dpi(opts.filter_dpi);
+        .filter_dpi(opts.filter_dpi)
+        .occlusion_cull(opts.occlusion_cull);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -223,7 +232,8 @@ pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, Ironpres
         .jpeg_quality(opts.jpeg_quality)
         .auto_resize_images(opts.auto_resize_images)
         .image_dpi(opts.image_dpi)
-        .filter_dpi(opts.filter_dpi);
+        .filter_dpi(opts.filter_dpi)
+        .occlusion_cull(opts.occlusion_cull);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -263,6 +273,7 @@ OPTIONS:
                             Downscale oversized source images (default: true)
     --image-dpi <DPI>       Target source-image resolution (default: 300)
     --filter-dpi <DPI>      Rasterization DPI for blur/filter bitmaps (default: 150)
+    --occlusion-cull <BOOL> Skip raster images fully covered by a later opaque element (default: false)
     --base-path <DIR>       Base dir for relative @import / @font-face URLs
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version

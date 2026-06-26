@@ -1033,6 +1033,226 @@ fn page_shrink_to_fit_scale(page: &Page, page_size: PageSize, margin: Margin) ->
     }
 }
 
+/// Axis-aligned rectangle in PDF page coordinates (x grows right, y grows up),
+/// used only by the optional occlusion-culling pass. `(x0, y0)` is the
+/// bottom-left corner and `(x1, y1)` the top-right corner.
+#[derive(Clone, Copy)]
+struct OcclRect {
+    x0: f32,
+    y0: f32,
+    x1: f32,
+    y1: f32,
+}
+
+impl OcclRect {
+    /// True when `self` extends at least `margin` points beyond `inner` on
+    /// every side — i.e. `inner` plus a `margin`-wide safety border is still
+    /// fully inside `self`. Used so anti-aliasing/interpolation at the coverer's
+    /// edges can never reveal a culled raster.
+    fn covers_with_margin(&self, inner: &OcclRect, margin: f32) -> bool {
+        self.x0 <= inner.x0 - margin
+            && self.y0 <= inner.y0 - margin
+            && self.x1 >= inner.x1 + margin
+            && self.y1 >= inner.y1 + margin
+    }
+}
+
+/// Safety inset (CSS px == PDF pt) the coverer must exceed the raster by on
+/// every side before the raster is considered safely hidden.
+const OCCLUSION_SAFETY_MARGIN: f32 = 2.0;
+
+/// If `element` is a top-level block whose painted output is a single
+/// fully-opaque, square-cornered, untransformed, un-blended rectangle that
+/// fills its entire border box, return that border-box rectangle in PDF page
+/// coordinates. Anything that could leave a gap (transparency, border-radius,
+/// opacity < 1, blend mode, transform, clip, non-border background-clip, a
+/// gradient/SVG background that might not be opaque, `visibility:hidden`)
+/// disqualifies it — when unsure we return `None` and never cull.
+fn opaque_block_coverer_rect(
+    element: &LayoutElement,
+    y_pos: f32,
+    page_size: PageSize,
+    margin: Margin,
+    available_width: f32,
+) -> Option<OcclRect> {
+    let no_blend =
+        |b: &crate::style::computed::BlendMode| *b == crate::style::computed::BlendMode::Normal;
+    let no_radius = |r: f32, rs: &[f32; 4], rys: &[f32; 4]| {
+        r == 0.0 && rs.iter().all(|v| *v == 0.0) && rys.iter().all(|v| *v == 0.0)
+    };
+    match element {
+        // A flat text block whose painted output is a single fully-opaque,
+        // square-cornered, untransformed solid rectangle filling its border box.
+        LayoutElement::TextBlock {
+            lines,
+            background_color,
+            padding_top,
+            padding_bottom,
+            border,
+            block_width,
+            block_height,
+            opacity,
+            mix_blend_mode,
+            float,
+            position,
+            offset_left,
+            containing_block,
+            visible,
+            clip_rect,
+            transform,
+            border_radius,
+            border_radii,
+            border_radii_y,
+            background_gradient,
+            background_radial_gradient,
+            background_conic_gradient,
+            background_svg,
+            background_clip,
+            background_blur_radius,
+            ..
+        } => {
+            let (_, _, _, a) = (*background_color)?;
+            if !*visible
+                || a < 1.0
+                || *opacity < 1.0
+                || !no_blend(mix_blend_mode)
+                || transform.is_some()
+                || clip_rect.is_some()
+                || !no_radius(*border_radius, border_radii, border_radii_y)
+                || *background_clip != BackgroundClip::Border
+                || background_gradient.is_some()
+                || background_radial_gradient.is_some()
+                || background_conic_gradient.is_some()
+                || background_svg.is_some()
+                // A blurred solid box paints feathered (semi-transparent) edges,
+                // so it cannot be a reliable opaque coverer.
+                || *background_blur_radius > 0.0
+            {
+                return None;
+            }
+            // Mirror the TextBlock paint geometry (see the TextBlock arm below).
+            let render_width = block_width.unwrap_or(available_width);
+            let block_x = match position {
+                Position::Absolute => containing_block.map_or(margin.left + offset_left, |cb| {
+                    margin.left + cb.x + offset_left
+                }),
+                Position::Relative => margin.left + offset_left,
+                Position::Static => match float {
+                    Float::Right => margin.left + available_width - render_width,
+                    _ => margin.left + offset_left,
+                },
+            };
+            let block_y = page_size.height - margin.top - y_pos;
+            let total_h = text_block_total_height(
+                lines,
+                *padding_top,
+                *padding_bottom,
+                *block_height,
+                clip_rect.is_some(),
+            );
+            let border_box_h = total_h + border.top.width + border.bottom.width;
+            Some(OcclRect {
+                x0: block_x,
+                y0: block_y - border_box_h,
+                x1: block_x + render_width,
+                y1: block_y,
+            })
+        }
+        // A nested container box. Its own opaque background fills the whole border
+        // box regardless of children (which only paint on top, within the box), so
+        // the region stays fully opaque. Disqualify anything that could shrink,
+        // shift, fade, or round the painted box.
+        LayoutElement::Container {
+            children,
+            background_color,
+            border,
+            border_radius,
+            border_radii,
+            border_radii_y,
+            padding_top,
+            padding_bottom,
+            block_width,
+            block_height,
+            opacity,
+            mix_blend_mode,
+            visible,
+            float,
+            offset_left,
+            transform,
+            clip_path,
+            mask_image,
+            background_gradient,
+            background_radial_gradient,
+            background_conic_gradient,
+            background_svg,
+            background_clip,
+            ..
+        } => {
+            let (_, _, _, a) = (*background_color)?;
+            if !*visible
+                || a < 1.0
+                || *opacity < 1.0
+                || !no_blend(mix_blend_mode)
+                || transform.is_some()
+                || clip_path.is_some()
+                || mask_image.is_some()
+                || !no_radius(*border_radius, border_radii, border_radii_y)
+                || *background_clip != BackgroundClip::Border
+                || background_gradient.is_some()
+                || background_radial_gradient.is_some()
+                || background_conic_gradient.is_some()
+                || background_svg.is_some()
+            {
+                return None;
+            }
+            // Mirror the Container paint geometry (see the Container arm below).
+            let container_w = block_width.unwrap_or(available_width);
+            let container_x = match float {
+                Float::Right => margin.left + available_width - container_w,
+                _ => margin.left + offset_left,
+            };
+            let container_y_top = page_size.height - margin.top - y_pos;
+            let children_h: f32 = collapsed_children_height(children);
+            let content_h = padding_top + children_h + padding_bottom + border.vertical_width();
+            let total_h = block_height.unwrap_or(content_h);
+            Some(OcclRect {
+                x0: container_x,
+                y0: container_y_top - total_h,
+                x1: container_x + container_w,
+                y1: container_y_top,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Collect `(rect, paint_index)` for every qualifying opaque rectangular
+/// coverer on the page, in paint order. Higher index == painted later (on top).
+fn collect_opaque_coverers(
+    page: &Page,
+    page_size: PageSize,
+    margin: Margin,
+    available_width: f32,
+) -> Vec<(OcclRect, usize)> {
+    page.elements
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, (y_pos, element))| {
+            opaque_block_coverer_rect(element, *y_pos, page_size, margin, available_width)
+                .map(|rect| (rect, idx))
+        })
+        .collect()
+}
+
+/// True when some opaque coverer painted strictly later than `elem_idx` fully
+/// contains `raster` with the safety margin — i.e. the raster is guaranteed
+/// invisible and can be skipped.
+fn raster_is_occluded(coverers: &[(OcclRect, usize)], raster: &OcclRect, elem_idx: usize) -> bool {
+    coverers.iter().any(|(rect, idx)| {
+        *idx > elem_idx && rect.covers_with_margin(raster, OCCLUSION_SAFETY_MARGIN)
+    })
+}
+
 /// Low-level render: raw (uncompressed) content streams for deterministic,
 /// inspectable output (used by unit tests and the parity harness, which
 /// rasterizes the result). The high-level `HtmlConverter` API enables content-
@@ -1092,6 +1312,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
         // Track clip state: when a TextBlock has clip_children_count > 0,
         // the clip context stays open for that many subsequent elements.
         let mut clip_remaining: usize = 0;
+
+        // Optional occlusion culling (default off): rectangles of fully-opaque
+        // coverers, used to skip rasters that a later opaque element fully hides.
+        let occlusion_coverers = if pdf_writer.opts.occlusion_cull {
+            collect_opaque_coverers(page, page_size, margin, available_width)
+        } else {
+            Vec::new()
+        };
 
         for (elem_idx, (y_pos, element)) in page.elements.iter().enumerate() {
             // Close clip context when all clipped children have been rendered
@@ -4837,6 +5065,21 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let _ = (object_fit, object_position, background_color, border);
                     let img_x = margin.left;
                     let img_y = page_size.height - margin.top - y_pos - height;
+                    // Occlusion culling (default off): the filtered bitmap paints
+                    // expanded by `blur_overflow` on every side; skip it only if a
+                    // later opaque coverer hides that full expanded rect.
+                    if pdf_writer.opts.occlusion_cull {
+                        let ov = *blur_overflow;
+                        let raster = OcclRect {
+                            x0: img_x - ov,
+                            y0: img_y - ov,
+                            x1: img_x + *width + ov,
+                            y1: img_y + *height + ov,
+                        };
+                        if raster_is_occluded(&occlusion_coverers, &raster, elem_idx) {
+                            continue;
+                        }
+                    }
                     let img_obj_id = pdf_writer.add_image_object(
                         &image.data,
                         image.source_width,
@@ -4872,6 +5115,19 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let img_x = margin.left;
                     // PDF y-axis is bottom-up; y_pos is top of margin, image draws from bottom-left
                     let img_y = page_size.height - margin.top - y_pos - height;
+                    // Occlusion culling (default off): skip embedding the image
+                    // entirely when a later fully-opaque coverer hides its box.
+                    if pdf_writer.opts.occlusion_cull {
+                        let raster = OcclRect {
+                            x0: img_x,
+                            y0: img_y,
+                            x1: img_x + *width,
+                            y1: img_y + *height,
+                        };
+                        if raster_is_occluded(&occlusion_coverers, &raster, elem_idx) {
+                            continue;
+                        }
+                    }
                     // Paint the image-box background first; with object-fit it may
                     // remain visible where the image content does not cover the box.
                     if let Some((br, bg, bb, ba)) = background_color
@@ -4947,6 +5203,21 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let svg_x = margin.left;
                     // PDF y-axis is bottom-up, SVG is top-down
                     let svg_y = page_size.height - margin.top - y_pos - height;
+
+                    // Occlusion culling (default off): skip embedding the SVG (and
+                    // any rasters it would register) when a later opaque coverer
+                    // fully hides its box.
+                    if pdf_writer.opts.occlusion_cull {
+                        let raster = OcclRect {
+                            x0: svg_x,
+                            y0: svg_y,
+                            x1: svg_x + *width,
+                            y1: svg_y + *height,
+                        };
+                        if raster_is_occluded(&occlusion_coverers, &raster, elem_idx) {
+                            continue;
+                        }
+                    }
 
                     content.push_str("q\n");
                     // Position on page and flip y-axis for SVG coordinates
@@ -11632,6 +11903,9 @@ pub(crate) struct RenderOpts {
     pub auto_resize_images: bool,
     pub image_dpi: f32,
     pub filter_dpi: f32,
+    /// Skip embedding raster images fully covered by a later fully-opaque
+    /// rectangular element (default false). Conservative; zero visual change.
+    pub occlusion_cull: bool,
 }
 
 impl Default for RenderOpts {
@@ -11642,6 +11916,7 @@ impl Default for RenderOpts {
             auto_resize_images: true,
             image_dpi: 300.0,
             filter_dpi: 150.0,
+            occlusion_cull: false,
         }
     }
 }

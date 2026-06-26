@@ -249,6 +249,9 @@ pub struct HtmlConverter {
     auto_resize_images: bool,
     image_dpi: f32,
     filter_dpi: f32,
+    /// Skip embedding raster images that are fully covered by a later opaque
+    /// rectangular element (default false). Conservative; zero visual change.
+    occlusion_cull: bool,
 }
 
 impl HtmlConverter {
@@ -273,6 +276,7 @@ impl HtmlConverter {
             auto_resize_images: true,
             image_dpi: 300.0,
             filter_dpi: 150.0,
+            occlusion_cull: false,
         }
     }
 
@@ -304,6 +308,14 @@ impl HtmlConverter {
     /// Set the rasterization DPI for render-time blur/filter bitmaps.
     pub fn filter_dpi(mut self, dpi: f32) -> Self {
         self.filter_dpi = dpi.max(1.0);
+        self
+    }
+
+    /// Enable or disable occlusion culling of raster images that are fully
+    /// covered by a later fully-opaque rectangular element (default false).
+    /// Conservative and safe: only skips images that are guaranteed invisible.
+    pub fn occlusion_cull(mut self, enabled: bool) -> Self {
+        self.occlusion_cull = enabled;
         self
     }
 
@@ -601,6 +613,7 @@ impl HtmlConverter {
             auto_resize_images: self.auto_resize_images,
             image_dpi: self.image_dpi,
             filter_dpi: self.filter_dpi,
+            occlusion_cull: self.occlusion_cull,
         };
 
         render::pdf::render_pdf_to_writer_full_opts(
