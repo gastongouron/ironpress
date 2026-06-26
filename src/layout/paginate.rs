@@ -877,7 +877,24 @@ pub(crate) fn paginate(
         first_on_page = false;
     }
 
-    if !current_elements.is_empty() {
+    // Finalize the pending page — but suppress a TRAILING BLANK page. A forced
+    // break (`break-after: always` / `page-break-after: always`) on the last
+    // in-flow box seeds a fresh page that ends up holding ONLY the duplicated
+    // repeat-on-each-page backgrounds and no real content. Browsers drop such a
+    // trailing empty page (Chrome emits one page for `…<div break-after:always>`,
+    // not two), so only push the pending page if it carries real content — unless
+    // it is the only page, so an otherwise-empty single-page document (e.g. an
+    // empty body with a page background) still renders its one page.
+    let has_real_content = current_elements.iter().any(|(_, el)| {
+        !matches!(
+            el,
+            LayoutElement::TextBlock {
+                repeat_on_each_page: true,
+                ..
+            }
+        )
+    });
+    if !current_elements.is_empty() && (has_real_content || pages.is_empty()) {
         pages.push(Page {
             elements: current_elements,
         });
