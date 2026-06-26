@@ -242,6 +242,9 @@ pub struct HtmlConverter {
     /// Optional footer text rendered at the bottom of each page.
     /// Use `{page}` for current page number and `{pages}` for total page count.
     footer: Option<String>,
+    /// FlateDecode-compress page content streams (lossless). Defaults to `true`;
+    /// disable for raw, human-readable PDF content streams.
+    compress: bool,
 }
 
 impl HtmlConverter {
@@ -255,7 +258,21 @@ impl HtmlConverter {
             base_path: None,
             header: None,
             footer: None,
+            // On by default for production output (FlateDecode is lossless and
+            // transparent to any rasterizer). The crate's own unit tests inspect
+            // raw content-stream operators, so the in-crate test build defaults
+            // to off; the compression path is covered by a dedicated test and the
+            // parity gate. Downstream users (and the CLI) always get the `true`
+            // default.
+            compress: !cfg!(test),
         }
+    }
+
+    /// Enable or disable FlateDecode compression of page content streams
+    /// (enabled by default). Disabling produces larger but human-readable PDFs.
+    pub fn compress(mut self, enabled: bool) -> Self {
+        self.compress = enabled;
+        self
     }
 
     /// Set the page size.
@@ -546,13 +563,14 @@ impl HtmlConverter {
             None
         };
 
-        render::pdf::render_pdf_to_writer_full(
+        render::pdf::render_pdf_to_writer_full_opts(
             &pages,
             effective_page_size,
             effective_margin,
             writer,
             &parsed_fonts,
             decoration.as_ref(),
+            self.compress,
         )
     }
 
@@ -675,6 +693,30 @@ pub mod wasm {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Enabling compression shrinks the PDF and wraps the content stream in a
+    /// FlateDecode filter; disabling restores the raw stream. (Rasterized-output
+    /// equivalence is covered by the parity gate.)
+    #[test]
+    fn content_stream_compression_shrinks_and_filters() {
+        // Enough repetitive content that Flate clearly beats its own overhead.
+        let body = "<p>Some paragraph text to compress, repeated for volume.</p>".repeat(60);
+        let html = format!("<html><body><h1>Hello</h1>{body}</body></html>");
+        let html = html.as_str();
+        let compressed = HtmlConverter::new().compress(true).convert(html).unwrap();
+        let raw = HtmlConverter::new().compress(false).convert(html).unwrap();
+        // The behavioral guarantee: compression meaningfully shrinks the output.
+        assert!(
+            compressed.len() + 200 < raw.len(),
+            "compressed {} should be clearly < raw {}",
+            compressed.len(),
+            raw.len()
+        );
+        assert!(
+            String::from_utf8_lossy(&compressed).contains("/Filter /FlateDecode"),
+            "compressed PDF should carry a FlateDecode stream"
+        );
+    }
 
     /// Check if a PDF contains a given text string, handling both WinAnsi
     /// (plain text in parentheses) and CID encoding (hex glyph IDs with

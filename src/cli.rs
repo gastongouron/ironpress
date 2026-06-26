@@ -21,6 +21,8 @@ pub struct CliOptions {
     pub footer: Option<String>,
     /// Enable HTML sanitization.
     pub sanitize: bool,
+    /// FlateDecode-compress page content streams (default true).
+    pub compress: bool,
     /// Read from stdin instead of a file.
     pub from_stdin: bool,
     /// Positional arguments (input, output).
@@ -42,6 +44,9 @@ impl Default for CliOptions {
             header: None,
             footer: None,
             sanitize: true,
+            // The real CLI compresses by default; the in-crate test build renders
+            // raw so cli tests can inspect content-stream operators (see lib.rs).
+            compress: !cfg!(test),
             from_stdin: false,
             positional: Vec::new(),
             help: false,
@@ -110,6 +115,11 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                 let val = args.get(i).ok_or("--sanitize requires a value")?;
                 opts.sanitize = val != "false" && val != "0";
             }
+            "--compress" => {
+                i += 1;
+                let val = args.get(i).ok_or("--compress requires a value")?;
+                opts.compress = val != "false" && val != "0";
+            }
             "--base-path" => {
                 i += 1;
                 let val = args.get(i).ok_or("--base-path requires a value")?;
@@ -137,7 +147,8 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
     let mut converter = HtmlConverter::new()
         .page_size(page_size)
         .margin(opts.margin)
-        .sanitize(opts.sanitize);
+        .sanitize(opts.sanitize)
+        .compress(opts.compress);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -162,7 +173,8 @@ pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, Ironpres
     let mut converter = HtmlConverter::new()
         .page_size(page_size)
         .margin(opts.margin)
-        .sanitize(opts.sanitize);
+        .sanitize(opts.sanitize)
+        .compress(opts.compress);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -196,6 +208,7 @@ OPTIONS:
     --header <TEXT>         Header text on each page
     --footer <TEXT>         Footer text ({page} and {pages} for numbering)
     --sanitize <BOOL>       Enable/disable HTML sanitization (default: true)
+    --compress <BOOL>       FlateDecode-compress content streams (default: true)
     --base-path <DIR>       Base dir for relative @import / @font-face URLs
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version

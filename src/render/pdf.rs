@@ -1033,6 +1033,11 @@ fn page_shrink_to_fit_scale(page: &Page, page_size: PageSize, margin: Margin) ->
     }
 }
 
+/// Low-level render: raw (uncompressed) content streams for deterministic,
+/// inspectable output (used by unit tests and the parity harness, which
+/// rasterizes the result). The high-level `HtmlConverter` API enables content-
+/// stream compression by default for production output; call
+/// `render_pdf_to_writer_full_opts(.., true)` for compression here.
 pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     pages: &[Page],
     page_size: PageSize,
@@ -1041,10 +1046,31 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     custom_fonts: &HashMap<String, TtfFont>,
     decoration: Option<&PageDecoration>,
 ) -> Result<(), IronpressError> {
+    render_pdf_to_writer_full_opts(
+        pages,
+        page_size,
+        margin,
+        writer,
+        custom_fonts,
+        decoration,
+        false,
+    )
+}
+
+pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
+    pages: &[Page],
+    page_size: PageSize,
+    margin: Margin,
+    writer: &mut W,
+    custom_fonts: &HashMap<String, TtfFont>,
+    decoration: Option<&PageDecoration>,
+    compress: bool,
+) -> Result<(), IronpressError> {
     // Keep `ex`/`ch` style resolution font-aware during any render-time style
     // recomputation (e.g. pseudo-elements), matching the layout pass.
     let _font_ctx = crate::style::font_ctx::FontCtxGuard::new(custom_fonts);
     let mut pdf_writer = PdfWriter::new();
+    pdf_writer.compress = compress;
     let available_width = page_size.width - margin.left - margin.right;
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
     let prepared_custom_fonts = prepare_custom_fonts(pages, custom_fonts);
@@ -11551,6 +11577,9 @@ pub(crate) struct PdfWriter {
     /// Each becomes an `/ExtGState << /SMask << /S /Luminosity /G <form> >> >>`
     /// emitted into the shared resource dictionary. Names are global across pages.
     soft_mask_gstates: Vec<(String, usize)>,
+    /// When set, page content streams are FlateDecode-compressed (lossless, and
+    /// transparent to any rasterizer). Defaults to `true`.
+    compress: bool,
 }
 
 impl PdfWriter {
@@ -11565,6 +11594,7 @@ impl PdfWriter {
             page_shadings: Vec::new(),
             custom_font_entries: Vec::new(),
             soft_mask_gstates: Vec::new(),
+            compress: true,
         }
     }
 
@@ -12040,13 +12070,32 @@ impl PdfWriter {
         ext_gstates: Vec<(String, f32)>,
         shadings: Vec<ShadingEntry>,
     ) {
-        // Content stream
-        let stream = content.as_bytes();
+        // Content stream — FlateDecode-compressed when enabled (lossless and
+        // transparent to rasterization; PDF content streams are uncompressed
+        // PostScript-like operators that shrink ~5-8x). Falls back to raw if
+        // compression is disabled or fails.
         let content_id = self.next_id();
-        self.objects.push(format!(
-            "{content_id} 0 obj\n<< /Length {} >>\nstream\n{content}\nendstream\nendobj",
-            stream.len(),
-        ));
+        match self
+            .compress
+            .then(|| flate_compress(content.as_bytes()))
+            .flatten()
+        {
+            Some(comp) => {
+                // Binary stream: header ends at "stream\n"; the writer appends the
+                // bytes then "\nendstream\nendobj" (see finish_to_writer).
+                self.objects.push(format!(
+                    "{content_id} 0 obj\n<< /Length {} /Filter /FlateDecode >>\nstream\n",
+                    comp.len(),
+                ));
+                self.binary_objects.insert(content_id, comp);
+            }
+            None => {
+                self.objects.push(format!(
+                    "{content_id} 0 obj\n<< /Length {} >>\nstream\n{content}\nendstream\nendobj",
+                    content.len(),
+                ));
+            }
+        }
         let page_id = self.objects.len() + annotations.len() + 1;
 
         // Annotation objects
