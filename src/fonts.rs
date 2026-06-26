@@ -439,7 +439,11 @@ pub(crate) fn font_metrics_ratios(
 ) -> (f32, f32) {
     if let FontFamily::Custom(name) = font_family {
         if let Some((_, ttf)) = system_fonts::find_font(custom_fonts, name, bold, italic) {
-            let metrics = ttf.pdf_vertical_metrics();
+            // CSS line-box layout uses the OS/2 usWin* metrics (matching Chrome's
+            // line-height:normal source), NOT the hhea metrics used for PDF font
+            // embedding. Using hhea here mispositions the text baseline within the
+            // line box relative to Chrome.
+            let metrics = ttf.layout_vertical_metrics();
             return (
                 metrics.ascender_ratio(ttf.units_per_em),
                 metrics.descender_ratio(ttf.units_per_em),
