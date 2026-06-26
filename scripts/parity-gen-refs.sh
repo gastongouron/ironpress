@@ -235,42 +235,55 @@ render_one() {
     return 0
   fi
 
-  # Single-page assertion: refuse multi-page refs (would mask pagination diffs).
-  if command -v pdfinfo >/dev/null 2>&1; then
-    pages="$(pdfinfo "$pdf" 2>/dev/null | awk '/^Pages:/ {print $2}')"
-    if [ -n "${pages:-}" ] && [ "$pages" -gt 1 ]; then
-      echo "  SKIP multi-page ($pages) fixture: $category/$base (shrink to one Letter page)" >&2
+  # Rasterize ALL pages so pagination is actually testable: page 1 -> <id>.png
+  # (the legacy single-page name, so the whole existing corpus is untouched),
+  # pages 2.. -> <id>.pN.png. The engine's multi-page comparison asserts the page
+  # COUNT matches Chrome and diffs every page, so references are no longer forced
+  # to a single page (the old "shrink to one page" constraint hid real pagination
+  # diffs — e.g. a trailing blank page). Render to a TEMP prefix, then atomically
+  # move each page into place so an interrupted run never leaves a partial ref.
+  local refdir="$REFS/$category"
+  # Drop stale extra-page refs for this id first (a fixture's page count may shrink).
+  rm -f "$refdir/$base".p[0-9]*.png 2>/dev/null || true
+  local tmp_prefix; tmp_prefix="$(mktemp -u "$TMP/png.XXXXXX")"
+  if timeout 90s pdftoppm -r "$DPI" -png "$pdf" "$tmp_prefix" 2>/dev/null; then
+    # pdftoppm (no -singlefile) writes <prefix>-N.png, zero-padded to the page
+    # count's width; collect in natural numeric order.
+    local pages_list; pages_list="$(ls "$tmp_prefix"-*.png 2>/dev/null | sort -V)"
+    if [ -z "$pages_list" ]; then
+      echo "  FAILED rasterize (no pages): $category/$base" >&2
       echo "F"
       return 0
     fi
-  fi
-
-  # Rasterize page 1 to a TEMP file, then atomically move it into place — so an
-  # interrupted/killed run can never leave a half-written (corrupt) reference PNG
-  # behind (the engine treats a corrupt ref as UNKNOWN, but never producing one is
-  # better).
-  local tmp_prefix; tmp_prefix="$(mktemp -u "$TMP/png.XXXXXX")"
-  if timeout 60s pdftoppm -r "$DPI" -png -f 1 -l 1 -singlefile "$pdf" "$tmp_prefix" 2>/dev/null \
-     && [ -s "$tmp_prefix.png" ]; then
-    # Blank-page guard: a uniform (all-white) raster means the render produced no
-    # content — e.g. Paged.js printed before pagination finished. Reject it rather
-    # than overwrite a good reference with a blank. A completely uniform image has
-    # standard-deviation 0; real fixtures always carry some border/box/text ink.
+    # Blank-page guard on page 1: a uniform (all-white) raster means no content
+    # (e.g. a render race). A completely uniform image has standard-deviation 0.
+    local p1; p1="$(printf '%s\n' "$pages_list" | head -1)"
     local sd="1"
     if command -v identify >/dev/null 2>&1; then
-      sd="$(identify -format '%[standard-deviation]' "$tmp_prefix.png" 2>/dev/null || echo 1)"
+      sd="$(identify -format '%[standard-deviation]' "$p1" 2>/dev/null || echo 1)"
     fi
     if [ "${sd%%.*}" = "0" ] && [ "$sd" != "1" ]; then
-      rm -f "$tmp_prefix.png" 2>/dev/null || true
+      # shellcheck disable=SC2086
+      rm -f $pages_list 2>/dev/null || true
       echo "  BLANK render (rejected, kept existing ref): $category/$base" >&2
       echo "F"
-    else
-      mv -f "$tmp_prefix.png" "$ref"
-      echo "  generated $category/$base.png" >&2
-      echo "G"
+      return 0
     fi
+    # Move page 1 -> <id>.png, pages 2.. -> <id>.pN.png.
+    local n=0 f
+    while IFS= read -r f; do
+      n=$((n + 1))
+      if [ "$n" -eq 1 ]; then
+        mv -f "$f" "$ref"
+      else
+        mv -f "$f" "$refdir/$base.p$n.png"
+      fi
+    done <<< "$pages_list"
+    echo "  generated $category/$base.png ($n page(s))" >&2
+    echo "G"
   else
-    rm -f "$tmp_prefix.png" 2>/dev/null || true
+    # shellcheck disable=SC2086
+    rm -f "$tmp_prefix"-*.png 2>/dev/null || true
     echo "  FAILED rasterize: $category/$base" >&2
     echo "F"
   fi

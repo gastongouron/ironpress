@@ -326,6 +326,31 @@ pub fn run() -> Result<(), String> {
 // Per-fixture processing
 // ---------------------------------------------------------------------------
 
+/// Reference PNG path for page `page` of a fixture. Page 1 is `<id>.png` (the
+/// legacy single-page name, so the entire existing corpus stays valid); pages
+/// 2.. are `<id>.pN.png`.
+fn ref_page_path(refs_dir: &Path, category: &str, id: &str, page: usize) -> std::path::PathBuf {
+    let name = if page <= 1 {
+        format!("{id}.png")
+    } else {
+        format!("{id}.p{page}.png")
+    };
+    refs_dir.join(category).join(name)
+}
+
+/// Count committed reference pages for a fixture: 0 when there is no `<id>.png`,
+/// otherwise 1 plus the run of consecutive `<id>.pN.png` (N = 2, 3, …) present.
+fn count_ref_pages(refs_dir: &Path, category: &str, id: &str) -> usize {
+    if !ref_page_path(refs_dir, category, id, 1).is_file() {
+        return 0;
+    }
+    let mut n = 1;
+    while ref_page_path(refs_dir, category, id, n + 1).is_file() {
+        n += 1;
+    }
+    n
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_entry(
     entry: &ManifestEntry,
@@ -387,15 +412,18 @@ fn process_entry(
         return with_sha(fixture_unknown(entry, "pdftoppm unavailable".to_string()));
     }
 
-    // Rasterize candidate (independent of whether a reference exists), then
-    // persist it to the committed `out/` tree.
-    let cand_png = tmp_dir.join(format!("{}.png", entry.id));
-    if let Err(e) = rasterize::rasterize(&pdf_path, &cand_png, tmp_dir, &entry.id) {
-        return with_sha(fixture_fail(entry, 100.0, format!("pdftoppm failed: {e}")));
-    }
+    // Rasterize ALL candidate pages (pagination support). Page 1 drives the
+    // existing single-page comparison + verify pipeline below; the page COUNT and
+    // pages 2.. are folded into the verdict afterward (see the multi-page block).
+    let cand_page_paths = match rasterize::rasterize_all_pages(&pdf_path, tmp_dir, &entry.id) {
+        Ok(p) => p,
+        Err(e) => return with_sha(fixture_fail(entry, 100.0, format!("pdftoppm failed: {e}"))),
+    };
+    let cand_page_count = cand_page_paths.len();
 
-    // Decode candidate, then persist a committed copy to `out/<cat>/<id>.png`.
-    let cand = match image::open(&cand_png) {
+    // Decode page 1 (the primary candidate) and persist every page to the committed
+    // `out/` tree (page 1 -> <id>.png, page N>=2 -> <id>.pN.png).
+    let cand = match image::open(&cand_page_paths[0]) {
         Ok(i) => i.to_rgba8(),
         Err(e) => {
             return with_sha(fixture_fail(
@@ -409,6 +437,14 @@ fn process_entry(
         let _ = std::fs::create_dir_all(parent);
     }
     let _ = cand.save(&out_png);
+    for (i, p) in cand_page_paths.iter().enumerate().skip(1) {
+        if let Ok(img) = image::open(p) {
+            let extra = out_dir
+                .join(&entry.category)
+                .join(format!("{}.p{}.png", entry.id, i + 1));
+            let _ = img.to_rgba8().save(&extra);
+        }
+    }
 
     // Reference lookup. Absent => UNKNOWN (never gates). Candidate already
     // committed above so the report still shows the ironpress render.
@@ -556,16 +592,63 @@ fn process_entry(
     // the fixture level. The comparator/combiner still computes the PARTIAL band
     // internally (its goldens depend on it) — only the per-fixture parity verdict
     // is hardened, so the gate demands every fixture be a genuine PASS.
-    let fixture_status = if combined.status == report::Status::Partial {
+    let mut fixture_status = if combined.status == report::Status::Partial {
         report::Status::Fail
     } else {
         combined.status
     };
 
+    // MULTI-PAGE PAGINATION (additive). Assert ironpress's page COUNT matches the
+    // reference's, and compare pages 2.. against their `<id>.pN.png` references,
+    // folding the WORST result into the fixture verdict. The entire legacy corpus
+    // is single-page (ref_page_count == 1): the count matches and the loop runs
+    // zero extra times, so those fixtures are byte-for-byte unaffected. This is
+    // what makes a real page break testable — and is exactly the check that would
+    // have caught the `page-break-after` trailing-blank-page bug (ironpress 2 pages
+    // vs Chrome 1) that the page-1-only comparison silently passed.
+    let mut diff_pct = diff_pct;
+    let mut page_note = String::new();
+    let ref_page_count = count_ref_pages(refs_dir, &entry.category, &entry.id);
+    if ref_page_count >= 1 && cand_page_count != ref_page_count {
+        fixture_status = report::Status::Fail;
+        diff_pct = 100.0;
+        page_note = format!(
+            "page-count mismatch: ironpress {cand_page_count} vs reference {ref_page_count}"
+        );
+    } else if ref_page_count >= 2 {
+        for page in 2..=ref_page_count {
+            let ref_p = ref_page_path(refs_dir, &entry.category, &entry.id, page);
+            let (rimg, cimg) = match (image::open(&ref_p), image::open(&cand_page_paths[page - 1]))
+            {
+                (Ok(r), Ok(c)) => (r.to_rgba8(), c.to_rgba8()),
+                _ => {
+                    fixture_status = report::Status::Fail;
+                    page_note = format!("page {page} unreadable");
+                    break;
+                }
+            };
+            let page_outcome = compare_v2(&calibrate(&cimg), &rimg, entry);
+            diff_pct = diff_pct.max(util::round4(page_outcome.diff_pct));
+            let pdiff = reports_dir
+                .join(&entry.category)
+                .join(format!("{}.p{}.diff.png", entry.id, page));
+            if let Some(parent) = pdiff.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = page_outcome.overlay.save(&pdiff);
+            if page_outcome.status != report::Status::Pass {
+                fixture_status = report::Status::Fail;
+                if page_note.is_empty() {
+                    page_note = format!("page {page}: {}", page_outcome.diagnosis.headline);
+                }
+            }
+        }
+    }
+
     // ADDITIVE: attach the V2 diagnosis (spec §2). The attribution prefix
     // (`via {dep}: …` for confounded fixtures) is applied later in `run()` by
     // `compute_attribution`, once every fixture's status is known.
-    let mut result = report::fixture_base(entry, fixture_status, diff_pct, String::new());
+    let mut result = report::fixture_base(entry, fixture_status, diff_pct, page_note);
     result.diagnosis = Some(outcome.diagnosis);
     result.sub_verdicts = subs;
     result.disagreements = combined.disagreements;
