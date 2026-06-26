@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: 245px 129px; margin: 0; }
+  @page { size: 320px 129px; margin: 0; }
   html { font-family: ParitySans; line-height: 1.5; }
   * { margin: 0; box-sizing: border-box; }
   html, body { background: #ffffff; }
   .box {
-    width: 120px;
+    /* Widened so the longest word fits the content box. ironpress has no
+       hyphenation dictionary (hyphens:auto is UA-discretionary), so pin the
+       content to the no-hyphenation common base both engines agree on, rather
+       than let the overflowing word seam against the right border. */
+    width: 240px;
     margin: 24px;
     padding: 6px;
     border: 2px solid #1a1a1a;
