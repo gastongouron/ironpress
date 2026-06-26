@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS Paged Media 3 §3.1: a propagated :root/body background is the document
+     canvas, confined to the page CONTENT box — it does NOT paint the @page margin
+     band. Same geometry as at-page-background-bleed, but the blue fills only
+     INSIDE the 40px margins (which stay white); a white card sits within it. */
+  @page { size: 440px 320px; margin: 40px; }
+  html { font-family: ParitySans; line-height: 1.5; background: #2d6cdf; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .card {
+    width: 200px;
+    height: 120px;
+    background: #ffffff;
+    border: 4px solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="card"></div>
+</body>
+</html>

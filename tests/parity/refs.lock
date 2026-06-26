@@ -1,4 +1,5 @@
 {
+  "at-page-background-bleed": "e8b2b1d1df5332cb7caf94d399eb8c2487e5a237acdc202b4d9c1adabfa6dc0e",
   "background-blend-mode-multiply": "52682a5920862b3b1b404c091ee75bc1d8875273a3da84724100fbed34779778",
   "background-clip-padding-box": "35833954c30c37fe4007897e1ccce1ab4b62e4d3090cd1da6b86f906d3c6bbe6",
   "background-color-rgba": "4f06b24b515e7902afcf8e714feee908f038f73079ac6558b16fcac5556c9bf8",
@@ -435,6 +436,7 @@
   "repeating-conic-gradient": "12ec0a1960c2b052b18f2b77a8f27a215cc912e6fc55927f6f412a72eaf54dba",
   "repeating-linear-gradient": "27ebe5b6cb8cd858a138fc9ff9c3eee2c3bee8d257eb4d7b43fc9d1de52b1f06",
   "repeating-radial-gradient": "83eeef22c10274cd68af0cc77fa63051aae35a537c69b50bfaf67efeb9348df2",
+  "root-background-content-box": "3f856090d75d0aecbb6aa67b7e259be695836ab5c16ebd76a82f9a80a3941cda",
   "selectors-cascade-adjacent-sibling": "0891d3a6ccd60d34cd891be881068012349e891d55daf0bb7c26a3e56a445b20",
   "selectors-cascade-attribute-case-insensitive": "1b53a7b6b7862840d8921a87762428a254fcdb4dbb5f7e863ead8f94a671b4d0",
   "selectors-cascade-attribute-equals": "2f7d3c33fda4cc615b91ad2f4f6252cca35df9de1d17396761026cd7e5ace18b",

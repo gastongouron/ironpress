@@ -909,7 +909,7 @@ pub fn layout_with_rules(
     margin: Margin,
     rules: &[CssRule],
 ) -> Vec<Page> {
-    layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new())
+    layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new(), None)
 }
 
 /// Walk the DOM and record every element bearing an `id` attribute into
@@ -933,6 +933,7 @@ pub fn layout_with_rules_and_fonts(
     margin: Margin,
     rules: &[CssRule],
     custom_fonts: &HashMap<String, TtfFont>,
+    page_background: Option<&ComputedStyle>,
 ) -> Vec<Page> {
     // Expose the loaded fonts to style resolution for the whole pass so the
     // `ex`/`ch` units resolve against real font metrics (css-values-4 §6.1.1).
@@ -975,6 +976,88 @@ pub fn layout_with_rules_and_fonts(
     // describe only the inner content area AFTER padding. We extend the bg
     // block outward by the body padding so it visually fills the padding zone
     // too — matching Chrome's behaviour.
+    // CSS Paged Media 3 §3.1 (page backgrounds & painting order): a background
+    // declared on the `@page` rule paints the page's *bleed area* — the ENTIRE
+    // page box, INCLUDING its margins — at the very bottom of the paint order,
+    // beneath the document canvas. (The propagated root/body background below is
+    // the document canvas and is confined to the content box.) Emit it FIRST so
+    // it sits below every other layer, spanning the full sheet on each page:
+    // an absolute block sized to `page_size` and offset by `-margin` renders at
+    // the sheet origin (0,0) (the renderer adds `margin` back), and
+    // `repeat_on_each_page` paints it edge-to-edge on every page.
+    if let Some(page_bg) = page_background {
+        if has_background_paint(page_bg) {
+            let BackgroundFields {
+                gradient: background_gradient,
+                radial_gradient: background_radial_gradient,
+                conic_gradient: background_conic_gradient,
+                svg: background_svg,
+                blur_radius: background_blur_radius,
+                size: background_size,
+                position: background_position,
+                repeat: background_repeat,
+                origin: background_origin,
+                clip: background_clip,
+            } = BackgroundFields::from_style(page_bg);
+            elements.push(LayoutElement::TextBlock {
+                lines: vec![],
+                margin_top: 0.0,
+                margin_bottom: 0.0,
+                text_align: TextAlign::Left,
+                writing_mode: crate::style::computed::WritingMode::HorizontalTb,
+                background_color: page_bg.background_color.map(|c| c.to_f32_rgba()),
+                padding_top: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                padding_right: 0.0,
+                border: LayoutBorder::default(),
+                block_width: Some(page_size.width),
+                block_height: Some(page_size.height),
+                opacity: 1.0,
+                mix_blend_mode: crate::style::computed::BlendMode::Normal,
+                background_blend_mode: crate::style::computed::BlendMode::Normal,
+                float: Float::None,
+                clear: Clear::None,
+                position: Position::Absolute,
+                offset_top: -margin.top,
+                offset_left: -margin.left,
+                offset_bottom: 0.0,
+                offset_right: 0.0,
+                containing_block: None,
+                box_shadow: Vec::new(),
+                visible: true,
+                clip_rect: None,
+                transform: None,
+                transform_origin: crate::style::computed::TransformOrigin::default(),
+                border_radius: 0.0,
+                border_radii: [0.0; 4],
+                border_radii_y: [0.0; 4],
+                outline_offset: 0.0,
+                outline_width: 0.0,
+                outline_color: None,
+                text_indent: 0.0,
+                letter_spacing: 0.0,
+                word_spacing: 0.0,
+                vertical_align: VerticalAlign::Baseline,
+                background_gradient,
+                background_radial_gradient,
+                background_conic_gradient,
+                background_svg,
+                background_blur_radius,
+                background_size,
+                background_position,
+                background_repeat,
+                background_origin,
+                background_clip,
+                z_index: -2,
+                repeat_on_each_page: true,
+                positioned_depth: 0,
+                heading_level: None,
+                clip_children_count: 0,
+            });
+        }
+    }
+
     let has_body_bg = has_background_paint(&parent_style);
     if has_body_bg {
         let BackgroundFields {
@@ -6822,6 +6905,90 @@ mod tests {
     }
 
     #[test]
+    fn at_page_background_emits_full_bleed_block_below_canvas() {
+        // CSS Paged Media 3 §3.1: a background declared on `@page` paints the
+        // bleed area — the entire page box INCLUDING its margins — BELOW the
+        // document canvas. The propagated root/body background (the canvas) stays
+        // confined to the content box. Provide BOTH and assert the layering +
+        // geometry: the @page layer is full-sheet at z=-2, the canvas is confined
+        // at z=-1.
+        let mut page_bg = ComputedStyle::default();
+        let map = crate::parser::css::parse_inline_style("background: #abcdef");
+        crate::style::computed::apply_style_map(&mut page_bg, &map, &ComputedStyle::default());
+
+        let rules = parse_stylesheet(":root { background-color: #112233; }");
+        let nodes = parse_html("<p>text</p>").unwrap();
+        let margin = Margin::uniform(20.0);
+        let pages = layout_with_rules_and_fonts(
+            &nodes,
+            PageSize::A4,
+            margin,
+            &rules,
+            &std::collections::HashMap::new(),
+            Some(&page_bg),
+        );
+
+        // elements[0]: the @page bleed background — full sheet, offset by -margin
+        // so it renders at the sheet origin, z=-2, repeated on each page.
+        match &pages[0].elements[0] {
+            (
+                _,
+                LayoutElement::TextBlock {
+                    block_width: Some(w),
+                    block_height: Some(h),
+                    offset_left,
+                    offset_top,
+                    z_index,
+                    repeat_on_each_page,
+                    ..
+                },
+            ) => {
+                assert!(
+                    (*w - PageSize::A4.width).abs() < 0.1,
+                    "full page width, got {w}"
+                );
+                assert!(
+                    (*h - PageSize::A4.height).abs() < 0.1,
+                    "full page height, got {h}"
+                );
+                assert!(
+                    (*offset_left + 20.0).abs() < 0.1,
+                    "offset_left == -margin.left"
+                );
+                assert!(
+                    (*offset_top + 20.0).abs() < 0.1,
+                    "offset_top == -margin.top"
+                );
+                assert_eq!(*z_index, -2, "@page bleed paints below the canvas (z=-1)");
+                assert!(*repeat_on_each_page, "repeats on every page");
+            }
+            other => panic!("expected full-bleed @page background first, got {other:?}"),
+        }
+
+        // elements[1]: the propagated canvas background — CONFINED inside margins.
+        match &pages[0].elements[1] {
+            (
+                _,
+                LayoutElement::TextBlock {
+                    block_width: Some(w),
+                    z_index,
+                    ..
+                },
+            ) => {
+                assert!(
+                    *w < PageSize::A4.width - 1.0,
+                    "canvas background stays confined inside the @page margins, got {w}"
+                );
+                assert_eq!(
+                    *z_index, -1,
+                    "canvas background z=-1 (above the @page bleed)"
+                );
+            }
+            other => panic!("expected confined canvas background second, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn wrapper_textblock_for_visual_blocks() {
         let css = ".box { background-color: red; padding: 10pt }";
         let rules = parse_stylesheet(css);
@@ -8970,6 +9137,7 @@ line 3</pre>
             Margin::default(),
             &rules,
             &std::collections::HashMap::new(),
+            None,
         );
 
         for (page_idx, page) in pages.iter().enumerate() {

@@ -221,4 +221,10 @@ pub struct PageRule {
     pub margin_bottom: Option<f32>,
     /// Left margin in points (if specified).
     pub margin_left: Option<f32>,
+    /// The raw declaration block of the `@page` rule (the text between `{` and
+    /// `}`), retained verbatim so a CSS-aware parser can later extract the
+    /// `@page` background (CSS Paged Media 3 §3.1 bleed-area background). Kept
+    /// raw — rather than pre-split on `;` like size/margin — so data-URI values
+    /// containing `;` (e.g. `;base64,`) survive intact.
+    pub raw_declarations: Option<String>,
 }

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS Paged Media 3 §3.1: a background on @page paints the bleed area — the
+     ENTIRE page box, INCLUDING the @page margins. The 40px margin band is filled
+     blue; a white content card sits inset within the content box. */
+  @page { size: 440px 320px; margin: 40px; background: #2d6cdf; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .card {
+    width: 200px;
+    height: 120px;
+    background: #ffffff;
+    border: 4px solid #11305f;
+  }
+</style>
+</head>
+<body>
+  <div class="card"></div>
+</body>
+</html>

@@ -199,12 +199,26 @@ pub(crate) fn parse_page_declarations(decls: &str) -> Option<PageRule> {
                         has_any = true;
                     }
                 }
+                // A `background`/`background-*` declaration on `@page` paints the
+                // page bleed area (CSS Paged Media 3 §3.1). It is NOT parsed here
+                // (the `;`-split + lowercasing above would corrupt data-URI
+                // values); instead we flag its presence so the rule is retained,
+                // and the value is parsed from `raw_declarations` by a CSS-aware
+                // parser in the converter.
+                p if p.starts_with("background") => {
+                    has_any = true;
+                }
                 _ => {}
             }
         }
     }
 
-    if has_any { Some(rule) } else { None }
+    if has_any {
+        rule.raw_declarations = Some(decls.to_string());
+        Some(rule)
+    } else {
+        None
+    }
 }
 
 /// Parse a page size value. Returns (width, height) in points.
@@ -370,6 +384,35 @@ mod tests {
     fn parse_page_declarations_margin_3_ignored() {
         // 3-value margin is not supported, should not set margins
         assert!(parse_page_declarations("margin: 10pt 20pt 30pt").is_none());
+    }
+
+    #[test]
+    fn parse_page_declarations_captures_background_raw() {
+        // The @page background is retained verbatim (not lowercased/`;`-split) so
+        // a CSS-aware parser can extract it later; the data-URI case survives.
+        let rule = parse_page_declarations(
+            "margin: 1cm; background-image: url(\"data:image/svg+xml,%3Csvg%3E\"); background-size: cover",
+        )
+        .unwrap();
+        assert_eq!(rule.margin_top, Some(28.3465));
+        let raw = rule.raw_declarations.expect("raw declarations retained");
+        assert!(raw.contains("background-image"));
+        assert!(raw.contains("%3Csvg"), "data-URI case preserved: {raw}");
+    }
+
+    #[test]
+    fn parse_page_declarations_background_only_is_retained() {
+        // An @page rule carrying ONLY a background (no size/margin) must still be
+        // kept so the bleed-area background is not dropped.
+        let rule =
+            parse_page_declarations("background: #abc").expect("background-only @page retained");
+        assert!(rule.width.is_none() && rule.margin_top.is_none());
+        assert!(
+            rule.raw_declarations
+                .as_deref()
+                .unwrap()
+                .contains("background")
+        );
     }
 
     #[test]

@@ -124,5 +124,33 @@
     "depends_on": ["probe-fill-box", "probe-border-box"],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "at-page-background-bleed",
+    "category": "paged-media",
+    "feature": "page-background",
+    "subfeature": "bleed-area-full-page",
+    "description": "A background declared on @page paints the bleed area — the entire page box INCLUDING the @page margins (CSS Paged Media 3 §3.1). The 40px margin band is filled; a white bordered card sits inset in the content box.",
+    "file": "cases/paged-media/at-page-background-bleed.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "root-background-content-box",
+    "category": "paged-media",
+    "feature": "page-background",
+    "subfeature": "canvas-confined-to-content",
+    "description": "A propagated :root/canvas background is the document canvas, confined to the page content box — it does NOT paint the @page margin band (CSS Paged Media 3 §3.1). Same geometry as at-page-background-bleed, but the 40px margins stay white; the blue fills only inside them.",
+    "file": "cases/paged-media/root-background-content-box.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

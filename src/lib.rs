@@ -588,6 +588,30 @@ impl HtmlConverter {
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
         system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
 
+        // Step 4c: Resolve an `@page` background (CSS Paged Media 3 §3.1 bleed
+        // area). Apply every @page rule's declarations, in cascade order, onto a
+        // throwaway ComputedStyle and reuse the standard background machinery
+        // (color/gradient/SVG/raster, data-URI `;` preserved by the CSS-aware
+        // `parse_inline_style`). The result is painted full-bleed — the entire
+        // page box including its margins — beneath the document canvas; the
+        // propagated root/body background stays confined to the content box.
+        let mut page_bg_style = crate::style::computed::ComputedStyle::default();
+        let mut any_page_decls = false;
+        for pr in &page_rules {
+            if let Some(raw) = &pr.raw_declarations {
+                let map = parser::css::parse_inline_style(raw);
+                crate::style::computed::apply_style_map(
+                    &mut page_bg_style,
+                    &map,
+                    &crate::style::computed::ComputedStyle::default(),
+                );
+                any_page_decls = true;
+            }
+        }
+        let page_bg = (any_page_decls
+            && crate::layout::helpers::has_background_paint(&page_bg_style))
+        .then_some(&page_bg_style);
+
         // Step 5: Layout
         let pages = layout::engine::layout_with_rules_and_fonts(
             &result.nodes,
@@ -595,6 +619,7 @@ impl HtmlConverter {
             effective_margin,
             &rules,
             &parsed_fonts,
+            page_bg,
         );
 
         // Step 6: Render PDF
