@@ -11974,7 +11974,6 @@ impl PdfWriter {
 
     pub(crate) fn add_raw_png_image_object(&mut self, raw_png: &[u8]) -> Option<usize> {
         let decoded = decode_png_for_pdf(raw_png)?;
-        let color_stream = flate_compress(&decoded.color_data)?;
         let alpha_stream = if let Some(alpha_data) = decoded.alpha_data.as_deref() {
             Some(flate_compress(alpha_data)?)
         } else {
@@ -11994,9 +11993,30 @@ impl PdfWriter {
             id
         });
 
+        // Colour stream: JPEG (/DCTDecode) for a large photographic DeviceRGB
+        // image, keeping the alpha in a separate Flate /SMask — exactly how Chrome
+        // embeds a semi-transparent photo (DCTDecode colour + soft mask). Lossy, so
+        // gated to images large enough to be worth re-encoding (small synthetic
+        // PNGs stay lossless Flate). DeviceGray and small images keep Flate.
+        let jpeg_color = (decoded.color_space == "/DeviceRGB"
+            && should_try_lossy_png_reencode(decoded.width, decoded.height, raw_png.len()))
+        .then(|| {
+            encode_rgb_as_jpeg(
+                &decoded.color_data,
+                decoded.width,
+                decoded.height,
+                self.opts.jpeg_quality,
+            )
+        })
+        .flatten();
+        let (filter, color_stream) = match jpeg_color {
+            Some(jpeg) => ("/DCTDecode", jpeg),
+            None => ("/FlateDecode", flate_compress(&decoded.color_data)?),
+        };
+
         let id = self.next_id();
         let mut header = format!(
-            "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent 8 /Filter /FlateDecode /Length {len}",
+            "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent 8 /Filter {filter} /Length {len}",
             width = decoded.width,
             height = decoded.height,
             color_space = decoded.color_space,
