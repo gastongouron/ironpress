@@ -1037,7 +1037,7 @@ fn page_shrink_to_fit_scale(page: &Page, page_size: PageSize, margin: Margin) ->
 /// inspectable output (used by unit tests and the parity harness, which
 /// rasterizes the result). The high-level `HtmlConverter` API enables content-
 /// stream compression by default for production output; call
-/// `render_pdf_to_writer_full_opts(.., true)` for compression here.
+/// `render_pdf_to_writer_full_opts(.., opts)` for compression here.
 pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     pages: &[Page],
     page_size: PageSize,
@@ -1053,7 +1053,10 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
         writer,
         custom_fonts,
         decoration,
-        false,
+        RenderOpts {
+            compress: false,
+            ..Default::default()
+        },
     )
 }
 
@@ -1064,13 +1067,13 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     writer: &mut W,
     custom_fonts: &HashMap<String, TtfFont>,
     decoration: Option<&PageDecoration>,
-    compress: bool,
+    opts: RenderOpts,
 ) -> Result<(), IronpressError> {
     // Keep `ex`/`ch` style resolution font-aware during any render-time style
     // recomputation (e.g. pseudo-elements), matching the layout pass.
     let _font_ctx = crate::style::font_ctx::FontCtxGuard::new(custom_fonts);
     let mut pdf_writer = PdfWriter::new();
-    pdf_writer.compress = compress;
+    pdf_writer.opts = opts;
     let available_width = page_size.width - margin.left - margin.right;
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
     let prepared_custom_fonts = prepare_custom_fonts(pages, custom_fonts);
@@ -1286,6 +1289,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             *background_color,
                             border,
                             *background_blur_radius,
+                            pdf_writer.opts.filter_dpi,
                         )
                     {
                         let img_obj_id = pdf_writer.add_image_object(
@@ -4891,12 +4895,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *object_fit,
                         *object_position,
                     );
-                    let img_obj_id = pdf_writer.add_image_object(
+                    let img_obj_id = pdf_writer.add_source_image_object(
                         &image.data,
                         image.source_width,
                         image.source_height,
                         image.format,
                         image.png_metadata.as_ref(),
+                        placement.width,
+                        placement.height,
                     );
                     let img_name = format!("Im{img_obj_id}");
                     content.push_str("q\n");
@@ -6140,6 +6146,7 @@ fn render_container_children(
                         *background_color,
                         border,
                         *tb_bg_blur,
+                        pdf_writer.opts.filter_dpi,
                     )
                 {
                     let img_obj_id = pdf_writer.add_image_object(
@@ -6743,6 +6750,7 @@ fn render_container_children(
                         *background_color,
                         border,
                         *nk_bg_blur,
+                        pdf_writer.opts.filter_dpi,
                     )
                 {
                     let img_obj_id = pdf_writer.add_image_object(
@@ -7453,12 +7461,14 @@ fn render_container_children(
                     *object_fit,
                     *object_position,
                 );
-                let img_obj_id = pdf_writer.add_image_object(
+                let img_obj_id = pdf_writer.add_source_image_object(
                     &image.data,
                     image.source_width,
                     image.source_height,
                     image.format,
                     image.png_metadata.as_ref(),
+                    placement.width,
+                    placement.height,
                 );
                 let img_name = format!("Im{img_obj_id}");
                 content.push_str("q\n");
@@ -8674,18 +8684,23 @@ fn render_text_shadow_blur(
         font.units_per_em,
         run.font_size,
         &shaped.glyphs,
+        pdf_writer.opts.filter_dpi,
     ) {
         Some(r) => r,
         None => return false,
     };
     let (mask_w, mask_h) = (raster.mask.width(), raster.mask.height());
-    let (blurred, pad) =
-        match crate::render::blur::blur_shadow_alpha_mask(&raster.mask, blur_pt, color) {
-            Some(b) => b,
-            None => return false,
-        };
+    let (blurred, pad) = match crate::render::blur::blur_shadow_alpha_mask(
+        &raster.mask,
+        blur_pt,
+        color,
+        pdf_writer.opts.filter_dpi,
+    ) {
+        Some(b) => b,
+        None => return false,
+    };
 
-    let px_per_pt = crate::render::blur::px_per_pt();
+    let px_per_pt = crate::render::blur::px_per_pt_at_filter_dpi(pdf_writer.opts.filter_dpi);
     let buf_w_px = (mask_w + 2 * pad) as f32;
     let buf_h_px = (mask_h + 2 * pad) as f32;
     let w_pt = buf_w_px / px_per_pt;
@@ -10381,7 +10396,7 @@ fn render_svg_background(
             image_box,
             blur_radius: paint.blur_radius,
         });
-        register_background_image(pdf_writer, page_images, href, request)
+        register_background_image(pdf_writer, page_images, href, image_box, request)
             .map(|registered| (image_box, registered))
     });
     let visual_overflow = raster_background.as_ref().map_or_else(
@@ -10672,9 +10687,14 @@ fn render_box_shadow(
     };
     let _ = layers;
     let _ = ALPHA_NORMALIZER;
-    if let Some(blurred) =
-        crate::render::blur::blur_shadow_rect(sw, sh, shadow_radius, blur, (sr, sg, sb, base_alpha))
-    {
+    if let Some(blurred) = crate::render::blur::blur_shadow_rect(
+        sw,
+        sh,
+        shadow_radius,
+        blur,
+        (sr, sg, sb, base_alpha),
+        pdf_writer.opts.filter_dpi,
+    ) {
         let img_obj_id = pdf_writer.add_image_object(
             &blurred.asset.data,
             blurred.asset.source_width,
@@ -11549,12 +11569,81 @@ fn flate_compress(data: &[u8]) -> Option<Vec<u8>> {
     encoder.finish().ok()
 }
 
+fn encode_rgb_as_jpeg(rgb: &[u8], width: u32, height: u32, quality: u8) -> Option<Vec<u8>> {
+    use image::ImageEncoder;
+
+    if rgb.len() != width.checked_mul(height)?.checked_mul(3)? as usize {
+        return None;
+    }
+    let mut buf = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality.clamp(0, 100))
+        .write_image(rgb, width, height, image::ExtendedColorType::Rgb8)
+        .ok()?;
+    Some(buf)
+}
+
+fn try_decode_png_as_opaque_rgb(raw_png: &[u8]) -> Option<DecodedPngImage> {
+    let decoded = decode_png_for_pdf(raw_png)?;
+    if decoded.color_space != "/DeviceRGB" {
+        return None;
+    }
+    if decoded.color_data.len()
+        != decoded.width.checked_mul(decoded.height)?.checked_mul(3)? as usize
+    {
+        return None;
+    }
+    if decoded
+        .alpha_data
+        .as_ref()
+        .is_some_and(|alpha| alpha.iter().any(|a| *a != 255))
+    {
+        return None;
+    }
+    Some(decoded)
+}
+
+fn should_try_lossy_png_reencode(width: u32, height: u32, byte_len: usize) -> bool {
+    const MIN_LOSSY_PNG_PIXELS: u64 = 16_384;
+    const MIN_LOSSY_PNG_BYTES: usize = 16 * 1024;
+
+    u64::from(width) * u64::from(height) >= MIN_LOSSY_PNG_PIXELS && byte_len >= MIN_LOSSY_PNG_BYTES
+}
+
+struct ResizedImage {
+    data: Vec<u8>,
+    width: u32,
+    height: u32,
+    format: ImageFormat,
+    png_metadata: Option<PngMetadata>,
+}
+
 /// A custom TrueType font entry for the PDF font dictionary.
 struct CustomFontEntry {
     /// Sanitized PDF resource key used from page content streams.
     resource_name: String,
     /// Object ID of the font object.
     font_obj_id: usize,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct RenderOpts {
+    pub compress: bool,
+    pub jpeg_quality: u8,
+    pub auto_resize_images: bool,
+    pub image_dpi: f32,
+    pub filter_dpi: f32,
+}
+
+impl Default for RenderOpts {
+    fn default() -> Self {
+        Self {
+            compress: true,
+            jpeg_quality: 85,
+            auto_resize_images: true,
+            image_dpi: 300.0,
+            filter_dpi: 150.0,
+        }
+    }
 }
 
 /// Minimal PDF writer that produces valid PDF files.
@@ -11577,9 +11666,7 @@ pub(crate) struct PdfWriter {
     /// Each becomes an `/ExtGState << /SMask << /S /Luminosity /G <form> >> >>`
     /// emitted into the shared resource dictionary. Names are global across pages.
     soft_mask_gstates: Vec<(String, usize)>,
-    /// When set, page content streams are FlateDecode-compressed (lossless, and
-    /// transparent to any rasterizer). Defaults to `true`.
-    compress: bool,
+    opts: RenderOpts,
 }
 
 impl PdfWriter {
@@ -11594,7 +11681,7 @@ impl PdfWriter {
             page_shadings: Vec::new(),
             custom_font_entries: Vec::new(),
             soft_mask_gstates: Vec::new(),
-            compress: true,
+            opts: RenderOpts::default(),
         }
     }
 
@@ -11611,6 +11698,25 @@ impl PdfWriter {
         format: ImageFormat,
         png_metadata: Option<&PngMetadata>,
     ) -> usize {
+        if matches!(format, ImageFormat::Png | ImageFormat::PngAlpha)
+            && should_try_lossy_png_reencode(width, height, data.len())
+            && let Some(decoded) = try_decode_png_as_opaque_rgb(data)
+            && let Some(jpeg) = encode_rgb_as_jpeg(
+                &decoded.color_data,
+                decoded.width,
+                decoded.height,
+                self.opts.jpeg_quality,
+            )
+            && jpeg.len() < data.len()
+        {
+            return self.add_image_object(
+                &jpeg,
+                decoded.width,
+                decoded.height,
+                ImageFormat::Jpeg,
+                None,
+            );
+        }
         // An alpha PNG carries the complete original PNG file; decode it into a
         // colour stream plus an `/SMask`, preserving transparency. Fall back to
         // an opaque RGB embedding if decoding fails for any reason.
@@ -11631,13 +11737,11 @@ impl PdfWriter {
                 // Reaching here for a PngAlpha means the SMask decode above
                 // failed (corrupt PNG); recover its metadata from the IHDR so the
                 // passthrough header is still well-formed rather than panicking.
-                let recovered = png_metadata.is_none().then(|| {
-                    crate::parser::png::parse_png(data).map(|info| PngMetadata {
-                        channels: info.channels,
-                        bit_depth: info.bit_depth,
-                    })
+                let parsed_png = crate::parser::png::parse_png(data);
+                let recovered = parsed_png.as_ref().map(|info| PngMetadata {
+                    channels: info.channels,
+                    bit_depth: info.bit_depth,
                 });
-                let recovered = recovered.flatten();
                 let meta = png_metadata
                     .or(recovered.as_ref())
                     .expect("PNG metadata required for PNG images");
@@ -11645,19 +11749,194 @@ impl PdfWriter {
                     1 | 2 => "/DeviceGray",
                     _ => "/DeviceRGB",
                 };
+                let stream_data = parsed_png
+                    .as_ref()
+                    .map_or(data, |info| info.idat_data.as_slice());
                 format!(
                     "{id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace {color_space} /BitsPerComponent {bpc} /Filter /FlateDecode /DecodeParms << /Predictor 15 /Columns {width} /Colors {channels} /BitsPerComponent {bpc} >> /Length {len} >>\nstream\n",
                     bpc = meta.bit_depth,
                     channels = meta.channels,
-                    len = data.len(),
+                    len = stream_data.len(),
                 )
             }
         };
         self.objects.push(header);
-        self.binary_objects.insert(id, data.to_vec());
+        let stream_data = match format {
+            ImageFormat::Png | ImageFormat::PngAlpha => crate::parser::png::parse_png(data)
+                .map_or_else(|| data.to_vec(), |info| info.idat_data),
+            ImageFormat::Jpeg => data.to_vec(),
+        };
+        self.binary_objects.insert(id, stream_data);
         id
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn add_source_image_object(
+        &mut self,
+        data: &[u8],
+        width: u32,
+        height: u32,
+        format: ImageFormat,
+        png_metadata: Option<&PngMetadata>,
+        display_w_pt: f32,
+        display_h_pt: f32,
+    ) -> usize {
+        if let Some(resized) =
+            self.maybe_resize_image(data, width, height, format, display_w_pt, display_h_pt)
+        {
+            self.add_image_object(
+                &resized.data,
+                resized.width,
+                resized.height,
+                resized.format,
+                resized.png_metadata.as_ref(),
+            )
+        } else {
+            self.add_image_object(data, width, height, format, png_metadata)
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn add_decodable_source_image_object(
+        &mut self,
+        data: &[u8],
+        width: u32,
+        height: u32,
+        format: ImageFormat,
+        png_metadata: Option<&PngMetadata>,
+        display_w_pt: f32,
+        display_h_pt: f32,
+    ) -> Option<usize> {
+        if matches!(format, ImageFormat::Png | ImageFormat::PngAlpha)
+            && decode_png_for_pdf(data).is_none()
+        {
+            return None;
+        }
+        Some(self.add_source_image_object(
+            data,
+            width,
+            height,
+            format,
+            png_metadata,
+            display_w_pt,
+            display_h_pt,
+        ))
+    }
+
+    fn maybe_resize_image(
+        &self,
+        data: &[u8],
+        source_width: u32,
+        source_height: u32,
+        format: ImageFormat,
+        display_w_pt: f32,
+        display_h_pt: f32,
+    ) -> Option<ResizedImage> {
+        if !self.opts.auto_resize_images
+            || source_width == 0
+            || source_height == 0
+            || display_w_pt <= 0.0
+            || display_h_pt <= 0.0
+        {
+            return None;
+        }
+
+        let target_w = (display_w_pt * self.opts.image_dpi.max(72.0) / 72.0)
+            .round()
+            .max(1.0) as u32;
+        let target_h = (display_h_pt * self.opts.image_dpi.max(72.0) / 72.0)
+            .round()
+            .max(1.0) as u32;
+        let scale = ((target_w as f32 / source_width as f32)
+            .min(target_h as f32 / source_height as f32))
+        .min(1.0);
+        if scale >= 1.0 {
+            return None;
+        }
+        let new_w = ((source_width as f32 * scale).round().max(1.0) as u32).min(source_width);
+        let new_h = ((source_height as f32 * scale).round().max(1.0) as u32).min(source_height);
+        if new_w >= source_width && new_h >= source_height {
+            return None;
+        }
+
+        match format {
+            ImageFormat::Jpeg => {
+                let decoded = image::load_from_memory(data).ok()?.to_rgb8();
+                let resized = image::imageops::resize(
+                    &decoded,
+                    new_w,
+                    new_h,
+                    image::imageops::FilterType::Lanczos3,
+                );
+                let encoded =
+                    encode_rgb_as_jpeg(resized.as_raw(), new_w, new_h, self.opts.jpeg_quality)?;
+                Some(ResizedImage {
+                    data: encoded,
+                    width: new_w,
+                    height: new_h,
+                    format: ImageFormat::Jpeg,
+                    png_metadata: None,
+                })
+            }
+            ImageFormat::Png | ImageFormat::PngAlpha => {
+                let decoded = image::load_from_memory(data).ok()?;
+                let has_alpha = matches!(
+                    decoded.color(),
+                    image::ColorType::La8
+                        | image::ColorType::La16
+                        | image::ColorType::Rgba8
+                        | image::ColorType::Rgba16
+                        | image::ColorType::Rgba32F
+                );
+                let mut encoded = Vec::new();
+                let output_format = if has_alpha {
+                    let rgba = decoded.to_rgba8();
+                    let resized = image::imageops::resize(
+                        &rgba,
+                        new_w,
+                        new_h,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+                    image::DynamicImage::ImageRgba8(resized)
+                        .write_to(
+                            &mut std::io::Cursor::new(&mut encoded),
+                            image::ImageFormat::Png,
+                        )
+                        .ok()?;
+                    ImageFormat::PngAlpha
+                } else {
+                    let rgb = decoded.to_rgb8();
+                    let resized = image::imageops::resize(
+                        &rgb,
+                        new_w,
+                        new_h,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+                    image::DynamicImage::ImageRgb8(resized)
+                        .write_to(
+                            &mut std::io::Cursor::new(&mut encoded),
+                            image::ImageFormat::Png,
+                        )
+                        .ok()?;
+                    ImageFormat::Png
+                };
+                let png_metadata =
+                    crate::parser::png::parse_png(&encoded).map(|info| PngMetadata {
+                        channels: info.channels,
+                        bit_depth: info.bit_depth,
+                    });
+                Some(ResizedImage {
+                    data: encoded,
+                    width: new_w,
+                    height: new_h,
+                    format: output_format,
+                    png_metadata,
+                })
+            }
+        }
+    }
+
+    #[allow(dead_code)]
     fn add_icc_profile_object(&mut self, icc_profile: &[u8]) -> Option<usize> {
         let id = self.next_id();
         self.objects.push(format!(
@@ -11668,6 +11947,7 @@ impl PdfWriter {
         Some(id)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn add_raw_rgb_image_object(
         &mut self,
         rgb_data: &[u8],
@@ -12076,6 +12356,7 @@ impl PdfWriter {
         // compression is disabled or fails.
         let content_id = self.next_id();
         match self
+            .opts
             .compress
             .then(|| flate_compress(content.as_bytes()))
             .flatten()

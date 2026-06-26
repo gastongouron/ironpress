@@ -1,5 +1,6 @@
 use image::ImageDecoder;
 
+#[allow(dead_code)]
 pub(crate) struct DecodedJpegImage {
     pub width: u32,
     pub height: u32,
@@ -60,6 +61,7 @@ pub(crate) fn parse_jpeg_dimensions(data: &[u8]) -> Option<(u32, u32)> {
     None
 }
 
+#[allow(dead_code)]
 pub(crate) fn decode_jpeg_for_pdf(data: &[u8]) -> Option<DecodedJpegImage> {
     let cursor = std::io::Cursor::new(data);
     let mut decoder = image::codecs::jpeg::JpegDecoder::new(cursor).ok()?;

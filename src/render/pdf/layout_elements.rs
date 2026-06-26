@@ -524,6 +524,7 @@ pub(super) fn render_nested_text_block(
             block.background_color,
             &block.border,
             block.background_blur_radius,
+            ctx.text.pdf_writer.opts.filter_dpi,
         )
     {
         let img_obj_id = ctx.text.pdf_writer.add_image_object(

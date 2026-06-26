@@ -313,6 +313,7 @@ fn build_filter_raster(
             content_w_pt,
             content_h_pt,
             blur_radius_pt,
+            300.0,
         )?;
         if !color_filters.is_empty() {
             apply_color_filters_rgba(&mut buf, color_filters);

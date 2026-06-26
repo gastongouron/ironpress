@@ -23,6 +23,14 @@ pub struct CliOptions {
     pub sanitize: bool,
     /// FlateDecode-compress page content streams (default true).
     pub compress: bool,
+    /// JPEG quality for optimized image embedding.
+    pub jpeg_quality: u8,
+    /// Downscale oversized source images before embedding.
+    pub auto_resize_images: bool,
+    /// Target source-image resolution in DPI.
+    pub image_dpi: f32,
+    /// Rasterization DPI for render-time blur/filter bitmaps.
+    pub filter_dpi: f32,
     /// Read from stdin instead of a file.
     pub from_stdin: bool,
     /// Positional arguments (input, output).
@@ -47,6 +55,10 @@ impl Default for CliOptions {
             // The real CLI compresses by default; the in-crate test build renders
             // raw so cli tests can inspect content-stream operators (see lib.rs).
             compress: !cfg!(test),
+            jpeg_quality: 85,
+            auto_resize_images: true,
+            image_dpi: 300.0,
+            filter_dpi: 150.0,
             from_stdin: false,
             positional: Vec::new(),
             help: false,
@@ -120,6 +132,35 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                 let val = args.get(i).ok_or("--compress requires a value")?;
                 opts.compress = val != "false" && val != "0";
             }
+            "--jpeg-quality" => {
+                i += 1;
+                let val = args.get(i).ok_or("--jpeg-quality requires a value")?;
+                let quality: i32 = val
+                    .parse()
+                    .map_err(|_| format!("--jpeg-quality requires a number, got: {val}"))?;
+                opts.jpeg_quality = quality.clamp(0, 100) as u8;
+            }
+            "--auto-resize-images" => {
+                i += 1;
+                let val = args.get(i).ok_or("--auto-resize-images requires a value")?;
+                opts.auto_resize_images = val != "false" && val != "0";
+            }
+            "--image-dpi" => {
+                i += 1;
+                let val = args.get(i).ok_or("--image-dpi requires a value")?;
+                let dpi: f32 = val
+                    .parse()
+                    .map_err(|_| format!("--image-dpi requires a number, got: {val}"))?;
+                opts.image_dpi = dpi.max(72.0);
+            }
+            "--filter-dpi" => {
+                i += 1;
+                let val = args.get(i).ok_or("--filter-dpi requires a value")?;
+                let dpi: f32 = val
+                    .parse()
+                    .map_err(|_| format!("--filter-dpi requires a number, got: {val}"))?;
+                opts.filter_dpi = dpi.max(1.0);
+            }
             "--base-path" => {
                 i += 1;
                 let val = args.get(i).ok_or("--base-path requires a value")?;
@@ -148,7 +189,11 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
         .page_size(page_size)
         .margin(opts.margin)
         .sanitize(opts.sanitize)
-        .compress(opts.compress);
+        .compress(opts.compress)
+        .jpeg_quality(opts.jpeg_quality)
+        .auto_resize_images(opts.auto_resize_images)
+        .image_dpi(opts.image_dpi)
+        .filter_dpi(opts.filter_dpi);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -174,7 +219,11 @@ pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, Ironpres
         .page_size(page_size)
         .margin(opts.margin)
         .sanitize(opts.sanitize)
-        .compress(opts.compress);
+        .compress(opts.compress)
+        .jpeg_quality(opts.jpeg_quality)
+        .auto_resize_images(opts.auto_resize_images)
+        .image_dpi(opts.image_dpi)
+        .filter_dpi(opts.filter_dpi);
 
     if let Some(ref h) = opts.header {
         converter = converter.header(h.as_str());
@@ -209,6 +258,11 @@ OPTIONS:
     --footer <TEXT>         Footer text ({page} and {pages} for numbering)
     --sanitize <BOOL>       Enable/disable HTML sanitization (default: true)
     --compress <BOOL>       FlateDecode-compress content streams (default: true)
+    --jpeg-quality <N>      JPEG quality for optimized image embedding (default: 85)
+    --auto-resize-images <BOOL>
+                            Downscale oversized source images (default: true)
+    --image-dpi <DPI>       Target source-image resolution (default: 300)
+    --filter-dpi <DPI>      Rasterization DPI for blur/filter bitmaps (default: 150)
     --base-path <DIR>       Base dir for relative @import / @font-face URLs
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version

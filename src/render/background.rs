@@ -606,6 +606,7 @@ pub(crate) fn register_background_image(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
     href: &str,
+    display_box: SvgViewportBox,
     request: Option<RasterBackgroundRequest>,
 ) -> Option<RegisteredBackgroundImage> {
     let (raw, _mime) = crate::layout::images::load_src_bytes(href)?;
@@ -617,16 +618,41 @@ pub(crate) fn register_background_image(
                 Some(draw_box),
             )
         } else if crate::parser::png::is_png(&raw) {
-            (pdf_writer.add_raw_png_image_object(&raw)?, None)
-        } else if raw.starts_with(&[0xFF, 0xD8]) {
-            let decoded = crate::parser::jpeg::decode_jpeg_for_pdf(&raw)?;
+            let png = crate::parser::png::parse_png(&raw)?;
+            let metadata = crate::layout::engine::PngMetadata {
+                channels: png.channels,
+                bit_depth: png.bit_depth,
+            };
+            let format = match png.channels {
+                2 | 4 => crate::layout::engine::ImageFormat::PngAlpha,
+                _ => crate::layout::engine::ImageFormat::Png,
+            };
             (
-                pdf_writer.add_raw_rgb_image_object(
-                    &decoded.rgb_data,
-                    decoded.width,
-                    decoded.height,
-                    decoded.icc_profile.as_deref(),
+                pdf_writer.add_decodable_source_image_object(
+                    &raw,
+                    png.width,
+                    png.height,
+                    format,
+                    Some(&metadata),
+                    display_box.width,
+                    display_box.height,
                 )?,
+                None,
+            )
+        } else if raw.starts_with(&[0xFF, 0xD8]) {
+            (
+                {
+                    let (width, height) = crate::parser::jpeg::parse_jpeg_dimensions(&raw)?;
+                    pdf_writer.add_source_image_object(
+                        &raw,
+                        width,
+                        height,
+                        crate::layout::engine::ImageFormat::Jpeg,
+                        None,
+                        display_box.width,
+                        display_box.height,
+                    )
+                },
                 None,
             )
         } else {

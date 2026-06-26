@@ -245,6 +245,10 @@ pub struct HtmlConverter {
     /// FlateDecode-compress page content streams (lossless). Defaults to `true`;
     /// disable for raw, human-readable PDF content streams.
     compress: bool,
+    jpeg_quality: u8,
+    auto_resize_images: bool,
+    image_dpi: f32,
+    filter_dpi: f32,
 }
 
 impl HtmlConverter {
@@ -265,6 +269,10 @@ impl HtmlConverter {
             // parity gate. Downstream users (and the CLI) always get the `true`
             // default.
             compress: !cfg!(test),
+            jpeg_quality: 85,
+            auto_resize_images: true,
+            image_dpi: 300.0,
+            filter_dpi: 150.0,
         }
     }
 
@@ -272,6 +280,30 @@ impl HtmlConverter {
     /// (enabled by default). Disabling produces larger but human-readable PDFs.
     pub fn compress(mut self, enabled: bool) -> Self {
         self.compress = enabled;
+        self
+    }
+
+    /// Set JPEG quality for optimized image embedding (0-100, default 85).
+    pub fn jpeg_quality(mut self, quality: u8) -> Self {
+        self.jpeg_quality = quality.clamp(0, 100);
+        self
+    }
+
+    /// Enable or disable automatic downscaling of oversized source images.
+    pub fn auto_resize_images(mut self, enabled: bool) -> Self {
+        self.auto_resize_images = enabled;
+        self
+    }
+
+    /// Set the target source-image resolution in DPI (minimum 72, default 300).
+    pub fn image_dpi(mut self, dpi: f32) -> Self {
+        self.image_dpi = dpi.max(72.0);
+        self
+    }
+
+    /// Set the rasterization DPI for render-time blur/filter bitmaps.
+    pub fn filter_dpi(mut self, dpi: f32) -> Self {
+        self.filter_dpi = dpi.max(1.0);
         self
     }
 
@@ -563,6 +595,14 @@ impl HtmlConverter {
             None
         };
 
+        let render_opts = render::pdf::RenderOpts {
+            compress: self.compress,
+            jpeg_quality: self.jpeg_quality,
+            auto_resize_images: self.auto_resize_images,
+            image_dpi: self.image_dpi,
+            filter_dpi: self.filter_dpi,
+        };
+
         render::pdf::render_pdf_to_writer_full_opts(
             &pages,
             effective_page_size,
@@ -570,7 +610,7 @@ impl HtmlConverter {
             writer,
             &parsed_fonts,
             decoration.as_ref(),
-            self.compress,
+            render_opts,
         )
     }
 

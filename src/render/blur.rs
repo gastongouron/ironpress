@@ -13,17 +13,16 @@
 //! Per css-filter-effects-1 §4.1, `blur(<length>)` uses a gaussian with
 //! `stdDeviation` equal to that length. We rasterize at the parity device scale
 //! so the embedded bitmap matches the final 300-DPI raster resolution, then the
-//! sigma in *buffer* pixels is `radius_css_px * DEVICE_SCALE`.
+//! sigma in *buffer* pixels is `radius_css_px * filter_dpi/96`.
 
 use crate::layout::engine::{ImageFormat, LayoutBorder, RasterImageAsset};
 
 /// Points per CSS pixel (1px = 0.75pt). `blur_radius` is stored in points.
 const PT_PER_PX: f32 = 0.75;
 
-/// Device pixels per CSS pixel at the 300-DPI parity raster (300/96). Boxes are
-/// rasterized at this scale so the embedded bitmap is already at output
-/// resolution and the gaussian sigma maps 1:1 to the final raster.
-const DEVICE_SCALE: f32 = 300.0 / 96.0;
+fn filter_dpi_scale(filter_dpi: f32) -> f32 {
+    filter_dpi.max(1.0) / 96.0
+}
 
 /// A blurred raster ready for embedding plus the overflow it adds outside the
 /// element's border box (in points, applied symmetrically on every side).
@@ -106,6 +105,7 @@ pub(crate) fn blur_shadow_rect(
     radius_pt: f32,
     blur_pt: f32,
     color: (f32, f32, f32, f32),
+    filter_dpi: f32,
 ) -> Option<BlurredRaster> {
     let (_, _, _, a) = color;
     if width_pt <= 0.0 || height_pt <= 0.0 || a <= 0.0 {
@@ -115,10 +115,11 @@ pub(crate) fn blur_shadow_rect(
     use resvg::tiny_skia;
 
     // css-backgrounds-3: blur radius is 2σ, so σ = blur/2. Map to buffer pixels.
-    let sigma = (blur_pt / PT_PER_PX) * DEVICE_SCALE / 2.0;
+    let s = filter_dpi_scale(filter_dpi);
+    let sigma = (blur_pt / PT_PER_PX) * s / 2.0;
     let pad = pad_pixels(sigma);
-    let box_w = (width_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
-    let box_h = (height_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
+    let box_w = (width_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let box_h = (height_pt / PT_PER_PX * s).round().max(1.0) as u32;
     let buf_w = box_w + 2 * pad;
     let buf_h = box_h + 2 * pad;
 
@@ -131,7 +132,7 @@ pub(crate) fn blur_shadow_rect(
     paint.set_color(color8(r, g, b, a));
     paint.anti_alias = true;
 
-    let radius_px = (radius_pt / PT_PER_PX * DEVICE_SCALE)
+    let radius_px = (radius_pt / PT_PER_PX * s)
         .min(box_w as f32 / 2.0)
         .min(box_h as f32 / 2.0);
     if radius_px > 0.5 {
@@ -172,7 +173,7 @@ pub(crate) fn blur_shadow_rect(
         rgba
     };
 
-    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
     let asset = rgba_to_png_alpha_asset(rgba)?;
     Some(BlurredRaster { asset, overflow_pt })
 }
@@ -191,6 +192,7 @@ pub(crate) fn blur_shadow_alpha_mask(
     mask: &image::GrayImage,
     blur_pt: f32,
     color: (f32, f32, f32, f32),
+    filter_dpi: f32,
 ) -> Option<(BlurredRaster, u32)> {
     let (mw, mh) = (mask.width(), mask.height());
     let (cr, cg, cb, ca) = color;
@@ -198,7 +200,8 @@ pub(crate) fn blur_shadow_alpha_mask(
         return None;
     }
 
-    let sigma = (blur_pt / PT_PER_PX) * DEVICE_SCALE / 2.0;
+    let s = filter_dpi_scale(filter_dpi);
+    let sigma = (blur_pt / PT_PER_PX) * s / 2.0;
     let pad = pad_pixels(sigma);
     let buf_w = mw + 2 * pad;
     let buf_h = mh + 2 * pad;
@@ -230,7 +233,7 @@ pub(crate) fn blur_shadow_alpha_mask(
         tinted
     };
 
-    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
     let asset = rgba_to_png_alpha_asset(blurred)?;
     Some((BlurredRaster { asset, overflow_pt }, pad))
 }
@@ -256,6 +259,7 @@ pub(crate) fn rasterize_run_alpha(
     units_per_em: u16,
     font_size_pt: f32,
     glyphs: &[crate::text::ShapedGlyph],
+    filter_dpi: f32,
 ) -> Option<GlyphRaster> {
     use resvg::tiny_skia;
 
@@ -265,11 +269,12 @@ pub(crate) fn rasterize_run_alpha(
     let face = rustybuzz::ttf_parser::Face::parse(font_data, 0).ok()?;
 
     // Glyph font units -> device pixels: (units/upem) * font_size_pt(px-equiv)
-    // * DEVICE_SCALE. font_size is in points; CSS px = pt / PT_PER_PX.
+    // * filter_dpi/96. font_size is in points; CSS px = pt / PT_PER_PX.
+    let s = filter_dpi_scale(filter_dpi);
     let upem = units_per_em as f32;
-    let px_per_unit = (font_size_pt / PT_PER_PX) * DEVICE_SCALE / upem;
+    let px_per_unit = (font_size_pt / PT_PER_PX) * s / upem;
     // Advances/offsets from shaping are already in points; -> device px.
-    let pt_to_px = DEVICE_SCALE / PT_PER_PX;
+    let pt_to_px = s / PT_PER_PX;
 
     // Build one path for all glyphs, placed along the baseline. The path is in a
     // coordinate frame where the text origin (baseline, x=0) is at (0,0) and +y
@@ -370,8 +375,8 @@ pub(crate) fn rasterize_run_alpha(
 }
 
 /// Device pixels per point, for callers converting blur overflow / positions.
-pub(crate) fn px_per_pt() -> f32 {
-    DEVICE_SCALE / PT_PER_PX
+pub(crate) fn px_per_pt_at_filter_dpi(filter_dpi: f32) -> f32 {
+    filter_dpi_scale(filter_dpi) / PT_PER_PX
 }
 
 /// Rasterize a solid-fill box (background colour + border) into a transparent,
@@ -387,6 +392,7 @@ pub(crate) fn blur_box(
     background: Option<(f32, f32, f32, f32)>,
     border: &LayoutBorder,
     blur_radius_pt: f32,
+    filter_dpi: f32,
 ) -> Option<BlurredRaster> {
     if blur_radius_pt <= 0.0 || width_pt <= 0.0 || height_pt <= 0.0 {
         return None;
@@ -400,10 +406,11 @@ pub(crate) fn blur_box(
 
     // Buffer geometry: box at device scale plus transparent padding for the
     // gaussian to feather into.
-    let sigma = (blur_radius_pt / PT_PER_PX) * DEVICE_SCALE;
+    let s = filter_dpi_scale(filter_dpi);
+    let sigma = (blur_radius_pt / PT_PER_PX) * s;
     let pad = pad_pixels(sigma);
-    let box_w = (width_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
-    let box_h = (height_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
+    let box_w = (width_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let box_h = (height_pt / PT_PER_PX * s).round().max(1.0) as u32;
     let buf_w = box_w + 2 * pad;
     let buf_h = box_h + 2 * pad;
 
@@ -425,12 +432,12 @@ pub(crate) fn blur_box(
     // Borders paint INSIDE the border box (the declared size is the border box).
     // Fill each visible side as a rectangle so a uniform solid frame matches the
     // vector painter; the gaussian then softens both fill and frame edge.
-    paint_border_rects(&mut pixmap, border, ox, oy, box_w as f32, box_h as f32);
+    paint_border_rects(&mut pixmap, border, ox, oy, box_w as f32, box_h as f32, s);
 
     let rgba = pixmap_to_rgba(&pixmap, buf_w, buf_h);
     let rgba = blur_premultiplied(&rgba, sigma);
 
-    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
     let asset = rgba_to_png_alpha_asset(rgba)?;
     Some(BlurredRaster { asset, overflow_pt })
 }
@@ -443,9 +450,10 @@ fn paint_border_rects(
     oy: f32,
     box_w: f32,
     box_h: f32,
+    scale: f32,
 ) {
     use resvg::tiny_skia;
-    let s = DEVICE_SCALE / PT_PER_PX; // points -> device px
+    let s = scale / PT_PER_PX; // points -> device px
     let sides = [
         // (x, y, w, h, side)
         (
@@ -511,24 +519,26 @@ pub(crate) fn blur_image_buffer(
     display_w_pt: f32,
     display_h_pt: f32,
     blur_radius_pt: f32,
+    filter_dpi: f32,
 ) -> Option<(image::RgbaImage, f32)> {
     let (sw, sh) = (source.width(), source.height());
     if sw == 0 || sh == 0 || blur_radius_pt <= 0.0 || display_w_pt <= 0.0 || display_h_pt <= 0.0 {
         return None;
     }
     // Render the image at device resolution (display CSS px × DEVICE_SCALE).
-    let dev_w = (display_w_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
-    let dev_h = (display_h_pt / PT_PER_PX * DEVICE_SCALE).round().max(1.0) as u32;
+    let s = filter_dpi_scale(filter_dpi);
+    let dev_w = (display_w_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let dev_h = (display_h_pt / PT_PER_PX * s).round().max(1.0) as u32;
     let upscaled =
         image::imageops::resize(source, dev_w, dev_h, image::imageops::FilterType::Nearest);
 
-    let sigma = (blur_radius_pt / PT_PER_PX) * DEVICE_SCALE;
+    let sigma = (blur_radius_pt / PT_PER_PX) * s;
     let pad = pad_pixels(sigma);
     let mut padded = image::RgbaImage::new(dev_w + 2 * pad, dev_h + 2 * pad);
     image::imageops::replace(&mut padded, &upscaled, pad as i64, pad as i64);
     let blurred = blur_premultiplied(&padded, sigma);
 
-    let overflow_pt = pad as f32 / DEVICE_SCALE * PT_PER_PX;
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
     Some((blurred, overflow_pt))
 }
 
