@@ -11726,6 +11726,16 @@ impl PdfWriter {
                 return Some(gs);
             }
         }
+        // VECTOR path for linear-gradient masks: a native PDF axial shading painted
+        // into a DeviceRGB luminosity group (gray = mask coverage), resolution-
+        // independent like Chrome — instead of a 1-sample/CSS-px coverage bitmap
+        // upscaled by the device. Conic masks stay raster (no native PDF conic
+        // shading); radial masks could follow the same approach later.
+        if let crate::style::computed::MaskSource::Linear(lg) = source {
+            if let Some(gs) = self.try_linear_mask_vector_shading(lg, mode, x, top_y, w, h) {
+                return Some(gs);
+            }
+        }
         // Raster fallback for gradient masks (SVG masks take the vector path
         // above). Sample at ~1 per CSS pixel: gradient coverage is smooth so it
         // upscales without a hard edge, and the gradient's CSS-px geometry (center
@@ -11823,6 +11833,76 @@ impl PdfWriter {
         let form_id = self.next_id();
         self.objects.push(format!(
             "{form_id} 0 obj\n<< /Type /XObject /Subtype /Form /FormType 1 /BBox [{x} {bottom_y} {x1} {top_y}] /Group << /Type /Group /S /Transparency /CS /DeviceRGB >> /Resources << >> /Length {len} >>\nstream\n",
+            len = group_bytes.len(),
+        ));
+        self.binary_objects.insert(form_id, group_bytes);
+        let gs_name = format!("GSmask{form_id}");
+        self.soft_mask_gstates.push((gs_name.clone(), form_id));
+        Some(gs_name)
+    }
+
+    /// Build a `mask-image: linear-gradient(...)` soft mask as a native PDF axial
+    /// shading (vector, resolution-independent) instead of a coverage bitmap. The
+    /// shading paints `(g, g, g)` where `g` is the mask coverage the gradient
+    /// asks for (alpha for image masks, luminance for luminance mode), into a
+    /// DeviceRGB `/Luminosity` transparency group — whose luminosity of an equal
+    /// RGB triple is exactly `g`. Returns `None` for a degenerate (<2 stop)
+    /// gradient so the caller falls back to raster.
+    fn try_linear_mask_vector_shading(
+        &mut self,
+        lg: &crate::style::computed::LinearGradient,
+        mode: crate::style::computed::MaskMode,
+        x: f32,
+        top_y: f32,
+        w: f32,
+        h: f32,
+    ) -> Option<String> {
+        if lg.stops.len() < 2 {
+            return None;
+        }
+        let bottom_y = top_y - h;
+        let x1 = x + w;
+        // Coverage as a gray level per stop, replicated into an RGB triple.
+        let base: Vec<(f32, (f32, f32, f32))> = lg
+            .stops
+            .iter()
+            .map(|s| {
+                let c = s.color;
+                let rgba = (
+                    f32::from(c.r) / 255.0,
+                    f32::from(c.g) / 255.0,
+                    f32::from(c.b) / 255.0,
+                    f32::from(c.a) / 255.0,
+                );
+                let g = f32::from(coverage_byte(rgba, mode)) / 255.0;
+                (s.position, (g, g, g))
+            })
+            .collect();
+        let stops = if lg.repeating {
+            repeat_stops_to_unit(&base)
+        } else {
+            base
+        };
+        // Reuse the CSS axial-gradient emitter to lay the gradient line over the
+        // mask box and push the shading entry (clip rect = the box).
+        let mut shadings = Vec::new();
+        let mut counter = 0usize;
+        let mut group = String::new();
+        render_linear_gradient_tile(
+            &mut group, lg.angle, x, bottom_y, w, h, &stops, &mut shadings, &mut counter,
+        );
+        let entry = shadings.into_iter().next()?;
+        let function_str = build_shading_function(&entry.stops);
+        let sh_id = self.next_id();
+        self.objects.push(format!(
+            "{sh_id} 0 obj\n<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [{} {} {} {}] /Function {function_str} /Extend [true true] >>\nendobj",
+            entry.coords[0], entry.coords[1], entry.coords[2], entry.coords[3],
+        ));
+        let group_bytes = group.into_bytes();
+        let form_id = self.next_id();
+        self.objects.push(format!(
+            "{form_id} 0 obj\n<< /Type /XObject /Subtype /Form /FormType 1 /BBox [{x} {bottom_y} {x1} {top_y}] /Group << /Type /Group /S /Transparency /CS /DeviceRGB >> /Resources << /Shading << /{name} {sh_id} 0 R >> >> /Length {len} >>\nstream\n",
+            name = entry.name,
             len = group_bytes.len(),
         ));
         self.binary_objects.insert(form_id, group_bytes);
