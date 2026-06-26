@@ -1017,8 +1017,40 @@ pub(crate) fn apply_first_letter_style(
         None
     };
 
-    let mut replacement = Vec::with_capacity(2);
+    // For a `float: left` drop cap, the first-letter's `padding-right` is a gap
+    // between the enlarged glyph and the text that follows it on line 0 (Chrome
+    // starts that text past the glyph advance + padding-right; lines below are
+    // already inset by the same `DropCap::width`). The glyph stays an inline run,
+    // so reserve the gap with an inert zero-height inline-box spacer right after
+    // it: it advances the inline cursor by the pad without painting or growing
+    // the line box.
+    let dropcap_pad = drop_cap.as_ref().map_or(0.0, |_| fl.padding.right.max(0.0));
+    let mut replacement = Vec::with_capacity(3);
     replacement.push(letter_run);
+    if dropcap_pad > 0.0 {
+        let mut spacer = base.clone();
+        spacer.text = String::new();
+        spacer.background_color = None;
+        spacer.vertical_align = crate::style::computed::VerticalAlign::Baseline;
+        spacer.inline_box = Some(Box::new(InlineBox {
+            width: dropcap_pad,
+            height: 0.0,
+            margin_left: 0.0,
+            margin_right: 0.0,
+            background_color: None,
+            border: LayoutBorder::default(),
+            border_radius: 0.0,
+            padding_top: 0.0,
+            padding_left: 0.0,
+            vertical_align: crate::style::computed::VerticalAlign::Baseline,
+            baseline_ascent: Some(0.0),
+            lines: Vec::new(),
+            image: None,
+            rel_offset_x: 0.0,
+            rel_offset_y: 0.0,
+        }));
+        replacement.push(spacer);
+    }
     if !rest_text.is_empty() {
         let mut rest_run = base;
         rest_run.text = rest_text;
