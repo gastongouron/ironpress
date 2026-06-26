@@ -23,6 +23,35 @@ use super::text::{
 /// encodes its position inside the flex row/column. The container itself emits
 /// a wrapper TextBlock for its background/border first, then the items.
 #[allow(clippy::too_many_arguments)]
+/// Max-content border-box width of any `<table>` laid out inside a flex item's
+/// flattened content (recursing through the `Container` the item flattens to).
+/// Used to shrink-wrap a `flex: 0 0 auto` item around a nested table's intrinsic
+/// grid (Chrome max-content-sizes such items). Returns 0 when there is no table.
+fn flex_probe_table_extent(elements: &[LayoutElement]) -> f32 {
+    let mut max_w = 0.0f32;
+    for e in elements {
+        match e {
+            LayoutElement::TableRow {
+                offset_left, cells, ..
+            } => {
+                // Collapsed outer borders paint half inside the table box, so add
+                // them back for the painted border-box width (table.rs box_width).
+                let outer = cells.first().map_or(0.0, |c| c.border.left.width) / 2.0
+                    + cells.last().map_or(0.0, |c| c.border.right.width) / 2.0;
+                let w = *offset_left
+                    + crate::layout::paginate::table_row_content_width(e)
+                    + outer;
+                max_w = max_w.max(w);
+            }
+            LayoutElement::Container { children, .. } => {
+                max_w = max_w.max(flex_probe_table_extent(children));
+            }
+            _ => {}
+        }
+    }
+    max_w
+}
+
 pub(crate) fn layout_flex_container(
     el: &ElementNode,
     style: &ComputedStyle,
@@ -592,6 +621,67 @@ pub(crate) fn layout_flex_container(
             matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
         });
 
+        // flex: 0 0 auto wrapping a nested <table>: Chrome sizes the item to the
+        // table's max-content (intrinsic grid), not the equal-share fallback.
+        // Probe the table's intrinsic border-box width with a throwaway layout at
+        // the full container width (a table doesn't stretch, so it settles at its
+        // grid width), then hug it — only ever shrinking below the equal-share
+        // width, never growing. With grow:0 the base width is also the final
+        // width, so shrinking it here is the resolved size. Guarded to nested-
+        // table flex items to keep the blast radius minimal.
+        let mut hugged_item_width: Option<f32> = None;
+        let (child_w_for_flex, child_w_for_layout) = if item_has_block_children
+            && !has_explicit_width
+            && child_style.flex_grow == 0.0
+            && resolved_basis.is_none()
+        {
+            let mut probe_buf = Vec::new();
+            let probe_ctx = ctx
+                .with_parent_and_basis(
+                    width_for_percentages,
+                    width_for_percentages,
+                    Some(10000.0),
+                    style.font_size,
+                )
+                .with_containing_block(None);
+            flatten_element(
+                child_el,
+                style,
+                &probe_ctx,
+                &mut probe_buf,
+                None,
+                &child_ancestors,
+                positioned_depth,
+                idx,
+                child_count,
+                &[],
+                &[],
+                env,
+            );
+            let table_w = flex_probe_table_extent(&probe_buf);
+            if table_w > 0.0 {
+                let pad_border = child_style.padding.left
+                    + child_style.padding.right
+                    + child_style.border.horizontal_width();
+                let hugged = (table_w + pad_border).max(item_box_floor);
+                if hugged < child_w_for_flex {
+                    hugged_item_width = Some(hugged);
+                    let inner = (hugged
+                        - child_style.padding.left
+                        - child_style.padding.right
+                        - child_style.border.horizontal_width())
+                    .max(0.0);
+                    (hugged, inner)
+                } else {
+                    (child_w_for_flex, child_w_for_layout)
+                }
+            } else {
+                (child_w_for_flex, child_w_for_layout)
+            }
+        } else {
+            (child_w_for_flex, child_w_for_layout)
+        };
+
         // For complex flex items (with block children like <h2>, <p>, <div>),
         // use flatten_element to get a proper list of layout elements with
         // margins and structure preserved.
@@ -620,6 +710,18 @@ pub(crate) fn layout_flex_container(
                 &[],
                 env,
             );
+            // For a shrink-wrapped table item the leading Container paints the
+            // item's own background/border; stamp the hugged border-box width on it
+            // so it paints at the item width (flex base size), not the laid-out
+            // content width. The nested table is left-aligned and intrinsic, so its
+            // position is unaffected.
+            if let Some(hw) = hugged_item_width {
+                if let Some(LayoutElement::Container { block_width, .. }) =
+                    child_elements_buf.first_mut()
+                {
+                    *block_width = Some(hw);
+                }
+            }
             // A nested flex/block container that paints its own background emits
             // a leading background TextBlock (carrying the container's full
             // padding-box `block_height`) immediately followed by a
