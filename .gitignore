@@ -14,3 +14,6 @@ bindings/ruby/target/
 tests/parity/diffs/
 target/parity-tmp/
 /tmp/ironpress-parity-fontcache/
+
+# IDE
+.idea/

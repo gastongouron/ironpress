@@ -282,12 +282,16 @@ pub(crate) fn rasterize_run_alpha(
     }
     impl rustybuzz::ttf_parser::OutlineBuilder for Builder<'_> {
         fn move_to(&mut self, x: f32, y: f32) {
-            self.pb
-                .move_to(self.pen_x + x * self.scale, self.baseline_y - y * self.scale);
+            self.pb.move_to(
+                self.pen_x + x * self.scale,
+                self.baseline_y - y * self.scale,
+            );
         }
         fn line_to(&mut self, x: f32, y: f32) {
-            self.pb
-                .line_to(self.pen_x + x * self.scale, self.baseline_y - y * self.scale);
+            self.pb.line_to(
+                self.pen_x + x * self.scale,
+                self.baseline_y - y * self.scale,
+            );
         }
         fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
             self.pb.quad_to(
@@ -333,7 +337,9 @@ pub(crate) fn rasterize_run_alpha(
     let margin = 2.0f32;
     let min_x = bounds.left() - margin;
     let min_y = bounds.top() - margin;
-    let buf_w = (bounds.right() - bounds.left() + 2.0 * margin).ceil().max(1.0) as u32;
+    let buf_w = (bounds.right() - bounds.left() + 2.0 * margin)
+        .ceil()
+        .max(1.0) as u32;
     let buf_h = (bounds.bottom() - bounds.top() + 2.0 * margin)
         .ceil()
         .max(1.0) as u32;
@@ -344,13 +350,7 @@ pub(crate) fn rasterize_run_alpha(
     let mut paint = tiny_skia::Paint::default();
     paint.set_color(tiny_skia::Color::WHITE);
     paint.anti_alias = true;
-    pixmap.fill_path(
-        &path,
-        &paint,
-        tiny_skia::FillRule::Winding,
-        transform,
-        None,
-    );
+    pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, transform, None);
 
     // Convert to a grayscale alpha mask.
     let mut mask = image::GrayImage::new(buf_w, buf_h);

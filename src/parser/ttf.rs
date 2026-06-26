@@ -350,7 +350,8 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         let off = os2.offset as usize;
         data.len() >= off + 64 && (read_u16(&data, off + 62) & 0x1) != 0
     });
-    let mac_style_italic = data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x2) != 0;
+    let mac_style_italic =
+        data.len() >= head_off + 46 && (read_u16(&data, head_off + 44) & 0x2) != 0;
     let is_italic = os2_italic || mac_style_italic;
 
     // x-height for the CSS `ex` unit. Prefer OS/2.sxHeight (version >= 2,

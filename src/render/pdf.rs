@@ -1016,9 +1016,10 @@ fn page_shrink_to_fit_scale(page: &Page, page_size: PageSize, margin: Margin) ->
                 container_width,
                 ..
             } => (*offset_left, *container_width),
-            LayoutElement::TableRow { offset_left, .. } => {
-                (*offset_left, crate::layout::paginate::table_row_content_width(element))
-            }
+            LayoutElement::TableRow { offset_left, .. } => (
+                *offset_left,
+                crate::layout::paginate::table_row_content_width(element),
+            ),
             LayoutElement::Image { width, .. } | LayoutElement::Svg { width, .. } => (0.0, *width),
             _ => (0.0, 0.0),
         };
@@ -3626,7 +3627,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                     run,
                                                     lx,
                                                     ty,
-                                                    crate::layout::text::line_primary_font_size(&merged),
+                                                    crate::layout::text::line_primary_font_size(
+                                                        &merged,
+                                                    ),
                                                     custom_fonts,
                                                     &prepared_custom_fonts,
                                                     0.0,
@@ -3673,7 +3676,9 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
                                                         run,
                                                         lx,
                                                         ty,
-                                                        crate::layout::text::line_primary_font_size(&merged),
+                                                        crate::layout::text::line_primary_font_size(
+                                                            &merged,
+                                                        ),
                                                         custom_fonts,
                                                         &prepared_custom_fonts,
                                                         0.0,
@@ -8929,10 +8934,7 @@ pub(crate) const SUB_SHIFT_RATIO: f32 = 0.23;
 /// `baseline + x-height/2`). Read from the largest baseline-aligned text run's
 /// font; falls back to 0.5em when the line carries no measurable custom-font
 /// text.
-fn line_primary_x_height_ratio(
-    runs: &[TextRun],
-    custom_fonts: &HashMap<String, TtfFont>,
-) -> f32 {
+fn line_primary_x_height_ratio(runs: &[TextRun], custom_fonts: &HashMap<String, TtfFont>) -> f32 {
     let pick = runs
         .iter()
         .filter(|r| {
@@ -9336,7 +9338,9 @@ fn line_shifted_text_extents(
         .runs
         .iter()
         .filter(|r| {
-            r.inline_box.is_none() && r.line_height_factor.is_finite() && r.line_height_factor >= 0.9
+            r.inline_box.is_none()
+                && r.line_height_factor.is_finite()
+                && r.line_height_factor >= 0.9
         })
         .map(|r| r.line_height_factor)
         .fold(0.0f32, f32::max);
@@ -9408,12 +9412,16 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
     // such lines compute the per-run asymmetric extents instead — the same model
     // `wrap_text_runs` used to size the line, keeping layout and paint consistent.
     let has_text_shift = line.runs.iter().any(|r| {
-        r.inline_box.is_none() && matches!(r.vertical_align, VerticalAlign::Super | VerticalAlign::Sub)
+        r.inline_box.is_none()
+            && matches!(r.vertical_align, VerticalAlign::Super | VerticalAlign::Sub)
     });
     let (mut above, mut below) = if has_text_shift {
         line_shifted_text_extents(line, parent_font_size, custom_fonts)
     } else {
-        (ascender + strut_half_leading, descender + strut_half_leading)
+        (
+            ascender + strut_half_leading,
+            descender + strut_half_leading,
+        )
     };
 
     // A baseline-aligned inline box contributes `baseline_ascent` above the line
@@ -11889,7 +11897,15 @@ impl PdfWriter {
         let mut counter = 0usize;
         let mut group = String::new();
         render_linear_gradient_tile(
-            &mut group, lg.angle, x, bottom_y, w, h, &stops, &mut shadings, &mut counter,
+            &mut group,
+            lg.angle,
+            x,
+            bottom_y,
+            w,
+            h,
+            &stops,
+            &mut shadings,
+            &mut counter,
         );
         let entry = shadings.into_iter().next()?;
         let function_str = build_shading_function(&entry.stops);

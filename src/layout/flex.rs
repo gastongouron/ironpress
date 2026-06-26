@@ -38,9 +38,7 @@ fn flex_probe_table_extent(elements: &[LayoutElement]) -> f32 {
                 // them back for the painted border-box width (table.rs box_width).
                 let outer = cells.first().map_or(0.0, |c| c.border.left.width) / 2.0
                     + cells.last().map_or(0.0, |c| c.border.right.width) / 2.0;
-                let w = *offset_left
-                    + crate::layout::paginate::table_row_content_width(e)
-                    + outer;
+                let w = *offset_left + crate::layout::paginate::table_row_content_width(e) + outer;
                 max_w = max_w.max(w);
             }
             LayoutElement::Container { children, .. } => {

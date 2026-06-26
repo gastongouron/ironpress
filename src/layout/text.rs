@@ -988,14 +988,14 @@ pub(crate) fn wrap_text_runs(
                     let half_leading = ((lh - content) / 2.0).max(0.0);
                     let text_above = asc_ratio * template.font_size + half_leading;
                     let text_below = desc_ratio * template.font_size + half_leading;
-                    let xh_ratio =
-                        if let crate::style::computed::FontFamily::Custom(name) = &template.font_family
-                        {
-                            crate::system_fonts::find_font(fonts, name, template.bold, template.italic)
-                                .map_or(0.5, |(_, f)| f.x_height_ratio())
-                        } else {
-                            0.5
-                        };
+                    let xh_ratio = if let crate::style::computed::FontFamily::Custom(name) =
+                        &template.font_family
+                    {
+                        crate::system_fonts::find_font(fonts, name, template.bold, template.italic)
+                            .map_or(0.5, |(_, f)| f.x_height_ratio())
+                    } else {
+                        0.5
+                    };
                     let xh = xh_ratio * shift_basis_fs;
                     let box_above = inline.height / 2.0 + xh / 2.0;
                     let box_below = (inline.height / 2.0 - xh / 2.0).max(0.0);
