@@ -786,6 +786,7 @@ summary{cursor:pointer;font-weight:600}\
 .chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}\
 .chip.cls{color:#fff;border:0}\
 .quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}\
+.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}\
 .quad figure{margin:0;flex:1;min-width:0}\
 .quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}\
 .quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:\
@@ -1209,6 +1210,42 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                 let out_src = format!("../out/{}/{}.png", c.category, fx.id);
                 let diff_src = format!("{}/{}.diff.png", c.category, fx.id);
 
+                // Multi-page fixtures: render page 2.. so a real page break is
+                // VISIBLE (not just asserted). The extra pages live in the committed
+                // out/ tree as `<id>.pN.png` (written by process_entry when the
+                // candidate paginates); stat them to decide how many quads to append.
+                let out_root = cases_dir.parent().map(|p| p.join("out"));
+                let mut pages_extra = String::new();
+                if let Some(out_root) = &out_root {
+                    let mut n = 2usize;
+                    while out_root
+                        .join(&c.category)
+                        .join(format!("{}.p{}.png", fx.id, n))
+                        .is_file()
+                    {
+                        let r2 =
+                            html_escape(&format!("../refs/{}/{}.p{}.png", c.category, fx.id, n));
+                        let o2 =
+                            html_escape(&format!("../out/{}/{}.p{}.png", c.category, fx.id, n));
+                        let d2 = html_escape(&format!("{}/{}.p{}.diff.png", c.category, fx.id, n));
+                        pages_extra.push_str(&format!(
+                            "<div class=\"pglabel\">page {n}</div><div class=\"quad\">\
+<figure><img loading=\"lazy\" src=\"{r2}\" alt=\"Chrome ref p{n}\"><figcaption>Chrome ref</figcaption></figure>\
+<figure><img loading=\"lazy\" src=\"{o2}\" alt=\"ironpress p{n}\"><figcaption>ironpress</figcaption></figure>\
+<figure><img loading=\"lazy\" src=\"{d2}\" alt=\"classed diff p{n}\"><figcaption>classed diff</figcaption></figure>\
+</div>"
+                        ));
+                        n += 1;
+                    }
+                }
+                // Label page 1 only when there ARE extra pages (keeps single-page
+                // cards byte-identical to before).
+                let p1label = if pages_extra.is_empty() {
+                    String::new()
+                } else {
+                    "<div class=\"pglabel\">page 1</div>".to_string()
+                };
+
                 // Header magnitude chips + region table from the V2 diagnosis (if
                 // any). The reason line leads with the diagnosis headline (already
                 // attribution-prefixed for confounded fixtures).
@@ -1230,11 +1267,11 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                     "<div class=\"card fxrow\" data-status=\"{st}\" data-class=\"{cls}\" data-diff=\"{diffk}\">\
 <div class=\"chead\">{badge} <span class=\"num\">{diff:.2}%</span> \
 <strong>{id}</strong>{sub_html}{attr}{chips}</div>\
-<div class=\"quad\">\
+{p1label}<div class=\"quad\">\
 <figure><img loading=\"lazy\" src=\"{r}\" alt=\"Chrome ref\"><figcaption>Chrome ref</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{ot}\" alt=\"ironpress\"><figcaption>ironpress</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{d}\" alt=\"classed diff\"><figcaption>classed diff</figcaption></figure>\
-</div>{legend}{reason}{desc}{regions}{source}</div>",
+</div>{pages_extra}{legend}{reason}{desc}{regions}{source}</div>",
                     st = fx.status.as_str(),
                     cls = html_escape(&diag_class(fx)),
                     diffk = fx.diff_pct,
@@ -1247,6 +1284,8 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                     r = html_escape(&ref_src),
                     ot = html_escape(&out_src),
                     d = html_escape(&diff_src),
+                    p1label = p1label,
+                    pages_extra = pages_extra,
                     legend = render_legend(),
                     reason = reason_html,
                     desc = desc_html,
