@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol wide gap + rule across a page break</title>
+<style>
+  /* A two-column container with a WIDE column-gap and a column-rule that spans a
+     page break: the gap and its centered rule must be reproduced identically in
+     the fresh row of columns on page 2 (CSS Multicol L1 §2 + §3). Each 50px
+     block tiles the 150px page content box exactly 3 per column, so each page
+     holds two columns of three = six blocks; twelve blocks span two pages. The
+     multi-page harness asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 380px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 2;
+    column-gap: 40px;
+    column-rule: 6px solid #0a2a6b;
+    column-fill: auto;
+  }
+  .block { height: 50px; border: 2px solid #0a2a6b; }
+  .a { background: #ff5a5f; }
+  .b { background: #5a3fff; }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+  </div>
+</body>
+</html>

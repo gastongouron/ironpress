@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>break-inside:avoid keeps a figure together</title>
+<style>
+  /* break-inside:avoid on a <figure> (image + caption band) that would straddle
+     a page boundary. A 200px spacer fills most of page 1, leaving 100px — too
+     little for the 176px figure (120px image + 56px caption band). Chrome keeps
+     the figure together and pushes it WHOLE onto page 2 (image and caption stay
+     on the same page). page 1 = spacer only, page 2 = the intact figure. Full
+     page-content width and a text-free caption band keep the comparison purely
+     geometric. The multi-page harness asserts the page COUNT (2) and diffs both
+     pages. */
+  @page { size: 360px 300px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  * { margin: 0; box-sizing: border-box; }
+  .spacer { height: 200px; background: #eef1f5; border-bottom: 3px solid #6b7785; }
+  figure { break-inside: avoid; }
+  figure img { display: block; width: 360px; height: 120px; }
+  figcaption { height: 56px; background: #34506b; }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <figure>
+    <img alt="box" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='120'%3E%3Crect width='360' height='120' fill='%23f4a259'/%3E%3C/svg%3E">
+    <figcaption></figcaption>
+  </figure>
+</body>
+</html>

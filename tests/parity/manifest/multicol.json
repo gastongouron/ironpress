@@ -379,5 +379,43 @@
       "probe-color-swatch",
       "probe-border-box"
     ]
+  },
+  {
+    "id": "multicol-three-cols-page-break",
+    "category": "multicol",
+    "feature": "column-fragmentation",
+    "subfeature": "three-cols-page-break",
+    "description": "A column-count:3, column-fill:auto container taller than the page: the three columns fill page 1, then content continues as a fresh row of three columns on page 2 (CSS Multicol L1 §2). Eighteen 40px blocks (nine per page) span two pages. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/multicol/multicol-three-cols-page-break.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "multicol-column-rule-page-break",
+    "category": "multicol",
+    "feature": "column-fragmentation",
+    "subfeature": "wide-gap-rule-page-break",
+    "description": "A two-column container with a wide column-gap and a centered column-rule spanning a page break: the gap and rule are reproduced identically in the fresh row of columns on page 2 (CSS Multicol L1 §2/§3). Twelve 50px blocks (six per page) span two pages. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/multicol/multicol-column-rule-page-break.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

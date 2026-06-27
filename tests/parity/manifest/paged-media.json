@@ -9,7 +9,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -23,7 +26,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -37,7 +43,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -51,7 +60,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -65,7 +77,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -74,12 +89,14 @@
     "category": "paged-media",
     "feature": "orphans-widows",
     "subfeature": "single-page-noop",
-    "description": "orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap.",
+    "description": "orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; a single-page guard that the orphans/widows properties parse and never regress the no-break case (real cross-page fragmentation is covered by orphans-widows-default, orphans-3, widows-3, widows-4, orphans-4).",
     "file": "cases/paged-media/paged-orphans-widows.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline"],
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -93,7 +110,9 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -106,8 +125,11 @@
     "file": "cases/paged-media/paged-page-break-inside-avoid-table.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -121,7 +143,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -135,7 +160,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -149,7 +177,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -163,7 +194,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -177,7 +211,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -191,7 +228,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -205,7 +245,10 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -219,7 +262,9 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -233,7 +278,9 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -247,7 +294,9 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -261,7 +310,150 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "widows-4",
+    "category": "paged-media",
+    "feature": "orphans-widows",
+    "subfeature": "widows-4",
+    "description": "widows:4 forces at least four line boxes onto the continuation page. An eight-line paragraph in a six-line page would naively split 6/2, but widows:4 moves the break two lines earlier to 4/4 (Chrome). The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/widows-4.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "orphans-4",
+    "category": "paged-media",
+    "feature": "orphans-widows",
+    "subfeature": "orphans-4",
+    "description": "orphans:4 requires at least four line boxes left at the bottom of a fragment. A 100px spacer leaves only three line-slots on page 1, so the five-line paragraph cannot satisfy orphans:4 there and is pushed WHOLE to page 2 (Chrome); the initial orphans:2 would instead split it. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/orphans-4.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "page-break-inside-avoid-table-straddle",
+    "category": "paged-media",
+    "feature": "page-break-inside",
+    "subfeature": "avoid-table-straddle-real",
+    "description": "Legacy page-break-inside:avoid on a TABLE that would straddle a page boundary: a 150px spacer leaves too little room for the 160px table. Chrome keeps the table whole and pushes it to page 2, but ironpress splits the table between rows (repeating the thead) — table-level keep-together is not honored for either the legacy or modern property (block-level keep-together IS, see break-inside-avoid-real). Tracked gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/page-break-inside-avoid-table-straddle.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "break-inside-avoid-figure",
+    "category": "paged-media",
+    "feature": "break-inside",
+    "subfeature": "avoid-figure-keep-together",
+    "description": "break-inside:avoid on a <figure> (image + caption) that would straddle a boundary: a 200px spacer leaves too little room, so Chrome keeps the figure together and pushes it WHOLE to page 2 (image and caption stay on the same page). The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/break-inside-avoid-figure.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "break-after-page-mid-document",
+    "category": "paged-media",
+    "feature": "break-after",
+    "subfeature": "page-mid-document-real",
+    "description": "Modern break-after:page on the SECOND of three blocks forces the third block onto page 2 while the first two share page 1 — proving the modern break-after path fires mid-flow, not only on the first/last element. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/break-after-page-mid-document.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-spread-left-right-margins",
+    "category": "paged-media",
+    "feature": "page-selectors",
+    "subfeature": "spread-left-right-margins",
+    "description": "CSS Paged Media 3 §3.2 :left/:right spread margins (right page wide left margin, left page wide right margin). Chrome honors the spread pseudo-classes; ironpress folds @page rules into a single global margin and does not differentiate per spread, so both boxes sit at the same inset — a tracked page-selectors gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/paged-spread-left-right-margins.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-before-third-block",
+    "category": "paged-media",
+    "feature": "page-break-before",
+    "subfeature": "always-mid-document-real",
+    "description": "Legacy page-break-before:always on the THIRD of three blocks moves it to page 2 while the first two share page 1 — proving the legacy forced break fires mid-flow. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/paged-break-before-third-block.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "page-break-inside-avoid-card-legacy",
+    "category": "paged-media",
+    "feature": "page-break-inside",
+    "subfeature": "avoid-card-straddle-real",
+    "description": "Legacy page-break-inside:avoid on a bordered CARD that would straddle a boundary: a 220px spacer leaves too little room, so Chrome (and ironpress) push the whole card to page 2. Confirms the legacy alias is honored for block containers. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/page-break-inside-avoid-card-legacy.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   }

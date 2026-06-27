@@ -278,5 +278,23 @@
     "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "ol-continues-across-page-break",
+    "category": "lists-counters",
+    "feature": "counter-continuity",
+    "subfeature": "ol-across-page-break",
+    "description": "An <ol> of ten 40px items spans two pages (CSS Lists 3 §4): counters resolve in document order, not visual layout, so page 2 markers read 6-10 (not a reset to 1). The multi-page harness asserts the page COUNT (2) and diffs both pages; a per-page counter reset would fail.",
+    "file": "cases/lists-counters/ol-continues-across-page-break.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

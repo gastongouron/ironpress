@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-multipage-caption</title>
+<style>
+  /* A captioned table spanning two pages. The caption is part of the table
+     WRAPPER box and appears ONCE (on page 1), while the <thead> repeats at the
+     top of each page. The 240px page content box holds caption 40 + header 40 +
+     four 40px body rows on page 1 (40+40+160=240); page 2 repeats only the
+     header (no caption) above the remaining body rows. Seven body rows span two
+     pages (4 then 3). The multi-page harness asserts the page COUNT (2) and
+     diffs both pages, so a caption wrongly repeated on page 2 is caught. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; }
+  caption {
+    caption-side: top;
+    height: 40px;
+    line-height: 40px;
+    font-size: 18px;
+    text-align: center;
+    color: #ffffff;
+    background: #5f0f40;
+  }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+</style>
+</head>
+<body>
+  <table>
+    <caption>LEDGER</caption>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+      <tr><td>R4</td><td>r4</td></tr>
+      <tr><td>R5</td><td>r5</td></tr>
+      <tr><td>R6</td><td>r6</td></tr>
+      <tr><td>R7</td><td>r7</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

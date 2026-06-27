@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>page-break-inside:avoid keeps a straddling table whole</title>
+<style>
+  /* Legacy `page-break-inside: avoid` (the CSS 2.1 alias of break-inside:avoid)
+     on a table that would otherwise straddle a page boundary. A 150px spacer
+     fills the top of page 1, leaving 90px — too little for the 160px table
+     (40px header + three 40px body rows). Because the table is marked
+     avoid-inside and DOES fit on an empty page, Chrome pushes the WHOLE table
+     onto page 2 rather than splitting it between rows. page 1 = spacer only,
+     page 2 = the intact table. The multi-page harness asserts the page COUNT
+     (2) and diffs both pages. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .spacer { height: 150px; background: #e9ecef; border-bottom: 3px solid #868e96; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; page-break-inside: avoid; }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <table>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.25,
-    "pass": 636,
+    "score_pct": 96.87,
+    "pass": 649,
     "partial": 0,
-    "fail": 18,
+    "fail": 21,
     "unknown": 0,
-    "total": 654,
+    "total": 670,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -6491,11 +6491,11 @@
     },
     {
       "category": "block-box-model",
-      "score_pct": 100.0,
+      "score_pct": 98.0,
       "counts": {
-        "pass": 47,
+        "pass": 49,
         "partial": 0,
-        "fail": 0,
+        "fail": 1,
         "unknown": 0
       },
       "features": [
@@ -7355,14 +7355,92 @@
         },
         {
           "feature": "fragmentation",
-          "score_pct": 100.0,
+          "score_pct": 85.71,
           "counts": {
-            "pass": 4,
+            "pass": 6,
             "partial": 0,
-            "fail": 0,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "block-exact-fill-no-extra-page",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "exact-fill-no-extra-page",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Content that fills the page content box EXACTLY (two 100px blocks = the full 200px page) must NOT spill a spurious empty second page. The multi-page harness asserts the page COUNT (1); an off-by-one pagination emitting a trailing blank page would fail.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "2d359ea2ca14d5dfd29ffc14f00233cfec1f24ddf02665301aae4223cf6db5c6",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "box-decoration-break-clone",
               "category": "block-box-model",
@@ -7430,6 +7508,114 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.00% interiorΔE 0.00",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "box-decoration-break-clone-radius",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "box-decoration-break-clone-radius",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.1434,
+              "weight": 1.0,
+              "description": "box-decoration-break:clone with border-radius across a page break: each fragment is independently wrapped with the full border/padding/background, so BOTH fragments are fully closed boxes with all four rounded corners. Contrasts the slice-radius case. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "1ddc232a9645243cefd127e092900afbd7ee652959df78b4bc7494b4ee54d2ed",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(-9,-5,-9) (ΔE 3.1)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -9,
+                    -5,
+                    -9
+                  ],
+                  "delta_e": 3.1016536408361812,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      259.84,
+                      25.92,
+                      259.84,
+                      213.76
+                    ],
+                    "area_pct": 0.0964329643296433,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -9,
+                      -5,
+                      -9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(-9,-5,-9) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.13% interiorΔE 0.00",
+                  "magnitude": 0.1339162890602988
                 },
                 {
                   "verifier": "RasterDiff",
@@ -7515,6 +7701,262 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "box-decoration-break-slice-radius",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "box-decoration-break-slice-radius",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "FAIL",
+              "diff_pct": 2.5575,
+              "weight": 1.0,
+              "description": "box-decoration-break:slice with border-radius across a page break. Per CSS Fragmentation 3 §5.4 the cut edge of each fragment must be SQUARE: only the box's real corners are rounded (top corners on page 1, bottom corners on page 2). ironpress instead rounds the cut edge of the continuation fragment (treating slice like clone for the radius), so page 2's top corners are wrongly rounded — a tracked gap. The clone-radius companion passes. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "page 2: fill recolour ΔRGB(+53,+70,+70) (ΔE 64.1)",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "unsupported",
+              "attribution": "REAL",
+              "html_sha256": "7ecf7666d272f6e2eeafa2db96f6331055c476199505c0cc1cff68f1e25e2259",
+              "diagnosis": {
+                "primary_class": "Extra",
+                "secondary": [
+                  "ColorValue",
+                  "Missing"
+                ],
+                "headline": "extra paint where Chrome is blank (0.4%)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    -0.32,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.07427188792537161,
+                  "extra_area_pct": 0.448522552587668,
+                  "modal_drgb": [
+                    19,
+                    25,
+                    25
+                  ],
+                  "delta_e": 64.05493602163017,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      20.8,
+                      20.8
+                    ],
+                    "area_pct": 0.22665026650266504,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.2%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      238.72,
+                      0.0,
+                      259.52,
+                      20.16
+                    ],
+                    "area_pct": 0.22123821238212382,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.2%)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      9.92,
+                      9.92,
+                      27.52,
+                      27.52
+                    ],
+                    "area_pct": 0.12349323493234933,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      148,
+                      197,
+                      197
+                    ],
+                    "delta_e": 64.05493602163017,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.5211009174311926,
+                      -0.5211009174311926
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+148,+197,+197) (ΔE 64.1)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      232.0,
+                      9.92,
+                      249.6,
+                      25.28
+                    ],
+                    "area_pct": 0.11824518245182451,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      148,
+                      197,
+                      197
+                    ],
+                    "delta_e": 64.05493602163017,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.508411214953271,
+                      -0.5323364485981308
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+148,+197,+197) (ΔE 64.1)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      9.92,
+                      28.16,
+                      9.92,
+                      232.96
+                    ],
+                    "area_pct": 0.10512505125051251,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      25,
+                      25
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+19,+25,+25) (ΔE 0.0)"
+                  },
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      28.16,
+                      9.92,
+                      231.36,
+                      9.92
+                    ],
+                    "area_pct": 0.10430504305043051,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      25,
+                      25
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+19,+25,+25) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 0.44012892828364225
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PARTIAL",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.42% interiorΔE 64.05",
+                  "magnitude": 0.4248771301272335
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.07% extra 0.45%",
+                  "magnitude": 0.448522552587668
                 }
               ],
               "disagreements": []
@@ -51449,12 +51891,278 @@
       "category": "lists-counters",
       "score_pct": 100.0,
       "counts": {
-        "pass": 20,
+        "pass": 21,
         "partial": 0,
         "fail": 0,
         "unknown": 0
       },
       "features": [
+        {
+          "feature": "counter-continuity",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "ol-continues-across-page-break",
+              "category": "lists-counters",
+              "feature": "counter-continuity",
+              "subfeature": "ol-across-page-break",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 2.2216,
+              "weight": 1.0,
+              "description": "An <ol> of ten 40px items spans two pages (CSS Lists 3 §4): counters resolve in document order, not visual layout, so page 2 markers read 6-10 (not a reset to 1). The multi-page harness asserts the page COUNT (2) and diffs both pages; a per-page counter reset would fail.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "be653647b9b6dfebd13d8f31c9f71cb63b86deb522711d8abfec54e6de602eb6",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.0,0.6)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    -0.64,
+                    -0.64
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -9,
+                    -8,
+                    -6
+                  ],
+                  "delta_e": 5.228057935298974,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.041739130434782605,
+                    0.64
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      29.44,
+                      161.28,
+                      39.04,
+                      162.56
+                    ],
+                    "area_pct": 0.032751576516564525,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.03254237288135593,
+                      0.43932203389830504
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.4)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      31.04,
+                      122.56,
+                      35.52,
+                      134.72
+                    ],
+                    "area_pct": 0.02942090771826983,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      -21,
+                      -18,
+                      -14
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.27692307692307694,
+                      0.19076923076923077
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      29.12,
+                      41.6,
+                      29.12,
+                      56.64
+                    ],
+                    "area_pct": 0.02664535038635758,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      29.12,
+                      121.6,
+                      29.12,
+                      136.64
+                    ],
+                    "area_pct": 0.02664535038635758,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      29.12,
+                      161.6,
+                      29.12,
+                      176.64
+                    ],
+                    "area_pct": 0.02664535038635758,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      31.04,
+                      42.56,
+                      35.52,
+                      48.0
+                    ],
+                    "area_pct": 0.02498001598721023,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.64,
+                      -0.64
+                    ],
+                    "modal_drgb": [
+                      -22,
+                      -20,
+                      -15
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.13818181818181818,
+                      0.33454545454545453
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.1,0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.041739130434782605,
+                  0.64
+                ],
+                "confidence": 0.8540729635182409
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.64css shift 0.64css",
+                  "magnitude": 0.6413596144203748
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 2.34% interiorΔE 0.00",
+                  "magnitude": 2.337215351983031
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
         {
           "feature": "counters",
           "score_pct": 100.0,
@@ -56639,7 +57347,7 @@
       "category": "multicol",
       "score_pct": 100.0,
       "counts": {
-        "pass": 20,
+        "pass": 22,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -57693,12 +58401,92 @@
           "feature": "column-fragmentation",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 3,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "multicol-column-rule-page-break",
+              "category": "multicol",
+              "feature": "column-fragmentation",
+              "subfeature": "wide-gap-rule-page-break",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A two-column container with a wide column-gap and a centered column-rule spanning a page break: the gap and rule are reproduced identically in the fresh row of columns on page 2 (CSS Multicol L1 §2/§3). Twelve 50px blocks (six per page) span two pages. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-color-swatch",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "5a8a4cb0e552dc66f9cef88dccd727a0eabd817899dbab05a2dc64266689426d",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "multicol-page-break-flow",
               "category": "multicol",
@@ -57721,6 +58509,86 @@
               "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "d005c095a2815c00d65d77e4fa79894a92b49c6eccfdf3ae6f8c1bcfddf037c0",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "multicol-three-cols-page-break",
+              "category": "multicol",
+              "feature": "column-fragmentation",
+              "subfeature": "three-cols-page-break",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A column-count:3, column-fill:auto container taller than the page: the three columns fill page 1, then content continues as a fresh row of three columns on page 2 (CSS Multicol L1 §2). Eighteen 40px blocks (nine per page) span two pages. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-color-swatch",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "bc433b0e765542db6511e2f35a03a7c3689f3c8222a3fbdc44ab82ad924a586e",
               "diagnosis": {
                 "primary_class": "AaOnly",
                 "secondary": [],
@@ -61365,11 +62233,11 @@
     },
     {
       "category": "paged-media",
-      "score_pct": 100.0,
+      "score_pct": 92.59,
       "counts": {
-        "pass": 19,
+        "pass": 25,
         "partial": 0,
-        "fail": 0,
+        "fail": 2,
         "unknown": 0
       },
       "features": [
@@ -61377,12 +62245,90 @@
           "feature": "break-after",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "break-after-page-mid-document",
+              "category": "paged-media",
+              "feature": "break-after",
+              "subfeature": "page-mid-document-real",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Modern break-after:page on the SECOND of three blocks forces the third block onto page 2 while the first two share page 1 — proving the modern break-after path fires mid-flow, not only on the first/last element. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "57da66db8751cee081f41d6046a7fa8c32f9a8482c2101b49a8c90f1992e540b",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "break-after-page-modern",
               "category": "paged-media",
@@ -61635,12 +62581,90 @@
           "feature": "break-inside",
           "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "break-inside-avoid-figure",
+              "category": "paged-media",
+              "feature": "break-inside",
+              "subfeature": "avoid-figure-keep-together",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "break-inside:avoid on a <figure> (image + caption) that would straddle a boundary: a 200px spacer leaves too little room, so Chrome keeps the figure together and pushes it WHOLE to page 2 (image and caption stay on the same page). The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "5d6417947f4fcb7646d7ceb5d8978cf4efa26616ebc4d1a605de1c7c9079c1a9",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "break-inside-avoid-real",
               "category": "paged-media",
@@ -61893,7 +62917,7 @@
           "feature": "orphans-widows",
           "score_pct": 100.0,
           "counts": {
-            "pass": 4,
+            "pass": 6,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -62142,6 +63166,85 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 3.15% interiorΔE 0.00",
                   "magnitude": 3.1510272071071626
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "orphans-4",
+              "category": "paged-media",
+              "feature": "orphans-widows",
+              "subfeature": "orphans-4",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "orphans:4 requires at least four line boxes left at the bottom of a fragment. A 100px spacer leaves only three line-slots on page 1, so the five-line paragraph cannot satisfy orphans:4 there and is pushed WHOLE to page 2 (Chrome); the initial orphans:2 would instead split it. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "af214177a5917756f609b71816f2e256d227e4e18a86a608d13c1ca66a065071",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -62417,13 +63520,13 @@
               "status": "PASS",
               "diff_pct": 2.0036,
               "weight": 1.0,
-              "description": "orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; deterministic text in a bordered frame tracks the orphans/widows gap.",
+              "description": "orphans:3/widows:3 on a paragraph whose lines all fit on one page have no visible effect; a single-page guard that the orphans/widows properties parse and never regress the no-break case (real cross-page fragmentation is covered by orphans-widows-default, orphans-3, widows-3, widows-4, orphans-4).",
               "note": "",
               "kind": "feature",
               "depends_on": [
                 "probe-text-baseline"
               ],
-              "expected_support": "unsupported",
+              "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "2df7471226b248e3c3250eb7aee6c0011615da7a2fb75b2fd3a1c7b8e76896ab",
               "diagnosis": {
@@ -62912,6 +64015,85 @@
                 }
               ],
               "disagreements": []
+            },
+            {
+              "id": "widows-4",
+              "category": "paged-media",
+              "feature": "orphans-widows",
+              "subfeature": "widows-4",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "widows:4 forces at least four line boxes onto the continuation page. An eight-line paragraph in a six-line page would naively split 6/2, but widows:4 moves the break two lines earlier to 4/4 (Chrome). The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "bdfa4a2896e123a58a383307fb02f82ff7ebf649d26b2c367090189c5dd7618e",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
             }
           ]
         },
@@ -63177,12 +64359,90 @@
           "feature": "page-break-before",
           "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "paged-break-before-third-block",
+              "category": "paged-media",
+              "feature": "page-break-before",
+              "subfeature": "always-mid-document-real",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Legacy page-break-before:always on the THIRD of three blocks moves it to page 2 while the first two share page 1 — proving the legacy forced break fires mid-flow. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "42b46cdecd2ef501d43a693bf9f8c7479b1782b2c070571683d21187eb43630f",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paged-forced-break-two-pages",
               "category": "paged-media",
@@ -63343,14 +64603,347 @@
         },
         {
           "feature": "page-break-inside",
-          "score_pct": 100.0,
+          "score_pct": 66.67,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
-            "fail": 0,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "page-break-inside-avoid-card-legacy",
+              "category": "paged-media",
+              "feature": "page-break-inside",
+              "subfeature": "avoid-card-straddle-real",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Legacy page-break-inside:avoid on a bordered CARD that would straddle a boundary: a 220px spacer leaves too little room, so Chrome (and ironpress) push the whole card to page 2. Confirms the legacy alias is honored for block containers. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "f53a5971e35691d31a034ee2886770a406a7c164704ff177bc46924ba3b0e712",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "page-break-inside-avoid-table-straddle",
+              "category": "paged-media",
+              "feature": "page-break-inside",
+              "subfeature": "avoid-table-straddle-real",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "FAIL",
+              "diff_pct": 34.4434,
+              "weight": 1.0,
+              "description": "Legacy page-break-inside:avoid on a TABLE that would straddle a page boundary: a 150px spacer leaves too little room for the 160px table. Chrome keeps the table whole and pushes it to page 2, but ironpress splits the table between rows (repeating the thead) — table-level keep-together is not honored for either the legacy or modern property (block-level keep-together IS, see break-inside-avoid-real). Tracked gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "page 2: content clipped/truncated (24.7% missing)",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-text-baseline"
+              ],
+              "expected_support": "unsupported",
+              "attribution": "CONFOUNDED: font-metrics (`probe-text-baseline`)",
+              "html_sha256": "cd6edf18ffe9fd2928ba5f8f3a0d7d15881730e9dcdd27209143121802055746",
+              "diagnosis": {
+                "primary_class": "Extra",
+                "secondary": [],
+                "headline": "via probe-text-baseline: extra paint where Chrome is blank (34.6%)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    -80.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 34.55643495830589,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      0.0,
+                      150.08,
+                      319.68,
+                      229.76
+                    ],
+                    "area_pct": 34.2287899860918,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (34.2%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      84.48,
+                      165.44,
+                      90.24,
+                      173.44
+                    ],
+                    "area_pct": 0.06063977746870654,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.1%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      244.48,
+                      165.44,
+                      250.24,
+                      173.44
+                    ],
+                    "area_pct": 0.06063977746870654,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.1%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      259.84,
+                      169.6,
+                      264.32,
+                      173.44
+                    ],
+                    "area_pct": 0.024617524339360222,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.0%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      259.84,
+                      165.44,
+                      264.0,
+                      168.64
+                    ],
+                    "area_pct": 0.019054242002781642,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.0%)"
+                  },
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      75.2,
+                      165.76,
+                      78.72,
+                      170.88
+                    ],
+                    "area_pct": 0.01655076495132128,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (0.0%)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 80.00css shift 0.00css",
+                  "magnitude": 80.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "FAIL",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 34.56%",
+                  "magnitude": 34.55643495830589
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paged-page-break-inside-avoid-table",
               "category": "paged-media",
@@ -63368,7 +64961,7 @@
                 "probe-fill-box",
                 "probe-block-flow"
               ],
-              "expected_support": "unsupported",
+              "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "c1ff3fbd0bdc62052743930626b5b1133f72c209909afe9b11f95391679934cc",
               "diagnosis": {
@@ -63612,11 +65205,11 @@
         },
         {
           "feature": "page-selectors",
-          "score_pct": 100.0,
+          "score_pct": 50.0,
           "counts": {
             "pass": 1,
             "partial": 0,
-            "fail": 0,
+            "fail": 1,
             "unknown": 0
           },
           "fixtures": [
@@ -63724,6 +65317,145 @@
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.00%",
                   "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "paged-spread-left-right-margins",
+              "category": "paged-media",
+              "feature": "page-selectors",
+              "subfeature": "spread-left-right-margins",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "FAIL",
+              "diff_pct": 36.2538,
+              "weight": 1.0,
+              "description": "CSS Paged Media 3 §3.2 :left/:right spread margins (right page wide left margin, left page wide right margin). Chrome honors the spread pseudo-classes; ironpress folds @page rules into a single global margin and does not differentiate per spread, so both boxes sit at the same inset — a tracked page-selectors gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "unsupported",
+              "attribution": "REAL",
+              "html_sha256": "5f29de1f7adb3dff2ee22cd22624e8bdf1e0db28405e8daad7e587219e3cca68",
+              "diagnosis": {
+                "primary_class": "Extra",
+                "secondary": [
+                  "Missing"
+                ],
+                "headline": "extra paint where Chrome is blank (20.9%)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    75.2,
+                    75.2,
+                    0.32,
+                    0.32
+                  ],
+                  "missing_area_pct": 20.881777777777778,
+                  "extra_area_pct": 20.881777777777778,
+                  "modal_drgb": [
+                    28,
+                    60,
+                    128
+                  ],
+                  "delta_e": 24.041236250179615,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    -1.12,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "Extra",
+                    "bbox_css": [
+                      0.0,
+                      0.0,
+                      79.04,
+                      199.68
+                    ],
+                    "area_pct": 18.162117083255026,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      28,
+                      60,
+                      128
+                    ],
+                    "delta_e": 24.041236250180443,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "extra paint where Chrome is blank (18.2%)"
+                  },
+                  {
+                    "class": "Missing",
+                    "bbox_css": [
+                      356.16,
+                      0.32,
+                      434.88,
+                      200.0
+                    ],
+                    "area_pct": 18.091641608720167,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -28,
+                      -60,
+                      -128
+                    ],
+                    "delta_e": 24.041236250180443,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -1.12,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content clipped/truncated (18.1% missing)"
+                  }
+                ],
+                "residual_shift_css": [
+                  -1.12,
+                  0.0
+                ],
+                "confidence": 0.47570063178357364
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "FAIL",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 75.20css shift 1.12css",
+                  "magnitude": 75.2
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "FAIL",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 1.75% interiorΔE 24.04",
+                  "magnitude": 1.7459366075520926
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "FAIL",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 20.88% extra 20.88%",
+                  "magnitude": 20.881777777777778
                 }
               ],
               "disagreements": []
@@ -69596,9 +71328,9 @@
     },
     {
       "category": "tables",
-      "score_pct": 96.67,
+      "score_pct": 96.88,
       "counts": {
-        "pass": 29,
+        "pass": 31,
         "partial": 0,
         "fail": 1,
         "unknown": 0
@@ -71951,12 +73683,265 @@
           "feature": "table-fragmentation",
           "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 5,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "tables-multipage-caption",
+              "category": "tables",
+              "feature": "table-fragmentation",
+              "subfeature": "caption-once-across-pages",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.567,
+              "weight": 1.0,
+              "description": "A captioned table spanning two pages: the caption is part of the table wrapper box and appears ONCE (page 1 only) while the <thead> repeats at each page top. The multi-page harness asserts the page COUNT (2) and diffs both pages; a caption wrongly repeated on page 2 would fail.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "91bd036d512a419396f93ec78b940731bb87ee57618f7da6c14d92bdb65a86bf",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.3,-0.0)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -13,
+                    -11,
+                    -9
+                  ],
+                  "delta_e": 5.192749436581644,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.32,
+                    -0.02
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      82.88,
+                      139.84,
+                      87.68,
+                      143.68
+                    ],
+                    "area_pct": 0.007066666666666666,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      18,
+                      16,
+                      13
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      240.96,
+                      139.84,
+                      245.76,
+                      143.68
+                    ],
+                    "area_pct": 0.007066666666666666,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      18,
+                      16,
+                      13
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      54.4,
+                      54.4,
+                      60.48,
+                      58.56
+                    ],
+                    "area_pct": 0.006,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      21,
+                      19,
+                      16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.18181818181818182,
+                      -0.15272727272727274
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.2,-0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      81.28,
+                      183.36,
+                      87.36,
+                      184.96
+                    ],
+                    "area_pct": 0.0052,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      17,
+                      14
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      239.36,
+                      183.36,
+                      245.44,
+                      184.96
+                    ],
+                    "area_pct": 0.0052,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      17,
+                      14
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      71.68,
+                      94.4,
+                      77.44,
+                      95.36
+                    ],
+                    "area_pct": 0.004933333333333333,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -22,
+                      -20,
+                      -15
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.32,
+                  -0.02
+                ],
+                "confidence": 0.8444584382871536
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.32css",
+                  "magnitude": 0.32062439083762795
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.07% interiorΔE 0.00",
+                  "magnitude": 0.06626283003986501
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "tables-multipage-tfoot-before-tbody",
               "category": "tables",
@@ -72705,6 +74690,259 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.08% interiorΔE 0.00",
                   "magnitude": 0.08246965197004895
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "tables-multipage-three-page",
+              "category": "tables",
+              "feature": "table-fragmentation",
+              "subfeature": "thead-tfoot-three-pages",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.6298,
+              "weight": 1.0,
+              "description": "A thead+tfoot table spanning THREE pages: with header (40px) and footer (40px) reserved per page, four body rows fit per page, so eleven body rows span three pages (4+4+3) with header repeated at every top and footer at every bottom. The multi-page harness asserts the page COUNT (3) and diffs all three pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "830e820ac6a571655fb85af4cdd191e426de9087b01d7ff6afd5d4183fa6050f",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.3,-0.0)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -2,
+                    -11,
+                    -8
+                  ],
+                  "delta_e": 4.974977399005613,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.32,
+                    -0.02
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      82.88,
+                      99.84,
+                      87.68,
+                      103.68
+                    ],
+                    "area_pct": 0.007066666666666666,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      18,
+                      16,
+                      13
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      240.96,
+                      99.84,
+                      245.76,
+                      103.68
+                    ],
+                    "area_pct": 0.007066666666666666,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      18,
+                      16,
+                      13
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      54.4,
+                      14.4,
+                      60.48,
+                      18.56
+                    ],
+                    "area_pct": 0.006,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      21,
+                      19,
+                      16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.18181818181818182,
+                      -0.15272727272727274
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.2,-0.2)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      81.28,
+                      143.36,
+                      87.36,
+                      144.96
+                    ],
+                    "area_pct": 0.0052,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      17,
+                      14
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      239.36,
+                      143.36,
+                      245.44,
+                      144.96
+                    ],
+                    "area_pct": 0.0052,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      19,
+                      17,
+                      14
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      71.68,
+                      54.4,
+                      77.44,
+                      55.36
+                    ],
+                    "area_pct": 0.004933333333333333,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -22,
+                      -20,
+                      -15
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      -0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.32,
+                  -0.02
+                ],
+                "confidence": 0.8272085665612071
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.32css",
+                  "magnitude": 0.32062439083762795
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.10% interiorΔE 0.00",
+                  "magnitude": 0.09512899357544333
                 },
                 {
                   "verifier": "RasterDiff",
@@ -87838,7 +90076,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 242,
+    "features_with_fixture": 243,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -87997,6 +90235,7 @@
       "interactions/transforms-x-flexbox",
       "interactions/z-index",
       "interactions/z-index-x-transforms",
+      "lists-counters/counter-continuity",
       "lists-counters/counters",
       "lists-counters/list-style",
       "lists-counters/list-style-image",
@@ -88083,17 +90322,18 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 559,
+    "implemented": 574,
     "partial": 38,
-    "unsupported": 57
+    "unsupported": 58
   },
   "fix_first": [
     {
       "id": "probe-text-baseline",
       "feature": "font-metrics",
       "status": "FAIL",
-      "confounded_count": 1,
+      "confounded_count": 2,
       "confounded_ids": [
+        "page-break-inside-avoid-table-straddle",
         "tables-vertical-align-baseline-sizes"
       ]
     }
@@ -88135,8 +90375,6 @@
     "overflow-clip",
     "overflow-x-y-separate",
     "paged-named-page",
-    "paged-orphans-widows",
-    "paged-page-break-inside-avoid-table",
     "paged-page-counter-content",
     "selectors-cascade-supports-rule",
     "text-advanced-direction-rtl",

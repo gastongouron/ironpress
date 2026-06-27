@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-multipage-three-page</title>
+<style>
+  /* A thead+tfoot table spanning THREE pages. The 240px page content box
+     reserves 40px for the repeated header and 40px for the repeated footer,
+     leaving 160px = four 40px body rows per page. Eleven body rows therefore
+     span three pages (4 + 4 + 3), with the header repeated at every page top and
+     the footer at every page bottom. The multi-page harness asserts the page
+     COUNT (3) and diffs all three pages, so a header/footer that fails to repeat
+     on the third page is caught. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+  tfoot td { background: #e63946; color: #ffffff; }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+      <tr><td>R4</td><td>r4</td></tr>
+      <tr><td>R5</td><td>r5</td></tr>
+      <tr><td>R6</td><td>r6</td></tr>
+      <tr><td>R7</td><td>r7</td></tr>
+      <tr><td>R8</td><td>r8</td></tr>
+      <tr><td>R9</td><td>r9</td></tr>
+      <tr><td>R10</td><td>r10</td></tr>
+      <tr><td>R11</td><td>r11</td></tr>
+    </tbody>
+    <tfoot>
+      <tr><td>FOOT A</td><td>FOOT B</td></tr>
+    </tfoot>
+  </table>
+</body>
+</html>

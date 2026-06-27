@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* widows:4 requires at least four line boxes at the TOP of the continuation
+     fragment. The @page content box is 190px tall and fits six 30px lines
+     (font-size 20px * line-height 1.5); the paragraph has EIGHT lines, so it
+     fragments across two pages. A naive greedy fill would put six lines on
+     page 1 and leave only two on page 2 — but widows:4 forces the break two
+     lines earlier, so Chrome puts four lines on page 1 and four on page 2. The
+     multi-page harness asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 600px 190px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  html { font-family: ParitySans; }
+  .para { font-size: 20px; line-height: 1.5; color: #16161d; widows: 4; orphans: 2; }
+</style>
+</head>
+<body>
+  <p class="para">Widows line one<br>Widows line two<br>Widows line three<br>Widows line four<br>Widows line five<br>Widows line six<br>Widows line seven<br>Widows line eight</p>
+</body>
+</html>

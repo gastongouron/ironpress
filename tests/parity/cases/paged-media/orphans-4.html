@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* orphans:4 requires at least four line boxes to be left at the BOTTOM of a
+     fragment before a break. A 100px spacer fills the top of page 1, leaving
+     only three 30px line-slots (90px) below it. The following five-line
+     paragraph therefore cannot place four lines on page 1, so orphans:4 forbids
+     a break there and the WHOLE paragraph is pushed to page 2 (Chrome). page 1
+     shows only the spacer; page 2 shows all five lines. With the initial
+     orphans:2 the paragraph would instead split (three lines under the spacer,
+     two on page 2), so this isolates the orphans constraint. The multi-page
+     harness asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 600px 190px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  html { font-family: ParitySans; }
+  .spacer { height: 100px; background: #cfe3d4; border-bottom: 3px solid #2e7d32; }
+  .para { font-size: 20px; line-height: 1.5; color: #16161d; orphans: 4; widows: 2; }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <p class="para">Orphans line one<br>Orphans line two<br>Orphans line three<br>Orphans line four<br>Orphans line five</p>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multicol three columns across a page break</title>
+<style>
+  /* A column-count:3, column-fill:auto container taller than the page: the three
+     columns fill page 1 top-to-bottom, then content continues as a FRESH row of
+     three columns on page 2 (CSS Multicol L1 §2), rather than overflowing and
+     being clipped. Each 40px block tiles the 120px page content box exactly 3
+     per column, so each page holds three columns of three = nine blocks;
+     eighteen blocks span two pages. The multi-page harness asserts the page
+     COUNT (2) and diffs both pages. */
+  @page { size: 392px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cols {
+    column-count: 3;
+    column-gap: 16px;
+    column-fill: auto;
+  }
+  .block { height: 40px; border: 2px solid #0a2a6b; }
+  .a { background: #ff5a5f; }
+  .b { background: #5a3fff; }
+  .c { background: #2e9e5b; }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+    <div class="block a"></div>
+    <div class="block b"></div>
+    <div class="block c"></div>
+  </div>
+</body>
+</html>

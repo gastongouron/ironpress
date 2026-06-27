@@ -795,5 +795,56 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-decoration-break-slice-radius",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "box-decoration-break-slice-radius",
+    "description": "box-decoration-break:slice with border-radius across a page break. Per CSS Fragmentation 3 §5.4 the cut edge of each fragment must be SQUARE: only the box's real corners are rounded (top corners on page 1, bottom corners on page 2). ironpress instead rounds the cut edge of the continuation fragment (treating slice like clone for the radius), so page 2's top corners are wrongly rounded — a tracked gap. The clone-radius companion passes. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/block-box-model/box-decoration-break-slice-radius.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-decoration-break-clone-radius",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "box-decoration-break-clone-radius",
+    "description": "box-decoration-break:clone with border-radius across a page break: each fragment is independently wrapped with the full border/padding/background, so BOTH fragments are fully closed boxes with all four rounded corners. Contrasts the slice-radius case. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/block-box-model/box-decoration-break-clone-radius.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-exact-fill-no-extra-page",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "exact-fill-no-extra-page",
+    "description": "Content that fills the page content box EXACTLY (two 100px blocks = the full 200px page) must NOT spill a spurious empty second page. The multi-page harness asserts the page COUNT (1); an off-by-one pagination emitting a trailing blank page would fail.",
+    "file": "cases/block-box-model/block-exact-fill-no-extra-page.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Modern `break-after: page` on a MID-document block (the second of three).
+     The first two boxes fit together on page 1; the forced break AFTER the
+     second box pushes the third box onto page 2. This is a genuine two-page
+     document that proves the modern break-after path fires in the middle of the
+     flow (not only on the first/last element). The multi-page harness asserts
+     the page COUNT (2) and diffs both pages: page 1 = blue + green, page 2 =
+     orange. */
+  @page { size: 8.5in 11in; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .b1 { width: 420px; height: 200px; background: #2d6cdf; border: 4px solid #11305f; }
+  .b2 { break-after: page; width: 360px; height: 180px; background: #4caf50; border: 4px solid #1b5e20; }
+  .b3 { width: 300px; height: 160px; background: #e08a1e; border: 4px solid #7a4a0c; }
+</style>
+</head>
+<body>
+  <div class="b1"></div>
+  <div class="b2"></div>
+  <div class="b3"></div>
+</body>
+</html>

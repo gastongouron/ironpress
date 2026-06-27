@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Edge case: content that fills the page content box EXACTLY must NOT spill a
+     spurious empty second page. Two 100px blocks stack to exactly 200px, the
+     full height of the 200px @page content box, so the document is ONE page —
+     not two. The multi-page harness asserts the page COUNT (1); an off-by-one
+     pagination that emits a trailing blank page would fail the count gate. */
+  @page { size: 300px 200px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .top { width: 260px; height: 100px; background: #2d6cdf; border: 3px solid #11305f; }
+  .bottom { width: 260px; height: 100px; background: #4caf50; border: 3px solid #1b5e20; }
+</style>
+</head>
+<body>
+  <div class="top"></div>
+  <div class="bottom"></div>
+</body>
+</html>

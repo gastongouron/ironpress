@@ -517,5 +517,39 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-multipage-three-page",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "thead-tfoot-three-pages",
+    "description": "A thead+tfoot table spanning THREE pages: with header (40px) and footer (40px) reserved per page, four body rows fit per page, so eleven body rows span three pages (4+4+3) with header repeated at every top and footer at every bottom. The multi-page harness asserts the page COUNT (3) and diffs all three pages.",
+    "file": "cases/tables/tables-multipage-three-page.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-multipage-caption",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "caption-once-across-pages",
+    "description": "A captioned table spanning two pages: the caption is part of the table wrapper box and appears ONCE (page 1 only) while the <thead> repeats at each page top. The multi-page harness asserts the page COUNT (2) and diffs both pages; a caption wrongly repeated on page 2 would fail.",
+    "file": "cases/tables/tables-multipage-caption.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* box-decoration-break:slice (default) WITH border-radius across a page break.
+     Under slice the box is rendered whole and then sliced, so the rounded
+     corners exist only where the real box corners are: the TOP corners are
+     rounded on page 1 (open, square at the bottom cut) and the BOTTOM corners
+     are rounded on page 2 (open, square at the top cut). The multi-page harness
+     asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 340px 240px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .box {
+    width: 260px;
+    background: #ffd9d9;
+    border: 10px solid #6b1414;
+    border-radius: 28px;
+    padding: 14px;
+    box-decoration-break: slice;
+  }
+  .row { height: 64px; break-inside: avoid; }
+  .a { background: #d94f4f; }
+  .b { background: #2d6cdf; }
+  .c { background: #2e9e5b; }
+  .d { background: #e08a1e; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="row a"></div>
+    <div class="row b"></div>
+    <div class="row c"></div>
+    <div class="row d"></div>
+  </div>
+</body>
+</html>

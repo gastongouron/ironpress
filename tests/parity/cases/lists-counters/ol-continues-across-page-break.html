@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ol continues across a page break</title>
+<style>
+  /* CSS Lists 3 §4: counters are resolved in document tree order, NOT visual
+     layout, so an <ol> that flows onto page 2 keeps incrementing (…5,6,7…)
+     rather than restarting at 1. Each <li> is exactly 40px and the page content
+     box is 200px, so five items fill page 1 and the remaining five overflow to
+     page 2 — whose markers MUST read 6-10. The multi-page harness asserts the
+     page COUNT (2) and diffs both pages, so a counter that reset to 1 on page 2
+     would fail. */
+  @page { size: 300px 200px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  * { margin: 0; box-sizing: border-box; }
+  ol { padding-left: 48px; list-style-type: decimal; }
+  li {
+    height: 40px;
+    line-height: 40px;
+    font-size: 22px;
+    color: #11305f;
+  }
+</style>
+</head>
+<body>
+  <ol>
+    <li>Alpha</li>
+    <li>Bravo</li>
+    <li>Charlie</li>
+    <li>Delta</li>
+    <li>Echo</li>
+    <li>Foxtrot</li>
+    <li>Golf</li>
+    <li>Hotel</li>
+    <li>India</li>
+    <li>Juliet</li>
+  </ol>
+</body>
+</html>

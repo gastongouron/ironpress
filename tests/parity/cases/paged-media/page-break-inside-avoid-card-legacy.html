@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>legacy page-break-inside:avoid keeps a card whole</title>
+<style>
+  /* Legacy `page-break-inside: avoid` (the CSS 2.1 alias of break-inside:avoid)
+     on a bordered CARD that would otherwise straddle a page boundary. A 220px
+     spacer fills the top of page 1, leaving 80px — too little for the 160px
+     card. Because the card is avoid-inside and fits on an empty page, Chrome
+     pushes the WHOLE card onto page 2. page 1 = spacer only, page 2 = the intact
+     card. Confirms the legacy alias is honored for block containers (the modern
+     property is covered by break-inside-avoid-real). The multi-page harness
+     asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 360px 300px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .spacer { height: 220px; background: #e9ecef; border-bottom: 3px solid #868e96; }
+  .card {
+    page-break-inside: avoid;
+    width: 280px;
+    height: 160px;
+    background: #ffd166;
+    border: 6px solid #b8860b;
+  }
+  .card .bar {
+    height: 48px;
+    margin: 24px;
+    background: #ef476f;
+    border: 3px solid #7a1f33;
+  }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <div class="card"><div class="bar"></div></div>
+</body>
+</html>

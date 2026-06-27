@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS Paged Media 3 §3.2: the :left / :right spread pseudo-classes give each
+     side of a spread its own (gutter) margin. In LTR the first page is :right,
+     the second is :left. Here the right page gets a wide LEFT margin and the
+     left page gets a wide RIGHT margin, so the same-size box is inset toward the
+     gutter on each spread: page 1 (right) sits 3cm from the left, page 2 (left)
+     sits at the 1cm left edge. The multi-page harness asserts the page COUNT (2)
+     and diffs both pages, catching a missing spread-selector implementation. */
+  @page { size: 8.5in 11in; margin: 1cm; }
+  @page :right { margin-left: 3cm; }
+  @page :left { margin-right: 3cm; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .p1 { width: 360px; height: 200px; background: #2d6cdf; border: 4px solid #11305f; }
+  .p2 { page-break-before: always; width: 360px; height: 200px; background: #4caf50; border: 4px solid #1b5e20; }
+</style>
+</head>
+<body>
+  <div class="p1"></div>
+  <div class="p2"></div>
+</body>
+</html>
