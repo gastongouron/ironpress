@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS Paged Media 3 §3.3: `@page :first` overrides the FIRST page only. Here
+     page 1 gets a larger top margin (a common letterhead/title-page pattern)
+     while page 2 uses the default @page margin. This directly catches the bug
+     where `:first` folded into the document-global margin and was wrongly
+     applied to every page (page 2 would then sit at the 4cm margin too). Only
+     the TOP margin differs, so the content width is identical on both pages. */
+  @page { size: 8.5in 11in; margin: 1cm; }
+  @page :first { margin-top: 4cm; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .p1 { width: 420px; height: 220px; background: #2d6cdf; border: 4px solid #11305f; }
+  .p2 { page-break-before: always; width: 420px; height: 220px; background: #4caf50; border: 4px solid #1b5e20; }
+</style>
+</head>
+<body>
+  <div class="p1"></div>
+  <div class="p2"></div>
+</body>
+</html>

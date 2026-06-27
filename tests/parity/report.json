@@ -8,11 +8,11 @@
   },
   "overall": {
     "score_pct": 97.19,
-    "pass": 622,
+    "pass": 623,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 640,
+    "total": 641,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -59823,7 +59823,7 @@
       "category": "paged-media",
       "score_pct": 100.0,
       "counts": {
-        "pass": 18,
+        "pass": 19,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -62046,6 +62046,126 @@
                   "concern": "Geometry",
                   "headline": "raster geometry: edge 0.00css shift 0.00css",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "page-selectors",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "paged-first-page-margin",
+              "category": "paged-media",
+              "feature": "page-selectors",
+              "subfeature": "first-page-margin",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2159,
+              "weight": 1.0,
+              "description": "CSS Paged Media 3 §3.3: @page :first sets a larger top margin on page 1 only; page 2 uses the default @page margin. Catches the bug where :first folded into the document-global margin and was wrongly applied to EVERY page (page 2 would sit at the 4cm margin too). The harness asserts the page COUNT (2) and diffs both pages — page 1 box at 4cm, page 2 box at 1cm.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "c11205ab0d94b041d99d1c99fae22d25c13e149615fa1ddec4698643fcef8936",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.3,0.0)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.32,
+                    0.0,
+                    0.0,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.32,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      4.16,
+                      3.84,
+                      416.0,
+                      215.68
+                    ],
+                    "area_pct": 0.21586460971678564,
+                    "edge_delta_css": [
+                      0.32,
+                      0.0,
+                      0.0,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.10880000000000001,
+                      0.21136410256410257
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.1,0.2)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.32,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
                 },
                 {
                   "verifier": "RasterDiff",
@@ -86174,7 +86294,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 238,
+    "features_with_fixture": 239,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -86358,6 +86478,7 @@
       "paged-media/page-break-inside",
       "paged-media/page-counter",
       "paged-media/page-margin",
+      "paged-media/page-selectors",
       "positioning/clear",
       "positioning/containing-block",
       "positioning/float",
@@ -86415,7 +86536,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 545,
+    "implemented": 546,
     "partial": 38,
     "unsupported": 57
   },

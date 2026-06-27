@@ -206,9 +206,35 @@ pub struct ImportRule {
     pub path: String,
 }
 
+/// The selector of an `@page` rule — the text between `@page` and `{`
+/// (CSS Paged Media 3 §3 "Page selectors and the page context").
+///
+/// `@page { }` (no selector) is [`PageSelector::None`] and applies to every
+/// page; the pseudo-class / named variants override per page.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum PageSelector {
+    /// `@page { }` — the default rule, applies to all pages.
+    #[default]
+    None,
+    /// `@page :first { }` — the first page of the document.
+    First,
+    /// `@page :left { }` — verso (left) pages.
+    Left,
+    /// `@page :right { }` — recto (right) pages.
+    Right,
+    /// `@page :blank { }` — intentionally-blank pages.
+    Blank,
+    /// `@page <name> { }` — a named page targeted by the `page` property.
+    Named(String),
+}
+
 /// A parsed `@page` rule with page size and margin overrides.
 #[derive(Debug, Clone, Default)]
 pub struct PageRule {
+    /// The page selector (`:first`/`:left`/`:right`/`:blank`/name) classified
+    /// from the text between `@page` and `{`. [`PageSelector::None`] for an
+    /// unselected `@page { }` rule that applies to every page.
+    pub selector: PageSelector,
     /// Page width in points (if specified).
     pub width: Option<f32>,
     /// Page height in points (if specified).

@@ -1294,13 +1294,21 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     let _font_ctx = crate::style::font_ctx::FontCtxGuard::new(custom_fonts);
     let mut pdf_writer = PdfWriter::new();
     pdf_writer.opts = opts;
-    let available_width = page_size.width - margin.left - margin.right;
+    // `available_width` is derived per page inside the loop below, since a page
+    // may carry an `@page :first` margin override that changes its content box.
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
     let prepared_custom_fonts = prepare_custom_fonts(pages, custom_fonts);
 
     register_used_custom_fonts(&mut pdf_writer, custom_fonts, &prepared_custom_fonts);
 
     for (page_idx, page) in pages.iter().enumerate() {
+        // Per-page margin override (CSS Paged Media 3 §3 page-context cascade,
+        // e.g. an `@page :first` first-page margin). Shadowing `margin` here
+        // makes every downstream position computation in this loop use the
+        // page's own content box; `None` (the universal case for the corpus)
+        // keeps the document-global margin, so behavior is unchanged.
+        let margin = page.margin_override.unwrap_or(margin);
+        let available_width = page_size.width - margin.left - margin.right;
         let mut content = String::new();
         let mut annotations: Vec<LinkAnnotation> = Vec::new();
         let mut page_images: Vec<ImageRef> = Vec::new();
@@ -13489,7 +13497,10 @@ mod tests {
     }
 
     fn test_page(elements: Vec<(f32, LayoutElement)>) -> Page {
-        Page { elements }
+        Page {
+            elements,
+            margin_override: None,
+        }
     }
 
     fn first_td_y(content: &str) -> Option<f32> {
@@ -13638,6 +13649,7 @@ mod tests {
                     margin_bottom: 0.0,
                 },
             )],
+            margin_override: None,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -13678,6 +13690,7 @@ mod tests {
                     margin_bottom: 0.0,
                 },
             )],
+            margin_override: None,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);

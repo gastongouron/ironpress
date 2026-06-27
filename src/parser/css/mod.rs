@@ -19,7 +19,7 @@ pub use inline::parse_inline_style;
 pub(crate) use media::{preprocess_media_queries, preprocess_media_queries_with_context};
 pub use model::{
     AncestorInfo, CalcOp, CalcToken, CssRule, CssValue, FontFaceRule, ImportRule, MediaContext,
-    PageRule, PseudoElement, SelectorContext, StyleMap,
+    PageRule, PageSelector, PseudoElement, SelectorContext, StyleMap,
 };
 #[cfg(test)]
 #[allow(unused_imports)]

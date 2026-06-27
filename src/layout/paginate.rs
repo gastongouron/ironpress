@@ -841,11 +841,47 @@ fn split_container(
     Some((first, rest))
 }
 
+/// Geometry override for the first page (CSS Paged Media 3 §3.3 `@page :first`).
+/// `content_height` is the page-1 content box height (page height minus the
+/// first-page top/bottom margins); `margin` is the full first-page margin used
+/// to tag the emitted [`Page`] so the renderer positions it correctly.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct FirstPageGeom {
+    pub content_height: f32,
+    pub margin: crate::types::Margin,
+}
+
+/// Paginate with a single global content height (no per-page geometry). Thin
+/// wrapper over [`paginate_with_first_page`]; used by unit tests and any caller
+/// that does not need an `@page :first` override.
+#[allow(dead_code)]
 pub(crate) fn paginate(
     elements: Vec<LayoutElement>,
     content_height: f32,
     root_margin_top: f32,
 ) -> Vec<Page> {
+    paginate_with_first_page(elements, content_height, root_margin_top, None)
+}
+
+/// Paginate with an optional first-page geometry override. When `first_page`
+/// is `None` this is identical to a single global `content_height` for every
+/// page (the default path used by the whole corpus).
+pub(crate) fn paginate_with_first_page(
+    elements: Vec<LayoutElement>,
+    default_content_height: f32,
+    root_margin_top: f32,
+    first_page: Option<FirstPageGeom>,
+) -> Vec<Page> {
+    // The content height in force for the page currently being filled. Page 1
+    // uses the first-page override (if any); every page after page 1 reverts to
+    // the default. Updated to `default_content_height` immediately after the
+    // first page is finalized.
+    let mut content_height = first_page
+        .map(|f| f.content_height)
+        .unwrap_or(default_content_height);
+    // The margin tag applied to the FIRST emitted page (page 1). Every push
+    // site reads `pages.is_empty()` to decide whether it is creating page 1.
+    let first_margin_override = first_page.map(|f| f.margin);
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
@@ -1102,9 +1138,17 @@ pub(crate) fn paginate(
                     continue;
                 }
                 let consumed_height = y;
+                let margin_override = if pages.is_empty() {
+                    first_margin_override
+                } else {
+                    None
+                };
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
+                    margin_override,
                 });
+                // After page 1 is finalized, page 2+ use the default geometry.
+                content_height = default_content_height;
                 // Duplicate root background onto the new page.
                 for bg in &absolute_backgrounds {
                     current_elements.push(bg.clone());
@@ -1131,7 +1175,10 @@ pub(crate) fn paginate(
                         for bg in &absolute_backgrounds {
                             blank.push(bg.clone());
                         }
-                        pages.push(Page { elements: blank });
+                        pages.push(Page {
+                            elements: blank,
+                            margin_override: None,
+                        });
                     }
                 }
                 y = 0.0;
@@ -1341,9 +1388,17 @@ pub(crate) fn paginate(
                 }
             }
             let consumed_height = y;
+            let margin_override = if pages.is_empty() {
+                first_margin_override
+            } else {
+                None
+            };
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
+                margin_override,
             });
+            // After page 1 is finalized, page 2+ use the default geometry.
+            content_height = default_content_height;
             // Duplicate root background onto the new page.
             for bg in &absolute_backgrounds {
                 current_elements.push(bg.clone());
@@ -1434,9 +1489,17 @@ pub(crate) fn paginate(
                 // Close the page (the fragmentainer is full) and reset flow state
                 // for the continuation, mirroring a normal mid-loop page break.
                 let consumed_height = content_height;
+                let margin_override = if pages.is_empty() {
+                    first_margin_override
+                } else {
+                    None
+                };
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
+                    margin_override,
                 });
+                // After page 1 is finalized, page 2+ use the default geometry.
+                content_height = default_content_height;
                 for bg in &absolute_backgrounds {
                     current_elements.push(bg.clone());
                 }
@@ -1502,14 +1565,21 @@ pub(crate) fn paginate(
         )
     });
     if !current_elements.is_empty() && (has_real_content || pages.is_empty()) {
+        let margin_override = if pages.is_empty() {
+            first_margin_override
+        } else {
+            None
+        };
         pages.push(Page {
             elements: current_elements,
+            margin_override,
         });
     }
 
     if pages.is_empty() {
         pages.push(Page {
             elements: Vec::new(),
+            margin_override: first_margin_override,
         });
     }
 

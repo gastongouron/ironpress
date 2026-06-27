@@ -843,8 +843,15 @@ impl LayoutElement {
 }
 
 /// A fully laid-out page.
+#[derive(Default)]
 pub struct Page {
     pub elements: Vec<(f32, LayoutElement)>, // (y_position, element)
+    /// Per-page margin override (CSS Paged Media 3 §3 page-context cascade).
+    /// `None` means the page uses the document's global margin; `Some(m)` is
+    /// applied at render time instead (e.g. an `@page :first` first-page
+    /// margin). Layout positions inside `elements` are relative to this page's
+    /// own content box.
+    pub margin_override: Option<Margin>,
 }
 
 /// Lay out the DOM nodes into pages.
@@ -968,7 +975,7 @@ pub fn layout_with_rules(
     margin: Margin,
     rules: &[CssRule],
 ) -> Vec<Page> {
-    layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new(), None)
+    layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new(), None, None)
 }
 
 /// Walk the DOM and record every element bearing an `id` attribute into
@@ -993,6 +1000,7 @@ pub fn layout_with_rules_and_fonts(
     rules: &[CssRule],
     custom_fonts: &HashMap<String, TtfFont>,
     page_background: Option<&ComputedStyle>,
+    first_page_margin: Option<Margin>,
 ) -> Vec<Page> {
     // Expose the loaded fonts to style resolution for the whole pass so the
     // `ex`/`ch` units resolve against real font metrics (css-values-4 §6.1.1).
@@ -1241,10 +1249,20 @@ pub fn layout_with_rules_and_fonts(
     // Then paginate. Pass the body/html margin-top (plus padding-top, which
     // acts as an additional inner gutter on page 1 when the body has padding)
     // so the first in-flow block on each page can collapse through the root.
-    super::paginate::paginate(
+    //
+    // An `@page :first` margin override (CSS Paged Media 3 §3.3) gives page 1 a
+    // different content box: its content height shrinks/grows by the margin
+    // delta and the page is tagged with the override so the renderer positions
+    // it against the first-page margin. Page 2+ keep the default geometry.
+    let first_page = first_page_margin.map(|m| super::paginate::FirstPageGeom {
+        content_height: page_size.height - m.top - m.bottom,
+        margin: m,
+    });
+    super::paginate::paginate_with_first_page(
         elements,
         content_height,
         parent_style.margin.top + parent_style.padding.top,
+        first_page,
     )
 }
 
@@ -7022,6 +7040,7 @@ mod tests {
             &rules,
             &std::collections::HashMap::new(),
             Some(&page_bg),
+            None,
         );
 
         // elements[0]: the @page bleed background — full sheet, offset by -margin
@@ -9233,6 +9252,7 @@ line 3</pre>
             Margin::default(),
             &rules,
             &std::collections::HashMap::new(),
+            None,
             None,
         );
 

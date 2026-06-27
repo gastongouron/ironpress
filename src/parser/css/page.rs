@@ -1,4 +1,4 @@
-use super::{FontFaceRule, PageRule, extract_url_path, preprocess_media_queries};
+use super::{FontFaceRule, PageRule, PageSelector, extract_url_path, preprocess_media_queries};
 
 /// Parse a CSS stylesheet and extract `@page` rules.
 pub fn parse_page_rules(css: &str) -> Vec<PageRule> {
@@ -84,7 +84,37 @@ pub(crate) fn parse_font_face_declarations(decls: &str) -> Option<FontFaceRule> 
     }
 }
 
+/// Classify the text between `@page` and `{` into a [`PageSelector`]
+/// (CSS Paged Media 3 §3). A bare `@page { }` is [`PageSelector::None`]; a
+/// leading page name yields [`PageSelector::Named`]; otherwise the pseudo-class
+/// (`:first`/`:left`/`:right`/`:blank`) is recognised.
+pub(crate) fn classify_page_selector(text: &str) -> PageSelector {
+    let text = text.trim();
+    if text.is_empty() {
+        return PageSelector::None;
+    }
+    // A page name (if any) is the leading identifier before any pseudo-class.
+    let name = text.split(':').next().unwrap_or("").trim();
+    if !name.is_empty() {
+        return PageSelector::Named(name.to_string());
+    }
+    // No name — classify the first pseudo-class.
+    match text.trim_start_matches(':').trim().to_ascii_lowercase().as_str() {
+        "first" => PageSelector::First,
+        "left" => PageSelector::Left,
+        "right" => PageSelector::Right,
+        "blank" => PageSelector::Blank,
+        _ => PageSelector::None,
+    }
+}
+
 /// Extract @page rules from preprocessed CSS.
+///
+/// The `@page` block is captured with a brace-balanced scan so a nested
+/// page-margin at-rule (e.g. `@top-center { … }`, CSS Paged Media 3 §5) does
+/// NOT truncate the rule at its inner `}` and drop the trailing `size`/`margin`
+/// declarations. The selector text between `@page` and `{` is classified into
+/// the rule's [`PageRule::selector`].
 pub(crate) fn extract_page_rules(css: &str) -> Vec<PageRule> {
     let mut page_rules = Vec::new();
     let mut remaining = css;
@@ -96,14 +126,35 @@ pub(crate) fn extract_page_rules(css: &str) -> Vec<PageRule> {
         let Some(brace_pos) = after_at.find('{') else {
             break;
         };
+        // The selector is everything between `@page` and the opening brace.
+        let selector_text = &after_at[..brace_pos];
         let Some(after_brace) = after_at.get(brace_pos + 1..) else {
             break;
         };
-        let Some(close_pos) = after_brace.find('}') else {
+        // Brace-balanced scan: walk forward tracking nesting depth so the whole
+        // @page block (including any nested margin-box at-rule) is captured and
+        // we close on the MATCHING `}`, not the first one.
+        let mut depth = 1usize;
+        let mut close_pos = None;
+        for (i, ch) in after_brace.char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close_pos = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close_pos) = close_pos else {
             break;
         };
         let declarations = &after_brace[..close_pos];
-        if let Some(rule) = parse_page_declarations(declarations) {
+        if let Some(mut rule) = parse_page_declarations(declarations) {
+            rule.selector = classify_page_selector(selector_text);
             page_rules.push(rule);
         }
         remaining = &after_brace[close_pos + 1..];
@@ -456,6 +507,73 @@ mod tests {
     fn extract_page_rules_malformed() {
         assert!(extract_page_rules("@page { bogus }").is_empty());
         assert!(extract_page_rules("@page no-brace").is_empty());
+    }
+
+    #[test]
+    fn extract_page_rules_brace_balanced_keeps_trailing_decls() {
+        // A nested page-margin at-rule must NOT truncate the @page block at its
+        // inner `}` — the trailing `size`/`margin` declarations after the nested
+        // block have to survive (the brace-balance fix).
+        let rules = extract_page_rules(
+            r#"@page { @top-center { content: "Title" }; size: a4; margin: 2cm }"#,
+        );
+        assert_eq!(rules.len(), 1, "the @page rule must be captured whole");
+        assert!(
+            rules[0].width.is_some(),
+            "size after the nested margin box must not be dropped"
+        );
+        let m = 2.0 * 28.3465;
+        assert!((rules[0].margin_top.unwrap() - m).abs() < 0.01);
+        assert!((rules[0].margin_left.unwrap() - m).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_page_rules_nested_block_does_not_leak_into_next_rule() {
+        // Two @page rules with a nested margin box in the first: the second rule
+        // must still be found (the scan resumes AFTER the first rule's matching
+        // close brace, not its inner one).
+        let rules = extract_page_rules(
+            r#"@page :first { @bottom-right { content: "x" }; margin: 0 } @page { margin: 3cm }"#,
+        );
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].selector, PageSelector::First);
+        assert_eq!(rules[0].margin_top, Some(0.0));
+        assert_eq!(rules[1].selector, PageSelector::None);
+        assert!((rules[1].margin_top.unwrap() - 3.0 * 28.3465).abs() < 0.01);
+    }
+
+    #[test]
+    fn extract_page_rules_captures_selector() {
+        let first = extract_page_rules("@page :first { margin: 0 }");
+        assert_eq!(first[0].selector, PageSelector::First);
+
+        let left = extract_page_rules("@page :left { margin-left: 2cm }");
+        assert_eq!(left[0].selector, PageSelector::Left);
+
+        let right = extract_page_rules("@page :right { margin-right: 2cm }");
+        assert_eq!(right[0].selector, PageSelector::Right);
+
+        let blank = extract_page_rules("@page :blank { margin: 1cm }");
+        assert_eq!(blank[0].selector, PageSelector::Blank);
+
+        let named = extract_page_rules("@page cover { size: a4; margin: 1cm }");
+        assert_eq!(named[0].selector, PageSelector::Named("cover".to_string()));
+
+        let default = extract_page_rules("@page { margin: 1cm }");
+        assert_eq!(default[0].selector, PageSelector::None);
+    }
+
+    #[test]
+    fn classify_page_selector_cases() {
+        assert_eq!(classify_page_selector(""), PageSelector::None);
+        assert_eq!(classify_page_selector("  "), PageSelector::None);
+        assert_eq!(classify_page_selector(":first"), PageSelector::First);
+        assert_eq!(classify_page_selector(" :left "), PageSelector::Left);
+        assert_eq!(classify_page_selector(":RIGHT"), PageSelector::Right);
+        assert_eq!(
+            classify_page_selector("cover"),
+            PageSelector::Named("cover".to_string())
+        );
     }
 
     #[test]

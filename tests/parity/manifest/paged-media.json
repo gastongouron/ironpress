@@ -250,5 +250,19 @@
     "depends_on": ["probe-text-baseline"],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-first-page-margin",
+    "category": "paged-media",
+    "feature": "page-selectors",
+    "subfeature": "first-page-margin",
+    "description": "CSS Paged Media 3 §3.3: @page :first sets a larger top margin on page 1 only; page 2 uses the default @page margin. Catches the bug where :first folded into the document-global margin and was wrongly applied to EVERY page (page 2 would sit at the 4cm margin too). The harness asserts the page COUNT (2) and diffs both pages — page 1 box at 4cm, page 2 box at 1cm.",
+    "file": "cases/paged-media/paged-first-page-margin.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-border-box"],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

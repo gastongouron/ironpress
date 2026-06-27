@@ -461,10 +461,22 @@ impl HtmlConverter {
             font_face_rules.extend(parser::css::parse_font_face_rules(css));
         }
 
-        // Step 3b: Apply @page rules to override page size and margins
+        // Step 3b: Apply @page rules to override page size and margins.
+        //
+        // Only UNSELECTED `@page { }` rules (CSS Paged Media 3 §3
+        // `PageSelector::None`) fold into the document-global geometry. A
+        // pseudo-class/named rule (`:first`/`:left`/`:right`/`:blank`/name)
+        // must NOT be applied to every page — previously an `@page :first {
+        // margin: 0 }` was mis-folded here and wrongly applied to all pages.
+        // The `:first` override is collected separately below as a per-page-1
+        // geometry change.
+        use parser::css::PageSelector;
         let mut effective_page_size = self.page_size;
         let mut effective_margin = self.margin;
         for pr in &page_rules {
+            if pr.selector != PageSelector::None {
+                continue;
+            }
             if let (Some(w), Some(h)) = (pr.width, pr.height) {
                 effective_page_size = PageSize {
                     width: w,
@@ -543,6 +555,40 @@ impl HtmlConverter {
         effective_margin.left += body_center_gutter;
         effective_margin.right += body_center_gutter;
 
+        // Step 3e: Resolve the `@page :first` per-page-1 margin override (CSS
+        // Paged Media 3 §3.3). It starts from the folded default margin and
+        // applies any `:first` margin declarations, so page 1 gets a different
+        // content box (a larger top margin on a title page is the common case)
+        // while page 2+ keep the default. The override is rendered correctly
+        // for vertical (top/bottom) margins; horizontal `:first` margins shift
+        // the content origin but text keeps the default wrap width (per-page
+        // re-layout for changed widths is a documented follow-up).
+        let first_page_margin: Option<Margin> = {
+            let mut m = effective_margin;
+            let mut any = false;
+            for pr in &page_rules {
+                if pr.selector == PageSelector::First {
+                    if let Some(v) = pr.margin_top {
+                        m.top = v;
+                        any = true;
+                    }
+                    if let Some(v) = pr.margin_right {
+                        m.right = v;
+                        any = true;
+                    }
+                    if let Some(v) = pr.margin_bottom {
+                        m.bottom = v;
+                        any = true;
+                    }
+                    if let Some(v) = pr.margin_left {
+                        m.left = v;
+                        any = true;
+                    }
+                }
+            }
+            any.then_some(m)
+        };
+
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 
@@ -620,6 +666,7 @@ impl HtmlConverter {
             &rules,
             &parsed_fonts,
             page_bg,
+            first_page_margin,
         );
 
         // Step 6: Render PDF
