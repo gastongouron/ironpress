@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-multipage-tfoot-repeat</title>
+<style>
+  /* A table with BOTH a <thead> and a <tfoot> spanning pages. Chrome (modern
+     LayoutNG) repeats the thead as a running header at the top and the tfoot as
+     a running footer at the bottom of every page the table spans, with body
+     rows flowing between them. The 240px page content box holds a 40px header +
+     40px footer, leaving 160px = four 40px body rows per page; seven body rows
+     span TWO pages (page 1: rows 1-4, page 2: rows 5-7). The harness asserts the
+     page COUNT (2) and diffs every page, so a tfoot shown only once (the
+     pre-fix behavior) fails. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+  tfoot td { background: #e63946; color: #ffffff; }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+      <tr><td>R4</td><td>r4</td></tr>
+      <tr><td>R5</td><td>r5</td></tr>
+      <tr><td>R6</td><td>r6</td></tr>
+      <tr><td>R7</td><td>r7</td></tr>
+    </tbody>
+    <tfoot>
+      <tr><td>FOOT A</td><td>FOOT B</td></tr>
+    </tfoot>
+  </table>
+</body>
+</html>

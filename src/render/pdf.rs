@@ -17834,6 +17834,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();
@@ -17932,6 +17933,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();
@@ -18056,6 +18058,7 @@ mod tests {
             border_collapse: crate::style::computed::BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let custom_fonts = HashMap::new();

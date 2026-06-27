@@ -1012,6 +1012,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
@@ -1099,6 +1100,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let mut cell = empty_table_cell();
@@ -1112,6 +1114,7 @@ mod tests {
             border_collapse: BorderCollapse::Separate,
             border_spacing: 0.0,
             is_header: false,
+            is_footer: false,
             offset_left: 0.0,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();

@@ -669,8 +669,35 @@ pub(crate) fn paginate(
     // re-emit them at the top of each page the table spans (Chrome parity).
     // Cleared as soon as a non-TableRow element is encountered.
     let mut pending_table_headers: Vec<LayoutElement> = Vec::new();
+    // Track the `<tfoot>` rows of the active table so pagination can repeat them
+    // as a running footer at the bottom of every page the table spans, directly
+    // after the last body row (Chrome's LayoutNG table fragmentation). Collected
+    // by a forward scan when the table is first entered, so their height is known
+    // (and reserved) while body rows are placed — even though, after the
+    // thead->tbody->tfoot reorder, the footer rows arrive LAST in the stream.
+    let mut pending_table_footers: Vec<LayoutElement> = Vec::new();
+    // Total reserved height of `pending_table_footers` (content height of the
+    // footer rows, mirroring the repeated-header advance). Subtracted from the
+    // available page height when deciding whether a body row fits.
+    let mut pending_footer_height: f32 = 0.0;
+    // Whether the cursor is currently inside a table's row run (between the first
+    // row and the next non-row element), used to detect table entry for the
+    // footer pre-scan.
+    let mut in_table = false;
     #[allow(unused_assignments)]
     let mut in_table_body = false;
+
+    // Content height of a table row = the tallest cell's content height (the same
+    // measure used for the repeated-header advance), excluding row margins.
+    let row_content_height = |element: &LayoutElement| -> f32 {
+        match element {
+            LayoutElement::TableRow { cells, .. } => cells
+                .iter()
+                .map(table_cell_content_height)
+                .fold(0.0f32, f32::max),
+            _ => 0.0,
+        }
+    };
 
     // Worklist of pending top-level elements. A box that is too tall for the
     // page is split (CSS Fragmentation 3 §3): its first fragment is placed and
@@ -680,21 +707,67 @@ pub(crate) fn paginate(
     // single-page corpus is byte-for-byte identical.
     let mut work: std::collections::VecDeque<LayoutElement> = elements.into();
     while let Some(element) = work.pop_front() {
-        // Track <thead> header rows so we can repeat them across page breaks
-        // that occur mid-table. Reset when leaving the table.
+        // Track <thead>/<tfoot> rows so we can repeat them across page breaks
+        // that occur mid-table: the header at each page top, the footer at each
+        // page bottom. Reset when leaving the table.
         match &element {
-            LayoutElement::TableRow { is_header, .. } => {
+            LayoutElement::TableRow {
+                is_header,
+                is_footer,
+                ..
+            } => {
+                if !in_table {
+                    // First row of a new table: scan ahead over the rest of this
+                    // table's contiguous row run to collect the `<tfoot>` rows
+                    // (which the thead->tbody->tfoot reorder places at the end of
+                    // the run) so their height is reserved while body rows are
+                    // placed and they can be repeated at each page bottom.
+                    in_table = true;
+                    pending_table_headers.clear();
+                    pending_table_footers.clear();
+                    pending_footer_height = 0.0;
+                    for w in work.iter() {
+                        match w {
+                            LayoutElement::TableRow {
+                                is_footer: w_foot, ..
+                            } => {
+                                if *w_foot {
+                                    pending_footer_height += row_content_height(w);
+                                    pending_table_footers.push(w.clone());
+                                }
+                            }
+                            _ => break,
+                        }
+                    }
+                }
+                // A header is collected for repetition; a footer is handled by the
+                // running-footer placement (below / at page breaks); only ordinary
+                // body rows count as "table body" for fit/break decisions.
+                in_table_body = !*is_header && !*is_footer;
                 if *is_header {
                     pending_table_headers.push(element.clone());
-                    in_table_body = false;
-                } else {
-                    in_table_body = true;
                 }
             }
             _ => {
                 pending_table_headers.clear();
+                pending_table_footers.clear();
+                pending_footer_height = 0.0;
+                in_table = false;
                 in_table_body = false;
             }
+        }
+
+        // A `<tfoot>` row reaching the normal flow is the FINAL-page footer (the
+        // reorder put it after every body row): place it directly after the last
+        // body row on the current page. Its height was reserved while the body
+        // rows were placed, so it always fits — skip the generic fit/break path.
+        if matches!(&element, LayoutElement::TableRow { is_footer: true, .. }) {
+            let fh = row_content_height(&element);
+            current_elements.push((y, element));
+            y += fh;
+            prev_margin_bottom = 0.0;
+            first_on_page = false;
+            continue;
         }
 
         // Extract float/clear/position info from TextBlock elements
@@ -997,8 +1070,28 @@ pub(crate) fn paginate(
             continue;
         }
 
-        let page_broke_mid_loop = y + element_height > content_height && y > 0.0;
+        // Reserve the repeated running-footer height while placing table body
+        // rows so a body row is never laid where the footer will be re-emitted
+        // at the page bottom (Chrome reserves the tfoot on every spanned page).
+        let footer_reserve = if in_table_body {
+            pending_footer_height
+        } else {
+            0.0
+        };
+        let page_broke_mid_loop =
+            y + element_height + footer_reserve > content_height && y > 0.0;
         if page_broke_mid_loop {
+            // Repeat the running footer at the bottom of the page being closed,
+            // directly after the last body row (matching Chrome: the footer is
+            // NOT flushed to the page edge — any reserved slack stays as
+            // whitespace below it).
+            if in_table_body && !pending_table_footers.is_empty() {
+                for footer in pending_table_footers.clone() {
+                    let footer_h = row_content_height(&footer);
+                    current_elements.push((y, footer));
+                    y += footer_h;
+                }
+            }
             let consumed_height = y;
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),

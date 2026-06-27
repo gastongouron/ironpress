@@ -488,6 +488,10 @@ pub enum LayoutElement {
         /// Row belongs to a `<thead>`; pagination re-emits it on every page
         /// the parent table spans (mirroring Chrome's behavior).
         is_header: bool,
+        /// Row belongs to a `<tfoot>`; pagination repeats it as a running footer
+        /// at the bottom of every page the parent table spans, after the last
+        /// body row (mirroring Chrome's LayoutNG table fragmentation).
+        is_footer: bool,
         /// The table's own horizontal start margin (`margin-left`, or the
         /// auto-centering inset), in points. Cells and the table box are shifted
         /// right by this from the containing block's content edge. 0.0 for tables

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-multipage-tfoot-before-tbody</title>
+<style>
+  /* Same multi-page thead+tfoot table, but the <tfoot> is written BEFORE the
+     <tbody> in source. Per CSS 2.1 §17 the table sections always render in the
+     order thead -> tbody -> tfoot regardless of DOM order, so Chrome paints the
+     footer at the BOTTOM (not above the body). This pins the section-order
+     reorder: the pre-fix behavior (rows collected in DOM order) would paint the
+     footer band directly under the header. Geometry matches
+     tables-multipage-tfoot-repeat: page COUNT 2, header at each top, footer at
+     each bottom. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+  tfoot td { background: #e63946; color: #ffffff; }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tfoot>
+      <tr><td>FOOT A</td><td>FOOT B</td></tr>
+    </tfoot>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+      <tr><td>R4</td><td>r4</td></tr>
+      <tr><td>R5</td><td>r5</td></tr>
+      <tr><td>R6</td><td>r6</td></tr>
+      <tr><td>R7</td><td>r7</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

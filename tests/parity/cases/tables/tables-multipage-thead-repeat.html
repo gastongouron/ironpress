@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-multipage-thead-repeat</title>
+<style>
+  /* A table whose <thead> must REPEAT at the top of every page it spans
+     (CSS 2.1 §17.2.1, the universal print convention Chrome --print-to-pdf
+     realizes via LayoutNG table fragmentation). The 240px page content box
+     holds a 40px header plus five 40px body rows (40 + 5*40 = 240); with the
+     header re-emitted at each page top, eight body rows span TWO pages. The
+     multi-page harness asserts the page COUNT (2) and diffs every page, so a
+     missing or mis-placed repeated header fails. */
+  @page { size: 320px 240px; margin: 0; }
+  html { font-family: ParitySans; font-size: 14px; line-height: 1.5; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  table { border-collapse: collapse; table-layout: fixed; width: 320px; }
+  td { width: 160px; height: 40px; text-align: center; vertical-align: middle; }
+  thead td { background: #1d3557; color: #ffffff; }
+  tbody td { background: #f1faee; color: #1d3557; }
+</style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr><td>HEAD A</td><td>HEAD B</td></tr>
+    </thead>
+    <tbody>
+      <tr><td>R1</td><td>r1</td></tr>
+      <tr><td>R2</td><td>r2</td></tr>
+      <tr><td>R3</td><td>r3</td></tr>
+      <tr><td>R4</td><td>r4</td></tr>
+      <tr><td>R5</td><td>r5</td></tr>
+      <tr><td>R6</td><td>r6</td></tr>
+      <tr><td>R7</td><td>r7</td></tr>
+      <tr><td>R8</td><td>r8</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

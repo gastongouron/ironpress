@@ -673,6 +673,38 @@ pub(crate) fn flatten_table(
         return;
     }
 
+    // Reorder the collected rows into section order thead -> tbody (and direct
+    // `<tr>`) -> tfoot, regardless of DOM source order (CSS 2.1 §17.2.1: the
+    // table-header-group always renders first and the table-footer-group last,
+    // so a `<tfoot>` written before `<tbody>` in the markup still renders at the
+    // bottom — matching Chrome). The sort is stable, so rows within each section
+    // keep their order and a table already in thead->tbody->tfoot order is
+    // unchanged (no layout/selector difference for the common case). The
+    // per-row section metadata travels with each row, so nth-child / descendant
+    // selector matching is unaffected.
+    let section_rank = |sec: &Option<&ElementNode>| -> u8 {
+        match sec {
+            Some(s) if s.tag == HtmlTag::Thead => 0,
+            Some(s) if s.tag == HtmlTag::Tfoot => 2,
+            _ => 1, // tbody and standalone <tr>
+        }
+    };
+    if (0..rows.len()).any(|i| {
+        i > 0 && section_rank(&row_section_elements[i]) < section_rank(&row_section_elements[i - 1])
+    }) {
+        let mut order: Vec<usize> = (0..rows.len()).collect();
+        order.sort_by_key(|&i| section_rank(&row_section_elements[i]));
+        let apply = |v: &[usize], src: &Vec<usize>| -> Vec<usize> {
+            v.iter().map(|&i| src[i]).collect()
+        };
+        rows = order.iter().map(|&i| rows[i]).collect();
+        row_section_indices = apply(&order, &row_section_indices);
+        row_section_sizes = apply(&order, &row_section_sizes);
+        row_section_elements = order.iter().map(|&i| row_section_elements[i]).collect();
+        row_section_child_indices = apply(&order, &row_section_child_indices);
+        row_section_sibling_counts = apply(&order, &row_section_sibling_counts);
+    }
+
     // Determine column count from the widest row, accounting for colspan
     let num_cols = rows
         .iter()
@@ -1457,6 +1489,9 @@ pub(crate) fn flatten_table(
             let is_header = row_section_elements[row_idx]
                 .map(|s| s.tag == HtmlTag::Thead)
                 .unwrap_or(false);
+            let is_footer = row_section_elements[row_idx]
+                .map(|s| s.tag == HtmlTag::Tfoot)
+                .unwrap_or(false);
             output.push(LayoutElement::TableRow {
                 cells,
                 col_widths: col_widths.clone(),
@@ -1473,6 +1508,7 @@ pub(crate) fn flatten_table(
                 border_collapse: style.border_collapse,
                 border_spacing: style.border_spacing,
                 is_header,
+                is_footer,
                 // The table's own horizontal start margin shifts every cell (and
                 // the table box) right from the containing block's content edge,
                 // mirroring how `margin_top` shifts it down.

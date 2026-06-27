@@ -466,5 +466,56 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-multipage-thead-repeat",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "thead-repeat",
+    "description": "A long table whose <thead> repeats at the top of every page it spans (CSS 2.1 \u00a717.2.1; Chrome --print-to-pdf via LayoutNG). 320x240 page: a 40px header plus eight 40px body rows span TWO pages with the header re-emitted at each page top. The multi-page harness asserts the page COUNT (2) and diffs every page, so a missing or mis-placed repeated header fails.",
+    "file": "cases/tables/tables-multipage-thead-repeat.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-multipage-tfoot-repeat",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "tfoot-repeat",
+    "description": "A long table with both <thead> and <tfoot> spanning pages: Chrome repeats the thead as a running header at the top and the tfoot as a running footer directly after the last body row at the bottom of every spanned page, reserving the footer height so body rows never collide with it. 320x240 page, 40px header+footer leave four 40px body rows per page; seven rows span TWO pages. Fails before the tfoot-repeat fix (footer shown once).",
+    "file": "cases/tables/tables-multipage-tfoot-repeat.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-multipage-tfoot-before-tbody",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "tfoot-before-tbody",
+    "description": "Same multi-page thead+tfoot table but with <tfoot> written BEFORE <tbody> in source. CSS 2.1 \u00a717 mandates section render order thead->tbody->tfoot regardless of DOM order, so Chrome paints the footer at the bottom (its reference is byte-identical to tables-multipage-tfoot-repeat). Pins the section-order reorder; the pre-fix DOM-order behavior would paint the footer band directly under the header.",
+    "file": "cases/tables/tables-multipage-tfoot-before-tbody.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]
