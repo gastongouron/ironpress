@@ -119,6 +119,40 @@
     "partial_threshold_pct": 10.0
   },
   {
+    "id": "flexbox-percent-height-stretch",
+    "category": "flexbox",
+    "feature": "percent-height",
+    "subfeature": "stretch-definite",
+    "description": "align-items:stretch gives a height-less flex item a definite cross size, so its height:50% child resolves against the stretched 180px line (90px).",
+    "file": "cases/flexbox/flexbox-percent-height-stretch.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-basis-content",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "content",
+    "description": "flex-basis:content sizes the item to its content (text) instead of the explicit width:40px.",
+    "file": "cases/flexbox/flexbox-basis-content.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
     "id": "flexbox-align-self-flex-end",
     "category": "flexbox",
     "feature": "align-self",

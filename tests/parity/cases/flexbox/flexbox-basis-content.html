@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox flex-basis content</title>
+<style>
+  @page { size: 537px 141px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    width: 420px;
+    height: 100px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  /* flex-basis:content sizes the item to its text content, ignoring width:40px,
+     so the red background hugs the text instead of clamping to 40px. */
+  .item {
+    flex: 0 0 content;
+    width: 40px;
+    background: #c0392b;
+    color: #ffffff;
+    padding: 12px;
+    white-space: nowrap;
+  }
+  /* control: flex-basis:auto uses width:120px (border-box). */
+  .control {
+    flex: 0 0 auto;
+    width: 120px;
+    height: 64px;
+    background: #2980b9;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="item">CONTENTSIZED</div>
+      <div class="control"></div>
+    </div>
+  </div>
+</body>
+</html>

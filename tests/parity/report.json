@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.23,
-    "pass": 631,
+    "score_pct": 97.24,
+    "pass": 633,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 649,
+    "total": 651,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -19094,7 +19094,7 @@
       "category": "flexbox",
       "score_pct": 100.0,
       "counts": {
-        "pass": 64,
+        "pass": 66,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -21253,12 +21253,265 @@
           "feature": "flex-basis",
           "score_pct": 100.0,
           "counts": {
-            "pass": 4,
+            "pass": 5,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "flexbox-basis-content",
+              "category": "flexbox",
+              "feature": "flex-basis",
+              "subfeature": "content",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.4051,
+              "weight": 1.0,
+              "description": "flex-basis:content sizes the item to its content (text) instead of the explicit width:40px.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "d6b41d64368a509905c6c3807cd315c5e872786efcd6e65e765697c3a263e855",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.0,0.6)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -3,
+                    -11,
+                    -11
+                  ],
+                  "delta_e": 5.046388012168407,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.64
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      167.68,
+                      2.24,
+                      167.68,
+                      65.92
+                    ],
+                    "area_pct": 0.04866547111825953,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      287.68,
+                      2.24,
+                      287.68,
+                      65.92
+                    ],
+                    "area_pct": 0.04866547111825953,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      151.68,
+                      2.24,
+                      151.68,
+                      49.92
+                    ],
+                    "area_pct": 0.03649910333869465,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.32,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.3,0.0)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      49.28,
+                      19.2,
+                      59.2,
+                      19.84
+                    ],
+                    "area_pct": 0.008759784801286715,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -5,
+                      -15,
+                      -16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.6303030303030304
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      81.28,
+                      19.2,
+                      91.2,
+                      19.84
+                    ],
+                    "area_pct": 0.008759784801286715,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -5,
+                      -15,
+                      -16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.6303030303030304
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      106.88,
+                      19.2,
+                      115.84,
+                      19.2
+                    ],
+                    "area_pct": 0.007056493312147631,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -5,
+                      -16,
+                      -17
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.64
+                ],
+                "confidence": 0.8762762762762762
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.64css",
+                  "magnitude": 0.64
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.05% interiorΔE 0.00",
+                  "magnitude": 0.05045940100281936
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "flexbox-flex-basis",
               "category": "flexbox",
@@ -25701,6 +25954,96 @@
               "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "f2229979926d48d92ebf73cc1a2923cb3a4f2bfcbdfbfa4faf498a04c8c930c8",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "percent-height",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "flexbox-percent-height-stretch",
+              "category": "flexbox",
+              "feature": "percent-height",
+              "subfeature": "stretch-definite",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "align-items:stretch gives a height-less flex item a definite cross size, so its height:50% child resolves against the stretched 180px line (90px).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "793ab7ff8cf68bf028bb8645d5c3085a762b6bdf791ee6bbd86ed65b69b81d9a",
               "diagnosis": {
                 "primary_class": "AaOnly",
                 "secondary": [],
@@ -87070,7 +87413,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 240,
+    "features_with_fixture": 241,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -87160,6 +87503,7 @@
       "flexbox/min-width",
       "flexbox/nested-flex",
       "flexbox/order",
+      "flexbox/percent-height",
       "fonts-advanced/font-face",
       "fonts-advanced/font-feature-settings",
       "fonts-advanced/font-size",
@@ -87313,7 +87657,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 554,
+    "implemented": 556,
     "partial": 38,
     "unsupported": 57
   },

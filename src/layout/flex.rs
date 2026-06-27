@@ -870,12 +870,30 @@ pub(crate) fn layout_flex_container(
         // margins and structure preserved.
         if item_has_block_children {
             let mut child_elements_buf = Vec::new();
-            let layout_height = 10000.0; // large enough to not constrain
+            // Percentage-height children resolve against the item's OWN definite
+            // height. A height-less item has an indefinite block size during this
+            // intrinsic-measurement pass, so percentage heights resolve to `auto`
+            // (not against an arbitrary placeholder that would balloon the item
+            // and poison the container cross size). When the item later stretches
+            // (`align-items: stretch`) to a definite cross size, the percentage
+            // children are re-resolved against that size (see the stretch loop).
+            let item_content_height_basis: Option<f32> = if has_explicit_height {
+                child_style.height.map(|h| match child_style.box_sizing {
+                    BoxSizing::ContentBox => h,
+                    BoxSizing::BorderBox => (h
+                        - child_style.padding.top
+                        - child_style.padding.bottom
+                        - child_style.border.vertical_width())
+                    .max(0.0),
+                })
+            } else {
+                None
+            };
             let child_ctx = ctx
                 .with_parent_and_basis(
                     child_w_for_layout,
                     width_for_percentages,
-                    Some(layout_height),
+                    item_content_height_basis,
                     style.font_size,
                 )
                 .with_containing_block(None);
@@ -1515,9 +1533,6 @@ pub(crate) fn layout_flex_container(
                 &child_el.attributes,
                 &selector_ctx,
             );
-            if child_style.display != Display::Flex {
-                continue;
-            }
             // Force the item's cross size (its main size as a column flex) to the
             // stretched height. Translate the padding-box `inner_cross_size` to a
             // value the container's box-sizing interprets as that border-box.
@@ -1540,26 +1555,87 @@ pub(crate) fn layout_flex_container(
                 following_siblings: Vec::new(),
                 is_empty: false,
             });
+            // The item's own content-box dimensions once stretched: percentage
+            // children resolve their heights against this definite cross size.
+            let item_content_w = (item.width
+                - child_style.padding.left
+                - child_style.padding.right
+                - child_style.border.horizontal_width())
+            .max(0.0);
             let mut buf = Vec::new();
-            let child_ctx = ctx
-                .with_parent_and_basis(
-                    item.width,
-                    width_for_percentages,
-                    Some(inner_cross_size),
-                    style.font_size,
-                )
-                .with_containing_block(None);
-            layout_flex_container(
-                child_el,
-                &child_style,
-                &child_ctx,
-                &mut buf,
-                &child_ancestors,
-                None,
-                None,
-                positioned_depth,
-                env,
-            );
+            if child_style.display == Display::Flex {
+                // A nested flex container carries its own main-axis distribution
+                // that depends on the stretched height; re-layout it as a flex.
+                let child_ctx = ctx
+                    .with_parent_and_basis(
+                        item.width,
+                        width_for_percentages,
+                        Some(inner_cross_size),
+                        style.font_size,
+                    )
+                    .with_containing_block(None);
+                layout_flex_container(
+                    child_el,
+                    &child_style,
+                    &child_ctx,
+                    &mut buf,
+                    &child_ancestors,
+                    None,
+                    None,
+                    positioned_depth,
+                    env,
+                );
+            } else {
+                // A stretched plain block item whose block children include a
+                // percentage-height box: the first (intrinsic) pass treated those
+                // percentages as `auto` because the item was height-less. Now that
+                // align-items:stretch gives the item a definite height, re-flatten
+                // it with that height so `height: 50%` descendants resolve against
+                // it. Items with only inline/text content need no re-flatten — the
+                // renderer stretches their cell visually (cell_render_h = line_cross).
+                let has_block_kids = child_el.children.iter().any(|c| {
+                    matches!(c, DomNode::Element(e) if e.tag.is_block() && !collects_as_inline_text(e.tag))
+                });
+                if !has_block_kids {
+                    continue;
+                }
+                // `flatten_element` recomputes the item's own style from its
+                // attributes, so the stretched height must be injected there.
+                // Clone the item and append `height:<forced_h>pt` to its inline
+                // style (inline declarations win the cascade, and layout units are
+                // points). `forced_h` is already expressed in the item's own
+                // box-sizing. With a now-definite block size, `height:50%`
+                // descendants resolve against it.
+                let mut forced_el = child_el.clone();
+                let mut style_decl = forced_el.attributes.get("style").cloned().unwrap_or_default();
+                if !style_decl.trim_end().is_empty() && !style_decl.trim_end().ends_with(';') {
+                    style_decl.push(';');
+                }
+                style_decl.push_str(&format!("height:{forced_h}pt"));
+                forced_el.attributes.insert("style".to_string(), style_decl);
+                let child_ctx = ctx
+                    .with_parent_and_basis(
+                        item_content_w,
+                        width_for_percentages,
+                        Some(forced_h),
+                        style.font_size,
+                    )
+                    .with_containing_block(None);
+                flatten_element(
+                    &forced_el,
+                    style,
+                    &child_ctx,
+                    &mut buf,
+                    None,
+                    &child_ancestors,
+                    positioned_depth,
+                    item.child_idx,
+                    child_count,
+                    &[],
+                    &[],
+                    env,
+                );
+            }
             if !buf.is_empty() {
                 item.elements = buf;
                 item.height = inner_cross_size;

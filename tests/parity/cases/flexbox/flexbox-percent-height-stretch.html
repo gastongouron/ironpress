@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox percent-height stretch</title>
+<style>
+  @page { size: 537px 221px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* align-items:stretch makes the height-less items fill the 180px line, which
+     gives their height:50% children a definite containing block (90px). */
+  .flex {
+    display: flex;
+    align-items: stretch;
+    width: 420px;
+    height: 180px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 80px;
+    margin-right: 20px;
+  }
+  .inner {
+    height: 50%;
+    width: 100%;
+    background: #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"><div class="inner"></div></div>
+      <div class="box b"><div class="inner"></div></div>
+      <div class="box c"><div class="inner"></div></div>
+    </div>
+  </div>
+</body>
+</html>
