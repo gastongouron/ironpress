@@ -5147,8 +5147,17 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     object_position,
                     background_color,
                     border,
+                    src_crop,
                     ..
                 } => {
+                    // When pagination has SLICED this image across page
+                    // boundaries, decode the source once and crop it to this
+                    // page's source-pixel rows, then embed ONLY that slice (not a
+                    // full copy behind a clip). Falls back to the whole image if
+                    // the crop fails to decode.
+                    let sliced = src_crop
+                        .and_then(|c| crate::layout::images::crop_raster_asset(image, c));
+                    let img = sliced.as_ref().unwrap_or(image);
                     let img_x = margin.left;
                     // PDF y-axis is bottom-up; y_pos is top of margin, image draws from bottom-left
                     let img_y = page_size.height - margin.top - y_pos - height;
@@ -5183,17 +5192,17 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let placement = crate::layout::images::compute_image_placement(
                         content_w,
                         content_h,
-                        image.source_width,
-                        image.source_height,
+                        img.source_width,
+                        img.source_height,
                         *object_fit,
                         *object_position,
                     );
                     let img_obj_id = pdf_writer.add_source_image_object(
-                        &image.data,
-                        image.source_width,
-                        image.source_height,
-                        image.format,
-                        image.png_metadata.as_ref(),
+                        &img.data,
+                        img.source_width,
+                        img.source_height,
+                        img.format,
+                        img.png_metadata.as_ref(),
                         placement.width,
                         placement.height,
                     );
@@ -7706,6 +7715,7 @@ fn render_container_children(
                 background_color,
                 border,
                 blur_overflow,
+                src_crop,
                 ..
             } => {
                 cursor_y -= collapsed_margin_top_extra(*img_mt, prev_margin_bottom);
@@ -7761,20 +7771,24 @@ fn render_container_children(
                 let content_top = box_top - border.top.width;
                 let content_w = (img_w - border.horizontal_width()).max(0.0);
                 let content_h = (img_h - border.vertical_width()).max(0.0);
+                // A sliced too-tall image embeds only this page's source rows.
+                let sliced =
+                    src_crop.and_then(|c| crate::layout::images::crop_raster_asset(image, c));
+                let img = sliced.as_ref().unwrap_or(image);
                 let placement = crate::layout::images::compute_image_placement(
                     content_w,
                     content_h,
-                    image.source_width,
-                    image.source_height,
+                    img.source_width,
+                    img.source_height,
                     *object_fit,
                     *object_position,
                 );
                 let img_obj_id = pdf_writer.add_source_image_object(
-                    &image.data,
-                    image.source_width,
-                    image.source_height,
-                    image.format,
-                    image.png_metadata.as_ref(),
+                    &img.data,
+                    img.source_width,
+                    img.source_height,
+                    img.format,
+                    img.png_metadata.as_ref(),
                     placement.width,
                     placement.height,
                 );

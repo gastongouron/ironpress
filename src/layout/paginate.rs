@@ -1,5 +1,5 @@
 use super::engine::{LayoutElement, Page, layout_element_paint_order, table_cell_content_height};
-use crate::style::computed::{BorderCollapse, Clear, Float, Position};
+use crate::style::computed::{BorderCollapse, Clear, Float, ObjectFit, Position};
 use std::collections::HashMap;
 
 fn advance_positioned_ancestors_after_page_break(
@@ -536,6 +536,105 @@ fn split_text_block(
     Some((first, rest))
 }
 
+/// Minimum slice height (pt) below which a too-tall raster image is not sliced —
+/// keeps a fragment from being a sliver and guarantees forward progress.
+const MIN_IMAGE_SLICE: f32 = 1.0;
+
+/// Slice a too-tall in-flow raster `Image` at the page boundary (CSS
+/// Fragmentation 3 §4.1: monolithic content taller than the fragmentainer is
+/// sliced at the fragmentainer edge rather than discarded). `avail_below_box_top`
+/// is the page height still available below the image's border-box top on the
+/// current page.
+///
+/// Returns `(first_fragment, continuation)`: the first fragment fills the rest of
+/// this page with the TOP slice of the source raster (its `flow_extra_bottom` and
+/// `margin_bottom` dropped), and the continuation displays the remainder on the
+/// next page (its `margin_top` dropped, the original bottom decoration kept so the
+/// FINAL fragment closes the box). Each fragment records the source-pixel
+/// sub-rectangle it shows in `src_crop`, so the renderer emits only that slice as
+/// the page's image XObject instead of a full copy behind a clip.
+///
+/// Returns `None` (caller places the image whole, the pre-existing overflow
+/// behavior) when the image cannot be sliced cleanly: a non-`fill` `object-fit`
+/// (the source does not map linearly onto the box, so a box slice is not a source
+/// slice), a bordered box (the frame cannot be split here), a `filter` raster
+/// (already feathered/padded), or no usable space on the page.
+fn split_image_block(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::Image {
+        image,
+        height,
+        object_fit,
+        border,
+        blur_overflow,
+        src_crop,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    if *object_fit != ObjectFit::Fill
+        || border.vertical_width() != 0.0
+        || *blur_overflow != 0.0
+        || *height <= 0.0
+    {
+        return None;
+    }
+
+    // Display height of the TOP slice that fits on this page.
+    let first_h = avail_below_box_top.min(*height);
+    if first_h <= MIN_IMAGE_SLICE || *height - first_h <= MIN_IMAGE_SLICE {
+        // No room for a meaningful slice, or the remainder would be a sliver —
+        // (re)place the image whole (it already restarts on a fresh page).
+        return None;
+    }
+
+    // The source sub-rectangle this element currently displays (the whole source
+    // if it has not been sliced yet), mapped linearly onto `height` under
+    // object-fit: fill. Slicing composes with any inherited crop.
+    let [bx, by, bw, bh] = src_crop.unwrap_or([
+        0.0,
+        0.0,
+        image.source_width as f32,
+        image.source_height as f32,
+    ]);
+    let slice_src_h = bh * (first_h / *height);
+
+    let mut first = element.clone();
+    if let LayoutElement::Image {
+        height: f_h,
+        flow_extra_bottom: f_fe,
+        margin_bottom: f_mb,
+        src_crop: f_crop,
+        ..
+    } = &mut first
+    {
+        *f_h = first_h;
+        *f_fe = 0.0;
+        *f_mb = 0.0;
+        *f_crop = Some([bx, by, bw, slice_src_h]);
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::Image {
+        height: r_h,
+        margin_top: r_mt,
+        src_crop: r_crop,
+        ..
+    } = &mut rest
+    {
+        *r_h = *height - first_h;
+        *r_mt = 0.0;
+        *r_crop = Some([bx, by + slice_src_h, bw, bh - slice_src_h]);
+        // `flow_extra_bottom` and `margin_bottom` stay on the continuation so the
+        // final fragment keeps the original strut / bottom margin.
+    }
+
+    Some((first, rest))
+}
+
 pub(crate) fn paginate(
     elements: Vec<LayoutElement>,
     content_height: f32,
@@ -979,7 +1078,11 @@ pub(crate) fn paginate(
             && y + element_height > content_height + FRAG_EPSILON
         {
             let avail_below_box_top = content_height - (y + effective_margin_top);
-            if let Some((first, rest)) = split_text_block(&element, avail_below_box_top) {
+            // A too-tall text block splits at a line boundary; a too-tall raster
+            // image slices at the page edge (each page embeds only its slice).
+            let split = split_text_block(&element, avail_below_box_top)
+                .or_else(|| split_image_block(&element, avail_below_box_top));
+            if let Some((first, rest)) = split {
                 // Place the first fragment at the (margin-adjusted) cursor; it
                 // fills the remainder of this page.
                 y += effective_margin_top;

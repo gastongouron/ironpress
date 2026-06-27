@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.1,
-    "pass": 603,
+    "score_pct": 97.11,
+    "pass": 604,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 621,
+    "total": 622,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -34828,7 +34828,7 @@
       "category": "images-replaced",
       "score_pct": 100.0,
       "counts": {
-        "pass": 26,
+        "pass": 27,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -34928,7 +34928,7 @@
           "feature": "fragmentation",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -34998,6 +34998,111 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.00% interiorΔE 0.00",
                   "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "img-taller-than-page-sliced",
+              "category": "images-replaced",
+              "feature": "fragmentation",
+              "subfeature": "monolithic-image-slice",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.2667,
+              "weight": 1.0,
+              "description": "A block image taller than a full page content box is SLICED across 3 pages (css-break-3 §4.1: monolithic content taller than the fragmentainer slices at its edge). Each page embeds only its own vertical band of the source raster, not a full copy. The multi-page harness asserts all three pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "8c04cf4d115ada3c6c1392f1d1f370eb90de9b119e150d5a23f2203fe6469dad",
+              "diagnosis": {
+                "primary_class": "ColorValue",
+                "secondary": [],
+                "headline": "fill recolour ΔRGB(+1,-32,+0) (ΔE 5.5)",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    1,
+                    -32,
+                    0
+                  ],
+                  "delta_e": 5.530760928422174,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "ColorValue",
+                    "bbox_css": [
+                      0.0,
+                      239.36,
+                      279.68,
+                      239.68
+                    ],
+                    "area_pct": 0.26666666666666666,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      1,
+                      -32,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.0
+                    ],
+                    "selector": null,
+                    "headline": "fill recolour ΔRGB(+1,-32,+0) (ΔE 0.0)"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.27% interiorΔE 0.00",
+                  "magnitude": 0.26666666666666666
                 },
                 {
                   "verifier": "RasterDiff",
@@ -83641,7 +83746,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 524,
+    "implemented": 525,
     "partial": 38,
     "unsupported": 59
   },

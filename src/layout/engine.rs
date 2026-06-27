@@ -543,6 +543,14 @@ pub enum LayoutElement {
         /// the content box (the filter does not affect layout flow). Zero means
         /// no filter raster (the normal sharp image path).
         blur_overflow: f32,
+        /// Source-pixel sub-rectangle `[x, y, w, h]` of `image` that THIS element
+        /// must display, set when pagination has SLICED a too-tall raster across
+        /// page boundaries (css-break-3 §4.1: monolithic content taller than the
+        /// fragmentainer is sliced at its edge). The renderer decodes the source,
+        /// crops to this sub-rectangle, and embeds ONLY that slice as the page's
+        /// image XObject — so a tall image is never duplicated whole on every
+        /// page. `None` for a normal, unsliced image (the entire source is shown).
+        src_crop: Option<[f32; 4]>,
     },
     /// A horizontal rule.
     HorizontalRule { margin_top: f32, margin_bottom: f32 },

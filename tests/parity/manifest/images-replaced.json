@@ -382,5 +382,19 @@
     "depends_on": [],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "img-taller-than-page-sliced",
+    "category": "images-replaced",
+    "feature": "fragmentation",
+    "subfeature": "monolithic-image-slice",
+    "description": "A block image taller than a full page content box is SLICED across 3 pages (css-break-3 §4.1: monolithic content taller than the fragmentainer slices at its edge). Each page embeds only its own vertical band of the source raster, not a full copy. The multi-page harness asserts all three pages.",
+    "file": "cases/images-replaced/img-taller-than-page-sliced.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

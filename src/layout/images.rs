@@ -270,6 +270,7 @@ pub(crate) fn load_image_from_element(
         background_color: style.background_color.map(|c| c.to_f32_rgba()),
         border: LayoutBorder::from_computed(&style.border),
         blur_overflow,
+        src_crop: None,
     })
 }
 
@@ -364,6 +365,154 @@ fn decode_png_to_rgb_asset(raw: &[u8]) -> Option<RasterImageAsset> {
             bit_depth: png_info.bit_depth,
         }),
     })
+}
+
+/// Crop a raster image asset to the source-pixel sub-rectangle `[x, y, w, h]`
+/// (rounded to whole pixels and clamped to the source bounds) and return a fresh,
+/// self-contained asset holding ONLY the cropped pixels.
+///
+/// Pagination uses this to SLICE a too-tall raster image across page boundaries:
+/// each page embeds just its own portion of the source raster instead of a full
+/// copy hidden behind a clip rectangle. Returns `None` if the source cannot be
+/// decoded or the crop is empty.
+pub(crate) fn crop_raster_asset(
+    asset: &RasterImageAsset,
+    crop: [f32; 4],
+) -> Option<RasterImageAsset> {
+    let rgba = decode_asset_to_rgba(asset)?;
+    let (sw, sh) = (rgba.width(), rgba.height());
+    let x = (crop[0].round().max(0.0) as u32).min(sw);
+    let y = (crop[1].round().max(0.0) as u32).min(sh);
+    let w = (crop[2].round().max(0.0) as u32).min(sw.saturating_sub(x));
+    let h = (crop[3].round().max(0.0) as u32).min(sh.saturating_sub(y));
+    if w == 0 || h == 0 {
+        return None;
+    }
+    let sub = image::imageops::crop_imm(&rgba, x, y, w, h).to_image();
+    encode_rgba_subimage_as_asset(sub)
+}
+
+/// Decode a stored [`RasterImageAsset`] back to RGBA pixels regardless of its
+/// on-disk storage format: a JPEG/alpha-PNG asset carries the complete file, an
+/// opaque PNG asset carries only the raw IDAT (zlib) stream so a minimal PNG
+/// container is rebuilt around it before decoding.
+fn decode_asset_to_rgba(asset: &RasterImageAsset) -> Option<image::RgbaImage> {
+    match asset.format {
+        ImageFormat::Jpeg => Some(image::load_from_memory(&asset.data).ok()?.to_rgba8()),
+        ImageFormat::PngAlpha => Some(decode_image_for_blur(&asset.data)?.to_rgba8()),
+        ImageFormat::Png => {
+            let meta = asset.png_metadata.as_ref()?;
+            // PNG color-type from channel count (opaque PNGs are gray=1 or rgb=3,
+            // but handle the alpha variants too for robustness).
+            let color_type = match meta.channels {
+                1 => 0,
+                2 => 4,
+                3 => 2,
+                4 => 6,
+                _ => return None,
+            };
+            let png = reconstruct_png(
+                asset.source_width,
+                asset.source_height,
+                meta.bit_depth,
+                color_type,
+                &asset.data,
+            );
+            Some(decode_image_for_blur(&png)?.to_rgba8())
+        }
+    }
+}
+
+/// Re-encode a cropped RGBA buffer into an embeddable asset: a lossless RGB PNG
+/// (raw-IDAT passthrough, the common opaque path) when every pixel is opaque, or
+/// a full RGBA PNG (the alpha-preserving `/SMask` embedding path) otherwise.
+fn encode_rgba_subimage_as_asset(sub: image::RgbaImage) -> Option<RasterImageAsset> {
+    let (w, h) = (sub.width(), sub.height());
+    let opaque = sub.pixels().all(|p| p[3] == 255);
+    if opaque {
+        let mut rgb = image::RgbImage::new(w, h);
+        for (dst, src) in rgb.pixels_mut().zip(sub.pixels()) {
+            *dst = image::Rgb([src[0], src[1], src[2]]);
+        }
+        let mut encoded = Vec::new();
+        image::DynamicImage::ImageRgb8(rgb)
+            .write_to(
+                &mut std::io::Cursor::new(&mut encoded),
+                image::ImageFormat::Png,
+            )
+            .ok()?;
+        let info = png::parse_png(&encoded)?;
+        Some(RasterImageAsset {
+            data: info.idat_data,
+            source_width: w,
+            source_height: h,
+            format: ImageFormat::Png,
+            png_metadata: Some(PngMetadata {
+                channels: info.channels,
+                bit_depth: info.bit_depth,
+            }),
+        })
+    } else {
+        let mut encoded = Vec::new();
+        image::DynamicImage::ImageRgba8(sub)
+            .write_to(
+                &mut std::io::Cursor::new(&mut encoded),
+                image::ImageFormat::Png,
+            )
+            .ok()?;
+        Some(RasterImageAsset {
+            data: encoded,
+            source_width: w,
+            source_height: h,
+            format: ImageFormat::PngAlpha,
+            png_metadata: None,
+        })
+    }
+}
+
+/// Wrap a raw IDAT (zlib) stream back into a minimal, valid PNG file (signature +
+/// IHDR + IDAT + IEND, each with a correct CRC-32) so the standard image decoder
+/// can read pixels from an opaque-PNG asset that only stored its IDAT.
+fn reconstruct_png(
+    width: u32,
+    height: u32,
+    bit_depth: u8,
+    color_type: u8,
+    idat: &[u8],
+) -> Vec<u8> {
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut crc: u32 = 0xFFFF_FFFF;
+        for &byte in bytes {
+            crc ^= u32::from(byte);
+            for _ in 0..8 {
+                let mask = (crc & 1).wrapping_neg();
+                crc = (crc >> 1) ^ (0xEDB8_8320 & mask);
+            }
+        }
+        !crc
+    }
+    fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        let crc_start = out.len();
+        out.extend_from_slice(kind);
+        out.extend_from_slice(data);
+        let crc = crc32(&out[crc_start..]);
+        out.extend_from_slice(&crc.to_be_bytes());
+    }
+    let mut out = Vec::with_capacity(8 + 25 + idat.len() + 12);
+    out.extend_from_slice(&png::PNG_SIGNATURE);
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&width.to_be_bytes());
+    ihdr.extend_from_slice(&height.to_be_bytes());
+    ihdr.push(bit_depth);
+    ihdr.push(color_type);
+    ihdr.push(0); // compression method
+    ihdr.push(0); // filter method
+    ihdr.push(0); // interlace method
+    chunk(&mut out, b"IHDR", &ihdr);
+    chunk(&mut out, b"IDAT", idat);
+    chunk(&mut out, b"IEND", &[]);
+    out
 }
 
 /// Placement of replaced-image content inside its box, in points relative to the
@@ -513,6 +662,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             background_color,
             border,
             blur_overflow,
+            src_crop,
         } => LayoutElement::Image {
             image,
             width,
@@ -525,6 +675,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             background_color,
             border,
             blur_overflow,
+            src_crop,
         },
         LayoutElement::Svg {
             tree,
