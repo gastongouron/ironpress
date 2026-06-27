@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.24,
-    "pass": 634,
+    "score_pct": 97.25,
+    "pass": 636,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 652,
+    "total": 654,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -36836,7 +36836,7 @@
       "category": "images-replaced",
       "score_pct": 100.0,
       "counts": {
-        "pass": 27,
+        "pass": 28,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -37128,7 +37128,7 @@
           "feature": "img",
           "score_pct": 100.0,
           "counts": {
-            "pass": 9,
+            "pass": 10,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -37826,6 +37826,84 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.05% interiorΔE 0.00",
                   "magnitude": 0.04906666666666667
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "svg-img-inner-rect",
+              "category": "images-replaced",
+              "feature": "img",
+              "subfeature": "svg-no-viewbox-inner-rect",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A no-viewBox SVG referenced as an img src is scaled into its display box; an inner rect at (40,40,200,140) scales with the viewport and stays centered with a blue margin rather than stretching to the image right/bottom edge.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-image-render"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "a6d7e0e3be319b1fafd5f84cb9a32fca9e60049061cd9bb4103231117d6307b7",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -51371,7 +51449,7 @@
       "category": "lists-counters",
       "score_pct": 100.0,
       "counts": {
-        "pass": 19,
+        "pass": 20,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -53220,7 +53298,7 @@
           "feature": "list-style-type",
           "score_pct": 100.0,
           "counts": {
-            "pass": 11,
+            "pass": 12,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -55765,6 +55843,261 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.25% interiorΔE 0.00",
                   "magnitude": 0.24566058595909343
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "ol-decimal-markers",
+              "category": "lists-counters",
+              "feature": "list-style-type",
+              "subfeature": "ol-default-decimal",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 2.6884,
+              "weight": 1.0,
+              "description": "An <ol> with no explicit list-style renders the default decimal markers (1./2./3.); a nested <ol> restarts its own decimal sequence (UA stylesheet ol { list-style-type: decimal }).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box",
+                "probe-block-flow",
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "9ff08d8e84b1d78842c0252016e3d24ef093aab9472f17be063b7a62c10737f7",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.0,1.1)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -8,
+                    -8,
+                    -8
+                  ],
+                  "delta_e": 4.875814099217788,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    1.0825531914893616
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      154.24,
+                      119.36,
+                      165.12,
+                      133.44
+                    ],
+                    "area_pct": 0.14590347923681257,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -8,
+                      -8,
+                      -8
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.04132337246531484,
+                      0.6068729989327641
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      111.68,
+                      115.52,
+                      121.6,
+                      133.12
+                    ],
+                    "area_pct": 0.13617658062102506,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      8,
+                      9,
+                      8
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.16379661016949154,
+                      0.5434576271186441
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.2,0.5)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      176.64,
+                      119.36,
+                      186.56,
+                      133.44
+                    ],
+                    "area_pct": 0.12884399551066217,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -15,
+                      -15,
+                      -15
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0022939068100358423,
+                      0.6258542413381123
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      116.48,
+                      150.4,
+                      126.4,
+                      164.16
+                    ],
+                    "area_pct": 0.10759446315001871,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -19,
+                      -20,
+                      -19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.004685212298682284,
+                      0.6146998535871157
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      172.8,
+                      150.4,
+                      182.72,
+                      164.16
+                    ],
+                    "area_pct": 0.10759446315001871,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -19,
+                      -20,
+                      -19
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.004685212298682284,
+                      0.6146998535871157
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      205.44,
+                      119.68,
+                      221.44,
+                      133.12
+                    ],
+                    "area_pct": 0.10609801720912831,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      10,
+                      11,
+                      10
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.006380368098159509,
+                      0.7631901840490798
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (-0.0,0.8)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  1.0825531914893616
+                ],
+                "confidence": 0.9313665460617868
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 1.08css",
+                  "magnitude": 1.0825531914893616
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.18% interiorΔE 0.00",
+                  "magnitude": 0.18451178451178452
                 },
                 {
                   "verifier": "RasterDiff",
@@ -87750,7 +88083,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 557,
+    "implemented": 559,
     "partial": 38,
     "unsupported": 57
   },

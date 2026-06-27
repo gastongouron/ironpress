@@ -264,5 +264,19 @@
     "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "ol-decimal-markers",
+    "category": "lists-counters",
+    "feature": "list-style-type",
+    "subfeature": "ol-default-decimal",
+    "description": "An <ol> with no explicit list-style renders the default decimal markers (1./2./3.); a nested <ol> restarts its own decimal sequence (UA stylesheet ol { list-style-type: decimal }).",
+    "file": "cases/lists-counters/ol-decimal-markers.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

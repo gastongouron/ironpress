@@ -112,8 +112,30 @@ impl SvgSourceBox {
             }
         }
 
-        let width = tree.width.max(0.0);
-        let height = tree.height.max(0.0);
+        // No viewBox: the SVG's children are drawn in its own user-coordinate
+        // system whose extent is the `width`/`height` *attributes* (CSS px),
+        // taken here as the source box that maps onto the display viewport.
+        // We must NOT use `tree.width`/`tree.height` for this: they have been
+        // overwritten with the *display box in pt* (≈ px × 0.75) by
+        // `sync_svg_tree_to_layout_box`, so using them would make the source
+        // box equal the viewport and yield scale 1 — inner content (e.g. a
+        // centered rect) would then be drawn unscaled and clipped at the box
+        // edge instead of being scaled into place. Preferring the native
+        // attribute extent restores the px→pt viewport scale across the whole
+        // drawing. Fall back to `tree.width`/`tree.height` only when the
+        // attributes are absent or non-absolute (e.g. a `%` root size).
+        let native_width = tree
+            .width_attr
+            .as_deref()
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|w| *w > 0.0);
+        let native_height = tree
+            .height_attr
+            .as_deref()
+            .and_then(crate::parser::svg::parse_absolute_length)
+            .filter(|h| *h > 0.0);
+        let width = native_width.unwrap_or_else(|| tree.width.max(0.0));
+        let height = native_height.unwrap_or_else(|| tree.height.max(0.0));
         if width > 0.0 && height > 0.0 {
             Some(Self::new(0.0, 0.0, width, height))
         } else {

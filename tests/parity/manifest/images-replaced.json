@@ -396,5 +396,20 @@
     "depends_on": [],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "svg-img-inner-rect",
+    "category": "images-replaced",
+    "feature": "img",
+    "subfeature": "svg-no-viewbox-inner-rect",
+    "description": "A no-viewBox SVG referenced as an img src is scaled into its display box; an inner rect at (40,40,200,140) scales with the viewport and stays centered with a blue margin rather than stretching to the image right/bottom edge.",
+    "file": "cases/images-replaced/svg-img-inner-rect.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "sanitize": true,
+    "depends_on": ["probe-fill-box", "probe-image-render"],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

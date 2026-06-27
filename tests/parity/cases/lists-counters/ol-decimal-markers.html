@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ol default decimal markers</title>
+<style>
+  @page { size: 477px 252px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .region {
+    width: 360px;
+    margin: 20px;
+    padding: 16px 16px 16px 56px;
+    border: 2px solid #000000;
+    background: #e8f5e9;
+  }
+  /* No explicit list-style-type: an <ol> must default to decimal markers
+     (1./2./3.), and a nested <ol> must restart its own decimal sequence. */
+  li {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 1.4;
+    color: #1b1b1b;
+  }
+</style>
+</head>
+<body>
+  <div class="region">
+    <ol>
+      <li>Alpha</li>
+      <li>Beta
+        <ol>
+          <li>Beta one</li>
+          <li>Beta two</li>
+        </ol>
+      </li>
+      <li>Gamma</li>
+    </ol>
+  </div>
+</body>
+</html>

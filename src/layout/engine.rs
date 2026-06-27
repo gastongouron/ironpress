@@ -1778,9 +1778,32 @@ pub(crate) fn flatten_element(
     if el.tag == HtmlTag::Svg {
         let (svg_width, svg_height) =
             resolve_svg_element_size(el, available_width, available_height, true, true);
+        // Resolve the SVG's children against its *user-unit* viewport (the native
+        // width/height in CSS px) rather than the pt display box. The render path
+        // scales the whole drawing from this native extent into the pt box (see
+        // `SvgSourceBox::from_tree`), so absolute and percentage child coordinates
+        // must share that native coordinate system; otherwise `%` children would
+        // resolve against the pt box and then be scaled again. Falls back to the
+        // resolved pt size when the root dimensions are `%`/auto (no native px).
+        let child_viewport = {
+            let native_w = el
+                .attributes
+                .get("width")
+                .and_then(|w| crate::parser::svg::parse_absolute_length(w))
+                .filter(|v| *v > 0.0);
+            let native_h = el
+                .attributes
+                .get("height")
+                .and_then(|h| crate::parser::svg::parse_absolute_length(h))
+                .filter(|v| *v > 0.0);
+            match (native_w, native_h) {
+                (Some(w), Some(h)) => (w, h),
+                _ => (svg_width, svg_height),
+            }
+        };
         if let Some(mut tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
             el,
-            Some((svg_width, svg_height)),
+            Some(child_viewport),
         ) {
             sync_svg_tree_to_layout_box(&mut tree, svg_width, svg_height);
             inject_inherited_svg_color(&mut tree, style.color.to_f32_rgb());
@@ -2396,13 +2419,14 @@ pub(crate) fn flatten_element(
         } else {
             match list_ctx {
                 Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
+                // The <ol> UA default (`list-style-type: decimal`, set in
+                // `default_style`) is inherited by the <li>, so `style
+                // .list_style_type` already carries the correct ordered glyph
+                // (decimal/roman/alpha) — or an author override such as `disc`,
+                // which Chrome honours verbatim. Number it against the running
+                // ordered index.
                 Some(ListContext::Ordered { index, .. }) => {
-                    let lst = if style.list_style_type == ListStyleType::Disc {
-                        ListStyleType::Decimal
-                    } else {
-                        style.list_style_type
-                    };
-                    format_list_marker(lst, *index)
+                    format_list_marker(style.list_style_type, *index)
                 }
                 None => format_list_marker(style.list_style_type, 0),
             }

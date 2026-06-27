@@ -82,6 +82,24 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("margin-top", CssValue::Number(1.0));
             style.set("margin-bottom", CssValue::Number(1.0));
             style.set("padding-left", CssValue::Length(30.0));
+            // Chrome UA stylesheet: `ul { list-style-type: disc }`, `ol {
+            // list-style-type: decimal }`. `list-style-type` is inherited, so the
+            // marker is resolved from the <li>'s computed value; without these
+            // explicit defaults an <ol> would fall back to the global initial
+            // (`disc`) and render bullets instead of `1.`/`2.`. Setting both also
+            // ensures a <ul> nested inside an <ol> resets to `disc` rather than
+            // inheriting the enclosing `decimal`.
+            style.set(
+                "list-style-type",
+                CssValue::Keyword(
+                    if matches!(tag, HtmlTag::Ol) {
+                        "decimal"
+                    } else {
+                        "disc"
+                    }
+                    .into(),
+                ),
+            );
         }
         HtmlTag::Dl => {
             style.set("margin-top", CssValue::Length(4.0));

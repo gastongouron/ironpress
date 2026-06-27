@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg as img inner rect placement</title>
+<style>
+  @page { size: 284px 236px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 224px; margin: 30px; background: #eeeeee; }
+  /* SVG document (no viewBox, intrinsic 280x220) referenced through an img
+     data: URI and drawn at 224x176 (a 0.8x scale). Its inner yellow rect at
+     (40,40,200,140) must scale with the viewport and stay centered with a
+     blue margin all around — it must NOT stretch to the image right/bottom
+     edge. */
+  img { display: block; width: 224px; height: 176px; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyODAiIGhlaWdodD0iMjIwIj48cmVjdCB3aWR0aD0iMjgwIiBoZWlnaHQ9IjIyMCIgZmlsbD0iIzE1NjVjMCIvPjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiNmZmQ2MDAiLz48L3N2Zz4=">
+  </div>
+</body>
+</html>
