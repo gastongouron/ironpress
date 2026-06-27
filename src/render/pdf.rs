@@ -1306,12 +1306,22 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
     register_used_custom_fonts(&mut pdf_writer, custom_fonts, &prepared_custom_fonts);
 
+    // The document-global margin every element was LAID OUT against (block widths
+    // were sized to `page_size.width - doc_margin.{left,right}`). A per-page margin
+    // override only SHIFTS already-laid-out content; it does not re-flow widths, so
+    // overflow/shrink-to-fit must be measured against this global content box, not
+    // the (possibly wider-gutter) per-page margin — otherwise a full-width canvas
+    // background on a `:left`/`:right` spread page looks like it overflows and the
+    // page is spuriously shrunk.
+    let doc_margin = margin;
+
     for (page_idx, page) in pages.iter().enumerate() {
         // Per-page margin override (CSS Paged Media 3 §3 page-context cascade,
-        // e.g. an `@page :first` first-page margin). Shadowing `margin` here
-        // makes every downstream position computation in this loop use the
-        // page's own content box; `None` (the universal case for the corpus)
-        // keeps the document-global margin, so behavior is unchanged.
+        // e.g. an `@page :first` first-page margin, or `:left`/`:right` spread
+        // margins). Shadowing `margin` here makes every downstream position
+        // computation in this loop use the page's own content box; `None` (the
+        // universal case for the corpus) keeps the document-global margin, so
+        // behavior is unchanged.
         let margin = page.margin_override.unwrap_or(margin);
         let available_width = page_size.width - margin.left - margin.right;
         let mut content = String::new();
@@ -4828,6 +4838,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
                                 );
+                            } else if let Some(ops) = slice_cut_rounded_border_ops(
+                                container_x,
+                                container_y_top - total_h,
+                                container_w,
+                                total_h,
+                                *c_border_radii,
+                                border,
+                            ) {
+                                // css-break-3 slice fragment: present sides follow
+                                // the rounded (non-cut) corners; the cut edge stays
+                                // open/square.
+                                content.push_str(&ops);
                             } else {
                                 let bx1 = container_x;
                                 let bx2 = container_x + container_w;
@@ -5510,7 +5532,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
         const CHROME_PRINT_CTM_NET: f64 = 0.74999996875;
         const PT_PER_CSS_PX: f64 = 0.75;
         let chrome_match = CHROME_PRINT_CTM_NET / PT_PER_CSS_PX; // ≈0.99999995833
-        let shrink = page_shrink_to_fit_scale(page, page_size, margin) as f64;
+        let shrink = page_shrink_to_fit_scale(page, page_size, doc_margin) as f64;
         let s_eff = shrink * chrome_match;
         let s = format!("{s_eff:.11}");
         let ty = format!("{:.8}", f64::from(page_size.height) * (1.0 - s_eff));
@@ -11321,6 +11343,118 @@ fn rounded_rect_path_per_corner(x: f32, y: f32, w: f32, h: f32, radii: [f32; 4])
         tl_y2 = yt - tl + ktl, // TL control y
         tl_x2 = xl + tl - ktl, // TL control x
     )
+}
+
+/// Stroke the present sides of a css-break-3 `slice` fragment's rounded border as
+/// a single OPEN path that follows the present (non-cut) corners, leaving the cut
+/// edge open and square. Applies only to a UNIFORM solid, opaque border where
+/// exactly the top OR the bottom side is absent (the horizontal fragmentation
+/// cut) and the other three sides are present with equal width and color, and at
+/// least one present corner is rounded; returns `None` otherwise so the caller
+/// keeps its normal per-side / uniform painting.
+///
+/// `(x, y)` is the border-box bottom-left in PDF (y-up) coordinates, `w`×`h` its
+/// size, and `radii` the per-corner `[tl, tr, br, bl]` border-box radii (the cut
+/// corners are already zeroed by the fragmenter). The stroke centerline is inset
+/// half the border width so the stroke stays inside the box, matching the other
+/// border paths.
+fn slice_cut_rounded_border_ops(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    radii: [f32; 4],
+    border: &crate::layout::engine::LayoutBorder,
+) -> Option<String> {
+    use crate::style::computed::BorderStyle;
+    let solid_opaque =
+        |s: &crate::layout::engine::LayoutBorderSide| s.style == BorderStyle::Solid && s.alpha >= 1.0;
+    let (l, r, t, b) = (&border.left, &border.right, &border.top, &border.bottom);
+    // Left + right must both paint, solid/opaque, with equal width & color.
+    if !(l.paints() && r.paints() && solid_opaque(l) && solid_opaque(r)) {
+        return None;
+    }
+    if l.width != r.width || l.color != r.color {
+        return None;
+    }
+    // Exactly one of top/bottom is the cut (absent); the other present & matching.
+    let (present, omit_top) = match (t.paints(), b.paints()) {
+        (true, false) => (t, false),
+        (false, true) => (b, true),
+        _ => return None,
+    };
+    if !solid_opaque(present) || present.width != l.width || present.color != l.color {
+        return None;
+    }
+    if !radii_any(radii) {
+        return None;
+    }
+    let bw = l.width;
+    let inset = bw / 2.0;
+    // Side strokes are inset half a border-width HORIZONTALLY so they stay inside
+    // the box; the rounded (present) edge is likewise inset. The OPEN (cut) edge,
+    // however, extends to the box's physical edge so the vertical borders reach
+    // the cut corner exactly as Chrome paints them (a butt cap flush with the
+    // fragmentainer edge), instead of stopping half a border-width short.
+    let xl = x + inset;
+    let xr = x + (w - inset).max(inset);
+    let yb = y + inset;
+    let yt = y + (h - inset).max(inset);
+    let y_top_full = y + h;
+    let y_bot_full = y;
+    let kf = 0.552_284_8;
+    let inner = |rad: f32| (rad - inset).max(0.0);
+    let (rr, gg, bb) = l.color;
+    let mut ops = format!("{rr} {gg} {bb} RG\n{bw} w\n");
+    if omit_top {
+        // Present: left, bottom, right. Rounded corners: bottom-left, bottom-right.
+        let bl = inner(radii[3]);
+        let br = inner(radii[2]);
+        let (kbl, kbr) = (bl * kf, br * kf);
+        // Open top-left → down the left → BL arc → across bottom → BR arc →
+        // up the right → open top-right.
+        ops.push_str(&format!("{xl} {y_top_full} m\n"));
+        ops.push_str(&format!(
+            "{xl} {bly} l {xl} {bly2} {blx2} {yb} {blx} {yb} c\n",
+            bly = yb + bl,
+            bly2 = yb + bl - kbl,
+            blx2 = xl + bl - kbl,
+            blx = xl + bl
+        ));
+        ops.push_str(&format!(
+            "{brx} {yb} l {brx2} {yb} {xr} {bry2} {xr} {bry} c\n",
+            brx = xr - br,
+            brx2 = xr - br + kbr,
+            bry2 = yb + br - kbr,
+            bry = yb + br
+        ));
+        ops.push_str(&format!("{xr} {y_top_full} l\n"));
+    } else {
+        // Present: left, top, right. Rounded corners: top-left, top-right.
+        let tl = inner(radii[0]);
+        let tr = inner(radii[1]);
+        let (ktl, ktr) = (tl * kf, tr * kf);
+        // Open bottom-left → up the left → TL arc → across top → TR arc →
+        // down the right → open bottom-right.
+        ops.push_str(&format!("{xl} {y_bot_full} m\n"));
+        ops.push_str(&format!(
+            "{xl} {tly} l {xl} {tly2} {tlx2} {yt} {tlx} {yt} c\n",
+            tly = yt - tl,
+            tly2 = yt - tl + ktl,
+            tlx2 = xl + tl - ktl,
+            tlx = xl + tl
+        ));
+        ops.push_str(&format!(
+            "{trx} {yt} l {trx2} {yt} {xr} {try2} {xr} {tryy} c\n",
+            trx = xr - tr,
+            trx2 = xr - tr + ktr,
+            try2 = yt - tr + ktr,
+            tryy = yt - tr
+        ));
+        ops.push_str(&format!("{xr} {y_bot_full} l\n"));
+    }
+    ops.push_str("S\n");
+    Some(ops)
 }
 
 /// Build a rounded-rectangle path with ELLIPTICAL corners: each corner has a
@@ -17972,6 +18106,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -18071,6 +18206,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();
@@ -18196,6 +18332,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let custom_fonts = HashMap::new();
         let prepared_custom_fonts = PreparedCustomFonts::new();

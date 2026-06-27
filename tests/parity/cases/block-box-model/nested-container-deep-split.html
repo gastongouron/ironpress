@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nested container fragments across pages (deep recursion)</title>
+<style>
+  /* A bordered container nested INSIDE another bordered container, holding ten
+     child blocks, is far taller than the 240px page. Because the outer box has a
+     single child (the inner box), there is no between-children break point at the
+     OUTER level — the fragmentation engine must RECURSE into the inner box and
+     split it between its rows. With the default box-decoration-break:slice both
+     the outer and the inner box are sliced at every page edge: page 1 keeps both
+     TOP borders (open at the bottom), the middle page has NO top/bottom borders
+     (only the left/right edges of both boxes), and the last page keeps both
+     BOTTOM borders (open at the top).
+
+     Geometry (page content box = 240px, box-sizing:border-box):
+       outer top/bottom decoration = 10px border + 10px padding = 20px each
+       inner top/bottom decoration =  5px border +  5px padding = 10px each
+     Page 1 row area = 240 - 20(outer top) - 10(inner top) = 210 -> 4 rows (200).
+     Page 2 row area = 240 (both boxes open)                        -> 4 rows (200).
+     Page 3 = remaining 2 rows (100) + 10(inner bottom) + 20(outer bottom) = 130.
+     => rows 0-3 / 4-7 / 8-9 across exactly THREE pages. The multi-page harness
+     asserts the page COUNT (3) and diffs every page, so any clipping (the old
+     single-child container was placed whole and clipped to one page) fails. */
+  @page { size: 360px 240px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .outer {
+    width: 300px;
+    background: #ffe3a3;
+    border: 10px solid #1b3a6b;
+    padding: 10px;
+  }
+  .inner {
+    background: #d7ecff;
+    border: 5px solid #b048c4;
+    padding: 5px;
+  }
+  /* Atomic rows so BOTH engines break BETWEEN rows (class-A) rather than slicing
+     a row mid-block; the split point is then unambiguous. */
+  .row { height: 50px; break-inside: avoid; }
+  .a { background: #d94f4f; }
+  .b { background: #2d6cdf; }
+  .c { background: #2e9e5b; }
+  .d { background: #b048c4; }
+  .e { background: #e08a1e; }
+  .f { background: #2bb3b3; }
+  .g { background: #c4304f; }
+  .h { background: #5a6cd9; }
+  .i { background: #6b8e23; }
+  .j { background: #8a5a2b; }
+</style>
+</head>
+<body>
+  <div class="outer">
+    <div class="inner">
+      <div class="row a"></div>
+      <div class="row b"></div>
+      <div class="row c"></div>
+      <div class="row d"></div>
+      <div class="row e"></div>
+      <div class="row f"></div>
+      <div class="row g"></div>
+      <div class="row h"></div>
+      <div class="row i"></div>
+      <div class="row j"></div>
+    </div>
+  </div>
+</body>
+</html>

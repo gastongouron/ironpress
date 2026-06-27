@@ -1019,6 +1019,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
@@ -1107,6 +1108,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let mut cell = empty_table_cell();
         cell.nested_rows = vec![nested];
@@ -1121,6 +1123,7 @@ mod tests {
             is_header: false,
             is_footer: false,
             offset_left: 0.0,
+            break_inside_avoid: false,
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();

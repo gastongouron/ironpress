@@ -358,10 +358,10 @@
     "category": "paged-media",
     "feature": "page-break-inside",
     "subfeature": "avoid-table-straddle-real",
-    "description": "Legacy page-break-inside:avoid on a TABLE that would straddle a page boundary: a 150px spacer leaves too little room for the 160px table. Chrome keeps the table whole and pushes it to page 2, but ironpress splits the table between rows (repeating the thead) — table-level keep-together is not honored for either the legacy or modern property (block-level keep-together IS, see break-inside-avoid-real). Tracked gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "description": "Legacy page-break-inside:avoid on a TABLE that would straddle a page boundary: a 150px spacer leaves too little room for the 160px table. Chrome keeps the table whole and pushes it to page 2; ironpress now honors table-level keep-together too (the avoid-inside table fits a full page, so the whole row run is moved to page 2 instead of split between rows, matching the block-level keep-together in break-inside-avoid-real). The multi-page harness asserts the page COUNT (2) and diffs both pages.",
     "file": "cases/paged-media/page-break-inside-avoid-table-straddle.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -410,10 +410,10 @@
     "category": "paged-media",
     "feature": "page-selectors",
     "subfeature": "spread-left-right-margins",
-    "description": "CSS Paged Media 3 §3.2 :left/:right spread margins (right page wide left margin, left page wide right margin). Chrome honors the spread pseudo-classes; ironpress folds @page rules into a single global margin and does not differentiate per spread, so both boxes sit at the same inset — a tracked page-selectors gap. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+    "description": "CSS Paged Media 3 §3.2 :left/:right spread margins (right page wide left margin, left page wide right margin). Chrome honors the spread pseudo-classes; ironpress now differentiates per spread too, tagging pages by parity (LTR page 1 = right) so each spread's content box shifts toward the gutter: page 1 (right) sits 3cm from the left, page 2 (left) sits at the 1cm left edge. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
     "file": "cases/paged-media/paged-spread-left-right-margins.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

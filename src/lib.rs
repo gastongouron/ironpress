@@ -563,11 +563,16 @@ impl HtmlConverter {
         // for vertical (top/bottom) margins; horizontal `:first` margins shift
         // the content origin but text keeps the default wrap width (per-page
         // re-layout for changed widths is a documented follow-up).
-        let first_page_margin: Option<Margin> = {
+        // Resolve a page-context margin override: start from the folded default
+        // margin and apply every declared `margin-*` longhand on the @page rules
+        // matching `sel`. Returns `None` when the selector declares no margin (so
+        // that side keeps the document-global margin). Shared by `:first` and the
+        // `:left`/`:right` spread selectors.
+        let resolve_page_margin = |sel: PageSelector| -> Option<Margin> {
             let mut m = effective_margin;
             let mut any = false;
             for pr in &page_rules {
-                if pr.selector == PageSelector::First {
+                if pr.selector == sel {
                     if let Some(v) = pr.margin_top {
                         m.top = v;
                         any = true;
@@ -588,6 +593,16 @@ impl HtmlConverter {
             }
             any.then_some(m)
         };
+        let first_page_margin: Option<Margin> = resolve_page_margin(PageSelector::First);
+
+        // Step 3e-bis: Resolve the `@page :left` / `@page :right` spread margins
+        // (CSS Paged Media 3 §3.2). In LTR the first page is a `:right` page; the
+        // engine tags pages by parity so the content box shifts toward the gutter
+        // on each spread (e.g. a wide left margin on right pages, a wide right
+        // margin on left pages). Chrome's `--print-to-pdf` honors these, so they
+        // are required for spread parity.
+        let left_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Left);
+        let right_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Right);
 
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
@@ -666,7 +681,13 @@ impl HtmlConverter {
             &rules,
             &parsed_fonts,
             page_bg,
-            first_page_margin,
+            layout::paginate::PageMarginOverrides {
+                first: first_page_margin,
+                spread: layout::paginate::SpreadMargins {
+                    left: left_page_margin,
+                    right: right_page_margin,
+                },
+            },
         );
 
         // Step 6: Render PDF

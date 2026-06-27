@@ -1513,6 +1513,7 @@ pub(crate) fn flatten_table(
                 // the table box) right from the containing block's content edge,
                 // mirroring how `margin_top` shifts it down.
                 offset_left: style.margin.left.max(0.0),
+                break_inside_avoid: style.break_inside_avoid,
             });
         }
     }

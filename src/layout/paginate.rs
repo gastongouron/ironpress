@@ -549,6 +549,8 @@ fn split_text_block(
         margin_bottom: f_mb,
         padding_bottom: f_pb,
         border: f_border,
+        border_radii: f_radii,
+        border_radii_y: f_radii_y,
         ..
     } = &mut first
     {
@@ -557,6 +559,11 @@ fn split_text_block(
             *f_mb = 0.0;
             *f_pb = 0.0;
             f_border.bottom.width = 0.0;
+            // css-break-3 §5.4: the cut (bottom) edge is square under `slice`.
+            f_radii[2] = 0.0;
+            f_radii[3] = 0.0;
+            f_radii_y[2] = 0.0;
+            f_radii_y[3] = 0.0;
         }
     }
 
@@ -570,6 +577,8 @@ fn split_text_block(
         margin_top: r_mt,
         padding_top: r_pt,
         border: r_border,
+        border_radii: r_radii,
+        border_radii_y: r_radii_y,
         ..
     } = &mut rest
     {
@@ -578,6 +587,11 @@ fn split_text_block(
             *r_mt = 0.0;
             *r_pt = 0.0;
             r_border.top.width = 0.0;
+            // css-break-3 §5.4: the cut (top) edge is square under `slice`.
+            r_radii[0] = 0.0;
+            r_radii[1] = 0.0;
+            r_radii_y[0] = 0.0;
+            r_radii_y[1] = 0.0;
         }
     }
 
@@ -683,6 +697,20 @@ fn split_image_block(
     Some((first, rest))
 }
 
+/// Dispatch a too-tall in-flow element to the right splitter: a `TextBlock`
+/// splits at a line boundary, a raster `Image` slices at the page edge, a
+/// `Container` splits between (or recurses into) its children. Returns `None`
+/// for anything monolithic/out-of-flow that cannot be fragmented here. Shared by
+/// `paginate` (top-level boxes) and `split_container` (a single too-tall child).
+fn split_element(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    split_text_block(element, avail_below_box_top)
+        .or_else(|| split_image_block(element, avail_below_box_top))
+        .or_else(|| split_container(element, avail_below_box_top))
+}
+
 /// Split a too-tall in-flow `Container` between its children (CSS Fragmentation 3
 /// §3, class-A break point) so its first fragment fills the remaining
 /// fragmentainer height and the rest continues on the next page.
@@ -698,13 +726,13 @@ fn split_image_block(
 ///
 /// Returns `None` — so the caller places the box whole, the pre-existing
 /// (possibly-overflowing) behavior — for any container that cannot be cleanly
-/// split between children: a definite-`height`/clipped (overflow) box, a
-/// positioned or floated box, or one with fewer than two children (no
-/// between-children boundary). The split always keeps at least the first child on
-/// this page (forward progress) and the continuation strictly fewer children than
-/// the original, so re-enqueuing it terminates. A first child that is itself
-/// taller than the fragment is left intact in the first fragment (it may overflow,
-/// exactly as today) rather than recursing into it.
+/// split: a definite-`height`/clipped (overflow) box, a positioned or floated
+/// box, or an empty box. The split always keeps at least the first child on this
+/// page (forward progress) and the continuation carries strictly less content
+/// than the original, so re-enqueuing it terminates. When the first child is
+/// ALONE taller than the fragmentainer the splitter RECURSES into it (rather than
+/// leaving it whole to clip), so a deeply nested too-tall box still fragments
+/// across pages instead of losing data.
 fn split_container(
     element: &LayoutElement,
     avail_below_box_top: f32,
@@ -726,13 +754,14 @@ fn split_container(
     };
     // Only a plain, auto-height, in-flow container is splittable here. A definite
     // `height` or `overflow` clip makes it a hard-sized/monolithic box; a
-    // positioned/floated box is out of normal flow; a box with < 2 children has
-    // no class-A break point between children.
+    // positioned/floated box is out of normal flow; an empty box has nothing to
+    // fragment. A single-child box has no between-children break point but may
+    // still be split by RECURSING into that one (too-tall) child below.
     if block_height.is_some()
         || overflow.clips()
         || *position != Position::Static
         || *float != Float::None
-        || children.len() < 2
+        || children.is_empty()
     {
         return None;
     }
@@ -782,10 +811,41 @@ fn split_container(
         acc = next;
         idx = i + 1;
     }
-    if idx == 0 || idx >= children.len() {
-        // No children, or every child fits (nothing to move to a continuation).
+
+    // Partition the children into the first fragment's list and the continuation's
+    // list. Normally the cut is between children at `idx`. But the first child is
+    // always force-kept for forward progress, so when it ALONE overflows the
+    // fragmentainer (idx == 1 and its height exceeds the space), placing it whole
+    // would clip it (data loss). Instead RECURSE into that child — split it with
+    // the same splitter — so its head fills this page and its tail continues. Only
+    // the first child can be the too-tall one (every later kept child fit), so this
+    // single check covers every nested-too-tall case (CSS Fragmentation 3 §3).
+    let first_child_h = estimate_element_height(&children[0]);
+    let (f_children_vec, r_children_vec) = if idx == 1 && first_child_h > avail_children {
+        let first_child = &children[0];
+        // The child's border-box top sits at the container's content-box top plus
+        // its own margin-top, so it has that much less room than the content box.
+        let child_avail = avail_children - element_margins(first_child).0;
+        match split_element(first_child, child_avail) {
+            Some((c_first, c_rest)) => {
+                let mut rest_children = vec![c_rest];
+                rest_children.extend_from_slice(&children[1..]);
+                (vec![c_first], rest_children)
+            }
+            // The single too-tall child cannot be split (e.g. a definite-height /
+            // clipped / replaced box). If there are later siblings, still cut after
+            // it (it overflows, as before); otherwise nothing can be done — place
+            // the whole container as-is (unchanged overflow behaviour).
+            None if children.len() >= 2 => (children[..1].to_vec(), children[1..].to_vec()),
+            None => return None,
+        }
+    } else if idx >= children.len() {
+        // Every child fits at this boundary (nothing to move to a continuation):
+        // not actually overflowing between children.
         return None;
-    }
+    } else {
+        (children[..idx].to_vec(), children[idx..].to_vec())
+    };
 
     // First fragment: the children that fit, with the box's top decoration. Under
     // `slice` drop the bottom border/padding/margin (box stays open at the page
@@ -796,15 +856,24 @@ fn split_container(
         margin_bottom: f_mb,
         padding_bottom: f_pb,
         border: f_border,
+        border_radii: f_radii,
+        border_radii_y: f_radii_y,
         block_height: f_bh,
         ..
     } = &mut first
     {
-        *f_children = children[..idx].to_vec();
+        *f_children = f_children_vec;
         if !clone {
             *f_mb = 0.0;
             *f_pb = 0.0;
             f_border.bottom.width = 0.0;
+            // css-break-3 §5.4: under `slice` the fragmentation CUT edge is
+            // square — only the box's real corners stay rounded. This fragment's
+            // bottom edge is the cut, so drop the bottom-right/bottom-left radii.
+            f_radii[2] = 0.0;
+            f_radii[3] = 0.0;
+            f_radii_y[2] = 0.0;
+            f_radii_y[3] = 0.0;
             // A box that continues onto the next fragmentainer occupies the FULL
             // remaining height of THIS one: its background and left/right borders
             // extend to the page bottom even though the children only fill part of
@@ -827,14 +896,23 @@ fn split_container(
         margin_top: r_mt,
         padding_top: r_pt,
         border: r_border,
+        border_radii: r_radii,
+        border_radii_y: r_radii_y,
         ..
     } = &mut rest
     {
-        *r_children = children[idx..].to_vec();
+        *r_children = r_children_vec;
         if !clone {
             *r_mt = 0.0;
             *r_pt = 0.0;
             r_border.top.width = 0.0;
+            // css-break-3 §5.4: the continuation's TOP edge is the cut, so it is
+            // square — drop the top-left/top-right radii (the original bottom
+            // corners stay rounded so the LAST fragment closes the box).
+            r_radii[0] = 0.0;
+            r_radii[1] = 0.0;
+            r_radii_y[0] = 0.0;
+            r_radii_y[1] = 0.0;
         }
     }
 
@@ -851,26 +929,57 @@ pub(crate) struct FirstPageGeom {
     pub margin: crate::types::Margin,
 }
 
+/// Spread margins for the `:left` / `:right` page pseudo-classes (CSS Paged Media
+/// 3 §3.2). Each is the full page margin to tag pages of that spread side with,
+/// resolved from the default margin plus the side's declared `margin-*`. In LTR
+/// page 1 is a `:right` page, so odd 1-based pages are `:right` and even are
+/// `:left`. `None` keeps the document-global margin for that side (the universal
+/// corpus case), so behaviour is unchanged when no spread rule is present.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct SpreadMargins {
+    pub left: Option<crate::types::Margin>,
+    pub right: Option<crate::types::Margin>,
+}
+
+/// All per-page margin overrides resolved from `@page` pseudo-class rules (CSS
+/// Paged Media 3 §3.2–3.3), bundled so the layout entry point threads one value
+/// instead of several. `first` is the `:first` margin (page 1); `spread` carries
+/// the `:left`/`:right` margins applied by page parity. A `Default` (all-`None`)
+/// value reproduces the document-global margin on every page.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct PageMarginOverrides {
+    pub first: Option<crate::types::Margin>,
+    pub spread: SpreadMargins,
+}
+
 /// Paginate with a single global content height (no per-page geometry). Thin
 /// wrapper over [`paginate_with_first_page`]; used by unit tests and any caller
-/// that does not need an `@page :first` override.
+/// that does not need an `@page :first`/`:left`/`:right` override.
 #[allow(dead_code)]
 pub(crate) fn paginate(
     elements: Vec<LayoutElement>,
     content_height: f32,
     root_margin_top: f32,
 ) -> Vec<Page> {
-    paginate_with_first_page(elements, content_height, root_margin_top, None)
+    paginate_with_first_page(
+        elements,
+        content_height,
+        root_margin_top,
+        None,
+        SpreadMargins::default(),
+    )
 }
 
-/// Paginate with an optional first-page geometry override. When `first_page`
-/// is `None` this is identical to a single global `content_height` for every
+/// Paginate with an optional first-page geometry override and optional
+/// `:left`/`:right` spread margins. When `first_page` is `None` and `spread` is
+/// empty this is identical to a single global `content_height`/margin for every
 /// page (the default path used by the whole corpus).
 pub(crate) fn paginate_with_first_page(
     elements: Vec<LayoutElement>,
     default_content_height: f32,
     root_margin_top: f32,
     first_page: Option<FirstPageGeom>,
+    spread: SpreadMargins,
 ) -> Vec<Page> {
     // The content height in force for the page currently being filled. Page 1
     // uses the first-page override (if any); every page after page 1 reverts to
@@ -879,9 +988,26 @@ pub(crate) fn paginate_with_first_page(
     let mut content_height = first_page
         .map(|f| f.content_height)
         .unwrap_or(default_content_height);
-    // The margin tag applied to the FIRST emitted page (page 1). Every push
-    // site reads `pages.is_empty()` to decide whether it is creating page 1.
+    // The margin tag applied to the FIRST emitted page (page 1).
     let first_margin_override = first_page.map(|f| f.margin);
+    // The per-page margin override for the page about to be pushed, chosen by
+    // 1-based page number: `:first` wins on page 1, otherwise the spread side by
+    // parity (odd = `:right`, even = `:left` in LTR). `None` => document-global
+    // margin. `already_pushed` is `pages.len()` at the push site, so the new
+    // page's number is `already_pushed + 1`.
+    let page_margin_override = move |already_pushed: usize| -> Option<crate::types::Margin> {
+        let page_no = already_pushed + 1;
+        if page_no == 1 {
+            if let Some(m) = first_margin_override {
+                return Some(m);
+            }
+        }
+        if page_no % 2 == 1 {
+            spread.right
+        } else {
+            spread.left
+        }
+    };
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
@@ -949,6 +1075,12 @@ pub(crate) fn paginate_with_first_page(
     // single-page corpus is byte-for-byte identical.
     let mut work: std::collections::VecDeque<LayoutElement> = elements.into();
     while let Some(element) = work.pop_front() {
+        // When the FIRST row of a `break-inside: avoid` table cannot fit in the
+        // space left on the current page but DOES fit on an empty one, the break
+        // decision below uses the whole table's height (this value) instead of
+        // just the first row's, so the entire row run is pushed to the next page
+        // intact rather than split between rows (Chrome's table keep-together).
+        let mut table_keep_break_height: Option<f32> = None;
         // Track <thead>/<tfoot> rows so we can repeat them across page breaks
         // that occur mid-table: the header at each page top, the footer at each
         // page bottom. Reset when leaving the table.
@@ -956,6 +1088,7 @@ pub(crate) fn paginate_with_first_page(
             LayoutElement::TableRow {
                 is_header,
                 is_footer,
+                break_inside_avoid,
                 ..
             } => {
                 if !in_table {
@@ -979,6 +1112,28 @@ pub(crate) fn paginate_with_first_page(
                                 }
                             }
                             _ => break,
+                        }
+                    }
+                    // `break-inside: avoid` table keep-together (CSS Fragmentation
+                    // 3 §5.2 / legacy `page-break-inside: avoid`): sum the whole
+                    // table's row run (this first row plus every contiguous row
+                    // still queued). When the table is avoid-inside AND fits on a
+                    // full page, arm the whole-table break height so a table that
+                    // would straddle the boundary is moved WHOLE to the next page.
+                    // A table taller than a full page cannot be kept together, so
+                    // it falls back to the normal between-rows split.
+                    if *break_inside_avoid {
+                        let mut total = estimate_element_height(&element);
+                        for w in work.iter() {
+                            match w {
+                                LayoutElement::TableRow { .. } => {
+                                    total += estimate_element_height(w);
+                                }
+                                _ => break,
+                            }
+                        }
+                        if total <= content_height {
+                            table_keep_break_height = Some(total);
                         }
                     }
                 }
@@ -1138,11 +1293,7 @@ pub(crate) fn paginate_with_first_page(
                     continue;
                 }
                 let consumed_height = y;
-                let margin_override = if pages.is_empty() {
-                    first_margin_override
-                } else {
-                    None
-                };
+                let margin_override = page_margin_override(pages.len());
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     margin_override,
@@ -1177,7 +1328,7 @@ pub(crate) fn paginate_with_first_page(
                         }
                         pages.push(Page {
                             elements: blank,
-                            margin_override: None,
+                            margin_override: page_margin_override(pages.len()),
                         });
                     }
                 }
@@ -1373,8 +1524,17 @@ pub(crate) fn paginate_with_first_page(
         } else {
             0.0
         };
+        // For the first row of a `break-inside: avoid` table that fits a full
+        // page, decide the break against the WHOLE table's height (footer
+        // already included in that sum) so the entire table moves to the next
+        // page intact; otherwise decide against this row plus the reserved
+        // running-footer height as before.
+        let (break_decision_height, break_footer_reserve) = match table_keep_break_height {
+            Some(total) => (total, 0.0),
+            None => (element_height, footer_reserve),
+        };
         let page_broke_mid_loop =
-            y + element_height + footer_reserve > content_height && y > 0.0;
+            y + break_decision_height + break_footer_reserve > content_height && y > 0.0;
         if page_broke_mid_loop {
             // Repeat the running footer at the bottom of the page being closed,
             // directly after the last body row (matching Chrome: the footer is
@@ -1388,11 +1548,7 @@ pub(crate) fn paginate_with_first_page(
                 }
             }
             let consumed_height = y;
-            let margin_override = if pages.is_empty() {
-                first_margin_override
-            } else {
-                None
-            };
+            let margin_override = page_margin_override(pages.len());
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
                 margin_override,
@@ -1478,9 +1634,7 @@ pub(crate) fn paginate_with_first_page(
             // image slices at the page edge (each page embeds only its slice); a
             // too-tall container splits between its children, re-enqueuing the
             // continuation so it resumes on the next page.
-            let split = split_text_block(&element, avail_below_box_top)
-                .or_else(|| split_image_block(&element, avail_below_box_top))
-                .or_else(|| split_container(&element, avail_below_box_top));
+            let split = split_element(&element, avail_below_box_top);
             if let Some((first, rest)) = split {
                 // Place the first fragment at the (margin-adjusted) cursor; it
                 // fills the remainder of this page.
@@ -1489,11 +1643,7 @@ pub(crate) fn paginate_with_first_page(
                 // Close the page (the fragmentainer is full) and reset flow state
                 // for the continuation, mirroring a normal mid-loop page break.
                 let consumed_height = content_height;
-                let margin_override = if pages.is_empty() {
-                    first_margin_override
-                } else {
-                    None
-                };
+                let margin_override = page_margin_override(pages.len());
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     margin_override,
@@ -1565,11 +1715,7 @@ pub(crate) fn paginate_with_first_page(
         )
     });
     if !current_elements.is_empty() && (has_real_content || pages.is_empty()) {
-        let margin_override = if pages.is_empty() {
-            first_margin_override
-        } else {
-            None
-        };
+        let margin_override = page_margin_override(pages.len());
         pages.push(Page {
             elements: current_elements,
             margin_override,
@@ -1579,7 +1725,7 @@ pub(crate) fn paginate_with_first_page(
     if pages.is_empty() {
         pages.push(Page {
             elements: Vec::new(),
-            margin_override: first_margin_override,
+            margin_override: page_margin_override(0),
         });
     }
 

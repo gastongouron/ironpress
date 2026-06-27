@@ -546,6 +546,12 @@ pub enum LayoutElement {
         /// analogue, previously dropped — a `table { margin: 30px }` rendered at
         /// the page margin only.)
         offset_left: f32,
+        /// The table element carries `break-inside: avoid` (or the legacy
+        /// `page-break-inside: avoid`). Set identically on every row of the table
+        /// so pagination can keep the whole table together: when an avoid-inside
+        /// table would straddle a page boundary but fits a full page, the entire
+        /// row run is pushed to the next page instead of split between rows.
+        break_inside_avoid: bool,
     },
     /// A grid row with cells of varying widths.
     GridRow {
@@ -982,7 +988,15 @@ pub fn layout_with_rules(
     margin: Margin,
     rules: &[CssRule],
 ) -> Vec<Page> {
-    layout_with_rules_and_fonts(nodes, page_size, margin, rules, &HashMap::new(), None, None)
+    layout_with_rules_and_fonts(
+        nodes,
+        page_size,
+        margin,
+        rules,
+        &HashMap::new(),
+        None,
+        super::paginate::PageMarginOverrides::default(),
+    )
 }
 
 /// Walk the DOM and record every element bearing an `id` attribute into
@@ -1007,7 +1021,7 @@ pub fn layout_with_rules_and_fonts(
     rules: &[CssRule],
     custom_fonts: &HashMap<String, TtfFont>,
     page_background: Option<&ComputedStyle>,
-    first_page_margin: Option<Margin>,
+    page_margin_overrides: super::paginate::PageMarginOverrides,
 ) -> Vec<Page> {
     // Expose the loaded fonts to style resolution for the whole pass so the
     // `ex`/`ch` units resolve against real font metrics (css-values-4 §6.1.1).
@@ -1261,15 +1275,18 @@ pub fn layout_with_rules_and_fonts(
     // different content box: its content height shrinks/grows by the margin
     // delta and the page is tagged with the override so the renderer positions
     // it against the first-page margin. Page 2+ keep the default geometry.
-    let first_page = first_page_margin.map(|m| super::paginate::FirstPageGeom {
-        content_height: page_size.height - m.top - m.bottom,
-        margin: m,
-    });
+    let first_page = page_margin_overrides
+        .first
+        .map(|m| super::paginate::FirstPageGeom {
+            content_height: page_size.height - m.top - m.bottom,
+            margin: m,
+        });
     super::paginate::paginate_with_first_page(
         elements,
         content_height,
         parent_style.margin.top + parent_style.padding.top,
         first_page,
+        page_margin_overrides.spread,
     )
 }
 
@@ -7071,7 +7088,7 @@ mod tests {
             &rules,
             &std::collections::HashMap::new(),
             Some(&page_bg),
-            None,
+            crate::layout::paginate::PageMarginOverrides::default(),
         );
 
         // elements[0]: the @page bleed background — full sheet, offset by -margin
@@ -9284,7 +9301,7 @@ line 3</pre>
             &rules,
             &std::collections::HashMap::new(),
             None,
-            None,
+            crate::layout::paginate::PageMarginOverrides::default(),
         );
 
         for (page_idx, page) in pages.iter().enumerate() {
