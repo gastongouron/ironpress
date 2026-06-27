@@ -228,6 +228,124 @@ pub enum PageSelector {
     Named(String),
 }
 
+/// The position of a page-margin box inside the `@page` context
+/// (CSS Paged Media 3 §5 "Page-margin boxes"). The 16 boxes are arranged
+/// around the page border: a top and bottom row (corners + left/center/right),
+/// and left/right side columns (top/middle/bottom).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarginBoxPosition {
+    TopLeftCorner,
+    TopLeft,
+    TopCenter,
+    TopRight,
+    TopRightCorner,
+    BottomLeftCorner,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+    BottomRightCorner,
+    LeftTop,
+    LeftMiddle,
+    LeftBottom,
+    RightTop,
+    RightMiddle,
+    RightBottom,
+}
+
+/// Which horizontal band (top vs bottom margin area) a margin box renders in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarginBoxBand {
+    Top,
+    Bottom,
+}
+
+/// Horizontal alignment of a margin box within its band.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarginBoxAlign {
+    Left,
+    Center,
+    Right,
+}
+
+impl MarginBoxPosition {
+    /// Map an `@<ident>` margin-box at-rule name to its position.
+    pub fn from_at_name(name: &str) -> Option<Self> {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "top-left-corner" => Some(Self::TopLeftCorner),
+            "top-left" => Some(Self::TopLeft),
+            "top-center" => Some(Self::TopCenter),
+            "top-right" => Some(Self::TopRight),
+            "top-right-corner" => Some(Self::TopRightCorner),
+            "bottom-left-corner" => Some(Self::BottomLeftCorner),
+            "bottom-left" => Some(Self::BottomLeft),
+            "bottom-center" => Some(Self::BottomCenter),
+            "bottom-right" => Some(Self::BottomRight),
+            "bottom-right-corner" => Some(Self::BottomRightCorner),
+            "left-top" => Some(Self::LeftTop),
+            "left-middle" => Some(Self::LeftMiddle),
+            "left-bottom" => Some(Self::LeftBottom),
+            "right-top" => Some(Self::RightTop),
+            "right-middle" => Some(Self::RightMiddle),
+            "right-bottom" => Some(Self::RightBottom),
+            _ => None,
+        }
+    }
+
+    /// The horizontal band (top/bottom margin area) this box paints in, if it
+    /// is a top- or bottom-row box. Side boxes (`left-*`/`right-*`) return
+    /// `None` and are not rendered as running headers/footers.
+    pub fn band(self) -> Option<MarginBoxBand> {
+        match self {
+            Self::TopLeftCorner
+            | Self::TopLeft
+            | Self::TopCenter
+            | Self::TopRight
+            | Self::TopRightCorner => Some(MarginBoxBand::Top),
+            Self::BottomLeftCorner
+            | Self::BottomLeft
+            | Self::BottomCenter
+            | Self::BottomRight
+            | Self::BottomRightCorner => Some(MarginBoxBand::Bottom),
+            _ => None,
+        }
+    }
+
+    /// The horizontal alignment of this box within its band.
+    pub fn align(self) -> MarginBoxAlign {
+        match self {
+            Self::TopLeftCorner | Self::TopLeft | Self::BottomLeftCorner | Self::BottomLeft => {
+                MarginBoxAlign::Left
+            }
+            Self::TopCenter | Self::BottomCenter => MarginBoxAlign::Center,
+            _ => MarginBoxAlign::Right,
+        }
+    }
+}
+
+/// A token in a margin-box `content` value (CSS Paged Media 3 §5.3). The
+/// `content` of a running header/footer is a concatenation of string literals
+/// and the page counters `counter(page)` / `counter(pages)`, e.g.
+/// `content: "Page " counter(page) " of " counter(pages)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MarginContentToken {
+    /// A quoted string literal.
+    Literal(String),
+    /// `counter(page)` — resolved to the 1-based current page index.
+    PageNumber,
+    /// `counter(pages)` — resolved to the total page count.
+    PageCount,
+}
+
+/// A parsed page-margin box (CSS Paged Media 3 §5): its position and the
+/// resolved `content` token list rendered on every page.
+#[derive(Debug, Clone)]
+pub struct MarginBox {
+    /// The box position within the page margin area.
+    pub position: MarginBoxPosition,
+    /// The `content` value parsed into a token list (literals + counters).
+    pub content: Vec<MarginContentToken>,
+}
+
 /// A parsed `@page` rule with page size and margin overrides.
 #[derive(Debug, Clone, Default)]
 pub struct PageRule {
@@ -253,4 +371,8 @@ pub struct PageRule {
     /// raw — rather than pre-split on `;` like size/margin — so data-URI values
     /// containing `;` (e.g. `;base64,`) survive intact.
     pub raw_declarations: Option<String>,
+    /// Parsed page-margin boxes (CSS Paged Media 3 §5) — the `@top-center`,
+    /// `@bottom-center`, etc. at-rules nested in this `@page` block, used for
+    /// running headers/footers and page numbering.
+    pub margin_boxes: Vec<MarginBox>,
 }

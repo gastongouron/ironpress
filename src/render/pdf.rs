@@ -957,12 +957,17 @@ pub fn render_pdf_with_fonts(
 }
 
 /// Header and footer text for page decoration.
+#[derive(Default)]
 pub struct PageDecoration {
     /// Header text rendered top-center of each page.
     pub header: Option<String>,
     /// Footer text rendered bottom-center of each page.
     /// `{page}` and `{pages}` are replaced with page number and total count.
     pub footer: Option<String>,
+    /// CSS `@page` margin boxes (CSS Paged Media 3 §5) — running headers/footers
+    /// and page counters declared via `@top-center { content: … }` etc. Rendered
+    /// on every page with `counter(page)`/`counter(pages)` resolved per page.
+    pub margin_boxes: Vec<crate::parser::css::MarginBox>,
 }
 
 /// Render laid-out pages as PDF, writing directly to any `std::io::Write` implementation.
@@ -5433,6 +5438,52 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 content.push_str("/Helvetica 9 Tf\n");
                 content.push_str("0.4 0.4 0.4 rg\n");
                 content.push_str(&format!("{center_x} {footer_y} Td\n"));
+                content.push_str(&format!("({encoded}) Tj\n"));
+                content.push_str("ET\n");
+            }
+
+            // CSS `@page` margin boxes (CSS Paged Media 3 §5): running
+            // headers/footers + page counters, resolved per page. `@top-*` boxes
+            // paint in the top margin band, `@bottom-*` in the bottom band, with
+            // left/center/right horizontal alignment. Side boxes (`@left-*`/
+            // `@right-*`) have no horizontal band and are not rendered.
+            for mb in &dec.margin_boxes {
+                use crate::parser::css::{MarginBoxAlign, MarginBoxBand, MarginContentToken};
+                let Some(band) = mb.position.band() else {
+                    continue;
+                };
+                let mut text = String::new();
+                for tok in &mb.content {
+                    match tok {
+                        MarginContentToken::Literal(s) => text.push_str(s),
+                        MarginContentToken::PageNumber => {
+                            text.push_str(&page_num.to_string());
+                        }
+                        MarginContentToken::PageCount => {
+                            text.push_str(&total_pages.to_string());
+                        }
+                    }
+                }
+                if text.is_empty() {
+                    continue;
+                }
+                const MB_FONT_SIZE: f32 = 9.0;
+                let text_w =
+                    crate::fonts::str_width(&text, MB_FONT_SIZE, &FontFamily::Helvetica, false);
+                let x = match mb.position.align() {
+                    MarginBoxAlign::Left => margin.left,
+                    MarginBoxAlign::Center => center_x - text_w / 2.0,
+                    MarginBoxAlign::Right => page_size.width - margin.right - text_w,
+                };
+                let y = match band {
+                    MarginBoxBand::Top => page_size.height - margin.top / 2.0,
+                    MarginBoxBand::Bottom => margin.bottom / 2.0,
+                };
+                let encoded = encode_pdf_text(&text);
+                content.push_str("BT\n");
+                content.push_str("/Helvetica 9 Tf\n");
+                content.push_str("0.4 0.4 0.4 rg\n");
+                content.push_str(&format!("{x} {y} Td\n"));
                 content.push_str(&format!("({encoded}) Tj\n"));
                 content.push_str("ET\n");
             }
@@ -14017,6 +14068,67 @@ mod tests {
         let pdf = crate::html_to_pdf("<p>Test</p>").unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(!content.contains("Page 1 of"));
+    }
+
+    /// CSS `@page` margin boxes with page counters (CSS Paged Media 3 §5):
+    /// `@bottom-center { content: "Page " counter(page) " of " counter(pages) }`
+    /// must render a per-page running footer with `counter(page)` resolved to the
+    /// 1-based page index and `counter(pages)` to the total page count. Chrome
+    /// renders margin boxes blank, so this PDF-text assertion is the oracle.
+    #[test]
+    fn render_at_page_margin_box_counters_three_pages() {
+        let html = r#"
+            <style>
+              @page {
+                @bottom-center { content: "Page " counter(page) " of " counter(pages) }
+              }
+            </style>
+            <p>First page</p>
+            <div style="page-break-before: always"><p>Second page</p></div>
+            <div style="page-break-before: always"><p>Third page</p></div>
+        "#;
+        let pdf = crate::HtmlConverter::new()
+            .compress(false)
+            .convert(html)
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        // Each resolved footer string is unique to its page, so presence of all
+        // three proves the page/pages counters resolve per page.
+        assert!(
+            content.contains("Page 1 of 3"),
+            "page 1 footer should read 'Page 1 of 3'"
+        );
+        assert!(
+            content.contains("Page 2 of 3"),
+            "page 2 footer should read 'Page 2 of 3'"
+        );
+        assert!(
+            content.contains("Page 3 of 3"),
+            "page 3 footer should read 'Page 3 of 3'"
+        );
+    }
+
+    /// `@top-left`/`@top-right` margin boxes render a running header with
+    /// left/right horizontal alignment, and a literal-only box renders verbatim.
+    #[test]
+    fn render_at_page_margin_box_header_alignment() {
+        let html = r#"
+            <style>
+              @page {
+                @top-left { content: "Chapter 1" }
+                @top-right { content: counter(page) }
+              }
+            </style>
+            <p>Body content</p>
+        "#;
+        let pdf = crate::HtmlConverter::new()
+            .compress(false)
+            .convert(html)
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(content.contains("Chapter 1"), "top-left literal header");
+        // counter(page) on the single page resolves to 1.
+        assert!(content.contains("(1) Tj"), "top-right page-number header");
     }
 
     #[test]

@@ -670,10 +670,26 @@ impl HtmlConverter {
         );
 
         // Step 6: Render PDF
-        let decoration = if self.header.is_some() || self.footer.is_some() {
+        //
+        // Collect the `@page` margin boxes (CSS Paged Media 3 §5) into the page
+        // decoration so running headers/footers + page counters render on every
+        // page. Only unselected `@page { }` rules (`PageSelector::None`) feed the
+        // document-wide running header/footer; per-page-selected margin boxes
+        // (`:first`/named) are a documented follow-up.
+        let margin_boxes: Vec<parser::css::MarginBox> = page_rules
+            .iter()
+            .filter(|pr| pr.selector == PageSelector::None)
+            .flat_map(|pr| pr.margin_boxes.iter().cloned())
+            .collect();
+
+        let decoration = if self.header.is_some()
+            || self.footer.is_some()
+            || !margin_boxes.is_empty()
+        {
             Some(render::pdf::PageDecoration {
                 header: self.header.clone(),
                 footer: self.footer.clone(),
+                margin_boxes,
             })
         } else {
             None

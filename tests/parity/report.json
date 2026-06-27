@@ -63451,7 +63451,7 @@
               "status": "PASS",
               "diff_pct": 0.0,
               "weight": 1.0,
-              "description": "content: counter(page) resolves the current page number on the single Letter page. CSS page counters in margin boxes are unsupported; tracks the gap.",
+              "description": "content: counter(page) used in NORMAL DOCUMENT FLOW (.pagenum::after) is an ordinary undefined counter that resolves to 0 in both Chrome and ironpress (the page/pages counters are special only inside @page margin boxes, which ironpress now supports — see the render_at_page_margin_box_counters_three_pages PDF-text test). This fixture locks in the in-flow 0-resolution parity with Chrome.",
               "note": "",
               "kind": "feature",
               "depends_on": [

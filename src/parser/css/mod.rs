@@ -18,8 +18,9 @@ pub use imports::{is_path_within, parse_import_rules, resolve_imports};
 pub use inline::parse_inline_style;
 pub(crate) use media::{preprocess_media_queries, preprocess_media_queries_with_context};
 pub use model::{
-    AncestorInfo, CalcOp, CalcToken, CssRule, CssValue, FontFaceRule, ImportRule, MediaContext,
-    PageRule, PageSelector, PseudoElement, SelectorContext, StyleMap,
+    AncestorInfo, CalcOp, CalcToken, CssRule, CssValue, FontFaceRule, ImportRule, MarginBox,
+    MarginBoxAlign, MarginBoxBand, MarginBoxPosition, MarginContentToken, MediaContext, PageRule,
+    PageSelector, PseudoElement, SelectorContext, StyleMap,
 };
 #[cfg(test)]
 #[allow(unused_imports)]
