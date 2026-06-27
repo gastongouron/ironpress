@@ -398,6 +398,8 @@ pub(crate) fn layout_inline_block_group(
             // to the line's cross size when the line reserves the text strut.
             natural_height: item.height,
             has_explicit_height: true,
+            cross_min: 0.0,
+            cross_max: f32::INFINITY,
             align_self: crate::style::computed::AlignSelf::Auto,
             text_align: item.text_align,
             background_color: item.background_color,

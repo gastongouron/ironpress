@@ -480,6 +480,14 @@ pub(crate) fn layout_flex_container(
         /// Grow and shrink both clamp each item to `[min_main, max_main]`.
         min_main: f32,
         max_main: f32,
+        /// Min/max clamps on the OUTER (border-box) CROSS size. `min-height` /
+        /// `max-height` for a row container, `min-width` / `max-width` for a
+        /// column container. A stretched item's cross size is clamped to
+        /// `[cross_min, cross_max]` (css-flexbox-1 §9.4 step 11); a non-stretch
+        /// item's used cross size also honors them. `cross_max` is
+        /// `f32::INFINITY` when unconstrained.
+        cross_min: f32,
+        cross_max: f32,
         /// Whether this item is itself a flex container (`display: flex`). Such an
         /// item establishes an independent formatting context and its sub-layout
         /// (`elements`) carries each inner box's own geometry/background. It must
@@ -522,6 +530,39 @@ pub(crate) fn layout_flex_container(
             let max = child_style
                 .max_height
                 .map_or(f32::INFINITY, |v| v + extra_v);
+            (min, max)
+        }
+    };
+
+    // Resolve an item's outer (border-box) CROSS-axis min/max clamps: the
+    // opposite axis from `main_min_max`. For a row container the cross axis is
+    // the block axis (min/max-height); for a column container it is the inline
+    // axis (min/max-width). These clamp the used cross size — both the stretched
+    // size (css-flexbox-1 §9.4 step 11) and a non-stretch item's cross size.
+    let cross_min_max = |child_style: &ComputedStyle| -> (f32, f32) {
+        let extra_h = if child_style.box_sizing == BoxSizing::ContentBox {
+            child_style.padding.left
+                + child_style.padding.right
+                + child_style.border.horizontal_width()
+        } else {
+            0.0
+        };
+        let extra_v = if child_style.box_sizing == BoxSizing::ContentBox {
+            child_style.padding.top
+                + child_style.padding.bottom
+                + child_style.border.vertical_width()
+        } else {
+            0.0
+        };
+        if style.flex_direction.is_row() {
+            let min = child_style.min_height.map_or(0.0, |v| v + extra_v);
+            let max = child_style
+                .max_height
+                .map_or(f32::INFINITY, |v| v + extra_v);
+            (min, max)
+        } else {
+            let min = child_style.min_width.map_or(0.0, |v| v + extra_h);
+            let max = child_style.max_width.map_or(f32::INFINITY, |v| v + extra_h);
             (min, max)
         }
     };
@@ -896,6 +937,8 @@ pub(crate) fn layout_flex_container(
                 child_idx: idx,
                 min_main: main_min_max(&child_style).0,
                 max_main: main_min_max(&child_style).1,
+                cross_min: cross_min_max(&child_style).0,
+                cross_max: cross_min_max(&child_style).1,
                 is_flex_container: child_style.display == Display::Flex,
                 margin_main_start_auto: m_main_start_auto,
                 margin_main_end_auto: m_main_end_auto,
@@ -1138,6 +1181,8 @@ pub(crate) fn layout_flex_container(
             child_idx: idx,
             min_main: auto_min_main,
             max_main: resolved_max_main,
+            cross_min: cross_min_max(&child_style).0,
+            cross_max: cross_min_max(&child_style).1,
             is_flex_container: child_style.display == Display::Flex,
             margin_main_start_auto: m_main_start_auto,
             margin_main_end_auto: m_main_end_auto,
@@ -1159,14 +1204,40 @@ pub(crate) fn layout_flex_container(
     let justify = style.justify_content;
     let align = style.align_items;
     let wrap = style.flex_wrap;
+    // Resolve percentage gaps against the flex container's OWN content box (CSS
+    // Box Alignment §8.3): column-gap% against the content-box inline size
+    // (width), row-gap% against the content-box block size (height). The parser
+    // stores these as fraction hints (`column_gap_pct`/`row_gap_pct`) precisely
+    // so they bind to this box, not the parent/ICB width.
+    let resolved_column_gap = match style.column_gap_pct {
+        Some(frac) => (inner_width * frac).max(0.0),
+        None => style.column_gap,
+    };
+    let resolved_row_gap = match style.row_gap_pct {
+        Some(frac) => {
+            let content_h = match style.height {
+                Some(h) => match style.box_sizing {
+                    BoxSizing::ContentBox => h,
+                    BoxSizing::BorderBox => {
+                        (h - style.padding.top - style.padding.bottom - style.border.vertical_width())
+                            .max(0.0)
+                    }
+                },
+                // Indefinite block size => percentage row-gap resolves to 0.
+                None => 0.0,
+            };
+            (content_h * frac).max(0.0)
+        }
+        None => style.row_gap,
+    };
     // Per-axis gaps. `column_gap` separates items along the inline axis,
     // `row_gap` along the block axis. For a row container the main-axis gap is
     // the column gap and the line (cross) gap is the row gap; for a column
     // container they swap. `style.gap` is kept as the legacy single value.
     let (main_gap, line_gap) = if direction.is_row() {
-        (style.column_gap, style.row_gap)
+        (resolved_column_gap, resolved_row_gap)
     } else {
-        (style.row_gap, style.column_gap)
+        (resolved_row_gap, resolved_column_gap)
     };
     // `gap` is the main-axis gap used throughout the per-line packing math.
     let gap = main_gap;
@@ -1433,28 +1504,61 @@ pub(crate) fn layout_flex_container(
     let (ac_lead, ac_between, ac_line_stretch) = if direction.is_row() && line_count > 1 {
         let lines_cross: f32 = lines.iter().map(|l| l.cross_size).sum::<f32>();
         let base_gaps = (line_count - 1) as f32 * line_gap;
-        let ac_free = (inner_cross_size - lines_cross - base_gaps).max(0.0);
-        match style.align_content {
+        // Signed cross free space — kept negative on overflow so center/flex-end
+        // honor alignment past the edge (css-flexbox-1 §8.4 + css-align-3 §9).
+        let ac_free = inner_cross_size - lines_cross - base_gaps;
+        let neg = ac_free < 0.0;
+        // flex-wrap:wrap-reverse swaps the cross-start/cross-end edges
+        // (css-flexbox-1 §5.3), so flex-start/flex-end exchange leads. The line
+        // *order* is reversed separately at placement time (`line_order`).
+        let effective_ac = if wrap == FlexWrap::WrapReverse {
+            match style.align_content {
+                AlignContent::FlexStart => AlignContent::FlexEnd,
+                AlignContent::FlexEnd => AlignContent::FlexStart,
+                other => other,
+            }
+        } else {
+            style.align_content
+        };
+        match effective_ac {
             AlignContent::FlexStart => (0.0, 0.0, 0.0),
             AlignContent::FlexEnd => (ac_free, 0.0, 0.0),
             AlignContent::Center => (ac_free / 2.0, 0.0, 0.0),
             AlignContent::SpaceBetween => {
-                if line_count > 1 {
-                    (0.0, ac_free / (line_count - 1) as f32, 0.0)
-                } else {
+                // Negative free space behaves as flex-start (§8.4).
+                if neg || line_count <= 1 {
                     (0.0, 0.0, 0.0)
+                } else {
+                    (0.0, ac_free / (line_count - 1) as f32, 0.0)
                 }
             }
             AlignContent::SpaceAround => {
-                let around = ac_free / line_count as f32;
-                (around / 2.0, around, 0.0)
+                // Negative free space falls back to center (§8.4).
+                if neg {
+                    (ac_free / 2.0, 0.0, 0.0)
+                } else {
+                    let around = ac_free / line_count as f32;
+                    (around / 2.0, around, 0.0)
+                }
             }
             AlignContent::SpaceEvenly => {
-                let ev = ac_free / (line_count + 1) as f32;
-                (ev, ev, 0.0)
+                // Negative free space falls back to center (§8.4).
+                if neg {
+                    (ac_free / 2.0, 0.0, 0.0)
+                } else {
+                    let ev = ac_free / (line_count + 1) as f32;
+                    (ev, ev, 0.0)
+                }
             }
-            // stretch grows each line equally to fill the spare cross space.
-            AlignContent::Stretch => (0.0, 0.0, ac_free / line_count as f32),
+            // stretch grows each line equally to fill the spare cross space, but
+            // never shrinks lines when the space is negative.
+            AlignContent::Stretch => {
+                if neg {
+                    (0.0, 0.0, 0.0)
+                } else {
+                    (0.0, 0.0, ac_free / line_count as f32)
+                }
+            }
         }
     } else {
         (0.0, 0.0, 0.0)
@@ -1777,7 +1881,9 @@ pub(crate) fn layout_flex_container(
                             break;
                         }
                     }
-                    free_space = 0.0;
+                    // NB: the real remaining free space is recomputed from the
+                    // final item widths below (for justify-content overflow
+                    // handling), so we deliberately do NOT zero `free_space` here.
                 }
 
                 // Second pass: re-layout flex-grow items whose width changed
@@ -1945,7 +2051,14 @@ pub(crate) fn layout_flex_container(
                     }
                 }
 
-                let free_space = free_space.max(0.0);
+                // Recompute the true remaining main free space from the FINAL
+                // item widths after grow/shrink. With `flex-shrink:0` items that
+                // overflow the line this stays NEGATIVE, so `justify-content`
+                // positions from the proper edge (center/flex-end/space-*) instead
+                // of collapsing to flex-start. The earlier `free_space` was forced
+                // to 0 by the shrink pass, masking real overflow.
+                let final_item_width: f32 = line_items.iter().map(|&i| items[i].width).sum();
+                let free_space = inner_width - final_item_width - total_gap;
 
                 // css-flexbox-1 §8.1: before justify-content runs, positive main
                 // free space is split equally among the line's `auto` main-axis
@@ -1963,27 +2076,42 @@ pub(crate) fn layout_flex_container(
                 } else {
                     0.0
                 };
-                let justify_free = if use_auto_margins { 0.0 } else { free_space };
+                let justify_free = if use_auto_margins { 0.0 } else { free_space.max(0.0) };
 
-                // Calculate starting x and spacing based on justify-content
-                let (mut x, extra_gap) = match justify {
-                    JustifyContent::FlexStart => (0.0, 0.0),
-                    JustifyContent::FlexEnd => (justify_free, 0.0),
-                    JustifyContent::Center => (justify_free / 2.0, 0.0),
-                    JustifyContent::SpaceBetween => {
-                        if line_item_count > 1 {
-                            (0.0, justify_free / (line_item_count - 1) as f32)
-                        } else {
-                            (0.0, 0.0)
+                // Calculate starting x and spacing based on justify-content. On
+                // overflow (negative free space, half-pixel epsilon to ignore
+                // rounding noise from a full grow) css-flexbox-1 §8.2 degrades
+                // space-between -> flex-start and space-around/space-evenly ->
+                // center, while center/flex-end honor alignment and overflow past
+                // the edge (css-align-3 §9 Overflow Alignment, unsafe default).
+                let (mut x, extra_gap) = if free_space < -0.5 && !use_auto_margins {
+                    match justify {
+                        JustifyContent::FlexStart | JustifyContent::SpaceBetween => (0.0, 0.0),
+                        JustifyContent::FlexEnd => (free_space, 0.0),
+                        JustifyContent::Center
+                        | JustifyContent::SpaceAround
+                        | JustifyContent::SpaceEvenly => (free_space / 2.0, 0.0),
+                    }
+                } else {
+                    match justify {
+                        JustifyContent::FlexStart => (0.0, 0.0),
+                        JustifyContent::FlexEnd => (justify_free, 0.0),
+                        JustifyContent::Center => (justify_free / 2.0, 0.0),
+                        JustifyContent::SpaceBetween => {
+                            if line_item_count > 1 {
+                                (0.0, justify_free / (line_item_count - 1) as f32)
+                            } else {
+                                (0.0, 0.0)
+                            }
                         }
-                    }
-                    JustifyContent::SpaceAround => {
-                        let around = justify_free / line_item_count as f32;
-                        (around / 2.0, around)
-                    }
-                    JustifyContent::SpaceEvenly => {
-                        let ev = justify_free / (line_item_count + 1) as f32;
-                        (ev, ev)
+                        JustifyContent::SpaceAround => {
+                            let around = justify_free / line_item_count as f32;
+                            (around / 2.0, around)
+                        }
+                        JustifyContent::SpaceEvenly => {
+                            let ev = justify_free / (line_item_count + 1) as f32;
+                            (ev, ev)
+                        }
                     }
                 };
 
@@ -2021,6 +2149,8 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: item.height,
                             has_explicit_height: item.has_explicit_height,
+                            cross_min: item.cross_min,
+                            cross_max: item.cross_max,
                             align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: None,
@@ -2082,6 +2212,8 @@ pub(crate) fn layout_flex_container(
                                 width: item.width,
                                 natural_height: item.height,
                                 has_explicit_height: item.has_explicit_height,
+                                cross_min: item.cross_min,
+                                cross_max: item.cross_max,
                                 align_self: item.align_self,
                                 text_align: TextAlign::Left,
                                 background_color: None,
@@ -2155,6 +2287,8 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
+                            cross_min: item.cross_min,
+                            cross_max: item.cross_max,
                             align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: first_bg,
@@ -2258,6 +2392,8 @@ pub(crate) fn layout_flex_container(
                             nested_elements: Vec::new(),
                             natural_height: natural_h,
                             has_explicit_height: item.has_explicit_height,
+                            cross_min: item.cross_min,
+                            cross_max: item.cross_max,
                             align_self: item.align_self,
                             y_offset: 0.0,
                             line_cross_size: 0.0,
@@ -2272,6 +2408,8 @@ pub(crate) fn layout_flex_container(
                             width: item.width,
                             natural_height: item.height,
                             has_explicit_height: item.has_explicit_height,
+                            cross_min: item.cross_min,
+                            cross_max: item.cross_max,
                             align_self: item.align_self,
                             text_align: TextAlign::Left,
                             background_color: None,
@@ -2468,7 +2606,11 @@ pub(crate) fn layout_flex_container(
                 // first item and extra spacing between items. `inner_cross_size`
                 // is the resolved content height once an explicit `height` /
                 // `min-height` has been honored.
-                let main_free_space = (inner_cross_size - total_item_height - total_gap).max(0.0);
+                // Real (signed) main-axis free space: keep it negative when the
+                // items overflow a definite container height so justify-content
+                // packs from the proper edge instead of collapsing to flex-start
+                // (css-align-3 §9 Overflow Alignment).
+                let main_free_space = inner_cross_size - total_item_height - total_gap;
                 // For column-reverse the main axis points up (main-start is the
                 // bottom). We lay items out in reverse source order (top to
                 // bottom = last to first); swapping flex-start/flex-end then
@@ -2483,24 +2625,38 @@ pub(crate) fn layout_flex_container(
                 } else {
                     justify
                 };
-                let (leading, extra_gap) = match effective_justify {
-                    JustifyContent::FlexStart => (0.0, 0.0),
-                    JustifyContent::FlexEnd => (main_free_space, 0.0),
-                    JustifyContent::Center => (main_free_space / 2.0, 0.0),
-                    JustifyContent::SpaceBetween => {
-                        if line_item_count > 1 {
-                            (0.0, main_free_space / (line_item_count - 1) as f32)
-                        } else {
-                            (0.0, 0.0)
+                let (leading, extra_gap) = if main_free_space < -0.5 {
+                    // Overflow: §8.2 degradation — space-between -> flex-start,
+                    // space-around/space-evenly -> center; center/flex-end honor
+                    // alignment and overflow past the edge.
+                    match effective_justify {
+                        JustifyContent::FlexStart | JustifyContent::SpaceBetween => (0.0, 0.0),
+                        JustifyContent::FlexEnd => (main_free_space, 0.0),
+                        JustifyContent::Center
+                        | JustifyContent::SpaceAround
+                        | JustifyContent::SpaceEvenly => (main_free_space / 2.0, 0.0),
+                    }
+                } else {
+                    let main_free_space = main_free_space.max(0.0);
+                    match effective_justify {
+                        JustifyContent::FlexStart => (0.0, 0.0),
+                        JustifyContent::FlexEnd => (main_free_space, 0.0),
+                        JustifyContent::Center => (main_free_space / 2.0, 0.0),
+                        JustifyContent::SpaceBetween => {
+                            if line_item_count > 1 {
+                                (0.0, main_free_space / (line_item_count - 1) as f32)
+                            } else {
+                                (0.0, 0.0)
+                            }
                         }
-                    }
-                    JustifyContent::SpaceAround => {
-                        let around = main_free_space / line_item_count as f32;
-                        (around / 2.0, around)
-                    }
-                    JustifyContent::SpaceEvenly => {
-                        let ev = main_free_space / (line_item_count + 1) as f32;
-                        (ev, ev)
+                        JustifyContent::SpaceAround => {
+                            let around = main_free_space / line_item_count as f32;
+                            (around / 2.0, around)
+                        }
+                        JustifyContent::SpaceEvenly => {
+                            let ev = main_free_space / (line_item_count + 1) as f32;
+                            (ev, ev)
+                        }
                     }
                 };
 

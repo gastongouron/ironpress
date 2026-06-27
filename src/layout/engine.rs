@@ -211,6 +211,13 @@ pub struct FlexCell {
     /// keep such an item at its `natural_height` rather than stretching it to
     /// the line cross size.
     pub has_explicit_height: bool,
+    /// Min/max clamp on the item's used CROSS-axis size (height for a row
+    /// container). The renderer clamps the stretched line cross size AND a
+    /// non-stretch item's natural height to `[cross_min, cross_max]`
+    /// (css-flexbox-1 §9.4 step 11). `cross_max` is `f32::INFINITY` when
+    /// unconstrained; `cross_min` defaults to 0.
+    pub cross_min: f32,
+    pub cross_max: f32,
     /// Per-item `align-self` override. `Auto` defers to the FlexRow's
     /// `align_items`; otherwise this item aligns independently on the cross
     /// axis.

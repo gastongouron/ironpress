@@ -950,5 +950,107 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-justify-center-overflow",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "center-overflow",
+    "description": "With negative free space (flex-shrink:0 items wider than the container) justify-content:center keeps items centered, overflowing equally past both main-axis edges instead of collapsing to flex-start (css-align-3 §9 Overflow Alignment).",
+    "file": "cases/flexbox/flexbox-justify-center-overflow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-stretch-max-height",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "stretch-max-height",
+    "description": "align-items:stretch clamps the used cross size to the item's max-height (css-flexbox-1 §9.4 step 11): the capped item stays top-anchored at its max-height while its siblings stretch to the full container height.",
+    "file": "cases/flexbox/flexbox-align-items-stretch-max-height.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-min-height",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "min-height",
+    "description": "A non-stretch (align-items:center) item honors its min-height and overflows the shorter container line symmetrically (css-flexbox-1 §9.4 step 11).",
+    "file": "cases/flexbox/flexbox-align-items-min-height.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-gap-percentage",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "percentage",
+    "description": "A percentage gap resolves against the flex container's own content-box width (CSS Box Alignment §8.3), not the parent/ICB width.",
+    "file": "cases/flexbox/flexbox-gap-percentage.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-justify-safe-center",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "safe-center",
+    "description": "The css-align-3 safe/unsafe overflow-alignment prefix is parsed: when content fits, justify-content:safe center is identical to center.",
+    "file": "cases/flexbox/flexbox-justify-safe-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-content-wrap-reverse-edge",
+    "category": "flexbox",
+    "feature": "align-content",
+    "subfeature": "wrap-reverse-edge",
+    "description": "flex-wrap:wrap-reverse swaps the cross-start/cross-end edges, so align-content:flex-start packs the flex lines toward the bottom with reversed line order (css-flexbox-1 §5.3, §8.4).",
+    "file": "cases/flexbox/flexbox-align-content-wrap-reverse-edge.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

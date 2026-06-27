@@ -567,6 +567,8 @@ mod tests {
             width: 100.0,
             natural_height: 0.0,
             has_explicit_height: false,
+            cross_min: 0.0,
+            cross_max: f32::INFINITY,
             align_self: crate::style::computed::AlignSelf::Auto,
             text_align: TextAlign::Left,
             background_color: None,

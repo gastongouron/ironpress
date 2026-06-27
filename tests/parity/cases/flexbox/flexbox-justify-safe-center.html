@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox justify-content:safe center</title>
+<style>
+  @page { size: 537px 151px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* The css-align-3 `safe`/`unsafe` overflow-alignment prefix is parsed and
+     stripped; when content fits, `safe center` is identical to `center`, so the
+     single item is centered on the main axis. */
+  .flex {
+    display: flex;
+    justify-content: safe center;
+    width: 400px;
+    height: 110px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+    </div>
+  </div>
+</body>
+</html>

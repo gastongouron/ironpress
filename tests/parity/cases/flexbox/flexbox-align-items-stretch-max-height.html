@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-items:stretch clamped by max-height</title>
+<style>
+  @page { size: 537px 241px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* align-items:stretch grows auto-height items to the line cross size, but the
+     used cross size is clamped by the item's max-height (css-flexbox-1 §9.4
+     step 11). Item .a is capped at 50px and stays top-anchored; .b and .c
+     stretch to the full container content height. */
+  .flex {
+    display: flex;
+    align-items: stretch;
+    width: 420px;
+    height: 200px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 80px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; max-height: 50px; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

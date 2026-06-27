@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox justify-content:center with overflow</title>
+<style>
+  @page { size: 320px 204px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 60px; }
+  /* The three flex-shrink:0 items (240px) are wider than the container's
+     content box, so the free space is NEGATIVE. justify-content:center must
+     keep them centered, overflowing equally past both main-axis edges
+     (css-align-3 §9 Overflow Alignment) — not collapse to flex-start. */
+  .flex {
+    display: flex;
+    justify-content: center;
+    width: 200px;
+    height: 84px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+    </div>
+  </div>
+</body>
+</html>

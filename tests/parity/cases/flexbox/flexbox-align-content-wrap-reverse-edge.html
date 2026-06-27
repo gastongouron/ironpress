@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox align-content with wrap-reverse cross edge</title>
+<style>
+  @page { size: 337px 361px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* flex-wrap:wrap-reverse swaps the cross-start/cross-end edges
+     (css-flexbox-1 §5.3), so align-content:flex-start packs the two flex lines
+     toward the BOTTOM (cross-start under wrap-reverse), and the line order is
+     reversed (a,b end up on the bottom line). */
+  .flex {
+    display: flex;
+    flex-wrap: wrap-reverse;
+    align-content: flex-start;
+    align-items: flex-start;
+    width: 220px;
+    height: 320px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 90px;
+    height: 70px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+  .c { background: #27ae60; }
+  .d { background: #f39c12; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+      <div class="box c"></div>
+      <div class="box d"></div>
+    </div>
+  </div>
+</body>
+</html>

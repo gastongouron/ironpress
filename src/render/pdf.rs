@@ -3283,14 +3283,24 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             AlignSelf::Baseline => AlignItems::Baseline,
                             AlignSelf::Stretch => AlignItems::Stretch,
                         };
+                        // Clamp a used cross size to the item's min/max cross size
+                        // (css-flexbox-1 §9.4 step 11). max-height is applied
+                        // first, then min-height, so min wins when they conflict.
+                        let clamp_cross =
+                            |h: f32| h.min(cell.cross_max).max(cell.cross_min);
+                        // Natural (content/explicit) cross size, clamped.
+                        let nat_h = clamp_cross(cell.natural_height);
                         let (cell_render_h, cell_y_shift) = match effective_align {
                             // `align-items: stretch` only stretches items whose
                             // cross size (height) is auto. An item with a definite
                             // height keeps it (like flex-start, top-anchored).
+                            // Either way clamp to the item's min/max-height — a
+                            // max-height caps the stretch, a min-height floors it
+                            // (overflowing the line, top-anchored).
                             AlignItems::Stretch if cell.has_explicit_height => {
-                                (cell.natural_height, cell_y_origin)
+                                (nat_h, cell_y_origin)
                             }
-                            AlignItems::Stretch => (line_cross, cell_y_origin),
+                            AlignItems::Stretch => (clamp_cross(line_cross), cell_y_origin),
                             // `align: baseline` (CSS Flexbox §8.3): shift the
                             // item down so its first text baseline meets the
                             // line's shared baseline (the max first-baseline
@@ -3304,16 +3314,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     (Some(own), Some(max)) => (max - own).max(0.0),
                                     _ => 0.0,
                                 };
-                                (cell.natural_height, cell_y_origin + shift)
+                                (nat_h, cell_y_origin + shift)
                             }
-                            AlignItems::FlexStart => (cell.natural_height, cell_y_origin),
+                            AlignItems::FlexStart => (nat_h, cell_y_origin),
                             AlignItems::FlexEnd => {
-                                let h = cell.natural_height;
-                                (h, cell_y_origin + line_cross - h)
+                                (nat_h, cell_y_origin + line_cross - nat_h)
                             }
                             AlignItems::Center => {
-                                let h = cell.natural_height;
-                                (h, cell_y_origin + (line_cross - h) / 2.0)
+                                (nat_h, cell_y_origin + (line_cross - nat_h) / 2.0)
                             }
                         };
 
@@ -8185,13 +8193,17 @@ fn render_container_children(
                         AlignSelf::Baseline => AlignItems::Baseline,
                         AlignSelf::Stretch => AlignItems::Stretch,
                     };
+                    // Clamp a used cross size to the item's min/max-height
+                    // (css-flexbox-1 §9.4 step 11); min wins over max.
+                    let clamp_cross = |h: f32| h.min(cell.cross_max).max(cell.cross_min);
+                    let nat_h = clamp_cross(cell.natural_height);
                     let (cell_h, cell_y_shift) = match effective_align {
                         // `align-items: stretch` only stretches auto-height items;
                         // an item with a definite height keeps it (top-anchored).
                         AlignItems::Stretch if cell.has_explicit_height => {
-                            (cell.natural_height, cell.y_offset)
+                            (nat_h, cell.y_offset)
                         }
-                        AlignItems::Stretch => (line_cross, cell.y_offset),
+                        AlignItems::Stretch => (clamp_cross(line_cross), cell.y_offset),
                         // `align: baseline` (CSS Flexbox §8.3): shift the item so
                         // its first text baseline meets the line's shared baseline.
                         AlignItems::Baseline => {
@@ -8201,17 +8213,13 @@ fn render_container_children(
                                     (Some(own), Some(max)) => (max - own).max(0.0),
                                     _ => 0.0,
                                 };
-                            (cell.natural_height, cell.y_offset + shift)
+                            (nat_h, cell.y_offset + shift)
                         }
-                        AlignItems::FlexStart => (cell.natural_height, cell.y_offset),
-                        AlignItems::FlexEnd => (
-                            cell.natural_height,
-                            cell.y_offset + line_cross - cell.natural_height,
-                        ),
-                        AlignItems::Center => (
-                            cell.natural_height,
-                            cell.y_offset + (line_cross - cell.natural_height) / 2.0,
-                        ),
+                        AlignItems::FlexStart => (nat_h, cell.y_offset),
+                        AlignItems::FlexEnd => (nat_h, cell.y_offset + line_cross - nat_h),
+                        AlignItems::Center => {
+                            (nat_h, cell.y_offset + (line_cross - nat_h) / 2.0)
+                        }
                     };
                     let cell_top = content_y - cell_y_shift;
                     let cell_bottom = cell_top - cell_h;

@@ -1543,6 +1543,14 @@ pub struct ComputedStyle {
     /// in turn, leaving the last column short.
     pub column_fill_auto: bool,
     pub row_gap: f32,
+    /// Percentage `column-gap` (as a fraction, e.g. 0.10 for `10%`). Resolved
+    /// late against the flex container's OWN content-box inline size (width), not
+    /// the parent/ICB width (CSS Box Alignment §8.3). `None` when the gap is a
+    /// fixed length. Takes precedence over `column_gap` in the flex layout.
+    pub column_gap_pct: Option<f32>,
+    /// Percentage `row-gap` (as a fraction). Resolved late against the flex
+    /// container's OWN content-box block size (height).
+    pub row_gap_pct: Option<f32>,
     pub blur_radius: f32,
     /// CSS `filter` color functions (grayscale/brightness/.../hue-rotate),
     /// applied in order to a replaced image's pixels. `blur(...)` stays in
@@ -1803,6 +1811,8 @@ impl Default for ComputedStyle {
             column_span_all: false,
             column_fill_auto: false,
             row_gap: 0.0,
+            column_gap_pct: None,
+            row_gap_pct: None,
             blur_radius: 0.0,
             color_filters: Vec::new(),
             filter_url_id: None,
@@ -2022,6 +2032,8 @@ pub fn compute_style_with_context(
     style.counter_increment = Vec::new();
     style.z_index = 0;
     style.row_gap = 0.0;
+    style.column_gap_pct = None;
+    style.row_gap_pct = None;
     style.blur_radius = 0.0;
     style.color_filters.clear();
     style.filter_url_id = None;
@@ -2323,6 +2335,8 @@ pub fn compute_pseudo_element_style(
     style.counter_increment = Vec::new();
     style.z_index = 0;
     style.row_gap = 0.0;
+    style.column_gap_pct = None;
+    style.row_gap_pct = None;
     style.blur_radius = 0.0;
     style.color_filters.clear();
     style.filter_url_id = None;
@@ -3137,8 +3151,26 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-content") {
-        style.justify_content = match k.as_str() {
-            "flex-end" | "end" | "right" => JustifyContent::FlexEnd,
+        // css-align-3 §9: an optional `safe`/`unsafe` overflow-alignment prefix
+        // may precede the positional keyword (`justify-content: safe center`).
+        // Strip it — the flex layout implements the default (`unsafe`) honor-
+        // alignment-on-overflow behavior; `safe`'s overflow→start fallback is not
+        // separately tracked (acceptable: it only differs when content overflows).
+        let raw = k.trim();
+        let kw = raw
+            .strip_prefix("safe ")
+            .or_else(|| raw.strip_prefix("unsafe "))
+            .unwrap_or(raw)
+            .trim();
+        // css-align-3 §6.2: `left`/`right` resolve against the INLINE axis. For a
+        // row container that is the main axis (right→end, left→start); for a
+        // column container the main axis is the block axis, so they behave as
+        // `start`.
+        let is_row = style.flex_direction.is_row();
+        style.justify_content = match kw {
+            "flex-end" | "end" => JustifyContent::FlexEnd,
+            "right" if is_row => JustifyContent::FlexEnd,
+            "left" | "right" => JustifyContent::FlexStart,
             "center" => JustifyContent::Center,
             "space-between" => JustifyContent::SpaceBetween,
             "space-around" => JustifyContent::SpaceAround,
@@ -3298,6 +3330,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             style.grid_gap = *v;
             style.column_gap = *v;
             style.row_gap = *v;
+            style.column_gap_is_normal = false;
+            style.column_gap_pct = None;
+            style.row_gap_pct = None;
+        }
+        Some(CssValue::Percentage(p)) => {
+            // A single percentage `gap` sets both axes. Percentages resolve
+            // against the flex container's OWN content box (column-gap against
+            // width, row-gap against height) — store a fraction hint and let the
+            // flex layout resolve it; the eager parent-width setter is skipped.
+            let frac = *p / 100.0;
+            style.column_gap_pct = Some(frac);
+            style.row_gap_pct = Some(frac);
             style.column_gap_is_normal = false;
         }
         Some(CssValue::Keyword(k)) => {
@@ -3927,11 +3971,24 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             CssValue::Length(v) => {
                 style.column_gap = *v;
                 style.column_gap_is_normal = false;
+                style.column_gap_pct = None;
+            }
+            // A percentage column-gap resolves against the container's own
+            // content-box width (CSS Box Alignment §8.3); defer it as a fraction.
+            CssValue::Percentage(p) => {
+                style.column_gap_pct = Some(*p / 100.0);
+                style.column_gap_is_normal = false;
             }
             CssValue::Keyword(k) if k != "normal" => {
-                if let Some(CssValue::Length(v)) = parse_length(k) {
+                if let Some(stripped) = k.trim().strip_suffix('%') {
+                    if let Ok(p) = stripped.parse::<f32>() {
+                        style.column_gap_pct = Some(p / 100.0);
+                        style.column_gap_is_normal = false;
+                    }
+                } else if let Some(CssValue::Length(v)) = parse_length(k) {
                     style.column_gap = v;
                     style.column_gap_is_normal = false;
+                    style.column_gap_pct = None;
                 }
             }
             _ => {}
@@ -3988,8 +4045,27 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         // `auto` fills columns sequentially; `balance` (default) equalises them.
         style.column_fill_auto = k.eq_ignore_ascii_case("auto");
     }
-    if let Some(CssValue::Length(v)) = get_non_special(map, "row-gap") {
-        style.row_gap = *v;
+    match get_non_special(map, "row-gap") {
+        Some(CssValue::Length(v)) => {
+            style.row_gap = *v;
+            style.row_gap_pct = None;
+        }
+        // A percentage row-gap resolves against the container's own content-box
+        // block size (height); defer it as a fraction for the flex layout.
+        Some(CssValue::Percentage(p)) => {
+            style.row_gap_pct = Some(*p / 100.0);
+        }
+        Some(CssValue::Keyword(k)) if k != "normal" => {
+            if let Some(stripped) = k.trim().strip_suffix('%') {
+                if let Ok(p) = stripped.parse::<f32>() {
+                    style.row_gap_pct = Some(p / 100.0);
+                }
+            } else if let Some(CssValue::Length(v)) = parse_length(k) {
+                style.row_gap = v;
+                style.row_gap_pct = None;
+            }
+        }
+        _ => {}
     }
 
     // Overflow. The `overflow` shorthand sets both axes; `overflow-x` and
