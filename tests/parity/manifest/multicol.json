@@ -360,5 +360,24 @@
       "probe-color-swatch",
       "probe-border-box"
     ]
+  },
+  {
+    "id": "multicol-page-break-flow",
+    "category": "multicol",
+    "feature": "column-fragmentation",
+    "subfeature": "page-break-flow",
+    "description": "An auto-height two-column container (column-count: 2; column-fill: auto) with twelve 50px blocks on a 150px page: the columns fill page 1, then continue as a fresh row of column boxes on page 2 (CSS Multicol L1 §2), rather than overflowing and being clipped. Multi-page reference (page-count gate).",
+    "file": "cases/multicol/multicol-page-break-flow.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   }
 ]

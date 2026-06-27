@@ -8,11 +8,11 @@
   },
   "overall": {
     "score_pct": 97.24,
-    "pass": 633,
+    "pass": 634,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 651,
+    "total": 652,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -56306,7 +56306,7 @@
       "category": "multicol",
       "score_pct": 100.0,
       "counts": {
-        "pass": 19,
+        "pass": 20,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -57343,6 +57343,98 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.00% interiorΔE 0.00",
                   "magnitude": 0.00258272800645682
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "column-fragmentation",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 1,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "multicol-page-break-flow",
+              "category": "multicol",
+              "feature": "column-fragmentation",
+              "subfeature": "page-break-flow",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "An auto-height two-column container (column-count: 2; column-fill: auto) with twelve 50px blocks on a 150px page: the columns fill page 1, then continue as a fresh row of column boxes on page 2 (CSS Multicol L1 §2), rather than overflowing and being clipped. Multi-page reference (page-count gate).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow",
+                "probe-color-swatch",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "d005c095a2815c00d65d77e4fa79894a92b49c6eccfdf3ae6f8c1bcfddf037c0",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
                 },
                 {
                   "verifier": "RasterDiff",
@@ -87413,7 +87505,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 241,
+    "features_with_fixture": 242,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -87581,6 +87673,7 @@
       "multicol/break-inside",
       "multicol/column-count",
       "multicol/column-fill",
+      "multicol/column-fragmentation",
       "multicol/column-gap",
       "multicol/column-rule",
       "multicol/column-rule-style",
@@ -87657,7 +87750,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 556,
+    "implemented": 557,
     "partial": 38,
     "unsupported": 57
   },

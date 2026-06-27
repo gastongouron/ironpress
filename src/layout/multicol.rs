@@ -246,6 +246,65 @@ pub(crate) fn layout_multicol_container(
         }
     });
 
+    // ---- Page-aware column fragmentation (CSS Multicol §2 + Fragmentation 3) -
+    // An auto-height, in-flow multicol whose column content is taller than the
+    // page's content box is a *nested* fragmentation context: its columns fill to
+    // the page height, then continue as a fresh row of column boxes on the next
+    // page (CSS Multicol §2 — "a column box never splits across pages"). Without
+    // this the whole multicol would be one atomic box that overflows off the page
+    // bottom and is clipped (data loss). Only the genuinely-overflowing case takes
+    // this path; everything that fits on one page (the entire existing corpus)
+    // produces a single page-row and falls through to the byte-for-byte
+    // single-page layout below.
+    let page_content_h = ctx.available_height();
+    let wrapper_v_extra =
+        style.border.vertical_width() + style.padding.top + style.padding.bottom;
+    let col_fill_h = (page_content_h - wrapper_v_extra).max(0.0);
+    let in_flow = matches!(style.position, Position::Static | Position::Relative)
+        && style.float == crate::style::computed::Float::None;
+    let all_splittable = !items.is_empty() && items.iter().all(item_is_splittable);
+    let no_span = items.iter().all(|it| !it.span_all);
+    if explicit_border_box_h.is_none()
+        && in_flow
+        && no_span
+        && all_splittable
+        && num_cols >= 1
+        && col_fill_h > 1.0
+    {
+        let rows = build_paginated_column_rows(
+            &items, num_cols, col_width, gap, pad_left, bl, pad_top, bt, col_fill_h, style,
+        );
+        // Only fragment when the content genuinely spills past one page (more than
+        // one page-row). A single row means it fits — fall through unchanged.
+        if rows.len() > 1 {
+            let last = rows.len() - 1;
+            for (i, (row_children, row_max)) in rows.into_iter().enumerate() {
+                let is_last = i == last;
+                // Non-final page-rows fill the whole page (so the next row breaks
+                // onto a fresh page); the final row shrink-wraps its content.
+                let block_h = if is_last {
+                    pad_top + row_max + style.padding.bottom + style.border.bottom.width
+                } else {
+                    page_content_h
+                };
+                // Only the first fragment carries the top margin and only the last
+                // carries the bottom margin (the box is a single flow element).
+                let mt = if i == 0 { style.margin.top } else { 0.0 };
+                let mb = if is_last { style.margin.bottom } else { 0.0 };
+                output.push(emit_multicol_wrapper(
+                    style,
+                    row_children,
+                    border_box_w,
+                    Some(block_h),
+                    h_offset,
+                    mt,
+                    mb,
+                ));
+            }
+            return;
+        }
+    }
+
     let mut column_children: Vec<LayoutElement> = Vec::new();
     // A pending rule span recorded per balanced run: (rule_x, run_top, run_h).
     // Emitted after the loop so a single-run, definite-height container can have
@@ -438,6 +497,33 @@ pub(crate) fn layout_multicol_container(
     let block_height = Some(explicit_border_box_h.unwrap_or(content_box_h));
 
     // ---- Emit the wrapping container ---------------------------------------
+    output.push(emit_multicol_wrapper(
+        style,
+        column_children,
+        border_box_w,
+        block_height,
+        h_offset,
+        style.margin.top,
+        style.margin.bottom,
+    ));
+}
+
+/// Build one multicol wrapper [`LayoutElement::Container`] holding `column_children`
+/// (the absolutely-positioned columns/bands/rules). Shared by the single-page
+/// layout and by each page-row of the paginated path, which override the wrapper's
+/// `block_height` (full page for a continuing fragment, shrink-wrapped for the
+/// last) and its `margin_top`/`margin_bottom` (the box is one flow element, so only
+/// the first fragment keeps the top margin and only the last keeps the bottom).
+#[allow(clippy::too_many_arguments)]
+fn emit_multicol_wrapper(
+    style: &ComputedStyle,
+    column_children: Vec<LayoutElement>,
+    border_box_w: f32,
+    block_height: Option<f32>,
+    h_offset: f32,
+    margin_top: f32,
+    margin_bottom: f32,
+) -> LayoutElement {
     let bg = style
         .background_color
         .map(|c: crate::types::Color| c.to_f32_rgba());
@@ -454,7 +540,7 @@ pub(crate) fn layout_multicol_container(
         clip: background_clip,
     } = BackgroundFields::from_style(style);
 
-    output.push(LayoutElement::Container {
+    LayoutElement::Container {
         box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
         children: column_children,
         background_color: bg,
@@ -467,8 +553,8 @@ pub(crate) fn layout_multicol_container(
         padding_bottom: style.padding.bottom,
         padding_left: style.padding.left,
         padding_right: style.padding.right,
-        margin_top: style.margin.top,
-        margin_bottom: style.margin.bottom,
+        margin_top,
+        margin_bottom,
         block_width: Some(border_box_w),
         block_height,
         opacity: style.opacity,
@@ -504,7 +590,107 @@ pub(crate) fn layout_multicol_container(
         z_index: style.z_index,
         positioned_depth: 0,
         containing_block: None,
-    });
+    }
+}
+
+/// Distribute `items` into a sequence of per-page column rows for a paginated
+/// multicol (CSS Multicol §2). Each page-row is a fresh set of `num_cols` columns
+/// filled sequentially to `col_fill_h` (the page's content-box height), and any
+/// block that does not fit continues at the top of the next page-row — so content
+/// flows column-by-column down a page, then onto the next page, instead of being
+/// clipped.
+///
+/// Reuses [`fragment_columns_auto`] by giving it `num_cols × pages` *virtual*
+/// columns (generously over-allocated so the last virtual column never has to
+/// absorb overflow) and then regrouping every `num_cols` virtual columns into one
+/// page-row. Returns `(column_children, used_content_height)` per page-row, in
+/// page order, with trailing empty rows dropped. A single returned row means the
+/// content fits one page (the caller then takes the unchanged single-page path).
+#[allow(clippy::too_many_arguments)]
+fn build_paginated_column_rows(
+    items: &[MultiColItem],
+    num_cols: usize,
+    col_width: f32,
+    gap: f32,
+    pad_left: f32,
+    bl: f32,
+    pad_top: f32,
+    bt: f32,
+    col_fill_h: f32,
+    style: &ComputedStyle,
+) -> Vec<(Vec<LayoutElement>, f32)> {
+    let total: f32 = items.iter().map(|it| it.height).sum();
+    let per_page = (num_cols as f32 * col_fill_h).max(1.0);
+    // +2 page-rows of slack so the final virtual column is always empty and the
+    // "last column absorbs overflow" branch of `fragment_columns_auto` never fires.
+    let pages_needed = (total / per_page).ceil().max(1.0) as usize + 2;
+    let virtual_cols = num_cols * pages_needed;
+    let indices: Vec<usize> = (0..items.len()).collect();
+    let (vcols, vused) = fragment_columns_auto(items, &indices, virtual_cols, col_fill_h);
+
+    let rule_active = style.column_rule.width > 0.0
+        && style.column_rule.style != BorderStyle::None
+        && num_cols > 1;
+    let mut rows: Vec<(Vec<LayoutElement>, f32)> = Vec::new();
+    for page in 0..pages_needed {
+        let mut row_children: Vec<LayoutElement> = Vec::new();
+        let mut row_max = 0.0f32;
+        let mut has_content = false;
+        for pc in 0..num_cols {
+            let vc = page * num_cols + pc;
+            if vc >= vcols.len() {
+                break;
+            }
+            let frags = &vcols[vc];
+            if frags.is_empty() {
+                continue;
+            }
+            has_content = true;
+            row_max = row_max.max(vused[vc]);
+            let col_x = pad_left + pc as f32 * (col_width + gap);
+            let mut kids: Vec<LayoutElement> = Vec::new();
+            for f in frags {
+                kids.push(make_fragment_box(
+                    &items[f.item].elements[0],
+                    0.0,
+                    f.y,
+                    col_width,
+                    f.height,
+                    f.is_first,
+                    f.is_last,
+                ));
+            }
+            row_children.push(make_column_container(
+                kids,
+                col_x - bl,
+                pad_top - bt,
+                col_width,
+                vused[vc],
+            ));
+        }
+        if !has_content {
+            continue;
+        }
+        if rule_active {
+            let rule_w = style.column_rule.width;
+            let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
+            for c in 0..num_cols - 1 {
+                let gap_center =
+                    pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+                let rule_x = gap_center - rule_w / 2.0;
+                row_children.push(make_rule_container(
+                    rule_x - bl,
+                    pad_top - bt,
+                    rule_w,
+                    row_max,
+                    rule_color,
+                    style.column_rule.style,
+                ));
+            }
+        }
+        rows.push((row_children, row_max));
+    }
+    rows
 }
 
 /// Assign items (by index, in document order) to `num_cols` columns so the
