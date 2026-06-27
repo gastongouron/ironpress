@@ -1357,6 +1357,7 @@ struct SvgCustomTextFont<'a> {
 /// body text uses. `text_x`/`y` are the SVG-space pen origin already adjusted
 /// for `text-anchor`; the caller has wrapped this in `BT … ET` is NOT assumed —
 /// this writes the full `BT … ET` block.
+#[allow(clippy::too_many_arguments)]
 fn emit_custom_svg_text(
     custom: &SvgCustomTextFont<'_>,
     content: &str,

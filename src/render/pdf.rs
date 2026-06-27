@@ -9136,6 +9136,7 @@ fn render_text_shadow_blur(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::collapsible_if)]
 fn render_run_text(
     content: &mut String,
     run: &TextRun,

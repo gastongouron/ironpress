@@ -86,6 +86,7 @@ fn flex_text_min_content(
     total
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_flex_container(
     el: &ElementNode,
     style: &ComputedStyle,
