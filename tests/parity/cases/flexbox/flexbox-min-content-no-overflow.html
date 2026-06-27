@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox automatic minimum size</title>
+<style>
+  @page { size: 360px 110px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 160px;
+    height: 60px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 200px;
+    flex-shrink: 1;
+    height: 56px;
+    font-size: 28px;
+    white-space: nowrap;
+    color: #ffffff;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a">Mango</div>
+      <div class="box b">Mango</div>
+    </div>
+  </div>
+</body>
+</html>

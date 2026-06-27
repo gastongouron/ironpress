@@ -65,7 +65,12 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
         return;
     }
 
-    if (prop == "margin-left" || prop == "margin-right") && val == "auto" {
+    if (prop == "margin-left"
+        || prop == "margin-right"
+        || prop == "margin-top"
+        || prop == "margin-bottom")
+        && val == "auto"
+    {
         map.set_with_importance(&prop, CssValue::Keyword("auto".to_string()), is_important);
         return;
     }

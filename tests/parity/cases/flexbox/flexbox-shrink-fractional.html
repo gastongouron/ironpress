@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox fractional flex-shrink</title>
+<style>
+  @page { size: 300px 100px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 200px;
+    height: 60px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    width: 150px;
+    flex-shrink: 0.25;
+    height: 56px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+    </div>
+  </div>
+</body>
+</html>

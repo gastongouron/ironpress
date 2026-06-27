@@ -848,5 +848,107 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-margin-auto-main-end",
+    "category": "flexbox",
+    "feature": "margin",
+    "subfeature": "auto-main-end",
+    "description": "An item with margin-left:auto absorbs the positive main free space and is pushed to the main-end edge, overriding the default flex-start packing (css-flexbox-1 \u00a78.1).",
+    "file": "cases/flexbox/flexbox-margin-auto-main-end.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-margin-auto-center",
+    "category": "flexbox",
+    "feature": "margin",
+    "subfeature": "auto-center",
+    "description": "An item with margin:auto centers on both axes: the main-axis auto margins split the free space to center it horizontally and the cross-axis auto margins center it vertically, suppressing the default stretch (css-flexbox-1 \u00a78.1).",
+    "file": "cases/flexbox/flexbox-margin-auto-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-margin-auto-split",
+    "category": "flexbox",
+    "feature": "margin",
+    "subfeature": "auto-split",
+    "description": "With two items, margin-left:auto on the second pins the first to the main-start and pushes the second to the main-end, splitting the line (nav-bar idiom, css-flexbox-1 \u00a78.1).",
+    "file": "cases/flexbox/flexbox-margin-auto-split.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-min-content-no-overflow",
+    "category": "flexbox",
+    "feature": "min-width",
+    "subfeature": "auto-content-min",
+    "description": "Flex items with min-width:auto floor at their content-based minimum size: two shrinking text items stop at min-content and sit side by side without overlapping (css-flexbox-1 \u00a74.5).",
+    "file": "cases/flexbox/flexbox-min-content-no-overflow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-grow-fractional",
+    "category": "flexbox",
+    "feature": "flex-grow",
+    "subfeature": "fractional-sum",
+    "description": "When the flex-grow factors sum to less than 1, only that fraction of the positive free space is distributed, leaving the remainder unfilled (css-flexbox-1 \u00a79.7 step 4.b).",
+    "file": "cases/flexbox/flexbox-grow-fractional.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-shrink-fractional",
+    "category": "flexbox",
+    "feature": "flex-shrink",
+    "subfeature": "fractional-sum",
+    "description": "When the flex-shrink factors sum to less than 1, only that fraction of the negative free space is absorbed, so the items overflow the container (css-flexbox-1 \u00a79.7 step 4.b).",
+    "file": "cases/flexbox/flexbox-shrink-fractional.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

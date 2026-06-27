@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox fractional flex-grow</title>
+<style>
+  @page { size: 440px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  .flex {
+    display: flex;
+    width: 400px;
+    height: 80px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .box {
+    flex-basis: 0;
+    flex-grow: 0.25;
+    height: 60px;
+    border: 2px solid #102a43;
+  }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="box a"></div>
+      <div class="box b"></div>
+    </div>
+  </div>
+</body>
+</html>

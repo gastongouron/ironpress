@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.15,
-    "pass": 613,
+    "score_pct": 97.17,
+    "pass": 619,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 631,
+    "total": 637,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -19094,7 +19094,7 @@
       "category": "flexbox",
       "score_pct": 100.0,
       "counts": {
-        "pass": 50,
+        "pass": 56,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -21796,7 +21796,7 @@
           "feature": "flex-grow",
           "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -22074,6 +22074,84 @@
                 }
               ],
               "disagreements": []
+            },
+            {
+              "id": "flexbox-grow-fractional",
+              "category": "flexbox",
+              "feature": "flex-grow",
+              "subfeature": "fractional-sum",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "When the flex-grow factors sum to less than 1, only that fraction of the positive free space is distributed, leaving the remainder unfilled (css-flexbox-1 §9.7 step 4.b).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "80f5e78a3ee10a4d4d612439dd511e4f585132d307837acb18971c49128c1f86",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
             }
           ]
         },
@@ -22081,7 +22159,7 @@
           "feature": "flex-shrink",
           "score_pct": 100.0,
           "counts": {
-            "pass": 2,
+            "pass": 3,
             "partial": 0,
             "fail": 0,
             "unknown": 0
@@ -22244,6 +22322,84 @@
               "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "52a432f1884c516ac231707e3622ac1acf6c93d4fccf29b6c386e7f1a6d10f79",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-shrink-fractional",
+              "category": "flexbox",
+              "feature": "flex-shrink",
+              "subfeature": "fractional-sum",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "When the flex-shrink factors sum to less than 1, only that fraction of the negative free space is absorbed, so the items overflow the container (css-flexbox-1 §9.7 step 4.b).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "85b648d3303098a10f84f93deea10caeeb08688185dcfeb0d2d54c629b069faf",
               "diagnosis": {
                 "primary_class": "AaOnly",
                 "secondary": [],
@@ -23569,6 +23725,252 @@
           ]
         },
         {
+          "feature": "margin",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 3,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "flexbox-margin-auto-center",
+              "category": "flexbox",
+              "feature": "margin",
+              "subfeature": "auto-center",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "An item with margin:auto centers on both axes: the main-axis auto margins split the free space to center it horizontally and the cross-axis auto margins center it vertically, suppressing the default stretch (css-flexbox-1 §8.1).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "0fc2242f12002b4d19e2b349b2735b5b71a2e36add9a5135a0cebceb154c000d",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-margin-auto-main-end",
+              "category": "flexbox",
+              "feature": "margin",
+              "subfeature": "auto-main-end",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "An item with margin-left:auto absorbs the positive main free space and is pushed to the main-end edge, overriding the default flex-start packing (css-flexbox-1 §8.1).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "28859418b5a81c55e410842043916b916397ec825061bec30cd5cd0abc0da8d3",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-margin-auto-split",
+              "category": "flexbox",
+              "feature": "margin",
+              "subfeature": "auto-split",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "With two items, margin-left:auto on the second pins the first to the main-start and pushes the second to the main-end, splitting the line (nav-bar idiom, css-flexbox-1 §8.1).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "b0ffc42017efad62b38a098e99e1127cb2fc7ee60c0fd0bdc55a235242bda816",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
           "feature": "max-width",
           "score_pct": 100.0,
           "counts": {
@@ -23752,12 +24154,265 @@
           "feature": "min-width",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "flexbox-min-content-no-overflow",
+              "category": "flexbox",
+              "feature": "min-width",
+              "subfeature": "auto-content-min",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 1.5064,
+              "weight": 1.0,
+              "description": "Flex items with min-width:auto floor at their content-based minimum size: two shrinking text items stop at min-content and sit side by side without overlapping (css-flexbox-1 §4.5).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "1619bac2407bba8343c0013a2d563dc8fcea5a1a60263adf13041b155f2b5b23",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.0,0.6)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    3,
+                    7,
+                    4
+                  ],
+                  "delta_e": 4.987372868361691,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.64
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      6.4,
+                      13.44,
+                      10.56,
+                      14.08
+                    ],
+                    "area_pct": 0.01460832502663871,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -6,
+                      -18,
+                      -20
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      104.64,
+                      13.44,
+                      108.8,
+                      14.08
+                    ],
+                    "area_pct": 0.01460832502663871,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      -20,
+                      -12,
+                      -6
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      21.12,
+                      13.44,
+                      24.96,
+                      13.76
+                    ],
+                    "area_pct": 0.012030385316055409,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      119.36,
+                      13.44,
+                      123.2,
+                      13.76
+                    ],
+                    "area_pct": 0.012030385316055409,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      112.64,
+                      29.76,
+                      115.52,
+                      30.4
+                    ],
+                    "area_pct": 0.010311758842333207,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      35,
+                      20,
+                      11
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.2909090909090909
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      69.12,
+                      37.44,
+                      72.32,
+                      37.44
+                    ],
+                    "area_pct": 0.009452445605472107,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.64
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.6)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  0.64
+                ],
+                "confidence": 0.7923559612093554
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.64css",
+                  "magnitude": 0.64
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.34% interiorΔE 0.00",
+                  "magnitude": 0.34443277410319734
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "flexbox-min-width-constraint",
               "category": "flexbox",
@@ -84759,7 +85414,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 237,
+    "features_with_fixture": 238,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -84842,6 +85497,7 @@
       "flexbox/flex-wrap",
       "flexbox/gap",
       "flexbox/justify-content",
+      "flexbox/margin",
       "flexbox/max-width",
       "flexbox/min-height",
       "flexbox/min-width",
@@ -84999,7 +85655,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 536,
+    "implemented": 542,
     "partial": 38,
     "unsupported": 57
   },

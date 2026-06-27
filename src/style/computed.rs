@@ -1318,6 +1318,12 @@ pub struct ComputedStyle {
     pub percentage_sizing: PercentageSizing,
     pub margin_left_auto: bool,
     pub margin_right_auto: bool,
+    /// `margin-top: auto` / `margin-bottom: auto`. Tracked (in addition to the
+    /// horizontal flags) so a flex item can absorb cross-axis (for a row
+    /// container) / main-axis (for a column container) free space via auto
+    /// margins per css-flexbox-1 §8.1.
+    pub margin_top_auto: bool,
+    pub margin_bottom_auto: bool,
     pub opacity: f32,
     /// CSS `mix-blend-mode`: how this element composites with the backdrop.
     pub mix_blend_mode: BlendMode,
@@ -1674,6 +1680,8 @@ impl Default for ComputedStyle {
             percentage_sizing: PercentageSizing::default(),
             margin_left_auto: false,
             margin_right_auto: false,
+            margin_top_auto: false,
+            margin_bottom_auto: false,
             opacity: 1.0,
             mix_blend_mode: BlendMode::default(),
             background_blend_mode: BlendMode::default(),
@@ -1915,6 +1923,8 @@ pub fn compute_style_with_context(
     style.percentage_sizing = PercentageSizing::default();
     style.margin_left_auto = false;
     style.margin_right_auto = false;
+    style.margin_top_auto = false;
+    style.margin_bottom_auto = false;
     style.opacity = 1.0;
     // `unicode-bidi` is not inherited; initial is `normal`.
     style.bidi_override = false;
@@ -2222,6 +2232,8 @@ pub fn compute_pseudo_element_style(
     style.percentage_sizing = PercentageSizing::default();
     style.margin_left_auto = false;
     style.margin_right_auto = false;
+    style.margin_top_auto = false;
+    style.margin_bottom_auto = false;
     style.opacity = 1.0;
     // `unicode-bidi` is not inherited; initial is `normal`.
     style.bidi_override = false;
@@ -3616,7 +3628,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.percentage_sizing.max_height = None;
     }
 
-    // margin-left: auto / margin-right: auto
+    // margin-left/right/top/bottom: auto. The `auto` keyword on a flex item
+    // absorbs free space along its axis (css-flexbox-1 §8.1); on the vertical
+    // axis it also enables cross-axis centering for a row container.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "margin-left") {
         if k == "auto" {
             style.margin_left_auto = true;
@@ -3625,6 +3639,16 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "margin-right") {
         if k == "auto" {
             style.margin_right_auto = true;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "margin-top") {
+        if k == "auto" {
+            style.margin_top_auto = true;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "margin-bottom") {
+        if k == "auto" {
+            style.margin_bottom_auto = true;
         }
     }
 

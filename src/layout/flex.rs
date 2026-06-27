@@ -3,19 +3,21 @@ use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
     AlignContent, AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition,
     BackgroundRepeat, BackgroundSize, BoxSizing, Clear, ComputedStyle, Display, FlexDirection,
-    FlexWrap, Float, JustifyContent, Overflow, Position, TextAlign, VerticalAlign, Visibility,
-    compute_style_with_context,
+    FlexWrap, Float, JustifyContent, Overflow, OverflowWrap, Position, TextAlign, VerticalAlign,
+    Visibility, WhiteSpace, compute_style_with_context,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
-    BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine, aspect_ratio_height,
-    background_svg_for_style, collects_as_inline_text, flatten_element, has_background_paint,
-    measure_runs_width, pseudo_is_block_like, push_block_pseudo, resolve_padding_box_height,
+    BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine, TextRun,
+    aspect_ratio_height, background_svg_for_style, collects_as_inline_text, flatten_element,
+    has_background_paint, measure_runs_width, pseudo_is_block_like, push_block_pseudo,
+    resolve_padding_box_height,
 };
 use super::paginate::estimate_element_height;
 use super::text::{
-    FlexTextRunCollector, TextWrapOptions, resolved_line_height_factor, wrap_text_runs,
+    FlexTextRunCollector, TextWrapOptions, estimate_word_width, resolved_line_height_factor,
+    wrap_text_runs,
 };
 
 /// Each child is laid out as a TextBlock at a computed position. The container
@@ -48,6 +50,40 @@ fn flex_probe_table_extent(elements: &[LayoutElement]) -> f32 {
         }
     }
     max_w
+}
+
+/// Content-based minimum main-axis (inline) size of a run of inline text — the
+/// width of the longest unbreakable piece. For wrappable text that is the widest
+/// single word; for `white-space: nowrap` / `pre` the run cannot soft-wrap so its
+/// whole width is unbreakable. This is the "content size suggestion" used to
+/// resolve a flex item's automatic minimum size (css-flexbox-1 §4.5), so a
+/// shrinking item never collapses below its content.
+fn flex_text_min_content(
+    runs: &[TextRun],
+    nowrap: bool,
+    fonts: &std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+) -> f32 {
+    let mut total = 0.0f32;
+    for run in runs {
+        // Atomic inline boxes (images) are unbreakable; use their outer width.
+        if let Some(inline) = run.inline_box.as_deref() {
+            total += inline.outer_width();
+            continue;
+        }
+        let space_w = estimate_word_width(" ", run.font_size, &run.font_family, run.bold, run.italic, fonts);
+        let mut whole = 0.0f32;
+        let mut longest = 0.0f32;
+        for (i, word) in run.text.split_whitespace().enumerate() {
+            let ww = estimate_word_width(word, run.font_size, &run.font_family, run.bold, run.italic, fonts);
+            if i > 0 {
+                whole += space_w;
+            }
+            whole += ww;
+            longest = longest.max(ww);
+        }
+        total += if nowrap { whole } else { longest };
+    }
+    total
 }
 
 pub(crate) fn layout_flex_container(
@@ -449,6 +485,11 @@ pub(crate) fn layout_flex_container(
         /// every inner box, NOT collapsed by the lossy text-merge path (which kept
         /// only the first box's background and dropped the rest).
         is_flex_container: bool,
+        /// `auto` on the item's main-axis leading / trailing margin
+        /// (margin-left/right for a row container). Per css-flexbox-1 §8.1 these
+        /// absorb positive free space equally and override `justify-content`.
+        margin_main_start_auto: bool,
+        margin_main_end_auto: bool,
     }
 
     // Resolve an item's outer (border-box) main-axis min/max clamps from its
@@ -520,6 +561,39 @@ pub(crate) fn layout_flex_container(
         if child_style.display == Display::None {
             continue;
         }
+
+        // Auto margins on a flex item (css-flexbox-1 §8.1). Map the four physical
+        // `auto` flags onto the container's main/cross axes. Main-axis autos are
+        // carried on the `FlexItem` and absorb main free space during placement;
+        // cross-axis autos override `align-self` here: both → center, a single
+        // leading auto → push to the cross-end, a single trailing auto → cross-start.
+        // (Per §8.3 a cross auto margin also suppresses `align-items: stretch`,
+        // which the Center/FlexEnd/FlexStart mapping does implicitly.)
+        let (m_main_start_auto, m_main_end_auto, m_cross_start_auto, m_cross_end_auto) =
+            if style.flex_direction.is_row() {
+                (
+                    child_style.margin_left_auto,
+                    child_style.margin_right_auto,
+                    child_style.margin_top_auto,
+                    child_style.margin_bottom_auto,
+                )
+            } else {
+                (
+                    child_style.margin_top_auto,
+                    child_style.margin_bottom_auto,
+                    child_style.margin_left_auto,
+                    child_style.margin_right_auto,
+                )
+            };
+        let item_align_self = if m_cross_start_auto && m_cross_end_auto {
+            AlignSelf::Center
+        } else if m_cross_start_auto {
+            AlignSelf::FlexEnd
+        } else if m_cross_end_auto {
+            AlignSelf::FlexStart
+        } else {
+            child_style.align_self
+        };
 
         // Determine child width: flex-basis takes priority, then explicit width.
         // Flex base size for grow/shrink distribution:
@@ -815,12 +889,14 @@ pub(crate) fn layout_flex_container(
                 natural_height: child_h, // Natural height for align-items flex-start
                 has_explicit_width,
                 has_explicit_height,
-                align_self: child_style.align_self,
+                align_self: item_align_self,
                 order: child_style.order,
                 child_idx: idx,
                 min_main: main_min_max(&child_style).0,
                 max_main: main_min_max(&child_style).1,
                 is_flex_container: child_style.display == Display::Flex,
+                margin_main_start_auto: m_main_start_auto,
+                margin_main_end_auto: m_main_end_auto,
             });
             continue;
         }
@@ -850,6 +926,41 @@ pub(crate) fn layout_flex_container(
             (natural_text_w + pad_h + border_h).min(width_for_percentages)
         } else {
             child_w_initial
+        };
+
+        // Automatic minimum size (css-flexbox-1 §4.5). For a row container the
+        // main axis is inline, and a flex item whose `min-width` is `auto` (the
+        // default) and that is not a scroll container (overflow:visible) must not
+        // shrink below its content-based minimum. The used automatic minimum is
+        // min(content size suggestion, specified size suggestion) clamped by the
+        // item's max main size — so it never exceeds the item's own specified
+        // width, and items with `min-width:0`/clipped overflow keep collapsing.
+        // Only the row main axis is handled here (column main = block height is
+        // left at 0 to avoid disturbing column sizing).
+        let (resolved_min_main, resolved_max_main) = main_min_max(&child_style);
+        let auto_min_main = if style.flex_direction.is_row()
+            && child_style.min_width.is_none()
+            && child_style.overflow_x == Overflow::Visible
+            && child_style.overflow_y == Overflow::Visible
+            && child_style.overflow_wrap != OverflowWrap::Anywhere
+            && !runs.is_empty()
+        {
+            let nowrap = matches!(
+                child_style.white_space,
+                WhiteSpace::NoWrap | WhiteSpace::Pre
+            );
+            let content_min = flex_text_min_content(&runs, nowrap, env.fonts)
+                + child_style.padding.left
+                + child_style.padding.right
+                + child_style.border.horizontal_width();
+            let specified = if has_explicit_width {
+                child_w_initial
+            } else {
+                f32::INFINITY
+            };
+            content_min.min(specified).min(resolved_max_main)
+        } else {
+            resolved_min_main
         };
 
         // Use wrap_width for text measurement (nonzero even when flex base is 0)
@@ -1018,12 +1129,14 @@ pub(crate) fn layout_flex_container(
             natural_height: item_border_box_h + child_style.margin.top + child_style.margin.bottom,
             has_explicit_width,
             has_explicit_height,
-            align_self: child_style.align_self,
+            align_self: item_align_self,
             order: child_style.order,
             child_idx: idx,
-            min_main: main_min_max(&child_style).0,
-            max_main: main_min_max(&child_style).1,
+            min_main: auto_min_main,
+            max_main: resolved_max_main,
             is_flex_container: child_style.display == Display::Flex,
+            margin_main_start_auto: m_main_start_auto,
+            margin_main_end_auto: m_main_end_auto,
         });
     }
 
@@ -1553,7 +1666,17 @@ pub(crate) fn layout_flex_container(
                 let total_grow: f32 = line_items.iter().map(|&i| items[i].flex_grow).sum();
                 if free_space > 0.0 && total_grow > 0.0 {
                     let mut frozen = vec![false; line_items.len()];
-                    let mut remaining = free_space;
+                    // css-flexbox-1 §9.7 step 4.b: when the unfrozen items' flex
+                    // factors sum to less than 1, only that fraction of the free
+                    // space is distributed; the remainder stays as free space for
+                    // `justify-content` instead of over-growing the items.
+                    let grow_fraction = total_grow < 1.0;
+                    let pool = if grow_fraction {
+                        free_space * total_grow
+                    } else {
+                        free_space
+                    };
+                    let mut remaining = pool;
                     // Bounded iteration count: at most one item freezes per pass.
                     for _ in 0..=line_items.len() {
                         let active_grow: f32 = line_items
@@ -1588,14 +1711,29 @@ pub(crate) fn layout_flex_container(
                             break;
                         }
                     }
-                    free_space = 0.0;
+                    // Leave any undistributed space (the sum<1 remainder, plus a
+                    // pool left over when every item hit its max) for justify.
+                    free_space = if grow_fraction {
+                        (free_space - (pool - remaining)).max(0.0)
+                    } else {
+                        0.0
+                    };
                 }
 
                 // Flex shrink: remove overflow weighted by shrink×base, freezing
                 // items that hit their `min-main` clamp and redistributing.
                 if free_space < 0.0 {
                     let mut frozen = vec![false; line_items.len()];
-                    let mut deficit = -free_space;
+                    // css-flexbox-1 §9.7 step 4.b (shrink): when the unfrozen
+                    // items' flex-shrink factors sum to less than 1, only that
+                    // fraction of the deficit is absorbed; the rest overflows.
+                    let total_shrink: f32 = line_items.iter().map(|&i| items[i].flex_shrink).sum();
+                    let initial_deficit = -free_space;
+                    let mut deficit = if total_shrink < 1.0 {
+                        initial_deficit * total_shrink
+                    } else {
+                        initial_deficit
+                    };
                     for _ in 0..=line_items.len() {
                         let total_weight: f32 = line_items
                             .iter()
@@ -1801,31 +1939,63 @@ pub(crate) fn layout_flex_container(
 
                 let free_space = free_space.max(0.0);
 
+                // css-flexbox-1 §8.1: before justify-content runs, positive main
+                // free space is split equally among the line's `auto` main-axis
+                // margins, which then override justify-content. With no auto
+                // margins this is inert and justify-content distributes normally.
+                let auto_main_count: u32 = line_items
+                    .iter()
+                    .map(|&i| {
+                        items[i].margin_main_start_auto as u32 + items[i].margin_main_end_auto as u32
+                    })
+                    .sum();
+                let use_auto_margins = auto_main_count > 0 && free_space > 0.0;
+                let auto_share = if use_auto_margins {
+                    free_space / auto_main_count as f32
+                } else {
+                    0.0
+                };
+                let justify_free = if use_auto_margins { 0.0 } else { free_space };
+
                 // Calculate starting x and spacing based on justify-content
                 let (mut x, extra_gap) = match justify {
                     JustifyContent::FlexStart => (0.0, 0.0),
-                    JustifyContent::FlexEnd => (free_space, 0.0),
-                    JustifyContent::Center => (free_space / 2.0, 0.0),
+                    JustifyContent::FlexEnd => (justify_free, 0.0),
+                    JustifyContent::Center => (justify_free / 2.0, 0.0),
                     JustifyContent::SpaceBetween => {
                         if line_item_count > 1 {
-                            (0.0, free_space / (line_item_count - 1) as f32)
+                            (0.0, justify_free / (line_item_count - 1) as f32)
                         } else {
                             (0.0, 0.0)
                         }
                     }
                     JustifyContent::SpaceAround => {
-                        let around = free_space / line_item_count as f32;
+                        let around = justify_free / line_item_count as f32;
                         (around / 2.0, around)
                     }
                     JustifyContent::SpaceEvenly => {
-                        let ev = free_space / (line_item_count + 1) as f32;
+                        let ev = justify_free / (line_item_count + 1) as f32;
                         (ev, ev)
                     }
                 };
 
                 // Build FlexCells for this row line.
                 let mut flex_cells = Vec::new();
+                // A trailing `auto` main margin on a prior item pushes the next
+                // item along the main axis; carry it forward into the cursor.
+                let mut pending_trailing_auto = 0.0_f32;
                 for &item_idx in &line_items {
+                    // Apply the previous item's trailing auto margin, then this
+                    // item's leading auto margin, before placing its cell.
+                    x += pending_trailing_auto;
+                    if items[item_idx].margin_main_start_auto {
+                        x += auto_share;
+                    }
+                    pending_trailing_auto = if items[item_idx].margin_main_end_auto {
+                        auto_share
+                    } else {
+                        0.0
+                    };
                     let item = &items[item_idx];
 
                     // A flex item that is itself a flex container establishes an
@@ -2188,7 +2358,13 @@ pub(crate) fn layout_flex_container(
                     let total_grow: f32 = line_items.iter().map(|&i| items[i].flex_grow).sum();
                     if col_free > 0.0 && total_grow > 0.0 {
                         let mut frozen = vec![false; line_items.len()];
-                        let mut remaining = col_free;
+                        // §9.7 step 4.b: cap the distributed space to the flex
+                        // factor sum when it is below 1 (the rest stays free).
+                        let mut remaining = if total_grow < 1.0 {
+                            col_free * total_grow
+                        } else {
+                            col_free
+                        };
                         for _ in 0..=line_items.len() {
                             let active: f32 = line_items
                                 .iter()
@@ -2226,7 +2402,15 @@ pub(crate) fn layout_flex_container(
                     }
                     if col_free < 0.0 {
                         let mut frozen = vec![false; line_items.len()];
-                        let mut deficit = -col_free;
+                        // §9.7 step 4.b (shrink): absorb only the flex-shrink
+                        // factor sum's fraction of the deficit when it is below 1.
+                        let total_shrink: f32 =
+                            line_items.iter().map(|&i| items[i].flex_shrink).sum();
+                        let mut deficit = if total_shrink < 1.0 {
+                            -col_free * total_shrink
+                        } else {
+                            -col_free
+                        };
                         for _ in 0..=line_items.len() {
                             let weight_sum: f32 = line_items
                                 .iter()
