@@ -455,6 +455,7 @@ pub(crate) fn layout_multicol_container(
     } = BackgroundFields::from_style(style);
 
     output.push(LayoutElement::Container {
+        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
         children: column_children,
         background_color: bg,
         border: LayoutBorder::from_computed(&style.border),
@@ -906,6 +907,7 @@ fn empty_abs_container(
     bg: Option<(f32, f32, f32, f32)>,
 ) -> LayoutElement {
     LayoutElement::Container {
+        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
         children: kids,
         background_color: bg,
         border: LayoutBorder::default(),

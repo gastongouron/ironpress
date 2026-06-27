@@ -404,6 +404,20 @@ pub enum Clear {
     Both,
 }
 
+/// CSS `box-decoration-break` (css-break-3 §6.2): how a box's borders, padding,
+/// margin and background are applied when the box is split across fragmentainers
+/// (pages, columns). `Slice` (the default) renders the decoration as if the box
+/// were whole and then sliced at the break — the first fragment keeps its top
+/// border/padding but no bottom decoration, the continuation drops its top
+/// decoration. `Clone` wraps EACH fragment independently with the full
+/// border/padding/margin and background.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BoxDecorationBreak {
+    #[default]
+    Slice,
+    Clone,
+}
+
 /// CSS position property (simplified).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Position {
@@ -1312,6 +1326,9 @@ pub struct ComputedStyle {
     pub background_blend_mode: BlendMode,
     pub float: Float,
     pub clear: Clear,
+    /// CSS `box-decoration-break`: how borders/padding/margin/background are
+    /// applied across a fragmentation break. Not inherited.
+    pub box_decoration_break: BoxDecorationBreak,
     pub position: Position,
     pub top: Option<f32>,
     pub right: Option<f32>,
@@ -1662,6 +1679,7 @@ impl Default for ComputedStyle {
             background_blend_mode: BlendMode::default(),
             float: Float::None,
             clear: Clear::None,
+            box_decoration_break: BoxDecorationBreak::Slice,
             position: Position::Static,
             top: None,
             right: None,
@@ -2456,6 +2474,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         }
         "float" => style.float = default.float,
         "clear" => style.clear = default.clear,
+        "box-decoration-break" => style.box_decoration_break = default.box_decoration_break,
         "position" => style.position = default.position,
         "top" => {
             style.top = default.top;
@@ -2630,6 +2649,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         }
         "float" => style.float = parent.float,
         "clear" => style.clear = parent.clear,
+        "box-decoration-break" => style.box_decoration_break = parent.box_decoration_break,
         "position" => style.position = parent.position,
         "top" => {
             style.top = parent.top;
@@ -3751,6 +3771,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "right" => Clear::Right,
             "both" => Clear::Both,
             _ => Clear::None,
+        };
+    }
+
+    // box-decoration-break (css-break-3 §6.2)
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "box-decoration-break") {
+        style.box_decoration_break = match k.as_str() {
+            "clone" => BoxDecorationBreak::Clone,
+            _ => BoxDecorationBreak::Slice,
         };
     }
 

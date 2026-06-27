@@ -1368,6 +1368,7 @@ pub(crate) fn build_pseudo_block(
     };
 
     LayoutElement::TextBlock {
+        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
         lines,
         margin_top: pseudo_style.margin.top,
         margin_bottom: pseudo_style.margin.bottom,

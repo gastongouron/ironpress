@@ -380,7 +380,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             .map(|number| CssValue::Number(number as f32));
     }
 
-    if matches!(property, "float" | "clear" | "position") {
+    if matches!(property, "float" | "clear" | "position" | "box-decoration-break") {
         return Some(CssValue::Keyword(lower));
     }
 

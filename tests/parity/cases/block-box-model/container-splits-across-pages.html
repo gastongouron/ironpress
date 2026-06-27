@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A bordered, padded, BACKGROUND-filled container holding several child
+     blocks, taller than the (small) page so it fragments across pages via CSS
+     Fragmentation 3. With the default `box-decoration-break: slice` the box is
+     sliced at each page edge: page 1 keeps the TOP border (open at the bottom),
+     the middle page has NO top/bottom border (only the left/right edges), and
+     the last page keeps the BOTTOM border (open at the top). The multi-page
+     harness asserts the page COUNT matches Chrome and diffs every page. */
+  @page { size: 340px 240px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .box {
+    width: 260px;
+    background: #ffe3a3;
+    border: 8px solid #1b3a6b;
+    padding: 12px;
+  }
+  /* Keep each child block atomic so BOTH engines break BETWEEN children
+     (class-A) rather than slicing a child mid-block; the split point is then
+     unambiguous and ironpress (which only breaks between children) matches
+     Chrome exactly. */
+  .row { height: 70px; break-inside: avoid; }
+  .a { background: #d94f4f; }
+  .b { background: #2d6cdf; }
+  .c { background: #2e9e5b; }
+  .d { background: #b048c4; }
+  .e { background: #e08a1e; }
+  .f { background: #2bb3b3; }
+  .g { background: #c4304f; }
+  .h { background: #5a6cd9; }
+  .i { background: #6b8e23; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="row a"></div>
+    <div class="row b"></div>
+    <div class="row c"></div>
+    <div class="row d"></div>
+    <div class="row e"></div>
+    <div class="row f"></div>
+    <div class="row g"></div>
+    <div class="row h"></div>
+    <div class="row i"></div>
+  </div>
+</body>
+</html>

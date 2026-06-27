@@ -1,7 +1,9 @@
 use super::engine::{
     LayoutElement, Page, PageBreakSide, layout_element_paint_order, table_cell_content_height,
 };
-use crate::style::computed::{BorderCollapse, Clear, Float, ObjectFit, Position};
+use crate::style::computed::{
+    BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
+};
 use std::collections::HashMap;
 
 fn advance_positioned_ancestors_after_page_break(
@@ -459,6 +461,8 @@ fn split_text_block(
         float,
         border,
         padding_top,
+        padding_bottom,
+        box_decoration_break,
         ..
     } = element
     else {
@@ -477,11 +481,21 @@ fn split_text_block(
         return None;
     }
 
+    // `box-decoration-break: clone` re-wraps EVERY fragment with the full
+    // top+bottom border/padding/margin and background, so the first fragment's
+    // line area is reduced by the bottom decoration too (the box closes on this
+    // page). `slice` (default) leaves the box open at the bottom, so its lines
+    // may extend to the page edge.
+    let clone = *box_decoration_break == BoxDecorationBreak::Clone;
+
     // Content-box height available for text lines on this page: the space below
-    // the box's border-box top, minus the top border + top padding (the first
-    // fragment carries no bottom border/padding under `slice`, so its lines may
-    // extend to the page bottom).
-    let avail_lines = avail_below_box_top - border.top.width - padding_top;
+    // the box's border-box top, minus the top border + top padding (and, under
+    // `clone`, the bottom border + bottom padding the fragment also carries).
+    let avail_lines = if clone {
+        avail_below_box_top - border.vertical_width() - padding_top - padding_bottom
+    } else {
+        avail_below_box_top - border.top.width - padding_top
+    };
 
     // Greedily keep whole lines that fit, but always retain at least one line on
     // this page — the forward-progress invariant: never leave a fragmentainer
@@ -501,8 +515,9 @@ fn split_text_block(
         return None;
     }
 
-    // First fragment: the lines that fit, with the box's top decoration but NO
-    // bottom border/padding/margin (slice).
+    // First fragment: the lines that fit. Under `slice` it keeps the box's top
+    // decoration but drops its bottom border/padding/margin (the box stays open
+    // at the page bottom); under `clone` it keeps the FULL decoration and closes.
     let mut first = element.clone();
     if let LayoutElement::TextBlock {
         lines: f_lines,
@@ -513,13 +528,17 @@ fn split_text_block(
     } = &mut first
     {
         *f_lines = lines[..idx].to_vec();
-        *f_mb = 0.0;
-        *f_pb = 0.0;
-        f_border.bottom.width = 0.0;
+        if !clone {
+            *f_mb = 0.0;
+            *f_pb = 0.0;
+            f_border.bottom.width = 0.0;
+        }
     }
 
-    // Continuation: the remaining lines with NO top margin/border/padding,
-    // keeping the original bottom decoration so the LAST fragment closes the box.
+    // Continuation: the remaining lines. Under `slice` it drops the top
+    // margin/border/padding (continuing the open box) and keeps the original
+    // bottom decoration so the LAST fragment closes it; under `clone` it keeps
+    // the FULL decoration so the fragment is independently wrapped.
     let mut rest = element.clone();
     if let LayoutElement::TextBlock {
         lines: r_lines,
@@ -530,9 +549,11 @@ fn split_text_block(
     } = &mut rest
     {
         *r_lines = lines[idx..].to_vec();
-        *r_mt = 0.0;
-        *r_pt = 0.0;
-        r_border.top.width = 0.0;
+        if !clone {
+            *r_mt = 0.0;
+            *r_pt = 0.0;
+            r_border.top.width = 0.0;
+        }
     }
 
     Some((first, rest))
@@ -632,6 +653,164 @@ fn split_image_block(
         *r_crop = Some([bx, by + slice_src_h, bw, bh - slice_src_h]);
         // `flow_extra_bottom` and `margin_bottom` stay on the continuation so the
         // final fragment keeps the original strut / bottom margin.
+    }
+
+    Some((first, rest))
+}
+
+/// Split a too-tall in-flow `Container` between its children (CSS Fragmentation 3
+/// §3, class-A break point) so its first fragment fills the remaining
+/// fragmentainer height and the rest continues on the next page.
+/// `avail_below_box_top` is the page height still available below this box's
+/// *border-box top* on the current page.
+///
+/// Returns `(first_fragment, continuation)`. Under `box-decoration-break: slice`
+/// (the default) the first fragment keeps the box's TOP border/padding but drops
+/// its bottom border/padding/margin (the box stays open at the page bottom), and
+/// the continuation drops its top margin/border/padding while keeping the bottom
+/// so the LAST fragment closes the box. Under `clone` EVERY fragment is
+/// independently wrapped with the full border/padding/margin and background.
+///
+/// Returns `None` — so the caller places the box whole, the pre-existing
+/// (possibly-overflowing) behavior — for any container that cannot be cleanly
+/// split between children: a definite-`height`/clipped (overflow) box, a
+/// positioned or floated box, or one with fewer than two children (no
+/// between-children boundary). The split always keeps at least the first child on
+/// this page (forward progress) and the continuation strictly fewer children than
+/// the original, so re-enqueuing it terminates. A first child that is itself
+/// taller than the fragment is left intact in the first fragment (it may overflow,
+/// exactly as today) rather than recursing into it.
+fn split_container(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::Container {
+        children,
+        border,
+        padding_top,
+        padding_bottom,
+        block_height,
+        overflow,
+        position,
+        float,
+        box_decoration_break,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    // Only a plain, auto-height, in-flow container is splittable here. A definite
+    // `height` or `overflow` clip makes it a hard-sized/monolithic box; a
+    // positioned/floated box is out of normal flow; a box with < 2 children has
+    // no class-A break point between children.
+    if block_height.is_some()
+        || overflow.clips()
+        || *position != Position::Static
+        || *float != Float::None
+        || children.len() < 2
+    {
+        return None;
+    }
+
+    // Any out-of-flow (absolutely positioned) child is anchored, not flowed, so it
+    // must not become a break boundary or move to the continuation independently.
+    // Keep the split path to the simple all-in-flow case; anything else is placed
+    // whole (unchanged behavior).
+    if children.iter().any(element_is_absolute) {
+        return None;
+    }
+
+    let clone = *box_decoration_break == BoxDecorationBreak::Clone;
+
+    // Content-box height available for children on this page: below the box's
+    // border-box top, minus the top border + top padding (and, under `clone`, the
+    // bottom border + bottom padding the fragment also carries).
+    let avail_children = if clone {
+        avail_below_box_top - border.vertical_width() - padding_top - padding_bottom
+    } else {
+        avail_below_box_top - border.top.width - padding_top
+    };
+
+    // The page-fit check that brought us here sums the children's outer heights
+    // WITHOUT adjacent-sibling margin collapse, so a box whose children collapse
+    // (CSS 2.1 §8.3.1) is over-measured and can look like it overflows when it
+    // actually fits. Re-measure with the collapsed model the renderer uses
+    // (`simulate_block_flow`): if the children genuinely fit, the box is not
+    // overflowing — place it whole (unchanged behaviour) rather than spuriously
+    // fragmenting a box that lands on a single page in Chrome.
+    const FRAG_EPSILON: f32 = 0.5;
+    if simulate_block_flow(children).height <= avail_children + FRAG_EPSILON {
+        return None;
+    }
+
+    // Greedily keep whole children that fit, always retaining at least the first
+    // (forward progress). Children heights are summed the same way the container's
+    // own auto height is measured in `paginate` (plain outer-height sum), so the
+    // boundary the fit-decision saw and the boundary we cut at agree.
+    let mut acc = 0.0f32;
+    let mut idx = 0usize;
+    for (i, child) in children.iter().enumerate() {
+        let next = acc + estimate_element_height(child);
+        if i > 0 && next > avail_children {
+            break;
+        }
+        acc = next;
+        idx = i + 1;
+    }
+    if idx == 0 || idx >= children.len() {
+        // No children, or every child fits (nothing to move to a continuation).
+        return None;
+    }
+
+    // First fragment: the children that fit, with the box's top decoration. Under
+    // `slice` drop the bottom border/padding/margin (box stays open at the page
+    // bottom); under `clone` keep the full decoration so the fragment closes.
+    let mut first = element.clone();
+    if let LayoutElement::Container {
+        children: f_children,
+        margin_bottom: f_mb,
+        padding_bottom: f_pb,
+        border: f_border,
+        block_height: f_bh,
+        ..
+    } = &mut first
+    {
+        *f_children = children[..idx].to_vec();
+        if !clone {
+            *f_mb = 0.0;
+            *f_pb = 0.0;
+            f_border.bottom.width = 0.0;
+            // A box that continues onto the next fragmentainer occupies the FULL
+            // remaining height of THIS one: its background and left/right borders
+            // extend to the page bottom even though the children only fill part of
+            // it (css-break-3 — the box is sliced at the fragmentainer edge, not
+            // shrink-wrapped to the children that landed on this page). Pin the
+            // first fragment's border-box height to that remaining space so the
+            // background/side-borders reach the page bottom, matching Chrome. The
+            // last fragment keeps auto height (block_height stays None) so it ends
+            // at its natural content + bottom decoration.
+            *f_bh = Some(avail_below_box_top);
+        }
+    }
+
+    // Continuation: the remaining children. Under `slice` drop the top
+    // margin/border/padding (the open box continues) and keep the bottom so the
+    // LAST fragment closes it; under `clone` keep the full decoration.
+    let mut rest = element.clone();
+    if let LayoutElement::Container {
+        children: r_children,
+        margin_top: r_mt,
+        padding_top: r_pt,
+        border: r_border,
+        ..
+    } = &mut rest
+    {
+        *r_children = children[idx..].to_vec();
+        if !clone {
+            *r_mt = 0.0;
+            *r_pt = 0.0;
+            r_border.top.width = 0.0;
+        }
     }
 
     Some((first, rest))
@@ -1216,9 +1395,12 @@ pub(crate) fn paginate(
         {
             let avail_below_box_top = content_height - (y + effective_margin_top);
             // A too-tall text block splits at a line boundary; a too-tall raster
-            // image slices at the page edge (each page embeds only its slice).
+            // image slices at the page edge (each page embeds only its slice); a
+            // too-tall container splits between its children, re-enqueuing the
+            // continuation so it resumes on the next page.
             let split = split_text_block(&element, avail_below_box_top)
-                .or_else(|| split_image_block(&element, avail_below_box_top));
+                .or_else(|| split_image_block(&element, avail_below_box_top))
+                .or_else(|| split_container(&element, avail_below_box_top));
             if let Some((first, rest)) = split {
                 // Place the first fragment at the (margin-adjusted) cursor; it
                 // fills the remainder of this page.

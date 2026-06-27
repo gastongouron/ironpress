@@ -1387,6 +1387,7 @@ pub(crate) fn layout_grid_container(
     }
 
     output.push(LayoutElement::Container {
+        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
         children: grid_children,
         background_color: bg,
         border: LayoutBorder::from_computed(&style.border),

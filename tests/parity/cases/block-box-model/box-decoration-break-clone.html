@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* `box-decoration-break: clone` on a tall bordered box that spans a page
+     break. Unlike `slice`, EACH page fragment is independently wrapped with the
+     FULL border + padding + background: page 1 is closed (top AND bottom border)
+     and page 2 is closed (top AND bottom border) too. */
+  @page { size: 340px 240px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .box {
+    width: 260px;
+    background: #d9ead9;
+    border: 10px solid #14401b;
+    padding: 14px;
+    box-decoration-break: clone;
+  }
+  /* Atomic children so both engines break BETWEEN children, not inside one. */
+  .row { height: 64px; break-inside: avoid; }
+  .a { background: #2e9e5b; }
+  .b { background: #2d6cdf; }
+  .c { background: #b048c4; }
+  .d { background: #e08a1e; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="row a"></div>
+    <div class="row b"></div>
+    <div class="row c"></div>
+    <div class="row d"></div>
+  </div>
+</body>
+</html>

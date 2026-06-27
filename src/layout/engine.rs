@@ -458,6 +458,10 @@ pub enum LayoutElement {
         background_blend_mode: crate::style::computed::BlendMode,
         float: Float,
         clear: Clear,
+        /// CSS `box-decoration-break`: `Clone` re-wraps each page fragment with
+        /// the full border/padding/margin and background; `Slice` (default)
+        /// opens the box at the break (see `split_text_block`).
+        box_decoration_break: crate::style::computed::BoxDecorationBreak,
         position: Position,
         offset_top: f32,
         offset_left: f32,
@@ -705,6 +709,10 @@ pub enum LayoutElement {
         /// CSS `clear`: pushes this in-flow container below preceding floats on
         /// the relevant side(s) when it is itself in normal flow.
         clear: Clear,
+        /// CSS `box-decoration-break`: `Clone` re-wraps each page fragment of a
+        /// split container with the full border/padding/margin and background;
+        /// `Slice` (default) opens the box at the break (see `split_container`).
+        box_decoration_break: crate::style::computed::BoxDecorationBreak,
         position: Position,
         offset_top: f32,
         offset_left: f32,
@@ -767,6 +775,7 @@ impl LayoutElement {
     /// margin fields they need.
     pub(crate) fn empty_spacer() -> Self {
         LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines: Vec::new(),
             margin_top: 0.0,
             margin_bottom: 0.0,
@@ -1042,6 +1051,7 @@ pub fn layout_with_rules_and_fonts(
                 clip: background_clip,
             } = BackgroundFields::from_style(page_bg);
             elements.push(LayoutElement::TextBlock {
+                box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                 lines: vec![],
                 margin_top: 0.0,
                 margin_bottom: 0.0,
@@ -1119,6 +1129,7 @@ pub fn layout_with_rules_and_fonts(
         let bp_top = parent_style.padding.top;
         let bp_bottom = parent_style.padding.bottom;
         elements.push(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines: vec![],
             margin_top: 0.0,
             margin_bottom: 0.0,
@@ -1339,6 +1350,7 @@ fn flatten_nodes(
                     );
                     if !lines.is_empty() {
                         output.push(LayoutElement::TextBlock {
+                            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                             lines,
                             margin_top: 0.0,
                             margin_bottom: 0.0,
@@ -1642,6 +1654,7 @@ pub(crate) fn flatten_element(
             x_offset: 0.0,
         };
         output.push(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines: vec![line],
             margin_top: 0.0,
             margin_bottom: 0.0,
@@ -1855,6 +1868,7 @@ pub(crate) fn flatten_element(
         } = BackgroundFields::from_style(&style);
 
         output.push(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines,
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
@@ -2012,6 +2026,7 @@ pub(crate) fn flatten_element(
         );
 
         output.push(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines,
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
@@ -2573,6 +2588,7 @@ pub(crate) fn flatten_element(
                 clip: background_clip,
             } = BackgroundFields::from_style(&style);
             output.push(LayoutElement::TextBlock {
+                box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                 lines,
                 margin_top: style.margin.top + extra_margin_top,
                 margin_bottom: style.margin.bottom + extra_margin_bottom,
@@ -5550,6 +5566,7 @@ mod tests {
     fn paginate_repeats_only_synthetic_page_background() {
         let make_block =
             |position, z_index, repeat_on_each_page, height| LayoutElement::TextBlock {
+                box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                 lines: Vec::new(),
                 margin_top: 0.0,
                 margin_bottom: 0.0,
@@ -5688,6 +5705,7 @@ mod tests {
     #[test]
     fn synthetic_page_background_sorts_before_more_negative_layers() {
         let make_block = |z_index, repeat_on_each_page| LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines: Vec::new(),
             margin_top: 0.0,
             margin_bottom: 0.0,
@@ -10613,6 +10631,7 @@ line 3</pre>
         };
 
         let mut elements = vec![LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines: vec![],
             margin_top: 0.0,
             margin_bottom: 0.0,

@@ -517,6 +517,7 @@ pub(crate) fn layout_block_element(
             clip: background_clip,
         } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
+            box_decoration_break: style.box_decoration_break,
             lines,
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
@@ -768,6 +769,7 @@ pub(crate) fn layout_block_element(
                     )
                 });
                 output.push(LayoutElement::TextBlock {
+                    box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                     lines: Vec::new(),
                     margin_top: style.margin.top,
                     margin_bottom: 0.0,
@@ -835,6 +837,7 @@ pub(crate) fn layout_block_element(
                 };
                 if pullback > 0.0 {
                     output.push(LayoutElement::TextBlock {
+                        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                         lines: Vec::new(),
                         margin_top: -pullback,
                         margin_bottom: 0.0,
@@ -1029,6 +1032,7 @@ pub(crate) fn layout_block_element(
                     style.padding.bottom + style.border.vertical_width() + style.margin.bottom;
                 if bottom_space > 0.0 {
                     output.push(LayoutElement::TextBlock {
+                        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
                         lines: Vec::new(),
                         margin_top: bottom_space,
                         margin_bottom: 0.0,
@@ -1374,6 +1378,7 @@ pub(crate) fn layout_block_element(
         // (otherwise the border/background/indent would be drawn twice — once on
         // the Container and again around the inline text).
         let inline_tb = LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             lines,
             margin_top: if has_block_kids_for_wrapper {
                 0.0
@@ -1939,6 +1944,7 @@ pub(crate) fn layout_block_element(
         // Emit a Container element with true parent-child nesting.
         // The renderer draws background/border, then renders children inside.
         output.push(LayoutElement::Container {
+            box_decoration_break: style.box_decoration_break,
             children: child_elements,
             background_color: bg,
             border: LayoutBorder::from_computed(&style.border),

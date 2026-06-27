@@ -744,5 +744,56 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "container-splits-across-pages",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "container-split-across-pages",
+    "description": "A bordered, padded, background-filled container with nine child blocks is far taller than the 240px page and FRAGMENTS across three pages (CSS Fragmentation 3 §3, class-A break between children). Under the default box-decoration-break:slice the box is sliced at each page edge: page 1 keeps the TOP border (open at the bottom), the middle page has NO top/bottom border (only the left/right edges), and the last page keeps the BOTTOM border (open at the top). The multi-page harness asserts the page COUNT (3) and diffs every page, so any clipping or mis-placed border fails — the first fixture that validates container fragmentation (splitting a box between its children), not just a single text block.",
+    "file": "cases/block-box-model/container-splits-across-pages.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-decoration-break-slice",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "box-decoration-break-slice",
+    "description": "Explicit box-decoration-break:slice (the default) on a tall bordered, padded box that spans a page break. Page 1 carries the TOP border and is OPEN at the page bottom; page 2 carries the BOTTOM border and is OPEN at the top. Pins the slice decoration model independently of the default-driven container-splits case.",
+    "file": "cases/block-box-model/box-decoration-break-slice.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-decoration-break-clone",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "box-decoration-break-clone",
+    "description": "box-decoration-break:clone on a tall bordered, padded box that spans a page break. Unlike slice, EACH page fragment is independently wrapped with the FULL border + padding + background, so both pages show a box closed on all four sides. ironpress implements the css-break-3 §6.2 clone model; the multi-page harness asserts the page COUNT (2) and diffs every page.",
+    "file": "cases/block-box-model/box-decoration-break-clone.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

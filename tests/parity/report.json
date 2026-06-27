@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.13,
-    "pass": 610,
+    "score_pct": 97.15,
+    "pass": 613,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 628,
+    "total": 631,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -6493,7 +6493,7 @@
       "category": "block-box-model",
       "score_pct": 100.0,
       "counts": {
-        "pass": 44,
+        "pass": 47,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -7357,12 +7357,246 @@
           "feature": "fragmentation",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 4,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "box-decoration-break-clone",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "box-decoration-break-clone",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "box-decoration-break:clone on a tall bordered, padded box that spans a page break. Unlike slice, EACH page fragment is independently wrapped with the FULL border + padding + background, so both pages show a box closed on all four sides. ironpress implements the css-break-3 §6.2 clone model; the multi-page harness asserts the page COUNT (2) and diffs every page.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "7fefb6b008d7987912358daf433945aa03233b69b3ea71866c30648b74ab93fb",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "box-decoration-break-slice",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "box-decoration-break-slice",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Explicit box-decoration-break:slice (the default) on a tall bordered, padded box that spans a page break. Page 1 carries the TOP border and is OPEN at the page bottom; page 2 carries the BOTTOM border and is OPEN at the top. Pins the slice decoration model independently of the default-driven container-splits case.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "7cd13e0ea9f1ba76654125cc3bba35c79ce4b234186505efbfc36edc1bb6ae25",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "container-splits-across-pages",
+              "category": "block-box-model",
+              "feature": "fragmentation",
+              "subfeature": "container-split-across-pages",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A bordered, padded, background-filled container with nine child blocks is far taller than the 240px page and FRAGMENTS across three pages (CSS Fragmentation 3 §3, class-A break between children). Under the default box-decoration-break:slice the box is sliced at each page edge: page 1 keeps the TOP border (open at the bottom), the middle page has NO top/bottom border (only the left/right edges), and the last page keeps the BOTTOM border (open at the top). The multi-page harness asserts the page COUNT (3) and diffs every page, so any clipping or mis-placed border fails — the first fixture that validates container fragmentation (splitting a box between its children), not just a single text block.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "6dab51bcd15e2f81a1f825cd87cb64ce0fe19bebaa1e07140f98f27b1e37aaa2",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paragraph-splits-across-pages",
               "category": "block-box-model",
@@ -84765,7 +84999,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 533,
+    "implemented": 536,
     "partial": 38,
     "unsupported": 57
   },
