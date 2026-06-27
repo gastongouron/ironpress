@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.17,
-    "pass": 619,
+    "score_pct": 97.19,
+    "pass": 622,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 637,
+    "total": 640,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -59823,7 +59823,7 @@
       "category": "paged-media",
       "score_pct": 100.0,
       "counts": {
-        "pass": 15,
+        "pass": 18,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -60349,12 +60349,520 @@
           "feature": "orphans-widows",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 4,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "orphans-3",
+              "category": "paged-media",
+              "feature": "orphans-widows",
+              "subfeature": "orphans-3",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 2.5162,
+              "weight": 1.0,
+              "description": "orphans:3 requires at least three line boxes at the bottom of a fragment before a break. The five-line paragraph fragments across two pages; the break leaves 3 lines on page 1 and 2 on page 2 (Chrome). The harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "a4f7e9114c7c6dccfed846b413b5a6b1cd59a8649b06812cdf129d0a1813f6d4",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    -0.32,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    8,
+                    8,
+                    7
+                  ],
+                  "delta_e": 5.1718428373643555,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.32
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      139.84,
+                      12.16,
+                      149.44,
+                      12.48
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      192.32,
+                      12.16,
+                      201.92,
+                      12.48
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      139.84,
+                      48.0,
+                      149.44,
+                      48.32
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      139.84,
+                      84.16,
+                      149.44,
+                      84.48
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      196.16,
+                      84.16,
+                      205.76,
+                      84.48
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      210.88,
+                      84.16,
+                      220.48,
+                      84.48
+                    ],
+                    "area_pct": 0.015488192673116854,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.32
+                ],
+                "confidence": 0.7685562805872757
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 3.15% interiorΔE 0.00",
+                  "magnitude": 3.1510272071071626
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "orphans-widows-default",
+              "category": "paged-media",
+              "feature": "orphans-widows",
+              "subfeature": "default-2-real-fragmentation",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 2.6066,
+              "weight": 1.0,
+              "description": "A five-line paragraph taller than the @page content box (which fits four lines) is fragmented across two pages. With the initial orphans:2/widows:2, a naive greedy fill (4 lines on page 1, a single widow on page 2) is corrected so each fragment keeps >=2 lines: Chrome puts 3 lines on page 1 and 2 on page 2. The multi-page harness asserts the page COUNT (2) and diffs both pages — a real orphans/widows test, not a single-page no-op.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "50943d0ee19d0e6cf13f1cca1cf8dafba0757b7b34a991983b4afeb63d10aed6",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [
+                  "ColorValue"
+                ],
+                "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    -0.32,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    8,
+                    8,
+                    7
+                  ],
+                  "delta_e": 5.124097806984315,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.32
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      19.52,
+                      12.16,
+                      29.12,
+                      12.48
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      125.12,
+                      12.16,
+                      134.72,
+                      12.48
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      177.28,
+                      12.16,
+                      186.88,
+                      12.48
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      19.52,
+                      48.0,
+                      29.12,
+                      48.32
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      125.12,
+                      48.0,
+                      134.72,
+                      48.32
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      19.52,
+                      84.16,
+                      29.12,
+                      84.48
+                    ],
+                    "area_pct": 0.017407860737114103,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.32
+                ],
+                "confidence": 0.802592676825108
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 2.55% interiorΔE 0.00",
+                  "magnitude": 2.551065393093314
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paged-orphans-widows",
               "category": "paged-media",
@@ -60598,6 +61106,258 @@
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.35% interiorΔE 0.00",
                   "magnitude": 0.3484338938344873
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "widows-3",
+              "category": "paged-media",
+              "feature": "orphans-widows",
+              "subfeature": "widows-3",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 3.3729,
+              "weight": 1.0,
+              "description": "widows:3 requires at least three line boxes at the top of the next fragment after a break. The five-line paragraph fragments across two pages; the break moves earlier so the continuation starts with 3 lines, leaving 2 on page 1 (Chrome). The harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-text-baseline"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "595918522113c8164d3031512d2527cbe15990315f1f984f6cad5d34af63b3bb",
+              "diagnosis": {
+                "primary_class": "GeometryShift",
+                "secondary": [],
+                "headline": "content shifted (0.0,-0.3)px beyond page-origin calibration",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    -0.32,
+                    -0.32
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    -8,
+                    -8,
+                    -8
+                  ],
+                  "delta_e": 4.8918291632197874,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    -0.32
+                  ],
+                  "colorspace": null
+                },
+                "regions": [
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      130.88,
+                      12.16,
+                      140.48,
+                      12.48
+                    ],
+                    "area_pct": 0.030802402587401818,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      183.04,
+                      12.16,
+                      192.64,
+                      12.48
+                    ],
+                    "area_pct": 0.030802402587401818,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      130.88,
+                      48.0,
+                      140.48,
+                      48.32
+                    ],
+                    "area_pct": 0.030802402587401818,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      9,
+                      9,
+                      9
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.32
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      130.88,
+                      10.24,
+                      138.56,
+                      10.56
+                    ],
+                    "area_pct": 0.025026952102263977,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      -16,
+                      -16,
+                      -16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.2944
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      183.04,
+                      10.24,
+                      190.72,
+                      10.56
+                    ],
+                    "area_pct": 0.025026952102263977,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      -16,
+                      -16,
+                      -16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.2944
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  },
+                  {
+                    "class": "GeometryShift",
+                    "bbox_css": [
+                      130.88,
+                      46.08,
+                      138.56,
+                      46.4
+                    ],
+                    "area_pct": 0.025026952102263977,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      -0.32,
+                      -0.32
+                    ],
+                    "modal_drgb": [
+                      -16,
+                      -16,
+                      -16
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.0,
+                      0.2944
+                    ],
+                    "selector": null,
+                    "headline": "content shifted (0.0,0.3)px beyond page-origin calibration"
+                  }
+                ],
+                "residual_shift_css": [
+                  0.0,
+                  -0.32
+                ],
+                "confidence": 0.8184931506849316
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.32css shift 0.00css",
+                  "magnitude": 0.32
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 2.85% interiorΔE 0.00",
+                  "magnitude": 2.8526575465350974
                 },
                 {
                   "verifier": "RasterDiff",
@@ -85655,7 +86415,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 542,
+    "implemented": 545,
     "partial": 38,
     "unsupported": 57
   },

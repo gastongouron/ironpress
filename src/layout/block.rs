@@ -518,6 +518,8 @@ pub(crate) fn layout_block_element(
         } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
             box_decoration_break: style.box_decoration_break,
+            orphans: style.orphans,
+            widows: style.widows,
             lines,
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
@@ -770,6 +772,8 @@ pub(crate) fn layout_block_element(
                 });
                 output.push(LayoutElement::TextBlock {
                     box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                    orphans: 2,
+                    widows: 2,
                     lines: Vec::new(),
                     margin_top: style.margin.top,
                     margin_bottom: 0.0,
@@ -838,6 +842,8 @@ pub(crate) fn layout_block_element(
                 if pullback > 0.0 {
                     output.push(LayoutElement::TextBlock {
                         box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                        orphans: 2,
+                        widows: 2,
                         lines: Vec::new(),
                         margin_top: -pullback,
                         margin_bottom: 0.0,
@@ -1033,6 +1039,8 @@ pub(crate) fn layout_block_element(
                 if bottom_space > 0.0 {
                     output.push(LayoutElement::TextBlock {
                         box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                        orphans: 2,
+                        widows: 2,
                         lines: Vec::new(),
                         margin_top: bottom_space,
                         margin_bottom: 0.0,
@@ -1379,6 +1387,8 @@ pub(crate) fn layout_block_element(
         // the Container and again around the inline text).
         let inline_tb = LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: style.orphans,
+            widows: style.widows,
             lines,
             margin_top: if has_block_kids_for_wrapper {
                 0.0

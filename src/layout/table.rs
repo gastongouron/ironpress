@@ -1611,6 +1611,8 @@ pub(crate) fn flatten_table(
         };
         let bg_block = LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines: Vec::new(),
             margin_top: bg_margin_top,
             margin_bottom: -(box_height + table_border.vertical_width()),
@@ -1748,6 +1750,8 @@ pub(crate) fn flatten_table(
         };
         let caption_block = LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines: caption_lines,
             margin_top: caption_margin_top,
             margin_bottom: caption_margin_bottom,

@@ -357,6 +357,8 @@ pub(crate) fn layout_flex_container(
             } = BackgroundFields::from_style(style);
             output.push(LayoutElement::TextBlock {
                 box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                orphans: 2,
+                widows: 2,
                 lines: Vec::new(),
                 margin_top: style.margin.top,
                 margin_bottom: style.margin.bottom,
@@ -1029,6 +1031,8 @@ pub(crate) fn layout_flex_container(
         } = BackgroundFields::from_style(&child_style);
         let elem = LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines,
             margin_top: child_style.margin.top,
             margin_bottom: child_style.margin.bottom,
@@ -1492,6 +1496,8 @@ pub(crate) fn layout_flex_container(
         } = BackgroundFields::from_style(style);
         output.push(LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines: Vec::new(),
             margin_top: style.margin.top,
             margin_bottom: 0.0,
@@ -1566,6 +1572,8 @@ pub(crate) fn layout_flex_container(
         } = BackgroundFields::none();
         output.push(LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines: Vec::new(),
             margin_top: -bg_flow_height,
             margin_bottom: 0.0,
@@ -2644,6 +2652,8 @@ pub(crate) fn layout_flex_container(
                             };
                             output.push(LayoutElement::TextBlock {
                                 box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                                orphans: 2,
+                                widows: 2,
                                 lines: tb_lines.clone(),
                                 margin_top: if y == 0.0 && !emitted_column_bg {
                                     style.margin.top
@@ -2877,6 +2887,8 @@ pub(crate) fn layout_flex_container(
     if trailing > 0.0 {
         output.push(LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines: Vec::new(),
             margin_top: trailing,
             margin_bottom: 0.0,

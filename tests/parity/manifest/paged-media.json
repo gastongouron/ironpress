@@ -208,5 +208,47 @@
     "depends_on": ["probe-fill-box", "probe-border-box"],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "orphans-widows-default",
+    "category": "paged-media",
+    "feature": "orphans-widows",
+    "subfeature": "default-2-real-fragmentation",
+    "description": "A five-line paragraph taller than the @page content box (which fits four lines) is fragmented across two pages. With the initial orphans:2/widows:2, a naive greedy fill (4 lines on page 1, a single widow on page 2) is corrected so each fragment keeps >=2 lines: Chrome puts 3 lines on page 1 and 2 on page 2. The multi-page harness asserts the page COUNT (2) and diffs both pages — a real orphans/widows test, not a single-page no-op.",
+    "file": "cases/paged-media/orphans-widows-default.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-text-baseline"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "orphans-3",
+    "category": "paged-media",
+    "feature": "orphans-widows",
+    "subfeature": "orphans-3",
+    "description": "orphans:3 requires at least three line boxes at the bottom of a fragment before a break. The five-line paragraph fragments across two pages; the break leaves 3 lines on page 1 and 2 on page 2 (Chrome). The harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/orphans-3.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-text-baseline"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "widows-3",
+    "category": "paged-media",
+    "feature": "orphans-widows",
+    "subfeature": "widows-3",
+    "description": "widows:3 requires at least three line boxes at the top of the next fragment after a break. The five-line paragraph fragments across two pages; the break moves earlier so the continuation starts with 3 lines, leaving 2 on page 1 (Chrome). The harness asserts the page COUNT (2) and diffs both pages.",
+    "file": "cases/paged-media/widows-3.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-text-baseline"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

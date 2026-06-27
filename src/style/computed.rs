@@ -1335,6 +1335,15 @@ pub struct ComputedStyle {
     /// CSS `box-decoration-break`: how borders/padding/margin/background are
     /// applied across a fragmentation break. Not inherited.
     pub box_decoration_break: BoxDecorationBreak,
+    /// CSS `orphans` (css-break-3 §3.4): minimum number of line boxes that must
+    /// be left at the BOTTOM of a fragment before a break. Positive integer,
+    /// initial 2, inherited. Applies to block containers with an inline
+    /// formatting context.
+    pub orphans: u8,
+    /// CSS `widows` (css-break-3 §3.4): minimum number of line boxes that must
+    /// be placed at the TOP of the next fragment after a break. Positive
+    /// integer, initial 2, inherited.
+    pub widows: u8,
     pub position: Position,
     pub top: Option<f32>,
     pub right: Option<f32>,
@@ -1688,6 +1697,8 @@ impl Default for ComputedStyle {
             float: Float::None,
             clear: Clear::None,
             box_decoration_break: BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             position: Position::Static,
             top: None,
             right: None,
@@ -2394,6 +2405,8 @@ fn is_inherited_property(property: &str) -> bool {
             | "list-style-type"
             | "list-style-position"
             | "list-style-image"
+            | "orphans"
+            | "widows"
     )
 }
 
@@ -2487,6 +2500,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "float" => style.float = default.float,
         "clear" => style.clear = default.clear,
         "box-decoration-break" => style.box_decoration_break = default.box_decoration_break,
+        "orphans" => style.orphans = default.orphans,
+        "widows" => style.widows = default.widows,
         "position" => style.position = default.position,
         "top" => {
             style.top = default.top;
@@ -2662,6 +2677,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "float" => style.float = parent.float,
         "clear" => style.clear = parent.clear,
         "box-decoration-break" => style.box_decoration_break = parent.box_decoration_break,
+        "orphans" => style.orphans = parent.orphans,
+        "widows" => style.widows = parent.widows,
         "position" => style.position = parent.position,
         "top" => {
             style.top = parent.top;
@@ -4489,6 +4506,22 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // z-index
     if let Some(CssValue::Number(v)) = get_non_special(map, "z-index") {
         style.z_index = *v as i32;
+    }
+
+    // orphans / widows (css-break-3 §3.4): positive <integer>, initial 2,
+    // inherited. A zero or negative value is invalid and ignored (keeps the
+    // inherited/initial value), matching Chrome.
+    if let Some(CssValue::Number(v)) = get_non_special(map, "orphans") {
+        let n = *v as i32;
+        if n >= 1 {
+            style.orphans = n.min(u8::MAX as i32) as u8;
+        }
+    }
+    if let Some(CssValue::Number(v)) = get_non_special(map, "widows") {
+        let n = *v as i32;
+        if n >= 1 {
+            style.widows = n.min(u8::MAX as i32) as u8;
+        }
     }
 
     // Collect custom properties (--*) into style.custom_properties

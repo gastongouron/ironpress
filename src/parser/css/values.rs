@@ -584,6 +584,16 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return val.trim().parse::<f32>().ok().map(CssValue::Number);
     }
 
+    // orphans / widows (css-break-3 §3.4): a bare positive `<integer>` count of
+    // line boxes, kept as Number so `compute_style` reads it directly.
+    if property == "orphans" || property == "widows" {
+        return val
+            .trim()
+            .parse::<i32>()
+            .ok()
+            .map(|n| CssValue::Number(n as f32));
+    }
+
     // tab-size (css-text-3 §6.3): a bare `<number>` is a count of space
     // advances (kept as Number); a value with a unit is a `<length>`.
     if property == "tab-size" || property == "-moz-tab-size" {

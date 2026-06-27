@@ -396,6 +396,8 @@
   "opacity-half": "8afecfdf462300159d173cc23d73eafd8568b9a8fb4e8ba0d19eed599c114552",
   "opacity-nested-group": "81e5b5532ccb9fdb9e53c64ee2c6a8ce2482b208912688ed72b1499c88ae67bc",
   "opacity-zero": "f7b43475290e65daa944a2b277ec2d6248d86f112980c9e0b63f93a965204ab7",
+  "orphans-3": "a4f7e9114c7c6dccfed846b413b5a6b1cd59a8649b06812cdf129d0a1813f6d4",
+  "orphans-widows-default": "50943d0ee19d0e6cf13f1cca1cf8dafba0757b7b34a991983b4afeb63d10aed6",
   "outline-offset-negative": "a9f048fb98e69d03ecc583ff90b556960a32067bcf362acfdc1303a41fd0fcab",
   "outline-solid": "bd9a74541b55a82ea2e408dd9b45bfce389ee530828542283fc258c50f3e0ade",
   "overflow-clip": "92ff591e3b52b6e8a280633b33c48ed219c581b7be80354c1deb2200f29ff3bc",
@@ -635,5 +637,6 @@
   "units-viewport-vw-vh": "038f293d3e881d842fc53620a72d3748d0de474811d1437fadbb6577f635966a",
   "visibility-collapse-row": "564bab3b19e3fa998b42e728751414cd80d1f7b208d57bc592b7299dd6d7be07",
   "visibility-hidden": "744a6afe3a8dac8721ad30fed7fabccc4a70dc6ea27e309a2cd92740002eccce",
-  "visibility-visible-after-hidden": "3cf7359e5330083a978371d33fba4adf8596bbc10915e3cb3a58aee676c80375"
+  "visibility-visible-after-hidden": "3cf7359e5330083a978371d33fba4adf8596bbc10915e3cb3a58aee676c80375",
+  "widows-3": "595918522113c8164d3031512d2527cbe15990315f1f984f6cad5d34af63b3bb"
 }

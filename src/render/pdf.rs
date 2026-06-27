@@ -13425,6 +13425,8 @@ mod tests {
     fn test_text_block(lines: Vec<TextLine>) -> LayoutElement {
         LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
             lines,
             margin_top: 0.0,
             margin_bottom: 0.0,

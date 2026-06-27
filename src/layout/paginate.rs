@@ -463,6 +463,8 @@ fn split_text_block(
         padding_top,
         padding_bottom,
         box_decoration_break,
+        orphans,
+        widows,
         ..
     } = element
     else {
@@ -513,6 +515,29 @@ fn split_text_block(
     if idx == 0 || idx >= lines.len() {
         // Every line fits (no overflow to split) or not even one would stay.
         return None;
+    }
+
+    // CSS Fragmentation 3 §3.4 (orphans / widows): a break between line N and
+    // N+1 is permitted only when at least `orphans` lines remain on this
+    // fragment (N >= orphans) AND at least `widows` lines move to the next
+    // ((total − N) >= widows). `idx` is the greedy maximum that *fits*, so it
+    // can only be REDUCED (move lines to the continuation) without overflowing;
+    // it cannot be increased (the extra lines do not fit). Reducing it satisfies
+    // widows. Orphans is then satisfied automatically when feasible — after the
+    // reduction `idx >= n − widows >= orphans` — and is unsatisfiable only when
+    // even the greedy maximum already keeps fewer than `orphans` lines (lines
+    // taller than the fragmentainer). `split_text_block` is reached only for a
+    // block taller than a full fragmentainer, so when the constraint cannot be
+    // honoured it is DROPPED (split greedily) to guarantee forward progress,
+    // exactly as the spec requires when a full page cannot satisfy it.
+    let orphans = (*orphans).max(1) as usize;
+    let widows = (*widows).max(1) as usize;
+    let n = lines.len();
+    if n >= orphans + widows {
+        let max_idx = n - widows;
+        if idx > max_idx {
+            idx = max_idx;
+        }
     }
 
     // First fragment: the lines that fit. Under `slice` it keeps the box's top
