@@ -9500,7 +9500,6 @@ fn render_inline_box(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn render_line_text(
     content: &mut String,
     runs: &[TextRun],
