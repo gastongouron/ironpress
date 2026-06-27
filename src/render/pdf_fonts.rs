@@ -995,7 +995,7 @@ mod tests {
 
     #[test]
     fn collect_font_usage_from_element_ignores_image() {
-        let element = LayoutElement::PageBreak;
+        let element = LayoutElement::PageBreak(Default::default());
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<String, FontUsage> = BTreeMap::new();
         collect_font_usage_from_element(&element, &fonts, &mut usage);

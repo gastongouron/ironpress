@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Modern CSS Fragmentation `break-after: page` on the FIRST block forces the
+     following content onto page 2 — a genuine two-page document. The multi-page
+     harness asserts the page COUNT (2) and diffs both pages. */
+  @page { size: 8.5in 11in; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .p1 { break-after: page; width: 420px; height: 220px; background: #d6336c; border: 4px solid #6b1733; }
+  .p2 { width: 300px; height: 160px; background: #f08c00; border: 4px solid #7a4500; }
+</style>
+</head>
+<body>
+  <div class="p1"></div>
+  <div class="p2"></div>
+</body>
+</html>

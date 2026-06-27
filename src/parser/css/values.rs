@@ -323,7 +323,12 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(lower));
     }
 
-    if property.starts_with("page-break") {
+    if property.starts_with("page-break")
+        || matches!(property, "break-before" | "break-after" | "break-inside")
+    {
+        // Legacy `page-break-*` and modern CSS Fragmentation 3 `break-*`
+        // keywords (`auto`/`avoid`/`page`/`left`/`right`/`recto`/`verso`) are
+        // preserved verbatim so the style resolver can map them.
         return Some(CssValue::Keyword(lower));
     }
 

@@ -399,6 +399,35 @@ pub struct RasterImageAsset {
 
 pub use super::context::*;
 
+/// Parity side carried by a forced `LayoutElement::PageBreak` (CSS Fragmentation
+/// 3 §3.1). `Any` is a plain forced break (`break-*: page` / legacy `always`);
+/// the sided values force the following content onto a left/right (verso/recto)
+/// page, with pagination inserting a blank page when the natural next page has
+/// the wrong parity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PageBreakSide {
+    #[default]
+    Any,
+    Left,
+    Right,
+    Recto,
+    Verso,
+}
+
+impl From<crate::style::computed::BreakValue> for PageBreakSide {
+    fn from(v: crate::style::computed::BreakValue) -> Self {
+        use crate::style::computed::BreakValue;
+        match v {
+            BreakValue::Left => PageBreakSide::Left,
+            BreakValue::Right => PageBreakSide::Right,
+            BreakValue::Recto => PageBreakSide::Recto,
+            BreakValue::Verso => PageBreakSide::Verso,
+            // `page`/`always`, `avoid`, `auto` carry no parity requirement.
+            _ => PageBreakSide::Any,
+        }
+    }
+}
+
 /// A layout element ready for rendering.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant, dead_code)]
@@ -725,8 +754,9 @@ pub enum LayoutElement {
         /// container it is nested in.
         containing_block: Option<ContainingBlock>,
     },
-    /// A page break.
-    PageBreak,
+    /// A forced page break, carrying the requested page parity (CSS
+    /// Fragmentation 3 §3.1). `PageBreakSide::Any` is a plain break.
+    PageBreak(PageBreakSide),
 }
 
 impl LayoutElement {
@@ -2103,7 +2133,9 @@ pub(crate) fn flatten_element(
     }
 
     if style.page_break_before {
-        output.push(LayoutElement::PageBreak);
+        output.push(LayoutElement::PageBreak(PageBreakSide::from(
+            style.break_before,
+        )));
     }
 
     // Table handling
@@ -2841,7 +2873,9 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak);
+            output.push(LayoutElement::PageBreak(PageBreakSide::from(
+                style.break_after,
+            )));
         }
         return;
     }
@@ -2859,7 +2893,9 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak);
+            output.push(LayoutElement::PageBreak(PageBreakSide::from(
+                style.break_after,
+            )));
         }
         return;
     }
@@ -2881,7 +2917,9 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak);
+            output.push(LayoutElement::PageBreak(PageBreakSide::from(
+                style.break_after,
+            )));
         }
         return;
     }
@@ -2919,7 +2957,9 @@ fn route_element(
     }
 
     if style.page_break_after {
-        output.push(LayoutElement::PageBreak);
+        output.push(LayoutElement::PageBreak(PageBreakSide::from(
+            style.break_after,
+        )));
     }
 
     // Pop any counters that were pushed by counter-reset on this element.

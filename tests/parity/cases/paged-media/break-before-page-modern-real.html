@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Modern CSS Fragmentation `break-before: page` (NO legacy fallback) forces
+     the second box onto page 2, so the document is genuinely TWO pages. The
+     multi-page harness asserts the page COUNT (2) and diffs BOTH pages. This is
+     a single-page no-op until the engine parses the modern break-* family. */
+  @page { size: 8.5in 11in; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .p1 { width: 420px; height: 220px; background: #2d6cdf; border: 4px solid #11305f; }
+  .p2 { break-before: page; width: 300px; height: 160px; background: #4caf50; border: 4px solid #1b5e20; }
+</style>
+</head>
+<body>
+  <div class="p1"></div>
+  <div class="p2"></div>
+</body>
+</html>

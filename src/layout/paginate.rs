@@ -1,4 +1,6 @@
-use super::engine::{LayoutElement, Page, layout_element_paint_order, table_cell_content_height};
+use super::engine::{
+    LayoutElement, Page, PageBreakSide, layout_element_paint_order, table_cell_content_height,
+};
 use crate::style::computed::{BorderCollapse, Clear, Float, ObjectFit, Position};
 use std::collections::HashMap;
 
@@ -877,7 +879,24 @@ pub(crate) fn paginate(
 
         // Returns (content_height_without_margins, margin_top, margin_bottom)
         let (content_h_val, margin_top_val, margin_bottom_val) = match &element {
-            LayoutElement::PageBreak => {
+            LayoutElement::PageBreak(side) => {
+                // A forced break before any real content on the current page is
+                // ignored (CSS Fragmentation 3: a forced break at the very start
+                // of the fragmentation flow produces no leading blank page).
+                // Consecutive forced breaks likewise collapse to one. A page that
+                // holds only repeated page-background elements counts as empty.
+                let page_has_content = current_elements.iter().any(|(_, el)| {
+                    !matches!(
+                        el,
+                        LayoutElement::TextBlock {
+                            repeat_on_each_page: true,
+                            ..
+                        }
+                    )
+                });
+                if !page_has_content {
+                    continue;
+                }
                 let consumed_height = y;
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
@@ -885,6 +904,31 @@ pub(crate) fn paginate(
                 // Duplicate root background onto the new page.
                 for bg in &absolute_backgrounds {
                     current_elements.push(bg.clone());
+                }
+                // Sided break (`break-*: left|right|recto|verso`): force the
+                // following content onto a page of the requested parity. Page 1
+                // is a right/recto page (LTR), so odd 1-based pages are right and
+                // even are left. When the natural next page is the wrong side,
+                // insert ONE blank page (carrying any repeated background) so the
+                // content lands correctly.
+                if matches!(
+                    side,
+                    PageBreakSide::Left
+                        | PageBreakSide::Right
+                        | PageBreakSide::Recto
+                        | PageBreakSide::Verso
+                ) {
+                    let next_page_no = pages.len() + 1; // 1-based content page
+                    let wants_right =
+                        matches!(side, PageBreakSide::Right | PageBreakSide::Recto);
+                    let next_is_right = next_page_no % 2 == 1;
+                    if wants_right != next_is_right {
+                        let mut blank: Vec<(f32, LayoutElement)> = Vec::new();
+                        for bg in &absolute_backgrounds {
+                            blank.push(bg.clone());
+                        }
+                        pages.push(Page { elements: blank });
+                    }
                 }
                 y = 0.0;
                 prev_margin_bottom = 0.0;
@@ -1271,4 +1315,87 @@ pub(crate) fn paginate(
     }
 
     pages
+}
+
+#[cfg(test)]
+mod break_tests {
+    use super::*;
+
+    /// A fixed-height, in-flow content block (counts as "real content" for the
+    /// leading-blank-page suppression).
+    fn block(h: f32) -> LayoutElement {
+        let mut e = LayoutElement::empty_spacer();
+        if let LayoutElement::TextBlock { block_height, .. } = &mut e {
+            *block_height = Some(h);
+        }
+        e
+    }
+
+    fn brk(side: PageBreakSide) -> LayoutElement {
+        LayoutElement::PageBreak(side)
+    }
+
+    #[test]
+    fn forced_break_page_paginates() {
+        // Two blocks split by a plain forced break => two pages, one block each.
+        let pages = paginate(vec![block(100.0), brk(PageBreakSide::Any), block(100.0)], 1000.0, 0.0);
+        assert_eq!(pages.len(), 2);
+        assert_eq!(pages[0].elements.len(), 1);
+        assert_eq!(pages[1].elements.len(), 1);
+    }
+
+    #[test]
+    fn leading_forced_break_emits_no_blank_page() {
+        // A forced break before any real content is ignored (no leading blank).
+        let pages = paginate(vec![brk(PageBreakSide::Any), block(100.0)], 1000.0, 0.0);
+        assert_eq!(pages.len(), 1);
+        assert_eq!(pages[0].elements.len(), 1);
+    }
+
+    #[test]
+    fn consecutive_forced_breaks_collapse() {
+        // Two adjacent breaks between two blocks still yield exactly two pages.
+        let pages = paginate(
+            vec![
+                block(100.0),
+                brk(PageBreakSide::Any),
+                brk(PageBreakSide::Any),
+                block(100.0),
+            ],
+            1000.0,
+            0.0,
+        );
+        assert_eq!(pages.len(), 2);
+    }
+
+    #[test]
+    fn sided_break_right_inserts_blank_parity_page() {
+        // Content on page 1 (a right/recto page). `break-*: right` then forces the
+        // next content onto the next right page — page 2 would be a LEFT page, so a
+        // blank page is inserted and the content lands on page 3.
+        let pages = paginate(
+            vec![block(100.0), brk(PageBreakSide::Right), block(100.0)],
+            1000.0,
+            0.0,
+        );
+        assert_eq!(pages.len(), 3, "expected blank parity page");
+        assert!(
+            pages[1].elements.is_empty(),
+            "middle page should be the inserted blank"
+        );
+        assert_eq!(pages[2].elements.len(), 1);
+    }
+
+    #[test]
+    fn sided_break_left_needs_no_blank_when_next_is_left() {
+        // Content on page 1 (right). `break-*: left` wants a LEFT page; page 2 is
+        // already a left page, so no blank is inserted (2 pages total).
+        let pages = paginate(
+            vec![block(100.0), brk(PageBreakSide::Left), block(100.0)],
+            1000.0,
+            0.0,
+        );
+        assert_eq!(pages.len(), 2);
+        assert_eq!(pages[1].elements.len(), 1);
+    }
 }

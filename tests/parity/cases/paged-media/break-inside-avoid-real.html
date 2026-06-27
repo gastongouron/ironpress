@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A tall spacer fills most of page 1, leaving too little room for the card.
+     `break-inside: avoid` keeps the bordered card together, so Chrome pushes the
+     WHOLE card onto page 2 (it is NOT split across the boundary). The multi-page
+     harness asserts the page COUNT (2): page 1 = spacer, page 2 = intact card. */
+  @page { size: 360px 300px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .spacer { height: 220px; background: #e9ecef; border-bottom: 3px solid #868e96; }
+  .card {
+    break-inside: avoid;
+    width: 280px;
+    height: 160px;
+    background: #ffd166;
+    border: 6px solid #b8860b;
+  }
+  .card .bar {
+    height: 48px;
+    margin: 24px;
+    background: #ef476f;
+    border: 3px solid #7a1f33;
+  }
+</style>
+</head>
+<body>
+  <div class="spacer"></div>
+  <div class="card"><div class="bar"></div></div>
+</body>
+</html>

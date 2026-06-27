@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.12,
-    "pass": 607,
+    "score_pct": 97.13,
+    "pass": 610,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 625,
+    "total": 628,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -58934,14 +58934,14 @@
       "category": "paged-media",
       "score_pct": 100.0,
       "counts": {
-        "pass": 12,
+        "pass": 15,
         "partial": 0,
         "fail": 0,
         "unknown": 0
       },
       "features": [
         {
-          "feature": "break-before",
+          "feature": "break-after",
           "score_pct": 100.0,
           "counts": {
             "pass": 1,
@@ -58950,6 +58950,174 @@
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "break-after-page-modern",
+              "category": "paged-media",
+              "feature": "break-after",
+              "subfeature": "page-modern-real-pagination",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Modern CSS Fragmentation break-after:page on the first block forces the following content onto page 2 — a genuine TWO-page document. The multi-page harness asserts the page COUNT (2) and diffs both pages.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "fcb4d77e4b16c0854bb0d6b03629eba2af5381dae0f2a85ccbd7c0e0a65f65e5",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "break-before",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 2,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "break-before-page-modern-real",
+              "category": "paged-media",
+              "feature": "break-before",
+              "subfeature": "page-modern-real-pagination",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Modern CSS Fragmentation break-before:page (no legacy fallback) on the second block forces it onto page 2 — a genuine TWO-page document. The multi-page harness asserts the page COUNT (2) and diffs both pages (page 1 = blue box, page 2 = green box). Proves the modern break-* family is now parsed and wired into the forced-break path.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "c779ef52049b9da660d480bb020ee3efd5ac23ad044339abf9fd90b7b6869ca4",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paged-break-before-page-modern",
               "category": "paged-media",
@@ -58960,14 +59128,14 @@
               "status": "PASS",
               "diff_pct": 0.0,
               "weight": 1.0,
-              "description": "Modern break-before:page on the first block is a no-op (no preceding content), so a single page renders. Tracks the modern break-* family, unparsed by the engine.",
+              "description": "Modern break-before:page on the first block is a no-op (no preceding content): the forced break is suppressed at the document start, so a single page renders. The modern break-* family is now parsed and wired into the forced-break path (see break-before-page-modern-real for the real two-page case).",
               "note": "",
               "kind": "feature",
               "depends_on": [
                 "probe-fill-box",
                 "probe-block-flow"
               ],
-              "expected_support": "unsupported",
+              "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "f780710b436603fa0ac052af987ac3208e020d3a3df2d37541ac4bf34729b9ac",
               "diagnosis": {
@@ -59034,12 +59202,90 @@
           "feature": "break-inside",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 2,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "break-inside-avoid-real",
+              "category": "paged-media",
+              "feature": "break-inside",
+              "subfeature": "avoid-real-keep-together",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "break-inside:avoid keeps a bordered card together across a page boundary: a tall spacer fills most of page 1, so the card would straddle the boundary and is pushed WHOLE onto page 2 (not split). The multi-page harness asserts the page COUNT (2): page 1 = spacer, page 2 = intact card.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-border-box"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "5f6ece90ea99708fb92492a96cc4720eb4a60e127d1674259a7652eec3074634",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "paged-break-inside-avoid",
               "category": "paged-media",
@@ -59050,14 +59296,14 @@
               "status": "PASS",
               "diff_pct": 0.0,
               "weight": 1.0,
-              "description": "Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box; tracks the modern break-inside gap.",
+              "description": "Modern break-inside:avoid keeps a card intact on a single page. Content already fits, so the rendered result equals an unbroken nested box. The modern break-inside property is now parsed and honored (see break-inside-avoid-real for the cross-page case).",
               "note": "",
               "kind": "feature",
               "depends_on": [
                 "probe-fill-box",
                 "probe-border-box"
               ],
-              "expected_support": "unsupported",
+              "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "678bd90d96c3750d8defb09e7f15f6a1055b58f7fbaacc60d0a7c7082ea20976",
               "diagnosis": {
@@ -84279,7 +84525,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 236,
+    "features_with_fixture": 237,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -84451,6 +84697,7 @@
       "multicol/column-width",
       "multicol/columns",
       "overflow-clipping/overflow",
+      "paged-media/break-after",
       "paged-media/break-before",
       "paged-media/break-inside",
       "paged-media/named-page",
@@ -84518,9 +84765,9 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 528,
+    "implemented": 533,
     "partial": 38,
-    "unsupported": 59
+    "unsupported": 57
   },
   "fix_first": [
     {
@@ -84569,8 +84816,6 @@
     "multiple-backgrounds-layered",
     "overflow-clip",
     "overflow-x-y-separate",
-    "paged-break-before-page-modern",
-    "paged-break-inside-avoid",
     "paged-named-page",
     "paged-orphans-widows",
     "paged-page-break-inside-avoid-table",

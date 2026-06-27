@@ -1183,6 +1183,56 @@ pub struct PercentageInsets {
     pub left: Option<f32>,
 }
 
+/// CSS Fragmentation 3 §3.1 forced/avoid break value for `break-before` /
+/// `break-after`. `Auto` is the initial value (a class-A break opportunity with
+/// no forced break and no avoidance). The forced values (`page`/`left`/`right`/
+/// `recto`/`verso`) always start a new page; the sided ones additionally force
+/// the following content onto a left/right (verso/recto) page. `Avoid` is a
+/// discretionary hint (currently a no-op in pagination).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BreakValue {
+    #[default]
+    Auto,
+    Avoid,
+    Page,
+    Left,
+    Right,
+    Recto,
+    Verso,
+}
+
+impl BreakValue {
+    /// Whether this value forces a page break (any of the CSS Fragmentation 3
+    /// "forced break values": `page`/`left`/`right`/`recto`/`verso`).
+    pub fn forces_break(self) -> bool {
+        matches!(
+            self,
+            BreakValue::Page
+                | BreakValue::Left
+                | BreakValue::Right
+                | BreakValue::Recto
+                | BreakValue::Verso
+        )
+    }
+
+    /// Map a CSS keyword (legacy `page-break-*` or modern `break-*`) to a
+    /// `BreakValue`. The legacy `always` aliases to `page`. Returns `None` for
+    /// keywords that are not valid break values so the caller leaves the field
+    /// untouched.
+    pub fn from_keyword(k: &str) -> Option<BreakValue> {
+        match k {
+            "auto" => Some(BreakValue::Auto),
+            "always" | "page" => Some(BreakValue::Page),
+            "left" => Some(BreakValue::Left),
+            "right" => Some(BreakValue::Right),
+            "recto" => Some(BreakValue::Recto),
+            "verso" => Some(BreakValue::Verso),
+            "avoid" | "avoid-page" => Some(BreakValue::Avoid),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ComputedStyle {
     pub font_size: f32,
@@ -1228,6 +1278,16 @@ pub struct ComputedStyle {
     pub line_height: f32,
     pub page_break_before: bool,
     pub page_break_after: bool,
+    /// CSS Fragmentation 3 `break-before` / `break-after` (and their legacy
+    /// `page-break-*` aliases). The forced values drive `page_break_before/after`
+    /// (above); the sided ones (`left`/`right`/`recto`/`verso`) additionally
+    /// carry the parity used to insert a blank page during pagination.
+    pub break_before: BreakValue,
+    pub break_after: BreakValue,
+    /// CSS Fragmentation 3 `break-inside: avoid` (and legacy
+    /// `page-break-inside: avoid`): keep the box together — do not split it
+    /// across a page boundary unless it is taller than a whole page.
+    pub break_inside_avoid: bool,
     pub border: BorderSides,
     pub display: Display,
     pub width: Option<f32>,
@@ -1582,6 +1642,9 @@ impl Default for ComputedStyle {
             line_height: f32::NAN,
             page_break_before: false,
             page_break_after: false,
+            break_before: BreakValue::Auto,
+            break_after: BreakValue::Auto,
+            break_inside_avoid: false,
             border: BorderSides::default(),
             display: Display::Block,
             width: None,
@@ -3343,11 +3406,46 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.row_gap = *v;
     }
 
+    // CSS Fragmentation 3 §3.1 `break-before`/`break-after` plus their legacy
+    // `page-break-*` aliases (CSS 2.1 §13.3.1). The legacy property is read
+    // first and the modern one overrides it when both are present (modern wins
+    // at equal cascade origin). `always` maps to `page`. The forced values set
+    // the `page_break_*` bool that drives the existing `PageBreak` emission.
+    let mut bb = BreakValue::Auto;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "page-break-before") {
-        style.page_break_before = k == "always";
+        if let Some(v) = BreakValue::from_keyword(k) {
+            bb = v;
+        }
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "break-before") {
+        if let Some(v) = BreakValue::from_keyword(k) {
+            bb = v;
+        }
+    }
+    style.break_before = bb;
+    style.page_break_before = bb.forces_break();
+
+    let mut ba = BreakValue::Auto;
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "page-break-after") {
-        style.page_break_after = k == "always";
+        if let Some(v) = BreakValue::from_keyword(k) {
+            ba = v;
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "break-after") {
+        if let Some(v) = BreakValue::from_keyword(k) {
+            ba = v;
+        }
+    }
+    style.break_after = ba;
+    style.page_break_after = ba.forces_break();
+
+    // `break-inside: avoid` / legacy `page-break-inside: avoid` (only the
+    // `avoid*` family is meaningful; `auto` is the default).
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "page-break-inside") {
+        style.break_inside_avoid = k.starts_with("avoid");
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "break-inside") {
+        style.break_inside_avoid = k.starts_with("avoid");
     }
 
     // `filter: opacity(<x>)` multiplies into the element's final opacity. The
@@ -8253,6 +8351,49 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("page-break-after: always"), &parent);
         assert!(style.page_break_after);
+        // Legacy `always` maps to the modern `page` break value.
+        assert_eq!(style.break_after, BreakValue::Page);
+    }
+
+    #[test]
+    fn modern_break_before_page_forces_break() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("break-before: page"), &parent);
+        assert_eq!(style.break_before, BreakValue::Page);
+        assert!(style.page_break_before);
+    }
+
+    #[test]
+    fn modern_break_after_sided_keeps_parity() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("break-after: left"), &parent);
+        assert_eq!(style.break_after, BreakValue::Left);
+        // Sided breaks still force a page break.
+        assert!(style.page_break_after);
+        let style = compute_style(HtmlTag::Div, Some("break-before: recto"), &parent);
+        assert_eq!(style.break_before, BreakValue::Recto);
+        assert!(style.page_break_before);
+    }
+
+    #[test]
+    fn break_inside_avoid_parsed() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("break-inside: avoid"), &parent);
+        assert!(style.break_inside_avoid);
+        // Legacy alias.
+        let style = compute_style(HtmlTag::Div, Some("page-break-inside: avoid"), &parent);
+        assert!(style.break_inside_avoid);
+        // `auto` does not set avoid.
+        let style = compute_style(HtmlTag::Div, Some("break-inside: auto"), &parent);
+        assert!(!style.break_inside_avoid);
+    }
+
+    #[test]
+    fn break_before_avoid_does_not_force_break() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("break-before: avoid"), &parent);
+        assert_eq!(style.break_before, BreakValue::Avoid);
+        assert!(!style.page_break_before);
     }
 
     #[test]

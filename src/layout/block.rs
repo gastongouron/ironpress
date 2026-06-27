@@ -10,7 +10,8 @@ use std::collections::HashMap;
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
-    LayoutBorder, LayoutElement, TextRun, element_sibling_list, flatten_element, forward_siblings,
+    LayoutBorder, LayoutElement, PageBreakSide, TextRun, element_sibling_list, flatten_element,
+    forward_siblings,
 };
 use super::helpers::{
     BackgroundFields, append_pseudo_inline_run, aspect_ratio_height, build_pseudo_block,
@@ -1134,7 +1135,9 @@ pub(crate) fn layout_block_element(
             }
 
             if style.page_break_after {
-                output.push(LayoutElement::PageBreak);
+                output.push(LayoutElement::PageBreak(PageBreakSide::from(
+                    style.break_after,
+                )));
             }
             return true;
         } else if has_block_kids_for_wrapper {
