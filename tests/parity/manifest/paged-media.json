@@ -137,12 +137,12 @@
     "id": "paged-named-page",
     "category": "paged-media",
     "feature": "named-page",
-    "subfeature": "page-property",
-    "description": "The page property names an @page rule (page: cover). Named pages are unsupported and fixtures may not declare @page, so output must match a plain block on the default page. Tracks the named-pages gap.",
+    "subfeature": "page-property-leading-noop",
+    "description": "The page property names an @page rule (page: cover) on the document's FIRST block, with no matching @page cover rule. Named pages are now parsed (CSS Paged Media 3 §3.4): the property forces a page break before the box, but a forced break at the very start of the fragmentation flow is suppressed, so a single page renders with the section on the default page — matching Chrome. The named-page MARGIN application is covered by paged-named-page-margin.",
     "file": "cases/paged-media/paged-named-page.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box"
@@ -451,6 +451,106 @@
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-named-page-margin",
+    "category": "paged-media",
+    "feature": "named-page",
+    "subfeature": "page-margin-override",
+    "description": "CSS Paged Media 3 §3.4 named pages: page: wide on a .cover block forces a page break and the page it starts (page 2) adopts the @page wide margin (0.3cm) instead of the default @page margin (1cm). ironpress now implements named-page MARGINS; Chrome --print-to-pdf honors them too (verified: page 1 content at 1cm, page 2 at 0.3cm). The multi-page harness asserts the page COUNT (2) and diffs both pages: page 1 box at the 1cm default margin, page 2 cover at the 0.3cm wide margin.",
+    "file": "cases/paged-media/paged-named-page-margin.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-named-page-size",
+    "category": "paged-media",
+    "feature": "named-page",
+    "subfeature": "page-size-override-unsupported",
+    "description": "CSS Paged Media 3 §3.4 named-page SIZE: @page big { size: A3 } selected by .big { page: big } should make page 2 physically A3-sized. ironpress implements named-page MARGINS but DEFERS per-page SIZE (it needs pre-pagination re-flow against the new page box), so page 2 keeps the default size while Chrome honors A3 — the page dimensions diverge. Tracked-unsupported until named-page size re-flow lands.",
+    "file": "cases/paged-media/paged-named-page-size.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "footnote-float",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "float-footnote-unsupported",
+    "description": "CSS GCPM float: footnote pulls a box into the page's footnote area with an auto-numbered marker. Neither Chrome --print-to-pdf nor ironpress implements GCPM footnotes (Chrome drops the float and renders the span inline; ironpress does the same), so a true footnote area cannot be validated against a Chrome oracle. Tracked-unsupported: GCPM footnotes unimplemented; needs a Prince/WeasyPrint oracle.",
+    "file": "cases/paged-media/footnote-float.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "running-element-header",
+    "category": "paged-media",
+    "feature": "running-element",
+    "subfeature": "position-running-unsupported",
+    "description": "CSS GCPM running elements: position: running(h) parks a box in a named slot and @top-center { content: element(h) } renders it as a running header on every page. Chrome --print-to-pdf does not implement GCPM running elements (position: running() is treated as invalid, the box stays in flow, and the margin box prints nothing), and ironpress does not yet resolve element() references in margin boxes. Tracked-unsupported: GCPM running elements unimplemented; needs a Prince/WeasyPrint oracle.",
+    "file": "cases/paged-media/running-element-header.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "table-row-taller-than-page",
+    "category": "paged-media",
+    "feature": "fragmentation",
+    "subfeature": "table-row-slice-unsupported",
+    "description": "A single table row whose cell is taller than the page content box should slice its cell content across the page boundary (Chrome --print-to-pdf carries the remainder onto page 2). ironpress does not implement row cell-slicing — a too-tall row currently clips at the page edge (one page) — so the page COUNT and the lower portion of the cell diverge from Chrome. Tracked-unsupported: row cell-slicing unimplemented.",
+    "file": "cases/paged-media/table-row-taller-than-page.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "multicol-span-all-page-break",
+    "category": "paged-media",
+    "feature": "fragmentation",
+    "subfeature": "multicol-span-all-page-break-unsupported",
+    "description": "A column-span: all heading inside a multi-column block taller than the page: the spanning element interrupts the columns and the column flow must resume AND fragment across the page boundary. ironpress's multicol fragmentation does not yet handle a column-span:all element combined with a page break, so the column geometry across pages diverges from Chrome --print-to-pdf. Tracked-unsupported: multicol span-all page fragmentation unimplemented.",
+    "file": "cases/paged-media/multicol-span-all-page-break.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
       "probe-block-flow"
     ],
     "weight": 1,

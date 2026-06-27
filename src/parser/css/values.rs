@@ -332,6 +332,14 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(lower));
     }
 
+    // CSS Paged Media 3 §3.4 `page: <name>` — the value is a page name
+    // identifier (or `auto`). Preserved as a keyword so `compute_style` can
+    // record the named page; otherwise it would fall through to `parse_length`
+    // and be dropped.
+    if property == "page" {
+        return Some(CssValue::Keyword(lower));
+    }
+
     if matches!(
         property,
         "border"

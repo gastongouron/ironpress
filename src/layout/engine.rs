@@ -782,8 +782,12 @@ pub enum LayoutElement {
         containing_block: Option<ContainingBlock>,
     },
     /// A forced page break, carrying the requested page parity (CSS
-    /// Fragmentation 3 §3.1). `PageBreakSide::Any` is a plain break.
-    PageBreak(PageBreakSide),
+    /// Fragmentation 3 §3.1). `PageBreakSide::Any` is a plain break. The
+    /// optional second field is the CSS Paged Media 3 §3.4 `page: <name>` of
+    /// the box that triggered the break (lowercased): the page started by this
+    /// break adopts the matching `@page <name>` geometry. `None` for ordinary
+    /// `break-before`/`page-break-before` forced breaks.
+    PageBreak(PageBreakSide, Option<String>),
 }
 
 impl LayoutElement {
@@ -1281,12 +1285,30 @@ pub fn layout_with_rules_and_fonts(
             content_height: page_size.height - m.top - m.bottom,
             margin: m,
         });
+    // CSS Paged Media 3 §3.4: pre-resolve each `@page <name>` margin into its
+    // page geometry (margin + resulting fragmentainer height) here, where the
+    // page size is known, so pagination only does a name → geometry lookup.
+    let named_pages: std::collections::HashMap<String, super::paginate::NamedPageGeom> =
+        page_margin_overrides
+            .named
+            .iter()
+            .map(|(name, m)| {
+                (
+                    name.clone(),
+                    super::paginate::NamedPageGeom {
+                        content_height: page_size.height - m.top - m.bottom,
+                        margin: *m,
+                    },
+                )
+            })
+            .collect();
     super::paginate::paginate_with_first_page(
         elements,
         content_height,
         parent_style.margin.top + parent_style.padding.top,
         first_page,
         page_margin_overrides.spread,
+        named_pages,
     )
 }
 
@@ -2232,10 +2254,16 @@ pub(crate) fn flatten_element(
         return;
     }
 
-    if style.page_break_before {
-        output.push(LayoutElement::PageBreak(PageBreakSide::from(
-            style.break_before,
-        )));
+    // A forced `break-before`/`page-break-before` OR a CSS Paged Media 3 §3.4
+    // named page (`page: <name>`) emits a page break before this box. A named
+    // box always starts a new page (its page name differs from the default
+    // flow); the break carries the name so pagination can apply the matching
+    // `@page <name>` geometry to the page it starts.
+    if style.page_break_before || style.page_name.is_some() {
+        output.push(LayoutElement::PageBreak(
+            PageBreakSide::from(style.break_before),
+            style.page_name.clone(),
+        ));
     }
 
     // Table handling
@@ -2977,9 +3005,10 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak(PageBreakSide::from(
-                style.break_after,
-            )));
+            output.push(LayoutElement::PageBreak(
+                PageBreakSide::from(style.break_after),
+                None,
+            ));
         }
         return;
     }
@@ -2997,9 +3026,10 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak(PageBreakSide::from(
-                style.break_after,
-            )));
+            output.push(LayoutElement::PageBreak(
+                PageBreakSide::from(style.break_after),
+                None,
+            ));
         }
         return;
     }
@@ -3021,9 +3051,10 @@ fn route_element(
         );
 
         if style.page_break_after {
-            output.push(LayoutElement::PageBreak(PageBreakSide::from(
-                style.break_after,
-            )));
+            output.push(LayoutElement::PageBreak(
+                PageBreakSide::from(style.break_after),
+                None,
+            ));
         }
         return;
     }
@@ -3061,9 +3092,10 @@ fn route_element(
     }
 
     if style.page_break_after {
-        output.push(LayoutElement::PageBreak(PageBreakSide::from(
-            style.break_after,
-        )));
+        output.push(LayoutElement::PageBreak(
+            PageBreakSide::from(style.break_after),
+            None,
+        ));
     }
 
     // Pop any counters that were pushed by counter-reset on this element.

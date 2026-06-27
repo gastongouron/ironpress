@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A single table row whose cell is taller than the page content box. Per CSS
+     Fragmentation / Tables, the row's cell content should SLICE across the page
+     boundary (Chrome --print-to-pdf carries the remainder onto page 2). ironpress
+     does not implement row cell-slicing — a too-tall row currently clips at the
+     page edge (one page), so the page COUNT and the lower portion of the cell
+     diverge from Chrome. Tracked-unsupported: row cell-slicing unimplemented. */
+  @page { size: 320px 200px; margin: 0.8cm; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; color: #111111; }
+  table { border-collapse: collapse; width: 100%; }
+  td {
+    border: 3px solid #11305f;
+    background: #cfe3ff;
+    height: 360px;
+    vertical-align: top;
+    padding: 6px;
+    font-size: 15px;
+  }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td>A single row taller than one page; its cell should slice across the page boundary.</td></tr>
+  </table>
+</body>
+</html>

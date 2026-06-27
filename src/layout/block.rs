@@ -1147,9 +1147,10 @@ pub(crate) fn layout_block_element(
             }
 
             if style.page_break_after {
-                output.push(LayoutElement::PageBreak(PageBreakSide::from(
-                    style.break_after,
-                )));
+                output.push(LayoutElement::PageBreak(
+                    PageBreakSide::from(style.break_after),
+                    None,
+                ));
             }
             return true;
         } else if has_block_kids_for_wrapper {

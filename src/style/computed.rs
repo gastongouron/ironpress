@@ -1302,6 +1302,12 @@ pub struct ComputedStyle {
     /// `page-break-inside: avoid`): keep the box together — do not split it
     /// across a page boundary unless it is taller than a whole page.
     pub break_inside_avoid: bool,
+    /// CSS Paged Media 3 §3.4 `page: <name>`: the named page this box belongs
+    /// to. A box whose page name differs from the preceding box forces a page
+    /// break before it, and the page it starts adopts the matching
+    /// `@page <name>` geometry (currently the margin override). `None` is the
+    /// initial `auto` value (the default page). Not inherited.
+    pub page_name: Option<String>,
     pub border: BorderSides,
     pub display: Display,
     pub width: Option<f32>,
@@ -1689,6 +1695,7 @@ impl Default for ComputedStyle {
             break_before: BreakValue::Auto,
             break_after: BreakValue::Auto,
             break_inside_avoid: false,
+            page_name: None,
             border: BorderSides::default(),
             display: Display::Block,
             width: None,
@@ -2044,6 +2051,9 @@ pub fn compute_style_with_context(
     style.color_filters.clear();
     style.filter_url_id = None;
     style.drop_shadow = None;
+    // `page` (CSS Paged Media 3 §3.4) is not inherited; initial is `auto`
+    // (the default page → `None`).
+    style.page_name = None;
     // custom_properties inherit from parent (already cloned)
 
     // Apply tag defaults
@@ -3565,6 +3575,19 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "break-inside") {
         style.break_inside_avoid = k.starts_with("avoid");
+    }
+
+    // CSS Paged Media 3 §3.4 `page: <name>` — the named page a box belongs to.
+    // Only set when the property is present so it accumulates across cascade
+    // layers (a later layer without `page` leaves the prior value). `auto`
+    // resets to the default page. Names are stored lowercased to match the
+    // case-insensitive `@page <name>` lookup.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "page") {
+        style.page_name = if k.eq_ignore_ascii_case("auto") {
+            None
+        } else {
+            Some(k.to_ascii_lowercase())
+        };
     }
 
     // `filter: opacity(<x>)` multiplies into the element's final opacity. The

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS Paged Media 3 §3.4 named pages: `page: <name>` on a box forces a page
+     break before it and the page it starts adopts the matching `@page <name>`
+     geometry. Here `.cover { page: wide }` lands on page 2, which uses the
+     `@page wide` margin (0.3cm) instead of the default `@page` margin (1cm).
+     Chrome --print-to-pdf HONORS named-page margins (verified empirically:
+     page 1 content sits at the 1cm default margin, page 2 at the 0.3cm wide
+     margin), so this is a genuine two-page parity test, not a no-op. Only the
+     MARGIN part of named pages is implemented; per-page SIZE is deferred (it
+     needs pre-pagination re-flow) and is tracked separately by
+     paged-named-page-size. */
+  @page { size: 400px 300px; margin: 1cm; }
+  @page wide { margin: 0.3cm; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; }
+  .normal { width: 220px; height: 150px; background: #2d6cdf; border: 4px solid #11305f; }
+  .cover { page: wide; width: 360px; height: 240px; background: #ffb703; border: 4px solid #fb8500; }
+</style>
+</head>
+<body>
+  <div class="normal"></div>
+  <div class="cover"></div>
+</body>
+</html>

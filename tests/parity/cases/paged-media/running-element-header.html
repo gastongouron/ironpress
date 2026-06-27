@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* CSS GCPM running elements: `position: running(name)` removes a box from the
+     normal flow and parks it in a named slot; `@top-center { content:
+     element(name) }` then renders it as a running header on every page. Chrome
+     --print-to-pdf does NOT implement GCPM running elements (`position:
+     running()` is treated as an invalid position → the box stays in flow, and
+     the @top-center margin box prints nothing), and ironpress does not yet
+     resolve `element()` references in margin boxes either. Tracked-unsupported:
+     needs GCPM running-element support + a Prince/WeasyPrint oracle. */
+  @page {
+    size: 400px 300px;
+    margin: 1.2cm;
+    @top-center { content: element(runhead); }
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; color: #111111; }
+  h1 { position: running(runhead); font-size: 18px; color: #11305f; }
+  p { font-size: 16px; }
+</style>
+</head>
+<body>
+  <h1>Chapter Title</h1>
+  <p>Body paragraph one of the chapter.</p>
+  <p>Body paragraph two of the chapter.</p>
+</body>
+</html>

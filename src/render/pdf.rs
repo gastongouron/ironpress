@@ -5426,7 +5426,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     render_math_glyphs(&math_layout.glyphs, math_x, math_baseline_y, &mut content);
                 }
-                LayoutElement::PageBreak(_) => {}
+                LayoutElement::PageBreak(..) => {}
             }
         }
 
@@ -15459,7 +15459,7 @@ mod tests {
                 0.0,
                 test_text_block_from_runs(vec![test_text_run("Before")]),
             ),
-            (20.0, LayoutElement::PageBreak(Default::default())),
+            (20.0, LayoutElement::PageBreak(Default::default(), None)),
         ]);
         let pdf = render_pdf(&[page], PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -18860,7 +18860,7 @@ mod tests {
     /// table_row_total_height: returns 0 for non-TableRow variant
     #[test]
     fn layout_elements_table_row_total_height_non_row_returns_zero() {
-        let non_row = LayoutElement::PageBreak(Default::default());
+        let non_row = LayoutElement::PageBreak(Default::default(), None);
         assert_eq!(
             table_row_total_height(&non_row),
             0.0,

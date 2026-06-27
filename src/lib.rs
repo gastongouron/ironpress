@@ -604,6 +604,34 @@ impl HtmlConverter {
         let left_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Left);
         let right_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Right);
 
+        // Step 3e-ter: Resolve named-page margins (CSS Paged Media 3 §3.4). Each
+        // `@page <name> { margin… }` rule maps a page name to a full margin
+        // (default margin + the rule's declared `margin-*`). A `page: <name>`
+        // box forces a break and the page it starts adopts this margin. Per-page
+        // SIZE for named pages is deferred (it needs pre-pagination re-flow);
+        // only the MARGIN is honored. Names are lowercased to match the
+        // case-insensitive `page` property lookup.
+        let mut named_page_margins: std::collections::HashMap<String, Margin> =
+            std::collections::HashMap::new();
+        for pr in &page_rules {
+            if let PageSelector::Named(name) = &pr.selector {
+                let mut m = effective_margin;
+                if let Some(v) = pr.margin_top {
+                    m.top = v;
+                }
+                if let Some(v) = pr.margin_right {
+                    m.right = v;
+                }
+                if let Some(v) = pr.margin_bottom {
+                    m.bottom = v;
+                }
+                if let Some(v) = pr.margin_left {
+                    m.left = v;
+                }
+                named_page_margins.insert(name.to_ascii_lowercase(), m);
+            }
+        }
+
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 
@@ -687,6 +715,7 @@ impl HtmlConverter {
                     left: left_page_margin,
                     right: right_page_margin,
                 },
+                named: named_page_margins,
             },
         );
 

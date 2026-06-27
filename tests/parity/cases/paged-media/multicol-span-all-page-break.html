@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A `column-span: all` heading inside a multi-column block that is taller than
+     the page: the spanning heading interrupts the columns, and the column flow
+     must resume AND fragment across the page boundary (CSS Multicol + CSS
+     Fragmentation). Chrome --print-to-pdf paginates the columns and re-lays the
+     spanning element per page; ironpress's multicol fragmentation does not yet
+     handle a column-span:all element combined with a page break, so the column
+     geometry across pages diverges from Chrome. Tracked-unsupported. */
+  @page { size: 400px 300px; margin: 0.8cm; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; line-height: 1.5; background: #ffffff; color: #111111; }
+  .cols { column-count: 2; column-gap: 16px; }
+  .cols p { font-size: 14px; margin: 0 0 8px; background: #eef3ff; padding: 4px; }
+  h2 { column-span: all; background: #11305f; color: #ffffff; font-size: 16px; padding: 4px; margin: 8px 0; }
+</style>
+</head>
+<body>
+  <div class="cols">
+    <p>Column body one alpha bravo charlie delta echo foxtrot golf hotel india.</p>
+    <p>Column body two juliet kilo lima mike november oscar papa quebec romeo.</p>
+    <h2>A spanning heading across both columns</h2>
+    <p>Column body three sierra tango uniform victor whiskey xray yankee zulu one.</p>
+    <p>Column body four alpha bravo charlie delta echo foxtrot golf hotel india two.</p>
+    <p>Column body five juliet kilo lima mike november oscar papa quebec romeo three.</p>
+    <p>Column body six sierra tango uniform victor whiskey xray yankee zulu four.</p>
+  </div>
+</body>
+</html>
