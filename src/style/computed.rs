@@ -1377,6 +1377,10 @@ pub struct ComputedStyle {
     /// size (0..1 fraction). Resolved at flex-layout time; takes precedence
     /// over `flex_basis` when set.
     pub flex_basis_pct: Option<f32>,
+    /// `flex-basis: content` — size the item's flex base to its (max-)content
+    /// size, ignoring any `width`. Distinct from `auto` (which falls back to
+    /// `width`). When set, `flex_basis`/`flex_basis_pct` are both `None`.
+    pub flex_basis_content: bool,
     pub gap: f32,
     pub overflow: Overflow,
     /// Per-axis computed overflow (after the CSS Overflow 3 inter-axis coercion).
@@ -1726,6 +1730,7 @@ impl Default for ComputedStyle {
             flex_shrink: 1.0,
             flex_basis: None,
             flex_basis_pct: None,
+            flex_basis_content: false,
             gap: 0.0,
             overflow: Overflow::Visible,
             overflow_x: Overflow::Visible,
@@ -1969,6 +1974,7 @@ pub fn compute_style_with_context(
     style.flex_shrink = 1.0;
     style.flex_basis = None;
     style.flex_basis_pct = None;
+    style.flex_basis_content = false;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.overflow_x = Overflow::Visible;
@@ -2280,6 +2286,7 @@ pub fn compute_pseudo_element_style(
     style.flex_shrink = 1.0;
     style.flex_basis = None;
     style.flex_basis_pct = None;
+    style.flex_basis_content = false;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.overflow_x = Overflow::Visible;
@@ -2549,7 +2556,11 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "flex-wrap" => style.flex_wrap = default.flex_wrap,
         "flex-grow" => style.flex_grow = default.flex_grow,
         "flex-shrink" => style.flex_shrink = default.flex_shrink,
-        "flex-basis" => style.flex_basis = default.flex_basis,
+        "flex-basis" => {
+            style.flex_basis = default.flex_basis;
+            style.flex_basis_pct = default.flex_basis_pct;
+            style.flex_basis_content = default.flex_basis_content;
+        }
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = default.overflow_wrap,
@@ -2726,7 +2737,11 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "flex-wrap" => style.flex_wrap = parent.flex_wrap,
         "flex-grow" => style.flex_grow = parent.flex_grow,
         "flex-shrink" => style.flex_shrink = parent.flex_shrink,
-        "flex-basis" => style.flex_basis = parent.flex_basis,
+        "flex-basis" => {
+            style.flex_basis = parent.flex_basis;
+            style.flex_basis_pct = parent.flex_basis_pct;
+            style.flex_basis_content = parent.flex_basis_content;
+        }
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
@@ -3242,24 +3257,30 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         Some(CssValue::Length(v)) => {
             style.flex_basis = Some(*v);
             style.flex_basis_pct = None;
+            style.flex_basis_content = false;
         }
         Some(CssValue::Percentage(p)) => {
             style.flex_basis_pct = Some(*p / 100.0);
             style.flex_basis = None;
+            style.flex_basis_content = false;
         }
         Some(CssValue::Keyword(k)) => match k.as_str() {
             "auto" | "content" => {
                 style.flex_basis = None;
                 style.flex_basis_pct = None;
+                // `content` sizes to content; `auto` falls back to `width`.
+                style.flex_basis_content = k == "content";
             }
             other => match parse_length(other) {
                 Some(CssValue::Percentage(p)) => {
                     style.flex_basis_pct = Some(p / 100.0);
                     style.flex_basis = None;
+                    style.flex_basis_content = false;
                 }
                 Some(CssValue::Length(v)) => {
                     style.flex_basis = Some(v);
                     style.flex_basis_pct = None;
+                    style.flex_basis_content = false;
                 }
                 _ => {}
             },
@@ -3277,24 +3298,28 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 style.flex_shrink = 0.0;
                 style.flex_basis = None;
                 style.flex_basis_pct = None;
+                style.flex_basis_content = false;
             } else if *first == "auto" {
                 // flex: auto == 1 1 auto
                 style.flex_grow = 1.0;
                 style.flex_shrink = 1.0;
                 style.flex_basis = None;
                 style.flex_basis_pct = None;
+                style.flex_basis_content = false;
             } else if *first == "initial" {
                 // flex: initial == 0 1 auto
                 style.flex_grow = 0.0;
                 style.flex_shrink = 1.0;
                 style.flex_basis = None;
                 style.flex_basis_pct = None;
+                style.flex_basis_content = false;
             } else if let Ok(grow) = first.parse::<f32>() {
                 // flex: <grow> == <grow> 1 0%
                 style.flex_grow = grow.max(0.0);
                 style.flex_shrink = 1.0;
                 style.flex_basis = Some(0.0);
                 style.flex_basis_pct = None;
+                style.flex_basis_content = false;
                 if let Some(second) = parts.get(1) {
                     if let Ok(shrink) = second.parse::<f32>() {
                         style.flex_shrink = shrink.max(0.0);
@@ -3304,6 +3329,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                     if *third == "auto" || *third == "content" {
                         style.flex_basis = None;
                         style.flex_basis_pct = None;
+                        style.flex_basis_content = *third == "content";
                     } else if let Some(CssValue::Percentage(p)) =
                         crate::parser::css::parse_length(third)
                     {

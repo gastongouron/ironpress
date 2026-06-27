@@ -1052,5 +1052,33 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-item-margin",
+    "category": "flexbox",
+    "feature": "flex-item-positioning",
+    "subfeature": "item-margin",
+    "description": "Flex item margin: honored during placement/paint.",
+    "file": "cases/flexbox/flexbox-item-margin.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-item-relative-offset",
+    "category": "flexbox",
+    "feature": "flex-item-positioning",
+    "subfeature": "item-relative-offset",
+    "description": "Flex item relative-offset: honored during placement/paint.",
+    "file": "cases/flexbox/flexbox-item-relative-offset.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

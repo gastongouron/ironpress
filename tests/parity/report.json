@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.22,
-    "pass": 629,
+    "score_pct": 97.23,
+    "pass": 631,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 647,
+    "total": 649,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -19094,7 +19094,7 @@
       "category": "flexbox",
       "score_pct": 100.0,
       "counts": {
-        "pass": 62,
+        "pass": 64,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -22329,6 +22329,168 @@
               "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "80f5e78a3ee10a4d4d612439dd511e4f585132d307837acb18971c49128c1f86",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            }
+          ]
+        },
+        {
+          "feature": "flex-item-positioning",
+          "score_pct": 100.0,
+          "counts": {
+            "pass": 2,
+            "partial": 0,
+            "fail": 0,
+            "unknown": 0
+          },
+          "fixtures": [
+            {
+              "id": "flexbox-item-margin",
+              "category": "flexbox",
+              "feature": "flex-item-positioning",
+              "subfeature": "item-margin",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Flex item margin: honored during placement/paint.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "b8554c7455efb41b0342f5c5dadfaed128ccc256aa6a0add602da09488588b0c",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-item-relative-offset",
+              "category": "flexbox",
+              "feature": "flex-item-positioning",
+              "subfeature": "item-relative-offset",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Flex item relative-offset: honored during placement/paint.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "e1e4dbb1b8f36c5a23f6d70098c1eccf6cbc5baf026ca9ae003156e7ef0da371",
               "diagnosis": {
                 "primary_class": "AaOnly",
                 "secondary": [],
@@ -86908,7 +87070,7 @@
     }
   ],
   "coverage": {
-    "features_with_fixture": 239,
+    "features_with_fixture": 240,
     "covered": [
       "backgrounds-borders/background-color",
       "backgrounds-borders/border",
@@ -86987,6 +87149,7 @@
       "flexbox/flex-direction",
       "flexbox/flex-flow",
       "flexbox/flex-grow",
+      "flexbox/flex-item-positioning",
       "flexbox/flex-shrink",
       "flexbox/flex-wrap",
       "flexbox/gap",
@@ -87150,7 +87313,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 552,
+    "implemented": 554,
     "partial": 38,
     "unsupported": 57
   },

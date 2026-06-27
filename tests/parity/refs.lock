@@ -189,6 +189,8 @@
   "flexbox-gap-percentage": "f1e4f085537322147048a9ae58b0ec78eb915af90372a6f31329b3cfb30afc4a",
   "flexbox-gap-two-value": "5cb2f326efc47576c56b84bb477fb85ea870cf74f7009d81af18409e9eee4dc5",
   "flexbox-grow-fractional": "80f5e78a3ee10a4d4d612439dd511e4f585132d307837acb18971c49128c1f86",
+  "flexbox-item-margin": "b8554c7455efb41b0342f5c5dadfaed128ccc256aa6a0add602da09488588b0c",
+  "flexbox-item-relative-offset": "e1e4dbb1b8f36c5a23f6d70098c1eccf6cbc5baf026ca9ae003156e7ef0da371",
   "flexbox-justify-center-overflow": "6f00aaa3f8f638172c5995186111b38726a631299b16752c5537599cee63260e",
   "flexbox-justify-content-center": "f9dbc6cb8c6a3a268852c7b7eb97316dfdb53fdc9678ad8e7e3a85e6f28f7cba",
   "flexbox-justify-content-flex-end": "94b1222098e0f0df669bc77c9f71ba781ebc9b1014def3c8dbfd7e1973b082cf",

@@ -500,6 +500,22 @@ pub(crate) fn layout_flex_container(
         /// absorb positive free space equally and override `justify-content`.
         margin_main_start_auto: bool,
         margin_main_end_auto: bool,
+        /// Fixed (non-auto) main-axis leading / trailing margin in px and the
+        /// cross-axis leading margin (margin-left/right/top for a row
+        /// container). Flex-item margins are honored during placement: the
+        /// main-axis margins offset the cursor, the cross-axis leading margin
+        /// shifts the item within its line.
+        margin_main_start: f32,
+        margin_main_end: f32,
+        margin_cross_start: f32,
+        /// `position: relative` paint-time offset resolved to physical
+        /// left/top px (right/bottom mapped to negatives). The item still takes
+        /// part in flex layout at its static position; only its painted cell is
+        /// shifted, and it is flagged positioned so it paints above in-flow
+        /// siblings (css-flexbox-1 §4 / CSS 2.1 §9.9.1).
+        rel_left: f32,
+        rel_top: f32,
+        is_relative: bool,
     }
 
     // Resolve an item's outer (border-box) main-axis min/max clamps from its
@@ -636,6 +652,40 @@ pub(crate) fn layout_flex_container(
             AlignSelf::FlexStart
         } else {
             child_style.align_self
+        };
+
+        // Fixed (non-auto) flex-item margins mapped onto the container's axes.
+        // An `auto` margin contributes 0 here (the auto flag drives it instead).
+        let (m_main_start, m_main_end, m_cross_start) = if style.flex_direction.is_row() {
+            (
+                child_style.margin.left,
+                child_style.margin.right,
+                child_style.margin.top,
+            )
+        } else {
+            (
+                child_style.margin.top,
+                child_style.margin.bottom,
+                child_style.margin.left,
+            )
+        };
+        // `position: relative` offsets on a flex item. `left`/`top` win over
+        // `right`/`bottom`; an unset axis is 0. The item lays out statically and
+        // is painted shifted by these deltas.
+        let item_is_relative = child_style.position == Position::Relative;
+        let (item_rel_left, item_rel_top) = if item_is_relative {
+            (
+                child_style
+                    .left
+                    .or_else(|| child_style.right.map(|r| -r))
+                    .unwrap_or(0.0),
+                child_style
+                    .top
+                    .or_else(|| child_style.bottom.map(|b| -b))
+                    .unwrap_or(0.0),
+            )
+        } else {
+            (0.0, 0.0)
         };
 
         // Determine child width: flex-basis takes priority, then explicit width.
@@ -942,6 +992,12 @@ pub(crate) fn layout_flex_container(
                 is_flex_container: child_style.display == Display::Flex,
                 margin_main_start_auto: m_main_start_auto,
                 margin_main_end_auto: m_main_end_auto,
+                margin_main_start: m_main_start,
+                margin_main_end: m_main_end,
+                margin_cross_start: m_cross_start,
+                rel_left: item_rel_left,
+                rel_top: item_rel_top,
+                is_relative: item_is_relative,
             });
             continue;
         }
@@ -961,9 +1017,18 @@ pub(crate) fn layout_flex_container(
             &child_ancestors,
         );
 
+        // `flex-basis: content` sizes the flex base to the item's max-content
+        // size, ignoring any `width` (css-flexbox-1 §7.2.3). Measure the run
+        // width and inflate by padding/border, capped at the container — this
+        // overrides the explicit `width` that `has_explicit_width` reflects.
         // When no explicit width/flex-basis and flex-grow is 0, measure the
         // natural (intrinsic) content width so the item shrinks to fit.
-        let child_w = if !has_explicit_width && child_style.flex_grow == 0.0 && !runs.is_empty() {
+        let child_w = if child_style.flex_basis_content && !runs.is_empty() {
+            let natural_text_w = measure_runs_width(&runs, env.fonts);
+            let pad_h = child_style.padding.left + child_style.padding.right;
+            let border_h = child_style.border.horizontal_width();
+            (natural_text_w + pad_h + border_h).min(width_for_percentages)
+        } else if !has_explicit_width && child_style.flex_grow == 0.0 && !runs.is_empty() {
             let natural_text_w = measure_runs_width(&runs, env.fonts);
             let pad_h = child_style.padding.left + child_style.padding.right;
             let border_h = child_style.border.horizontal_width();
@@ -1154,7 +1219,26 @@ pub(crate) fn layout_flex_container(
         // we approximate it against `inner_cross_size` which is the resolved
         // content height, computed later, so only the length basis is used here.
         if !style.flex_direction.is_row() && !has_explicit_height {
-            if let Some(basis) = child_style.flex_basis {
+            // A percentage `flex-basis` resolves against the container's inner
+            // main (block) size when that size is DEFINITE (css-flexbox-1 §9.2).
+            // For a column container the main size is the container's content
+            // height; fall back to the length basis / content size when the
+            // height is indefinite.
+            let container_main_content: Option<f32> = style.height.map(|h| match style.box_sizing {
+                BoxSizing::ContentBox => h,
+                BoxSizing::BorderBox => (h
+                    - style.padding.top
+                    - style.padding.bottom
+                    - style.border.vertical_width())
+                .max(0.0),
+            });
+            let basis_len = child_style.flex_basis.or_else(|| {
+                child_style
+                    .flex_basis_pct
+                    .zip(container_main_content)
+                    .map(|(pct, main)| (main * pct).max(0.0))
+            });
+            if let Some(basis) = basis_len {
                 let bb = if child_style.box_sizing == BoxSizing::ContentBox {
                     basis
                         + child_style.padding.top
@@ -1186,6 +1270,12 @@ pub(crate) fn layout_flex_container(
             is_flex_container: child_style.display == Display::Flex,
             margin_main_start_auto: m_main_start_auto,
             margin_main_end_auto: m_main_end_auto,
+            margin_main_start: m_main_start,
+            margin_main_end: m_main_end,
+            margin_cross_start: m_cross_start,
+            rel_left: item_rel_left,
+            rel_top: item_rel_top,
+            is_relative: item_is_relative,
         });
     }
 
@@ -2058,7 +2148,13 @@ pub(crate) fn layout_flex_container(
                 // of collapsing to flex-start. The earlier `free_space` was forced
                 // to 0 by the shrink pass, masking real overflow.
                 let final_item_width: f32 = line_items.iter().map(|&i| items[i].width).sum();
-                let free_space = inner_width - final_item_width - total_gap;
+                // Fixed (non-auto) main-axis item margins consume free space too,
+                // so subtract them before justify-content / auto-margin packing.
+                let total_main_margin: f32 = line_items
+                    .iter()
+                    .map(|&i| items[i].margin_main_start + items[i].margin_main_end)
+                    .sum();
+                let free_space = inner_width - final_item_width - total_gap - total_main_margin;
 
                 // css-flexbox-1 §8.1: before justify-content runs, positive main
                 // free space is split equally among the line's `auto` main-axis
@@ -2132,6 +2228,10 @@ pub(crate) fn layout_flex_container(
                     } else {
                         0.0
                     };
+                    // Honor the item's fixed leading main-axis margin: it offsets
+                    // the cursor so the cell sits after the margin, and the
+                    // trailing margin is added to the advance below.
+                    x += items[item_idx].margin_main_start;
                     let item = &items[item_idx];
 
                     // A flex item that is itself a flex container establishes an
@@ -2181,7 +2281,7 @@ pub(crate) fn layout_flex_container(
                         // Match the x-advance of the pre-existing nested_elements
                         // branch this guard supersedes (no `extra_gap`), so the
                         // already-correct bordered-nested-flex layout is unchanged.
-                        x += item.width + gap;
+                        x += item.width + gap + item.margin_main_end;
                         continue;
                     }
 
@@ -2242,7 +2342,7 @@ pub(crate) fn layout_flex_container(
                                 line_cross_size: 0.0,
                                 is_positioned: false,
                             });
-                            x += item.width + gap;
+                            x += item.width + gap + item.margin_main_end;
                             continue;
                         }
 
@@ -2316,7 +2416,7 @@ pub(crate) fn layout_flex_container(
                             line_cross_size: 0.0,
                             is_positioned: false,
                         });
-                        x += item.width + gap;
+                        x += item.width + gap + item.margin_main_end;
                         continue;
                     }
 
@@ -2439,7 +2539,7 @@ pub(crate) fn layout_flex_container(
                         });
                     }
 
-                    x += item.width + gap + extra_gap;
+                    x += item.width + gap + extra_gap + item.margin_main_end;
                 }
 
                 // `flex-direction: row-reverse` flips the main axis: main-start
@@ -2482,6 +2582,22 @@ pub(crate) fn layout_flex_container(
                     };
                     cell.y_offset = cross_offset + cross_pad;
                     cell.line_cross_size = line.cross_size;
+                }
+
+                // Apply each item's fixed cross-axis leading margin (margin-top
+                // for a row container) and its `position: relative` paint offset.
+                // Cells are 1:1 with `line_items` in placement order, so zip them.
+                // Relative offsets are physical and applied after the row-reverse
+                // mirror; a relatively-offset item is flagged positioned so it
+                // paints above its in-flow siblings.
+                for (cell, &item_idx) in flex_cells.iter_mut().zip(line_items.iter()) {
+                    let it = &items[item_idx];
+                    cell.y_offset += it.margin_cross_start;
+                    if it.is_relative {
+                        cell.x_offset += it.rel_left;
+                        cell.y_offset += it.rel_top;
+                        cell.is_positioned = true;
+                    }
                 }
                 all_flex_cells.extend(flex_cells);
             }
