@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox column flex-basis vs cross-axis width</title>
+<style>
+  @page { size: 160px 210px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* A column flex container. Its children set a MAIN-axis (height) flex-basis
+     but no width, so align-items:stretch must fill the column's cross-axis
+     width. The basis used to leak into the width (item 'a' rendered 40px wide,
+     item 'b' rendered 0px wide). */
+  .col {
+    display: flex;
+    flex-direction: column;
+    width: 120px;
+    height: 170px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+    padding: 10px;
+    gap: 10px;
+  }
+  .a { flex: 0 0 40px; background: #c0392b; }
+  .b { flex: 1 1 0; background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="col">
+      <div class="a"></div>
+      <div class="b"></div>
+    </div>
+  </div>
+</body>
+</html>

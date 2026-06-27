@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox nested row-in-row</title>
+<style>
+  @page { size: 340px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* Outer flex row whose single item (.mid) is ITSELF a flex row. Such a
+     nested-row item used to render nothing (blank), dropping its boxes and
+     its own background entirely. */
+  .outer {
+    display: flex;
+    width: 300px;
+    height: 80px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+    padding: 10px;
+  }
+  .mid {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 12px;
+    background: #fde68a;
+  }
+  .box { width: 60px; height: 50px; }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="outer">
+      <div class="mid">
+        <div class="box a"></div>
+        <div class="box b"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

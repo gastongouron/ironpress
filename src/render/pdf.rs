@@ -4264,6 +4264,43 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         }
                                         nested_y -= cont_h;
                                     }
+                                    LayoutElement::FlexRow { .. } => {
+                                        // A flex item that is itself a flex
+                                        // container (a nested FlexRow) establishes
+                                        // an independent formatting context.
+                                        // Render it through the shared block-flow
+                                        // renderer at the cell's nested origin,
+                                        // reusing its FlexRow arm. Without this the
+                                        // nested row fell through to `_ => {}` and
+                                        // the entire item — its boxes AND its own
+                                        // background — was dropped (blank page).
+                                        let mut nested_abs_origins: HashMap<
+                                            usize,
+                                            (f32, f32),
+                                        > = HashMap::new();
+                                        render_container_children(
+                                            &mut content,
+                                            std::slice::from_ref(nested_elem),
+                                            nested_x,
+                                            nested_y,
+                                            cell.width,
+                                            custom_fonts,
+                                            &prepared_custom_fonts,
+                                            &mut page_ext_gstates,
+                                            &mut bg_alpha_counter,
+                                            &mut page_shadings,
+                                            &mut shading_counter,
+                                            &mut pdf_writer,
+                                            &mut page_images,
+                                            0.0,
+                                            0.0,
+                                            &mut nested_abs_origins,
+                                        );
+                                        nested_y -=
+                                            crate::layout::engine::estimate_element_height(
+                                                nested_elem,
+                                            );
+                                    }
                                     _ => {}
                                 }
                             }
@@ -8457,7 +8494,13 @@ fn render_nested_table_rows(
                 } else {
                     *border_spacing
                 };
-                let row_y = cursor_y;
+                // A `border-collapse: collapse` table strokes its outer border
+                // centered on its box edge, so without this shift it bled half its
+                // width into the container's padding (and the item came out ~1px
+                // up-left of Chrome). Shift the painted table right/down by half the
+                // outer border, mirroring the top-level and nested-layout paths.
+                let (collapse_dx, collapse_dy) = collapse_paint_offset(cells, *border_collapse);
+                let row_y = cursor_y - collapse_dy;
                 let row_height = compute_row_height(cells);
 
                 let mut col_pos: usize = 0;
@@ -8466,8 +8509,13 @@ fn render_nested_table_rows(
                         col_pos += cell.colspan;
                         continue;
                     }
-                    let (cell_x, cell_w) =
-                        table_cell_geometry(col_widths, col_pos, cell.colspan, spacing, origin_x);
+                    let (cell_x, cell_w) = table_cell_geometry(
+                        col_widths,
+                        col_pos,
+                        cell.colspan,
+                        spacing,
+                        origin_x + collapse_dx,
+                    );
 
                     // Draw cell background
                     if let Some((r, g, b, a)) = cell.background_color {

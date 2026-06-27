@@ -7,12 +7,12 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 97.09,
-    "pass": 600,
+    "score_pct": 97.1,
+    "pass": 603,
     "partial": 0,
     "fail": 18,
     "unknown": 0,
-    "total": 618,
+    "total": 621,
     "scored_ratio_pct": 100.0
   },
   "categories": [
@@ -18860,7 +18860,7 @@
       "category": "flexbox",
       "score_pct": 100.0,
       "counts": {
-        "pass": 47,
+        "pass": 50,
         "partial": 0,
         "fail": 0,
         "unknown": 0
@@ -23608,12 +23608,168 @@
           "feature": "nested-flex",
           "score_pct": 100.0,
           "counts": {
-            "pass": 1,
+            "pass": 4,
             "partial": 0,
             "fail": 0,
             "unknown": 0
           },
           "fixtures": [
+            {
+              "id": "flexbox-nested-column-bg",
+              "category": "flexbox",
+              "feature": "nested-flex",
+              "subfeature": "column-background",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A nested column flex item with its own background stretches to the row cross size and paints both stacked children (previously only the column background drew and the children vanished).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "bc685e3527da9b1f2a97804e49706969d43f37aec994cc4c01c82f98c293acd9",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-nested-column-stretch",
+              "category": "flexbox",
+              "feature": "nested-flex",
+              "subfeature": "column-basis-vs-width",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "Column-direction items set a main-axis flex-basis but no width, so align-items:stretch fills the cross-axis width instead of the basis leaking into the item width.",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "fe2e58dc4da1d21534fde8cca71338d8edca3f9c075996d62eb23633bb3e1528",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
             {
               "id": "flexbox-nested-flex",
               "category": "flexbox",
@@ -23634,6 +23790,84 @@
               "expected_support": "implemented",
               "attribution": "",
               "html_sha256": "1036214dcaeef89f015bbeb207563df3e9f0260d5987201d3c9f4e05e65daa8b",
+              "diagnosis": {
+                "primary_class": "AaOnly",
+                "secondary": [],
+                "headline": "differences confined to glyph AA edges — measurement ceiling, not a bug",
+                "magnitude": {
+                  "edge_delta_css": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "missing_area_pct": 0.0,
+                  "extra_area_pct": 0.0,
+                  "modal_drgb": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "delta_e": 0.0,
+                  "recovered_alpha": null,
+                  "residual_shift_css": [
+                    0.0,
+                    0.0
+                  ],
+                  "colorspace": null
+                },
+                "regions": [],
+                "residual_shift_css": [
+                  0.0,
+                  0.0
+                ],
+                "confidence": 1.0
+              },
+              "sub_verdicts": [
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Geometry",
+                  "headline": "raster geometry: edge 0.00css shift 0.00css",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Appearance",
+                  "headline": "raster appearance: color 0.00% interiorΔE 0.00",
+                  "magnitude": 0.0
+                },
+                {
+                  "verifier": "RasterDiff",
+                  "status": "PASS",
+                  "concern": "Presence",
+                  "headline": "raster presence: missing 0.00% extra 0.00%",
+                  "magnitude": 0.0
+                }
+              ],
+              "disagreements": []
+            },
+            {
+              "id": "flexbox-nested-row-in-row",
+              "category": "flexbox",
+              "feature": "nested-flex",
+              "subfeature": "row-in-row",
+              "interaction_of": [],
+              "base_ids": [],
+              "status": "PASS",
+              "diff_pct": 0.0,
+              "weight": 1.0,
+              "description": "A row flex item that is itself a flex row paints its own background and both inner boxes (previously the whole nested row was dropped, leaving a blank container).",
+              "note": "",
+              "kind": "feature",
+              "depends_on": [
+                "probe-fill-box",
+                "probe-block-flow"
+              ],
+              "expected_support": "implemented",
+              "attribution": "",
+              "html_sha256": "30d11a73af8889a28d1f2d6e9e8681d2dff06f3b881df2ffd02b561601607dc6",
               "diagnosis": {
                 "primary_class": "AaOnly",
                 "secondary": [],
@@ -48033,7 +48267,7 @@
                 "flexbox-display-flex"
               ],
               "status": "FAIL",
-              "diff_pct": 6.2066,
+              "diff_pct": 3.9432,
               "weight": 1.0,
               "description": "A bordered 2x2 table laid out inside a flex item; the flex layout sizes the item around the table's intrinsic grid.",
               "note": "",
@@ -48164,12 +48398,70 @@
                   {
                     "class": "GeometrySize",
                     "bbox_css": [
+                      12.16,
+                      12.16,
+                      12.8,
+                      12.8
+                    ],
+                    "area_pct": 0.001951219512195122,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.92
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      0.35555555555555557,
+                      0.14222222222222222
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on bottom edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
+                      91.2,
+                      12.16,
+                      91.84,
+                      12.8
+                    ],
+                    "area_pct": 0.001951219512195122,
+                    "edge_delta_css": [
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.92
+                    ],
+                    "modal_drgb": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "delta_e": 0.0,
+                    "recovered_alpha": null,
+                    "shift_css": [
+                      -0.35555555555555557,
+                      0.14222222222222222
+                    ],
+                    "selector": null,
+                    "headline": "box +1.9px on bottom edge (size/box-model mismatch)"
+                  },
+                  {
+                    "class": "GeometrySize",
+                    "bbox_css": [
                       114.24,
                       22.08,
-                      235.84,
-                      95.68
+                      114.88,
+                      22.72
                     ],
-                    "area_pct": 0.3980487804878049,
+                    "area_pct": 0.001951219512195122,
                     "edge_delta_css": [
                       0.0,
                       0.0,
@@ -48184,66 +48476,8 @@
                     "delta_e": 0.0,
                     "recovered_alpha": null,
                     "shift_css": [
-                      -0.24383442265795208,
-                      -0.4095860566448802
-                    ],
-                    "selector": null,
-                    "headline": "box +1.9px on bottom edge (size/box-model mismatch)"
-                  },
-                  {
-                    "class": "GeometrySize",
-                    "bbox_css": [
-                      114.24,
-                      21.12,
-                      233.92,
-                      21.76
-                    ],
-                    "area_pct": 0.24390243902439024,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.92
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      0.0,
-                      -0.635448888888889
-                    ],
-                    "selector": null,
-                    "headline": "box +1.9px on bottom edge (size/box-model mismatch)"
-                  },
-                  {
-                    "class": "GeometrySize",
-                    "bbox_css": [
-                      175.04,
-                      23.04,
-                      232.96,
-                      56.96
-                    ],
-                    "area_pct": 0.18601626016260162,
-                    "edge_delta_css": [
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.92
-                    ],
-                    "modal_drgb": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "delta_e": 0.0,
-                    "recovered_alpha": null,
-                    "shift_css": [
-                      -0.22974358974358974,
-                      -0.39981351981351987
+                      0.35555555555555557,
+                      0.14222222222222222
                     ],
                     "selector": null,
                     "headline": "box +1.9px on bottom edge (size/box-model mismatch)"
@@ -83407,7 +83641,7 @@
       "units-values/percentage",
       "units-values/viewport-units"
     ],
-    "implemented": 521,
+    "implemented": 524,
     "partial": 38,
     "unsupported": 59
   },

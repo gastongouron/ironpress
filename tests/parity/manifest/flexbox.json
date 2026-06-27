@@ -797,5 +797,56 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-nested-row-in-row",
+    "category": "flexbox",
+    "feature": "nested-flex",
+    "subfeature": "row-in-row",
+    "description": "A row flex item that is itself a flex row paints its own background and both inner boxes (previously the whole nested row was dropped, leaving a blank container).",
+    "file": "cases/flexbox/flexbox-nested-row-in-row.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-nested-column-bg",
+    "category": "flexbox",
+    "feature": "nested-flex",
+    "subfeature": "column-background",
+    "description": "A nested column flex item with its own background stretches to the row cross size and paints both stacked children (previously only the column background drew and the children vanished).",
+    "file": "cases/flexbox/flexbox-nested-column-bg.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-nested-column-stretch",
+    "category": "flexbox",
+    "feature": "nested-flex",
+    "subfeature": "column-basis-vs-width",
+    "description": "Column-direction items set a main-axis flex-basis but no width, so align-items:stretch fills the cross-axis width instead of the basis leaking into the item width.",
+    "file": "cases/flexbox/flexbox-nested-column-stretch.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox nested column with background</title>
+<style>
+  @page { size: 280px 200px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 20px; }
+  /* Outer flex row holding a single nested COLUMN flex item that paints its
+     own background. The column's background used to be the ONLY thing drawn —
+     both children vanished. The column also stretches to the row cross size. */
+  .outer {
+    display: flex;
+    width: 240px;
+    height: 160px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    background: #dddddd;
+    gap: 10px;
+  }
+  .box { height: 50px; }
+  .a { background: #c0392b; }
+  .b { background: #2980b9; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="outer">
+      <div class="col">
+        <div class="box a"></div>
+        <div class="box b"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

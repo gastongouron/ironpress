@@ -441,6 +441,13 @@ pub(crate) fn layout_flex_container(
         /// Grow and shrink both clamp each item to `[min_main, max_main]`.
         min_main: f32,
         max_main: f32,
+        /// Whether this item is itself a flex container (`display: flex`). Such an
+        /// item establishes an independent formatting context and its sub-layout
+        /// (`elements`) carries each inner box's own geometry/background. It must
+        /// therefore be routed through `nested_elements` for the renderer to paint
+        /// every inner box, NOT collapsed by the lossy text-merge path (which kept
+        /// only the first box's background and dropped the rest).
+        is_flex_container: bool,
     }
 
     // Resolve an item's outer (border-box) main-axis min/max clamps from its
@@ -531,13 +538,23 @@ pub(crate) fn layout_flex_container(
         // percentage basis behaves like `auto`, so we only resolve it for row
         // direction. The resolved length then feeds the same path as an explicit
         // `flex-basis` length.
-        let resolved_basis = match child_style.flex_basis_pct {
-            Some(pct) if style.flex_direction.is_row() => Some((inner_width * pct).max(0.0)),
-            _ => child_style.flex_basis,
+        // `flex-basis` (and a percentage basis) is a MAIN-axis base size. For a
+        // ROW container the main axis is inline, so the basis feeds the item's
+        // width. For a COLUMN container the main axis is the block (height) axis,
+        // so the basis must NOT leak into the item's cross-axis WIDTH — doing so
+        // defeated `align-items: stretch` (a `flex: 1 1 0` column item rendered
+        // width 0, a `flex: 0 0 40px` item rendered 40px wide instead of filling
+        // the column). The column main-axis basis is applied to the item height
+        // further below (see the `!is_row()` `item_border_box_h` branch).
+        let resolved_basis = if style.flex_direction.is_row() {
+            match child_style.flex_basis_pct {
+                Some(pct) => Some((inner_width * pct).max(0.0)),
+                None => child_style.flex_basis,
+            }
+        } else {
+            None
         };
-        let has_explicit_width = resolved_basis.is_some()
-            || child_style.flex_basis_pct.is_some()
-            || child_style.width.is_some();
+        let has_explicit_width = resolved_basis.is_some() || child_style.width.is_some();
         let has_explicit_height = child_style.height.is_some();
         let inflate_outer = |w: f32| -> f32 {
             if child_style.box_sizing == BoxSizing::ContentBox {
@@ -802,6 +819,7 @@ pub(crate) fn layout_flex_container(
                 child_idx: idx,
                 min_main: main_min_max(&child_style).0,
                 max_main: main_min_max(&child_style).1,
+                is_flex_container: child_style.display == Display::Flex,
             });
             continue;
         }
@@ -1003,6 +1021,7 @@ pub(crate) fn layout_flex_container(
             child_idx: idx,
             min_main: main_min_max(&child_style).0,
             max_main: main_min_max(&child_style).1,
+            is_flex_container: child_style.display == Display::Flex,
         });
     }
 
@@ -1663,6 +1682,78 @@ pub(crate) fn layout_flex_container(
                             } else {
                                 (final_w - relayout_child_style.border.horizontal_width()).max(0.0)
                             };
+                            // A nested flex container must re-run its OWN flex
+                            // algorithm at the final (grown) main-axis width, and —
+                            // when it stretches — with the line's cross size forced
+                            // as its definite height, so its flex-grow children
+                            // distribute against a real main size. The generic
+                            // `flatten_element` re-flatten below lays a flex item out
+                            // at an indefinite height, collapsing its grow children
+                            // to zero (the pre-grow stretch pass above used the
+                            // ungrown width, which the grow re-flatten then clobbered).
+                            if relayout_child_style.display == Display::Flex
+                                && direction.is_row()
+                                && inner_cross_size > 0.0
+                            {
+                                let mut fstyle = relayout_child_style.clone();
+                                let stretches = matches!(
+                                    items[i].align_self,
+                                    AlignSelf::Stretch
+                                ) || (matches!(items[i].align_self, AlignSelf::Auto)
+                                    && align == AlignItems::Stretch);
+                                if stretches && fstyle.height.is_none() {
+                                    fstyle.height = Some(match fstyle.box_sizing {
+                                        BoxSizing::BorderBox => inner_cross_size,
+                                        BoxSizing::ContentBox => (inner_cross_size
+                                            - fstyle.border.vertical_width()
+                                            - fstyle.padding.top
+                                            - fstyle.padding.bottom)
+                                            .max(0.0),
+                                    });
+                                }
+                                let mut fbuf = Vec::new();
+                                let mut fancestors = ancestors.to_vec();
+                                fancestors.push(AncestorInfo {
+                                    element: child_el,
+                                    child_index: child_idx,
+                                    sibling_count: child_count,
+                                    preceding_siblings: Vec::new(),
+                                    following_siblings: Vec::new(),
+                                    is_empty: false,
+                                });
+                                let fctx = ctx
+                                    .with_parent_and_basis(
+                                        final_w,
+                                        width_for_percentages,
+                                        Some(inner_cross_size),
+                                        style.font_size,
+                                    )
+                                    .with_containing_block(None);
+                                layout_flex_container(
+                                    child_el,
+                                    &fstyle,
+                                    &fctx,
+                                    &mut fbuf,
+                                    &fancestors,
+                                    None,
+                                    None,
+                                    positioned_depth,
+                                    env,
+                                );
+                                if !fbuf.is_empty() {
+                                    items[i].elements = fbuf;
+                                    items[i].height = if stretches {
+                                        inner_cross_size
+                                    } else {
+                                        items[i]
+                                            .elements
+                                            .iter()
+                                            .map(estimate_element_height)
+                                            .sum()
+                                    };
+                                }
+                                continue;
+                            }
                             let mut relayout_buf = Vec::new();
                             let mut relayout_ancestors = ancestors.to_vec();
                             relayout_ancestors.push(AncestorInfo {
@@ -1732,6 +1823,55 @@ pub(crate) fn layout_flex_container(
                 let mut flex_cells = Vec::new();
                 for &item_idx in &line_items {
                     let item = &items[item_idx];
+
+                    // A flex item that is itself a flex container establishes an
+                    // independent formatting context: its `elements` already carry
+                    // every inner box's own background/width/height/x-offset (a
+                    // nested `FlexRow`, or a column's per-child TextBlocks). The
+                    // text-merge path below would keep only the first box's
+                    // background and drop the rest (blank nested rows, vanished
+                    // column children), so route the whole sub-layout through
+                    // `nested_elements` for the renderer to paint each inner box.
+                    if item.is_flex_container {
+                        flex_cells.push(FlexCell {
+                            lines: Vec::new(),
+                            x_offset: x,
+                            width: item.width,
+                            natural_height: item.height,
+                            has_explicit_height: item.has_explicit_height,
+                            align_self: item.align_self,
+                            text_align: TextAlign::Left,
+                            background_color: None,
+                            padding_top: 0.0,
+                            padding_right: 0.0,
+                            padding_bottom: 0.0,
+                            padding_left: 0.0,
+                            border: LayoutBorder::default(),
+                            border_radius: 0.0,
+                            background_gradient: None,
+                            background_radial_gradient: None,
+                            background_conic_gradient: None,
+                            background_svg: None,
+                            background_blur_radius: 0.0,
+                            background_size: BackgroundSize::Auto,
+                            background_position: BackgroundPosition::default(),
+                            background_repeat: BackgroundRepeat::Repeat,
+                            background_origin: BackgroundOrigin::Padding,
+                            background_clip: BackgroundClip::Border,
+                            transform: None,
+                            transform_origin: crate::style::computed::TransformOrigin::default(),
+                            box_shadow: Vec::new(),
+                            nested_elements: item.elements.clone(),
+                            y_offset: 0.0,
+                            line_cross_size: 0.0,
+                            is_positioned: false,
+                        });
+                        // Match the x-advance of the pre-existing nested_elements
+                        // branch this guard supersedes (no `extra_gap`), so the
+                        // already-correct bordered-nested-flex layout is unchanged.
+                        x += item.width + gap;
+                        continue;
+                    }
 
                     // Complex items (multiple elements): merge all lines
                     // into a single FlexCell, inserting margin spacing
