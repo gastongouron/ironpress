@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A REAL fragmentation test: a single paragraph far taller than the page must
+     be SPLIT across page boundaries (CSS Fragmentation 3 §3), not clipped. The
+     page content box is 200px (=150pt) tall; with 16px/1.5 text each line box is
+     18pt, so 8 whole lines fit per page (8*18=144 <= 150) and the 24 lines span
+     exactly THREE pages. The multi-page harness asserts the page COUNT (3) and
+     diffs every page against Chrome, so an off-by-one split or any clipping
+     fails. */
+  @page { size: 300px 200px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; font-size: 16px; line-height: 1.5; background: #ffffff; }
+  p { color: #11305f; }
+</style>
+</head>
+<body>
+  <p>Line 01 alpha<br>Line 02 bravo<br>Line 03 charlie<br>Line 04 delta<br>Line 05 echo<br>Line 06 foxtrot<br>Line 07 golf<br>Line 08 hotel<br>Line 09 india<br>Line 10 juliet<br>Line 11 kilo<br>Line 12 lima<br>Line 13 mike<br>Line 14 november<br>Line 15 oscar<br>Line 16 papa<br>Line 17 quebec<br>Line 18 romeo<br>Line 19 sierra<br>Line 20 tango<br>Line 21 uniform<br>Line 22 victor<br>Line 23 whiskey<br>Line 24 xray</p>
+</body>
+</html>

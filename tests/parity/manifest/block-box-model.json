@@ -727,5 +727,22 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paragraph-splits-across-pages",
+    "category": "block-box-model",
+    "feature": "fragmentation",
+    "subfeature": "paragraph-split-across-pages",
+    "description": "A single paragraph far taller than the 200px page is SPLIT across page boundaries (CSS Fragmentation 3 \u00a73): 24 lines at 16px/1.5 (18pt each, 8 per 150pt page) span THREE pages. The multi-page harness asserts the page COUNT (3) and diffs every page against Chrome, so any clipping or off-by-one split fails \u2014 the first fixture that validates layout-level fragmentation (line-box splitting), not just a forced break. Text-bearing on every page, so it carries the text/AA threshold class (6/18%) shared by the typography/inline-text corpus: each page matches Chrome exactly once the global ~0.32px text-baseline AA offset (see probe-text-baseline) is set aside.",
+    "file": "cases/block-box-model/paragraph-splits-across-pages.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

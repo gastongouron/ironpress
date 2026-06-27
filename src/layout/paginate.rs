@@ -431,6 +431,111 @@ pub(crate) fn table_row_content_width(element: &LayoutElement) -> f32 {
     }
 }
 
+/// Split a too-tall in-flow `TextBlock` at a line boundary (CSS Fragmentation 3
+/// §3) so its first fragment fills the remaining fragmentainer height and the
+/// rest continues on the next page. `avail_below_box_top` is the page height
+/// still available below this box's *border-box top* on the current page
+/// (`content_height − cursor − collapsed margin-top`).
+///
+/// Returns `(first_fragment, continuation)` for `box-decoration-break: slice`
+/// (the default): the first fragment keeps the box's TOP border/padding but
+/// drops its bottom border/padding/margin; the continuation drops its top
+/// margin/border/padding and keeps the original bottom decoration. `None` is
+/// returned when the box cannot be cleanly split between lines — a definite
+/// `height`/clipped (overflow) box, a positioned/floated box, fewer than two
+/// lines, or a boundary where every line fits or none would move — in which case
+/// the caller places it whole (the pre-existing, possibly-overflowing behavior).
+fn split_text_block(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::TextBlock {
+        lines,
+        block_height,
+        clip_rect,
+        position,
+        float,
+        border,
+        padding_top,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    // Only a plain, auto-height, in-flow text block is splittable here. A box
+    // with a definite height or `overflow` clip is a hard-sized box (treat as
+    // monolithic); a positioned/floated box is out of normal flow and handled
+    // elsewhere; a single line cannot be divided.
+    if block_height.is_some()
+        || clip_rect.is_some()
+        || *position != Position::Static
+        || *float != Float::None
+        || lines.len() < 2
+    {
+        return None;
+    }
+
+    // Content-box height available for text lines on this page: the space below
+    // the box's border-box top, minus the top border + top padding (the first
+    // fragment carries no bottom border/padding under `slice`, so its lines may
+    // extend to the page bottom).
+    let avail_lines = avail_below_box_top - border.top.width - padding_top;
+
+    // Greedily keep whole lines that fit, but always retain at least one line on
+    // this page — the forward-progress invariant: never leave a fragmentainer
+    // empty / never break at the very top with zero content.
+    let mut acc = 0.0f32;
+    let mut idx = 0usize;
+    for (i, line) in lines.iter().enumerate() {
+        let next = acc + line.height;
+        if i > 0 && next > avail_lines {
+            break;
+        }
+        acc = next;
+        idx = i + 1;
+    }
+    if idx == 0 || idx >= lines.len() {
+        // Every line fits (no overflow to split) or not even one would stay.
+        return None;
+    }
+
+    // First fragment: the lines that fit, with the box's top decoration but NO
+    // bottom border/padding/margin (slice).
+    let mut first = element.clone();
+    if let LayoutElement::TextBlock {
+        lines: f_lines,
+        margin_bottom: f_mb,
+        padding_bottom: f_pb,
+        border: f_border,
+        ..
+    } = &mut first
+    {
+        *f_lines = lines[..idx].to_vec();
+        *f_mb = 0.0;
+        *f_pb = 0.0;
+        f_border.bottom.width = 0.0;
+    }
+
+    // Continuation: the remaining lines with NO top margin/border/padding,
+    // keeping the original bottom decoration so the LAST fragment closes the box.
+    let mut rest = element.clone();
+    if let LayoutElement::TextBlock {
+        lines: r_lines,
+        margin_top: r_mt,
+        padding_top: r_pt,
+        border: r_border,
+        ..
+    } = &mut rest
+    {
+        *r_lines = lines[idx..].to_vec();
+        *r_mt = 0.0;
+        *r_pt = 0.0;
+        r_border.top.width = 0.0;
+    }
+
+    Some((first, rest))
+}
+
 pub(crate) fn paginate(
     elements: Vec<LayoutElement>,
     content_height: f32,
@@ -468,7 +573,14 @@ pub(crate) fn paginate(
     #[allow(unused_assignments)]
     let mut in_table_body = false;
 
-    for element in elements {
+    // Worklist of pending top-level elements. A box that is too tall for the
+    // page is split (CSS Fragmentation 3 §3): its first fragment is placed and
+    // the continuation is pushed back onto the FRONT so it resumes immediately
+    // on the next page. Elements that already fit are processed exactly as
+    // before (every existing `continue`/placement is unchanged), so the whole
+    // single-page corpus is byte-for-byte identical.
+    let mut work: std::collections::VecDeque<LayoutElement> = elements.into();
+    while let Some(element) = work.pop_front() {
         // Track <thead> header rows so we can repeat them across page breaks
         // that occur mid-table. Reset when leaving the table.
         match &element {
@@ -847,6 +959,54 @@ pub(crate) fn paginate(
             prev_margin_bottom = 0.0;
             first_on_page = false;
             continue;
+        }
+
+        // CSS Fragmentation 3 §3: if this in-flow box STILL overflows the page
+        // after the break-between handling above, it is genuinely taller than a
+        // full fragmentainer and would otherwise be clipped (data loss). Split it
+        // at an internal break point, place the first fragment to fill the rest
+        // of this page, and resume the continuation at the top of the next one.
+        //
+        // The guard `y + element_height > content_height` is true ONLY for a box
+        // taller than the remaining space that the break-between logic could not
+        // resolve (i.e. taller than a full empty page, or a too-tall box already
+        // at the page top). Every box that fits — the entire existing corpus —
+        // skips this block and takes the unchanged whole-placement path below.
+        // The small epsilon absorbs sub-point text-measurement rounding so a box
+        // that merely grazes the page bottom is not spuriously fragmented.
+        const FRAG_EPSILON: f32 = 0.5;
+        if elem_position == Position::Static
+            && y + element_height > content_height + FRAG_EPSILON
+        {
+            let avail_below_box_top = content_height - (y + effective_margin_top);
+            if let Some((first, rest)) = split_text_block(&element, avail_below_box_top) {
+                // Place the first fragment at the (margin-adjusted) cursor; it
+                // fills the remainder of this page.
+                y += effective_margin_top;
+                current_elements.push((y, first));
+                // Close the page (the fragmentainer is full) and reset flow state
+                // for the continuation, mirroring a normal mid-loop page break.
+                let consumed_height = content_height;
+                pages.push(Page {
+                    elements: std::mem::take(&mut current_elements),
+                });
+                for bg in &absolute_backgrounds {
+                    current_elements.push(bg.clone());
+                }
+                y = 0.0;
+                prev_margin_bottom = 0.0;
+                first_on_page = true;
+                on_first_page = false;
+                left_floats.clear();
+                right_floats.clear();
+                advance_positioned_ancestors_after_page_break(
+                    &mut positioned_y_by_depth,
+                    consumed_height,
+                );
+                // Resume with the continuation on the next page.
+                work.push_front(rest);
+                continue;
+            }
         }
 
         y += effective_margin_top;

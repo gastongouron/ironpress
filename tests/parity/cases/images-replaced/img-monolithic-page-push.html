@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A block image that does not fit after the filler is pushed WHOLE to page 2
+     (spec-correct class-A break before a monolithic box), not split or clipped. */
+  @page { size: 360px 300px; margin: 0; }
+  * { margin: 0; box-sizing: border-box; }
+  html { font-family: ParitySans; background: #fff; }
+  .filler { height: 170px; background: #eee; border-bottom: 3px solid #888; }
+  img { display: block; width: 280px; height: 220px; }
+</style>
+</head>
+<body>
+  <div class="filler"></div>
+  <img alt="box" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='220'%3E%3Crect width='280' height='220' fill='%232d6cdf'/%3E%3C/svg%3E">
+</body>
+</html>

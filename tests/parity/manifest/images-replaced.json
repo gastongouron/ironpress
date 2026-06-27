@@ -368,5 +368,19 @@
     "expected_support": "implemented",
     "sanitize": true,
     "depends_on": ["probe-fill-box", "probe-image-render"]
+  },
+  {
+    "id": "img-monolithic-page-push",
+    "category": "images-replaced",
+    "feature": "fragmentation",
+    "subfeature": "monolithic-image-push",
+    "description": "A block image too tall for the remaining space after the filler is pushed WHOLE to page 2 (spec-correct class-A break before a monolithic box), not split or clipped. The multi-page harness asserts both pages.",
+    "file": "cases/images-replaced/img-monolithic-page-push.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]
