@@ -511,11 +511,12 @@
     "id": "running-element-header",
     "category": "paged-media",
     "feature": "running-element",
-    "subfeature": "position-running-unsupported",
-    "description": "CSS GCPM running elements: position: running(h) parks a box in a named slot and @top-center { content: element(h) } renders it as a running header on every page. Chrome --print-to-pdf does not implement GCPM running elements (position: running() is treated as invalid, the box stays in flow, and the margin box prints nothing), and ironpress does not yet resolve element() references in margin boxes. Tracked-unsupported: GCPM running elements unimplemented; needs a Prince/WeasyPrint oracle.",
+    "subfeature": "position-running",
+    "description": "CSS GCPM running elements: position: running(h) removes a box from normal flow, stores it in a named slot, and @top-center { content: element(h) } renders it as a running header in the page margin box. Validated against a WeasyPrint oracle because Chrome --print-to-pdf does not implement GCPM running elements.",
     "file": "cases/paged-media/running-element-header.html",
+    "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],

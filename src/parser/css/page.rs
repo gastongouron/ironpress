@@ -102,7 +102,12 @@ pub(crate) fn classify_page_selector(text: &str) -> PageSelector {
         return PageSelector::Named(name.to_string());
     }
     // No name — classify the first pseudo-class.
-    match text.trim_start_matches(':').trim().to_ascii_lowercase().as_str() {
+    match text
+        .trim_start_matches(':')
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "first" => PageSelector::First,
         "left" => PageSelector::Left,
         "right" => PageSelector::Right,
@@ -294,9 +299,19 @@ pub(crate) fn parse_margin_box_content(val: &str) -> Vec<MarginContentToken> {
             } else {
                 break;
             }
+        } else if rest.len() >= 8 && rest[..8].eq_ignore_ascii_case("element(") {
+            if let Some(end) = rest.find(')') {
+                let name = rest[8..end].trim();
+                if !name.is_empty() {
+                    tokens.push(MarginContentToken::Element(name.to_ascii_lowercase()));
+                }
+                i += end + 1;
+            } else {
+                break;
+            }
         } else {
-            // Unsupported token (string()/element()/attr()/identifier) — advance
-            // one char to keep making progress.
+            // Unsupported token (string()/attr()/identifier) — advance one char
+            // to keep making progress.
             i += c.len_utf8();
         }
     }
@@ -746,7 +761,10 @@ mod tests {
         assert!(rules[0].width.is_some(), "size must survive margin boxes");
         assert!((rules[0].margin_top.unwrap() - 2.0 * 28.3465).abs() < 0.01);
         assert_eq!(rules[0].margin_boxes.len(), 2);
-        assert_eq!(rules[0].margin_boxes[0].position, MarginBoxPosition::TopLeft);
+        assert_eq!(
+            rules[0].margin_boxes[0].position,
+            MarginBoxPosition::TopLeft
+        );
         assert_eq!(
             rules[0].margin_boxes[1].position,
             MarginBoxPosition::TopRight
@@ -779,6 +797,15 @@ mod tests {
                 MarginContentToken::Literal("p.".to_string()),
                 MarginContentToken::PageNumber,
             ]
+        );
+    }
+
+    #[test]
+    fn parse_margin_box_content_element_reference() {
+        let toks = parse_margin_box_content("element(runhead)");
+        assert_eq!(
+            toks,
+            vec![MarginContentToken::Element("runhead".to_string())]
         );
     }
 

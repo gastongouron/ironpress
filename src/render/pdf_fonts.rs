@@ -99,6 +99,9 @@ fn collect_non_winansi_chars(
         for (_, element) in &page.elements {
             collect_non_winansi_from_element(element, custom_fonts, &mut chars);
         }
+        for element in page.running_elements.values() {
+            collect_non_winansi_from_element(element, custom_fonts, &mut chars);
+        }
     }
     chars
 }
@@ -148,6 +151,9 @@ fn collect_non_winansi_from_element(
                 collect_non_winansi_from_element(child, custom_fonts, chars);
             }
         }
+        LayoutElement::RunningElement { element, .. } => {
+            collect_non_winansi_from_element(element, custom_fonts, chars);
+        }
         _ => {}
     }
 }
@@ -159,6 +165,9 @@ fn collect_font_usage(
     let mut usage = BTreeMap::new();
     for page in pages {
         for (_, element) in &page.elements {
+            collect_font_usage_from_element(element, custom_fonts, &mut usage);
+        }
+        for element in page.running_elements.values() {
             collect_font_usage_from_element(element, custom_fonts, &mut usage);
         }
     }
@@ -197,6 +206,9 @@ fn collect_font_usage_from_element(
         }
         LayoutElement::Svg { tree, .. } => {
             collect_font_usage_from_svg(tree, custom_fonts, usage);
+        }
+        LayoutElement::RunningElement { element, .. } => {
+            collect_font_usage_from_element(element, custom_fonts, usage);
         }
         _ => {}
     }

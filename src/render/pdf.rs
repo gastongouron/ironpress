@@ -1086,6 +1086,78 @@ pub struct PageDecoration {
     pub margin_boxes: Vec<crate::parser::css::MarginBox>,
 }
 
+#[allow(clippy::too_many_arguments)]
+fn render_running_margin_element(
+    content: &mut String,
+    element: &LayoutElement,
+    align: crate::parser::css::MarginBoxAlign,
+    band: crate::parser::css::MarginBoxBand,
+    page_size: PageSize,
+    margin: Margin,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) -> bool {
+    let LayoutElement::TextBlock { lines, .. } = element else {
+        return false;
+    };
+    if lines.is_empty() {
+        return false;
+    }
+
+    let element_w = lines
+        .iter()
+        .map(|line| estimate_line_width_with_fonts(line, custom_fonts))
+        .fold(0.0f32, f32::max);
+    let x = match align {
+        crate::parser::css::MarginBoxAlign::Left => margin.left,
+        crate::parser::css::MarginBoxAlign::Center => page_size.width / 2.0 - element_w / 2.0,
+        crate::parser::css::MarginBoxAlign::Right => page_size.width - margin.right - element_w,
+    };
+    let band_center_y = match band {
+        crate::parser::css::MarginBoxBand::Top => page_size.height - margin.top / 2.0,
+        crate::parser::css::MarginBoxBand::Bottom => margin.bottom / 2.0,
+    };
+    let total_h: f32 = lines.iter().map(|line| line.height).sum();
+    let mut line_top = band_center_y + total_h / 2.0;
+    for line in lines {
+        let metrics = line_box_metrics(line, custom_fonts);
+        line_top -= metrics.half_leading + metrics.ascender;
+        let baseline_y = line_top;
+        let line_w = estimate_line_width_with_fonts(line, custom_fonts);
+        let line_x = match align {
+            crate::parser::css::MarginBoxAlign::Left => x,
+            crate::parser::css::MarginBoxAlign::Center => x + (element_w - line_w) / 2.0,
+            crate::parser::css::MarginBoxAlign::Right => x + element_w - line_w,
+        };
+        let merged = merge_runs(&line.runs);
+        let mut cursor_x = line_x;
+        let parent_font_size = crate::layout::text::line_primary_font_size(&merged);
+        for run in &merged {
+            if run.text.is_empty() || run.inline_box.is_some() {
+                continue;
+            }
+            let rw = render_run_text_with_faux_bold(
+                content,
+                run,
+                cursor_x,
+                baseline_y,
+                parent_font_size,
+                custom_fonts,
+                prepared_custom_fonts,
+                0.0,
+                false,
+                pdf_writer,
+                page_images,
+            );
+            cursor_x += rw;
+        }
+        line_top -= metrics.descender + metrics.half_leading;
+    }
+    true
+}
+
 /// Render laid-out pages as PDF, writing directly to any `std::io::Write` implementation.
 ///
 /// This is the streaming variant of [`render_pdf`]. It writes PDF content incrementally
@@ -5552,6 +5624,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     render_math_glyphs(&math_layout.glyphs, math_x, math_baseline_y, &mut content);
                 }
+                LayoutElement::RunningElement { .. } => {}
                 LayoutElement::PageBreak(..) => {}
             }
         }
@@ -5600,6 +5673,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 let Some(band) = mb.position.band() else {
                     continue;
                 };
+                let mut running_element: Option<&LayoutElement> = None;
                 let mut text = String::new();
                 for tok in &mb.content {
                     match tok {
@@ -5610,6 +5684,25 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         MarginContentToken::PageCount => {
                             text.push_str(&total_pages.to_string());
                         }
+                        MarginContentToken::Element(name) => {
+                            running_element = page.running_elements.get(name);
+                        }
+                    }
+                }
+                if let Some(element) = running_element {
+                    if render_running_margin_element(
+                        &mut content,
+                        element,
+                        mb.position.align(),
+                        band,
+                        page_size,
+                        margin,
+                        custom_fonts,
+                        &prepared_custom_fonts,
+                        &mut pdf_writer,
+                        &mut page_images,
+                    ) {
+                        continue;
                     }
                 }
                 if text.is_empty() {
@@ -9305,6 +9398,36 @@ fn render_run_text(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) -> f32 {
+    render_run_text_with_faux_bold(
+        content,
+        run,
+        x,
+        text_y,
+        parent_font_size,
+        custom_fonts,
+        prepared_custom_fonts,
+        word_spacing,
+        true,
+        pdf_writer,
+        page_images,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::collapsible_if)]
+fn render_run_text_with_faux_bold(
+    content: &mut String,
+    run: &TextRun,
+    x: f32,
+    text_y: f32,
+    parent_font_size: f32,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+    word_spacing: f32,
+    allow_faux_bold: bool,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) -> f32 {
     let (r, g, b) = run.color;
 
     // css2 §10.8.1: `vertical-align: super`/`sub` paint a text run with its
@@ -9356,7 +9479,7 @@ fn render_run_text(
             // `text_y` already includes the vertical-align shift; neutralise it
             // on the recursive call so the shift is not applied twice.
             shadow_run.vertical_align = VerticalAlign::Baseline;
-            render_run_text(
+            render_run_text_with_faux_bold(
                 content,
                 &shadow_run,
                 x + shadow.offset_x,
@@ -9365,6 +9488,7 @@ fn render_run_text(
                 custom_fonts,
                 prepared_custom_fonts,
                 word_spacing,
+                allow_faux_bold,
                 pdf_writer,
                 page_images,
             );
@@ -9412,7 +9536,7 @@ fn render_run_text(
                     total_width += w;
                 }
             } else {
-                let w = render_run_text(
+                let w = render_run_text_with_faux_bold(
                     content,
                     &sub_run,
                     cur_x,
@@ -9421,6 +9545,7 @@ fn render_run_text(
                     custom_fonts,
                     prepared_custom_fonts,
                     word_spacing,
+                    allow_faux_bold,
                     pdf_writer,
                     page_images,
                 );
@@ -9448,7 +9573,8 @@ fn render_run_text(
     // stroke each glyph outline (text render mode 2 = fill+stroke) with a thin
     // line so the stems thicken, mirroring browser algorithmic bold (CSS Fonts 4
     // §2.3). The stroke colour matches the fill so the glyph stays one colour.
-    let faux_bold = matches!(run.font_family, FontFamily::Custom(_))
+    let faux_bold = allow_faux_bold
+        && matches!(run.font_family, FontFamily::Custom(_))
         && crate::system_fonts::needs_faux_bold(
             custom_fonts,
             run.font_family.name(),
@@ -13827,6 +13953,7 @@ mod tests {
     fn test_page(elements: Vec<(f32, LayoutElement)>) -> Page {
         Page {
             elements,
+            running_elements: HashMap::new(),
             margin_override: None,
             page_size_override: None,
         }
@@ -13978,6 +14105,7 @@ mod tests {
                     margin_bottom: 0.0,
                 },
             )],
+            running_elements: HashMap::new(),
             margin_override: None,
             page_size_override: None,
         }];
@@ -14020,6 +14148,7 @@ mod tests {
                     margin_bottom: 0.0,
                 },
             )],
+            running_elements: HashMap::new(),
             margin_override: None,
             page_size_override: None,
         }];

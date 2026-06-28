@@ -334,6 +334,8 @@ pub enum MarginContentToken {
     PageNumber,
     /// `counter(pages)` — resolved to the total page count.
     PageCount,
+    /// `element(name)` — resolved to a captured `position: running(name)` box.
+    Element(String),
 }
 
 /// A parsed page-margin box (CSS Paged Media 3 §5): its position and the

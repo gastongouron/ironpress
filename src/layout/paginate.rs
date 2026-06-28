@@ -139,6 +139,7 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             margin_bottom,
             ..
         } => margin_top + layout.height() + margin_bottom,
+        LayoutElement::RunningElement { .. } => 0.0,
         LayoutElement::Container {
             children,
             padding_top,
@@ -1130,6 +1131,7 @@ pub(crate) fn paginate_with_first_page(
     let mut pending_named_page: Option<NamedPageGeom> = None;
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
+    let mut current_running_elements: HashMap<String, LayoutElement> = HashMap::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
     // start flush against the page margin (Chrome's print-model: body margin
     // opens the document, not every page).
@@ -1195,6 +1197,11 @@ pub(crate) fn paginate_with_first_page(
     // single-page corpus is byte-for-byte identical.
     let mut work: std::collections::VecDeque<LayoutElement> = elements.into();
     while let Some(element) = work.pop_front() {
+        if let LayoutElement::RunningElement { name, element } = element {
+            current_running_elements.insert(name, *element);
+            continue;
+        }
+
         // When the FIRST row of a `break-inside: avoid` table cannot fit in the
         // space left on the current page but DOES fit on an empty one, the break
         // decision below uses the whole table's height (this value) instead of
@@ -1434,6 +1441,7 @@ pub(crate) fn paginate_with_first_page(
                 let page_size_override = pending_named_page.map(|geom| geom.page_size);
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
+                    running_elements: current_running_elements.clone(),
                     margin_override,
                     page_size_override,
                 });
@@ -1480,6 +1488,7 @@ pub(crate) fn paginate_with_first_page(
                         let page_size_override = pending_named_page.map(|geom| geom.page_size);
                         pages.push(Page {
                             elements: blank,
+                            running_elements: current_running_elements.clone(),
                             margin_override,
                             page_size_override,
                         });
@@ -1594,6 +1603,7 @@ pub(crate) fn paginate_with_first_page(
                 margin_bottom,
                 ..
             } => (layout.height(), *margin_top, *margin_bottom),
+            LayoutElement::RunningElement { .. } => (0.0, 0.0, 0.0),
             LayoutElement::Container {
                 children,
                 padding_top,
@@ -1711,6 +1721,7 @@ pub(crate) fn paginate_with_first_page(
             let page_size_override = pending_named_page.map(|geom| geom.page_size);
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
+                running_elements: current_running_elements.clone(),
                 margin_override,
                 page_size_override,
             });
@@ -1810,6 +1821,7 @@ pub(crate) fn paginate_with_first_page(
                 let page_size_override = pending_named_page.map(|geom| geom.page_size);
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
+                    running_elements: current_running_elements.clone(),
                     margin_override,
                     page_size_override,
                 });
@@ -1890,6 +1902,7 @@ pub(crate) fn paginate_with_first_page(
         let page_size_override = pending_named_page.map(|geom| geom.page_size);
         pages.push(Page {
             elements: current_elements,
+            running_elements: current_running_elements.clone(),
             margin_override,
             page_size_override,
         });
@@ -1898,6 +1911,7 @@ pub(crate) fn paginate_with_first_page(
     if pages.is_empty() {
         pages.push(Page {
             elements: Vec::new(),
+            running_elements: current_running_elements,
             margin_override: page_margin_override(0),
             page_size_override: None,
         });

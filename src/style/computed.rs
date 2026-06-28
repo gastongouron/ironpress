@@ -427,6 +427,12 @@ pub enum Position {
     Absolute,
 }
 
+fn parse_running_position_name(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    let inner = raw.strip_prefix("running(")?.strip_suffix(')')?.trim();
+    (!inner.is_empty()).then(|| inner.to_ascii_lowercase())
+}
+
 /// CSS blend mode (`mix-blend-mode` / `background-blend-mode`).
 ///
 /// Maps directly onto the PDF `/BM` blend-mode names emitted in an ExtGState.
@@ -1351,6 +1357,11 @@ pub struct ComputedStyle {
     /// integer, initial 2, inherited.
     pub widows: u8,
     pub position: Position,
+    /// CSS GCPM `position: running(name)`: removes this element from normal flow
+    /// and stores it under `name` for `content: element(name)` page-margin boxes.
+    /// Kept separate from [`Position`] so the widely-used copy enum can remain
+    /// small and static/relative/absolute comparisons stay simple.
+    pub running_name: Option<String>,
     pub top: Option<f32>,
     pub right: Option<f32>,
     pub bottom: Option<f32>,
@@ -1719,6 +1730,7 @@ impl Default for ComputedStyle {
             orphans: 2,
             widows: 2,
             position: Position::Static,
+            running_name: None,
             top: None,
             right: None,
             bottom: None,
@@ -1964,6 +1976,7 @@ pub fn compute_style_with_context(
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
+    style.running_name = None;
     style.top = None;
     style.right = None;
     style.bottom = None;
@@ -2279,6 +2292,7 @@ pub fn compute_pseudo_element_style(
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
+    style.running_name = None;
     style.top = None;
     style.right = None;
     style.bottom = None;
@@ -2533,7 +2547,10 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "box-decoration-break" => style.box_decoration_break = default.box_decoration_break,
         "orphans" => style.orphans = default.orphans,
         "widows" => style.widows = default.widows,
-        "position" => style.position = default.position,
+        "position" => {
+            style.position = default.position;
+            style.running_name = default.running_name.clone();
+        }
         "top" => {
             style.top = default.top;
             style.percentage_insets.top = default.percentage_insets.top;
@@ -2714,7 +2731,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "box-decoration-break" => style.box_decoration_break = parent.box_decoration_break,
         "orphans" => style.orphans = parent.orphans,
         "widows" => style.widows = parent.widows,
-        "position" => style.position = parent.position,
+        "position" => {
+            style.position = parent.position;
+            style.running_name = parent.running_name.clone();
+        }
         "top" => {
             style.top = parent.top;
             style.percentage_insets.top = parent.percentage_insets.top;
@@ -3918,6 +3938,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
 
     // Position
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "position") {
+        style.running_name = None;
         style.position = match k.as_str() {
             "relative" => Position::Relative,
             "absolute" => Position::Absolute,
@@ -3927,7 +3948,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             // degrades to its relative-until-threshold base position.
             "fixed" => Position::Absolute,
             "sticky" => Position::Relative,
-            _ => Position::Static,
+            value => {
+                style.running_name = parse_running_position_name(value);
+                Position::Static
+            }
         };
     }
 
@@ -5017,12 +5041,16 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let Some(kw) =
             crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
         {
+            style.running_name = None;
             style.position = match kw.as_str() {
                 "relative" => Position::Relative,
                 "absolute" => Position::Absolute,
                 "fixed" => Position::Absolute,
                 "sticky" => Position::Relative,
-                _ => Position::Static,
+                value => {
+                    style.running_name = parse_running_position_name(value);
+                    Position::Static
+                }
             };
         }
     }
@@ -9401,6 +9429,14 @@ mod tests {
         assert_eq!(style.position, Position::Absolute);
         assert_eq!(style.top, Some(100.0));
         assert_eq!(style.left, Some(50.0));
+    }
+
+    #[test]
+    fn position_running_records_name_and_stays_static() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(HtmlTag::Div, Some("position: running(RunHead)"), &parent);
+        assert_eq!(style.position, Position::Static);
+        assert_eq!(style.running_name.as_deref(), Some("runhead"));
     }
 
     #[test]

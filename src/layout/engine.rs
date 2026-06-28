@@ -784,6 +784,13 @@ pub enum LayoutElement {
         /// container it is nested in.
         containing_block: Option<ContainingBlock>,
     },
+    /// CSS GCPM running element captured by `position: running(name)`. It is
+    /// removed from normal flow; pagination stores `element` under `name` for
+    /// page-margin boxes using `content: element(name)`.
+    RunningElement {
+        name: String,
+        element: Box<LayoutElement>,
+    },
     /// A forced page break, carrying the requested page parity (CSS
     /// Fragmentation 3 §3.1). `PageBreakSide::Any` is a plain break. The
     /// optional second field is the CSS Paged Media 3 §3.4 `page: <name>` of
@@ -866,6 +873,8 @@ impl LayoutElement {
 #[derive(Default)]
 pub struct Page {
     pub elements: Vec<(f32, LayoutElement)>, // (y_position, element)
+    /// Running elements active on this page, keyed by `position: running(name)`.
+    pub running_elements: HashMap<String, LayoutElement>,
     /// Per-page margin override (CSS Paged Media 3 §3 page-context cascade).
     /// `None` means the page uses the document's global margin; `Some(m)` is
     /// applied at render time instead (e.g. an `@page :first` first-page
@@ -1322,6 +1331,152 @@ pub fn layout_with_rules_and_fonts(
     )
 }
 
+fn collect_plain_text(nodes: &[DomNode], out: &mut String) {
+    for node in nodes {
+        match node {
+            DomNode::Text(text) => {
+                out.push_str(text);
+                out.push(' ');
+            }
+            DomNode::Element(el) => collect_plain_text(&el.children, out),
+        }
+    }
+}
+
+fn build_running_element(
+    name: String,
+    el: &ElementNode,
+    style: &ComputedStyle,
+    ctx: &LayoutContext,
+    ancestors: &[AncestorInfo],
+    env: &LayoutEnv,
+) -> Option<LayoutElement> {
+    let mut runs = Vec::new();
+    collect_text_runs(
+        &el.children,
+        style,
+        &mut runs,
+        None,
+        env.rules,
+        env.fonts,
+        ancestors,
+        &*env.counter_state,
+    );
+    if runs.is_empty() {
+        let mut text = String::new();
+        collect_plain_text(&el.children, &mut text);
+        let text = collapse_whitespace(&text);
+        if !text.is_empty() {
+            push_text_run_with_fallback(
+                TextRun {
+                    text,
+                    font_size: style.font_size,
+                    bold: style.font_weight == FontWeight::Bold,
+                    italic: style.font_style == FontStyle::Italic,
+                    underline: style.text_decoration_underline,
+                    line_through: style.text_decoration_line_through,
+                    overline: style.text_decoration_overline,
+                    decoration_color: style.text_decoration_color.map(|c| c.to_f32_rgb()),
+                    color: style.color.to_f32_rgb(),
+                    link_url: None,
+                    font_family: resolve_style_font_family(style, env.fonts),
+                    background_color: None,
+                    padding: (0.0, 0.0),
+                    border_radius: 0.0,
+                    line_height_factor: resolved_line_height_factor(style, env.fonts),
+                    inline_box: None,
+                    disable_ligatures: false,
+                    vertical_align: style.vertical_align,
+                    text_shadow: style.text_shadow.clone(),
+                },
+                &mut runs,
+                env.fonts,
+            );
+        }
+    }
+    if runs.is_empty() {
+        return None;
+    }
+    let lines = wrap_text_runs(
+        runs,
+        TextWrapOptions::new(
+            ctx.available_width().max(1.0),
+            style.font_size,
+            resolved_line_height_factor(style, env.fonts),
+            style.overflow_wrap,
+        )
+        .with_rtl(style.direction_rtl)
+        .with_bidi_override(style.bidi_override),
+        env.fonts,
+    );
+    if lines.is_empty() {
+        return None;
+    }
+
+    Some(LayoutElement::RunningElement {
+        name,
+        element: Box::new(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: style.orphans,
+            widows: style.widows,
+            lines,
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: style.text_align,
+            writing_mode: style.writing_mode,
+            background_color: style.background_color.map(|c| c.to_f32_rgba()),
+            padding_top: style.padding.top,
+            padding_bottom: style.padding.bottom,
+            padding_left: style.padding.left,
+            padding_right: style.padding.right,
+            border: LayoutBorder::from_computed(&style.border),
+            block_width: style.width,
+            block_height: style.height,
+            opacity: style.opacity,
+            mix_blend_mode: style.mix_blend_mode,
+            background_blend_mode: style.background_blend_mode,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Static,
+            offset_top: 0.0,
+            offset_left: 0.0,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            clip_children_count: 0,
+            box_shadow: style.box_shadow.clone(),
+            visible: style.visibility == Visibility::Visible,
+            clip_rect: None,
+            transform: None,
+            transform_origin: style.transform_origin,
+            border_radius: style.border_radius,
+            border_radii: style.border_radii,
+            border_radii_y: style.border_radii_y,
+            outline_offset: style.outline_offset,
+            outline_width: style.outline_width,
+            outline_color: style.outline_color.map(|c| c.to_f32_rgb()),
+            text_indent: style.text_indent,
+            letter_spacing: style.letter_spacing,
+            word_spacing: style.word_spacing,
+            vertical_align: style.vertical_align,
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            background_conic_gradient: style.background_conic_gradient.clone(),
+            background_svg: style.background_svg.clone(),
+            background_blur_radius: style.blur_radius,
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
+            background_clip: style.background_clip,
+            z_index: style.z_index,
+            repeat_on_each_page: false,
+            positioned_depth: 0,
+            heading_level: heading_level(el.tag),
+        }),
+    })
+}
+
 /// Flatten a list of DOM nodes into layout elements.
 ///
 /// Iterates over `nodes`, collecting inline-block groups and dispatching
@@ -1498,6 +1653,50 @@ fn flatten_nodes(
                 }
             }
             DomNode::Element(el) => {
+                let classes = el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: element_index,
+                    sibling_count: element_count,
+                    preceding_siblings: preceding_siblings.to_vec(),
+                    following_siblings: forward_siblings(&all_element_siblings, element_index)
+                        .to_vec(),
+                    is_empty: element_is_empty(el),
+                };
+                let style = compute_style_with_context(
+                    el.tag,
+                    el.style_attr(),
+                    parent_style,
+                    env.rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                );
+                if let Some(name) = style.running_name.clone() {
+                    flush_ib(
+                        &mut ib_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        env.rules,
+                        ancestors,
+                        env.fonts,
+                    );
+                    if let Some(running) =
+                        build_running_element(name, el, &style, &ib_ctx, ancestors, env)
+                    {
+                        output.push(running);
+                    }
+                    preceding_siblings.push((
+                        el.tag_name().to_string(),
+                        el.class_list().iter().map(|s| s.to_string()).collect(),
+                    ));
+                    element_index += 1;
+                    continue;
+                }
+
                 // Check if this element is inline-block
                 if element_is_inline_block(
                     el,

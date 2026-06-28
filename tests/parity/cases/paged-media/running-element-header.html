@@ -5,12 +5,9 @@
 <style>
   /* CSS GCPM running elements: `position: running(name)` removes a box from the
      normal flow and parks it in a named slot; `@top-center { content:
-     element(name) }` then renders it as a running header on every page. Chrome
-     --print-to-pdf does NOT implement GCPM running elements (`position:
-     running()` is treated as an invalid position → the box stays in flow, and
-     the @top-center margin box prints nothing), and ironpress does not yet
-     resolve `element()` references in margin boxes either. Tracked-unsupported:
-     needs GCPM running-element support + a Prince/WeasyPrint oracle. */
+     element(name) }` then renders it as a running header in the page margin box.
+     This GCPM behavior is validated against WeasyPrint because Chrome
+     --print-to-pdf does not implement running elements. */
   @page {
     size: 400px 300px;
     margin: 1.2cm;
