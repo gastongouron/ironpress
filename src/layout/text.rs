@@ -5,12 +5,15 @@ use crate::parser::ttf::TtfFont;
 // without a separate import.
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
-    BoxSizing, ComputedStyle, Display, FontFamily, FontStyle, FontWeight, Position, VerticalAlign,
-    WhiteSpace, compute_style_with_context,
+    BoxSizing, ComputedStyle, Display, Float, FontFamily, FontStyle, FontWeight, Position,
+    VerticalAlign, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
-use super::engine::{CounterState, InlineBox, LayoutBorder, TextLine, TextRun};
+use super::engine::{
+    CounterState, InlineBox, LayoutBorder, TextLine, TextRun, decode_footnote_link,
+    encode_footnote_link, FOOTNOTE_CALL_FONT_SCALE,
+};
 
 // ---------------------------------------------------------------------------
 // resolve_style_font_family / resolved_line_height_factor
@@ -137,6 +140,18 @@ pub(crate) fn collapse_whitespace_pre_line(text: &str) -> String {
         result.pop();
     }
     result
+}
+
+fn collect_inline_plain_text(nodes: &[DomNode], out: &mut String) {
+    for node in nodes {
+        match node {
+            DomNode::Text(text) => {
+                out.push_str(text);
+                out.push(' ');
+            }
+            DomNode::Element(el) => collect_inline_plain_text(&el.children, out),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1804,6 +1819,57 @@ fn collect_text_runs_inner(
                             &el.attributes,
                             &selector_ctx,
                         );
+                        if style.float == Float::Footnote {
+                            let mut footnote_text = String::new();
+                            collect_inline_plain_text(&el.children, &mut footnote_text);
+                            let footnote_text = collapse_whitespace(&footnote_text);
+                            if !footnote_text.is_empty() {
+                                let marker = (runs
+                                    .iter()
+                                    .filter(|run| {
+                                        run.link_url
+                                            .as_deref()
+                                            .and_then(decode_footnote_link)
+                                            .is_some()
+                                    })
+                                    .count()
+                                    + 1)
+                                    .to_string();
+                                push_styled_run(
+                                    TextRun {
+                                        text: format!("{marker} "),
+                                        font_size: style.font_size * FOOTNOTE_CALL_FONT_SCALE,
+                                        bold: style.font_weight == FontWeight::Bold,
+                                        italic: style.font_style == FontStyle::Italic,
+                                        underline: false,
+                                        line_through: false,
+                                        overline: false,
+                                        decoration_color: None,
+                                        color: style.color.to_f32_rgb(),
+                                        link_url: Some(encode_footnote_link(
+                                            &marker,
+                                            &footnote_text,
+                                        )),
+                                        font_family: resolve_style_font_family(&style, fonts),
+                                        background_color: None,
+                                        padding: (0.0, 0.0),
+                                        border_radius: 0.0,
+                                        line_height_factor: resolved_line_height_factor(
+                                            &style, fonts,
+                                        ),
+                                        inline_box: None,
+                                        disable_ligatures: false,
+                                        vertical_align: VerticalAlign::Super,
+                                        text_shadow: style.text_shadow.clone(),
+                                    },
+                                    style.font_variant_caps,
+                                    style.ligatures_enabled,
+                                    runs,
+                                    fonts,
+                                );
+                            }
+                            continue;
+                        }
                         let url = if el.tag == HtmlTag::A {
                             el.attributes.get("href").map(|s| s.as_str()).or(link_url)
                         } else {

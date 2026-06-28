@@ -317,6 +317,20 @@ pub struct TextRun {
     pub text_shadow: Vec<crate::style::computed::BoxShadow>,
 }
 
+const FOOTNOTE_LINK_PREFIX: &str = "ironpress-footnote:";
+const FOOTNOTE_LINK_SEPARATOR: char = '\u{1f}';
+pub(crate) const FOOTNOTE_CALL_FONT_SCALE: f32 = 0.96;
+
+pub(crate) fn encode_footnote_link(marker: &str, text: &str) -> String {
+    format!("{FOOTNOTE_LINK_PREFIX}{marker}{FOOTNOTE_LINK_SEPARATOR}{text}")
+}
+
+pub(crate) fn decode_footnote_link(value: &str) -> Option<(String, String)> {
+    let payload = value.strip_prefix(FOOTNOTE_LINK_PREFIX)?;
+    let (marker, text) = payload.split_once(FOOTNOTE_LINK_SEPARATOR)?;
+    Some((marker.to_string(), text.to_string()))
+}
+
 /// An atomic inline-level box laid out inside a line of text, produced for
 /// `display: inline-block` elements that appear among inline text. It carries
 /// the resolved box geometry, paint properties, and pre-wrapped inner content.
@@ -388,6 +402,67 @@ pub enum ImageFormat {
     /// field holds the complete original PNG file; the renderer decodes it into
     /// a colour stream plus a soft-mask (`/SMask`) so transparency is preserved.
     PngAlpha,
+}
+
+#[derive(Debug, Clone)]
+pub struct FootnoteItem {
+    pub marker: String,
+    pub text: String,
+    pub font_size: f32,
+    pub bold: bool,
+    pub italic: bool,
+    pub color: (f32, f32, f32),
+    pub font_family: FontFamily,
+    pub line_height_factor: f32,
+}
+
+impl FootnoteItem {
+    pub(crate) fn text_runs(&self) -> Vec<TextRun> {
+        vec![
+            TextRun {
+                text: format!("{}. ", self.marker),
+                font_size: self.font_size,
+                bold: self.bold,
+                italic: self.italic,
+                underline: false,
+                line_through: false,
+                overline: false,
+                color: self.color,
+                decoration_color: None,
+                link_url: None,
+                font_family: self.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+                line_height_factor: self.line_height_factor,
+                inline_box: None,
+                disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
+                text_shadow: Vec::new(),
+            },
+            TextRun {
+                text: self.text.clone(),
+                font_size: self.font_size,
+                bold: self.bold,
+                italic: self.italic,
+                underline: false,
+                line_through: false,
+                overline: false,
+                color: self.color,
+                decoration_color: None,
+                link_url: None,
+                font_family: self.font_family.clone(),
+                background_color: None,
+                padding: (0.0, 0.0),
+                border_radius: 0.0,
+                line_height_factor: self.line_height_factor,
+                inline_box: None,
+                disable_ligatures: false,
+                vertical_align: VerticalAlign::Baseline,
+                text_shadow: Vec::new(),
+            },
+        ]
+    }
 }
 
 /// Parsed PNG metadata needed for PDF FlateDecode parameters.
@@ -875,6 +950,8 @@ pub struct Page {
     pub elements: Vec<(f32, LayoutElement)>, // (y_position, element)
     /// Running elements active on this page, keyed by `position: running(name)`.
     pub running_elements: HashMap<String, LayoutElement>,
+    /// CSS GCPM footnotes collected while laying out this page.
+    pub footnotes: Vec<FootnoteItem>,
     /// Per-page margin override (CSS Paged Media 3 §3 page-context cascade).
     /// `None` means the page uses the document's global margin; `Some(m)` is
     /// applied at render time instead (e.g. an `@page :first` first-page

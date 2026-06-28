@@ -1,5 +1,6 @@
 use super::engine::{
-    LayoutElement, Page, PageBreakSide, layout_element_paint_order, table_cell_content_height,
+    FootnoteItem, LayoutElement, Page, PageBreakSide, decode_footnote_link,
+    layout_element_paint_order, table_cell_content_height, FOOTNOTE_CALL_FONT_SCALE,
 };
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
@@ -14,6 +15,65 @@ fn advance_positioned_ancestors_after_page_break(
     for y in positioned_y_by_depth.values_mut() {
         *y -= consumed_height;
     }
+}
+
+fn collect_footnotes_from_element(element: &LayoutElement, out: &mut Vec<FootnoteItem>) {
+    match element {
+        LayoutElement::TextBlock { lines, .. } => {
+            for line in lines {
+                for run in &line.runs {
+                    let Some((marker, text)) = run.link_url.as_deref().and_then(decode_footnote_link)
+                    else {
+                        continue;
+                    };
+                    out.push(FootnoteItem {
+                        marker,
+                        text,
+                        font_size: run.font_size / FOOTNOTE_CALL_FONT_SCALE,
+                        bold: run.bold,
+                        italic: run.italic,
+                        color: run.color,
+                        font_family: run.font_family.clone(),
+                        line_height_factor: run.line_height_factor,
+                    });
+                }
+            }
+        }
+        LayoutElement::Container { children, .. } => {
+            for child in children {
+                collect_footnotes_from_element(child, out);
+            }
+        }
+        LayoutElement::TableRow { cells, .. } | LayoutElement::GridRow { cells, .. } => {
+            for cell in cells {
+                for nested in &cell.nested_rows {
+                    collect_footnotes_from_element(nested, out);
+                }
+            }
+        }
+        LayoutElement::FlexRow { cells, .. } => {
+            for cell in cells {
+                for nested in &cell.nested_elements {
+                    collect_footnotes_from_element(nested, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn footnote_reserved_height(footnotes: &[FootnoteItem]) -> f32 {
+    footnotes
+        .iter()
+        .map(|footnote| {
+            let factor = if footnote.line_height_factor.is_finite() {
+                footnote.line_height_factor
+            } else {
+                1.2
+            };
+            footnote.font_size * factor
+        })
+        .sum()
 }
 
 /// A tracked float region for simplified float layout.
@@ -1132,6 +1192,7 @@ pub(crate) fn paginate_with_first_page(
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     let mut current_running_elements: HashMap<String, LayoutElement> = HashMap::new();
+    let mut current_footnotes: Vec<FootnoteItem> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
     // start flush against the page margin (Chrome's print-model: body margin
     // opens the document, not every page).
@@ -1293,6 +1354,7 @@ pub(crate) fn paginate_with_first_page(
             }
         ) {
             let fh = row_content_height(&element);
+            collect_footnotes_from_element(&element, &mut current_footnotes);
             current_elements.push((y, element));
             y += fh;
             prev_margin_bottom = 0.0;
@@ -1442,6 +1504,7 @@ pub(crate) fn paginate_with_first_page(
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     running_elements: current_running_elements.clone(),
+                    footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
                 });
@@ -1489,6 +1552,7 @@ pub(crate) fn paginate_with_first_page(
                         pages.push(Page {
                             elements: blank,
                             running_elements: current_running_elements.clone(),
+                            footnotes: Vec::new(),
                             margin_override,
                             page_size_override,
                         });
@@ -1651,6 +1715,11 @@ pub(crate) fn paginate_with_first_page(
         };
         let margin_top_val = collapsed_margin;
         let element_height = margin_top_val + content_h_val + margin_bottom_val;
+        let mut pending_footnotes = Vec::new();
+        collect_footnotes_from_element(&element, &mut pending_footnotes);
+        let footnote_reserve =
+            footnote_reserved_height(&current_footnotes) + footnote_reserved_height(&pending_footnotes);
+        let effective_content_height = (content_height - footnote_reserve).max(0.0);
 
         // Handle position: absolute -- place at fixed position, don't affect flow
         if elem_position == Position::Absolute {
@@ -1675,6 +1744,7 @@ pub(crate) fn paginate_with_first_page(
             if repeats_on_each_page {
                 absolute_backgrounds.push((abs_y, element.clone()));
             }
+            collect_footnotes_from_element(&element, &mut current_footnotes);
             current_elements.push((abs_y, element));
             continue;
         }
@@ -1698,7 +1768,7 @@ pub(crate) fn paginate_with_first_page(
         };
         const PAGE_BREAK_EPSILON: f32 = 1.0;
         let page_broke_mid_loop = y + break_decision_height + break_footer_reserve
-            > content_height + PAGE_BREAK_EPSILON
+            > effective_content_height + PAGE_BREAK_EPSILON
             && y > 0.0;
         if page_broke_mid_loop {
             // Repeat the running footer at the bottom of the page being closed,
@@ -1708,6 +1778,7 @@ pub(crate) fn paginate_with_first_page(
             if in_table_body && !pending_table_footers.is_empty() {
                 for footer in pending_table_footers.clone() {
                     let footer_h = row_content_height(&footer);
+                    collect_footnotes_from_element(&footer, &mut current_footnotes);
                     current_elements.push((y, footer));
                     y += footer_h;
                 }
@@ -1722,6 +1793,7 @@ pub(crate) fn paginate_with_first_page(
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
                 running_elements: current_running_elements.clone(),
+                footnotes: std::mem::take(&mut current_footnotes),
                 margin_override,
                 page_size_override,
             });
@@ -1754,6 +1826,7 @@ pub(crate) fn paginate_with_first_page(
                             .fold(0.0f32, f32::max),
                         _ => 0.0,
                     };
+                    collect_footnotes_from_element(&header, &mut current_footnotes);
                     current_elements.push((y, header));
                     y += header_h;
                 }
@@ -1780,6 +1853,7 @@ pub(crate) fn paginate_with_first_page(
             } else {
                 right_floats.push(region);
             }
+            collect_footnotes_from_element(&element, &mut current_footnotes);
             current_elements.push((y, element));
             prev_margin_bottom = 0.0;
             first_on_page = false;
@@ -1800,8 +1874,10 @@ pub(crate) fn paginate_with_first_page(
         // The small epsilon absorbs sub-point text-measurement rounding so a box
         // that merely grazes the page bottom is not spuriously fragmented.
         const FRAG_EPSILON: f32 = 0.5;
-        if elem_position == Position::Static && y + element_height > content_height + FRAG_EPSILON {
-            let avail_below_box_top = content_height - (y + effective_margin_top);
+        if elem_position == Position::Static
+            && y + element_height > effective_content_height + FRAG_EPSILON
+        {
+            let avail_below_box_top = effective_content_height - (y + effective_margin_top);
             // A too-tall text block splits at a line boundary; a too-tall raster
             // image slices at the page edge (each page embeds only its slice); a
             // too-tall container splits between its children, re-enqueuing the
@@ -1811,6 +1887,7 @@ pub(crate) fn paginate_with_first_page(
                 // Place the first fragment at the (margin-adjusted) cursor; it
                 // fills the remainder of this page.
                 y += effective_margin_top;
+                collect_footnotes_from_element(&first, &mut current_footnotes);
                 current_elements.push((y, first));
                 // Close the page (the fragmentainer is full) and reset flow state
                 // for the continuation, mirroring a normal mid-loop page break.
@@ -1822,6 +1899,7 @@ pub(crate) fn paginate_with_first_page(
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     running_elements: current_running_elements.clone(),
+                    footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
                 });
@@ -1870,6 +1948,7 @@ pub(crate) fn paginate_with_first_page(
             positioned_y_by_depth.insert(depth, effective_y + border_top);
         }
 
+        collect_footnotes_from_element(&element, &mut current_footnotes);
         current_elements.push((effective_y, element));
         y += content_h_val;
         prev_margin_bottom = margin_bottom_val;
@@ -1903,6 +1982,7 @@ pub(crate) fn paginate_with_first_page(
         pages.push(Page {
             elements: current_elements,
             running_elements: current_running_elements.clone(),
+            footnotes: std::mem::take(&mut current_footnotes),
             margin_override,
             page_size_override,
         });
@@ -1912,6 +1992,7 @@ pub(crate) fn paginate_with_first_page(
         pages.push(Page {
             elements: Vec::new(),
             running_elements: current_running_elements,
+            footnotes: current_footnotes,
             margin_override: page_margin_override(0),
             page_size_override: None,
         });

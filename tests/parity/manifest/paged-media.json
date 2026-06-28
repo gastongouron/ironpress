@@ -495,11 +495,12 @@
     "id": "footnote-float",
     "category": "paged-media",
     "feature": "footnote",
-    "subfeature": "float-footnote-unsupported",
-    "description": "CSS GCPM float: footnote pulls a box into the page's footnote area with an auto-numbered marker. Neither Chrome --print-to-pdf nor ironpress implements GCPM footnotes (Chrome drops the float and renders the span inline; ironpress does the same), so a true footnote area cannot be validated against a Chrome oracle. Tracked-unsupported: GCPM footnotes unimplemented; needs a Prince/WeasyPrint oracle.",
+    "subfeature": "float-footnote",
+    "description": "CSS GCPM float: footnote pulls a box into the page's footnote area with an auto-numbered call marker left in the body text. Validated against a WeasyPrint oracle because Chrome --print-to-pdf does not implement GCPM footnotes.",
     "file": "cases/paged-media/footnote-float.html",
+    "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],

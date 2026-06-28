@@ -1,7 +1,8 @@
 use crate::error::IronpressError;
 use crate::layout::engine::{
-    ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
-    layout_element_paint_order, table_cell_content_height, table_cell_intrinsic_content_height,
+    FootnoteItem, ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
+    decode_footnote_link, layout_element_paint_order, table_cell_content_height,
+    table_cell_intrinsic_content_height,
 };
 use crate::parser::ttf::TtfFont;
 use crate::render::background::{
@@ -1029,6 +1030,9 @@ fn text_run_link_annotation(
     line_box: TextLineAnnotationBox,
 ) -> Option<LinkAnnotation> {
     let url = run.link_url.as_ref()?;
+    if decode_footnote_link(url).is_some() {
+        return None;
+    }
     Some(LinkAnnotation {
         x1: x,
         y1: line_box.bottom,
@@ -1156,6 +1160,65 @@ fn render_running_margin_element(
         line_top -= metrics.descender + metrics.half_leading;
     }
     true
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_page_footnotes(
+    content: &mut String,
+    footnotes: &[FootnoteItem],
+    margin: Margin,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    if footnotes.is_empty() {
+        return;
+    }
+    let lines: Vec<TextLine> = footnotes
+        .iter()
+        .map(|footnote| {
+            let runs = footnote.text_runs();
+            let height = runs
+                .iter()
+                .map(|run| {
+                    let factor = if run.line_height_factor.is_finite() {
+                        run.line_height_factor
+                    } else {
+                        1.2
+                    };
+                    run.font_size * factor
+                })
+                .fold(0.0f32, f32::max);
+            TextLine {
+                runs,
+                height,
+                x_offset: 0.0,
+            }
+        })
+        .collect();
+
+    let total_h: f32 = lines.iter().map(|line| line.height).sum();
+    let mut line_top = margin.bottom + total_h;
+    for line in &lines {
+        let metrics = line_box_metrics(line, custom_fonts);
+        line_top -= metrics.half_leading + metrics.ascender;
+        let baseline_y = line_top;
+        let merged = merge_runs(&line.runs);
+        render_line_text(
+            content,
+            &merged,
+            margin.left,
+            baseline_y,
+            custom_fonts,
+            prepared_custom_fonts,
+            0.0,
+            metrics.ascender,
+            pdf_writer,
+            page_images,
+        );
+        line_top -= metrics.descender + metrics.half_leading;
+    }
 }
 
 /// Render laid-out pages as PDF, writing directly to any `std::io::Write` implementation.
@@ -5628,6 +5691,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 LayoutElement::PageBreak(..) => {}
             }
         }
+
+        render_page_footnotes(
+            &mut content,
+            &page.footnotes,
+            margin,
+            custom_fonts,
+            &prepared_custom_fonts,
+            &mut pdf_writer,
+            &mut page_images,
+        );
 
         // Render page header/footer in margin area
         if let Some(dec) = decoration {
@@ -13954,6 +14027,7 @@ mod tests {
         Page {
             elements,
             running_elements: HashMap::new(),
+            footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
         }
@@ -14106,6 +14180,7 @@ mod tests {
                 },
             )],
             running_elements: HashMap::new(),
+            footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
         }];
@@ -14149,6 +14224,7 @@ mod tests {
                 },
             )],
             running_elements: HashMap::new(),
+            footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
         }];

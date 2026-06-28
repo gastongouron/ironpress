@@ -102,8 +102,32 @@ fn collect_non_winansi_chars(
         for element in page.running_elements.values() {
             collect_non_winansi_from_element(element, custom_fonts, &mut chars);
         }
+        for footnote in &page.footnotes {
+            for run in footnote.text_runs() {
+                collect_non_winansi_from_run(&run, custom_fonts, &mut chars);
+            }
+        }
     }
     chars
+}
+
+fn collect_non_winansi_from_run(
+    run: &TextRun,
+    custom_fonts: &HashMap<String, TtfFont>,
+    chars: &mut BTreeSet<char>,
+) {
+    for ch in run.text.chars() {
+        if !crate::render::pdf::is_winansi_char(ch) {
+            chars.insert(ch);
+        } else if let FontFamily::Custom(name) = &run.font_family
+            && let Some((_, font)) = crate::system_fonts::find_font(custom_fonts, name, false, false)
+        {
+            let cp = ch as u32;
+            if !font.cmap.contains_key(&cp) {
+                chars.insert(ch);
+            }
+        }
+    }
 }
 
 fn collect_non_winansi_from_element(
@@ -115,21 +139,7 @@ fn collect_non_winansi_from_element(
         LayoutElement::TextBlock { lines, .. } => {
             for line in lines {
                 for run in &line.runs {
-                    for ch in run.text.chars() {
-                        if !crate::render::pdf::is_winansi_char(ch) {
-                            chars.insert(ch);
-                        } else if let FontFamily::Custom(name) = &run.font_family {
-                            // Check if the primary custom font covers this char
-                            if let Some((_, font)) =
-                                crate::system_fonts::find_font(custom_fonts, name, false, false)
-                            {
-                                let cp = ch as u32;
-                                if !font.cmap.contains_key(&cp) {
-                                    chars.insert(ch);
-                                }
-                            }
-                        }
-                    }
+                    collect_non_winansi_from_run(run, custom_fonts, chars);
                 }
             }
         }
@@ -169,6 +179,11 @@ fn collect_font_usage(
         }
         for element in page.running_elements.values() {
             collect_font_usage_from_element(element, custom_fonts, &mut usage);
+        }
+        for footnote in &page.footnotes {
+            for run in footnote.text_runs() {
+                collect_font_usage_from_run(&run, custom_fonts, &mut usage);
+            }
         }
     }
     usage

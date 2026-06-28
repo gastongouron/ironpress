@@ -392,6 +392,7 @@ pub enum Float {
     None,
     Left,
     Right,
+    Footnote,
 }
 
 /// CSS clear property.
@@ -3914,6 +3915,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.float = match k.as_str() {
             "left" => Float::Left,
             "right" => Float::Right,
+            "footnote" => Float::Footnote,
             _ => Float::None,
         };
     }
