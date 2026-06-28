@@ -317,10 +317,12 @@ fn paint_scrollbars(
         // top (scroll position 0, matching an un-scrolled printed container).
         let track_inner = (bar_h - 2.0 * btn).max(0.0);
         if track_inner > 0.0 {
+            let thumb_gap = t * 0.22;
+            let track_inner = (track_inner - 2.0 * thumb_gap).max(0.0);
             let frac = (1.0 / over_v.max(1.0)).clamp(0.12, 1.0);
             let thumb_h = (track_inner * frac).max(t * 0.5);
-            let thumb_top = bar_bottom + bar_h - btn;
-            let thumb_bottom = (thumb_top - thumb_h).max(bar_bottom + btn);
+            let thumb_top = bar_bottom + bar_h - btn - thumb_gap;
+            let thumb_bottom = (thumb_top - thumb_h).max(bar_bottom + btn + thumb_gap);
             let inset = t * 0.18;
             let r = (t / 2.0 - inset).max(0.0);
             content.push_str(&rounded_rect_path(
@@ -369,9 +371,11 @@ fn paint_scrollbars(
         ));
         let track_inner = (bar_w - 2.0 * btn).max(0.0);
         if track_inner > 0.0 {
+            let thumb_gap = t * 0.22;
+            let track_inner = (track_inner - 2.0 * thumb_gap).max(0.0);
             let frac = (1.0 / over_h.max(1.0)).clamp(0.12, 1.0);
             let thumb_w = (track_inner * frac).max(t * 0.5);
-            let thumb_left = bar_x + btn;
+            let thumb_left = bar_x + btn + thumb_gap;
             let thumb_right = (thumb_left + thumb_w).min(bar_x + bar_w - btn);
             let inset = t * 0.18;
             let r = (t / 2.0 - inset).max(0.0);
@@ -1428,6 +1432,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     let doc_margin = margin;
 
     for (page_idx, page) in pages.iter().enumerate() {
+        // Per-page physical page-size override (CSS Paged Media 3 §3.4 named
+        // pages). Shadowing `page_size` makes all downstream coordinate math and
+        // the PDF MediaBox use this page's selected dimensions.
+        let page_size = page.page_size_override.unwrap_or(page_size);
         // Per-page margin override (CSS Paged Media 3 §3 page-context cascade,
         // e.g. an `@page :first` first-page margin, or `:left`/`:right` spread
         // margins). Shadowing `margin` here makes every downstream position
@@ -3413,8 +3421,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         // Clamp a used cross size to the item's min/max cross size
                         // (css-flexbox-1 §9.4 step 11). max-height is applied
                         // first, then min-height, so min wins when they conflict.
-                        let clamp_cross =
-                            |h: f32| h.min(cell.cross_max).max(cell.cross_min);
+                        let clamp_cross = |h: f32| h.min(cell.cross_max).max(cell.cross_min);
                         // Natural (content/explicit) cross size, clamped.
                         let nat_h = clamp_cross(cell.natural_height);
                         let (cell_render_h, cell_y_shift) = match effective_align {
@@ -3444,9 +3451,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 (nat_h, cell_y_origin + shift)
                             }
                             AlignItems::FlexStart => (nat_h, cell_y_origin),
-                            AlignItems::FlexEnd => {
-                                (nat_h, cell_y_origin + line_cross - nat_h)
-                            }
+                            AlignItems::FlexEnd => (nat_h, cell_y_origin + line_cross - nat_h),
                             AlignItems::Center => {
                                 (nat_h, cell_y_origin + (line_cross - nat_h) / 2.0)
                             }
@@ -4417,10 +4422,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         // nested row fell through to `_ => {}` and
                                         // the entire item — its boxes AND its own
                                         // background — was dropped (blank page).
-                                        let mut nested_abs_origins: HashMap<
-                                            usize,
-                                            (f32, f32),
-                                        > = HashMap::new();
+                                        let mut nested_abs_origins: HashMap<usize, (f32, f32)> =
+                                            HashMap::new();
                                         render_container_children(
                                             &mut content,
                                             std::slice::from_ref(nested_elem),
@@ -4439,10 +4442,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                             0.0,
                                             &mut nested_abs_origins,
                                         );
-                                        nested_y -=
-                                            crate::layout::engine::estimate_element_height(
-                                                nested_elem,
-                                            );
+                                        nested_y -= crate::layout::engine::estimate_element_height(
+                                            nested_elem,
+                                        );
                                     }
                                     _ => {}
                                 }
@@ -5132,6 +5134,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let c_sb = SCROLLBAR_THICKNESS_PT;
                     let c_v_gutter = if c_has_v { c_sb } else { 0.0 };
                     let c_h_gutter = if c_has_h { c_sb } else { 0.0 };
+                    let c_scrollport_w = (c_avail_w - c_v_gutter).max(0.0);
+                    let c_scrollport_h = (c_avail_h - c_h_gutter).max(0.0);
+                    let c_thumb_ratio_h = if c_scrollport_w > 0.0 {
+                        c_over_w / c_scrollport_w
+                    } else {
+                        c_ratio_h
+                    };
+                    let c_thumb_ratio_v = if c_scrollport_h > 0.0 {
+                        c_over_h / c_scrollport_h
+                    } else {
+                        c_ratio_v
+                    };
 
                     // Apply clip if overflow clips. Per CSS, `overflow` clips to
                     // the *padding box* — the border is painted outside the clip
@@ -5221,8 +5235,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             c_pad_box_h,
                             c_has_v,
                             c_has_h,
-                            c_ratio_v.max(1.0),
-                            c_ratio_h.max(1.0),
+                            c_thumb_ratio_v.max(1.0),
+                            c_thumb_ratio_h.max(1.0),
                         );
                     }
                     // Close the mask group (opened inside the clip-path q..Q).
@@ -5310,8 +5324,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // page's source-pixel rows, then embed ONLY that slice (not a
                     // full copy behind a clip). Falls back to the whole image if
                     // the crop fails to decode.
-                    let sliced = src_crop
-                        .and_then(|c| crate::layout::images::crop_raster_asset(image, c));
+                    let sliced =
+                        src_crop.and_then(|c| crate::layout::images::crop_raster_asset(image, c));
                     let img = sliced.as_ref().unwrap_or(image);
                     let img_x = margin.left;
                     // PDF y-axis is bottom-up; y_pos is top of margin, image draws from bottom-left
@@ -7781,6 +7795,18 @@ fn render_container_children(
                     let sb = SCROLLBAR_THICKNESS_PT;
                     let v_gutter = if has_v { sb } else { 0.0 };
                     let h_gutter = if has_h { sb } else { 0.0 };
+                    let scrollport_w = (content_avail_w - v_gutter).max(0.0);
+                    let scrollport_h = (content_avail_h - h_gutter).max(0.0);
+                    let thumb_ratio_h = if scrollport_w > 0.0 {
+                        over_w / scrollport_w
+                    } else {
+                        over_ratio_h
+                    };
+                    let thumb_ratio_v = if scrollport_h > 0.0 {
+                        over_h / scrollport_h
+                    } else {
+                        over_ratio_v
+                    };
 
                     // Clip if overflow clips (hidden/clip/scroll/auto). CSS clips
                     // at the PADDING box (border box inset by the border widths)
@@ -7870,8 +7896,8 @@ fn render_container_children(
                             pad_box_h,
                             has_v,
                             has_h,
-                            over_ratio_v.max(1.0),
-                            over_ratio_h.max(1.0),
+                            thumb_ratio_v.max(1.0),
+                            thumb_ratio_h.max(1.0),
                         );
                     }
                     // Close the mask group (opened inside the clip-path q..Q).
@@ -8385,9 +8411,7 @@ fn render_container_children(
                     let (cell_h, cell_y_shift) = match effective_align {
                         // `align-items: stretch` only stretches auto-height items;
                         // an item with a definite height keeps it (top-anchored).
-                        AlignItems::Stretch if cell.has_explicit_height => {
-                            (nat_h, cell.y_offset)
-                        }
+                        AlignItems::Stretch if cell.has_explicit_height => (nat_h, cell.y_offset),
                         AlignItems::Stretch => (clamp_cross(line_cross), cell.y_offset),
                         // `align: baseline` (CSS Flexbox §8.3): shift the item so
                         // its first text baseline meets the line's shared baseline.
@@ -8402,9 +8426,7 @@ fn render_container_children(
                         }
                         AlignItems::FlexStart => (nat_h, cell.y_offset),
                         AlignItems::FlexEnd => (nat_h, cell.y_offset + line_cross - nat_h),
-                        AlignItems::Center => {
-                            (nat_h, cell.y_offset + (line_cross - nat_h) / 2.0)
-                        }
+                        AlignItems::Center => (nat_h, cell.y_offset + (line_cross - nat_h) / 2.0),
                     };
                     let cell_top = content_y - cell_y_shift;
                     let cell_bottom = cell_top - cell_h;
@@ -11479,8 +11501,9 @@ fn slice_cut_rounded_border_ops(
     border: &crate::layout::engine::LayoutBorder,
 ) -> Option<String> {
     use crate::style::computed::BorderStyle;
-    let solid_opaque =
-        |s: &crate::layout::engine::LayoutBorderSide| s.style == BorderStyle::Solid && s.alpha >= 1.0;
+    let solid_opaque = |s: &crate::layout::engine::LayoutBorderSide| {
+        s.style == BorderStyle::Solid && s.alpha >= 1.0
+    };
     let (l, r, t, b) = (&border.left, &border.right, &border.top, &border.bottom);
     // Left + right must both paint, solid/opaque, with equal width & color.
     if !(l.paints() && r.paints() && solid_opaque(l) && solid_opaque(r)) {
@@ -13805,6 +13828,7 @@ mod tests {
         Page {
             elements,
             margin_override: None,
+            page_size_override: None,
         }
     }
 
@@ -13955,6 +13979,7 @@ mod tests {
                 },
             )],
             margin_override: None,
+            page_size_override: None,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -13996,6 +14021,7 @@ mod tests {
                 },
             )],
             margin_override: None,
+            page_size_override: None,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);

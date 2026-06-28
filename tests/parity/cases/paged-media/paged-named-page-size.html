@@ -5,11 +5,8 @@
 <style>
   /* CSS Paged Media 3 §3.4 named-page SIZE: `@page big { size: A3 }` selected by
      `.big { page: big }` should make the page the box lands on physically larger
-     (A3) than the default page. ironpress implements named-page MARGINS but
-     DEFERS per-page SIZE (it needs pre-pagination re-flow against the new page
-     box), so page 2 keeps the default size while Chrome --print-to-pdf honors
-     the A3 named size — the page dimensions diverge. Tracked-unsupported until
-     named-page size re-flow lands. */
+     (A3) than the default page, while page 1 keeps the default 400px by 300px
+     size. */
   @page { size: 400px 300px; margin: 1cm; }
   @page big { size: A3; margin: 1cm; }
   * { margin: 0; box-sizing: border-box; }

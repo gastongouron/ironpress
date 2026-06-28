@@ -604,15 +604,16 @@ impl HtmlConverter {
         let left_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Left);
         let right_page_margin: Option<Margin> = resolve_page_margin(PageSelector::Right);
 
-        // Step 3e-ter: Resolve named-page margins (CSS Paged Media 3 §3.4). Each
-        // `@page <name> { margin… }` rule maps a page name to a full margin
-        // (default margin + the rule's declared `margin-*`). A `page: <name>`
-        // box forces a break and the page it starts adopts this margin. Per-page
-        // SIZE for named pages is deferred (it needs pre-pagination re-flow);
-        // only the MARGIN is honored. Names are lowercased to match the
+        // Step 3e-ter: Resolve named-page geometry (CSS Paged Media 3 §3.4).
+        // Each `@page <name> { margin…; size… }` rule maps a page name to a full
+        // margin (default margin + the rule's declared `margin-*`) and optional
+        // physical page size. A `page: <name>` box forces a break and the page it
+        // starts adopts this geometry. Names are lowercased to match the
         // case-insensitive `page` property lookup.
-        let mut named_page_margins: std::collections::HashMap<String, Margin> =
-            std::collections::HashMap::new();
+        let mut named_page_overrides: std::collections::HashMap<
+            String,
+            layout::paginate::NamedPageOverride,
+        > = std::collections::HashMap::new();
         for pr in &page_rules {
             if let PageSelector::Named(name) = &pr.selector {
                 let mut m = effective_margin;
@@ -628,7 +629,17 @@ impl HtmlConverter {
                 if let Some(v) = pr.margin_left {
                     m.left = v;
                 }
-                named_page_margins.insert(name.to_ascii_lowercase(), m);
+                let page_size = match (pr.width, pr.height) {
+                    (Some(width), Some(height)) => Some(PageSize { width, height }),
+                    _ => None,
+                };
+                named_page_overrides.insert(
+                    name.to_ascii_lowercase(),
+                    layout::paginate::NamedPageOverride {
+                        margin: m,
+                        page_size,
+                    },
+                );
             }
         }
 
@@ -715,7 +726,7 @@ impl HtmlConverter {
                     left: left_page_margin,
                     right: right_page_margin,
                 },
-                named: named_page_margins,
+                named: named_page_overrides,
             },
         );
 
@@ -732,18 +743,16 @@ impl HtmlConverter {
             .flat_map(|pr| pr.margin_boxes.iter().cloned())
             .collect();
 
-        let decoration = if self.header.is_some()
-            || self.footer.is_some()
-            || !margin_boxes.is_empty()
-        {
-            Some(render::pdf::PageDecoration {
-                header: self.header.clone(),
-                footer: self.footer.clone(),
-                margin_boxes,
-            })
-        } else {
-            None
-        };
+        let decoration =
+            if self.header.is_some() || self.footer.is_some() || !margin_boxes.is_empty() {
+                Some(render::pdf::PageDecoration {
+                    header: self.header.clone(),
+                    footer: self.footer.clone(),
+                    margin_boxes,
+                })
+            } else {
+                None
+            };
 
         let render_opts = render::pdf::RenderOpts {
             compress: self.compress,

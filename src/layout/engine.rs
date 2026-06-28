@@ -872,6 +872,9 @@ pub struct Page {
     /// margin). Layout positions inside `elements` are relative to this page's
     /// own content box.
     pub margin_override: Option<Margin>,
+    /// Per-page physical page-size override selected by a named `@page` rule.
+    /// `None` means the document-global page size is used.
+    pub page_size_override: Option<PageSize>,
 }
 
 /// Lay out the DOM nodes into pages.
@@ -1288,19 +1291,23 @@ pub fn layout_with_rules_and_fonts(
             content_height: page_size.height - m.top - m.bottom,
             margin: m,
         });
-    // CSS Paged Media 3 §3.4: pre-resolve each `@page <name>` margin into its
-    // page geometry (margin + resulting fragmentainer height) here, where the
-    // page size is known, so pagination only does a name → geometry lookup.
+    // CSS Paged Media 3 §3.4: pre-resolve each `@page <name>` margin/size into
+    // page geometry here, where the document-default page size is known, so
+    // pagination only does a name → geometry lookup.
     let named_pages: std::collections::HashMap<String, super::paginate::NamedPageGeom> =
         page_margin_overrides
             .named
             .iter()
-            .map(|(name, m)| {
+            .map(|(name, named)| {
+                let named_page_size = named.page_size.unwrap_or(page_size);
                 (
                     name.clone(),
                     super::paginate::NamedPageGeom {
-                        content_height: page_size.height - m.top - m.bottom,
-                        margin: *m,
+                        content_height: named_page_size.height
+                            - named.margin.top
+                            - named.margin.bottom,
+                        margin: named.margin,
+                        page_size: named_page_size,
                     },
                 )
             })

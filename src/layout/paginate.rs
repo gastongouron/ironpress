@@ -4,6 +4,7 @@ use super::engine::{
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
 };
+use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
 
 fn advance_positioned_ancestors_after_page_break(
@@ -1012,7 +1013,7 @@ fn split_container(
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct FirstPageGeom {
     pub content_height: f32,
-    pub margin: crate::types::Margin,
+    pub margin: Margin,
 }
 
 /// Spread margins for the `:left` / `:right` page pseudo-classes (CSS Paged Media
@@ -1023,8 +1024,17 @@ pub(crate) struct FirstPageGeom {
 /// corpus case), so behaviour is unchanged when no spread rule is present.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct SpreadMargins {
-    pub left: Option<crate::types::Margin>,
-    pub right: Option<crate::types::Margin>,
+    pub left: Option<Margin>,
+    pub right: Option<Margin>,
+}
+
+/// Resolved declarations for a named `@page <name>` rule before pagination. The
+/// margin always starts from the document-global margin; `page_size` is present
+/// only when that named rule declares `size`.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NamedPageOverride {
+    pub margin: Margin,
+    pub page_size: Option<PageSize>,
 }
 
 /// All per-page margin overrides resolved from `@page` pseudo-class rules (CSS
@@ -1036,9 +1046,9 @@ pub(crate) struct SpreadMargins {
 /// document-global margin on every page.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PageMarginOverrides {
-    pub first: Option<crate::types::Margin>,
+    pub first: Option<Margin>,
     pub spread: SpreadMargins,
-    pub named: HashMap<String, crate::types::Margin>,
+    pub named: HashMap<String, NamedPageOverride>,
 }
 
 /// Geometry of a named page (CSS Paged Media 3 §3.4), pre-resolved at the layout
@@ -1049,7 +1059,8 @@ pub(crate) struct PageMarginOverrides {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NamedPageGeom {
     pub content_height: f32,
-    pub margin: crate::types::Margin,
+    pub margin: Margin,
+    pub page_size: PageSize,
 }
 
 /// Paginate with a single global content height (no per-page geometry). Thin
@@ -1097,7 +1108,7 @@ pub(crate) fn paginate_with_first_page(
     // parity (odd = `:right`, even = `:left` in LTR). `None` => document-global
     // margin. `already_pushed` is `pages.len()` at the push site, so the new
     // page's number is `already_pushed + 1`.
-    let page_margin_override = move |already_pushed: usize| -> Option<crate::types::Margin> {
+    let page_margin_override = move |already_pushed: usize| -> Option<Margin> {
         let page_no = already_pushed + 1;
         if page_no == 1 {
             if let Some(m) = first_margin_override {
@@ -1116,7 +1127,7 @@ pub(crate) fn paginate_with_first_page(
     // named box starts and any continuation it overflows onto), and reverts
     // when a different named break — or the document end — is reached. `None`
     // means the default page geometry.
-    let mut pending_named_margin: Option<crate::types::Margin> = None;
+    let mut pending_named_page: Option<NamedPageGeom> = None;
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
@@ -1409,7 +1420,7 @@ pub(crate) fn paginate_with_first_page(
                     // still selects its page geometry: the leading break is
                     // suppressed but the first page adopts the named margin.
                     if let Some(geom) = name.as_ref().and_then(|n| named_pages.get(n)) {
-                        pending_named_margin = Some(geom.margin);
+                        pending_named_page = Some(*geom);
                         content_height = geom.content_height;
                     }
                     continue;
@@ -1417,11 +1428,14 @@ pub(crate) fn paginate_with_first_page(
                 let consumed_height = y;
                 // The page being finalized adopts the named margin in force while
                 // it was filled (if any), else the parity/`:first` override.
-                let margin_override =
-                    pending_named_margin.or_else(|| page_margin_override(pages.len()));
+                let margin_override = pending_named_page
+                    .map(|geom| geom.margin)
+                    .or_else(|| page_margin_override(pages.len()));
+                let page_size_override = pending_named_page.map(|geom| geom.page_size);
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     margin_override,
+                    page_size_override,
                 });
                 // After page 1 is finalized, page 2+ use the default geometry —
                 // unless this break starts a named page (resolved just below).
@@ -1434,9 +1448,9 @@ pub(crate) fn paginate_with_first_page(
                 // whose geometry is the matching `@page <name>` rule. Switch the
                 // active named margin (and fragmentainer height) to it; a break
                 // back to the default flow clears it.
-                pending_named_margin = None;
+                pending_named_page = None;
                 if let Some(geom) = name.as_ref().and_then(|n| named_pages.get(n)) {
-                    pending_named_margin = Some(geom.margin);
+                    pending_named_page = Some(*geom);
                     content_height = geom.content_height;
                 }
                 // Sided break (`break-*: left|right|recto|verso`): force the
@@ -1460,10 +1474,14 @@ pub(crate) fn paginate_with_first_page(
                         for bg in &absolute_backgrounds {
                             blank.push(bg.clone());
                         }
+                        let margin_override = pending_named_page
+                            .map(|geom| geom.margin)
+                            .or_else(|| page_margin_override(pages.len()));
+                        let page_size_override = pending_named_page.map(|geom| geom.page_size);
                         pages.push(Page {
                             elements: blank,
-                            margin_override: pending_named_margin
-                                .or_else(|| page_margin_override(pages.len())),
+                            margin_override,
+                            page_size_override,
                         });
                     }
                 }
@@ -1687,14 +1705,19 @@ pub(crate) fn paginate_with_first_page(
             let consumed_height = y;
             // A natural (overflow) break inside named content keeps the active
             // named margin on the continuation page.
-            let margin_override =
-                pending_named_margin.or_else(|| page_margin_override(pages.len()));
+            let margin_override = pending_named_page
+                .map(|geom| geom.margin)
+                .or_else(|| page_margin_override(pages.len()));
+            let page_size_override = pending_named_page.map(|geom| geom.page_size);
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
                 margin_override,
+                page_size_override,
             });
-            // After page 1 is finalized, page 2+ use the default geometry.
-            content_height = default_content_height;
+            // Continuations inside named content keep that named fragmentainer.
+            content_height = pending_named_page
+                .map(|geom| geom.content_height)
+                .unwrap_or(default_content_height);
             // Duplicate root background onto the new page.
             for bg in &absolute_backgrounds {
                 current_elements.push(bg.clone());
@@ -1781,14 +1804,19 @@ pub(crate) fn paginate_with_first_page(
                 // Close the page (the fragmentainer is full) and reset flow state
                 // for the continuation, mirroring a normal mid-loop page break.
                 let consumed_height = content_height;
-                let margin_override =
-                    pending_named_margin.or_else(|| page_margin_override(pages.len()));
+                let margin_override = pending_named_page
+                    .map(|geom| geom.margin)
+                    .or_else(|| page_margin_override(pages.len()));
+                let page_size_override = pending_named_page.map(|geom| geom.page_size);
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     margin_override,
+                    page_size_override,
                 });
-                // After page 1 is finalized, page 2+ use the default geometry.
-                content_height = default_content_height;
+                // Continuations inside named content keep that named fragmentainer.
+                content_height = pending_named_page
+                    .map(|geom| geom.content_height)
+                    .unwrap_or(default_content_height);
                 for bg in &absolute_backgrounds {
                     current_elements.push(bg.clone());
                 }
@@ -1856,10 +1884,14 @@ pub(crate) fn paginate_with_first_page(
     if !current_elements.is_empty() && (has_real_content || pages.is_empty()) {
         // The last page keeps the active named margin (a `page: <name>` block at
         // the document end, the common cover-page case).
-        let margin_override = pending_named_margin.or_else(|| page_margin_override(pages.len()));
+        let margin_override = pending_named_page
+            .map(|geom| geom.margin)
+            .or_else(|| page_margin_override(pages.len()));
+        let page_size_override = pending_named_page.map(|geom| geom.page_size);
         pages.push(Page {
             elements: current_elements,
             margin_override,
+            page_size_override,
         });
     }
 
@@ -1867,6 +1899,7 @@ pub(crate) fn paginate_with_first_page(
         pages.push(Page {
             elements: Vec::new(),
             margin_override: page_margin_override(0),
+            page_size_override: None,
         });
     }
 
@@ -1932,6 +1965,7 @@ mod break_tests {
             NamedPageGeom {
                 content_height: 990.0,
                 margin: named_margin,
+                page_size: PageSize::A4,
             },
         );
         let pages = paginate_with_first_page(
