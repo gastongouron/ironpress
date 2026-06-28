@@ -627,7 +627,7 @@
     "file": "cases/interactions/interactions-supports-flow-root-containment.html",
     "kind": "interaction",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": ["probe-fill-box", "probe-block-flow"],
     "interaction_of": ["selectors-cascade", "block-box-model"],
     "base_ids": ["selectors-cascade-supports-rule", "block-flow-root-float-containment"],

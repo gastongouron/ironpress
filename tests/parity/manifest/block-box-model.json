@@ -889,7 +889,7 @@
     "description": "display:flow-root establishes a BFC whose height contains a floated child before the following block; catches normal-block zero-height float collapse.",
     "file": "cases/block-box-model/block-flow-root-float-containment.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

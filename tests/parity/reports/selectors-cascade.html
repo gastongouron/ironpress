@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · selectors-cascade</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>selectors-cascade — 85.71%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 48 · PARTIAL 0 · FAIL 8 · UNKNOWN 0 · 56 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-selectors-4">selectors-4 <span class="sc">0%</span></a> <a href="#feat-cascade-layers">cascade-layers <span class="sc">0%</span></a> <a href="#feat-pseudo-class">pseudo-class <span class="sc">82%</span></a> <a href="#feat-cascade">cascade <span class="sc">90%</span></a> <a href="#feat-at-rule">at-rule <span class="sc">100%</span></a> <a href="#feat-attribute-selector">attribute-selector <span class="sc">100%</span></a> <a href="#feat-combinator">combinator <span class="sc">100%</span></a> <a href="#feat-specificity">specificity <span class="sc">100%</span></a> <a href="#feat-supports">supports <span class="sc">100%</span></a> <a href="#feat-type-selector">type-selector <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option><option value="GeometryShift">GeometryShift</option><option value="Missing">Missing</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-selectors-4">selectors-4 — 0.00% <span class="meta">PASS 0 · PARTIAL 0 · FAIL 2</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-has-descendant</strong> · has-descendant · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-has-descendant.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-has-descendant.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-has-descendant.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:has(.flag) matches a descendant witness nested below the card; catches :has implementations limited to sibling or child relative selectors.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 120,70</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-has-descendant.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · selectors-cascade</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>selectors-cascade — 91.07%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 51 · PARTIAL 0 · FAIL 5 · UNKNOWN 0 · 56 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-selectors-4">selectors-4 <span class="sc">0%</span></a> <a href="#feat-cascade-layers">cascade-layers <span class="sc">0%</span></a> <a href="#feat-cascade">cascade <span class="sc">90%</span></a> <a href="#feat-pseudo-class">pseudo-class <span class="sc">95%</span></a> <a href="#feat-at-rule">at-rule <span class="sc">100%</span></a> <a href="#feat-attribute-selector">attribute-selector <span class="sc">100%</span></a> <a href="#feat-combinator">combinator <span class="sc">100%</span></a> <a href="#feat-specificity">specificity <span class="sc">100%</span></a> <a href="#feat-supports">supports <span class="sc">100%</span></a> <a href="#feat-type-selector">type-selector <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option><option value="GeometryShift">GeometryShift</option><option value="Missing">Missing</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-selectors-4">selectors-4 — 0.00% <span class="meta">PASS 0 · PARTIAL 0 · FAIL 2</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-has-descendant</strong> · has-descendant · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-has-descendant.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-has-descendant.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-has-descendant.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:has(.flag) matches a descendant witness nested below the card; catches :has implementations limited to sibling or child relative selectors.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 120,70</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-has-descendant.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -87,49 +87,303 @@
 <span class="ln">28</span>  &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
 <span class="ln">29</span>&lt;/body&gt;
 <span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-pseudo-class">pseudo-class — 81.82% <span class="meta">PASS 18 · PARTIAL 0 · FAIL 4</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-defined</strong> · defined · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-defined.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-defined.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-defined.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:defined matches built-in HTML elements, turning the div green; catches missing Selectors Level 4 defined pseudo-class support.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 100,60</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-defined.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-cascade">cascade — 90.00% <span class="meta">PASS 9 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="22.4186"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">22.42%</span> <strong>selectors-cascade-all-initial-reset</strong> · all-initial-reset · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 41.6</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-all-initial-reset.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-all-initial-reset.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-all-initial-reset.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+207,+90,+171) (ΔE 41.6)</div><div class="desc">all:initial resets earlier padding before later declarations rebuild the box; catches treating all as a no-op or failing to reset box properties.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 55,30</td><td class="num">11.28</td><td>ΔE 41.6 ΔRGB(207,90,171) shift(0.6,0.6)</td><td>fill recolour ΔRGB(+207,+90,+171) (ΔE 41.6)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>22,22 → 77,52</td><td class="num">11.14</td><td>ΔE 41.6 ΔRGB(-207,-90,-171) shift(-0.6,-0.6)</td><td>fill recolour ΔRGB(-207,-90,-171) (ΔE 41.6)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-all-initial-reset.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
+<span class="ln">6</span>  @page { size: 200px 130px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  html, body { background: #ffffff; }
 <span class="ln">10</span>  .box {
-<span class="ln">11</span>    width: 100px;
-<span class="ln">12</span>    height: 60px;
-<span class="ln">13</span>    background: #c62828;
-<span class="ln">14</span>  }
-<span class="ln">15</span>  .box:defined { background: #0a7f2e; }
-<span class="ln">16</span>&lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">20</span>&lt;/body&gt;
-<span class="ln">21</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-dir-rtl</strong> · dir-rtl · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-dir-rtl.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-dir-rtl.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-dir-rtl.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:dir(rtl) matches an element with static dir=rtl; catches missing direction pseudo-class support.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 100,60</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-dir-rtl.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">11</span>    width: 145px;
+<span class="ln">12</span>    height: 85px;
+<span class="ln">13</span>    padding: 22px;
+<span class="ln">14</span>    background: #d9d9d9;
+<span class="ln">15</span>  }
+<span class="ln">16</span>  .box.reset {
+<span class="ln">17</span>    all: initial;
+<span class="ln">18</span>    display: block;
+<span class="ln">19</span>    width: 145px;
+<span class="ln">20</span>    height: 85px;
+<span class="ln">21</span>    background: #d9d9d9;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .child {
+<span class="ln">24</span>    display: block;
+<span class="ln">25</span>    width: 55px;
+<span class="ln">26</span>    height: 30px;
+<span class="ln">27</span>    background: #0a7f2e;
+<span class="ln">28</span>  }
+<span class="ln">29</span>&lt;/style&gt;
+<span class="ln">30</span>&lt;/head&gt;
+<span class="ln">31</span>&lt;body&gt;
+<span class="ln">32</span>  &lt;div class=&quot;box reset&quot;&gt;&lt;span class=&quot;child&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+<span class="ln">33</span>&lt;/body&gt;
+<span class="ln">34</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-important-before-normal</strong> · important-before-normal<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-important-before-normal.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-important-before-normal.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-important-before-normal.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class !important rule placed BEFORE a normal id rule must override the higher-specificity id declaration; only the .winner box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-important-before-normal.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
+<span class="ln">6</span>  @page { size: 417px 150px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .box {
-<span class="ln">11</span>    width: 100px;
-<span class="ln">12</span>    height: 60px;
-<span class="ln">13</span>    background: #c62828;
-<span class="ln">14</span>  }
-<span class="ln">15</span>  .box:dir(rtl) { background: #0a7f2e; }
-<span class="ln">16</span>&lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;box&quot; dir=&quot;rtl&quot;&gt;&lt;/div&gt;
-<span class="ln">20</span>&lt;/body&gt;
-<span class="ln">21</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-lang-inherited</strong> · lang-inherited · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-lang-inherited.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-lang-inherited.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-lang-inherited.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:lang(en) matches an element inheriting the document language from html lang=en; catches checking only the element&#39;s own lang attribute.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 100,60</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-lang-inherited.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">10</span>  .row { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 100px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    display: inline-block;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  /* The .winner !important rule appears BEFORE the #strong id rule. !important must
+<span class="ln">18</span>     beat the higher-specificity normal id declaration regardless of source order:
+<span class="ln">19</span>     only the .winner box turns green. */
+<span class="ln">20</span>  .winner { background: #2e9e4f !important; }
+<span class="ln">21</span>  #strong { background: #bdbdbd; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;div class=&quot;row&quot;&gt;
+<span class="ln">26</span>    &lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box winner&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;
+<span class="ln">27</span>  &lt;/div&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-important-overrides-specificity</strong> · important-over-id<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-important-overrides-specificity.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-important-overrides-specificity.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-important-overrides-specificity.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class rule with !important overrides an id selector that would otherwise win on specificity; only the !important box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-important-overrides-specificity.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 417px 150px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .row { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 100px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    display: inline-block;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  /* #strong is an id (1,0,0) and would normally win, but the class rule
+<span class="ln">18</span>     uses !important and must override it on the second box. */
+<span class="ln">19</span>  #strong { background: #bdbdbd; }
+<span class="ln">20</span>  .winner { background: #2e9e4f !important; }
+<span class="ln">21</span>&lt;/style&gt;
+<span class="ln">22</span>&lt;/head&gt;
+<span class="ln">23</span>&lt;body&gt;
+<span class="ln">24</span>  &lt;div class=&quot;row&quot;&gt;
+<span class="ln">25</span>    &lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box winner&quot; id=&quot;strong2&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;
+<span class="ln">26</span>  &lt;/div&gt;
+<span class="ln">27</span>&lt;/body&gt;
+<span class="ln">28</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inherit-keyword</strong> · inherit-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inherit-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inherit-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inherit-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: inherit forces a non-inherited property to copy the parent .wrap green; the box renders green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inherit-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .wrap { background: #2e9e4f; }
+<span class="ln">19</span>  /* background is NOT inherited by default; `background: inherit` forces the
+<span class="ln">20</span>     box to copy the parent .wrap green explicitly. */
+<span class="ln">21</span>  .box { background: inherit; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">27</span>  &lt;/div&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inherited-property-flows</strong> · inheritance<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inherited-property-flows.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inherited-property-flows.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inherited-property-flows.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An inherited green background painted on the parent .wrap shows through a transparent child box.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inherited-property-flows.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .wrap { background: #2e9e4f; }
+<span class="ln">19</span>  /* color is an inherited property; the child swatch text inherits the parent
+<span class="ln">20</span>     green color. We verify via a filled green box that the inherited background
+<span class="ln">21</span>     of .wrap flows visually behind the transparent inner box. */
+<span class="ln">22</span>  .box { background: transparent; border-color: #2e9e4f; }
+<span class="ln">23</span>&lt;/style&gt;
+<span class="ln">24</span>&lt;/head&gt;
+<span class="ln">25</span>&lt;body&gt;
+<span class="ln">26</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">27</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">28</span>  &lt;/div&gt;
+<span class="ln">29</span>&lt;/body&gt;
+<span class="ln">30</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-initial-keyword</strong> · initial-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-initial-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-initial-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-initial-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: initial resets the box background to its initial transparent value, revealing the green .wrap behind it.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-initial-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  /* background: initial resets the gray .box background to its initial value
+<span class="ln">19</span>     (transparent), revealing the green .wrap behind it. */
+<span class="ln">20</span>  .wrap { background: #2e9e4f; }
+<span class="ln">21</span>  .box { background: initial; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">27</span>  &lt;/div&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inline-beats-selector</strong> · inline-beats-selector<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inline-beats-selector.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inline-beats-selector.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inline-beats-selector.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An inline style attribute outranks any selector (id rule), so only the inline-styled box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inline-beats-selector.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 217px 255px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  /* An inline style on the 2nd box outranks the #hi id rule (selector
+<span class="ln">19</span>     specificity can never beat a style attribute). Only the inline box is green. */
+<span class="ln">20</span>  #hi { background: #bdbdbd; }
+<span class="ln">21</span>&lt;/style&gt;
+<span class="ln">22</span>&lt;/head&gt;
+<span class="ln">23</span>&lt;body&gt;
+<span class="ln">24</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">25</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot;&gt;&lt;/div&gt;
+<span class="ln">26</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot; style=&quot;background: #2e9e4f&quot;&gt;&lt;/div&gt;
+<span class="ln">27</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot;&gt;&lt;/div&gt;
+<span class="ln">28</span>  &lt;/div&gt;
+<span class="ln">29</span>&lt;/body&gt;
+<span class="ln">30</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-non-inherited-border</strong> · non-inherited<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-non-inherited-border.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-non-inherited-border.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-non-inherited-border.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A thick border on the parent .outer does NOT inherit to the child box, which keeps its own 2px border (child filled green for unambiguous geometry).</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-non-inherited-border.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 817px 165px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  /* border is NOT inherited: the parent&#39;s thick border does not flow to the
+<span class="ln">19</span>     child box, which keeps its own 2px border. The child is filled green to
+<span class="ln">20</span>     make its (un-inherited) geometry unambiguous. */
+<span class="ln">21</span>  .outer { border: 10px solid #11324f; padding: 10px; margin-bottom: 10px; }
+<span class="ln">22</span>  .box { background: #2e9e4f; }
+<span class="ln">23</span>&lt;/style&gt;
+<span class="ln">24</span>&lt;/head&gt;
+<span class="ln">25</span>&lt;body&gt;
+<span class="ln">26</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">27</span>    &lt;div class=&quot;outer&quot;&gt;&lt;div class=&quot;box&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+<span class="ln">28</span>  &lt;/div&gt;
+<span class="ln">29</span>&lt;/body&gt;
+<span class="ln">30</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-source-order-tiebreak</strong> · source-order-tiebreak<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-source-order-tiebreak.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-source-order-tiebreak.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-source-order-tiebreak.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Two equal-specificity rules target the same element; the later declaration wins, so the box renders green not gray.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-source-order-tiebreak.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 217px 150px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .row { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 100px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    display: inline-block;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  /* Two equal-specificity class rules target the same element.
+<span class="ln">18</span>     The later declaration must win (green, not gray). */
+<span class="ln">19</span>  .pick { background: #bdbdbd; }
+<span class="ln">20</span>  .pick { background: #2e9e4f; }
+<span class="ln">21</span>&lt;/style&gt;
+<span class="ln">22</span>&lt;/head&gt;
+<span class="ln">23</span>&lt;body&gt;
+<span class="ln">24</span>  &lt;div class=&quot;row&quot;&gt;
+<span class="ln">25</span>    &lt;span class=&quot;box pick&quot;&gt;&lt;/span&gt;
+<span class="ln">26</span>  &lt;/div&gt;
+<span class="ln">27</span>&lt;/body&gt;
+<span class="ln">28</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-unset-keyword</strong> · unset-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-unset-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-unset-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-unset-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: unset on a non-inherited property behaves like initial (transparent), revealing the green .wrap behind the box.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-unset-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    border: 2px solid #11324f;
+<span class="ln">15</span>    background: #bdbdbd;
+<span class="ln">16</span>    margin-bottom: 10px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  /* background is non-inherited, so `background: unset` behaves like initial
+<span class="ln">19</span>     (transparent), revealing the green .wrap behind the box. */
+<span class="ln">20</span>  .wrap { background: #2e9e4f; }
+<span class="ln">21</span>  .box { background: unset; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">27</span>  &lt;/div&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-pseudo-class">pseudo-class — 95.45% <span class="meta">PASS 21 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-lang-inherited</strong> · lang-inherited · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-lang-inherited.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-lang-inherited.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-lang-inherited.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:lang(en) matches an element inheriting the document language from html lang=en; catches checking only the element&#39;s own lang attribute.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 100,60</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-lang-inherited.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -144,27 +398,6 @@
 <span class="ln">13</span>    background: #c62828;
 <span class="ln">14</span>  }
 <span class="ln">15</span>  .box:lang(en) { background: #0a7f2e; }
-<span class="ln">16</span>&lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">20</span>&lt;/body&gt;
-<span class="ln">21</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="100"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">100.00%</span> <strong>selectors-cascade-scope-root</strong> · scope-root · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-scope-root.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-scope-root.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-scope-root.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">:scope in a stylesheet matches the document scope root so :scope body .box turns the box green; catches unsupported :scope selector matching.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 100,60</td><td class="num">100.00</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-scope-root.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  :scope body .box { background: #0a7f2e; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    background: #c62828;
-<span class="ln">15</span>  }
 <span class="ln">16</span>&lt;/style&gt;
 <span class="ln">17</span>&lt;/head&gt;
 <span class="ln">18</span>&lt;body&gt;
@@ -200,6 +433,48 @@
 <span class="ln">27</span>  &lt;/div&gt;
 <span class="ln">28</span>&lt;/body&gt;
 <span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-defined</strong> · defined<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-defined.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-defined.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-defined.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">:defined matches built-in HTML elements, turning the div green; catches missing Selectors Level 4 defined pseudo-class support.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-defined.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .box {
+<span class="ln">11</span>    width: 100px;
+<span class="ln">12</span>    height: 60px;
+<span class="ln">13</span>    background: #c62828;
+<span class="ln">14</span>  }
+<span class="ln">15</span>  .box:defined { background: #0a7f2e; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">20</span>&lt;/body&gt;
+<span class="ln">21</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-dir-rtl</strong> · dir-rtl<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-dir-rtl.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-dir-rtl.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-dir-rtl.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">:dir(rtl) matches an element with static dir=rtl; catches missing direction pseudo-class support.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-dir-rtl.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .box {
+<span class="ln">11</span>    width: 100px;
+<span class="ln">12</span>    height: 60px;
+<span class="ln">13</span>    background: #c62828;
+<span class="ln">14</span>  }
+<span class="ln">15</span>  .box:dir(rtl) { background: #0a7f2e; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;box&quot; dir=&quot;rtl&quot;&gt;&lt;/div&gt;
+<span class="ln">20</span>&lt;/body&gt;
+<span class="ln">21</span>&lt;/html&gt;
 </code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-first-last-child</strong> · first-child-last-child<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-first-last-child.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-first-last-child.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-first-last-child.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">:first-child paints the first box green and :last-child paints the last box blue; the middle box stays gray.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-first-last-child.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -667,6 +942,27 @@
 <span class="ln">22</span>  &lt;div class=&quot;panel&quot;&gt;&lt;/div&gt;
 <span class="ln">23</span>&lt;/body&gt;
 <span class="ln">24</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-scope-root</strong> · scope-root<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-scope-root.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-scope-root.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-scope-root.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">:scope in a stylesheet matches the document scope root so :scope body .box turns the box green; catches unsupported :scope selector matching.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-scope-root.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 160px 100px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  :scope body .box { background: #0a7f2e; }
+<span class="ln">11</span>  .box {
+<span class="ln">12</span>    width: 100px;
+<span class="ln">13</span>    height: 60px;
+<span class="ln">14</span>    background: #c62828;
+<span class="ln">15</span>  }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">20</span>&lt;/body&gt;
+<span class="ln">21</span>&lt;/html&gt;
 </code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-where-zero-specificity</strong> · where<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-where-zero-specificity.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-where-zero-specificity.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-where-zero-specificity.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">:where() contributes zero specificity, so a later (0,1,0) class rule wins over an earlier :where(.box) rule; the box renders green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-where-zero-specificity.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -697,302 +993,6 @@
 <span class="ln">28</span>  &lt;/div&gt;
 <span class="ln">29</span>&lt;/body&gt;
 <span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-cascade">cascade — 90.00% <span class="meta">PASS 9 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="22.4186"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">22.42%</span> <strong>selectors-cascade-all-initial-reset</strong> · all-initial-reset · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 41.6</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-all-initial-reset.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-all-initial-reset.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-all-initial-reset.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+207,+90,+171) (ΔE 41.6)</div><div class="desc">all:initial resets earlier padding before later declarations rebuild the box; catches treating all as a no-op or failing to reset box properties.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 55,30</td><td class="num">11.28</td><td>ΔE 41.6 ΔRGB(207,90,171) shift(0.6,0.6)</td><td>fill recolour ΔRGB(+207,+90,+171) (ΔE 41.6)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>22,22 → 77,52</td><td class="num">11.14</td><td>ΔE 41.6 ΔRGB(-207,-90,-171) shift(-0.6,-0.6)</td><td>fill recolour ΔRGB(-207,-90,-171) (ΔE 41.6)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-all-initial-reset.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 200px 130px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .box {
-<span class="ln">11</span>    width: 145px;
-<span class="ln">12</span>    height: 85px;
-<span class="ln">13</span>    padding: 22px;
-<span class="ln">14</span>    background: #d9d9d9;
-<span class="ln">15</span>  }
-<span class="ln">16</span>  .box.reset {
-<span class="ln">17</span>    all: initial;
-<span class="ln">18</span>    display: block;
-<span class="ln">19</span>    width: 145px;
-<span class="ln">20</span>    height: 85px;
-<span class="ln">21</span>    background: #d9d9d9;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .child {
-<span class="ln">24</span>    display: block;
-<span class="ln">25</span>    width: 55px;
-<span class="ln">26</span>    height: 30px;
-<span class="ln">27</span>    background: #0a7f2e;
-<span class="ln">28</span>  }
-<span class="ln">29</span>&lt;/style&gt;
-<span class="ln">30</span>&lt;/head&gt;
-<span class="ln">31</span>&lt;body&gt;
-<span class="ln">32</span>  &lt;div class=&quot;box reset&quot;&gt;&lt;span class=&quot;child&quot;&gt;&lt;/span&gt;&lt;/div&gt;
-<span class="ln">33</span>&lt;/body&gt;
-<span class="ln">34</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-important-before-normal</strong> · important-before-normal<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-important-before-normal.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-important-before-normal.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-important-before-normal.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class !important rule placed BEFORE a normal id rule must override the higher-specificity id declaration; only the .winner box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-important-before-normal.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 417px 150px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .row { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 100px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    display: inline-block;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  /* The .winner !important rule appears BEFORE the #strong id rule. !important must
-<span class="ln">18</span>     beat the higher-specificity normal id declaration regardless of source order:
-<span class="ln">19</span>     only the .winner box turns green. */
-<span class="ln">20</span>  .winner { background: #2e9e4f !important; }
-<span class="ln">21</span>  #strong { background: #bdbdbd; }
-<span class="ln">22</span>&lt;/style&gt;
-<span class="ln">23</span>&lt;/head&gt;
-<span class="ln">24</span>&lt;body&gt;
-<span class="ln">25</span>  &lt;div class=&quot;row&quot;&gt;
-<span class="ln">26</span>    &lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box winner&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;
-<span class="ln">27</span>  &lt;/div&gt;
-<span class="ln">28</span>&lt;/body&gt;
-<span class="ln">29</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-important-overrides-specificity</strong> · important-over-id<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-important-overrides-specificity.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-important-overrides-specificity.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-important-overrides-specificity.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class rule with !important overrides an id selector that would otherwise win on specificity; only the !important box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-important-overrides-specificity.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 417px 150px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .row { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 100px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    display: inline-block;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  /* #strong is an id (1,0,0) and would normally win, but the class rule
-<span class="ln">18</span>     uses !important and must override it on the second box. */
-<span class="ln">19</span>  #strong { background: #bdbdbd; }
-<span class="ln">20</span>  .winner { background: #2e9e4f !important; }
-<span class="ln">21</span>&lt;/style&gt;
-<span class="ln">22</span>&lt;/head&gt;
-<span class="ln">23</span>&lt;body&gt;
-<span class="ln">24</span>  &lt;div class=&quot;row&quot;&gt;
-<span class="ln">25</span>    &lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box winner&quot; id=&quot;strong2&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box&quot; id=&quot;strong&quot;&gt;&lt;/span&gt;
-<span class="ln">26</span>  &lt;/div&gt;
-<span class="ln">27</span>&lt;/body&gt;
-<span class="ln">28</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inherit-keyword</strong> · inherit-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inherit-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inherit-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inherit-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: inherit forces a non-inherited property to copy the parent .wrap green; the box renders green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inherit-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  .wrap { background: #2e9e4f; }
-<span class="ln">19</span>  /* background is NOT inherited by default; `background: inherit` forces the
-<span class="ln">20</span>     box to copy the parent .wrap green explicitly. */
-<span class="ln">21</span>  .box { background: inherit; }
-<span class="ln">22</span>&lt;/style&gt;
-<span class="ln">23</span>&lt;/head&gt;
-<span class="ln">24</span>&lt;body&gt;
-<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">27</span>  &lt;/div&gt;
-<span class="ln">28</span>&lt;/body&gt;
-<span class="ln">29</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inherited-property-flows</strong> · inheritance<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inherited-property-flows.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inherited-property-flows.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inherited-property-flows.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An inherited green background painted on the parent .wrap shows through a transparent child box.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inherited-property-flows.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  .wrap { background: #2e9e4f; }
-<span class="ln">19</span>  /* color is an inherited property; the child swatch text inherits the parent
-<span class="ln">20</span>     green color. We verify via a filled green box that the inherited background
-<span class="ln">21</span>     of .wrap flows visually behind the transparent inner box. */
-<span class="ln">22</span>  .box { background: transparent; border-color: #2e9e4f; }
-<span class="ln">23</span>&lt;/style&gt;
-<span class="ln">24</span>&lt;/head&gt;
-<span class="ln">25</span>&lt;body&gt;
-<span class="ln">26</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">27</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">28</span>  &lt;/div&gt;
-<span class="ln">29</span>&lt;/body&gt;
-<span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-initial-keyword</strong> · initial-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-initial-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-initial-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-initial-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: initial resets the box background to its initial transparent value, revealing the green .wrap behind it.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-initial-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  /* background: initial resets the gray .box background to its initial value
-<span class="ln">19</span>     (transparent), revealing the green .wrap behind it. */
-<span class="ln">20</span>  .wrap { background: #2e9e4f; }
-<span class="ln">21</span>  .box { background: initial; }
-<span class="ln">22</span>&lt;/style&gt;
-<span class="ln">23</span>&lt;/head&gt;
-<span class="ln">24</span>&lt;body&gt;
-<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">27</span>  &lt;/div&gt;
-<span class="ln">28</span>&lt;/body&gt;
-<span class="ln">29</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-inline-beats-selector</strong> · inline-beats-selector<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-inline-beats-selector.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-inline-beats-selector.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-inline-beats-selector.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An inline style attribute outranks any selector (id rule), so only the inline-styled box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-inline-beats-selector.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 217px 255px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  /* An inline style on the 2nd box outranks the #hi id rule (selector
-<span class="ln">19</span>     specificity can never beat a style attribute). Only the inline box is green. */
-<span class="ln">20</span>  #hi { background: #bdbdbd; }
-<span class="ln">21</span>&lt;/style&gt;
-<span class="ln">22</span>&lt;/head&gt;
-<span class="ln">23</span>&lt;body&gt;
-<span class="ln">24</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">25</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot;&gt;&lt;/div&gt;
-<span class="ln">26</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot; style=&quot;background: #2e9e4f&quot;&gt;&lt;/div&gt;
-<span class="ln">27</span>    &lt;div class=&quot;box&quot; id=&quot;hi&quot;&gt;&lt;/div&gt;
-<span class="ln">28</span>  &lt;/div&gt;
-<span class="ln">29</span>&lt;/body&gt;
-<span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-non-inherited-border</strong> · non-inherited<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-non-inherited-border.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-non-inherited-border.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-non-inherited-border.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A thick border on the parent .outer does NOT inherit to the child box, which keeps its own 2px border (child filled green for unambiguous geometry).</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-non-inherited-border.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 817px 165px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  /* border is NOT inherited: the parent&#39;s thick border does not flow to the
-<span class="ln">19</span>     child box, which keeps its own 2px border. The child is filled green to
-<span class="ln">20</span>     make its (un-inherited) geometry unambiguous. */
-<span class="ln">21</span>  .outer { border: 10px solid #11324f; padding: 10px; margin-bottom: 10px; }
-<span class="ln">22</span>  .box { background: #2e9e4f; }
-<span class="ln">23</span>&lt;/style&gt;
-<span class="ln">24</span>&lt;/head&gt;
-<span class="ln">25</span>&lt;body&gt;
-<span class="ln">26</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">27</span>    &lt;div class=&quot;outer&quot;&gt;&lt;div class=&quot;box&quot;&gt;&lt;/div&gt;&lt;/div&gt;
-<span class="ln">28</span>  &lt;/div&gt;
-<span class="ln">29</span>&lt;/body&gt;
-<span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-source-order-tiebreak</strong> · source-order-tiebreak<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-source-order-tiebreak.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-source-order-tiebreak.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-source-order-tiebreak.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Two equal-specificity rules target the same element; the later declaration wins, so the box renders green not gray.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-source-order-tiebreak.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 217px 150px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .row { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 100px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    display: inline-block;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  /* Two equal-specificity class rules target the same element.
-<span class="ln">18</span>     The later declaration must win (green, not gray). */
-<span class="ln">19</span>  .pick { background: #bdbdbd; }
-<span class="ln">20</span>  .pick { background: #2e9e4f; }
-<span class="ln">21</span>&lt;/style&gt;
-<span class="ln">22</span>&lt;/head&gt;
-<span class="ln">23</span>&lt;body&gt;
-<span class="ln">24</span>  &lt;div class=&quot;row&quot;&gt;
-<span class="ln">25</span>    &lt;span class=&quot;box pick&quot;&gt;&lt;/span&gt;
-<span class="ln">26</span>  &lt;/div&gt;
-<span class="ln">27</span>&lt;/body&gt;
-<span class="ln">28</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-unset-keyword</strong> · unset-keyword<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-unset-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-unset-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-unset-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">background: unset on a non-inherited property behaves like initial (transparent), revealing the green .wrap behind the box.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-unset-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 816px 111px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  .box {
-<span class="ln">12</span>    width: 100px;
-<span class="ln">13</span>    height: 60px;
-<span class="ln">14</span>    border: 2px solid #11324f;
-<span class="ln">15</span>    background: #bdbdbd;
-<span class="ln">16</span>    margin-bottom: 10px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  /* background is non-inherited, so `background: unset` behaves like initial
-<span class="ln">19</span>     (transparent), revealing the green .wrap behind the box. */
-<span class="ln">20</span>  .wrap { background: #2e9e4f; }
-<span class="ln">21</span>  .box { background: unset; }
-<span class="ln">22</span>&lt;/style&gt;
-<span class="ln">23</span>&lt;/head&gt;
-<span class="ln">24</span>&lt;body&gt;
-<span class="ln">25</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">26</span>    &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">27</span>  &lt;/div&gt;
-<span class="ln">28</span>&lt;/body&gt;
-<span class="ln">29</span>&lt;/html&gt;
 </code></pre></details></div></div></section><section class="feat"><h2 id="feat-at-rule">at-rule — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-media-print</strong> · media-print<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-media-print.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-media-print.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-media-print.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">@media print { } applies in the print rendering context, turning the box green; ignoring print media queries leaves it gray.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-media-print.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -1441,7 +1441,7 @@
 <span class="ln">28</span>  &lt;/div&gt;
 <span class="ln">29</span>&lt;/body&gt;
 <span class="ln">30</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-specificity">specificity — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-specificity-class-over-type</strong> · class-over-type<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-specificity-class-over-type.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-specificity-class-over-type.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-specificity-class-over-type.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class selector (0,1,0) overrides a type selector (0,0,1) regardless of source order; only the .pick box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-specificity-class-over-type.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-specificity">specificity — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-specificity-class-over-type</strong> · class-over-type<span class="chip cls" style="background:#9a6700">AaOnly</span><span class="chip">+0.3px B</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-specificity-class-over-type.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-specificity-class-over-type.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-specificity-class-over-type.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A class selector (0,1,0) overrides a type selector (0,0,1) regardless of source order; only the .pick box turns green.</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-specificity-class-over-type.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -1454,21 +1454,23 @@
 <span class="ln">11</span>  /* type selector div sets gray; class .pick (higher specificity) sets green
 <span class="ln">12</span>     on only the second box even though it is declared earlier. */
 <span class="ln">13</span>  .pick { background: #2e9e4f; }
-<span class="ln">14</span>  div.box {
+<span class="ln">14</span>  .box {
 <span class="ln">15</span>    width: 100px;
 <span class="ln">16</span>    height: 100px;
 <span class="ln">17</span>    border: 2px solid #11324f;
 <span class="ln">18</span>    display: inline-block;
-<span class="ln">19</span>    background: #bdbdbd;
-<span class="ln">20</span>  }
-<span class="ln">21</span>&lt;/style&gt;
-<span class="ln">22</span>&lt;/head&gt;
-<span class="ln">23</span>&lt;body&gt;
-<span class="ln">24</span>  &lt;div class=&quot;row&quot;&gt;
-<span class="ln">25</span>    &lt;div class=&quot;box&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;&lt;div class=&quot;box pick&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;&lt;div class=&quot;box&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;
-<span class="ln">26</span>  &lt;/div&gt;
-<span class="ln">27</span>&lt;/body&gt;
-<span class="ln">28</span>&lt;/html&gt;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  div {
+<span class="ln">21</span>    background: #bdbdbd;
+<span class="ln">22</span>  }
+<span class="ln">23</span>&lt;/style&gt;
+<span class="ln">24</span>&lt;/head&gt;
+<span class="ln">25</span>&lt;body&gt;
+<span class="ln">26</span>  &lt;div class=&quot;row&quot;&gt;
+<span class="ln">27</span>    &lt;div class=&quot;box&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;&lt;div class=&quot;box pick&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;&lt;div class=&quot;box&quot; style=&quot;display:inline-block&quot;&gt;&lt;/div&gt;
+<span class="ln">28</span>  &lt;/div&gt;
+<span class="ln">29</span>&lt;/body&gt;
+<span class="ln">30</span>&lt;/html&gt;
 </code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>selectors-cascade-specificity-id-before-class</strong> · id-before-class<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/selectors-cascade/selectors-cascade-specificity-id-before-class.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/selectors-cascade/selectors-cascade-specificity-id-before-class.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="selectors-cascade/selectors-cascade-specificity-id-before-class.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An id rule (1,0,0) placed BEFORE a class rule (0,1,0) in source order must still win on specificity; only the #pick box turns green (regression guard against pure source-order cascade).</div><details open class="src"><summary>source · cases/selectors-cascade/selectors-cascade-specificity-id-before-class.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;

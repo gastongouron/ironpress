@@ -263,7 +263,7 @@
     "description": "line-height:200% resolves from the element font-size to 40px line boxes; catches percentage line-height being ignored or inherited as 1.5.",
     "file": "cases/typography/typography-line-height-percent.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],
@@ -302,7 +302,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-text-baseline",

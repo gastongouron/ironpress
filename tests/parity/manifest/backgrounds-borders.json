@@ -880,7 +880,7 @@
     "description": "background-position-x and background-position-y independently place a tile at fixed offsets; catches engines that ignore the longhands.",
     "file": "cases/backgrounds-borders/background-position-xy-longhands.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render",
@@ -1067,7 +1067,7 @@
     "description": "border-width four-value shorthand assigns visibly different widths to every side; catches uniform-width shorthand parsing.",
     "file": "cases/backgrounds-borders/border-width-four-value-shorthand.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",
