@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-#[cfg(test)]
-use crate::parser::dom::ElementNode;
+use crate::parser::dom::{ElementNode, HtmlTag};
 
-#[cfg(test)]
-use super::AncestorInfo;
-use super::SelectorContext;
+use super::{AncestorInfo, SelectorContext};
 
 #[derive(Clone, Copy)]
 enum Combinator {
@@ -139,6 +136,20 @@ fn compound_specificity(compound: &str) -> (u32, u32, u32) {
             a += na;
             b += nb;
             c += nc;
+        } else if let Some(arg) = functional_arg(pseudo, ":nth-child(")
+            .or_else(|| functional_arg(pseudo, ":nth-last-child("))
+        {
+            b += 1;
+            if let Some((_, selector_list)) = split_nth_of(arg) {
+                let (na, nb, nc) = split_selector_list(selector_list)
+                    .into_iter()
+                    .map(complex_specificity)
+                    .max_by_key(|(a, b, c)| (*a, *b, *c))
+                    .unwrap_or((0, 0, 0));
+                a += na;
+                b += nb;
+                c += nc;
+            }
         } else {
             // Plain (or functional structural) pseudo-class: counts as a class.
             b += 1;
@@ -263,20 +274,19 @@ fn compound_selector_matches(
                     return false;
                 }
 
-                let Some(parent) = ctx.ancestors.last() else {
-                    return false;
-                };
-
-                let parent_index = ctx.ancestors.len() - 1;
-                let parent_ctx = ancestor_selector_context(ctx, parent_index);
-                compound_selector_matches(
-                    left,
-                    &parent.element.raw_tag_name,
-                    &parent.element.class_list(),
-                    parent.element.id(),
-                    &parent.element.attributes,
-                    &parent_ctx,
-                )
+                if let Some((parent_index, parent)) = ctx.ancestors.iter().enumerate().next_back() {
+                    let parent_ctx = ancestor_selector_context(ctx, parent_index);
+                    compound_selector_matches(
+                        left,
+                        &parent.element.raw_tag_name,
+                        &parent.element.class_list(),
+                        parent.element.id(),
+                        &parent.element.attributes,
+                        &parent_ctx,
+                    )
+                } else {
+                    selector_matches_virtual_body(left)
+                }
             }
             Combinator::Descendant => {
                 if !simple_selector_matches(right, tag, classes, id, attributes, ctx) {
@@ -297,7 +307,7 @@ fn compound_selector_matches(
                         return true;
                     }
                 }
-                false
+                selector_matches_virtual_document_ancestor(left)
             }
         };
     }
@@ -617,10 +627,40 @@ fn pseudo_matches(
     if let Some(arg) = functional_arg(pseudo, ":has(") {
         return has_matches(arg, tag, classes, id, attributes, ctx);
     }
+    if let Some(arg) = functional_arg(pseudo, ":dir(") {
+        return dir_matches(arg, attributes, ctx);
+    }
+    if let Some(arg) = functional_arg(pseudo, ":lang(") {
+        return lang_matches(arg, attributes, ctx);
+    }
     if let Some(arg) = functional_arg(pseudo, ":nth-child(") {
+        if let Some((formula, selector_list)) = split_nth_of(arg) {
+            return nth_child_of_matches(
+                formula,
+                selector_list,
+                tag,
+                classes,
+                id,
+                attributes,
+                ctx,
+                false,
+            );
+        }
         return nth_child_matches(arg, ctx.child_index);
     }
     if let Some(arg) = functional_arg(pseudo, ":nth-last-child(") {
+        if let Some((formula, selector_list)) = split_nth_of(arg) {
+            return nth_child_of_matches(
+                formula,
+                selector_list,
+                tag,
+                classes,
+                id,
+                attributes,
+                ctx,
+                true,
+            );
+        }
         let from_end = ctx.sibling_count.saturating_sub(ctx.child_index + 1);
         return nth_child_matches(arg, from_end);
     }
@@ -640,6 +680,10 @@ fn pseudo_matches(
         // :scope without an explicit scoping root matches the document root in
         // print contexts (no :scope attribute is set), mirroring :root.
         ":scope" => ctx.ancestors.is_empty(),
+        // HTML built-in elements are always defined. Unknown/custom elements
+        // would require a custom-element registry, which this static renderer
+        // does not model.
+        ":defined" => tag != "unknown",
         ":first-of-type" => type_index_from_start(tag, ctx) == 0,
         ":last-of-type" => type_index_from_end(tag, ctx) == 0,
         ":only-of-type" => {
@@ -658,10 +702,8 @@ fn functional_arg<'a>(pseudo: &'a str, prefix: &str) -> Option<&'a str> {
         .and_then(|rest| rest.strip_suffix(')'))
 }
 
-/// Match a comma-separated selector list (each item a compound selector) as the
-/// argument of `:is()` / `:where()` / `:not()`. Returns true if ANY item
-/// matches this element. Combinators inside the argument are not supported here
-/// (compound-only), which covers the print-relevant cases.
+/// Match a comma-separated selector list as the argument of logical and
+/// structural pseudo-classes. Returns true if ANY item matches this element.
 fn selector_list_matches(
     list: &str,
     tag: &str,
@@ -672,7 +714,7 @@ fn selector_list_matches(
 ) -> bool {
     split_selector_list(list)
         .into_iter()
-        .any(|item| simple_selector_matches(item, tag, classes, id, attributes, ctx))
+        .any(|item| compound_selector_matches(item, tag, classes, id, attributes, ctx))
 }
 
 /// Split a selector list on top-level commas (ignoring commas inside `[]`/`()`).
@@ -707,9 +749,8 @@ fn split_selector_list(list: &str) -> Vec<&str> {
 /// Evaluate `:has(<relative-selector-list>)` against the element's known
 /// context. Only the forward relational forms reachable from the available
 /// context are supported: `:has(+ X)` / `:has(~ X)` (a following sibling
-/// matching X) and `:has(> X)` / `:has(X)` (currently treated as a following
-/// sibling probe). Descendant `:has` would need the subtree, which the matcher
-/// does not carry, so deep descendant relations return false (conservative).
+/// matching X). Child and descendant `:has` need the element subtree, which the
+/// matcher does not carry, so those relations return false (conservative).
 fn has_matches(
     arg: &str,
     _tag: &str,
@@ -718,7 +759,13 @@ fn has_matches(
     _attributes: &HashMap<String, String>,
     ctx: &SelectorContext,
 ) -> bool {
-    let arg = arg.trim();
+    split_selector_list(arg)
+        .into_iter()
+        .any(|relative| has_relative_selector_matches(relative, ctx))
+}
+
+fn has_relative_selector_matches(relative: &str, ctx: &SelectorContext) -> bool {
+    let arg = relative.trim();
     let (combinator, target) = if let Some(rest) = arg.strip_prefix('+') {
         ('+', rest.trim())
     } else if let Some(rest) = arg.strip_prefix('~') {
@@ -733,17 +780,203 @@ fn has_matches(
         // Adjacent following sibling matches the target.
         '+' => ctx.following_siblings.first().is_some_and(|(t, c)| {
             let refs: Vec<&str> = c.iter().map(String::as_str).collect();
-            simple_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
+            compound_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
         }),
         // Any following sibling matches the target.
         '~' => ctx.following_siblings.iter().any(|(t, c)| {
             let refs: Vec<&str> = c.iter().map(String::as_str).collect();
-            simple_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
+            compound_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
         }),
         // Child / descendant relations are not represented in the matcher
         // context; conservatively unsupported.
         _ => false,
     }
+}
+
+fn dir_matches(arg: &str, attributes: &HashMap<String, String>, ctx: &SelectorContext) -> bool {
+    let want = unquote(arg.trim()).to_ascii_lowercase();
+    if !matches!(want.as_str(), "ltr" | "rtl") {
+        return false;
+    }
+
+    match inherited_attribute_value(attributes, ctx, &["dir"])
+        .as_deref()
+        .map(|dir| dir.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("ltr") => want == "ltr",
+        Some("rtl") => want == "rtl",
+        // `auto` needs text-direction analysis, which is outside this matcher.
+        Some("auto") => false,
+        // HTML's default directionality is left-to-right.
+        _ => want == "ltr",
+    }
+}
+
+fn lang_matches(arg: &str, attributes: &HashMap<String, String>, ctx: &SelectorContext) -> bool {
+    let Some(lang) = inherited_attribute_value(attributes, ctx, &["lang", "xml:lang"]) else {
+        return false;
+    };
+    let lang = lang.to_ascii_lowercase();
+
+    split_selector_list(arg).into_iter().any(|range| {
+        let range = unquote(range.trim()).to_ascii_lowercase();
+        if range == "*" {
+            return true;
+        }
+        lang == range
+            || lang
+                .strip_prefix(&range)
+                .is_some_and(|suffix| suffix.starts_with('-'))
+    })
+}
+
+fn inherited_attribute_value(
+    attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+    names: &[&str],
+) -> Option<String> {
+    find_attribute_value(attributes, names)
+        .map(str::to_string)
+        .or_else(|| {
+            ctx.ancestors.iter().rev().find_map(|ancestor| {
+                find_attribute_value(&ancestor.element.attributes, names).map(str::to_string)
+            })
+        })
+}
+
+fn find_attribute_value<'a>(
+    attributes: &'a HashMap<String, String>,
+    names: &[&str],
+) -> Option<&'a str> {
+    attributes.iter().find_map(|(name, value)| {
+        names
+            .iter()
+            .any(|want| name.eq_ignore_ascii_case(want))
+            .then_some(value.as_str())
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn nth_child_of_matches(
+    formula: &str,
+    selector_list: &str,
+    tag: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+    from_end: bool,
+) -> bool {
+    if !selector_list_matches(selector_list, tag, classes, id, attributes, ctx) {
+        return false;
+    }
+
+    let preceding = matching_sibling_count(&ctx.preceding_siblings, selector_list);
+    let following = matching_sibling_count(&ctx.following_siblings, selector_list);
+    let filtered_index = if from_end { following } else { preceding };
+    nth_child_matches(formula, filtered_index)
+}
+
+fn matching_sibling_count(siblings: &[(String, Vec<String>)], selector_list: &str) -> usize {
+    siblings
+        .iter()
+        .filter(|(tag, classes)| {
+            let refs: Vec<&str> = classes.iter().map(String::as_str).collect();
+            selector_list_matches(
+                selector_list,
+                tag,
+                &refs,
+                None,
+                &HashMap::new(),
+                &empty_ctx(),
+            )
+        })
+        .count()
+}
+
+fn split_nth_of(arg: &str) -> Option<(&str, &str)> {
+    let mut bracket_depth = 0usize;
+    let mut paren_depth = 0usize;
+
+    for (index, ch) in arg.char_indices() {
+        match ch {
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            'o' | 'O' if bracket_depth == 0 && paren_depth == 0 => {
+                let rest = &arg[index..];
+                if !rest
+                    .get(..2)
+                    .is_some_and(|prefix| prefix.eq_ignore_ascii_case("of"))
+                {
+                    continue;
+                }
+                let before_is_space = arg[..index]
+                    .chars()
+                    .next_back()
+                    .is_some_and(char::is_whitespace);
+                let after_is_space = arg[index + 2..]
+                    .chars()
+                    .next()
+                    .is_some_and(char::is_whitespace);
+                if before_is_space && after_is_space {
+                    let formula = arg[..index].trim();
+                    let selector_list = arg[index + 2..].trim();
+                    if !formula.is_empty() && !selector_list.is_empty() {
+                        return Some((formula, selector_list));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn selector_matches_virtual_document_ancestor(selector: &str) -> bool {
+    selector_matches_virtual_body(selector) || selector_matches_virtual_html(selector)
+}
+
+fn selector_matches_virtual_html(selector: &str) -> bool {
+    let attributes = HashMap::new();
+    compound_selector_matches(
+        selector,
+        "html",
+        &[],
+        None,
+        &attributes,
+        &SelectorContext::default(),
+    )
+}
+
+fn selector_matches_virtual_body(selector: &str) -> bool {
+    let html = ElementNode {
+        tag: HtmlTag::Html,
+        raw_tag_name: "html".to_string(),
+        attributes: HashMap::new(),
+        children: Vec::new(),
+    };
+    let attributes = HashMap::new();
+    let ctx = SelectorContext {
+        ancestors: vec![AncestorInfo {
+            element: &html,
+            child_index: 0,
+            sibling_count: 1,
+            preceding_siblings: Vec::new(),
+            following_siblings: Vec::new(),
+            is_empty: false,
+        }],
+        child_index: 0,
+        sibling_count: 1,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+
+    compound_selector_matches(selector, "body", &[], None, &attributes, &ctx)
 }
 
 fn empty_ctx<'a>() -> SelectorContext<'a> {

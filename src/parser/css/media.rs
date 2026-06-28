@@ -252,7 +252,7 @@ pub(crate) fn preprocess_media_queries_with_context(
         output.push_str(&at_rule);
     }
 
-    output
+    lower_flow_root_display(&output)
 }
 
 /// Remove `/* ... */` CSS comments, leaving string literals (`'...'` / `"..."`)
@@ -294,6 +294,249 @@ pub(crate) fn strip_css_comments(css: &str) -> String {
         i = end;
     }
     out
+}
+
+/// Lower `display: flow-root` to a block rule plus a generated clearfix.
+///
+/// CSS Display 3 defines `flow-root` as a block container that establishes a new
+/// block formatting context. The computed display enum does not yet have a
+/// native flow-root variant, but generated block pseudos with `clear: both`
+/// reuse the engine's existing float-clearance path without clipping descendants.
+fn lower_flow_root_display(css: &str) -> String {
+    let mut out = String::with_capacity(css.len());
+    let bytes = css.as_bytes();
+    let mut i = 0;
+    let mut quote: u8 = 0;
+    let mut declaration_start = false;
+    let mut block_depth = 0usize;
+    let mut rule_start = 0usize;
+    let mut current_clearfix_selectors: Option<String> = None;
+    let mut current_rule_needs_clearfix = false;
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        if quote != 0 {
+            out.push(c as char);
+            if c == quote {
+                quote = 0;
+            }
+            i += 1;
+            continue;
+        }
+
+        if c == b'"' || c == b'\'' {
+            quote = c;
+            out.push(c as char);
+            i += 1;
+            continue;
+        }
+
+        match c {
+            b'{' => {
+                if block_depth == 0 {
+                    current_clearfix_selectors =
+                        flow_root_clearfix_selectors(css[rule_start..i].trim());
+                    current_rule_needs_clearfix = false;
+                }
+                block_depth += 1;
+                declaration_start = true;
+                out.push('{');
+                i += 1;
+                continue;
+            }
+            b'}' => {
+                let append_clearfix = block_depth == 1
+                    && current_rule_needs_clearfix
+                    && current_clearfix_selectors.is_some();
+                block_depth = block_depth.saturating_sub(1);
+                declaration_start = false;
+                out.push('}');
+                if append_clearfix {
+                    if let Some(selectors) = current_clearfix_selectors.take() {
+                        out.push(' ');
+                        out.push_str(&selectors);
+                        out.push_str(r#" { content: ""; display: block; clear: both }"#);
+                    }
+                }
+                if block_depth == 0 {
+                    rule_start = i + 1;
+                    current_clearfix_selectors = None;
+                    current_rule_needs_clearfix = false;
+                }
+                i += 1;
+                continue;
+            }
+            b';' => {
+                declaration_start = block_depth > 0;
+                out.push(';');
+                if block_depth == 0 {
+                    rule_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+
+        if block_depth > 0 && declaration_start && c.is_ascii_whitespace() {
+            out.push(c as char);
+            i += 1;
+            continue;
+        }
+
+        if block_depth > 0
+            && declaration_start
+            && let Some((next_i, important)) = parse_flow_root_display_declaration(css, i)
+        {
+            out.push_str("display: block");
+            if important {
+                out.push_str(" !important");
+            }
+            if block_depth == 1 {
+                current_rule_needs_clearfix = true;
+            }
+            i = next_i;
+            declaration_start = false;
+            continue;
+        }
+
+        declaration_start = false;
+        let ch_len = utf8_len(c);
+        let end = (i + ch_len).min(bytes.len());
+        out.push_str(&css[i..end]);
+        i = end;
+    }
+
+    out
+}
+
+fn flow_root_clearfix_selectors(prelude: &str) -> Option<String> {
+    if prelude.starts_with('@') {
+        return None;
+    }
+
+    let selectors: Vec<String> = split_selector_list(prelude)
+        .into_iter()
+        .map(|selector| selector.trim().to_string())
+        .filter(|selector| selector_can_have_clearfix(selector))
+        .map(|selector| format!("{selector}::after"))
+        .collect();
+
+    (!selectors.is_empty()).then(|| selectors.join(", "))
+}
+
+fn split_selector_list(selector_list: &str) -> Vec<&str> {
+    let bytes = selector_list.as_bytes();
+    let mut selectors = Vec::new();
+    let mut start = 0usize;
+    let mut depth = 0i32;
+    let mut quote: u8 = 0;
+    let mut i = 0usize;
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        if quote != 0 {
+            if c == quote {
+                quote = 0;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' || c == b'\'' {
+            quote = c;
+            i += 1;
+            continue;
+        }
+        match c {
+            b'(' | b'[' => depth += 1,
+            b')' | b']' => depth -= 1,
+            b',' if depth == 0 => {
+                selectors.push(&selector_list[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    selectors.push(&selector_list[start..]);
+    selectors
+}
+
+fn selector_can_have_clearfix(selector: &str) -> bool {
+    !selector.is_empty()
+        && !selector.starts_with('@')
+        && !selector.contains("::")
+        && !selector.ends_with(":before")
+        && !selector.ends_with(":after")
+        && !selector.ends_with(":first-line")
+        && !selector.ends_with(":first-letter")
+}
+
+fn parse_flow_root_display_declaration(css: &str, start: usize) -> Option<(usize, bool)> {
+    let bytes = css.as_bytes();
+    let len = bytes.len();
+    let mut i = start;
+
+    while i < len && is_css_ident_byte(bytes[i]) {
+        i += 1;
+    }
+    if !css[start..i].eq_ignore_ascii_case("display") {
+        return None;
+    }
+
+    while i < len && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if i >= len || bytes[i] != b':' {
+        return None;
+    }
+    i += 1;
+
+    let value_start = i;
+    let mut quote: u8 = 0;
+    while i < len {
+        let c = bytes[i];
+        if quote != 0 {
+            if c == quote {
+                quote = 0;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' || c == b'\'' {
+            quote = c;
+            i += 1;
+            continue;
+        }
+        if c == b';' || c == b'}' {
+            break;
+        }
+        i += 1;
+    }
+
+    let value = css[value_start..i].trim();
+    let (value, important) = strip_important(value);
+    if !value.eq_ignore_ascii_case("flow-root") {
+        return None;
+    }
+
+    Some((i, important))
+}
+
+fn strip_important(value: &str) -> (&str, bool) {
+    let Some((before, after)) = value.rsplit_once('!') else {
+        return (value.trim(), false);
+    };
+    if after.trim().eq_ignore_ascii_case("important") {
+        (before.trim(), true)
+    } else {
+        (value.trim(), false)
+    }
+}
+
+fn is_css_ident_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_'
 }
 
 fn utf8_len(first: u8) -> usize {
@@ -492,6 +735,20 @@ mod tests {
         assert!(
             block.contains(".box { background: green }"),
             "block @supports condition dropped: {block}"
+        );
+
+        // The fixture's value: `display: flow-root` should query true and lower
+        // to accepted declarations that trigger the existing float-clear path.
+        let flow_root = preprocess_media_queries(
+            "@supports (display: flow-root) { .box { display: flow-root } }",
+        );
+        assert!(
+            flow_root.contains(".box { display: block }"),
+            "flow-root @supports block not lowered: {flow_root}"
+        );
+        assert!(
+            flow_root.contains(r#".box::after { content: ""; display: block; clear: both }"#),
+            "flow-root clearfix not inserted: {flow_root}"
         );
     }
 

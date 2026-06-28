@@ -39,6 +39,24 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
         return number.parse::<f32>().ok().map(CssValue::Rem);
     }
 
+    // Small/large/dynamic viewport units collapse to the static page viewport
+    // in this paged renderer.
+    if let Some(number) = val
+        .strip_suffix("svw")
+        .or_else(|| val.strip_suffix("lvw"))
+        .or_else(|| val.strip_suffix("dvw"))
+    {
+        return number.parse::<f32>().ok().map(CssValue::Vw);
+    }
+
+    if let Some(number) = val
+        .strip_suffix("svh")
+        .or_else(|| val.strip_suffix("lvh"))
+        .or_else(|| val.strip_suffix("dvh"))
+    {
+        return number.parse::<f32>().ok().map(CssValue::Vh);
+    }
+
     if let Some(number) = val.strip_suffix("vw") {
         return number.parse::<f32>().ok().map(CssValue::Vw);
     }
@@ -71,6 +89,12 @@ pub(crate) fn parse_length(val: &str) -> Option<CssValue> {
     }
     if let Some(number) = val.strip_suffix("ch") {
         return number.parse::<f32>().ok().map(CssValue::Ch);
+    }
+
+    // `cap` and `lh` need the element's resolved font metrics / line-height,
+    // which are only known in the computed-style layer. Preserve the token.
+    if val.strip_suffix("cap").is_some() || val.strip_suffix("lh").is_some() {
+        return Some(CssValue::Keyword(val.to_string()));
     }
 
     // Absolute length units → points (1pt = 1/72in). CssValue::Length is in pt.
@@ -262,6 +286,15 @@ pub(crate) fn parse_color(val: &str) -> Option<CssValue> {
     let val = val.trim();
     let lower = val.to_ascii_lowercase();
 
+    if lower == "currentcolor" {
+        return Some(CssValue::Color(Color {
+            r: 1,
+            g: 2,
+            b: 3,
+            a: 254,
+        }));
+    }
+
     if let Some(color) = named_color(&lower) {
         return Some(CssValue::Color(color));
     }
@@ -275,6 +308,35 @@ pub(crate) fn parse_color(val: &str) -> Option<CssValue> {
         .and_then(|s| s.strip_suffix(')'))
     {
         return parse_rgba_function(inner);
+    }
+
+    if let Some(inner) = lower
+        .strip_prefix("color(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return parse_color_function(inner);
+    }
+
+    if let Some(inner) = lower.strip_prefix("lab(").and_then(|s| s.strip_suffix(')')) {
+        return parse_lab_function(inner);
+    }
+
+    if let Some(inner) = lower.strip_prefix("lch(").and_then(|s| s.strip_suffix(')')) {
+        return parse_lch_function(inner);
+    }
+
+    if let Some(inner) = lower
+        .strip_prefix("oklab(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return parse_oklab_function(inner);
+    }
+
+    if let Some(inner) = lower
+        .strip_prefix("oklch(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return parse_oklch_function(inner);
     }
 
     lower
@@ -305,6 +367,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
 
     if is_css_wide_keyword(&lower) {
         return Some(CssValue::Keyword(lower));
+    }
+
+    if property == "border-color" {
+        return parse_color(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
     }
 
     if property.contains("color") {
@@ -356,13 +422,20 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(val.to_string()));
     }
 
+    if property == "border-width" {
+        // CSS keyword widths map to the usual 1px/3px/5px (-> pt) values.
+        match lower.as_str() {
+            "thin" => return Some(CssValue::Length(1.0 * 0.75)),
+            "medium" => return Some(CssValue::Length(3.0 * 0.75)),
+            "thick" => return Some(CssValue::Length(5.0 * 0.75)),
+            _ => {}
+        }
+        return parse_length(val).or_else(|| Some(CssValue::Keyword(val.to_string())));
+    }
+
     if matches!(
         property,
-        "border-width"
-            | "border-top-width"
-            | "border-right-width"
-            | "border-bottom-width"
-            | "border-left-width"
+        "border-top-width" | "border-right-width" | "border-bottom-width" | "border-left-width"
     ) {
         // CSS keyword widths map to the usual 1px/3px/5px (→ pt) values.
         match lower.as_str() {
@@ -372,10 +445,6 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             _ => {}
         }
         return parse_length(val);
-    }
-
-    if property == "border-color" {
-        return parse_color(val);
     }
 
     if property == "z-index" {
@@ -589,6 +658,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             .trim()
             .ends_with(|c: char| c.is_ascii_alphabetic() || c == '%');
         if has_unit {
+            let trimmed = val.trim();
+            if trimmed.ends_with("em") || trimmed.ends_with("lh") || trimmed.ends_with("cap") {
+                return Some(CssValue::Keyword(trimmed.to_string()));
+            }
             return parse_length(val);
         }
         // Bare number → unitless line-height multiplier
@@ -735,16 +808,29 @@ fn parse_hex_color(hex: &str) -> Option<CssValue> {
 }
 
 fn parse_rgb_function(inner: &str) -> Option<CssValue> {
-    let parts: Vec<u8> = inner
-        .split(',')
-        .map(str::trim)
-        .map(str::parse::<u8>)
-        .collect::<Result<Vec<_>, _>>()
-        .ok()?;
+    if inner.contains(',') {
+        let parts: Vec<u8> = inner
+            .split(',')
+            .map(str::trim)
+            .map(parse_rgb_255_component)
+            .collect::<Option<Vec<_>>>()?;
 
-    match parts.as_slice() {
-        [r, g, b] => Some(CssValue::Color(Color::rgb(*r, *g, *b))),
-        _ => None,
+        match parts.as_slice() {
+            [r, g, b] => Some(CssValue::Color(Color::rgb(*r, *g, *b))),
+            _ => None,
+        }
+    } else {
+        let (components, alpha) = split_color_alpha(inner);
+        let parts: Vec<&str> = components.split_whitespace().collect();
+        match parts.as_slice() {
+            [r, g, b] => Some(CssValue::Color(Color {
+                r: parse_rgb_255_component(r)?,
+                g: parse_rgb_255_component(g)?,
+                b: parse_rgb_255_component(b)?,
+                a: parse_alpha_component(alpha)?,
+            })),
+            _ => None,
+        }
     }
 }
 
@@ -770,6 +856,261 @@ fn parse_rgba_function(inner: &str) -> Option<CssValue> {
         b,
         a: (a * 255.0).round() as u8,
     }))
+}
+
+fn parse_color_function(inner: &str) -> Option<CssValue> {
+    let mut parts = inner.splitn(2, char::is_whitespace);
+    let space = parts.next()?.trim();
+    let rest = parts.next()?.trim();
+    let (components, alpha) = split_color_alpha(rest);
+    let coords: Vec<f32> = components
+        .split_whitespace()
+        .map(parse_unit_component)
+        .collect::<Option<Vec<_>>>()?;
+    if coords.len() != 3 {
+        return None;
+    }
+
+    let rgb = match space {
+        "srgb" => {
+            return Some(CssValue::Color(Color {
+                r: unit_to_byte_floor(coords[0]),
+                g: unit_to_byte_floor(coords[1]),
+                b: unit_to_byte_floor(coords[2]),
+                a: parse_alpha_component(alpha)?,
+            }));
+        }
+        "srgb-linear" => linear_srgb_to_srgb(coords[0], coords[1], coords[2]),
+        "display-p3" => display_p3_to_srgb(coords[0], coords[1], coords[2]),
+        "xyz" | "xyz-d65" => xyz_d65_to_srgb(coords[0], coords[1], coords[2]),
+        _ => return None,
+    };
+    Some(CssValue::Color(rgb_color(
+        rgb,
+        parse_alpha_component(alpha)?,
+    )))
+}
+
+fn parse_lab_function(inner: &str) -> Option<CssValue> {
+    let (components, alpha) = split_color_alpha(inner);
+    let parts: Vec<&str> = components.split_whitespace().collect();
+    let [l, a, b] = parts.as_slice() else {
+        return None;
+    };
+    let l = parse_lightness_percent(l)?;
+    let a = parse_number_component(a)?;
+    let b = parse_number_component(b)?;
+    Some(CssValue::Color(rgb_color(
+        lab_to_srgb(l, a, b),
+        parse_alpha_component(alpha)?,
+    )))
+}
+
+fn parse_lch_function(inner: &str) -> Option<CssValue> {
+    let (components, alpha) = split_color_alpha(inner);
+    let parts: Vec<&str> = components.split_whitespace().collect();
+    let [l, c, h] = parts.as_slice() else {
+        return None;
+    };
+    let l = parse_lightness_percent(l)?;
+    let c = parse_number_component(c)?;
+    let h = parse_number_component(h)?.to_radians();
+    Some(CssValue::Color(rgb_color(
+        lab_to_srgb(l, c * h.cos(), c * h.sin()),
+        parse_alpha_component(alpha)?,
+    )))
+}
+
+fn parse_oklab_function(inner: &str) -> Option<CssValue> {
+    let (components, alpha) = split_color_alpha(inner);
+    let parts: Vec<&str> = components.split_whitespace().collect();
+    let [l, a, b] = parts.as_slice() else {
+        return None;
+    };
+    let l = parse_unit_lightness(l)?;
+    let a = parse_number_component(a)?;
+    let b = parse_number_component(b)?;
+    Some(CssValue::Color(rgb_color(
+        oklab_to_srgb(l, a, b),
+        parse_alpha_component(alpha)?,
+    )))
+}
+
+fn parse_oklch_function(inner: &str) -> Option<CssValue> {
+    let (components, alpha) = split_color_alpha(inner);
+    let parts: Vec<&str> = components.split_whitespace().collect();
+    let [l, c, h] = parts.as_slice() else {
+        return None;
+    };
+    let l = parse_unit_lightness(l)?;
+    let c = parse_number_component(c)?;
+    let h = parse_number_component(h)?.to_radians();
+    Some(CssValue::Color(rgb_color(
+        oklab_to_srgb(l, c * h.cos(), c * h.sin()),
+        parse_alpha_component(alpha)?,
+    )))
+}
+
+fn split_color_alpha(inner: &str) -> (&str, Option<&str>) {
+    match inner.split_once('/') {
+        Some((components, alpha)) => (components.trim(), Some(alpha.trim())),
+        None => (inner.trim(), None),
+    }
+}
+
+fn parse_rgb_255_component(raw: &str) -> Option<u8> {
+    let raw = raw.trim();
+    if let Some(percent) = raw.strip_suffix('%') {
+        return percent
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|v| unit_to_byte_round(v / 100.0));
+    }
+    raw.parse::<f32>().ok().map(|v| {
+        if v <= 1.0 {
+            unit_to_byte_round(v)
+        } else {
+            v.clamp(0.0, 255.0).round() as u8
+        }
+    })
+}
+
+fn parse_alpha_component(alpha: Option<&str>) -> Option<u8> {
+    let Some(raw) = alpha else {
+        return Some(255);
+    };
+    if let Some(percent) = raw.strip_suffix('%') {
+        return percent
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|v| unit_to_byte_round(v / 100.0));
+    }
+    raw.trim().parse::<f32>().ok().map(unit_to_byte_round)
+}
+
+fn parse_unit_component(raw: &str) -> Option<f32> {
+    if raw == "none" {
+        return Some(0.0);
+    }
+    if let Some(percent) = raw.strip_suffix('%') {
+        return percent.trim().parse::<f32>().ok().map(|v| v / 100.0);
+    }
+    raw.trim().parse::<f32>().ok()
+}
+
+fn parse_number_component(raw: &str) -> Option<f32> {
+    if raw == "none" {
+        return Some(0.0);
+    }
+    raw.trim().parse::<f32>().ok()
+}
+
+fn parse_lightness_percent(raw: &str) -> Option<f32> {
+    if let Some(percent) = raw.trim().strip_suffix('%') {
+        return percent.trim().parse::<f32>().ok();
+    }
+    raw.trim().parse::<f32>().ok()
+}
+
+fn parse_unit_lightness(raw: &str) -> Option<f32> {
+    if let Some(percent) = raw.trim().strip_suffix('%') {
+        return percent.trim().parse::<f32>().ok().map(|v| v / 100.0);
+    }
+    raw.trim().parse::<f32>().ok()
+}
+
+fn unit_to_byte_round(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+fn unit_to_byte_floor(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 255.0).floor() as u8
+}
+
+fn rgb_color(rgb: (f32, f32, f32), alpha: u8) -> Color {
+    Color {
+        r: unit_to_byte_round(rgb.0),
+        g: unit_to_byte_round(rgb.1),
+        b: unit_to_byte_round(rgb.2),
+        a: alpha,
+    }
+}
+
+fn srgb_to_linear(v: f32) -> f32 {
+    if v <= 0.04045 {
+        v / 12.92
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+fn linear_to_srgb(v: f32) -> f32 {
+    if v <= 0.003_130_8 {
+        12.92 * v
+    } else {
+        1.055 * v.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+fn linear_srgb_to_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+    (linear_to_srgb(r), linear_to_srgb(g), linear_to_srgb(b))
+}
+
+fn display_p3_to_srgb(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+    let r = srgb_to_linear(r);
+    let g = srgb_to_linear(g);
+    let b = srgb_to_linear(b);
+    let x = 0.486_570_95 * r + 0.265_667_7 * g + 0.198_217_29 * b;
+    let y = 0.228_974_57 * r + 0.691_738_55 * g + 0.079_286_92 * b;
+    let z = 0.045_113_38 * g + 1.043_944_4 * b;
+    xyz_d65_to_srgb(x, y, z)
+}
+
+fn xyz_d65_to_srgb(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+    let r = 3.240_97 * x - 1.537_383_2 * y - 0.498_610_76 * z;
+    let g = -0.969_243_65 * x + 1.875_967_5 * y + 0.041_555_06 * z;
+    let b = 0.055_630_08 * x - 0.203_976_96 * y + 1.056_971_5 * z;
+    linear_srgb_to_srgb(r, g, b)
+}
+
+fn lab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+    let fy = (l + 16.0) / 116.0;
+    let fx = fy + a / 500.0;
+    let fz = fy - b / 200.0;
+    let x = 0.964_22 * lab_inv_f(fx);
+    let y = lab_inv_f(fy);
+    let z = 0.825_21 * lab_inv_f(fz);
+    let x_d65 = 0.955_576_6 * x - 0.023_039_3 * y + 0.063_163_6 * z;
+    let y_d65 = -0.028_289_5 * x + 1.009_941_6 * y + 0.021_007_7 * z;
+    let z_d65 = 0.012_298_2 * x - 0.020_483 * y + 1.329_909_8 * z;
+    xyz_d65_to_srgb(x_d65, y_d65, z_d65)
+}
+
+fn lab_inv_f(v: f32) -> f32 {
+    const EPSILON: f32 = 216.0 / 24_389.0;
+    const KAPPA: f32 = 24_389.0 / 27.0;
+    let cube = v * v * v;
+    if cube > EPSILON {
+        cube
+    } else {
+        (116.0 * v - 16.0) / KAPPA
+    }
+}
+
+fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
+    let l_ = l + 0.396_337_78 * a + 0.215_803_76 * b;
+    let m_ = l - 0.105_561_346 * a - 0.063_854_17 * b;
+    let s_ = l - 0.089_484_18 * a - 1.291_485_5 * b;
+    let l = l_ * l_ * l_;
+    let m = m_ * m_ * m_;
+    let s = s_ * s_ * s_;
+    linear_srgb_to_srgb(
+        4.076_741_7 * l - 3.307_711_6 * m + 0.230_969_94 * s,
+        -1.268_438 * l + 2.609_757_4 * m - 0.341_319_4 * s,
+        -0.004_196_086_3 * l - 0.703_418_6 * m + 1.707_614_7 * s,
+    )
 }
 
 fn hex_digit(byte: u8) -> Option<u8> {

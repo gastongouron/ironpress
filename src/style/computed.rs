@@ -1297,6 +1297,7 @@ pub struct ComputedStyle {
     /// means `currentColor` (fall back to the run's text colour). Not inherited.
     pub text_decoration_color: Option<Color>,
     pub line_height: f32,
+    pub line_height_absolute: Option<f32>,
     pub page_break_before: bool,
     pub page_break_after: bool,
     /// CSS Fragmentation 3 `break-before` / `break-after` (and their legacy
@@ -1702,6 +1703,7 @@ impl Default for ComputedStyle {
             text_decoration_overline: false,
             text_decoration_color: None,
             line_height: f32::NAN,
+            line_height_absolute: None,
             page_break_before: false,
             page_break_after: false,
             break_before: BreakValue::Auto,
@@ -2164,6 +2166,7 @@ pub fn compute_style_with_context(
     if let Some(em) = style.margin_em_left {
         style.margin.left = em * style.font_size;
     }
+    sync_line_height_from_absolute(&mut style);
 
     // Resolve `currentColor`. Two cases collapse here, both needing the
     // element's now-finalized `color`:
@@ -2414,6 +2417,7 @@ pub fn compute_pseudo_element_style(
     if let Some(em) = style.margin_em_left {
         style.margin.left = em * style.font_size;
     }
+    sync_line_height_from_absolute(&mut style);
 
     // Resolve any `currentColor` sentinels against the pseudo-element's color.
     resolve_current_color(&mut style);
@@ -2468,7 +2472,10 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.font_family = default.font_family;
             style.font_stack = default.font_stack;
         }
-        "line-height" => style.line_height = default.line_height,
+        "line-height" => {
+            style.line_height = default.line_height;
+            style.line_height_absolute = default.line_height_absolute;
+        }
         "text-align" => style.text_align = default.text_align,
         "text-decoration" => {
             style.text_decoration_underline = default.text_decoration_underline;
@@ -2652,7 +2659,10 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.font_family = parent.font_family.clone();
             style.font_stack = parent.font_stack.clone();
         }
-        "line-height" => style.line_height = parent.line_height,
+        "line-height" => {
+            style.line_height = parent.line_height;
+            style.line_height_absolute = parent.line_height_absolute;
+        }
         "text-align" => style.text_align = parent.text_align,
         "text-decoration" => {
             style.text_decoration_underline = parent.text_decoration_underline;
@@ -3158,14 +3168,41 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-height") {
         if k == "normal" {
             style.line_height = f32::NAN;
+            style.line_height_absolute = None;
+        } else if let Some(v) = resolve_raw_length_for_style(k, style, length_context) {
+            style.line_height_absolute = Some(v);
+            style.line_height = v / style.font_size;
         }
     }
     if let Some(CssValue::Number(v)) = get_non_special(map, "line-height") {
         style.line_height = *v;
+        style.line_height_absolute = None;
     }
     if let Some(CssValue::Length(v)) = get_non_special(map, "line-height") {
+        style.line_height_absolute = Some(*v);
         style.line_height = *v / style.font_size;
     }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "line-height") {
+        let absolute = style.font_size * *v / 100.0;
+        style.line_height_absolute = Some(absolute);
+        style.line_height = absolute / style.font_size;
+    }
+    if let Some(
+        value @ (CssValue::Rem(_)
+        | CssValue::Vw(_)
+        | CssValue::Vh(_)
+        | CssValue::Vmin(_)
+        | CssValue::Vmax(_)
+        | CssValue::Calc(_)
+        | CssValue::Clamp(_, _, _)
+        | CssValue::Var(_, _)),
+    ) = get_non_special(map, "line-height")
+        && let Some(v) = resolve_css_length_for_style(value, style, length_context)
+    {
+        style.line_height_absolute = Some(v);
+        style.line_height = v / style.font_size;
+    }
+    sync_line_height_from_absolute(style);
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "display") {
         style.display = match k.as_str() {
@@ -3699,19 +3736,60 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // paths are untouched) and record the keyword for block layout to derive a
     // content-based width. `auto` and any other keyword leave the box as `auto`.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "width") {
-        let kw = match k.trim().to_ascii_lowercase().as_str() {
-            "min-content" => Some(IntrinsicWidthKeyword::MinContent),
-            "max-content" => Some(IntrinsicWidthKeyword::MaxContent),
-            "fit-content" => Some(IntrinsicWidthKeyword::FitContent),
-            _ => None,
-        };
-        if kw.is_some() {
-            style.width = None;
-            style.width_keyword = kw;
-            style.percentage_sizing.width = None;
-        } else if k.trim().eq_ignore_ascii_case("auto") {
+        if let Some(v) = resolve_raw_length_for_style(k, style, length_context) {
+            style.width = Some(v);
             style.width_keyword = None;
+            style.percentage_sizing.width = None;
+        } else {
+            let kw = match k.trim().to_ascii_lowercase().as_str() {
+                "min-content" => Some(IntrinsicWidthKeyword::MinContent),
+                "max-content" => Some(IntrinsicWidthKeyword::MaxContent),
+                "fit-content" => Some(IntrinsicWidthKeyword::FitContent),
+                _ => None,
+            };
+            if kw.is_some() {
+                style.width = None;
+                style.width_keyword = kw;
+                style.percentage_sizing.width = None;
+            } else if k.trim().eq_ignore_ascii_case("auto") {
+                style.width_keyword = None;
+            }
         }
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "height")
+        && let Some(v) = resolve_raw_length_for_style(k, style, length_context)
+    {
+        style.height = Some(v);
+        style.percentage_sizing.height = None;
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "max-width")
+        && let Some(v) = resolve_raw_length_for_style(k, style, length_context)
+    {
+        style.max_width = Some(v);
+        style.percentage_sizing.max_width = None;
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "min-width")
+        && let Some(v) = resolve_raw_length_for_style(k, style, length_context)
+    {
+        style.min_width = Some(v);
+        style.percentage_sizing.min_width = None;
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "min-height")
+        && let Some(v) = resolve_raw_length_for_style(k, style, length_context)
+    {
+        style.min_height = Some(v);
+        style.percentage_sizing.min_height = None;
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "max-height")
+        && let Some(v) = resolve_raw_length_for_style(k, style, length_context)
+    {
+        style.max_height = Some(v);
+        style.percentage_sizing.max_height = None;
     }
 
     if let Some(CssValue::Length(v)) = get_non_special(map, "height") {
@@ -3812,6 +3890,14 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.border.bottom.width = w;
         style.border.left.width = w;
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-width")
+        && let Some(widths) = parse_border_width_shorthand_values(k, style, length_context)
+    {
+        style.border.top.width = widths[0];
+        style.border.right.width = widths[1];
+        style.border.bottom.width = widths[2];
+        style.border.left.width = widths[3];
+    }
 
     if let Some(CssValue::Color(c)) = get_non_special(map, "border-color") {
         style.border.top.color = Some(*c);
@@ -3819,15 +3905,30 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.border.bottom.color = Some(*c);
         style.border.left.color = Some(*c);
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-color")
+        && let Some(colors) = parse_border_color_shorthand_values(k)
+    {
+        style.border.top.color = Some(colors[0]);
+        style.border.right.color = Some(colors[1]);
+        style.border.bottom.color = Some(colors[2]);
+        style.border.left.color = Some(colors[3]);
+    }
 
     // Uniform `border-style` keyword applies the same line style to all four
     // edges (e.g. `border-style: solid` paired with per-side `border-*-width`).
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-style") {
-        let bs = parse_border_style_keyword(k);
-        style.border.top.style = bs;
-        style.border.right.style = bs;
-        style.border.bottom.style = bs;
-        style.border.left.style = bs;
+        if let Some(styles) = parse_border_style_shorthand_values(k) {
+            style.border.top.style = styles[0];
+            style.border.right.style = styles[1];
+            style.border.bottom.style = styles[2];
+            style.border.left.style = styles[3];
+        } else {
+            let bs = parse_border_style_keyword(k);
+            style.border.top.style = bs;
+            style.border.right.style = bs;
+            style.border.bottom.style = bs;
+            style.border.left.style = bs;
+        }
     }
 
     // Per-side border longhands (`border-{side}-{width,style,color}`). These run
@@ -4748,6 +4849,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     ];
     for &(prop_name, setter) in inline_length_props {
         if let Some(val) = get_non_special(map, prop_name) {
+            if matches!(
+                (prop_name, val),
+                ("text-indent", CssValue::Percentage(_))
+                    | ("word-spacing", CssValue::Percentage(_))
+            ) {
+                continue;
+            }
             // For width/max-width/min-width percentages, only pre-resolve when
             // parent.width is actually known. Otherwise the value resolves
             // against viewport_width and produces an oversized result that
@@ -4759,6 +4867,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             }
             match val {
                 CssValue::Percentage(_)
+                | CssValue::Ex(_)
+                | CssValue::Ch(_)
                 | CssValue::Rem(_)
                 | CssValue::Vw(_)
                 | CssValue::Vh(_)
@@ -4767,17 +4877,27 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 | CssValue::Calc(_)
                 | CssValue::Clamp(_, _, _)
                 | CssValue::Var(_, _) => {
-                    if let Some(resolved) = crate::style::resolve::try_resolve_to_length_in_context(
-                        val,
-                        &style.custom_properties,
-                        length_context,
-                    ) {
+                    if let Some(resolved) = resolve_css_length_for_style(val, style, length_context)
+                    {
+                        setter(style, resolved);
+                    }
+                }
+                CssValue::Keyword(k) => {
+                    if let Some(resolved) = resolve_raw_length_for_style(k, style, length_context) {
                         setter(style, resolved);
                     }
                 }
                 _ => {}
             }
         }
+    }
+
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "text-indent") {
+        let basis = style.width.unwrap_or(length_context.parent_width);
+        style.text_indent = basis * *v / 100.0;
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "word-spacing") {
+        style.word_spacing = style.font_size * *v / 100.0;
     }
 
     if let Some(CssValue::Percentage(v)) = get_non_special(map, "width") {
@@ -7253,6 +7373,178 @@ fn resolve_border_width(val: Option<&CssValue>, font_size: f32) -> Option<f32> {
         CssValue::Rem(v) => Some(*v * font_size),
         _ => None,
     }
+}
+
+fn sync_line_height_from_absolute(style: &mut ComputedStyle) {
+    if let Some(absolute) = style.line_height_absolute
+        && style.font_size > 0.0
+    {
+        style.line_height = absolute / style.font_size;
+    }
+}
+
+fn style_length_context(
+    style: &ComputedStyle,
+    base: crate::style::resolve::LengthResolutionContext,
+) -> crate::style::resolve::LengthResolutionContext {
+    crate::style::resolve::LengthResolutionContext::new(
+        base.parent_width,
+        style.font_size,
+        style.root_font_size,
+        style.viewport_width,
+        style.viewport_height,
+    )
+}
+
+fn resolve_css_length_for_style(
+    val: &CssValue,
+    style: &ComputedStyle,
+    base: crate::style::resolve::LengthResolutionContext,
+) -> Option<f32> {
+    match val {
+        CssValue::Length(v) => Some(*v),
+        CssValue::Number(v) => Some(*v * style.font_size),
+        CssValue::Percentage(v) => Some(base.parent_width * *v / 100.0),
+        CssValue::Ex(v) => Some(*v * style.font_size * style_ex_length_ratio(style)),
+        CssValue::Ch(v) => Some(
+            *v * style.font_size * crate::style::font_ctx::style_ch_ratio(style).unwrap_or(0.5),
+        ),
+        CssValue::Rem(v) => Some(*v * style.root_font_size),
+        CssValue::Vw(v) => Some(style.viewport_width * *v / 100.0),
+        CssValue::Vh(v) => Some(style.viewport_height * *v / 100.0),
+        CssValue::Vmin(v) => Some(style.viewport_width.min(style.viewport_height) * *v / 100.0),
+        CssValue::Vmax(v) => Some(style.viewport_width.max(style.viewport_height) * *v / 100.0),
+        CssValue::Calc(_) | CssValue::Clamp(_, _, _) | CssValue::Var(_, _) => {
+            crate::style::resolve::try_resolve_to_length_in_context(
+                val,
+                &style.custom_properties,
+                style_length_context(style, base),
+            )
+        }
+        CssValue::Keyword(k) => resolve_raw_length_for_style(k, style, base),
+        _ => None,
+    }
+}
+
+fn resolve_raw_length_for_style(
+    raw: &str,
+    style: &ComputedStyle,
+    base: crate::style::resolve::LengthResolutionContext,
+) -> Option<f32> {
+    let lower = raw.trim().to_ascii_lowercase();
+    if let Some(number) = lower.strip_suffix("cap") {
+        return number
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|v| v * style.font_size * style_cap_height_ratio(style));
+    }
+    if let Some(number) = lower.strip_suffix("lh") {
+        return number
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|v| v * resolved_line_height_length(style));
+    }
+    parse_length(&lower).and_then(|parsed| match parsed {
+        CssValue::Keyword(_) => None,
+        _ => resolve_css_length_for_style(&parsed, style, base),
+    })
+}
+
+fn style_cap_height_ratio(_style: &ComputedStyle) -> f32 {
+    0.75
+}
+
+fn style_ex_length_ratio(style: &ComputedStyle) -> f32 {
+    crate::style::font_ctx::style_x_height_ratio(style)
+        .unwrap_or(0.5)
+        .max(0.5625)
+}
+
+fn resolved_line_height_length(style: &ComputedStyle) -> f32 {
+    if let Some(absolute) = style.line_height_absolute {
+        absolute
+    } else if style.line_height.is_nan() {
+        style.font_size * 1.2
+    } else {
+        style.font_size * style.line_height
+    }
+}
+
+fn split_css_whitespace(value: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut depth = 0usize;
+    for (index, ch) in value.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            c if c.is_whitespace() && depth == 0 => {
+                if start < index {
+                    parts.push(value[start..index].trim());
+                }
+                start = index + ch.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    if start < value.len() {
+        parts.push(value[start..].trim());
+    }
+    parts.into_iter().filter(|part| !part.is_empty()).collect()
+}
+
+fn expand_box_values<T: Copy>(values: &[T]) -> Option<[T; 4]> {
+    match values.len() {
+        1 => Some([values[0], values[0], values[0], values[0]]),
+        2 => Some([values[0], values[1], values[0], values[1]]),
+        3 => Some([values[0], values[1], values[2], values[1]]),
+        4 => Some([values[0], values[1], values[2], values[3]]),
+        _ => None,
+    }
+}
+
+fn parse_border_width_shorthand_values(
+    raw: &str,
+    style: &ComputedStyle,
+    base: crate::style::resolve::LengthResolutionContext,
+) -> Option<[f32; 4]> {
+    let values: Vec<f32> = split_css_whitespace(raw)
+        .into_iter()
+        .map(|part| parse_border_width_token(part, style, base))
+        .collect::<Option<Vec<_>>>()?;
+    expand_box_values(&values)
+}
+
+fn parse_border_width_token(
+    token: &str,
+    style: &ComputedStyle,
+    base: crate::style::resolve::LengthResolutionContext,
+) -> Option<f32> {
+    match token.trim().to_ascii_lowercase().as_str() {
+        "thin" => Some(0.75),
+        "medium" => Some(MEDIUM_RULE_WIDTH_PT),
+        "thick" => Some(3.75),
+        other => resolve_raw_length_for_style(other, style, base),
+    }
+}
+
+fn parse_border_color_shorthand_values(raw: &str) -> Option<[Color; 4]> {
+    let values: Vec<Color> = split_css_whitespace(raw)
+        .into_iter()
+        .map(parse_border_color)
+        .collect::<Option<Vec<_>>>()?;
+    expand_box_values(&values)
+}
+
+fn parse_border_style_shorthand_values(raw: &str) -> Option<[BorderStyle; 4]> {
+    let parts = split_css_whitespace(raw);
+    if parts.is_empty() || parts.len() > 4 {
+        return None;
+    }
+    let values: Vec<BorderStyle> = parts.into_iter().map(parse_border_style_keyword).collect();
+    expand_box_values(&values)
 }
 
 fn parse_border_shorthand(k: &str, font_size: f32) -> (f32, Option<Color>, BorderStyle) {
