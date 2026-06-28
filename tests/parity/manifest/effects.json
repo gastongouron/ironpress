@@ -113,7 +113,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ]
@@ -129,7 +129,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ]
@@ -145,7 +145,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"
@@ -162,7 +162,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"
@@ -179,7 +179,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"

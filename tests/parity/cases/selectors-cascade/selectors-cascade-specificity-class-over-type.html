@@ -11,11 +11,13 @@
   /* type selector div sets gray; class .pick (higher specificity) sets green
      on only the second box even though it is declared earlier. */
   .pick { background: #2e9e4f; }
-  div.box {
+  .box {
     width: 100px;
     height: 100px;
     border: 2px solid #11324f;
     display: inline-block;
+  }
+  div {
     background: #bdbdbd;
   }
 </style>

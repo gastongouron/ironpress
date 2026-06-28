@@ -7,7 +7,7 @@
     "description": "position:static box ignores top/left offsets and stays in normal flow.",
     "file": "cases/positioning/positioning-position-static.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

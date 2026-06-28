@@ -141,7 +141,7 @@
     "file": "cases/lists-counters/list-style-image-data-uri.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",
@@ -218,7 +218,7 @@
     "file": "cases/lists-counters/counters-nested.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",

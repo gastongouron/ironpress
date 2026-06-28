@@ -982,7 +982,7 @@
   "selectors-cascade-root-element": "ca56b8b09a880f38f37b0d1f33b7cbfb532a8dfd76f97169378b61782d2b263f",
   "selectors-cascade-scope-root": "65493f4f2aaf6f2ef1754fdae4660da188c79435bd075eb26e35644acc4ac73c",
   "selectors-cascade-source-order-tiebreak": "b4fc0a2ca51856b389ab8f14ae1cd51990f3e3892c19afe5b13bde2e630012ba",
-  "selectors-cascade-specificity-class-over-type": "8c18539acb34e1290b65fe65e8cccb5161e2920d611ba33072e3d8630c9fdbec",
+  "selectors-cascade-specificity-class-over-type": "12f80e174a372136bebd66ebd141981862263085c09ad92de0476c6e38dd1417",
   "selectors-cascade-specificity-id-before-class": "58148f1cb888074c050d79231256bb25b120eff3798e4bef08f2938ddcfb7a5c",
   "selectors-cascade-specificity-id-over-class": "cd18ab5ed9c448c1190b7f77deb482f0023c46e3003aaeffb04a2e57b4abbaa3",
   "selectors-cascade-supports-boolean-logic": "e5d88b2188dee473591289bf4a3a12b1c23da3147cb1f616773aac91b9420d0e",

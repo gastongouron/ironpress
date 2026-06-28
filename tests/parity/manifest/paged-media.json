@@ -109,7 +109,7 @@
     "file": "cases/paged-media/paged-page-counter-content.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],
